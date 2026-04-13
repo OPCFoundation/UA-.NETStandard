@@ -238,7 +238,7 @@ namespace Opc.Ua.Client
         /// Browses the specified node.
         /// </summary>
         [Obsolete("Use BrowseAsync(NodeId) instead.")]
-        public ReferenceDescriptionCollection Browse(NodeId nodeId)
+        public ArrayOf<ReferenceDescription> Browse(NodeId nodeId)
         {
             return BrowseAsync(nodeId).AsTask().GetAwaiter().GetResult();
         }
@@ -247,7 +247,7 @@ namespace Opc.Ua.Client
         /// Browses the specified node.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async ValueTask<ReferenceDescriptionCollection> BrowseAsync(
+        public async ValueTask<ArrayOf<ReferenceDescription>> BrowseAsync(
             NodeId nodeId,
             CancellationToken ct = default)
         {
@@ -268,7 +268,7 @@ namespace Opc.Ua.Client
                 ResultMask = state.ResultMask
             };
 
-            var nodesToBrowse = new BrowseDescriptionCollection { nodeToBrowse };
+            ArrayOf<BrowseDescription> nodesToBrowse = [nodeToBrowse];
 
             // make the call to the server.
             BrowseResponse browseResponse = await session.BrowseAsync(
@@ -278,8 +278,8 @@ namespace Opc.Ua.Client
                 nodesToBrowse,
                 ct).ConfigureAwait(false);
 
-            BrowseResultCollection results = browseResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = browseResponse.DiagnosticInfos;
+            ArrayOf<BrowseResult> results = browseResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = browseResponse.DiagnosticInfos;
             ResponseHeader responseHeader = browseResponse.ResponseHeader;
 
             // ensure that the server returned valid results.
@@ -297,15 +297,15 @@ namespace Opc.Ua.Client
             }
 
             // fetch initial set of references.
-            byte[]? continuationPoint = results[0].ContinuationPoint;
-            ReferenceDescriptionCollection references = results[0].References;
+            ByteString continuationPoint = results[0].ContinuationPoint;
+            ArrayOf<ReferenceDescription> references = results[0].References;
 
             try
             {
                 // process any continuation point.
-                while (continuationPoint != null)
+                while (!continuationPoint.IsEmpty)
                 {
-                    ReferenceDescriptionCollection additionalReferences;
+                    ArrayOf<ReferenceDescription> additionalReferences;
 
                     if (!ContinueUntilDone && m_MoreReferences != null)
                     {
@@ -340,9 +340,9 @@ namespace Opc.Ua.Client
                         continuationPoint,
                         false,
                         ct).ConfigureAwait(false);
-                    if (additionalReferences != null && additionalReferences.Count > 0)
+                    if (!additionalReferences.IsEmpty)
                     {
-                        references.AddRange(additionalReferences);
+                        references = references.AddItems(additionalReferences);
                     }
                     else
                     {
@@ -352,7 +352,7 @@ namespace Opc.Ua.Client
                     }
                 }
             }
-            catch (OperationCanceledException) when (continuationPoint?.Length > 0)
+            catch (OperationCanceledException) when (!continuationPoint.IsEmpty)
             {
                 session = Session;
                 if (session != null)
@@ -397,8 +397,8 @@ namespace Opc.Ua.Client
         /// <param name="ct">Cancellation token to use</param>
         /// <returns></returns>
         /// <exception cref="ServiceResultException"></exception>
-        public async ValueTask<ResultSet<ReferenceDescriptionCollection>> BrowseAsync(
-            IReadOnlyList<NodeId> nodesToBrowse,
+        public async ValueTask<ResultSet<ArrayOf<ReferenceDescription>>> BrowseAsync(
+            ArrayOf<NodeId> nodesToBrowse,
             CancellationToken ct = default)
         {
             BrowserOptions state = State;
@@ -408,7 +408,7 @@ namespace Opc.Ua.Client
                     "Cannot browse if not connected to a server.");
 
             int count = nodesToBrowse.Count;
-            var result = new List<ReferenceDescriptionCollection>(count);
+            var result = new List<List<ReferenceDescription>>(count);
             var errors = new List<ServiceResult>(count);
 
             // first attempt for implementation: create the references for the output in advance.
@@ -423,7 +423,7 @@ namespace Opc.Ua.Client
             var nodesToBrowseForPass = new List<NodeId>(count);
             nodesToBrowseForPass.AddRange(nodesToBrowse);
 
-            var resultForPass = new List<ReferenceDescriptionCollection>(count);
+            var resultForPass = new List<List<ReferenceDescription>>(count);
             resultForPass.AddRange(result);
 
             var errorsForPass = new List<ServiceResult>(count);
@@ -452,16 +452,16 @@ namespace Opc.Ua.Client
 
                 var nodesToBrowseForNextPass = new List<NodeId>();
                 var referenceDescriptionsForNextPass
-                    = new List<ReferenceDescriptionCollection>();
+                    = new List<List<ReferenceDescription>>();
                 var errorsForNextPass = new List<ServiceResult>();
 
                 // loop over the batches
-                foreach (List<NodeId> nodesToBrowseBatch in nodesToBrowseForPass
-                    .Batch<NodeId, List<NodeId>>(maxNodesPerBrowse))
+                foreach (ArrayOf<NodeId> nodesToBrowseBatch in
+                    nodesToBrowseForPass.ToArrayOf().Batch((int)maxNodesPerBrowse))
                 {
                     int nodesToBrowseBatchCount = nodesToBrowseBatch.Count;
 
-                    ResultSet<ReferenceDescriptionCollection> results = await BrowseAsync(
+                    ResultSet<ArrayOf<ReferenceDescription>> results = await BrowseAsync(
                         session,
                         state.RequestHeader,
                         state.View,
@@ -553,7 +553,7 @@ namespace Opc.Ua.Client
 
                 passCount++;
             } while (nodesToBrowseForPass.Count > 0);
-            return new ResultSet<ReferenceDescriptionCollection>(result, errors);
+            return ResultSet.From(result.ConvertAll(l => (ArrayOf<ReferenceDescription>)l), errors);
         }
 
         /// <summary>
@@ -562,11 +562,11 @@ namespace Opc.Ua.Client
         /// of specific service results, specifically
         /// BadNoContinuationPoint and BadContinuationPointInvalid
         /// </summary>
-        private static async ValueTask<ResultSet<ReferenceDescriptionCollection>> BrowseAsync(
+        private static async ValueTask<ResultSet<ArrayOf<ReferenceDescription>>> BrowseAsync(
             ISessionClient session,
             RequestHeader? requestHeader,
             ViewDescription? view,
-            List<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             uint maxResultsToReturn,
             BrowseDirection browseDirection,
             NodeId referenceTypeId,
@@ -575,13 +575,11 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             requestHeader?.RequestHandle = 0;
-
-            var result = new List<ReferenceDescriptionCollection>(nodeIds.Count);
             (
                 _,
-                ByteStringCollection continuationPoints,
-                IList<ReferenceDescriptionCollection> referenceDescriptions,
-                IList<ServiceResult> errors
+                ArrayOf<ByteString> continuationPoints,
+                ArrayOf<ArrayOf<ReferenceDescription>> referenceDescriptions,
+                ArrayOf<ServiceResult> errors
             ) = await session.BrowseAsync(
                     requestHeader,
                     view,
@@ -594,10 +592,11 @@ namespace Opc.Ua.Client
                     ct)
                 .ConfigureAwait(false);
 
-            result.AddRange(referenceDescriptions);
+            var result = new List<List<ReferenceDescription>>(nodeIds.Count);
+            result.AddRange(referenceDescriptions.ConvertAll(l => l.ToList()).ToList());
 
             // process any continuation point.
-            List<ReferenceDescriptionCollection> previousResults = result;
+            List<List<ReferenceDescription>> previousResults = [.. result];
             var errorAnchors = new List<ReferenceWrapper<ServiceResult>>();
             var previousErrors = new List<ReferenceWrapper<ServiceResult>>();
             foreach (ServiceResult error in errors)
@@ -606,13 +605,13 @@ namespace Opc.Ua.Client
                 errorAnchors.Add(previousErrors[^1]);
             }
 
-            var nextContinuationPoints = new ByteStringCollection();
-            var nextResults = new List<ReferenceDescriptionCollection>();
+            var nextContinuationPoints = new List<ByteString>();
+            var nextResults = new List<List<ReferenceDescription>>();
             var nextErrors = new List<ReferenceWrapper<ServiceResult>>();
 
             for (int ii = 0; ii < nodeIds.Count; ii++)
             {
-                if (continuationPoints[ii] != null &&
+                if (!continuationPoints[ii].IsEmpty &&
                     !StatusCode.IsBad(previousErrors[ii].Reference.StatusCode))
                 {
                     nextContinuationPoints.Add(continuationPoints[ii]);
@@ -625,9 +624,9 @@ namespace Opc.Ua.Client
                 requestHeader?.RequestHandle = 0;
                 (
                     _,
-                    ByteStringCollection revisedContinuationPoints,
-                    IList<ReferenceDescriptionCollection> browseNextResults,
-                    IList<ServiceResult> browseNextErrors
+                    ArrayOf<ByteString> revisedContinuationPoints,
+                    ArrayOf<ArrayOf<ReferenceDescription>> browseNextResults,
+                    ArrayOf<ServiceResult> browseNextErrors
                 ) = await session.BrowseNextAsync(
                     requestHeader,
                     nextContinuationPoints,
@@ -649,7 +648,7 @@ namespace Opc.Ua.Client
 
                 for (int ii = 0; ii < revisedContinuationPoints.Count; ii++)
                 {
-                    if (revisedContinuationPoints[ii] != null &&
+                    if (!revisedContinuationPoints[ii].IsEmpty &&
                         !StatusCode.IsBad(browseNextErrors[ii].StatusCode))
                     {
                         nextContinuationPoints.Add(revisedContinuationPoints[ii]);
@@ -664,7 +663,7 @@ namespace Opc.Ua.Client
                 finalErrors.Add(errorReference.Reference);
             }
 
-            return new ResultSet<ReferenceDescriptionCollection>(result, finalErrors);
+            return ResultSet.From(result.ConvertAll(l => (ArrayOf<ReferenceDescription>)l), finalErrors);
         }
 
         /// <summary>
@@ -676,13 +675,13 @@ namespace Opc.Ua.Client
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The next batch of references</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private static async ValueTask<(ReferenceDescriptionCollection, byte[]?)> BrowseNextAsync(
+        private static async ValueTask<(ArrayOf<ReferenceDescription>, ByteString)> BrowseNextAsync(
             ISessionClient session,
-            byte[] continuationPoint,
+            ByteString continuationPoint,
             bool cancel,
             CancellationToken ct = default)
         {
-            var continuationPoints = new ByteStringCollection { continuationPoint };
+            ArrayOf<ByteString> continuationPoints = [continuationPoint];
 
             // make the call to the server.
             BrowseNextResponse browseResponse = await session.BrowseNextAsync(
@@ -692,8 +691,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            BrowseResultCollection results = browseResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = browseResponse.DiagnosticInfos;
+            ArrayOf<BrowseResult> results = browseResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = browseResponse.DiagnosticInfos;
             ResponseHeader responseHeader = browseResponse.ResponseHeader;
 
             // ensure that the server returned valid results.
@@ -765,7 +764,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal BrowserEventArgs(ReferenceDescriptionCollection references)
+        internal BrowserEventArgs(ArrayOf<ReferenceDescription> references)
         {
             References = references;
         }
@@ -783,7 +782,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The references that have been fetched so far.
         /// </summary>
-        public ReferenceDescriptionCollection References { get; }
+        public ArrayOf<ReferenceDescription> References { get; }
     }
 
     /// <summary>

@@ -153,7 +153,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 }
 
                 // Create the UA Publisher application using configuration file
-                using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
+                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
                 {
                     // Start values simulator
                     var valuesSimulator = new PublishedValuesWrites(uaPubSubApplication, telemetry);
@@ -273,7 +273,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             };
 
             dataSetWriter1.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
-            writerGroup1.DataSetWriters.Add(dataSetWriter1);
+            writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter1);
 
             // Define DataSetWriter 'AllTypes'
             var dataSetWriter2 = new DataSetWriterDataType
@@ -295,9 +295,8 @@ namespace Quickstarts.ConsoleReferencePublisher
             };
 
             dataSetWriter2.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
-            writerGroup1.DataSetWriters.Add(dataSetWriter2);
-
-            pubSubConnection1.WriterGroups.Add(writerGroup1);
+            writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter2);
+            pubSubConnection1.WriterGroups = pubSubConnection1.WriterGroups.AddItem(writerGroup1);
 
             //  Define PublishedDataSet Simple
             PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple();
@@ -404,7 +403,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             };
             dataSetWriter1.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
 
-            writerGroup1.DataSetWriters.Add(dataSetWriter1);
+            writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter1);
 
             // Define DataSetWriter 'Simple' - Variant encoding
             var dataSetWriter2 = new DataSetWriterDataType
@@ -438,9 +437,8 @@ namespace Quickstarts.ConsoleReferencePublisher
             };
             dataSetWriter2.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
 
-            writerGroup1.DataSetWriters.Add(dataSetWriter2);
-
-            pubSubConnection1.WriterGroups.Add(writerGroup1);
+            writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter2);
+            pubSubConnection1.WriterGroups = pubSubConnection1.WriterGroups.AddItem(writerGroup1);
 
             // Define PublishedDataSet Simple
             PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple();
@@ -550,7 +548,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             };
             dataSetWriter1.TransportSettings = new ExtensionObject(uadpDataSetWriterTransport);
 
-            writerGroup1.DataSetWriters.Add(dataSetWriter1);
+            writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter1);
 
             // Define DataSetWriter 'AllTypes'
             var dataSetWriter2 = new DataSetWriterDataType
@@ -576,9 +574,9 @@ namespace Quickstarts.ConsoleReferencePublisher
             dataSetWriter2.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
 
             dataSetWriter2.TransportSettings = new ExtensionObject(uadpDataSetWriterTransport);
-            writerGroup1.DataSetWriters.Add(dataSetWriter2);
+            writerGroup1.DataSetWriters = writerGroup1.DataSetWriters.AddItem(dataSetWriter2);
 
-            pubSubConnection1.WriterGroups.Add(writerGroup1);
+            pubSubConnection1.WriterGroups = pubSubConnection1.WriterGroups.AddItem(writerGroup1);
 
             //  Define PublishedDataSet Simple
             PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple();
@@ -662,7 +660,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             //create PublishedData based on metadata names
             foreach (FieldMetaData field in publishedDataSetSimple.DataSetMetaData.Fields)
             {
-                publishedDataSetSimpleSource.PublishedData.Add(
+                publishedDataSetSimpleSource.PublishedData = publishedDataSetSimpleSource.PublishedData.AddItem(
                     new PublishedVariableDataType
                     {
                         PublishedVariable = new NodeId(
@@ -832,7 +830,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             //create PublishedData based on metadata names
             foreach (FieldMetaData field in publishedDataSetAllTypes.DataSetMetaData.Fields)
             {
-                publishedDataSetAllTypesSource.PublishedData.Add(
+                publishedDataSetAllTypesSource.PublishedData = publishedDataSetAllTypesSource.PublishedData.AddItem(
                     new PublishedVariableDataType
                     {
                         PublishedVariable = new NodeId(

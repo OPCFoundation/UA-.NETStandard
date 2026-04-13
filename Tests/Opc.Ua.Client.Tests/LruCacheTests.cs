@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -35,7 +34,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -47,11 +46,11 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<INode> result = await nodeCache.GetNodesAsync([id], default)
+            ArrayOf<INode> result = await nodeCache.GetNodesAsync([id], default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result.Count);
+            Assert.That(result.Count, Is.EqualTo(1));
             context.Verify();
         }
 
@@ -85,7 +84,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(BuiltInType.Null, result);
+            Assert.That(result, Is.EqualTo(BuiltInType.Null));
             context.Verify();
         }
 
@@ -104,7 +103,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(BuiltInType.Int32, result);
+            Assert.That(result, Is.EqualTo(BuiltInType.Int32));
         }
 
         [Test]
@@ -117,11 +116,11 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<INode> result = await nodeCache.GetNodesAsync([], default)
+            ArrayOf<INode> result = await nodeCache.GetNodesAsync([], default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.IsEmpty(result);
+            Assert.That(result.IsEmpty, Is.True);
         }
 
         [Test]
@@ -149,9 +148,9 @@ namespace Opc.Ua.Client.Tests
             INode result = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             result = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
@@ -180,11 +179,11 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             INode result = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             result = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             result = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
@@ -209,11 +208,11 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Exactly(3));
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
-            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
-            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
-            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
             context.Verify();
         }
@@ -225,7 +224,7 @@ namespace Opc.Ua.Client.Tests
 
             // Arrange
             var id = new NodeId("test", 0);
-            var browsePath = new QualifiedNameCollection { QualifiedName.From("invalid") };
+            ArrayOf<QualifiedName> browsePath = [QualifiedName.From("invalid")];
             var context = new Mock<INodeCacheContext>();
 
             context
@@ -249,7 +248,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.Null(result);
+            Assert.That(result, Is.Null);
             context.Verify();
         }
 
@@ -266,7 +265,7 @@ namespace Opc.Ua.Client.Tests
                 NodeId = id,
                 NodeClass = NodeClass.Variable
             };
-            var browsePath = new QualifiedNameCollection { QualifiedName.From("child") };
+            ArrayOf<QualifiedName> browsePath = [QualifiedName.From("child")];
             var references = new List<ReferenceDescription>
             {
                 new()
@@ -298,7 +297,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == id),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == id),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -315,14 +314,14 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
 
             // Act
             result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
@@ -335,11 +334,11 @@ namespace Opc.Ua.Client.Tests
             var rootId = new NodeId("root", 0);
             var childId = new NodeId("child", 0);
             var grandChildId = new NodeId("grandChild", 0);
-            var browsePath = new QualifiedNameCollection
-            {
+            ArrayOf<QualifiedName> browsePath =
+            [
                 new QualifiedName("child"),
                 new QualifiedName("grandChild")
-            };
+            ];
 
             var rootReferences = new List<ReferenceDescription>
             {
@@ -402,7 +401,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == childId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == childId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -414,7 +413,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == grandChildId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == grandChildId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -432,14 +431,14 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
 
             // Act
             result = await nodeCache.GetNodeWithBrowsePathAsync(rootId, browsePath, default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
@@ -453,12 +452,12 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<INode> result = await nodeCache
+            ArrayOf<INode> result = await nodeCache
                 .GetReferencesAsync([], [], false, false, default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.IsEmpty(result);
+            Assert.That(result.IsEmpty, Is.True);
         }
 
         [Test]
@@ -495,7 +494,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -515,16 +514,16 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<INode> result1 = await nodeCache
+            ArrayOf<INode> result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, false, default)
                 .ConfigureAwait(false);
-            IReadOnlyList<INode> result2 = await nodeCache
+            ArrayOf<INode> result2 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, false, false, default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result1.Count);
-            Assert.IsEmpty(result2);
+            Assert.That(result1.Count, Is.EqualTo(1));
+            Assert.That(result2.IsEmpty, Is.True);
             // Act
             result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, false, default)
@@ -534,8 +533,8 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result1.Count);
-            Assert.IsEmpty(result2);
+            Assert.That(result1.Count, Is.EqualTo(1));
+            Assert.That(result2.IsEmpty, Is.True);
             context.Verify();
         }
 
@@ -582,7 +581,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == referenceSubTypeId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == referenceSubTypeId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -624,7 +623,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -644,16 +643,16 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<INode> result1 = await nodeCache
+            ArrayOf<INode> result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, true, default)
                 .ConfigureAwait(false);
-            IReadOnlyList<INode> result2 = await nodeCache
+            ArrayOf<INode> result2 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, false, true, default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result1.Count);
-            Assert.IsEmpty(result2);
+            Assert.That(result1.Count, Is.EqualTo(1));
+            Assert.That(result2.IsEmpty, Is.True);
             // Act
             result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, true, default)
@@ -663,8 +662,8 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result1.Count);
-            Assert.IsEmpty(result2);
+            Assert.That(result1.Count, Is.EqualTo(1));
+            Assert.That(result2.IsEmpty, Is.True);
             context.Verify();
         }
 
@@ -709,7 +708,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -729,16 +728,16 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<INode> result1 = await nodeCache
+            ArrayOf<INode> result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, true, default)
                 .ConfigureAwait(false);
-            IReadOnlyList<INode> result2 = await nodeCache
+            ArrayOf<INode> result2 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, false, true, default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result1.Count);
-            Assert.IsEmpty(result2);
+            Assert.That(result1.Count, Is.EqualTo(1));
+            Assert.That(result2.IsEmpty, Is.True);
             // Act
             result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, true, default)
@@ -748,8 +747,8 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(1, result1.Count);
-            Assert.IsEmpty(result2);
+            Assert.That(result1.Count, Is.EqualTo(1));
+            Assert.That(result2.IsEmpty, Is.True);
             context.Verify();
         }
 
@@ -776,7 +775,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(NodeId.Null, result);
+            Assert.That(result, Is.EqualTo(NodeId.Null));
             context.Verify();
         }
 
@@ -816,12 +815,12 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(superTypeId, result);
+            Assert.That(result, Is.EqualTo(superTypeId));
 
             // Act
             result = await nodeCache.GetSuperTypeAsync(subTypeId, default).ConfigureAwait(false);
             // Assert
-            Assert.AreEqual(superTypeId, result);
+            Assert.That(result, Is.EqualTo(superTypeId));
 
             context.Verify();
         }
@@ -845,7 +844,7 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act && Assert
-            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetValueAsync(id, default).ConfigureAwait(false));
             context.Verify();
         }
@@ -873,9 +872,9 @@ namespace Opc.Ua.Client.Tests
             DataValue result = await nodeCache.GetValueAsync(id, default).ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             result = await nodeCache.GetValueAsync(id, default).ConfigureAwait(false);
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
@@ -885,13 +884,13 @@ namespace Opc.Ua.Client.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var ids = new List<NodeId> { new("test1", 0), new("test2", 0) };
+            ArrayOf<NodeId> ids = [new("test1", 0), new("test2", 0)];
             var context = new Mock<INodeCacheContext>();
 
             context
                 .Setup(c => c.FetchValuesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                         It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<DataValue>
                 {
@@ -902,13 +901,13 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
+            ArrayOf<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(2, result.Count);
-            Assert.AreEqual(StatusCodes.BadUnexpectedError, (uint)result[0].StatusCode);
-            Assert.AreEqual(StatusCodes.Good, (uint)result[1].StatusCode);
+            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That((uint)result[0].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That((uint)result[1].StatusCode, Is.EqualTo(StatusCodes.Good));
             context.Verify();
         }
 
@@ -918,18 +917,18 @@ namespace Opc.Ua.Client.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var expected = new List<DataValue>
-            {
+            ArrayOf<DataValue> expected =
+            [
                 new(new Variant(123), StatusCodes.Good, DateTime.UtcNow),
                 new(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
-            };
-            var ids = new List<NodeId> { new("test1", 0), new("test2", 0) };
+            ];
+            ArrayOf<NodeId> ids = [new("test1", 0), new("test2", 0)];
             var context = new Mock<INodeCacheContext>();
 
             context
                 .Setup(c => c.FetchValuesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(i => i.ToHashSet().SetEquals(ids)),
+                    It.Is<ArrayOf<NodeId>>(i => i.ToList().ToHashSet().SetEquals(ids.ToList().ToHashSet())),
                         It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<DataValue>
                 {
@@ -940,14 +939,14 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
+            ArrayOf<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
 
             result = await nodeCache.GetValuesAsync(ids, default).ConfigureAwait(false);
-            Assert.AreEqual(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
@@ -957,18 +956,18 @@ namespace Opc.Ua.Client.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var expected = new List<DataValue>
-            {
+            ArrayOf<DataValue> expected =
+            [
                 new(new Variant(123), StatusCodes.Good, DateTime.UtcNow),
                 new(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
-            };
-            var ids = new List<NodeId> { new("test1", 0), new("test2", 0) };
+            ];
+            ArrayOf<NodeId> ids = [new("test1", 0), new("test2", 0)];
             var context = new Mock<INodeCacheContext>();
 
             context
                 .Setup(c => c.FetchValuesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(i => i.ToHashSet().SetEquals(ids)),
+                    It.Is<ArrayOf<NodeId>>(i => i.ToList().ToHashSet().SetEquals(ids.ToList().ToHashSet())),
                         It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<DataValue>
                 {
@@ -979,18 +978,18 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
+            ArrayOf<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(expected[0], result[0]);
-            Assert.AreEqual(StatusCodes.Bad, (uint)result[1].StatusCode);
-            Assert.AreEqual(expected[1].Value, result[1].Value);
+            Assert.That(result[0], Is.EqualTo(expected[0]));
+            Assert.That((uint)result[1].StatusCode, Is.EqualTo(StatusCodes.Bad));
+            Assert.That(result[1].WrappedValue, Is.EqualTo(expected[1].WrappedValue));
 
             context
                 .Setup(c => c.FetchValuesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(i => i.Count == 1 && i[0] == ids[1]),
+                    It.Is<ArrayOf<NodeId>>(i => i.Count == 1 && i[0] == ids[1]),
                         It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<DataValue>
                 {
@@ -1032,7 +1031,7 @@ namespace Opc.Ua.Client.Tests
             bool result = nodeCache.IsTypeOf(subTypeId, superTypeId);
 
             // Assert
-            Assert.False(result);
+            Assert.That(result, Is.False);
             context.Verify();
         }
 
@@ -1071,13 +1070,13 @@ namespace Opc.Ua.Client.Tests
             bool result = nodeCache.IsTypeOf(subTypeId, superTypeId);
 
             // Assert
-            Assert.True(result);
+            Assert.That(result, Is.True);
 
             // Act
             result = nodeCache.IsTypeOf(subTypeId, superTypeId);
 
             // Assert
-            Assert.True(result);
+            Assert.That(result, Is.True);
             context.Verify();
         }
 
@@ -1113,15 +1112,15 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var typeId = new NodeId("type", 0);
             var subTypeId = new NodeId("subType", 0);
-            var references = new ReferenceDescriptionCollection
-            {
+            ArrayOf<ReferenceDescription> references =
+            [
                 new()
                 {
                     NodeId = new ExpandedNodeId(subTypeId),
                     ReferenceTypeId = ReferenceTypeIds.HasSubtype,
                     IsForward = true
                 }
-            };
+            ];
 
             var context = new Mock<INodeCacheContext>();
             var nsTable = new NamespaceTable();
@@ -1143,7 +1142,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == subTypeId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == subTypeId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>

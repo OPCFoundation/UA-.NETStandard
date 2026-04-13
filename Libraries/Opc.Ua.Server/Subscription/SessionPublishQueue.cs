@@ -108,7 +108,7 @@ namespace Opc.Ua.Server
             }
 
             QueuedSubscription subscriptionToPublish;
-            lock (m_subscriptionPublishLock)
+            lock (m_lock)
             {
                 // find the waiting subscription with the highest priority.
                 subscriptionToPublish = GetSubscriptionToPublish();
@@ -117,10 +117,7 @@ namespace Opc.Ua.Server
                 {
                     return Task.FromResult(subscriptionToPublish.Subscription);
                 }
-            }
 
-            lock (m_lock)
-            {
                 // check if queue is full.
                 if (m_queuedRequests.Count >= m_maxRequestCount)
                 {
@@ -150,6 +147,8 @@ namespace Opc.Ua.Server
         /// <returns>The list of subscriptions in the queue.</returns>
         public IList<ISubscription> Close()
         {
+            var subscriptions = new List<ISubscription>();
+
             lock (m_lock)
             {
                 // TraceState("SESSION CLOSED");
@@ -164,19 +163,21 @@ namespace Opc.Ua.Server
                 }
 
                 // tell the subscriptions that the session is closed.
-                var subscriptions = new List<ISubscription>(m_queuedSubscriptions.Count);
-
                 foreach (KeyValuePair<uint, QueuedSubscription> entry in m_queuedSubscriptions)
                 {
                     subscriptions.Add(entry.Value.Subscription);
-                    entry.Value.Subscription.SessionClosed();
                 }
 
                 // clear the queue.
                 m_queuedSubscriptions.Clear();
-
-                return subscriptions;
             }
+
+            foreach (ISubscription subscription in subscriptions)
+            {
+                subscription.SessionClosed();
+            }
+
+            return subscriptions;
         }
 
         /// <summary>
@@ -288,24 +289,18 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void Acknowledge(
             OperationContext context,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            out StatusCodeCollection acknowledgeResults,
-            out DiagnosticInfoCollection acknowledgeDiagnosticInfos)
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
+            out ArrayOf<StatusCode> acknowledgeResults,
+            out ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos)
         {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
 
-            if (subscriptionAcknowledgements == null)
-            {
-                throw new ArgumentNullException(nameof(subscriptionAcknowledgements));
-            }
-
             bool diagnosticsExist = false;
-            acknowledgeResults = new StatusCodeCollection(subscriptionAcknowledgements.Count);
-            acknowledgeDiagnosticInfos = new DiagnosticInfoCollection(
-                subscriptionAcknowledgements.Count);
+            var acknowledgeResultList = new List<StatusCode>(subscriptionAcknowledgements.Count);
+            var acknowledgeDiagnosticInfoList = new List<DiagnosticInfo>(subscriptionAcknowledgements.Count);
 
             for (int ii = 0; ii < subscriptionAcknowledgements.Count; ii++)
             {
@@ -319,16 +314,16 @@ namespace Opc.Ua.Server
 
                     if (ServiceResult.IsGood(result))
                     {
-                        acknowledgeResults.Add(StatusCodes.Good);
+                        acknowledgeResultList.Add(StatusCodes.Good);
 
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
-                            acknowledgeDiagnosticInfos.Add(null);
+                            acknowledgeDiagnosticInfoList.Add(null);
                         }
                     }
                     else
                     {
-                        acknowledgeResults.Add(result.Code);
+                        acknowledgeResultList.Add(result.Code);
 
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
@@ -338,7 +333,7 @@ namespace Opc.Ua.Server
                                     context,
                                     result,
                                     m_logger);
-                            acknowledgeDiagnosticInfos.Add(diagnosticInfo);
+                            acknowledgeDiagnosticInfoList.Add(diagnosticInfo);
                             diagnosticsExist = true;
                         }
                     }
@@ -346,7 +341,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     var result = new ServiceResult(StatusCodes.BadSubscriptionIdInvalid);
-                    acknowledgeResults.Add(result.Code);
+                    acknowledgeResultList.Add(result.Code);
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
@@ -355,7 +350,7 @@ namespace Opc.Ua.Server
                             context,
                             result,
                             m_logger);
-                        acknowledgeDiagnosticInfos.Add(diagnosticInfo);
+                        acknowledgeDiagnosticInfoList.Add(diagnosticInfo);
                         diagnosticsExist = true;
                     }
                 }
@@ -363,8 +358,10 @@ namespace Opc.Ua.Server
 
             if (!diagnosticsExist)
             {
-                acknowledgeDiagnosticInfos.Clear();
+                acknowledgeDiagnosticInfoList.Clear();
             }
+            acknowledgeResults = acknowledgeResultList;
+            acknowledgeDiagnosticInfos = acknowledgeDiagnosticInfoList;
         }
 
         /// <summary>
@@ -375,19 +372,19 @@ namespace Opc.Ua.Server
             if (m_queuedSubscriptions.TryGetValue(subscription.Id,
                 out QueuedSubscription queuedSubscription))
             {
-                queuedSubscription.Publishing = false;
-
-                if (moreNotifications)
+                lock (m_lock)
                 {
-                    lock (m_subscriptionPublishLock)
+                    queuedSubscription.Publishing = false;
+
+                    if (moreNotifications)
                     {
                         AssignSubscriptionToRequest(queuedSubscription);
                     }
-                }
-                else
-                {
-                    queuedSubscription.ReadyToPublish = false;
-                    queuedSubscription.Timestamp = DateTime.UtcNow;
+                    else
+                    {
+                        queuedSubscription.ReadyToPublish = false;
+                        queuedSubscription.Timestamp = DateTime.UtcNow;
+                    }
                 }
             }
         }
@@ -399,8 +396,11 @@ namespace Opc.Ua.Server
         {
             if (m_queuedSubscriptions.TryGetValue(subscription.Id, out QueuedSubscription queuedSubscription))
             {
-                queuedSubscription.Publishing = false;
-                queuedSubscription.ReadyToPublish = true;
+                lock (m_lock)
+                {
+                    queuedSubscription.Publishing = false;
+                    queuedSubscription.ReadyToPublish = true;
+                }
             }
         }
 
@@ -443,9 +443,12 @@ namespace Opc.Ua.Server
                 // assign subscription to request if one is available.
                 if (!subscription.Publishing)
                 {
-                    lock (m_subscriptionPublishLock)
+                    lock (m_lock)
                     {
-                        AssignSubscriptionToRequest(subscription);
+                        if (!subscription.Publishing)
+                        {
+                            AssignSubscriptionToRequest(subscription);
+                        }
                     }
                 }
             }
@@ -663,7 +666,6 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
-        private readonly Lock m_subscriptionPublishLock = new();
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly ISession m_session;

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -67,8 +66,8 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2? clientCertificate = null,
             X509Certificate2Collection? clientCertificateChain = null,
-            EndpointDescriptionCollection? availableEndpoints = null,
-            StringCollection? discoveryProfileUris = null);
+            ArrayOf<EndpointDescription> availableEndpoints = default,
+            ArrayOf<string> discoveryProfileUris = default);
 
         /// <summary>
         /// Creates a new communication session with a server by invoking the CreateSession service
@@ -90,7 +89,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity? identity,
-            IList<string>? preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default);
 
         /// <summary>
@@ -117,7 +116,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity? identity,
-            IList<string>? preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default);
 
         /// <summary>
@@ -165,7 +164,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity? identity,
-            IList<string>? preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default);
 
         /// <summary>
@@ -194,7 +193,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity? userIdentity,
-            IList<string>? preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default);
 
         /// <summary>

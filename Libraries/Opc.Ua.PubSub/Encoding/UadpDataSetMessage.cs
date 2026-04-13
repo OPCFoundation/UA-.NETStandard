@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.PublishedData;
 
@@ -545,7 +544,9 @@ namespace Opc.Ua.PubSub.Encoding
                                     object decodedValue = DecodeRawData(
                                         binaryDecoder,
                                         fieldMetaData);
+#pragma warning disable CS0618 // Type or member is obsolete
                                     dataValues.Add(new DataValue(new Variant(decodedValue)));
+#pragma warning restore CS0618 // Type or member is obsolete
                                 }
                             }
                         }
@@ -571,7 +572,6 @@ namespace Opc.Ua.PubSub.Encoding
 
                     if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
                             is TargetVariablesDataType targetVariablesData &&
-                        targetVariablesData.TargetVariables != null &&
                         i < targetVariablesData.TargetVariables.Count)
                     {
                         // remember the target Attribute and target nodeId
@@ -628,7 +628,6 @@ namespace Opc.Ua.PubSub.Encoding
 
                         if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
                                 is TargetVariablesDataType targetVariablesData &&
-                            targetVariablesData.TargetVariables != null &&
                             i < targetVariablesData.TargetVariables.Count)
                         {
                             // remember the target Attribute and target nodeId
@@ -665,8 +664,10 @@ namespace Opc.Ua.PubSub.Encoding
                                     object decodedValue = DecodeRawData(
                                         binaryDecoder,
                                         fieldMetaData);
+#pragma warning disable CS0618 // Type or member is obsolete
                                     dataFields[fieldIndex].Value
                                         = new DataValue(new Variant(decodedValue));
+#pragma warning restore CS0618 // Type or member is obsolete
                                 }
                                 break;
                             case FieldTypeEncodingMask.Reserved:
@@ -709,12 +710,12 @@ namespace Opc.Ua.PubSub.Encoding
                 // 01 RawData Field Encoding
                 Variant variant = field.Value.WrappedValue;
 
-                if (variant.TypeInfo.IsUnknown || variant.TypeInfo.BuiltInType == BuiltInType.Null)
+                if (variant.IsNull)
                 {
                     return;
                 }
-                object valueToEncode = variant.Value;
 
+                // TODO: Need to convert?
                 if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                 {
                     switch ((BuiltInType)field.FieldMetaData.BuiltInType)
@@ -722,109 +723,109 @@ namespace Opc.Ua.PubSub.Encoding
                         case BuiltInType.Boolean:
                             binaryEncoder.WriteBoolean(
                                 "Bool",
-                                Convert.ToBoolean(valueToEncode, formatProvider));
+                                (bool)variant);
                             break;
                         case BuiltInType.SByte:
                             binaryEncoder.WriteSByte(
                                 "SByte",
-                                Convert.ToSByte(valueToEncode, formatProvider));
+                                (sbyte)variant);
                             break;
                         case BuiltInType.Byte:
                             binaryEncoder.WriteByte(
                                 "Byte",
-                                Convert.ToByte(valueToEncode, formatProvider));
+                                (byte)variant);
                             break;
                         case BuiltInType.Int16:
                             binaryEncoder.WriteInt16(
                                 "Int16",
-                                Convert.ToInt16(valueToEncode, formatProvider));
+                                (short)variant);
                             break;
                         case BuiltInType.UInt16:
                             binaryEncoder.WriteUInt16(
                                 "UInt16",
-                                Convert.ToUInt16(valueToEncode, formatProvider));
+                                (ushort)variant);
                             break;
                         case BuiltInType.Int32:
                             binaryEncoder.WriteInt32(
                                 "Int32",
-                                Convert.ToInt32(valueToEncode, formatProvider));
+                                (int)variant);
                             break;
                         case BuiltInType.UInt32:
                             binaryEncoder.WriteUInt32(
                                 "UInt32",
-                                Convert.ToUInt32(valueToEncode, formatProvider));
+                                (uint)variant);
                             break;
                         case BuiltInType.Int64:
                             binaryEncoder.WriteInt64(
                                 "Int64",
-                                Convert.ToInt64(valueToEncode, formatProvider));
+                                (long)variant);
                             break;
                         case BuiltInType.UInt64:
                             binaryEncoder.WriteUInt64(
                                 "UInt64",
-                                Convert.ToUInt64(valueToEncode, formatProvider));
+                                (ulong)variant);
                             break;
                         case BuiltInType.Float:
                             binaryEncoder.WriteFloat(
                                 "Float",
-                                Convert.ToSingle(valueToEncode, formatProvider));
+                                (float)variant);
                             break;
                         case BuiltInType.Double:
                             binaryEncoder.WriteDouble(
                                 "Double",
-                                Convert.ToDouble(valueToEncode, formatProvider));
+                                (double)variant);
                             break;
                         case BuiltInType.DateTime:
                             binaryEncoder.WriteDateTime(
                                 "DateTime",
-                                Convert.ToDateTime(valueToEncode, formatProvider));
+                                (DateTimeUtc)variant.ConvertToDateTime());
                             break;
                         case BuiltInType.Guid:
-                            binaryEncoder.WriteGuid("GUID", (Uuid)valueToEncode);
+                            binaryEncoder.WriteGuid("GUID", (Uuid)variant);
                             break;
                         case BuiltInType.String:
-                            binaryEncoder.WriteString("String", valueToEncode as string);
+                            binaryEncoder.WriteString("String", (string)variant);
                             break;
                         case BuiltInType.ByteString:
-                            binaryEncoder.WriteByteString("ByteString", (byte[])valueToEncode);
+                            binaryEncoder.WriteByteString("ByteString", (ByteString)variant);
                             break;
                         case BuiltInType.QualifiedName:
                             binaryEncoder.WriteQualifiedName(
                                 "QualifiedName",
-                                valueToEncode is QualifiedName qn ? qn : default);
+                                (QualifiedName)variant);
                             break;
                         case BuiltInType.LocalizedText:
                             binaryEncoder.WriteLocalizedText(
                                 "LocalizedText",
-                                valueToEncode is LocalizedText text ? text : default);
+                                (LocalizedText)variant);
                             break;
                         case BuiltInType.NodeId:
                             binaryEncoder.WriteNodeId(
                                 "NodeId",
-                                valueToEncode is NodeId n ? n : default);
+                                (NodeId)variant);
                             break;
                         case BuiltInType.ExpandedNodeId:
                             binaryEncoder.WriteExpandedNodeId(
                                 "ExpandedNodeId",
-                                valueToEncode is ExpandedNodeId e ? e : default);
+                                (ExpandedNodeId)variant);
                             break;
                         case BuiltInType.StatusCode:
-                            binaryEncoder.WriteStatusCode("StatusCode", (StatusCode)valueToEncode);
+                            binaryEncoder.WriteStatusCode("StatusCode", (StatusCode)variant);
                             break;
                         case BuiltInType.XmlElement:
                             binaryEncoder.WriteXmlElement(
                                 "XmlElement",
-                                valueToEncode as XmlElement);
+                                (XmlElement)variant);
                             break;
                         case BuiltInType.Enumeration:
                             binaryEncoder.WriteInt32(
                                 "Enumeration",
-                                Convert.ToInt32(valueToEncode, formatProvider));
+                                (int)variant);
                             break;
                         case BuiltInType.ExtensionObject:
                             binaryEncoder.WriteExtensionObject(
                                 "ExtensionObject",
-                                valueToEncode is ExtensionObject eo ? eo : default);
+                                (ExtensionObject)variant);
                             break;
                         case BuiltInType.Null:
                         case BuiltInType.DataValue:
@@ -841,11 +842,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else if (field.FieldMetaData.ValueRank >= ValueRanks.OneDimension)
                 {
-                    binaryEncoder.WriteArray(
-                        null,
-                        valueToEncode,
-                        field.FieldMetaData.ValueRank,
-                        (BuiltInType)field.FieldMetaData.BuiltInType);
+                    binaryEncoder.WriteVariantValue(null, variant);
                 }
             }
             catch (Exception ex)
@@ -871,10 +868,9 @@ namespace Opc.Ua.PubSub.Encoding
                             return DecodeRawScalar(binaryDecoder, fieldMetaData.BuiltInType);
                         case ValueRanks.OneDimension:
                         case ValueRanks.TwoDimensions:
-                            return binaryDecoder.ReadArray(
+                            return binaryDecoder.ReadVariantValue(
                                 null,
-                                fieldMetaData.ValueRank,
-                                (BuiltInType)fieldMetaData.BuiltInType);
+                                TypeInfo.Create((BuiltInType)fieldMetaData.BuiltInType, fieldMetaData.ValueRank));
                         default:
                             m_logger.LogInformation(
                                 "Decoding ValueRank = {ValueRank} not supported yet !!!",

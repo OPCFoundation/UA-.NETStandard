@@ -993,12 +993,12 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using var writer = new StringWriter();
             using (var templateWriter = new TemplateWriter(writer))
             {
-                var template = new Template(templateWriter, MessagesTemplates.File);
+                var template = new Template(templateWriter, File);
                 template.AddReplacement(Tokens.Prefix, "MyNamespace");
                 template.AddReplacement(Tokens.CodeHeader, string.Empty);
                 template.AddReplacement(
                     Tokens.TypeList,
-                    MessagesTemplates.DataTypeAnnotation,
+                    DataTypeAnnotation,
                     ["Type1", "Type2", "Type3"],
                     context =>
                     {
@@ -1124,5 +1124,38 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
                 """;
             Assert.That(result, Is.EqualTo(expected.ReplaceLineEndings()));
         }
+
+        /// <summary>
+        /// Messages file template
+        /// </summary>
+        internal static readonly TemplateString File = TemplateString.Parse(
+            $$"""
+            {{Tokens.CodeHeader}}
+
+            namespace {{Tokens.Prefix}}
+            {
+                {{Tokens.TypeList}}
+            }
+            """);
+
+        /// <summary>
+        /// Service message template
+        /// </summary>
+        internal static readonly TemplateString DataTypeAnnotation = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// The request message for the {{Tokens.Name}} service.
+            /// </summary>
+            public partial class {{Tokens.Name}}Request : global::Opc.Ua.IServiceRequest
+            {
+            }
+
+            /// <summary>
+            /// The response message for the {{Tokens.Name}} service.
+            /// </summary>
+            public partial class {{Tokens.Name}}Response : global::Opc.Ua.IServiceResponse
+            {
+            }
+            """);
     }
 }

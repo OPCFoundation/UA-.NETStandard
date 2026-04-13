@@ -351,20 +351,58 @@ namespace Opc.Ua
         /// Returns a struct as is because structs are never deep copied
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static T Clone<T>(in T value)
-            where T : struct
+        public static T Clone<T>(in T value) where T : struct
         {
             return value;
         }
 
         /// <summary>
-        /// Returns a deep copy of the reference type value.
+        /// Clone contents of an array
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> Clone<T>(ArrayOf<T> values)
+        {
+            return values.ConvertAll(v => (T)Clone(v));
+        }
+
+        /// <summary>
+        /// Clone contents of an array
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> Clone<T>(MatrixOf<T> values)
+        {
+            return values.ConvertAll(v => (T)Clone(v));
+        }
+
+        /// <summary>
+        /// Calls clone if the type supports it
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static T Clone<T>(T value)
-            where T : class
+            where T : ICloneable
         {
-            return (T)Clone((object)value);
+            return EqualityComparer<T>.Default.Equals(value, default) ?
+                default : (T)value.Clone();
+        }
+
+        /// <summary>
+        /// Strings are immutable, do not clone
+        /// </summary>
+        public static string Clone(string value)
+        {
+            return value;
+        }
+
+        /// <summary>
+        /// Clone extension object
+        /// </summary>
+        public static ExtensionObject Clone(ExtensionObject value)
+        {
+            if (value.TryGetEncodeable(out IEncodeable e))
+            {
+                return new ExtensionObject(e, true);
+            }
+            return value;
         }
 
         /// <summary>
@@ -675,6 +713,11 @@ namespace Opc.Ua
                 return IsEqual(time1, (DateTime)value2);
             }
 
+            // check for DateTimeUtc objects
+            if (value1 is DateTimeUtc timeu1)
+            {
+                return IsEqual(timeu1, (DateTimeUtc)value2);
+            }
             // check for compareable objects.
             if (value1 is IComparable comparable1)
             {
@@ -1141,9 +1184,10 @@ namespace Opc.Ua
         /// <returns></returns>
         public static DataContractSerializer CreateDataContractSerializer<T>(
             IServiceMessageContext messageContext = null,
-            IEnumerable<Type> knownTypes = null)
+            IEnumerable<Type> knownTypes = null,
+            XmlQualifiedName rootName = null)
         {
-            return CreateDataContractSerializer(typeof(T), messageContext, knownTypes);
+            return CreateDataContractSerializer(typeof(T), messageContext, knownTypes, rootName);
         }
 
         /// <summary>
@@ -1153,10 +1197,13 @@ namespace Opc.Ua
         public static DataContractSerializer CreateDataContractSerializer(
             Type systemType,
             IServiceMessageContext messageContext = null,
-            IEnumerable<Type> knownTypes = null)
+            IEnumerable<Type> knownTypes = null,
+            XmlQualifiedName rootName = null)
         {
-            var serializer = new DataContractSerializer(systemType,
-                DataContractSurrogates.KnownTypes.Concat(knownTypes ?? []));
+            IEnumerable<Type> knownTypeList = DataContractSurrogates.KnownTypes.Concat(knownTypes ?? []);
+            DataContractSerializer serializer = rootName != null ?
+                new DataContractSerializer(systemType, rootName.Name, rootName.Namespace, knownTypeList) :
+                new DataContractSerializer(systemType, knownTypeList);
             serializer.SetSerializationSurrogateProvider(
                 new DataContractSurrogates(messageContext ?? AmbientMessageContext.CurrentContext));
             return serializer;

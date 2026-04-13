@@ -27,11 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -100,22 +100,24 @@ namespace Opc.Ua.Gds.Tests
             };
 
             // Add a reasonable number of certificates (10)
+            var trustList = new List<ByteString>();
             for (int i = 0; i < 10; i++)
             {
                 using X509Certificate2 cert = CertificateFactory
-                    .CreateCertificate($"urn:test:cert{i}", $"NormalCert{i}", $"CN=NormalCert{i}, O=OPC Foundation", null)
+                    .CreateCertificate($"urn:test:cert{i}", $"NormalCert{i}", $"CN=NormalCert{i}, O=OPC Foundation")
                     .CreateForRSA();
-                normalTrustList.TrustedCertificates.Add(cert.RawData);
+                trustList.Add(cert.RawData.ToByteString());
             }
+            normalTrustList.TrustedCertificates = trustList;
 
             // This should succeed
             bool requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(normalTrustList).ConfigureAwait(false);
-            Assert.False(requireReboot);
+            Assert.That(requireReboot, Is.False);
 
             // Read it back to verify
             TrustListDataType readTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            Assert.IsNotNull(readTrustList);
-            Assert.AreEqual(normalTrustList.TrustedCertificates.Count, readTrustList.TrustedCertificates.Count);
+            Assert.That(readTrustList, Is.Not.Null);
+            Assert.That(readTrustList.TrustedCertificates.Count, Is.EqualTo(normalTrustList.TrustedCertificates.Count));
         }
 
         /// <summary>
@@ -123,7 +125,7 @@ namespace Opc.Ua.Gds.Tests
         /// </summary>
         [Test]
         [Order(200)]
-        public async Task WriteTrustListExceedsSizeLimitAsync()
+        public void WriteTrustListExceedsSizeLimit()
         {
             // Create a trust list with a few certificates
             var oversizedTrustList = new TrustListDataType
@@ -135,14 +137,16 @@ namespace Opc.Ua.Gds.Tests
                 IssuerCrls = []
             };
 
+            var trustList = new List<ByteString>();
             for (int i = 0; i < 20; i++)
             {
                 using X509Certificate2 cert = CertificateFactory
-                    .CreateCertificate($"urn:test:cert{i}", $"TestCert{i}", $"CN=TestCert{i}, O=OPC Foundation", null)
+                    .CreateCertificate($"urn:test:cert{i}", $"TestCert{i}", $"CN=TestCert{i}, O=OPC Foundation")
                     .SetRSAKeySize(2048)
                     .CreateForRSA();
-                oversizedTrustList.TrustedCertificates.Add(cert.RawData);
+                trustList.Add(cert.RawData.ToByteString());
             }
+            oversizedTrustList.TrustedCertificates = trustList;
 
             // Calculate the encoded size
             long encodedSize = GetEncodedSize(oversizedTrustList);
@@ -156,8 +160,8 @@ namespace Opc.Ua.Gds.Tests
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_pushClient.PushClient.UpdateTrustListAsync(oversizedTrustList, maxTrustListSize).ConfigureAwait(false));
 
-            Assert.IsNotNull(ex);
-            Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, ex.StatusCode);
+            Assert.That(ex, Is.Not.Null);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             TestContext.Out.WriteLine($"Expected exception caught: {ex.Message}");
         }
 
@@ -177,14 +181,16 @@ namespace Opc.Ua.Gds.Tests
                 IssuerCrls = []
             };
 
+            var trustList = new List<ByteString>();
             for (int i = 0; i < 20; i++)
             {
                 using X509Certificate2 cert = CertificateFactory
-                    .CreateCertificate($"urn:test:cert{i}", $"BoundaryCert{i}", $"CN=BoundaryCert{i}, O=OPC Foundation", null)
+                    .CreateCertificate($"urn:test:cert{i}", $"BoundaryCert{i}", $"CN=BoundaryCert{i}, O=OPC Foundation")
                     .SetRSAKeySize(2048)
                     .CreateForRSA();
-                boundaryTrustList.TrustedCertificates.Add(cert.RawData);
+                trustList.Add(cert.RawData.ToByteString());
             }
+            boundaryTrustList.TrustedCertificates = trustList;
 
             // Calculate the encoded size
             long encodedSize = GetEncodedSize(boundaryTrustList);
@@ -196,12 +202,12 @@ namespace Opc.Ua.Gds.Tests
 
             // This should succeed
             bool requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(boundaryTrustList, maxTrustListSize).ConfigureAwait(false);
-            Assert.False(requireReboot);
+            Assert.That(requireReboot, Is.False);
 
             // Read it back
             TrustListDataType readTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            Assert.IsNotNull(readTrustList);
-            Assert.AreEqual(boundaryTrustList.TrustedCertificates.Count, readTrustList.TrustedCertificates.Count);
+            Assert.That(readTrustList, Is.Not.Null);
+            Assert.That(readTrustList.TrustedCertificates.Count, Is.EqualTo(boundaryTrustList.TrustedCertificates.Count));
         }
 
         /// <summary>
@@ -237,8 +243,9 @@ namespace Opc.Ua.Gds.Tests
                 while (currentSize <= customMaxTrustListSize)
                 {
                     using X509Certificate2 cert =
-                        CertificateFactory.CreateCertificate($"urn:test:oversized{certCount}", "Oversized", "CN=Oversized", null).CreateForRSA();
-                    oversizedTrustList.TrustedCertificates.Add(cert.RawData);
+                        CertificateFactory.CreateCertificate($"urn:test:oversized{certCount}", "Oversized", "CN=Oversized").CreateForRSA();
+                    oversizedTrustList.TrustedCertificates =
+                        oversizedTrustList.TrustedCertificates.AddItem(cert.RawData.ToByteString());
                     currentSize = GetEncodedSize(oversizedTrustList);
                     certCount++;
                 }
@@ -246,7 +253,7 @@ namespace Opc.Ua.Gds.Tests
 
                 ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_pushClient.PushClient.UpdateTrustListAsync(oversizedTrustList).ConfigureAwait(false));
-                Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, ex.StatusCode);
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
                 TestContext.Out.WriteLine("Successfully caught exception for writing oversized trust list to server.");
 
                 // 2. Test writing a valid trust list (under the server's limit)
@@ -257,28 +264,31 @@ namespace Opc.Ua.Gds.Tests
                 };
                 for (int i = 0; i < 2; i++)
                 {
-                    using X509Certificate2 cert = CertificateFactory.CreateCertificate($"urn:test:valid{i}", "Valid", "CN=Valid", null).CreateForRSA();
-                    validTrustList.TrustedCertificates.Add(cert.RawData);
+                    using X509Certificate2 cert = CertificateFactory
+                        .CreateCertificate($"urn:test:valid{i}", "Valid", "CN=Valid")
+                        .CreateForRSA();
+                    validTrustList.TrustedCertificates =
+                        validTrustList.TrustedCertificates.AddItem(cert.RawData.ToByteString());
                 }
                 long validSize = GetEncodedSize(validTrustList);
-                Assert.True(validSize < customMaxTrustListSize);
+                Assert.That(validSize < customMaxTrustListSize, Is.True);
                 TestContext.Out.WriteLine($"Valid trust list created with size {validSize}");
 
                 bool reboot = await m_pushClient.PushClient.UpdateTrustListAsync(validTrustList).ConfigureAwait(false);
-                Assert.False(reboot);
+                Assert.That(reboot, Is.False);
                 TestContext.Out.WriteLine("Successfully wrote valid trust list to server.");
 
                 // 3. Test reading the trust list with a client limit that is too small
                 ServiceResultException exRead = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_pushClient.PushClient.ReadTrustListAsync(TrustListMasks.TrustedCertificates, (uint)validSize - 1).ConfigureAwait(false));
-                Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, exRead.StatusCode);
+                Assert.That(exRead.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
                 TestContext.Out.WriteLine("Successfully caught exception for reading trust list with small client limit.");
 
                 // 4. Test reading with a sufficient client limit
                 TrustListDataType readTrustList = await m_pushClient.PushClient
                     .ReadTrustListAsync(TrustListMasks.TrustedCertificates, (uint)validSize).ConfigureAwait(false);
-                Assert.IsNotNull(readTrustList);
-                Assert.AreEqual(validTrustList.TrustedCertificates.Count, readTrustList.TrustedCertificates.Count);
+                Assert.That(readTrustList, Is.Not.Null);
+                Assert.That(readTrustList.TrustedCertificates.Count, Is.EqualTo(validTrustList.TrustedCertificates.Count));
                 TestContext.Out.WriteLine("Successfully read trust list with sufficient client limit.");
             }
             finally
@@ -298,7 +308,7 @@ namespace Opc.Ua.Gds.Tests
         {
             using var stream = new System.IO.MemoryStream();
             using var encoder = new BinaryEncoder(stream, m_pushClient.PushClient.Session.MessageContext, false);
-            encoder.WriteEncodeable(null, trustList, trustList.GetType());
+            encoder.WriteEncodeable(null, trustList);
             return stream.Length;
         }
     }

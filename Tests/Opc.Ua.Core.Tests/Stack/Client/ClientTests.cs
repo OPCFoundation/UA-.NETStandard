@@ -30,7 +30,6 @@
 using System;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
 {
@@ -76,7 +75,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void DiscoveryEndPointUrls(string urlString)
         {
             var uri = new Uri(urlString);
-            Assert.True(uri.IsWellFormedOriginalString());
+            Assert.That(uri.IsWellFormedOriginalString(), Is.True);
 
             var uriBuilder = new UriBuilder
             {
@@ -86,7 +85,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Path = uri.AbsolutePath
             };
 
-            Assert.AreEqual(uri.OriginalString, uriBuilder.Uri.OriginalString);
+            Assert.That(uriBuilder.Uri.OriginalString, Is.EqualTo(uri.OriginalString));
         }
 
         [Test]
@@ -105,7 +104,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
                 }
             };
-            NUnit.Framework.Assert.DoesNotThrowAsync(() =>
+            Assert.DoesNotThrowAsync(() =>
                 appConfig.ValidateAsync(ApplicationType.Client));
         }
     }

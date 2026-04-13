@@ -32,7 +32,6 @@ using System.IO;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.Schema
 {
@@ -120,21 +119,21 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
             importedNodeSet.Import(localContext, importedNodeStates);
 
-            Assert.AreEqual(1, importedNodeSet.NamespaceUris.Length);
-            Assert.AreEqual(2, importedNodeSet.Items.Length);
+            Assert.That(importedNodeSet.NamespaceUris.Length, Is.EqualTo(1));
+            Assert.That(importedNodeSet.Items.Length, Is.EqualTo(2));
             var dataType1 = importedNodeSet.Items[0] as Export.UADataType;
             var dataType2 = importedNodeSet.Items[1] as Export.UADataType;
 
-            Assert.NotNull(dataType1);
-            Assert.AreEqual(2, dataType1.Definition.Field.Length);
+            Assert.That(dataType1, Is.Not.Null);
+            Assert.That(dataType1.Definition.Field.Length, Is.EqualTo(2));
             Assert.IsEmpty(dataType1.Definition.Field[0].ArrayDimensions);
-            Assert.IsTrue(dataType1.Definition.IsUnion);
+            Assert.That(dataType1.Definition.IsUnion, Is.True);
 
-            Assert.NotNull(dataType2);
-            Assert.IsFalse(dataType2.Definition.IsUnion);
-            Assert.AreEqual(21, dataType2.Definition.Field.Length);
-            Assert.AreEqual("2,3", dataType2.Definition.Field[15].ArrayDimensions);
-            Assert.AreEqual(256, dataType2.Definition.Field[5].MaxStringLength);
+            Assert.That(dataType2, Is.Not.Null);
+            Assert.That(dataType2.Definition.IsUnion, Is.False);
+            Assert.That(dataType2.Definition.Field.Length, Is.EqualTo(21));
+            Assert.That(dataType2.Definition.Field[15].ArrayDimensions, Is.EqualTo("2,3"));
+            Assert.That(dataType2.Definition.Field[5].MaxStringLength, Is.EqualTo(256));
 
             // export the nodeSet to a file, reimport it and re-test.
             using (var fileStream = new FileStream(bufferPath, FileMode.Create))
@@ -154,22 +153,22 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 }
                 exportedNodeSet.Import(localContext, exportedNodeStates);
 
-                Assert.AreEqual(1, exportedNodeSet.NamespaceUris.Length);
-                Assert.AreEqual(2, exportedNodeSet.Items.Length);
+                Assert.That(exportedNodeSet.NamespaceUris.Length, Is.EqualTo(1));
+                Assert.That(exportedNodeSet.Items.Length, Is.EqualTo(2));
 
                 dataType1 = exportedNodeSet.Items[0] as Export.UADataType;
                 dataType2 = exportedNodeSet.Items[1] as Export.UADataType;
 
-                Assert.NotNull(dataType1);
-                Assert.AreEqual(2, dataType1.Definition.Field.Length);
+                Assert.That(dataType1, Is.Not.Null);
+                Assert.That(dataType1.Definition.Field.Length, Is.EqualTo(2));
                 Assert.IsEmpty(dataType1.Definition.Field[0].ArrayDimensions);
-                Assert.IsTrue(dataType1.Definition.IsUnion);
+                Assert.That(dataType1.Definition.IsUnion, Is.True);
 
-                Assert.NotNull(dataType2);
-                Assert.IsFalse(dataType2.Definition.IsUnion);
-                Assert.AreEqual(21, dataType2.Definition.Field.Length);
-                Assert.AreEqual("2,3", dataType2.Definition.Field[15].ArrayDimensions);
-                Assert.AreEqual(256, dataType2.Definition.Field[5].MaxStringLength);
+                Assert.That(dataType2, Is.Not.Null);
+                Assert.That(dataType2.Definition.IsUnion, Is.False);
+                Assert.That(dataType2.Definition.Field.Length, Is.EqualTo(21));
+                Assert.That(dataType2.Definition.Field[15].ArrayDimensions, Is.EqualTo("2,3"));
+                Assert.That(dataType2.Definition.Field[5].MaxStringLength, Is.EqualTo(256));
             }
             finally
             {
@@ -234,7 +233,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             importedNodeSet.Import(localContext, importedNodeStates, linkParentChild: true);
 
             // Verify that all nodes were imported
-            Assert.AreEqual(3, importedNodeStates.Count);
+            Assert.That(importedNodeStates.Count, Is.EqualTo(3));
 
             // Find the parent object
             BaseObjectState parentObject = null;
@@ -257,21 +256,21 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 }
             }
 
-            Assert.NotNull(parentObject, "ParentObject should be imported");
-            Assert.NotNull(childProperty, "ChildProperty should be imported");
-            Assert.NotNull(childObject, "ChildObject should be imported");
+            Assert.That(parentObject, Is.Not.Null, "ParentObject should be imported");
+            Assert.That(childProperty, Is.Not.Null, "ChildProperty should be imported");
+            Assert.That(childObject, Is.Not.Null, "ChildObject should be imported");
 
             // Verify parent-child relationships are established
-            Assert.AreEqual(parentObject, childProperty.Parent, "ChildProperty's Parent should be set to ParentObject");
-            Assert.AreEqual(parentObject, childObject.Parent, "ChildObject's Parent should be set to ParentObject");
+            Assert.That(childProperty.Parent, Is.EqualTo(parentObject), "ChildProperty's Parent should be set to ParentObject");
+            Assert.That(childObject.Parent, Is.EqualTo(parentObject), "ChildObject's Parent should be set to ParentObject");
 
             // Verify GetChildren works
             var children = new List<BaseInstanceState>();
             parentObject.GetChildren(localContext, children);
 
-            Assert.AreEqual(2, children.Count, "ParentObject should have 2 children");
-            Assert.IsTrue(children.Contains(childProperty), "Children should contain ChildProperty");
-            Assert.IsTrue(children.Contains(childObject), "Children should contain ChildObject");
+            Assert.That(children.Count, Is.EqualTo(2), "ParentObject should have 2 children");
+            Assert.That(children, Does.Contain(childProperty), "Children should contain ChildProperty");
+            Assert.That(children, Does.Contain(childObject), "Children should contain ChildObject");
         }
 
         /// <summary>
@@ -324,7 +323,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             importedNodeSet.Import(localContext, importedNodeStates);
 
             // Verify that all nodes were imported
-            Assert.AreEqual(2, importedNodeStates.Count);
+            Assert.That(importedNodeStates.Count, Is.EqualTo(2));
 
             // Find the parent object
             BaseObjectState parentObject = null;
@@ -342,17 +341,17 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 }
             }
 
-            Assert.NotNull(parentObject, "ParentObject should be imported");
-            Assert.NotNull(childObject, "ChildObject should be imported");
+            Assert.That(parentObject, Is.Not.Null, "ParentObject should be imported");
+            Assert.That(childObject, Is.Not.Null, "ChildObject should be imported");
 
             // Verify parent-child relationships are NOT established (backward compatibility)
-            Assert.IsNull(childObject.Parent, "ChildObject's Parent should be null by default");
+            Assert.That(childObject.Parent, Is.Null, "ChildObject's Parent should be null by default");
 
             // Verify GetChildren returns empty (backward compatibility)
             var children = new List<BaseInstanceState>();
             parentObject.GetChildren(localContext, children);
 
-            Assert.AreEqual(0, children.Count, "ParentObject should have 0 children by default (backward compatibility)");
+            Assert.That(children.Count, Is.Zero, "ParentObject should have 0 children by default (backward compatibility)");
         }
     }
 }

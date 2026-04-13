@@ -55,12 +55,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Access property values by index.
         /// </summary>
-        object this[int index] { get; set; }
+        Variant this[int index] { get; set; }
 
         /// <summary>
         /// Access property values by name.
         /// </summary>
-        object this[string name] { get; set; }
+        Variant this[string name] { get; set; }
 
         /// <summary>
         /// Ordered enumerator for properties.

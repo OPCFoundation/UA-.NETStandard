@@ -34,7 +34,6 @@ using System.Threading;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
@@ -169,7 +168,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             double maxDeviation,
             int publishTimeInSeconds)
         {
-            Assert.Greater(publishTicks.Count, 0);
+            Assert.That(publishTicks, Is.Not.Empty);
 
             int faultIndex = -1;
             double faultDeviation = 0;
@@ -191,14 +190,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     }
                 }
             }
-            Assert.IsTrue(
+            Assert.That(
                 faultIndex < 0,
-                "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} as max deviation",
-                publishingInterval,
-                maxDeviation,
-                publishTimeInSeconds,
-                faultIndex,
-                faultDeviation);
+                Is.True,
+                $"publishingInterval={publishingInterval}, maxDeviation={maxDeviation}, publishTimeInSecods={publishTimeInSeconds}, deviation[{faultIndex}] = {faultDeviation} as max deviation");
         }
     }
 }

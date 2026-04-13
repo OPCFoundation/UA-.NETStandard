@@ -29,7 +29,6 @@
 
 using System;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Constants
 {
@@ -76,8 +75,8 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             foreach (uint id in dataTypeIds)
             {
                 string browseName = DataTypes.GetBrowseName(id);
-                Assert.IsNotNull(browseName);
-                Assert.IsNotEmpty(browseName);
+                Assert.That(browseName, Is.Not.Null);
+                Assert.That(browseName, Is.Not.Empty);
             }
         }
 
@@ -88,7 +87,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_BooleanDataType_ReturnsBoolean()
         {
             string browseName = DataTypes.GetBrowseName(DataTypes.Boolean);
-            Assert.AreEqual("Boolean", browseName);
+            Assert.That(browseName, Is.EqualTo("Boolean"));
         }
 
         /// <summary>
@@ -98,7 +97,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_InvalidDataTypeId_ReturnsEmptyString()
         {
             string browseName = DataTypes.GetBrowseName(unchecked((uint)-9999));
-            Assert.AreEqual(string.Empty, browseName);
+            Assert.That(browseName, Is.Empty);
         }
 
         /// <summary>
@@ -120,7 +119,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             foreach (string name in dataTypeNames)
             {
                 uint id = DataTypes.GetIdentifier(name);
-                Assert.AreNotEqual(0, id);
+                Assert.That(id, Is.Not.Zero);
             }
         }
 
@@ -131,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetIdentifier_BooleanName_ReturnsBooleanId()
         {
             uint id = DataTypes.GetIdentifier("Boolean");
-            Assert.AreEqual(DataTypes.Boolean, id);
+            Assert.That(id, Is.EqualTo(DataTypes.Boolean));
         }
 
         /// <summary>
@@ -141,7 +140,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetIdentifier_InvalidName_ReturnsZero()
         {
             uint id = DataTypes.GetIdentifier("InvalidDataTypeName");
-            Assert.AreEqual(0, id);
+            Assert.That(id, Is.Zero);
         }
 
         /// <summary>
@@ -163,7 +162,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             {
                 string browseName = DataTypes.GetBrowseName(id);
                 uint retrievedId = DataTypes.GetIdentifier(browseName);
-                Assert.AreEqual(id, retrievedId);
+                Assert.That(retrievedId, Is.EqualTo(id));
             }
         }
 
@@ -175,10 +174,10 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         {
             NodeId dataTypeId = TypeInfo.GetDataTypeId(typeof(EUInformation));
 
-            Assert.IsNotNull(dataTypeId);
-            Assert.AreEqual(DataTypes.EUInformation, dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0);
-            Assert.AreEqual(0, dataTypeId.NamespaceIndex);
-            Assert.AreNotEqual(DataTypes.Structure, dataTypeId.TryGetIdentifier(out uint n2) ? n2 : 0,
+            Assert.That(dataTypeId.IsNull, Is.False);
+            Assert.That(dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(DataTypes.EUInformation));
+            Assert.That(dataTypeId.NamespaceIndex, Is.Zero);
+            Assert.That(dataTypeId.TryGetIdentifier(out uint n2) ? n2 : 0, Is.Not.EqualTo(DataTypes.Structure),
                 "Should return specific EUInformation DataTypeId (i=887), not generic Structure (i=22)");
         }
 
@@ -203,10 +202,10 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             {
                 NodeId dataTypeId = TypeInfo.GetDataTypeId(type);
 
-                Assert.IsNotNull(dataTypeId, $"DataTypeId should not be null for {type.Name}");
-                Assert.AreEqual(expectedId, dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0,
+                Assert.That(dataTypeId.IsNull, Is.False, $"DataTypeId should not be null for {type.Name}");
+                Assert.That(dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(expectedId),
                     $"DataTypeId for {type.Name} should be i={expectedId}, not i={dataTypeId.IdentifierAsString}");
-                Assert.AreEqual(0, dataTypeId.NamespaceIndex,
+                Assert.That(dataTypeId.NamespaceIndex, Is.Zero,
                     $"NamespaceIndex should be 0 for {type.Name}");
             }
         }

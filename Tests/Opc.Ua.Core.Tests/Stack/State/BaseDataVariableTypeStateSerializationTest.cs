@@ -30,7 +30,6 @@
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.State
 {
@@ -81,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 loadedVariable.LoadAsBinary(systemContext, stream);
             }
 
-            Assert.AreEqual(valueRank, loadedVariable.ValueRank);
+            Assert.That(loadedVariable.ValueRank, Is.EqualTo(valueRank));
         }
 
         [Test]
@@ -123,7 +122,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 loadedVariable.LoadAsBinary(systemContext, stream);
             }
 
-            Assert.AreEqual(valueRank, loadedVariable.ValueRank);
+            Assert.That(loadedVariable.ValueRank, Is.EqualTo(valueRank));
         }
 
         /// <summary>
@@ -135,7 +134,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Create a BaseDataVariableState with byte[] value
-            var variableState = new BaseDataVariableState<byte[]>(null);
+            var variableState = BaseDataVariableState<ArrayOf<byte>>.With<VariantBuilder>(null);
             var serviceMessageContext = new ServiceMessageContext(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
@@ -160,9 +159,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             // Get the WrappedValue and verify it's a Byte array, not ByteString
             Variant wrappedValue = variableState.WrappedValue;
 
-            Assert.AreEqual(BuiltInType.ByteString, wrappedValue.TypeInfo.BuiltInType, "BuiltInType should be ByteString");
-            Assert.AreEqual(ValueRanks.Scalar, wrappedValue.TypeInfo.ValueRank, "ValueRank should be Scalar");
-            Assert.AreEqual(testValue, wrappedValue.GetByteString(), "Value should match the original byte array");
+            Assert.That(wrappedValue.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Byte), "BuiltInType should be ByteString");
+            Assert.That(wrappedValue.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.OneDimension), "ValueRank should be Scalar");
+            Assert.That(wrappedValue.GetByteArray().ToArray(), Is.EqualTo(testValue), "Value should match the original byte array");
         }
 
         /// <summary>
@@ -174,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Create a BaseDataVariableState for ByteString testing
-            var variableState = new BaseDataVariableState<byte[]>(null);
+            var variableState = BaseDataVariableState<ByteString>.With<VariantBuilder>(null);
             var serviceMessageContext = new ServiceMessageContext(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
@@ -193,15 +192,15 @@ namespace Opc.Ua.Core.Tests.Stack.State
             variableState.ValueRank = ValueRanks.Scalar;
 
             // Set a byte array value (which represents a ByteString)
-            byte[] testValue = [1, 2, 3, 4, 5];
+            ByteString testValue = ByteString.From([1, 2, 3, 4, 5]);
             variableState.Value = testValue;
 
             // Get the WrappedValue and verify it's a ByteString
             Variant wrappedValue = variableState.WrappedValue;
 
-            Assert.AreEqual(BuiltInType.ByteString, wrappedValue.TypeInfo.BuiltInType, "BuiltInType should be ByteString");
-            Assert.AreEqual(ValueRanks.Scalar, wrappedValue.TypeInfo.ValueRank, "ValueRank should be Scalar");
-            Assert.AreEqual(testValue, wrappedValue.GetByteString(), "Value should match the original byte array");
+            Assert.That(wrappedValue.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ByteString), "BuiltInType should be ByteString");
+            Assert.That(wrappedValue.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.Scalar), "ValueRank should be Scalar");
+            Assert.That(wrappedValue.GetByteString(), Is.EqualTo(testValue), "Value should match the original byte array");
         }
     }
 }

@@ -68,10 +68,10 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 BaseDataType = default,
                 DefaultEncodingId = ExpandedNodeId.ToNodeId(defaultEncodingId, namespaceTable),
-                Fields = [],
                 StructureType = StructureType.Structure
             };
 
+            var structureFields = new List<StructureField>();
             bool isSupportedType = true;
             bool hasBitField = false;
             bool isUnionType = false;
@@ -133,7 +133,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 // consume optional bits
                 if (field.TypeName.IsXmlBitType())
                 {
-                    int count = structureDefinition.Fields.Count;
+                    int count = structureFields.Count;
                     if (count == 0 && switchFieldBitPosition < 32)
                     {
                         structureDefinition.StructureType
@@ -172,14 +172,14 @@ namespace Opc.Ua.Client.ComplexTypes
                     DataType = fieldDataTypeNodeId,
                     IsOptional = false,
                     MaxStringLength = 0,
-                    ArrayDimensions = null,
+                    ArrayDimensions = default,
                     ValueRank = -1
                 };
 
                 if (field.LengthField != null)
                 {
                     // handle array length
-                    StructureField lastField = structureDefinition.Fields[^1];
+                    StructureField lastField = structureFields[^1];
                     if (lastField.Name != field.LengthField)
                     {
                         throw new DataTypeNotSupportedException(
@@ -196,14 +196,14 @@ namespace Opc.Ua.Client.ComplexTypes
                         // ignore the switchfield
                         if (field.SwitchField == null)
                         {
-                            if (structureDefinition.Fields.Count != 0)
+                            if (structureFields.Count != 0)
                             {
                                 throw new DataTypeNotSupportedException(
                                     "The switch field of a union must be the first field in the complex type.");
                             }
                             continue;
                         }
-                        if (structureDefinition.Fields.Count != dataTypeFieldPosition)
+                        if (structureFields.Count != dataTypeFieldPosition)
                         {
                             throw new DataTypeNotSupportedException(
                                 "The count of the switch field of the union member is not matching the field position.");
@@ -219,10 +219,11 @@ namespace Opc.Ua.Client.ComplexTypes
                                 $"The switch field for {field.SwitchField} does not exist.");
                         }
                     }
-                    structureDefinition.Fields.Add(dataTypeField);
+                    structureFields.Add(dataTypeField);
                 }
             }
 
+            structureDefinition.Fields = structureFields;
             return structureDefinition;
         }
 
@@ -234,7 +235,7 @@ namespace Opc.Ua.Client.ComplexTypes
             this Schema.Binary.EnumeratedType enumeratedType,
             string enumTypeName)
         {
-            var enumDefinition = new EnumDefinition();
+            var enumFields = new List<EnumField>();
 
             if (enumeratedType.EnumeratedValue != null)
             {
@@ -258,10 +259,12 @@ namespace Opc.Ua.Client.ComplexTypes
                         Description = LocalizedText.From(enumValue.Documentation?.Text?.FirstOrDefault()),
                         DisplayName = LocalizedText.From(enumValue.Name)
                     };
-                    enumDefinition.Fields.Add(enumTypeField);
+                    enumFields.Add(enumTypeField);
                 }
             }
 
+            var enumDefinition = new EnumDefinition();
+            enumDefinition.Fields = enumFields;
             return enumDefinition;
         }
 
@@ -270,14 +273,14 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Available before OPC UA V1.04.
         /// </summary>
         public static EnumDefinition ToEnumDefinition(
-            this ExtensionObject[] enumValueTypes,
+            this ArrayOf<ExtensionObject> enumValueTypes,
             string enumTypeName)
         {
-            var enumDefinition = new EnumDefinition();
+            var enumFields = new List<EnumField>();
 
             foreach (ExtensionObject extensionObject in enumValueTypes)
             {
-                if (extensionObject.Body is not EnumValueType enumValue)
+                if (!extensionObject.TryGetEncodeable(out EnumValueType enumValue))
                 {
                     // All we can do here is skip this value. Since there is no
                     // fallback it is better to include all other type fields if
@@ -302,9 +305,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     Value = enumValue.Value,
                     DisplayName = LocalizedText.From(name)
                 };
-                enumDefinition.Fields.Add(enumTypeField);
+                enumFields.Add(enumTypeField);
             }
 
+            var enumDefinition = new EnumDefinition();
+            enumDefinition.Fields = enumFields;
             return enumDefinition;
         }
 
@@ -313,12 +318,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Available before OPC UA V1.04.
         /// </summary>
         public static EnumDefinition ToEnumDefinition(
-            this LocalizedText[] enumFieldNames,
+            this ArrayOf<LocalizedText> enumFieldNames,
             string enumTypeName)
         {
-            var enumDefinition = new EnumDefinition();
+            var enumFields = new List<EnumField>();
 
-            for (int ii = 0; ii < enumFieldNames.Length; ii++)
+            for (int ii = 0; ii < enumFieldNames.Count; ii++)
             {
                 LocalizedText enumFieldName = enumFieldNames[ii];
                 string name = enumFieldName.Text;
@@ -340,9 +345,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     DisplayName = LocalizedText.From(name)
                 };
 
-                enumDefinition.Fields.Add(enumTypeField);
+                enumFields.Add(enumTypeField);
             }
 
+            var enumDefinition = new EnumDefinition();
+            enumDefinition.Fields = enumFields;
             return enumDefinition;
         }
 

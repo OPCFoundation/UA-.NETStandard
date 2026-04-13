@@ -739,7 +739,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(hashCode1, Is.EqualTo(hashCode2));
-            Assert.That(hashCode1, Is.EqualTo(0));
+            Assert.That(hashCode1, Is.Zero);
         }
 
         /// <summary>

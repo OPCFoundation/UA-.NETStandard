@@ -39,7 +39,6 @@ using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 using Microsoft.Extensions.Logging;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -67,8 +66,8 @@ namespace Opc.Ua.Client.Tests
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
         public ReferenceServer ReferenceServer { get; set; }
-        public EndpointDescriptionCollection Endpoints { get; set; }
-        public ReferenceDescriptionCollection ReferenceDescriptions { get; set; }
+        public ArrayOf<EndpointDescription> Endpoints { get; set; }
+        public ArrayOf<ReferenceDescription> ReferenceDescriptions { get; set; }
         public ISession Session { get; protected set; }
         public OperationLimits OperationLimits { get; private set; }
         public int SecurityTokenLifetime { get; set; } = 3_600_000;
@@ -194,11 +193,11 @@ namespace Opc.Ua.Client.Tests
                     Session = await ClientFixture
                         .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                         .ConfigureAwait(false);
-                    Assert.NotNull(Session);
+                    Assert.That(Session, Is.Not.Null);
                 }
                 catch (Exception e)
                 {
-                    NUnit.Framework.Assert.Warn(
+                    Assert.Warn(
                         $"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
                 }
             }
@@ -230,92 +229,98 @@ namespace Opc.Ua.Client.Tests
                 .TransportQuotas
                 .MaxStringLength = TransportQuotaMaxStringLength;
             ServerFixture.Config.TransportQuotas.SecurityTokenLifetime = SecurityTokenLifetime;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies
-                .Add(new UserTokenPolicy(UserTokenType.UserName));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.UserName);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.Certificate);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken
-                });
-
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                };
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.UserName)
+                {
+                    SecurityPolicyUri
+                        = SecurityPolicies.Basic128Rsa15
+                };
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName)
                 {
                     SecurityPolicyUri
                         = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                };
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName)
                 {
                     SecurityPolicyUri
                         = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                };
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName)
                 {
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                };
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName)
                 {
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
-                });
+                };
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate)
                 {
                     SecurityPolicyUri
                         = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                };
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate)
                 {
                     SecurityPolicyUri
                         = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                };
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate)
                 {
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                };
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate)
                 {
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
-                });
+                };
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken,
                     PolicyId = Profiles.JwtUserToken,
                     SecurityPolicyUri
                         = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                };
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken,
                     PolicyId = Profiles.JwtUserToken,
                     SecurityPolicyUri
                         = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                };
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken,
                     PolicyId = Profiles.JwtUserToken,
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                };
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken,
                     PolicyId = Profiles.JwtUserToken,
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
-                });
+                };
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
             ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;
@@ -372,7 +377,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (Exception e)
                 {
-                    NUnit.Framework.Assert.Ignore(
+                    Assert.Ignore(
                         $"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
                 }
             }
@@ -621,6 +626,102 @@ namespace Opc.Ua.Client.Tests
             {
                 TestContext.Out.WriteLine("Session_Closing: {0}", session.SessionId);
             }
+        }
+
+        /// <summary>
+        /// Create a set of subscriptions with monitored items on the given session.
+        /// </summary>
+        protected async Task CreateSubscriptionsAsync(
+            ISession session,
+            Subscription template,
+            SubscriptionCollection originSubscriptions,
+            int[] notificationCounters,
+            int[] fastDataCounters,
+            int subscriptionCount,
+            uint queueSize)
+        {
+            for (int ii = 0; ii < subscriptionCount; ii++)
+            {
+                // create subscription with static monitored items
+                var subscription = new TestableSubscription(template)
+                {
+                    PublishingEnabled = true,
+                    Handle = ii,
+                    FastDataChangeCallback = (s, n, _) =>
+                    {
+                        TestContext.Out.WriteLine(
+                            $"FastDataChangeHandlerOrigin: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
+                        fastDataCounters[(int)s.Handle]++;
+                    }
+                };
+
+                subscription.StateChanged += (s, e) =>
+                    TestContext.Out
+                        .WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+
+                subscription.PublishStatusChanged += (s, e) =>
+                    TestContext.Out.WriteLine(
+                        $"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+
+                originSubscriptions.Add(subscription);
+                session.AddSubscription(subscription);
+                await subscription.CreateAsync().ConfigureAwait(false);
+
+                // set defaults
+                subscription.DefaultItem.DiscardOldest = true;
+                subscription.DefaultItem.QueueSize = ii == 0 ? 0U : queueSize;
+                subscription.DefaultItem.MonitoringMode = MonitoringMode.Reporting;
+
+                // create test set using the passed session's namespace URIs
+                NamespaceTable namespaceUris = session.NamespaceUris;
+                var testSet = new List<NodeId>();
+                if (ii == 0)
+                {
+                    testSet.AddRange(GetTestSetStatic(namespaceUris));
+                }
+                else
+                {
+                    testSet.AddRange(GetTestSetSimulation(namespaceUris));
+                }
+
+                var list = CreateMonitoredItemTestSet(subscription, testSet).ToList();
+                list.ForEach(i =>
+                    i.Notification += (item, _) =>
+                    {
+                        notificationCounters[(int)subscription.Handle]++;
+                        foreach (DataValue value in item.DequeueValues())
+                        {
+                            TestContext.Out.WriteLine(
+                                "Org:{0}: {1:20}, {2}, {3}, {4}",
+                                subscription.Id,
+                                item.DisplayName,
+                                value.WrappedValue,
+                                value.SourceTimestamp,
+                                value.StatusCode);
+                        }
+                    });
+                subscription.AddItems(list);
+                await subscription.ApplyChangesAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Create monitored items from a list of node ids on a subscription.
+        /// </summary>
+        protected static List<MonitoredItem> CreateMonitoredItemTestSet(
+            Subscription subscription,
+            IList<NodeId> nodeIds)
+        {
+            var list = new List<MonitoredItem>();
+            foreach (NodeId nodeId in nodeIds)
+            {
+                var item = new TestableMonitoredItem(subscription.DefaultItem)
+                {
+                    StartNodeId = nodeId
+                };
+                list.Add(item);
+            }
+            return list;
         }
     }
 }

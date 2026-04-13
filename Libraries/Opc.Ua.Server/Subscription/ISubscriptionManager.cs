@@ -59,6 +59,14 @@ namespace Opc.Ua.Server
         IList<ISubscription> GetSubscriptions();
 
         /// <summary>
+        /// Get the subscription with the specified id
+        /// </summary>
+        /// <param name="id">The id of the subscription</param>
+        /// <param name="subscription">The subscription if found else null</param>
+        /// <returns>True if found</returns>
+        bool TryGetSubscription(uint id, out ISubscription subscription);
+
+        /// <summary>
         /// Set a subscription into durable mode
         /// </summary>
         ServiceResult SetSubscriptionDurable(
@@ -105,7 +113,7 @@ namespace Opc.Ua.Server
         /// </summary>
         ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             OperationContext context,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -113,7 +121,7 @@ namespace Opc.Ua.Server
         /// </summary>
         Task<PublishResponse> PublishAsync(
             OperationContext context,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -137,16 +145,16 @@ namespace Opc.Ua.Server
         void SetPublishingMode(
             OperationContext context,
             bool publishingEnabled,
-            UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            ArrayOf<uint> subscriptionIds,
+            out ArrayOf<StatusCode> results,
+            out ArrayOf<DiagnosticInfo> diagnosticInfos);
 
         /// <summary>
         /// Attaches a groups of subscriptions to a different session.
         /// </summary>
         ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             OperationContext context,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             bool sendInitialValues,
             CancellationToken cancellationToken = default);
 
@@ -165,12 +173,12 @@ namespace Opc.Ua.Server
             OperationContext context,
             uint subscriptionId,
             uint triggeringItemId,
-            UInt32Collection linksToAdd,
-            UInt32Collection linksToRemove,
-            out StatusCodeCollection addResults,
-            out DiagnosticInfoCollection addDiagnosticInfos,
-            out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos);
+            ArrayOf<uint> linksToAdd,
+            ArrayOf<uint> linksToRemove,
+            out ArrayOf<StatusCode> addResults,
+            out ArrayOf<DiagnosticInfo> addDiagnosticInfos,
+            out ArrayOf<StatusCode> removeResults,
+            out ArrayOf<DiagnosticInfo> removeDiagnosticInfos);
 
         /// <summary>
         /// Adds monitored items to a subscription.
@@ -179,7 +187,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequestCollection itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -189,7 +197,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemModifyRequestCollection itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -198,17 +206,17 @@ namespace Opc.Ua.Server
         ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Changes the monitoring mode for a set of items.
         /// </summary>
-        ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> SetMonitoringModeAsync(
+        ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeAsync(
             OperationContext context,
             uint subscriptionId,
             MonitoringMode monitoringMode,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default);
 
         /// <summary>

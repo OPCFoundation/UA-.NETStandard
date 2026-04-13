@@ -32,7 +32,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -61,59 +60,61 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("EncodeableTypes")]
         public void ActivateEncodeableType(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             Type systemType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
-            Assert.NotNull(testObject);
+            Assert.That(testObject, Is.Not.Null);
 
             if (testObject.BinaryEncodingId.IsNull)
             {
                 return;
             }
 
-            Assert.False(testObject.BinaryEncodingId.IsNull);
-            Assert.False(testObject.TypeId.IsNull);
-            Assert.False(testObject.XmlEncodingId.IsNull);
-            Assert.AreNotEqual(testObject.TypeId, testObject.BinaryEncodingId);
-            Assert.AreNotEqual(testObject.TypeId, testObject.XmlEncodingId);
-            Assert.AreNotEqual(testObject.BinaryEncodingId, testObject.XmlEncodingId);
+            Assert.That(testObject.BinaryEncodingId.IsNull, Is.False);
+            Assert.That(testObject.TypeId.IsNull, Is.False);
+            Assert.That(testObject.XmlEncodingId.IsNull, Is.False);
+            Assert.That(testObject.BinaryEncodingId, Is.Not.EqualTo(testObject.TypeId));
+            Assert.That(testObject.XmlEncodingId, Is.Not.EqualTo(testObject.TypeId));
+            Assert.That(testObject.XmlEncodingId, Is.Not.EqualTo(testObject.BinaryEncodingId));
             EncodeDecode(
                 encoderType,
                 jsonEncodingType,
+                useXmlParser,
                 BuiltInType.ExtensionObject,
                 memoryStreamType,
-                new ExtensionObject(testObject.TypeId, testObject));
+                new ExtensionObject(testObject));
         }
 
         [Theory]
         [Category("EncodeableTypes")]
         public void ActivateEncodeableTypeArray(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             Type systemType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             int arrayLength = DataGenerator.GetRandomByte();
-            var array = Array.CreateInstance(systemType, arrayLength);
+            var array = new ExtensionObject[arrayLength];
             ExpandedNodeId dataTypeId = NodeId.Null;
             for (int i = 0; i < array.Length; i++)
             {
                 var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
-                array.SetValue(testObject, i);
+                array[i] = new ExtensionObject(testObject);
                 if (dataTypeId.IsNull)
                 {
                     dataTypeId = testObject.TypeId;
                 }
             }
-
+            var expected = Variant.From(array);
             const string objectName = "Array";
-            const BuiltInType builtInType = BuiltInType.Variant;
 
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
@@ -127,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         jsonEncodingType))
                 {
                     encoder.PushNamespace("urn:This:is:another:namespace");
-                    encoder.WriteArray(objectName, array, ValueRanks.OneDimension, builtInType);
+                    encoder.WriteVariantValue(objectName, expected);
                     encoder.PopNamespace();
                 }
                 buffer = encoderStream.ToArray();
@@ -140,81 +141,71 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     break;
                 case EncodingType.Xml:
                     string xml = Encoding.UTF8.GetString(buffer);
-                    Assert.IsTrue(
+                    Assert.That(
                         xml.Contains(
                             "<Array xmlns=\"urn:This:is:another:namespace\">",
-                            StringComparison.Ordinal));
+                            StringComparison.Ordinal),
+                        Is.True);
                     break;
                 case EncodingType.Binary:
                     break;
                 default:
-                    NUnit.Framework.Assert.Fail($"Encoder type {encoderType} not supported.");
+                    Assert.Fail($"Encoder type {encoderType} not supported.");
                     break;
             }
 
-            object result;
+            Variant result;
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(
                 encoderType,
+                useXmlParser,
                 Context,
                 decoderStream,
                 systemType))
             {
                 decoder.PushNamespace("urn:This:is:another:namespace");
-                result = decoder.ReadArray(
-                    objectName,
-                    ValueRanks.OneDimension,
-                    BuiltInType.Variant,
-                    systemType,
-                    dataTypeId);
+                result = decoder.ReadVariantValue(objectName, expected.TypeInfo);
                 decoder.PopNamespace();
             }
 
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
-            object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, array);
 
             string encodeInfo =
                 $"Encoder: {encoderType} Type: Array of {systemType}. Expected is different from result.";
-
-            Assert.IsTrue(Utils.IsEqual(expected, result), encodeInfo);
-            Assert.IsTrue(
-                Utils.IsEqual(expected, result),
-                "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+            Assert.That(result, Is.EqualTo(expected), encodeInfo);
         }
 
         [Theory]
         [Category("EncodeableTypes")]
         public void ActivateEncodeableTypeMatrix(
             [ValueSource(
-                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
-            bool encodeAsMatrix,
             Type systemType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
+            bool useXmlParser = encoderTypeGroup.UseXmlParser;
             int matrixDimension = RandomSource.NextInt32(2) + 2;
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elementsCount = ElementsFromDimension(dimensions);
-            var array = Array.CreateInstance(systemType, elementsCount);
+            var array = new ExtensionObject[elementsCount];
 
             ExpandedNodeId dataTypeId = NodeId.Null;
             for (int i = 0; i < array.Length; i++)
             {
                 var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
-                array.SetValue(testObject, i);
+                array[i] = new ExtensionObject(testObject);
                 if (dataTypeId.IsNull)
                 {
                     dataTypeId = testObject.TypeId;
                 }
             }
 
+            Variant expected = Variant.From(array);
             const string objectName = "Matrix";
-            const BuiltInType builtInType = BuiltInType.Variant;
-
-            var matrix = new Matrix(array, builtInType, dimensions);
 
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
@@ -227,22 +218,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         systemType,
                         jsonEncodingType))
                 {
-                    if (encodeAsMatrix)
-                    {
-                        encoder.WriteArray(
-                            objectName,
-                            matrix,
-                            matrix.TypeInfo.ValueRank,
-                            builtInType);
-                    }
-                    else
-                    {
-                        encoder.WriteArray(
-                            objectName,
-                            matrix.ToArray(),
-                            matrix.TypeInfo.ValueRank,
-                            builtInType);
-                    }
+                    encoder.WriteVariantValue(objectName, expected);
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -252,36 +228,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
             }
 
-            Array result;
+            Variant result;
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(
                 encoderType,
+                useXmlParser,
                 Context,
                 decoderStream,
                 systemType))
             {
-                result = decoder.ReadArray(
-                    objectName,
-                    matrix.TypeInfo.ValueRank,
-                    BuiltInType.Variant,
-                    systemType,
-                    dataTypeId);
+                result = decoder.ReadVariantValue(objectName, expected.TypeInfo);
             }
 
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
-            object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, matrix);
 
-            string encodeInfo =
-                $"Encoder: {encoderType} Type: Matrix of {systemType}. Expected is different from result.";
-
-            // note: Array.Equals just compares the references, so check the matrix
-            var resultMatrix = new Matrix(result, BuiltInType.Variant);
-
-            Assert.AreEqual(matrix, resultMatrix, encodeInfo);
-            Assert.IsTrue(
-                Utils.IsEqual(expected, result),
-                "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+            Assert.That(
+                result,
+                Is.EqualTo(expected),
+                $"Encoder: {encoderType} Type: Matrix of {systemType}. Expected is different from result.");
         }
 
         /// <summary>
@@ -351,7 +316,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                                 }
                                 else
                                 {
-                                    property.SetValue(typeInstance, new DiagnosticInfoCollection());
+                                    property.SetValue(typeInstance, Array.Empty<DiagnosticInfo>());
                                 }
                             }
                             break;

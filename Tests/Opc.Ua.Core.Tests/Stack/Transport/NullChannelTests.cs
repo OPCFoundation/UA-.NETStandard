@@ -45,7 +45,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void SetOperationTimeoutDoesNotThrow()
         {
             using var sut = new NullChannel();
-            Assert.That(sut.OperationTimeout, Is.EqualTo(0));
+            Assert.That(sut.OperationTimeout, Is.Zero);
             sut.OperationTimeout = 1;
             Assert.That(sut.OperationTimeout, Is.EqualTo(1));
         }

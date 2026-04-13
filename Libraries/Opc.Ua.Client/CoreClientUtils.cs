@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -89,8 +88,8 @@ namespace Opc.Ua.Client
                     telemetry,
                     ct: ct).ConfigureAwait(false))
             {
-                ApplicationDescriptionCollection servers =
-                    await client.FindServersAsync(null, ct).ConfigureAwait(false);
+                ArrayOf<ApplicationDescription> servers =
+                    await client.FindServersAsync(default, ct).ConfigureAwait(false);
 
                 // populate the drop down list with the discovery URLs for the available servers.
                 for (int ii = 0; ii < servers.Count; ii++)
@@ -169,8 +168,8 @@ namespace Opc.Ua.Client
                 ct: ct).ConfigureAwait(false);
             var url = new Uri(client.Endpoint?.EndpointUrl ??
                 throw ServiceResultException.Unexpected("Endpoint missing"));
-            EndpointDescriptionCollection endpoints =
-                await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
+            ArrayOf<EndpointDescription> endpoints =
+                await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
             return SelectEndpoint(
                 application,
                 url,
@@ -237,8 +236,8 @@ namespace Opc.Ua.Client
             // Connect to the server's discovery endpoint and find the available configuration.
             var url = new Uri(client.Endpoint?.EndpointUrl ??
                 throw ServiceResultException.Unexpected("Endpoint missing"));
-            EndpointDescriptionCollection endpoints =
-                await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
+            ArrayOf<EndpointDescription> endpoints =
+                await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
             EndpointDescription? selectedEndpoint = SelectEndpoint(
                 application,
                 url,
@@ -263,13 +262,13 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Select the best supported endpoint from an
-        /// EndpointDescriptionCollection, with or without security.
+        /// Select the best supported endpoint from the
+        /// EndpointDescriptions, with or without security.
         /// </summary>
         public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration configuration,
             Uri url,
-            EndpointDescriptionCollection endpoints,
+            ArrayOf<EndpointDescription> endpoints,
             bool useSecurity,
             ITelemetryContext telemetry)
         {
@@ -296,8 +295,7 @@ namespace Opc.Ua.Client
                         {
                             // skip unsupported security policies
                             if (!configuration.SecurityConfiguration.SupportedSecurityPolicies
-                                    .Contains(
-                                        endpoint.SecurityPolicyUri))
+                                    .Contains(p => p == endpoint.SecurityPolicyUri))
                             {
                                 continue;
                             }
@@ -340,7 +338,7 @@ namespace Opc.Ua.Client
             // pick the first available endpoint by default.
             if (selectedEndpoint == null && endpoints.Count > 0)
             {
-                selectedEndpoint = endpoints.FirstOrDefault(e =>
+                selectedEndpoint = endpoints.Find(e =>
                     e.EndpointUrl?.StartsWith(url.Scheme, StringComparison.Ordinal) == true);
             }
 

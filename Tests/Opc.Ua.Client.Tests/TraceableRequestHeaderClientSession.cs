@@ -44,8 +44,8 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            ArrayOf<EndpointDescription> availableEndpoints = default,
+            ArrayOf<string> discoveryProfileUris = default)
             : base(
                 channel,
                 configuration,
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client
             var spanContextParameter = new KeyValuePair
             {
                 Key = QualifiedName.From("SpanContext"),
-                Value = new Variant(new SpanContextDataType
+                Value = Variant.FromStructure(new SpanContextDataType
                 {
 #if NET8_0_OR_GREATER
                     SpanId = BitConverter.ToUInt64(spanId),
@@ -93,7 +93,7 @@ namespace Opc.Ua.Client
                 })
             };
             traceData = new AdditionalParametersType();
-            traceData.Parameters.Add(spanContextParameter);
+            traceData.Parameters = [spanContextParameter];
         }
 
         ///<inheritdoc/>
@@ -115,7 +115,8 @@ namespace Opc.Ua.Client
                     out AdditionalParametersType existingParameters))
                 {
                     // Merge the trace data into the existing parameters.
-                    existingParameters.Parameters.AddRange(traceData.Parameters);
+                    existingParameters.Parameters =
+                        existingParameters.Parameters.AddItems(traceData.Parameters);
                 }
             }
         }

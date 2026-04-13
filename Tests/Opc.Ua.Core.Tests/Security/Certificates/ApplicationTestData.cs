@@ -51,7 +51,7 @@ namespace Opc.Ua.Core.Tests
 
         public string ApplicationUri;
         public string ApplicationName;
-        public StringCollection DomainNames;
+        public ArrayOf<string> DomainNames;
         public string Subject;
         public string PrivateKeyFormat;
         public string PrivateKeyPassword;

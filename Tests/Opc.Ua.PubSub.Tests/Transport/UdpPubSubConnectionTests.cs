@@ -41,7 +41,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
@@ -89,6 +88,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private ILogger m_logger;
         private ManualResetEvent m_shutdownEvent;
 
+        [OneTimeTearDown]
+        public void MyTestTearDown()
+        {
+            m_uaPublisherApplication?.Dispose();
+        }
+
         /// <summary>
         /// private UdpAddressesType m_udpAddressesType = UdpAddressesType.Unicast;
         /// </summary>
@@ -105,26 +110,26 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 checkCurrentDirectory: true,
                 createAlways: false);
             m_uaPublisherApplication = UaPubSubApplication.Create(configurationFile, null);
-            Assert.IsNotNull(m_uaPublisherApplication, "m_publisherApplication should not be null");
+            Assert.That(m_uaPublisherApplication, Is.Not.Null, "m_publisherApplication should not be null");
 
             // Get the publisher configuration
             m_publisherConfiguration = m_uaPublisherApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
-            Assert.IsNotNull(
+            Assert.That(
                 m_publisherConfiguration,
+                Is.Not.Null,
                 "m_publisherConfiguration should not be null");
 
             // Get publisher connection
-            Assert.IsNotNull(
-                m_publisherConfiguration.Connections,
-                "m_publisherConfiguration.Connections should not be null");
-            Assert.IsNotEmpty(
-                m_publisherConfiguration.Connections,
+            Assert.That(
+                m_publisherConfiguration.Connections.IsEmpty,
+                Is.False,
                 "m_publisherConfiguration.Connections should not be empty");
-            m_udpPublisherConnection = m_uaPublisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
-            Assert.IsNotNull(
+            m_udpPublisherConnection =
+                m_uaPublisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(
                 m_udpPublisherConnection,
+                Is.Not.Null,
                 "m_uadpPublisherConnection should not be null");
         }
 
@@ -132,48 +137,53 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void ValidateUdpPubSubConnectionTransportProtocol()
         {
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 m_udpPublisherConnection,
+                Is.Not.Null,
                 "The UDP connection from standard configuration is invalid.");
-            Assert.IsTrue(
-                m_udpPublisherConnection.TransportProtocol == TransportProtocol.UDP,
-                "The UADP connection has wrong TransportProtocol {0}",
-                m_udpPublisherConnection.TransportProtocol);
+            Assert.That(
+                m_udpPublisherConnection.TransportProtocol,
+                Is.EqualTo(TransportProtocol.UDP),
+                CoreUtils.Format(
+                    "The UADP connection has wrong TransportProtocol {0}",
+                    m_udpPublisherConnection.TransportProtocol));
         }
 
         [Test(Description = "Validate PubSubConnectionConfiguration value")]
         public void ValidateUdpPubSubConnectionPubSubConnectionConfiguration()
         {
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 m_udpPublisherConnection,
+                Is.Not.Null,
                 "The UADP connection from standard configuration is invalid.");
             PubSubConnectionDataType connectionConfiguration = m_udpPublisherConnection
                 .PubSubConnectionConfiguration;
             PubSubConnectionDataType originalConnectionConfiguration = m_publisherConfiguration
                 .Connections[0];
-            Assert.IsNotNull(
+            Assert.That(
                 connectionConfiguration,
+                Is.Not.Null,
                 "The UADP connection configuration from UADP connection object is invalid.");
-            Assert.AreEqual(
-                originalConnectionConfiguration.Name,
+            Assert.That(
                 connectionConfiguration.Name,
+                Is.EqualTo(originalConnectionConfiguration.Name),
                 "The connection configuration Name is invalid.");
-            Assert.AreEqual(
-                originalConnectionConfiguration.PublisherId,
+            Assert.That(
                 connectionConfiguration.PublisherId,
+                Is.EqualTo(originalConnectionConfiguration.PublisherId),
                 "The connection configuration PublisherId is invalid.");
-            Assert.AreEqual(
-                originalConnectionConfiguration.Address,
+            Assert.That(
                 connectionConfiguration.Address,
+                Is.EqualTo(originalConnectionConfiguration.Address),
                 "The connection configuration Address is invalid.");
-            Assert.AreEqual(
-                originalConnectionConfiguration.Enabled,
+            Assert.That(
                 connectionConfiguration.Enabled,
+                Is.EqualTo(originalConnectionConfiguration.Enabled),
                 "The connection configuration Enabled is invalid.");
-            Assert.AreEqual(
-                originalConnectionConfiguration.TransportProfileUri,
+            Assert.That(
                 connectionConfiguration.TransportProfileUri,
+                Is.EqualTo(originalConnectionConfiguration.TransportProfileUri),
                 "The connection configuration TransportProfileUri is invalid.");
         }
 
@@ -181,12 +191,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void ValidateUdpPubSubConnectionApplication()
         {
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 m_udpPublisherConnection,
+                Is.Not.Null,
                 "The UADP connection from standard configuration is invalid.");
-            Assert.AreEqual(
-                m_udpPublisherConnection.Application,
+            Assert.That(
                 m_uaPublisherApplication,
+                Is.EqualTo(m_udpPublisherConnection.Application),
                 "The UADP connection Application reference is invalid.");
         }
 
@@ -194,29 +205,36 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void ValidateUdpPubSubConnectionPublishers()
         {
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 m_udpPublisherConnection,
+                Is.Not.Null,
                 "The UADP connection from standard configuration is invalid.");
-            Assert.IsNotNull(
+            Assert.That(
                 m_udpPublisherConnection.Publishers,
+                Is.Not.Null,
                 "The UADP connection Publishers is invalid.");
-            Assert.AreEqual(
-                1,
+            Assert.That(
                 m_udpPublisherConnection.Publishers.Count,
+                Is.EqualTo(1),
                 "The UADP connection Publishers.Count is invalid.");
             int index = 0;
             foreach (IUaPublisher publisher in m_udpPublisherConnection.Publishers)
             {
-                Assert.IsTrue(publisher != null, "connection.Publishers[{0}] is null", index);
-                Assert.IsTrue(
-                    publisher.PubSubConnection == m_udpPublisherConnection,
-                    "connection.Publishers[{0}].PubSubConnection is not set correctly",
-                    index);
-                Assert.IsTrue(
-                    publisher.WriterGroupConfiguration.WriterGroupId ==
-                        m_publisherConfiguration.Connections[0].WriterGroups[index].WriterGroupId,
-                    "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly",
-                    index);
+                Assert.That(publisher,
+                    Is.Not.Null,
+                    CoreUtils.Format("connection.Publishers[{0}] is null", index));
+                Assert.That(
+                    publisher.PubSubConnection,
+                    Is.EqualTo(m_udpPublisherConnection),
+                    CoreUtils.Format(
+                        "connection.Publishers[{0}].PubSubConnection is not set correctly",
+                        index));
+                Assert.That(
+                    publisher.WriterGroupConfiguration.WriterGroupId,
+                    Is.EqualTo(m_publisherConfiguration.Connections[0].WriterGroups[index].WriterGroupId),
+                    CoreUtils.Format(
+                        "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly",
+                        index));
                 index++;
             }
         }
@@ -224,8 +242,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Test(Description = "Validate CreateNetworkMessage")]
         public void ValidateUdpPubSubConnectionCreateNetworkMessage()
         {
-            Assert.IsNotNull(
+            Assert.That(
                 m_udpPublisherConnection,
+                Is.Not.Null,
                 "The UADP connection from standard configuration is invalid.");
 
             //Arrange
@@ -243,66 +262,73 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 .CreateNetworkMessages(
                     writerGroup0,
                     new WriterGroupPublishState());
-            Assert.IsNotNull(
+            Assert.That(
                 networkMessages,
+                Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
             UaNetworkMessage networkMessagesNetworkType = networkMessages.FirstOrDefault(
                 net => !net.IsMetaDataMessage);
-            Assert.IsNotNull(
+            Assert.That(
                 networkMessagesNetworkType,
+                Is.Not.Null,
                 "connection.CreateNetworkMessages shall return only one network message");
 
             var networkMessage0 = networkMessagesNetworkType as UadpNetworkMessage;
-            Assert.IsNotNull(networkMessage0, "networkMessageEncode should not be null");
+            Assert.That(networkMessage0, Is.Not.Null, "networkMessageEncode should not be null");
 
             //Assert
-            Assert.IsNotNull(
+            Assert.That(
                 networkMessage0,
+                Is.Not.Null,
                 "CreateNetworkMessage did not return an UadpNetworkMessage.");
 
-            Assert.AreEqual(
-                networkMessage0.DataSetClassId,
+            Assert.That(
                 Uuid.Empty,
+                Is.EqualTo(networkMessage0.DataSetClassId),
                 "UadpNetworkMessage.DataSetClassId is invalid.");
-            Assert.AreEqual(
-                networkMessage0.WriterGroupId,
+            Assert.That(
                 writerGroup0.WriterGroupId,
+                Is.EqualTo(networkMessage0.WriterGroupId),
                 "UadpNetworkMessage.WriterGroupId is invalid.");
-            Assert.AreEqual(
+            Assert.That(
                 networkMessage0.UADPVersion,
-                1,
+                Is.EqualTo(1),
                 "UadpNetworkMessage.UADPVersion is invalid.");
-            Assert.AreEqual(
+            Assert.That(
                 networkMessage0.SequenceNumber,
-                1,
+                Is.EqualTo(1),
                 "UadpNetworkMessage.SequenceNumber is not 1.");
-            Assert.AreEqual(
-                networkMessage0.GroupVersion,
+            Assert.That(
                 messageSettings.GroupVersion,
+                Is.EqualTo(networkMessage0.GroupVersion),
                 "UadpNetworkMessage.GroupVersion is not valid.");
-            Assert.AreEqual(
-                networkMessage0.PublisherId,
+#pragma warning disable CS0618 // Type or member is obsolete
+            Assert.That(
                 m_udpPublisherConnection.PubSubConnectionConfiguration.PublisherId.Value,
+                Is.EqualTo(networkMessage0.PublisherId),
                 "UadpNetworkMessage.PublisherId is not valid.");
-            Assert.IsNotNull(
+#pragma warning restore CS0618 // Type or member is obsolete
+            Assert.That(
                 networkMessage0.DataSetMessages,
+                Is.Not.Null,
                 "UadpNetworkMessage.UadpDataSetMessages is null.");
-            Assert.AreEqual(
+            Assert.That(
                 networkMessage0.DataSetMessages.Count,
-                3,
+                Is.EqualTo(3),
                 "UadpNetworkMessage.UadpDataSetMessages.Count is not 3.");
             //validate flags
-            Assert.AreEqual(
-                (uint)networkMessage0.NetworkMessageContentMask,
+            Assert.That(
                 messageSettings.NetworkMessageContentMask,
+                Is.EqualTo((uint)networkMessage0.NetworkMessageContentMask),
                 "UadpNetworkMessage.messageSettings.NetworkMessageContentMask is not valid.");
         }
 
         [Test(Description = "Validate CreateNetworkMessage SequenceNumber increment")]
         public void ValidateUdpPubSubConnectionCreateNetworkMessageSequenceNumber()
         {
-            Assert.IsNotNull(
+            Assert.That(
                 m_udpPublisherConnection,
+                Is.Not.Null,
                 "The UADP connection from standard configuration is invalid.");
             //Arrange
             WriterGroupDataType writerGroup0 = m_udpPublisherConnection
@@ -318,60 +344,58 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     .CreateNetworkMessages(
                         writerGroup0,
                         new WriterGroupPublishState());
-                Assert.IsNotNull(
+                Assert.That(
                     networkMessages,
+                    Is.Not.Null,
                     "connection.CreateNetworkMessages shall not return null");
                 UaNetworkMessage networkMessagesNetworkType = networkMessages.FirstOrDefault(net =>
                     !net.IsMetaDataMessage);
-                Assert.IsNotNull(
+                Assert.That(
                     networkMessagesNetworkType,
+                    Is.Not.Null,
                     "connection.CreateNetworkMessages shall return only one network message");
 
                 var networkMessage = networkMessagesNetworkType as UadpNetworkMessage;
-                Assert.IsNotNull(networkMessage, "networkMessageEncode should not be null");
+                Assert.That(networkMessage, Is.Not.Null, "networkMessageEncode should not be null");
 
                 //Assert
-                Assert.IsNotNull(
+                Assert.That(
                     networkMessage,
+                    Is.Not.Null,
                     "CreateNetworkMessage did not return an UadpNetworkMessage.");
-                Assert.AreEqual(
-                    networkMessage.SequenceNumber,
+                Assert.That(
                     i + 1,
-                    "UadpNetworkMessage.SequenceNumber for message {0} is not {0}.",
-                    i + 1);
+                    Is.EqualTo(networkMessage.SequenceNumber),
+                    $"UadpNetworkMessage.SequenceNumber for message {i + 1} is not {i + 1}.");
 
                 //validate dataset message sequence number
-                Assert.IsNotNull(
+                Assert.That(
                     networkMessage.DataSetMessages,
+                    Is.Not.Null,
                     "CreateNetworkMessage did not return an UadpNetworkMessage.UadpDataSetMessages.");
-                Assert.IsTrue(
-                    networkMessage.DataSetMessages.Count == 3,
+                Assert.That(
+                    networkMessage.DataSetMessages.Count,
+                    Is.EqualTo(3),
                     "CreateNetworkMessage did not return 3 UadpNetworkMessage.UadpDataSetMessages.");
-                Assert.AreEqual(
-                    networkMessage.DataSetMessages[0].SequenceNumber,
+                Assert.That(
                     (i * 3) + 1,
-                    "UadpNetworkMessage.UadpDataSetMessages[0].SequenceNumber for message {0} is not {1}.",
-                    i + 1,
-                    (i * 3) + 1);
-                Assert.AreEqual(
-                    networkMessage.DataSetMessages[1].SequenceNumber,
+                    Is.EqualTo(networkMessage.DataSetMessages[0].SequenceNumber),
+                    $"UadpNetworkMessage.UadpDataSetMessages[0].SequenceNumber for message {i + 1} is not {(i * 3) + 1}.");
+                Assert.That(
                     (i * 3) + 2,
-                    "UadpNetworkMessage.UadpDataSetMessages[1].SequenceNumber for message {0} is not {1}.",
-                    i + 1,
-                    (i * 3) + 2);
-                Assert.AreEqual(
-                    networkMessage.DataSetMessages[2].SequenceNumber,
+                    Is.EqualTo(networkMessage.DataSetMessages[1].SequenceNumber),
+                    $"UadpNetworkMessage.UadpDataSetMessages[1].SequenceNumber for message {i + 1} is not {(i * 3) + 2}.");
+                Assert.That(
                     (i * 3) + 3,
-                    "UadpNetworkMessage.UadpDataSetMessages[2].SequenceNumber for message {0} is not {1}.",
-                    i + 1,
-                    (i * 3) + 3);
+                    Is.EqualTo(networkMessage.DataSetMessages[2].SequenceNumber),
+                    $"UadpNetworkMessage.UadpDataSetMessages[2].SequenceNumber for message {i + 1} is not {(i * 3) + 3}.");
             }
         }
 
         /// <summary>
         /// Get localhost address reference
         /// </summary>
-        public static UnicastIPAddressInformation GetFirstNic()
+        internal static UnicastIPAddressInformation GetFirstNic()
         {
             string activeIp = "127.0.0.1";
 
@@ -451,7 +475,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         /// <summary>
         /// Get list of active IPv4 addresses.
         /// </summary>
-        public static IPAddress[] GetLocalIpAddresses()
+        private static IPAddress[] GetLocalIpAddresses()
         {
             var addresses = new List<IPAddress>();
             foreach (NetworkInterface netI in NetworkInterface.GetAllNetworkInterfaces())
@@ -519,7 +543,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             catch
             {
             }
-            NUnit.Framework.Assert.Inconclusive("First active NIC was not found.");
+            Assert.Inconclusive("First active NIC was not found.");
 
             return null;
         }
@@ -528,8 +552,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void ValidateUdpPubSubConnectionSocketAccessBeforeStart()
         {
             // Arrange
-            Assert.IsNotNull(
+            Assert.That(
                 m_udpPublisherConnection,
+                Is.Not.Null,
                 "The UADP connection from standard configuration is invalid.");
 
             // Act - Access clients before connection is started
@@ -537,18 +562,19 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IReadOnlyList<UdpClient> subscriberClients = m_udpPublisherConnection.SubscriberUdpClients;
 
             // Assert - Should return empty lists before connection is started
-            Assert.IsNotNull(publisherClients, "PublisherUdpClients should not be null");
-            Assert.IsNotNull(subscriberClients, "SubscriberUdpClients should not be null");
-            Assert.AreEqual(0, publisherClients.Count, "PublisherUdpClients should be empty before start");
-            Assert.AreEqual(0, subscriberClients.Count, "SubscriberUdpClients should be empty before start");
+            Assert.That(publisherClients, Is.Not.Null, "PublisherUdpClients should not be null");
+            Assert.That(subscriberClients, Is.Not.Null, "SubscriberUdpClients should not be null");
+            Assert.That(publisherClients.Count, Is.EqualTo(0), "PublisherUdpClients should be empty before start");
+            Assert.That(subscriberClients.Count, Is.EqualTo(0), "SubscriberUdpClients should be empty before start");
         }
 
         [Test(Description = "Validate UDP client socket access after connection is started")]
         public void ValidateUdpPubSubConnectionSocketAccessAfterStart()
         {
             // Arrange
-            Assert.IsNotNull(
+            Assert.That(
                 m_udpPublisherConnection,
+                Is.Not.Null,
                 "The UADP connection from standard configuration is invalid.");
 
             // Act - Start the connection
@@ -561,23 +587,23 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 IReadOnlyList<UdpClient> subscriberClients = m_udpPublisherConnection.SubscriberUdpClients;
 
                 // Assert - Should have clients after connection is started
-                Assert.IsNotNull(publisherClients, "PublisherUdpClients should not be null");
-                Assert.IsNotNull(subscriberClients, "SubscriberUdpClients should not be null");
+                Assert.That(publisherClients, Is.Not.Null, "PublisherUdpClients should not be null");
+                Assert.That(subscriberClients, Is.Not.Null, "SubscriberUdpClients should not be null");
 
                 // Publisher should have clients since there are publishers configured
                 if (m_udpPublisherConnection.Publishers.Count > 0)
                 {
-                    Assert.Greater(publisherClients.Count, 0, "PublisherUdpClients should not be empty when publishers exist");
+                    Assert.That(publisherClients, Is.Not.Empty, "PublisherUdpClients should not be empty when publishers exist");
 
                     // Verify we can access the underlying socket
                     foreach (UdpClient client in publisherClients)
                     {
-                        Assert.IsNotNull(client, "UDP client should not be null");
-                        Assert.IsNotNull(client.Client, "UDP client Socket should not be null");
+                        Assert.That(client, Is.Not.Null, "UDP client should not be null");
+                        Assert.That(client.Client, Is.Not.Null, "UDP client Socket should not be null");
 
                         // Verify we can read socket properties (e.g., ReceiveBufferSize)
                         int receiveBufferSize = client.Client.ReceiveBufferSize;
-                        Assert.Greater(receiveBufferSize, 0, "ReceiveBufferSize should be greater than 0");
+                        Assert.That(receiveBufferSize, Is.GreaterThan(0), "ReceiveBufferSize should be greater than 0");
 
                         m_logger.LogInformation(
                             "Publisher UDP Socket - ReceiveBufferSize: {Size}, LocalEndPoint: {Endpoint}",
@@ -597,8 +623,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void ValidateUdpPubSubConnectionSocketListIsReadOnly()
         {
             // Arrange
-            Assert.IsNotNull(
+            Assert.That(
                 m_udpPublisherConnection,
+                Is.Not.Null,
                 "The UADP connection from standard configuration is invalid.");
 
             // Act
@@ -606,8 +633,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IReadOnlyList<UdpClient> subscriberClients = m_udpPublisherConnection.SubscriberUdpClients;
 
             // Assert - The returned collections should be read-only
-            Assert.IsNotNull(publisherClients, "PublisherUdpClients should not be null");
-            Assert.IsNotNull(subscriberClients, "SubscriberUdpClients should not be null");
+            Assert.That(publisherClients, Is.Not.Null, "PublisherUdpClients should not be null");
+            Assert.That(subscriberClients, Is.Not.Null, "SubscriberUdpClients should not be null");
 
             // Verify that the collections are truly read-only (no Add/Remove methods exposed)
             Assert.IsInstanceOf<IReadOnlyList<UdpClient>>(publisherClients, "PublisherUdpClients should be IReadOnlyList");

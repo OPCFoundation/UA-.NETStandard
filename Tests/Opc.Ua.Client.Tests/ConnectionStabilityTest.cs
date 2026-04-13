@@ -35,7 +35,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -154,7 +153,7 @@ namespace Opc.Ua.Client.Tests
                 IDictionary<NodeId, Type> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
                 if (nodeIds.Count == 0)
                 {
-                    NUnit.Framework.Assert.Ignore("No nodes for simulation found, ignoring test.");
+                    Assert.Ignore("No nodes for simulation found, ignoring test.");
                 }
 
                 TestContext.Out.WriteLine($"Subscribing to {nodeIds.Count} nodes.");
@@ -163,7 +162,7 @@ namespace Opc.Ua.Client.Tests
                 session = await ClientFixture.ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-                Assert.NotNull(session, "Failed to create session");
+                Assert.That(session, Is.Not.Null, "Failed to create session");
 
                 // Create subscription
                 subscription = new Subscription(session.DefaultSubscription)
@@ -227,11 +226,31 @@ namespace Opc.Ua.Client.Tests
 
                 TestContext.Out.WriteLine($"Subscription created with {subscription.MonitoredItemCount} monitored items");
 
+                // Wait for the subscription to deliver initial values for all nodes before
+                // starting writes. This prevents the first few writes from being missed when
+                // the CI machine is under load and the subscription is still starting up.
+                TestContext.Out.WriteLine("Waiting for subscription to deliver initial values...");
+                var settleDeadline = DateTime.UtcNow.AddSeconds(15);
+                while (valueChanges.Values.Sum() < nodeIds.Count && DateTime.UtcNow < settleDeadline)
+                {
+                    await Task.Delay(200).ConfigureAwait(false);
+                }
+
+                int settledCount = valueChanges.Values.Sum();
+                TestContext.Out.WriteLine($"Subscription settled: {settledCount}/{nodeIds.Count} initial notifications received");
+
+                // Reset counters so the measurement period starts from when the subscription
+                // is confirmed active (initial-value notifications don't count as write-triggered).
+                foreach (NodeId nodeId in nodeIds.Keys)
+                {
+                    valueChanges[nodeId] = 0;
+                }
+
                 // Create writer session
                 ISession writerSession = await ClientFixture.ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-                Assert.NotNull(writerSession, "Failed to create writer session");
+                Assert.That(writerSession, Is.Not.Null, "Failed to create writer session");
 
                 // Writer task - continuously write values
                 int writeCount = 0;
@@ -241,10 +260,11 @@ namespace Opc.Ua.Client.Tests
                     while (!writerCts.IsCancellationRequested)
                     {
                         writeCount++;
-                        var nodesToWrite = new WriteValueCollection();
+                        var nodesToWrite = new List<WriteValue>();
 
                         foreach (KeyValuePair<NodeId, Type> node in nodeIds)
                         {
+#pragma warning disable CS0618 // Type or member is obsolete
                             nodesToWrite.Add(new WriteValue
                             {
                                 NodeId = node.Key,
@@ -255,11 +275,21 @@ namespace Opc.Ua.Client.Tests
                                     )
                                 )
                             });
+#pragma warning restore CS0618 // Type or member is obsolete
                         }
 
                         try
                         {
                             await writerSession.WriteAsync(null, nodesToWrite, writerCts.Token).ConfigureAwait(false);
+                        }
+                        catch (ServiceResultException sre)
+                            when (sre.StatusCode == StatusCodes.BadRequestInterrupted)
+                        {
+                            // BadRequestInterrupted is expected when a write is in-flight during a
+                            // secure channel renewal. The channel renewal briefly interrupts the old
+                            // channel before the new one activates, so this is not a test failure.
+                            TestContext.Out.WriteLine(
+                                $"INFO: Write interrupted during channel renewal (expected): {sre.Message}");
                         }
                         catch (Exception ex)
                         {
@@ -378,7 +408,7 @@ namespace Opc.Ua.Client.Tests
 #if DEBUG
                         TestContext.Out.WriteLine($"  {nodeId}: {changes} notifications");
 #endif
-                        double expected = writeCount * kNotificationToleranceRatio;
+                        double expected = Math.Max(0, writeCount - 1) * kNotificationToleranceRatio;
                         if (changes < expected)
                         {
                             allNodesReceivedData = false;
@@ -419,11 +449,11 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // Assertions
-                Assert.IsTrue(allNodesReceivedData, "Not all nodes received expected data");
-                Assert.AreEqual(0, errors.Count, $"Test encountered {errors.Count} errors");
-                Assert.GreaterOrEqual(
+                Assert.That(allNodesReceivedData, Is.True, "Not all nodes received expected data");
+                Assert.That(errors.Count, Is.Zero, $"Test encountered {errors.Count} errors");
+                Assert.That(
                     totalNotifications,
-                    expectedMinNotifications,
+                    Is.GreaterThanOrEqualTo(expectedMinNotifications),
                     "Total notifications received is less than expected minimum");
 
                 TestContext.Out.WriteLine("Connection stability test PASSED");

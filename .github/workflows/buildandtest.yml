@@ -58,7 +58,7 @@ jobs:
       run: dotnet test ${{ env.CSPROJECT }} --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true /p:CustomTestTarget=${{ matrix.customtesttarget }} --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ${{ env.TESTRESULTS }}
 
     - name: Upload test results
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: dotnet-results-${{matrix.csproj}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}
         path: ${{ env.TESTRESULTS }}
@@ -66,7 +66,7 @@ jobs:
       if: ${{ always() }}
 
     - name: Upload to Codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         name: codecov-umbrella
         token: ${{ secrets.CODECOV_TOKEN }}

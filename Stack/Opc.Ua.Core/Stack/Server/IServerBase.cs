@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -56,7 +57,7 @@ namespace Opc.Ua
         /// Returns the endpoints supported by the server.
         /// </summary>
         /// <returns>Returns a collection of <see cref="EndpointDescription"/> objects.</returns>
-        EndpointDescriptionCollection GetEndpoints();
+        ArrayOf<EndpointDescription> GetEndpoints();
 
         /// <summary>
         /// Schedules an incoming request.

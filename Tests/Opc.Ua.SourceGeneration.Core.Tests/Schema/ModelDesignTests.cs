@@ -551,10 +551,10 @@ namespace Opc.Ua.Schema.Model.Tests
         /// <summary>
         /// Helper method to create an XmlElement for testing.
         /// </summary>
-        private static XmlElement CreateXmlElement(string content)
+        private static System.Xml.XmlElement CreateXmlElement(string content)
         {
             var doc = new XmlDocument();
-            XmlElement element = doc.CreateElement("TestElement");
+            System.Xml.XmlElement element = doc.CreateElement("TestElement");
             element.InnerText = content;
             return element;
         }

@@ -38,28 +38,10 @@ namespace Opc.Ua
     /// Structure definition
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class StructureDefinition : DataTypeDefinition
+    public class StructureDefinition :
+        DataTypeDefinition,
+        IEquatable<StructureDefinition>
     {
-        /// <inheritdoc/>
-        public StructureDefinition()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            DefaultEncodingId = default;
-            BaseDataType = default;
-            StructureType = StructureType.Structure;
-            m_fields = [];
-        }
-
         /// <summary>
         /// Default encoding
         /// </summary>
@@ -82,20 +64,7 @@ namespace Opc.Ua
         /// Fields
         /// </summary>
         [DataMember(Name = "Fields", IsRequired = false, Order = 4)]
-        public StructureFieldCollection Fields
-        {
-            get => m_fields;
-
-            set
-            {
-                m_fields = value;
-
-                if (value == null)
-                {
-                    m_fields = [];
-                }
-            }
-        }
+        public ArrayOf<StructureField> Fields { get; set; }
 
         /// <summary>
         /// The first non-inherited field in the structure definition.
@@ -103,16 +72,20 @@ namespace Opc.Ua
         public int FirstExplicitFieldIndex { get; set; }
 
         /// <inheritdoc/>
-        public override ExpandedNodeId TypeId => DataTypeIds.StructureDefinition;
+        public override ExpandedNodeId TypeId
+            => DataTypeIds.StructureDefinition;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId
+            => ObjectIds.StructureDefinition_Encoding_DefaultBinary;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId
+            => ObjectIds.StructureDefinition_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId
+            => ObjectIds.StructureDefinition_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
@@ -122,7 +95,7 @@ namespace Opc.Ua
             encoder.WriteNodeId("DefaultEncodingId", DefaultEncodingId);
             encoder.WriteNodeId("BaseDataType", BaseDataType);
             encoder.WriteEnumerated("StructureType", StructureType);
-            encoder.WriteEncodeableArray("Fields", [.. Fields], typeof(StructureField));
+            encoder.WriteEncodeableArray("Fields", Fields);
 
             encoder.PopNamespace();
         }
@@ -134,8 +107,8 @@ namespace Opc.Ua
 
             DefaultEncodingId = decoder.ReadNodeId("DefaultEncodingId");
             BaseDataType = decoder.ReadNodeId("BaseDataType");
-            StructureType = (StructureType)decoder.ReadEnumerated("StructureType", typeof(StructureType));
-            Fields = (StructureFieldCollection)decoder.ReadEncodeableArray("Fields", typeof(StructureField));
+            StructureType = decoder.ReadEnumerated<StructureType>("StructureType");
+            Fields = decoder.ReadEncodeableArray<StructureField>("Fields");
 
             decoder.PopNamespace();
         }
@@ -153,27 +126,62 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(DefaultEncodingId, value.DefaultEncodingId))
+            if (DefaultEncodingId != value.DefaultEncodingId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(BaseDataType, value.BaseDataType))
+            if (BaseDataType != value.BaseDataType)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(StructureType, value.StructureType))
+            if (StructureType != value.StructureType)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_fields, value.m_fields))
+            if (Fields != value.Fields)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                base.GetHashCode(),
+                BaseDataType,
+                StructureType,
+                Fields,
+                FirstExplicitFieldIndex);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(StructureDefinition other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(StructureDefinition left, StructureDefinition right)
+        {
+            return EqualityComparer<StructureDefinition>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(StructureDefinition left, StructureDefinition right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>
@@ -190,7 +198,7 @@ namespace Opc.Ua
             clone.DefaultEncodingId = DefaultEncodingId;
             clone.BaseDataType = BaseDataType;
             clone.StructureType = CoreUtils.Clone(StructureType);
-            clone.m_fields = CoreUtils.Clone(m_fields);
+            clone.Fields = CoreUtils.Clone(Fields);
 
             return clone;
         }
@@ -236,76 +244,6 @@ namespace Opc.Ua
                         context.NamespaceUris);
                 }
             }
-        }
-
-        private StructureFieldCollection m_fields;
-    }
-
-    /// <summary>
-    /// Structure definition collection
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfStructureDefinition",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "StructureDefinition")]
-    public class StructureDefinitionCollection : List<StructureDefinition>, ICloneable
-    {
-        /// <inheritdoc/>
-        public StructureDefinitionCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public StructureDefinitionCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public StructureDefinitionCollection(IEnumerable<StructureDefinition> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator StructureDefinitionCollection(StructureDefinition[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <inheritdoc/>
-        public static explicit operator StructureDefinition[](StructureDefinitionCollection values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return null;
-        }
-
-        /// <inheritdoc/>
-        public object Clone()
-        {
-            return (StructureDefinitionCollection)MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new StructureDefinitionCollection(Count);
-
-            for (int ii = 0; ii < Count; ii++)
-            {
-                clone.Add(CoreUtils.Clone(this[ii]));
-            }
-
-            return clone;
         }
     }
 }

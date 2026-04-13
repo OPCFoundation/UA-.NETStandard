@@ -119,7 +119,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 .Where(c => Path.GetExtension(c.Key) == ".xsd")
                 .Select(c => c.Value)
                 .ToList();
-            Assert.That(xmlSchemas.Count, Is.EqualTo(2));
+            Assert.That(xmlSchemas, Has.Count.EqualTo(2));
 
             // Validate xsd schemas
             using (var xsd = new MemoryStream(Encoding.UTF8.GetBytes(xmlSchemas[0])))
@@ -136,7 +136,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 .Where(c => Path.GetExtension(c.Key) == ".bsd")
                 .Select(c => c.Value)
                 .ToList();
-            Assert.That(binSchemas.Count, Is.EqualTo(2));
+            Assert.That(binSchemas, Has.Count.EqualTo(2));
 
             // Validate binary schema
             using (var bsd = new MemoryStream(Encoding.UTF8.GetBytes(binSchemas[0])))
@@ -170,7 +170,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 analysisResults.GetAllDiagnostics().Check(TestContext.Out,
                     out int analyzerErrors,
                     out int analzyerWarnings);
-                Assert.That(analyzerErrors, Is.EqualTo(0), $"Analyzers produced {analyzerErrors} errors");
+                Assert.That(analyzerErrors, Is.Zero, $"Analyzers produced {analyzerErrors} errors");
                 TestContext.Out.WriteLine($"Analyzers produced {analzyerWarnings} warnings");
             }
             Assert.That(
@@ -183,7 +183,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
         }
 
         [Theory]
-        public async Task GenerateFromDesignFileWithCsharp8Async(string modelDesignFile)
+        public void GenerateFromDesignFileWithCsharp8(string modelDesignFile)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             Dictionary<string, string> generatedText = GenerateCodeFromModel(
@@ -231,7 +231,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             return generatedText;
         }
 
-        public void AddPredefinedNodeLoader(Dictionary<string, string> generated)
+        private void AddPredefinedNodeLoader(Dictionary<string, string> generated)
         {
             generated.Add("Test.cs",
                 """

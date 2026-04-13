@@ -115,7 +115,8 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            public partial class {{Tokens.ClassName}}State : {{Tokens.BaseClassName}}State{{Tokens.BaseT}}
+            public partial class {{Tokens.ClassName}}State :
+                {{Tokens.BaseClassName}}State{{Tokens.BaseT}}
             {
                 /// <summary>
                 /// Initializes a new instance of the <see cref="{{Tokens.ClassName}}State"/> class.
@@ -309,8 +310,8 @@ namespace Opc.Ua.SourceGeneration
                 protected override global::Opc.Ua.ServiceResult? Call(
                     global::Opc.Ua.ISystemContext _context,
                     global::Opc.Ua.NodeId _objectId,
-                    global::Opc.Ua.VariantCollection _inputArguments,
-                    global::Opc.Ua.VariantCollection _outputArguments)
+                    global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant> _inputArguments,
+                    global::System.Collections.Generic.List<global::Opc.Ua.Variant> _outputArguments)
                 {
                     if (OnCall == null)
                     {
@@ -334,8 +335,8 @@ namespace Opc.Ua.SourceGeneration
                 protected override async global::System.Threading.Tasks.ValueTask<global::Opc.Ua.ServiceResult?> CallAsync(
                     global::Opc.Ua.ISystemContext _context,
                     global::Opc.Ua.NodeId _objectId,
-                    global::Opc.Ua.VariantCollection _inputArguments,
-                    global::Opc.Ua.VariantCollection _outputArguments,
+                    global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant> _inputArguments,
+                    global::System.Collections.Generic.List<global::Opc.Ua.Variant> _outputArguments,
                     global::System.Threading.CancellationToken cancellationToken = default)
                 {
                     if (OnCall == null && OnCallAsync == null)
@@ -400,7 +401,8 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            public partial class {{Tokens.ClassName}}State : {{Tokens.BaseClassName}}State{{Tokens.BaseT}}
+            public partial class {{Tokens.ClassName}}State :
+                {{Tokens.BaseClassName}}State{{Tokens.BaseT}}
             {
                 /// <summary>
                 /// Initializes a new instance of the <see cref="{{Tokens.ClassName}}State"/> class.
@@ -516,6 +518,115 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Factory methods for variable states with typed values
+        /// </summary>
+        public static readonly TemplateString FactoriesForVariableTypeWithTypedValue = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// Creates a new instance of the {{Tokens.ClassName}}State class with a built-in value type
+            /// and associated TBuilder to extract the value from the Variant and create a new Variant
+            /// from it.
+            /// </summary>
+            public static {{Tokens.ClassName}}State<T> For<T, TBuilder>(global::Opc.Ua.NodeState? parent)
+                where TBuilder : struct, global::Opc.Ua.IVariantBuilder<T>
+            {
+                return new {{Tokens.ClassName}}State<T>.Implementation<TBuilder>(parent);
+            }
+            """);
+
+        /// <summary>
+        /// Typed variable type node state
+        /// </summary>
+        public static readonly TemplateString VariableTypeWithTypedValue_Class = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// The {{Tokens.ClassName}} VariableType state.
+            /// </summary>
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            public abstract class {{Tokens.ClassName}}State<T> :
+                {{Tokens.ClassName}}State
+            {
+                /// <summary>
+                /// Initializes a new instance of the <see cref="{{Tokens.ClassName}}State{T}"/> class.
+                /// </summary>
+                protected {{Tokens.ClassName}}State(global::Opc.Ua.NodeState? parent)
+                    : base(parent)
+                {
+                }
+
+                /// <summary>
+                /// Creates a new instance of the <see cref="{{Tokens.ClassName}}State{T}"/>
+                /// class with a built-in value type and associated TBuilder to extract the
+                /// value from the Variant and create a new Variant from it.
+                /// </summary>
+                /// <typeparam name="TBuilder">The builder to use for T</typeparam>
+                public static {{Tokens.ClassName}}State<T> With<TBuilder>(
+                    global::Opc.Ua.NodeState? parent = null)
+                    where TBuilder : struct, global::Opc.Ua.IVariantBuilder<T>
+                {
+                    return new Implementation<TBuilder>(parent);
+                }
+
+                /// <inheritdoc/>
+                public new abstract T Value { get; set; }
+
+                /// <inheritdoc/>
+                protected override void Initialize(global::Opc.Ua.ISystemContext context)
+                {
+                    base.Initialize(context);
+                    base.Initialize<T>(context);
+                }
+
+                /// <inheritdoc/>
+                protected override void Initialize(
+                    global::Opc.Ua.ISystemContext context,
+                    global::Opc.Ua.NodeState source)
+                {
+                    InitializeOptionalChildren(context);
+                    base.Initialize(context, source);
+                }
+
+                /// <summary>
+                /// Adds builder which extracts T from Variant or creates new Variant with type T
+                /// This is public so it can be overridden by classes outside of the namespace
+                /// </summary>
+                /// <typeparam name="TBuilder">The builder to use for T</typeparam>
+                public class Implementation<TBuilder> : {{Tokens.ClassName}}State<T>
+                    where TBuilder : struct, global::Opc.Ua.IVariantBuilder<T>
+                {
+                    /// <summary>
+                    /// Initializes a new instance of the <see cref="{{Tokens.ClassName}}State{T}"/> class.
+                    /// </summary>
+                    public Implementation(global::Opc.Ua.NodeState? parent)
+                        : base(parent)
+                    {
+                        m_builder = new TBuilder();
+                        Value = default(T);
+                    }
+
+                    /// <inheritdoc/>
+                    public override T Value
+                    {
+                        get => m_builder.GetValue(WrappedValue);
+                        set => WrappedValue = m_builder.WithValue(value);
+                    }
+
+                    /// <inheritdoc/>
+                    public override object Clone()
+                    {
+                        Implementation<TBuilder> clone = new Implementation<TBuilder>(null);
+                        CopyTo(clone);
+                        return clone;
+                    }
+
+                    private readonly TBuilder m_builder;
+                }
+            }
+
+            """);
+
+        /// <summary>
         /// Variable type value field methods
         /// </summary>
         public static readonly TemplateString VariableType_ValueMethods = TemplateString.Parse(
@@ -530,7 +641,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName dataEncoding,
                 ref global::Opc.Ua.Variant value,
                 ref global::Opc.Ua.StatusCode statusCode,
-                ref global::System.DateTime timestamp)
+                ref global::Opc.Ua.DateTimeUtc timestamp)
             {
                 lock (Lock)
                 {
@@ -546,7 +657,7 @@ namespace Opc.Ua.SourceGeneration
 
                     if (m_value != null)
                     {
-                        value = new global::Opc.Ua.Variant(m_value.{{Tokens.ChildPath}});
+                        value = global::Opc.Ua.Variant.{{Tokens.VariantFrom}}(({{Tokens.ChildDataType}})m_value.{{Tokens.ChildPath}});
                     }
 
                     var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
@@ -575,7 +686,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName dataEncoding,
                 ref global::Opc.Ua.Variant value,
                 ref global::Opc.Ua.StatusCode statusCode,
-                ref global::System.DateTime timestamp)
+                ref global::Opc.Ua.DateTimeUtc timestamp)
             {
                 lock (Lock)
                 {
@@ -585,61 +696,6 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 return global::Opc.Ua.ServiceResult.Good;
-            }
-
-            """);
-
-        /// <summary>
-        /// Typed variable type node state
-        /// </summary>
-        public static readonly TemplateString VariableTypeWithTypedValue_Class = TemplateString.Parse(
-            $$"""
-            /// <summary>
-            /// The {{Tokens.ClassName}} VariableType state.
-            /// </summary>
-            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-            [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            public class {{Tokens.ClassName}}State<T> : {{Tokens.ClassName}}State
-            {
-                /// <summary>
-                /// Initializes a new instance of the <see cref="{{Tokens.ClassName}}State{T}"/> class.
-                /// </summary>
-                public {{Tokens.ClassName}}State(global::Opc.Ua.NodeState? parent)
-                    : base(parent)
-                {
-                    Value = default(T);
-                }
-
-                /// <inheritdoc/>
-                public new T Value
-                {
-                    get => CheckTypeBeforeCast<T>(((global::Opc.Ua.BaseVariableState)this).Value, true);
-                    set => ((global::Opc.Ua.BaseVariableState)this).Value = new global::Opc.Ua.Variant(value);
-                }
-
-                /// <inheritdoc/>
-                public override object Clone()
-                {
-                    {{Tokens.ClassName}}State<T> clone = new {{Tokens.ClassName}}State<T>(null);
-                    CopyTo(clone);
-                    return clone;
-                }
-
-                /// <inheritdoc/>
-                protected override void Initialize(global::Opc.Ua.ISystemContext context)
-                {
-                    base.Initialize(context);
-                    base.Initialize<T>(context);
-                }
-
-                /// <inheritdoc/>
-                protected override void Initialize(
-                    global::Opc.Ua.ISystemContext context,
-                    global::Opc.Ua.NodeState source)
-                {
-                    InitializeOptionalChildren(context);
-                    base.Initialize(context, source);
-                }
             }
 
             """);
@@ -722,7 +778,7 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.QualifiedName dataEncoding,
                     ref global::Opc.Ua.Variant value,
                     ref global::Opc.Ua.StatusCode statusCode,
-                    ref global::System.DateTime timestamp)
+                    ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
                     lock (Lock)
                     {
@@ -730,7 +786,7 @@ namespace Opc.Ua.SourceGeneration
 
                         if (m_value != null)
                         {
-                            value = new global::Opc.Ua.Variant(m_value);
+                            value = global::Opc.Ua.Variant.{{Tokens.VariantFrom}}(m_value);
                         }
 
                         return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
@@ -745,11 +801,11 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.QualifiedName dataEncoding,
                     ref global::Opc.Ua.Variant value,
                     ref global::Opc.Ua.StatusCode statusCode,
-                    ref global::System.DateTime timestamp)
+                    ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
                     lock (Lock)
                     {
-                        if (!value.TryGetStructure(out {{Tokens.DataType}} newValue))
+                        if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.DataType}} newValue))
                         {
                             newValue = default;
                         }
@@ -773,7 +829,7 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.ISystemContext context,
                     ref {{Tokens.DataType}} newValue,
                     ref global::Opc.Ua.StatusCode statusCode,
-                    ref global::System.DateTime timestamp)
+                    ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
                     {{Tokens.ListOfUpdateChildrenChangeMasks}}
                 }
@@ -784,7 +840,7 @@ namespace Opc.Ua.SourceGeneration
                 private void UpdateParent(
                     global::Opc.Ua.ISystemContext context,
                     ref global::Opc.Ua.StatusCode statusCode,
-                    ref global::System.DateTime timestamp)
+                    ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
                     Timestamp = timestamp;
                     m_variable.UpdateChangeMasks(global::Opc.Ua.NodeStateChangeMasks.Value);
@@ -797,16 +853,16 @@ namespace Opc.Ua.SourceGeneration
                 private void UpdateChildVariableStatus(
                     global::Opc.Ua.BaseVariableState child,
                     ref global::Opc.Ua.StatusCode statusCode,
-                    ref global::System.DateTime timestamp)
+                    ref global::Opc.Ua.DateTimeUtc timestamp)
                 {
                     if (child == null)
                     {
                         return;
                     }
                     child.StatusCode = statusCode;
-                    if (timestamp == global::System.DateTime.MinValue)
+                    if (timestamp == global::Opc.Ua.DateTimeUtc.MinValue)
                     {
-                        timestamp = global::System.DateTime.UtcNow;
+                        timestamp = global::Opc.Ua.DateTimeUtc.Now;
                     }
                     child.Timestamp = timestamp;
                 }
@@ -997,7 +1053,7 @@ namespace Opc.Ua.SourceGeneration
                     {{Tokens.ClassName}}? child = replacement as {{Tokens.ClassName}};
                     if (child == null)
                     {
-                        child = new {{Tokens.ClassName}}(this);
+                        child = {{Tokens.ClassFactory}}(this);
                         if (replacement != null)
                         {
                             child.Create(context, replacement);
@@ -1040,8 +1096,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString CloneChild = TemplateString.Parse(
             $$"""
-            state.{{Tokens.FieldName}} =
-                ({{Tokens.ClassName}}){{Tokens.FieldName}}?.Clone();
+            state.{{Tokens.BrowseName}} =
+                ({{Tokens.ClassName}})global::Opc.Ua.CoreUtils.Clone({{Tokens.BrowseName}});
             """);
 
         /// <summary>
@@ -1049,9 +1105,9 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString CompareChild = TemplateString.Parse(
             $$"""
-            if (!global::System.Collections.Generic.EqualityComparer<{{Tokens.ClassName}}>
-                .Default
-                .Equals(state.{{Tokens.FieldName}}, {{Tokens.FieldName}}))
+            if (!global::Opc.Ua.NodeStateComparer.Default.Equals(
+                state.{{Tokens.BrowseName}},
+                {{Tokens.BrowseName}}))
             {
                 return false;
             }
@@ -1062,10 +1118,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString HashChild = TemplateString.Parse(
             $$"""
-            hash = (hash * 16777619) ^
-                global::System.Collections.Generic.EqualityComparer<{{Tokens.ClassName}}>
-                .Default
-                .GetHashCode(state.{{Tokens.FieldName}}));
+            hashCode = (hashCode * 16777619) ^
+                global::Opc.Ua.NodeStateComparer.Default.GetHashCode({{Tokens.BrowseName}});
             """);
 
         /// <summary>
@@ -1170,7 +1224,7 @@ namespace Opc.Ua.SourceGeneration
                 this global::Opc.Ua.ISystemContext context,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}();
+                var state = {{Tokens.StateClassFactory}}();
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 state.BrowseName = new global::Opc.Ua.QualifiedName(
@@ -1300,7 +1354,7 @@ namespace Opc.Ua.SourceGeneration
                 this global::Opc.Ua.ISystemContext context,
                 bool forInstance = true)
             {
-                var state = new {{Tokens.StateClassName}}(null);
+                var state = {{Tokens.StateClassFactory}}(null);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 state.NumericId = {{Tokens.NumericIdValue}};
@@ -1344,7 +1398,7 @@ namespace Opc.Ua.SourceGeneration
                 this global::Opc.Ua.ISystemContext context,
                 bool forInstance = true)
             {
-                var state = new {{Tokens.StateClassName}}(null);
+                var state = {{Tokens.StateClassFactory}}(null);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 state.NumericId = {{Tokens.NumericIdValue}};
@@ -1437,7 +1491,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState parent = null,
                 global::Opc.Ua.QualifiedName browseName = default)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1488,7 +1542,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState parent = null,
                 global::Opc.Ua.QualifiedName browseName = default)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1536,7 +1590,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState parent = null,
                 global::Opc.Ua.QualifiedName browseName = default)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1593,7 +1647,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState parent,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
@@ -1638,7 +1692,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState parent,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
@@ -1691,7 +1745,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState parent,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 {{Tokens.MethodDeclarationId}}
@@ -1738,7 +1792,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName browseName = default,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1795,7 +1849,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName browseName = default,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1860,7 +1914,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName browseName = default,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1909,7 +1963,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString ListOfRolePermissions = TemplateString.Parse(
             $$"""
-            state.RolePermissions = new global::Opc.Ua.RolePermissionTypeCollection
+            state.RolePermissions = new global::Opc.Ua.RolePermissionType[]
             {
                 {{Tokens.ListOfRolePermissions}}
             };
@@ -1984,15 +2038,6 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
-        /// Template for modelling rule assignment
-        /// </summary>
-        public static readonly TemplateString ModellingRuleId = TemplateString.Parse(
-            $$"""
-            state.ModellingRuleId = {{Tokens.ModellingRuleId}};
-
-            """);
-
-        /// <summary>
         /// Template for method declaration id assignment
         /// </summary>
         public static readonly TemplateString MethodDeclarationId = TemplateString.Parse(
@@ -2013,12 +2058,13 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Template for value assignment
         /// </summary>
-        public static readonly TemplateString VariantArrayValue = TemplateString.Parse(
+        public static readonly TemplateString VariantArrayOfValue = TemplateString.Parse(
             $$"""
-            state.WrappedValue = global::Opc.Ua.Variant.FromStructure(new {{Tokens.DataType}}[]
-            {
-                {{Tokens.ListOfValues}}
-            });
+            state.WrappedValue = global::Opc.Ua.Variant.FromStructure(
+                global::Opc.Ua.ArrayOf.ToArrayOf(new {{Tokens.DataType}}[]
+                {
+                    {{Tokens.ListOfValues}}
+                }));
             """);
 
         /// <summary>

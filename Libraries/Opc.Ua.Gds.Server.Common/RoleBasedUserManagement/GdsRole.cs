@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Linq;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server
@@ -103,5 +104,22 @@ namespace Opc.Ua.Gds.Server
         /// The applicationId in case the ApplicationSelfAdminPrivilege is used
         /// </summary>
         public NodeId ApplicationId { get; }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Overridden to return a <see cref="GdsRoleBasedIdentity"/> so that
+        /// <see cref="ApplicationId"/> and the concrete type are preserved when
+        /// additional roles (e.g. <see cref="Role.TrustedApplication"/>) are layered on.
+        /// </remarks>
+        public override RoleBasedIdentity WithAdditionalRoles(
+            IEnumerable<Role> additionalRoles,
+            NamespaceTable namespaces)
+        {
+            return new GdsRoleBasedIdentity(
+                InnerIdentity,
+                Roles.Concat(additionalRoles),
+                ApplicationId,
+                namespaces);
+        }
     }
 }

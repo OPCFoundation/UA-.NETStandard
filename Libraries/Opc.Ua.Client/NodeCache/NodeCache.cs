@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -139,19 +138,19 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<IList<INode?>> FindAsync(
-            IList<ExpandedNodeId> nodeIds,
+        public async Task<ArrayOf<INode?>> FindAsync(
+            ArrayOf<ExpandedNodeId> nodeIds,
             CancellationToken ct = default)
         {
             // check for null.
-            if (nodeIds == null || nodeIds.Count == 0)
+            if (nodeIds.IsEmpty)
             {
                 return [];
             }
 
             int count = nodeIds.Count;
             var nodes = new List<INode?>(count);
-            var fetchNodeIds = new ExpandedNodeIdCollection();
+            var fetchNodeIds = new List<ExpandedNodeId>();
 
             int ii;
             for (ii = 0; ii < count; ii++)
@@ -187,7 +186,7 @@ namespace Opc.Ua.Client
             }
 
             // fetch missing nodes from server.
-            IList<Node?> fetchedNodes;
+            ArrayOf<Node?> fetchedNodes;
             try
             {
                 fetchedNodes = await FetchNodesAsync(fetchNodeIds, ct).ConfigureAwait(false);
@@ -237,21 +236,22 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            IList<IReference> references;
+            ArrayOf<IReference> references;
 
             m_cacheLock.EnterReadLock();
             try
             {
                 // find all references.
                 references = source.ReferenceTable
-                    .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+                    .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree)
+                    .ToArrayOf();
             }
             finally
             {
                 m_cacheLock.ExitReadLock();
             }
 
-            foreach (IReference reference in references)
+            foreach (IReference reference in references.ToList())
             {
                 INode? target = await FindAsync(reference.TargetId, ct)
                     .ConfigureAwait(false);
@@ -295,7 +295,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<IList<INode>> FindAsync(
+        public async ValueTask<ArrayOf<INode>> FindAsync(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
             bool isInverse,
@@ -311,20 +311,21 @@ namespace Opc.Ua.Client
                 return hits;
             }
 
-            IList<IReference> references;
+            ArrayOf<IReference> references;
             m_cacheLock.EnterReadLock();
             try
             {
                 // find all references.
                 references = source.ReferenceTable
-                    .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+                    .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree)
+                    .ToArrayOf();
             }
             finally
             {
                 m_cacheLock.ExitReadLock();
             }
 
-            foreach (IReference reference in references)
+            foreach (IReference reference in references.ToList())
             {
                 INode? target =
                     await FindAsync(reference.TargetId, ct).ConfigureAwait(false);
@@ -379,7 +380,7 @@ namespace Opc.Ua.Client
             try
             {
                 // fetch references from server.
-                ReferenceDescriptionCollection references = await m_context
+                ArrayOf<ReferenceDescription> references = await m_context
                     .FetchReferencesAsync(null, localId, ct)
                     .ConfigureAwait(false);
 
@@ -428,8 +429,8 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<IList<Node?>> FetchNodesAsync(
-            IList<ExpandedNodeId> nodeIds,
+        public async Task<ArrayOf<Node?>> FetchNodesAsync(
+            ArrayOf<ExpandedNodeId> nodeIds,
             CancellationToken ct)
         {
             int count = nodeIds.Count;
@@ -438,14 +439,14 @@ namespace Opc.Ua.Client
                 return [];
             }
 
-            var localIds = new NodeIdCollection(
-                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_context.NamespaceUris)));
+            ArrayOf<NodeId> localIds =
+                nodeIds.ConvertAll(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_context.NamespaceUris));
 
             // fetch nodes and references from server.
-            (IReadOnlyList<Node> sourceNodes, IReadOnlyList<ServiceResult> readErrors) = await m_context
+            (ArrayOf<Node> sourceNodes, ArrayOf<ServiceResult> readErrors) = await m_context
                 .FetchNodesAsync(null, localIds, NodeClass.Unspecified, ct: ct)
                 .ConfigureAwait(false);
-            (IReadOnlyList<ReferenceDescriptionCollection> referenceCollectionList, IReadOnlyList<ServiceResult> fetchErrors) =
+            (ArrayOf<ArrayOf<ReferenceDescription>> referenceCollectionList, ArrayOf<ServiceResult> fetchErrors) =
                 await m_context.FetchReferencesAsync(null, localIds, ct).ConfigureAwait(false);
 
             int ii = 0;
@@ -501,37 +502,36 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<IList<INode>> FindReferencesAsync(
+        public async Task<ArrayOf<INode>> FindReferencesAsync(
             ExpandedNodeId nodeId,
             NodeId referenceTypeId,
             bool isInverse,
             bool includeSubtypes,
             CancellationToken ct)
         {
-            IList<INode> targets = [];
+            List<INode> targets = [];
 
             if (await FindAsync(nodeId, ct).ConfigureAwait(false) is not Node source)
             {
                 return targets;
             }
 
-            IList<IReference> references;
+            ArrayOf<IReference> references;
 
             m_cacheLock.EnterReadLock();
             try
             {
                 references = source.ReferenceTable
-                    .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+                    .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree)
+                    .ToArrayOf();
             }
             finally
             {
                 m_cacheLock.ExitReadLock();
             }
 
-            var targetIds = new ExpandedNodeIdCollection(
-                references.Select(reference => reference.TargetId));
-
-            IList<INode?> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
+            ArrayOf<ExpandedNodeId> targetIds = references.ConvertAll(reference => reference.TargetId);
+            ArrayOf<INode?> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
 
             foreach (INode? target in result)
             {
@@ -544,20 +544,20 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<IList<INode>> FindReferencesAsync(
-            IList<ExpandedNodeId> nodeIds,
-            IList<NodeId> referenceTypeIds,
+        public async Task<ArrayOf<INode>> FindReferencesAsync(
+            ArrayOf<ExpandedNodeId> nodeIds,
+            ArrayOf<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes,
             CancellationToken ct)
         {
-            IList<INode> targets = [];
+            List<INode> targets = [];
             if (nodeIds.Count == 0 || referenceTypeIds.Count == 0)
             {
                 return targets;
             }
-            var targetIds = new ExpandedNodeIdCollection();
-            IList<INode?> sources = await FindAsync(nodeIds, ct).ConfigureAwait(false);
+            var targetIds = new List<ExpandedNodeId>();
+            ArrayOf<INode?> sources = await FindAsync(nodeIds, ct).ConfigureAwait(false);
             foreach (INode? source in sources)
             {
                 if (source is not Node node)
@@ -567,24 +567,27 @@ namespace Opc.Ua.Client
 
                 foreach (NodeId referenceTypeId in referenceTypeIds)
                 {
-                    IList<IReference> references;
+                    ArrayOf<IReference> references;
 
                     m_cacheLock.EnterReadLock();
                     try
                     {
                         references = node.ReferenceTable
-                            .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+                            .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree)
+                            .ToArrayOf();
                     }
                     finally
                     {
                         m_cacheLock.ExitReadLock();
                     }
-
-                    targetIds.AddRange(references.Select(reference => reference.TargetId));
+                    foreach (IReference reference in references)
+                    {
+                        targetIds.Add(reference.TargetId);
+                    }
                 }
             }
 
-            IList<INode?> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
+            ArrayOf<INode?> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
             foreach (INode? target in result)
             {
                 if (target != null)
@@ -613,14 +616,14 @@ namespace Opc.Ua.Client
                 ILocalNode? superType = null;
 
                 // Get super type (should be 1 or none)
-                IList<INode> references = await FindReferencesAsync(
+                ArrayOf<INode> references = await FindReferencesAsync(
                     subType.NodeId,
                     ReferenceTypeIds.HasSubtype,
                     true,
                     true,
                     ct).ConfigureAwait(false);
 
-                if (references != null && references.Count > 0)
+                if (!references.IsEmpty)
                 {
                     superType = references[0] as ILocalNode;
                 }
@@ -684,7 +687,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<IList<NodeId>> FindSubTypesAsync(
+        public async ValueTask<ArrayOf<NodeId>> FindSubTypesAsync(
             ExpandedNodeId typeId,
             CancellationToken ct = default)
         {
@@ -696,13 +699,14 @@ namespace Opc.Ua.Client
                 return subtypes;
             }
 
-            IList<IReference> references;
+            ArrayOf<IReference> references;
 
             m_cacheLock.EnterReadLock();
             try
             {
                 references = type.References
-                    .Find(ReferenceTypeIds.HasSubtype, false, true, m_typeTree);
+                    .Find(ReferenceTypeIds.HasSubtype, false, true, m_typeTree)
+                    .ToArrayOf();
             }
             finally
             {
@@ -859,13 +863,14 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            IList<IReference> references;
+            ArrayOf<IReference> references;
 
             m_cacheLock.EnterReadLock();
             try
             {
                 references = encoding.References
-                    .Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+                    .Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree)
+                    .ToArrayOf();
             }
             finally
             {
@@ -909,13 +914,14 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            IList<IReference> references;
+            ArrayOf<IReference> references;
 
             m_cacheLock.EnterReadLock();
             try
             {
                 references = encoding.References
-                    .Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+                    .Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree)
+                    .ToArrayOf();
             }
             finally
             {
@@ -987,9 +993,9 @@ namespace Opc.Ua.Client
 
             // every element in an array must match.
 
-            if (value.TryGet(out ExtensionObject[] extensions))
+            if (value.TryGet(out ArrayOf<ExtensionObject> extensions))
             {
-                for (int ii = 0; ii < extensions.Length; ii++)
+                for (int ii = 0; ii < extensions.Count; ii++)
                 {
                     if (!await IsEncodingForAsync(
                         expectedTypeId,
@@ -1018,13 +1024,14 @@ namespace Opc.Ua.Client
                 return NodeId.Null;
             }
 
-            IList<IReference> references;
+            ArrayOf<IReference> references;
 
             m_cacheLock.EnterReadLock();
             try
             {
                 references = encoding.References
-                    .Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+                    .Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree)
+                    .ToArrayOf();
             }
             finally
             {
@@ -1050,13 +1057,14 @@ namespace Opc.Ua.Client
                 return NodeId.Null;
             }
 
-            IList<IReference> references;
+            ArrayOf<IReference> references;
 
             m_cacheLock.EnterReadLock();
             try
             {
                 references = encoding.References
-                    .Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+                    .Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree)
+                    .ToArrayOf();
             }
             finally
             {
@@ -1138,20 +1146,21 @@ namespace Opc.Ua.Client
             // use the modelling rule to determine which parent to follow.
             NodeId modellingRule = target.ModellingRule;
 
-            IList<IReference> references;
+            ArrayOf<IReference> references;
 
             m_cacheLock.EnterReadLock();
             try
             {
                 references = target.ReferenceTable
-                    .Find(ReferenceTypeIds.Aggregates, true, true, m_typeTree);
+                    .Find(ReferenceTypeIds.Aggregates, true, true, m_typeTree)
+                    .ToArrayOf();
             }
             finally
             {
                 m_cacheLock.ExitReadLock();
             }
 
-            foreach (IReference reference in references)
+            foreach (IReference reference in references.ToList())
             {
                 var parent = await FindAsync(
                     reference.TargetId,

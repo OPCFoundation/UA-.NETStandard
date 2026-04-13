@@ -29,7 +29,6 @@
 
 using System;
 using System.Runtime.Serialization;
-using System.Xml;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -100,20 +99,20 @@ namespace Opc.Ua
                 IEncodeable[] encodeables = null;
 
                 // check for array of extension objects.
-                if (value.TryGet(out ExtensionObject[] extensions))
+                if (value.TryGet(out ArrayOf<ExtensionObject> extensions))
                 {
                     // convert extension objects to encodeables.
-                    encodeables = new IEncodeable[extensions.Length];
+                    encodeables = new IEncodeable[extensions.Count];
 
                     for (int ii = 0; ii < encodeables.Length; ii++)
                     {
-                        if (ExtensionObject.IsNull(extensions[ii]))
+                        if (extensions[ii].IsNull)
                         {
                             encodeables[ii] = null;
                             continue;
                         }
 
-                        if (extensions[ii].Body is not IEncodeable element)
+                        if (!extensions[ii].TryGetEncodeable(out IEncodeable element))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -125,25 +124,19 @@ namespace Opc.Ua
                 // apply data encoding to the array.
                 if (encodeables != null)
                 {
-                    extensions = new ExtensionObject[encodeables.Length];
-                    for (int ii = 0; ii < extensions.Length; ii++)
+                    var buffer = new ExtensionObject[encodeables.Length];
+                    for (int ii = 0; ii < buffer.Length; ii++)
                     {
-                        extensions[ii] = Encode(context, encodeables[ii], useXml);
+                        buffer[ii] = Encode(context, encodeables[ii], useXml);
                     }
 
-                    value = extensions;
+                    value = buffer.ToArrayOf();
                     return ServiceResult.Good;
                 }
 
                 // check for scalar value.
-                IEncodeable encodeable = null;
-
-                if (value.TryGet(out ExtensionObject extension))
-                {
-                    encodeable = extension.Body as IEncodeable;
-                }
-
-                if (encodeable != null)
+                if (value.TryGet(out ExtensionObject extension) &&
+                    extension.TryGetEncodeable(out IEncodeable encodeable))
                 {
                     // do conversion.
                     value = Encode(context, encodeable, useXml);
@@ -176,7 +169,7 @@ namespace Opc.Ua
             }
             else
             {
-                byte[] body = EncodeBinary(encodeable, context);
+                ByteString body = EncodeBinary(encodeable, context);
                 return new ExtensionObject(encodeable.BinaryEncodingId, body);
             }
         }
@@ -189,24 +182,21 @@ namespace Opc.Ua
             // create encoder.
             using var encoder = new XmlEncoder(context);
             // write body.
-            encoder.WriteExtensionObjectBody(encodeable);
-
-            // create document from encoder.
-            var document = new XmlDocument();
-            document.LoadInnerXml(encoder.CloseAndReturnText());
-
-            // return root element.
-            return document.DocumentElement;
+            encoder.WriteExtensionObjectBody(new ExtensionObject(encodeable));
+            // return as xml element
+            return XmlElement.From(encoder.CloseAndReturnText());
         }
 
         /// <summary>
         /// Encodes the object in binary
         /// </summary>
-        public static byte[] EncodeBinary(IEncodeable encodeable, IServiceMessageContext context)
+        public static ByteString EncodeBinary(IEncodeable encodeable, IServiceMessageContext context)
         {
             using var encoder = new BinaryEncoder(context);
-            encoder.WriteEncodeable(null, encodeable, null);
-            return encoder.CloseAndReturnBuffer();
+            // Wrute body
+            encoder.WriteEncodeable(null, encodeable, encodeable.TypeId);
+            // Return as byte string
+            return ByteString.From(encoder.CloseAndReturnBuffer());
         }
 
         /// <inheritdoc/>

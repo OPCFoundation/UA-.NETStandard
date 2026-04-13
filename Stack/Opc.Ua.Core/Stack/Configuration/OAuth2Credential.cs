@@ -17,7 +17,7 @@ namespace Opc.Ua
         public string ResourceId { get; set; }
 
         [DataMember(Order = 3)]
-        public StringCollection Scopes { get; set; }
+        public ArrayOf<string> Scopes { get; set; }
     }
 
     [CollectionDataContract(

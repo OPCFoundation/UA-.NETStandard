@@ -95,7 +95,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get and Set Timestamp
         /// </summary>
-        public DateTime Timestamp { get; set; }
+        public DateTimeUtc Timestamp { get; set; }
 
         /// <summary>
         /// Get and Set Status

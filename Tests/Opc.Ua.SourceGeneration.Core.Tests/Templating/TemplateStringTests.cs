@@ -52,7 +52,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(templateString, Is.Not.Null);
             Assert.That(templateString.ParsedTemplate, Is.Not.Null);
             Assert.That(templateString.ParsedTemplate.LiteralLength, Is.EqualTo(input.Length));
-            Assert.That(templateString.ParsedTemplate.FormattedCount, Is.EqualTo(0));
+            Assert.That(templateString.ParsedTemplate.FormattedCount, Is.Zero);
         }
 
         [Test]
@@ -64,8 +64,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             Assert.That(templateString, Is.Not.Null);
             Assert.That(templateString.ParsedTemplate, Is.Not.Null);
-            Assert.That(templateString.ParsedTemplate.LiteralLength, Is.EqualTo(0));
-            Assert.That(templateString.ParsedTemplate.FormattedCount, Is.EqualTo(0));
+            Assert.That(templateString.ParsedTemplate.LiteralLength, Is.Zero);
+            Assert.That(templateString.ParsedTemplate.FormattedCount, Is.Zero);
         }
 
         [Test]
@@ -77,8 +77,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             Assert.That(templateString, Is.Not.Null);
             Assert.That(templateString.ParsedTemplate, Is.Not.Null);
-            Assert.That(templateString.ParsedTemplate.LiteralLength, Is.EqualTo(0));
-            Assert.That(templateString.ParsedTemplate.FormattedCount, Is.EqualTo(0));
+            Assert.That(templateString.ParsedTemplate.LiteralLength, Is.Zero);
+            Assert.That(templateString.ParsedTemplate.FormattedCount, Is.Zero);
         }
 
         [Test]
@@ -98,7 +98,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(templateString, Is.Not.Null);
             Assert.That(templateString.ParsedTemplate, Is.Not.Null);
             Assert.That(templateString.ParsedTemplate.FormattedCount, Is.EqualTo(3));
-            Assert.That(templateString.ParsedTemplate.Operations.Count, Is.EqualTo(8));
+            Assert.That(templateString.ParsedTemplate.Operations, Has.Count.EqualTo(8));
             Assert.That(templateString.ParsedTemplate.LiteralLength, Is.EqualTo(24).Or.EqualTo(21)); // In case of optimizations
         }
 
@@ -136,8 +136,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.ParsedTemplate, Is.Not.Null);
-            Assert.That(result.ParsedTemplate.LiteralLength, Is.EqualTo(0));
-            Assert.That(result.ParsedTemplate.FormattedCount, Is.EqualTo(0));
+            Assert.That(result.ParsedTemplate.LiteralLength, Is.Zero);
+            Assert.That(result.ParsedTemplate.FormattedCount, Is.Zero);
         }
 
         /// <summary>
@@ -160,7 +160,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.ParsedTemplate, Is.Not.Null);
-            Assert.That(result.ParsedTemplate.LiteralLength, Is.EqualTo(0));
+            Assert.That(result.ParsedTemplate.LiteralLength, Is.Zero);
             Assert.That(result.ParsedTemplate.FormattedCount, Is.EqualTo(3));
         }
 
@@ -208,7 +208,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(result, Is.Not.Null);
             Assert.That(result.ParsedTemplate, Is.Not.Null);
             Assert.That(result.ParsedTemplate.LiteralLength, Is.EqualTo(10));
-            Assert.That(result.ParsedTemplate.FormattedCount, Is.EqualTo(0));
+            Assert.That(result.ParsedTemplate.FormattedCount, Is.Zero);
         }
 
         /// <summary>

@@ -63,7 +63,7 @@ namespace Opc.Ua.Server.Tests
         public async Task FailedAuthenticationAttemptsAreTrackedAsync()
         {
             const string sessionName = nameof(FailedAuthenticationAttemptsAreTrackedAsync);
-            EndpointDescriptionCollection endpoints = m_server.GetEndpoints();
+            ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
             var secureChannelContext = new SecureChannelContext(
@@ -79,11 +79,11 @@ namespace Opc.Ua.Server.Tests
                 null,
                 null,
                 sessionName,
-                null,
-                null,
+                default,
+                default,
                 ServerFixtureUtils.DefaultSessionTimeout,
                 ServerFixtureUtils.DefaultMaxResponseMessageSize,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(createResponse.ResponseHeader);
             requestHeader.AuthenticationToken = createResponse.AuthenticationToken;
@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests
             var invalidToken = new UserNameIdentityToken
             {
                 UserName = "invaliduser",
-                Password = System.Text.Encoding.UTF8.GetBytes("wrongpassword"),
+                Password = System.Text.Encoding.UTF8.GetBytes("wrongpassword").ToByteString(),
                 PolicyId = "0"
             };
 
@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         new ExtensionObject(invalidToken),
                         null,
-                        CancellationToken.None).ConfigureAwait(false));
+                        RequestLifetime.None).ConfigureAwait(false));
 
                 Assert.That(exception, Is.Not.Null);
                 Assert.That(
@@ -120,14 +120,14 @@ namespace Opc.Ua.Server.Tests
                 secureChannelContext,
                 requestHeader,
                 true,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
         }
 
         [Test]
         public async Task ClientIsLockedOutAfterFiveFailedAttemptsAsync()
         {
             const string sessionName = nameof(ClientIsLockedOutAfterFiveFailedAttemptsAsync);
-            EndpointDescriptionCollection endpoints = m_server.GetEndpoints();
+            ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
             var secureChannelContext = new SecureChannelContext(
@@ -143,11 +143,11 @@ namespace Opc.Ua.Server.Tests
                 null,
                 null,
                 sessionName,
-                null,
-                null,
+                default,
+                default,
                 ServerFixtureUtils.DefaultSessionTimeout,
                 ServerFixtureUtils.DefaultMaxResponseMessageSize,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(createResponse.ResponseHeader);
             requestHeader.AuthenticationToken = createResponse.AuthenticationToken;
@@ -155,14 +155,14 @@ namespace Opc.Ua.Server.Tests
             var invalidToken = new UserNameIdentityToken
             {
                 UserName = "lockoutuser",
-                Password = System.Text.Encoding.UTF8.GetBytes("wrongpassword"),
+                Password = System.Text.Encoding.UTF8.GetBytes("wrongpassword").ToByteString(),
                 PolicyId = "0"
             };
 
             var validToken = new UserNameIdentityToken
             {
                 UserName = "user1",
-                Password = System.Text.Encoding.UTF8.GetBytes("password"),
+                Password = System.Text.Encoding.UTF8.GetBytes("password").ToByteString(),
                 PolicyId = "0"
             };
 
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         new ExtensionObject(invalidToken),
                         null,
-                        CancellationToken.None).ConfigureAwait(false);
+                        RequestLifetime.None).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
@@ -192,11 +192,11 @@ namespace Opc.Ua.Server.Tests
                 null,
                 null,
                 sessionName + "_2",
-                null,
-                null,
+                default,
+                default,
                 ServerFixtureUtils.DefaultSessionTimeout,
                 ServerFixtureUtils.DefaultMaxResponseMessageSize,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(newCreateResponse.ResponseHeader);
             requestHeader.AuthenticationToken = newCreateResponse.AuthenticationToken;
@@ -209,7 +209,7 @@ namespace Opc.Ua.Server.Tests
                     [],
                     new ExtensionObject(validToken),
                     null,
-                    CancellationToken.None).ConfigureAwait(false));
+                    RequestLifetime.None).ConfigureAwait(false));
 
             Assert.That(lockoutException, Is.Not.Null);
             Assert.That(lockoutException.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -218,14 +218,14 @@ namespace Opc.Ua.Server.Tests
                 secureChannelContext,
                 requestHeader,
                 true,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
         }
 
         [Test]
         public async Task SuccessfulAuthenticationClearsFailedAttemptsAsync()
         {
             const string sessionName = nameof(SuccessfulAuthenticationClearsFailedAttemptsAsync);
-            EndpointDescriptionCollection endpoints = m_server.GetEndpoints();
+            ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
             var secureChannelContext = new SecureChannelContext(
@@ -241,11 +241,11 @@ namespace Opc.Ua.Server.Tests
                 null,
                 null,
                 sessionName,
-                null,
-                null,
+                default,
+                default,
                 ServerFixtureUtils.DefaultSessionTimeout,
                 ServerFixtureUtils.DefaultMaxResponseMessageSize,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(createResponse.ResponseHeader);
             requestHeader.AuthenticationToken = createResponse.AuthenticationToken;
@@ -253,7 +253,7 @@ namespace Opc.Ua.Server.Tests
             var invalidToken = new UserNameIdentityToken
             {
                 UserName = "clearuser",
-                Password = System.Text.Encoding.UTF8.GetBytes("wrongpassword"),
+                Password = System.Text.Encoding.UTF8.GetBytes("wrongpassword").ToByteString(),
                 PolicyId = "0"
             };
 
@@ -269,7 +269,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         new ExtensionObject(invalidToken),
                         null,
-                        CancellationToken.None).ConfigureAwait(false);
+                        RequestLifetime.None).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
@@ -284,7 +284,7 @@ namespace Opc.Ua.Server.Tests
                 [],
                 ExtensionObject.Null,
                 null,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(activateResponse.ResponseHeader);
 
@@ -300,7 +300,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         new ExtensionObject(invalidToken),
                         null,
-                        CancellationToken.None).ConfigureAwait(false);
+                        RequestLifetime.None).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
@@ -315,7 +315,7 @@ namespace Opc.Ua.Server.Tests
                 [],
                 ExtensionObject.Null,
                 null,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(activateResponse.ResponseHeader);
 
@@ -323,10 +323,10 @@ namespace Opc.Ua.Server.Tests
                 secureChannelContext,
                 requestHeader,
                 true,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
         }
 
-        private static EndpointDescription FindTcpEndpoint(EndpointDescriptionCollection endpoints)
+        private static EndpointDescription FindTcpEndpoint(ArrayOf<EndpointDescription> endpoints)
         {
             EndpointDescription endpoint = endpoints.Find(e =>
                 e.TransportProfileUri.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-
 namespace Opc.Ua.Gds.Server.Database
 {
     /// <summary>
@@ -49,18 +47,18 @@ namespace Opc.Ua.Gds.Server.Database
             string applicationName,
             string applicationUri,
             string productUri,
-            string[] serverCapabilities,
-            out DateTime lastCounterResetTime);
+            ArrayOf<string> serverCapabilities,
+            out DateTimeUtc lastCounterResetTime);
 
         bool SetApplicationCertificate(
             NodeId applicationId,
             string certificateTypeId,
-            byte[] certificate);
+            ByteString certificate);
 
         bool GetApplicationCertificate(
             NodeId applicationId,
             string certificateTypeId,
-            out byte[] certificate);
+            out ByteString certificate);
 
         bool SetApplicationTrustLists(
             NodeId applicationId,
@@ -79,8 +77,8 @@ namespace Opc.Ua.Gds.Server.Database
             string applicationUri,
             uint applicationType,
             string productUri,
-            string[] serverCapabilities,
-            out DateTime lastCounterResetTime,
+            ArrayOf<string> serverCapabilities,
+            out DateTimeUtc lastCounterResetTime,
             out uint nextRecordId);
     }
 }

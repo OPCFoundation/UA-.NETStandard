@@ -54,7 +54,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get the publisher Id
         /// </summary>
-        public object PublisherId { get; internal set; }
+        public Variant PublisherId { get; internal set; }
 
         /// <summary>
         /// Get the statuses code of the DataSetWriter

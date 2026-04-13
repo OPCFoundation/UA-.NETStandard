@@ -45,11 +45,11 @@ namespace Alarms
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new AlarmNodeManager(server, configuration, [.. NamespacesUris]);
+            return new AlarmNodeManager(server, configuration, NamespacesUris.ToArray());
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris
+        public ArrayOf<string> NamespacesUris
         {
             get
             {
@@ -145,12 +145,12 @@ namespace Alarms
 
                     FolderState alarmsFolder = CreateFolder(null, alarmsNodeName, alarmsName);
                     alarmsFolder.AddReference(
-                        ReferenceTypes.Organizes,
+                        ReferenceTypeIds.Organizes,
                         true,
                         ObjectIds.ObjectsFolder);
                     references.Add(
                         new NodeStateReference(
-                            ReferenceTypes.Organizes,
+                            ReferenceTypeIds.Organizes,
                             false,
                             alarmsFolder.NodeId));
                     alarmsFolder.EventNotifier = EventNotifiers.SubscribeToEvents;
@@ -284,7 +284,7 @@ namespace Alarms
             var folder = new FolderState(parent)
             {
                 SymbolicName = name,
-                ReferenceTypeId = ReferenceTypes.Organizes,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
                 TypeDefinitionId = ObjectTypeIds.FolderType,
                 NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
@@ -318,7 +318,7 @@ namespace Alarms
                             controller.Source.GetReferences(
                                 SystemContext,
                                 references,
-                                ReferenceTypes.HasCondition,
+                                ReferenceTypeIds.HasCondition,
                                 false);
                             foreach (IReference reference in references)
                             {
@@ -347,8 +347,8 @@ namespace Alarms
         public ServiceResult OnStart(
             ISystemContext context,
             NodeState node,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             uint seconds;
@@ -386,7 +386,7 @@ namespace Alarms
                         sourceController.Source.GetReferences(
                             SystemContext,
                             references,
-                            ReferenceTypes.HasCondition,
+                            ReferenceTypeIds.HasCondition,
                             false);
                         foreach (IReference reference in references)
                         {
@@ -409,8 +409,8 @@ namespace Alarms
         public ServiceResult OnStartBranch(
             ISystemContext context,
             NodeState node,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             // all arguments must be provided.
             uint seconds;
@@ -450,7 +450,7 @@ namespace Alarms
                         sourceController.Source.GetReferences(
                             SystemContext,
                             references,
-                            ReferenceTypes.HasCondition,
+                            ReferenceTypeIds.HasCondition,
                             false);
                         foreach (IReference reference in references)
                         {
@@ -473,8 +473,8 @@ namespace Alarms
         public ServiceResult OnEnd(
             ISystemContext context,
             NodeState node,
-            VariantCollection inputArguments,
-            VariantCollection outputArguments)
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
         {
             ServiceResult result = ServiceResult.Good;
 
@@ -496,7 +496,7 @@ namespace Alarms
                         sourceController.Source.GetReferences(
                             SystemContext,
                             references,
-                            ReferenceTypes.HasCondition,
+                            ReferenceTypeIds.HasCondition,
                             false);
                         foreach (IReference reference in references)
                         {
@@ -522,7 +522,7 @@ namespace Alarms
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
             if (sourceControllers == null)
@@ -549,7 +549,7 @@ namespace Alarms
                 sourceController.Source.GetReferences(
                     SystemContext,
                     references,
-                    ReferenceTypes.HasCondition,
+                    ReferenceTypeIds.HasCondition,
                     false);
                 foreach (IReference reference in references)
                 {
@@ -703,7 +703,7 @@ namespace Alarms
         /// </summary>
         public override void Call(
             OperationContext context,
-            IList<CallMethodRequest> methodsToCall,
+            ArrayOf<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
             IList<ServiceResult> errors)
         {
@@ -905,9 +905,9 @@ namespace Alarms
 
                 if (holder != null && holder.HasBranches())
                 {
-                    byte[] eventId = GetEventIdFromAckConfirmMethod(methodToCall);
+                    ByteString eventId = GetEventIdFromAckConfirmMethod(methodToCall);
 
-                    if (eventId != null)
+                    if (!eventId.IsEmpty)
                     {
                         BaseEventState state = holder.GetBranch(eventId);
 
@@ -947,16 +947,15 @@ namespace Alarms
             return isAckConfirm;
         }
 
-        private static byte[] GetEventIdFromAckConfirmMethod(CallMethodRequest request)
+        private static ByteString GetEventIdFromAckConfirmMethod(CallMethodRequest request)
         {
-            byte[] eventId = null;
+            ByteString eventId = default;
 
             // Bad magic Numbers hereStart
-            if (request.InputArguments != null &&
-                request.InputArguments.Count == 2 &&
-                request.InputArguments[0].TryGet(out byte[] byteArray))
+            if (request.InputArguments.Count == 2 &&
+                request.InputArguments[0].TryGet(out ByteString byteString))
             {
-                eventId = byteArray;
+                eventId = byteString;
             }
             return eventId;
         }

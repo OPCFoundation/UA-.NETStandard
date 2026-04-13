@@ -27,7 +27,7 @@ namespace Opc.Ua.Server.Tests
 
             MonitoredItem monitoredItem = CreateMonitoredItem(telemetry);
             Assert.That(monitoredItem, Is.Not.Null);
-            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+            Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
             var statuscode = new ServiceResult(StatusCodes.Good);
             var dataValue = new DataValue(new Variant(true));
@@ -42,7 +42,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1, logger);
 
             Assert.That(result, Is.Not.Empty);
-            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+            Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
             MonitoredItemNotification publishResult = result.FirstOrDefault();
             Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
             DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
@@ -58,7 +58,7 @@ namespace Opc.Ua.Server.Tests
 
             MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true);
             Assert.That(monitoredItem, Is.Not.Null);
-            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+            Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
 
@@ -68,7 +68,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 1);
 
             Assert.That(result, Is.Not.Empty);
-            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+            Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
             EventFieldList publishResult = result.FirstOrDefault();
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Tests
 
             MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 2);
             Assert.That(monitoredItem, Is.Not.Null);
-            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+            Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 3);
 
             Assert.That(result, Is.Not.Empty);
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
             EventFieldList publishResult = result.LastOrDefault();
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests
 
             MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 2);
             Assert.That(monitoredItem, Is.Not.Null);
-            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+            Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
@@ -153,7 +153,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(moreItems, Is.True);
             Assert.That(result, Is.Not.Empty);
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
             EventFieldList publishResult = result.LastOrDefault();
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
@@ -166,7 +166,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(moreItems2, Is.False);
             Assert.That(result2, Is.Not.Empty);
-            Assert.That(result2.Count, Is.EqualTo(1));
+            Assert.That(result2, Has.Count.EqualTo(1));
             EventFieldList publishResult2 = result2.FirstOrDefault();
             Assert.That(publishResult2, Is.Not.Null);
             Assert.That(publishResult2.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
@@ -179,7 +179,7 @@ namespace Opc.Ua.Server.Tests
 
             MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 2, true);
             Assert.That(monitoredItem, Is.Not.Null);
-            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+            Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 3);
 
             Assert.That(result, Is.Not.Empty);
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
             EventFieldList publishResult = result.FirstOrDefault();
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
@@ -207,7 +207,7 @@ namespace Opc.Ua.Server.Tests
 
             MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 3);
             Assert.That(monitoredItem, Is.Not.Null);
-            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+            Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
@@ -220,7 +220,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(moreItems, Is.True);
             Assert.That(result, Is.Not.Empty);
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
             EventFieldList publishResult = result.LastOrDefault();
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
@@ -233,7 +233,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(moreItems2, Is.False);
             Assert.That(result2, Is.Not.Empty);
-            Assert.That(result2.Count, Is.EqualTo(1));
+            Assert.That(result2, Has.Count.EqualTo(1));
             EventFieldList publishResult2 = result2.LastOrDefault();
             Assert.That(publishResult2, Is.Not.Null);
             Assert.That(publishResult2.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());

@@ -187,20 +187,26 @@ namespace Opc.Ua
                 {
                     if (elementType == BuiltInType.Variant)
                     {
-                        element = ((Variant)element).Value;
+                        element = ((Variant)element).AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     }
 
+#pragma warning disable CS0618 // Type or member is obsolete
                     element = TranslateValue(new Variant(element), namespaceUris, serverUris);
+#pragma warning restore CS0618 // Type or member is obsolete
 
                     if (elementType == BuiltInType.Variant)
                     {
+#pragma warning disable CS0618 // Type or member is obsolete
                         element = new Variant(element);
+#pragma warning restore CS0618 // Type or member is obsolete
                     }
 
                     array.SetValue(element, indexes);
                 }
             }
+#pragma warning disable CS0618 // Type or member is obsolete
             return new Variant(array);
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         /// <summary>
@@ -308,6 +314,7 @@ namespace Opc.Ua
                     break;
             }
 
+            var referenceList = node.References.ToList();
             foreach (IReference referenceToExport in nodeToExport.References)
             {
                 var reference = new ReferenceNode
@@ -324,10 +331,10 @@ namespace Opc.Ua
                         namespaceUris,
                         serverUris)
                 };
-
-                node.References.Add(reference);
+                referenceList.Add(reference);
             }
 
+            node.References = referenceList;
             Add(node);
 
             return node;
@@ -361,7 +368,7 @@ namespace Opc.Ua
                     serverUris)
             };
 
-            node.References.Add(reference);
+            node.References = node.References.AddItem(reference);
         }
 
         /// <summary>
@@ -486,10 +493,14 @@ namespace Opc.Ua
                     namespaceUris,
                     m_namespaceUris);
 
-                if (variableToImport.Value.Value != null)
+                if (!variableToImport.Value.IsNull)
                 {
-                    variable.Value = new Variant(
-                        ImportValue(variableToImport.Value.Value, namespaceUris, serverUris));
+#pragma warning disable CS0618 // Type or member is obsolete
+                    variable.Value = new Variant(ImportValue(
+                        variableToImport.Value.AsBoxedObject(Variant.BoxingBehavior.Legacy),
+                        namespaceUris,
+                        serverUris));
+#pragma warning restore CS0618 // Type or member is obsolete
                 }
             }
 
@@ -502,13 +513,18 @@ namespace Opc.Ua
                     namespaceUris,
                     m_namespaceUris);
 
-                if (variableTypeToImport.Value.Value != null)
+                if (!variableTypeToImport.Value.IsNull)
                 {
-                    variableType.Value = new Variant(
-                        ImportValue(variableTypeToImport.Value.Value, namespaceUris, serverUris));
+#pragma warning disable CS0618 // Type or member is obsolete
+                    variableType.Value = new Variant(ImportValue(
+                        variableTypeToImport.Value.AsBoxedObject(Variant.BoxingBehavior.Legacy),
+                        namespaceUris,
+                        serverUris));
+#pragma warning restore CS0618 // Type or member is obsolete
                 }
             }
 
+            var referenceList = node.References.ToList();
             foreach (ReferenceNode referenceToImport in nodeToImport.References)
             {
                 var reference = new ReferenceNode
@@ -526,9 +542,9 @@ namespace Opc.Ua
                         m_serverUris)
                 };
 
-                node.References.Add(reference);
+                referenceList.Add(reference);
             }
-
+            node.References = referenceList;
             return node;
         }
 
@@ -638,18 +654,18 @@ namespace Opc.Ua
         /// The table of namespaces.
         /// </summary>
         [DataMember(Name = "NamespaceUris", Order = 1)]
-        internal StringCollection NamespaceUris
+        internal ArrayOf<string> NamespaceUris
         {
-            get => [.. m_namespaceUris.ToArray()];
+            get => [.. m_namespaceUris.ToArrayOf()];
             set
             {
-                if (value == null)
+                if (value.IsNull)
                 {
                     m_namespaceUris = new NamespaceTable();
                 }
                 else
                 {
-                    m_namespaceUris = new NamespaceTable(value);
+                    m_namespaceUris = new NamespaceTable(value.ToArray());
                 }
             }
         }
@@ -658,18 +674,18 @@ namespace Opc.Ua
         /// The table of servers.
         /// </summary>
         [DataMember(Name = "ServerUris", Order = 2)]
-        internal StringCollection ServerUris
+        internal ArrayOf<string> ServerUris
         {
-            get => [.. m_serverUris.ToArray()];
+            get => [.. m_serverUris.ToArrayOf()];
             set
             {
-                if (value == null)
+                if (value.IsNull)
                 {
                     m_serverUris = new StringTable();
                 }
                 else
                 {
-                    m_serverUris = new StringTable(value);
+                    m_serverUris = new StringTable(value.ToArray());
                 }
             }
         }
@@ -678,19 +694,15 @@ namespace Opc.Ua
         /// The table of nodes.
         /// </summary>
         [DataMember(Name = "Nodes", Order = 3)]
-        internal NodeCollection Nodes
+        internal ArrayOf<Node> Nodes
         {
             get => [.. m_nodes.Values];
             set
             {
                 m_nodes = [];
-
-                if (value != null)
+                foreach (Node node in value)
                 {
-                    foreach (Node node in value)
-                    {
-                        m_nodes[node.NodeId] = node;
-                    }
+                    m_nodes[node.NodeId] = node;
                 }
             }
         }

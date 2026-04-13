@@ -28,20 +28,22 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// A node manager which implements the ICoreNodeManager interface using the CustomNodeManager2 base class.
+    /// A node manager which implements the ICoreNodeManager interface using the AsyncCustomNodeManager base class.
     /// Every Server has one instance of this NodeManager.
     /// It manages the built-in OPC UA nodes and provides core functionality.
     /// </summary>
-    public class CoreNodeManager2 : CustomNodeManager2, ICoreNodeManager
+    public class CoreNodeManager : AsyncCustomNodeManager, ICoreNodeManager
     {
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public CoreNodeManager2(
+        public CoreNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
             : base(server, configuration, useSamplingGroups: true)
@@ -51,7 +53,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public CoreNodeManager2(
+        public CoreNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             ushort dynamicNamespaceIndex)
@@ -60,22 +62,25 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void ImportNodes(
-            ISystemContext context,
-            IEnumerable<NodeState> predefinedNodes)
+        public ValueTask ImportNodesAsync(
+             ISystemContext context,
+             IEnumerable<NodeState> predefinedNodes,
+             CancellationToken cancellationToken = default)
         {
-            ImportNodes(context, predefinedNodes, false);
+            return ImportNodesAsync(context, predefinedNodes, false, cancellationToken);
         }
 
         /// <inheritdoc/>
-        public void ImportNodes(
+        public async ValueTask ImportNodesAsync(
             ISystemContext context,
             IEnumerable<NodeState> predefinedNodes,
-            bool isInternal)
+            bool isInternal,
+            CancellationToken cancellationToken = default)
         {
             foreach (NodeState node in predefinedNodes)
             {
-                AddPredefinedNode(context, node);
+                await AddPredefinedNodeAsync(context, node, cancellationToken)
+                    .ConfigureAwait(false);
 
                 if (!isInternal)
                 {

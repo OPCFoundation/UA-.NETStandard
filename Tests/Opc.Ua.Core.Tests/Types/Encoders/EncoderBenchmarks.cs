@@ -47,23 +47,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public EncoderBenchmarks()
         {
             m_nodeId = new NodeId((uint)UnsecureRandom.Shared.Next(50000));
-            m_list = [];
+            var list = new List<int>();
             for (int i = 0; i < DataValueCount; i++)
             {
-                m_list.Add(UnsecureRandom.Shared.Next());
+                list.Add(UnsecureRandom.Shared.Next());
             }
-            m_values = [];
+            m_list = list.ToArrayOf();
+            var values = new List<DataValue>();
             var now = new DateTime(2024, 03, 01, 06, 05, 59, DateTimeKind.Utc);
             now += TimeSpan.FromTicks(456789);
             for (int i = 0; i < DataValueCount; i++)
             {
-                m_values.Add(
+                values.Add(
                     new DataValue(
                         new Variant((UnsecureRandom.Shared.NextDouble() - 0.5) * 1000.0),
                          UnsecureRandom.Shared.NextDouble() > 0.1 ? StatusCodes.Good : StatusCodes.BadDataLost,
                         now,
                         now));
             }
+            m_values = values.ToArrayOf();
         }
 
         [Params(64, 1024)]
@@ -170,8 +172,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         protected NodeId m_nodeId = new(1234);
-        protected List<int> m_list;
-        protected List<DataValue> m_values;
+        protected ArrayOf<int> m_list;
+        protected ArrayOf<DataValue> m_values;
         protected ITelemetryContext m_telemetry;
         protected IServiceMessageContext m_context;
         protected RecyclableMemoryStreamManager m_memoryManager;

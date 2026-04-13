@@ -49,11 +49,7 @@ namespace Opc.Ua
         /// <summary>
         /// Stores the parsed form of the index range parameter.
         /// </summary>
-        public NumericRange ParsedIndexRange
-        {
-            get => m_parsedIndexRange;
-            set => m_parsedIndexRange = value;
-        }
+        public NumericRange ParsedIndexRange { get; set; }
 
         /// <summary>
         /// Validates a read value id parameter.
@@ -93,7 +89,7 @@ namespace Opc.Ua
             }
 
             // initialize as empty.
-            valueId.ParsedIndexRange = NumericRange.Empty;
+            valueId.ParsedIndexRange = default;
 
             // parse the index range if specified.
             if (!string.IsNullOrEmpty(valueId.IndexRange))
@@ -109,13 +105,11 @@ namespace Opc.Ua
             }
             else
             {
-                valueId.ParsedIndexRange = NumericRange.Empty;
+                valueId.ParsedIndexRange = default;
             }
 
             // passed basic validation.
             return null;
         }
-
-        private NumericRange m_parsedIndexRange = NumericRange.Empty;
     }
 }

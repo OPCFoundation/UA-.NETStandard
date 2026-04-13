@@ -494,26 +494,25 @@ namespace Quickstarts.ConsoleReferenceClient
 
                         if (browseall || fetchall || jsonvalues || managedbrowseall)
                         {
-                            NodeIdCollection variableIds = null;
-                            NodeIdCollection variableIdsManagedBrowse = null;
-                            ReferenceDescriptionCollection referenceDescriptions = null;
-                            ReferenceDescriptionCollection referenceDescriptionsFromManagedBrowse
-                                = null;
+                            List<NodeId> variableIds = null;
+                            List<NodeId> variableIdsManagedBrowse = null;
+                            ArrayOf<ReferenceDescription> referenceDescriptions = default;
+                            ArrayOf<ReferenceDescription> referenceDescriptionsFromManagedBrowse = default;
 
                             if (browseall)
                             {
                                 Console.WriteLine("Browse the full address space.");
                                 referenceDescriptions = await samples
-                                    .BrowseFullAddressSpaceAsync(uaClient, Objects.RootFolder, ct: ct)
+                                    .BrowseFullAddressSpaceAsync(uaClient, ObjectIds.RootFolder, ct: ct)
                                     .ConfigureAwait(false);
                                 variableIds =
                                 [
                                     .. referenceDescriptions
-                                        .Where(r =>
+                                        .Filter(r =>
                                             r.NodeClass == NodeClass.Variable &&
                                             r.TypeDefinition.NamespaceIndex != 0
                                         )
-                                        .Select(r => ExpandedNodeId.ToNodeId(
+                                        .ConvertAll(r => ExpandedNodeId.ToNodeId(
                                             r.NodeId,
                                             uaClient.Session.NamespaceUris))
                                 ];
@@ -525,17 +524,17 @@ namespace Quickstarts.ConsoleReferenceClient
                                 referenceDescriptionsFromManagedBrowse = await samples
                                     .ManagedBrowseFullAddressSpaceAsync(
                                         uaClient,
-                                        Objects.RootFolder,
+                                        ObjectIds.RootFolder,
                                         ct: ct)
                                     .ConfigureAwait(false);
                                 variableIdsManagedBrowse =
                                 [
                                     .. referenceDescriptionsFromManagedBrowse
-                                        .Where(r =>
+                                        .Filter(r =>
                                             r.NodeClass == NodeClass.Variable &&
                                             r.TypeDefinition.NamespaceIndex != 0
                                         )
-                                        .Select(r => ExpandedNodeId.ToNodeId(
+                                        .ConvertAll(r => ExpandedNodeId.ToNodeId(
                                             r.NodeId,
                                             uaClient.Session.NamespaceUris))
                                 ];
@@ -554,7 +553,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 allNodes = await samples
                                     .FetchAllNodesNodeCacheAsync(
                                         uaClient,
-                                        Objects.RootFolder,
+                                        ObjectIds.RootFolder,
                                         true,
                                         true,
                                         false,
@@ -584,10 +583,10 @@ namespace Quickstarts.ConsoleReferenceClient
                             if (jsonvalues && variableIds != null)
                             {
                                 (
-                                    IReadOnlyList<DataValue> allValues,
-                                    IReadOnlyList<ServiceResult> results
+                                    ArrayOf<DataValue> allValues,
+                                    ArrayOf<ServiceResult> results
                                 ) = await samples
-                                    .ReadAllValuesAsync(uaClient, variableIds, ct)
+                                    .ReadAllValuesAsync(uaClient, variableIds.ToArrayOf(), ct)
                                     .ConfigureAwait(false);
                             }
 
@@ -595,7 +594,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             {
                                 // subscribe to 1000 random variables
                                 const int maxVariables = 1000;
-                                var variables = new NodeCollection();
+                                var variables = new List<Node>();
 
                                 if (fetchall)
                                 {
@@ -613,6 +612,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 else if (browseall)
                                 {
                                     var variableReferences = referenceDescriptions
+                                        .ToList()
                                         .Where(r => r.NodeClass == NodeClass.Variable &&
                                             r.NodeId.NamespaceIndex > 1)
                                         .Select(r => r.NodeId)
@@ -622,6 +622,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                     variables.AddRange(
                                         (await uaClient.Session.NodeCache.FindAsync(variableReferences, ct)
                                             .ConfigureAwait(false))
+                                            .ToList()
                                             .Cast<Node>()
                                     );
                                 }

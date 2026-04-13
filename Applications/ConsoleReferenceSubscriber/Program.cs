@@ -162,7 +162,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 }
 
                 // Create the UA Publisher application
-                using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
+                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
                 {
                     // Subscribte to RawDataReceived event
                     uaPubSubApplication.RawDataReceived += UaPubSubApplication_RawDataReceived;
@@ -439,7 +439,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             var subscribedDataSet = new TargetVariablesDataType { TargetVariables = [] };
             foreach (FieldMetaData fieldMetaData in simpleMetaData.Fields)
             {
-                subscribedDataSet.TargetVariables.Add(
+                subscribedDataSet.TargetVariables = subscribedDataSet.TargetVariables.AddItem(
                     new FieldTargetDataType
                     {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
@@ -452,8 +452,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             }
 
             dataSetReaderSimple.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
-
-            readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
+            readerGroup1.DataSetReaders = readerGroup1.DataSetReaders.AddItem(dataSetReaderSimple);
 
             var dataSetReaderAllTypes = new DataSetReaderDataType
             {
@@ -492,7 +491,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             subscribedDataSet = new TargetVariablesDataType { TargetVariables = [] };
             foreach (FieldMetaData fieldMetaData in allTypesMetaData.Fields)
             {
-                subscribedDataSet.TargetVariables.Add(
+                subscribedDataSet.TargetVariables = subscribedDataSet.TargetVariables.AddItem(
                     new FieldTargetDataType
                     {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
@@ -506,9 +505,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             dataSetReaderAllTypes.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
 
-            readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
-
-            pubSubConnection1.ReaderGroups.Add(readerGroup1);
+            readerGroup1.DataSetReaders = readerGroup1.DataSetReaders.AddItem(dataSetReaderAllTypes);
+            pubSubConnection1.ReaderGroups = pubSubConnection1.ReaderGroups.AddItem(readerGroup1);
 
             //create  pub sub configuration root object
             return new PubSubConfigurationDataType { Connections = [pubSubConnection1] };
@@ -599,7 +597,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             var subscribedDataSet = new TargetVariablesDataType { TargetVariables = [] };
             foreach (FieldMetaData fieldMetaData in simpleMetaData.Fields)
             {
-                subscribedDataSet.TargetVariables.Add(
+                subscribedDataSet.TargetVariables = subscribedDataSet.TargetVariables.AddItem(
                     new FieldTargetDataType
                     {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
@@ -613,7 +611,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             dataSetReaderSimple.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
 
-            readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
+            readerGroup1.DataSetReaders = readerGroup1.DataSetReaders.AddItem(dataSetReaderSimple);
 
             var dataSetReaderAllTypes = new DataSetReaderDataType
             {
@@ -660,7 +658,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             subscribedDataSet = new TargetVariablesDataType { TargetVariables = [] };
             foreach (FieldMetaData fieldMetaData in allTypesMetaData.Fields)
             {
-                subscribedDataSet.TargetVariables.Add(
+                subscribedDataSet.TargetVariables = subscribedDataSet.TargetVariables.AddItem(
                     new FieldTargetDataType
                     {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
@@ -674,9 +672,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             dataSetReaderAllTypes.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
 
-            readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
-
-            pubSubConnection1.ReaderGroups.Add(readerGroup1);
+            readerGroup1.DataSetReaders = readerGroup1.DataSetReaders.AddItem(dataSetReaderAllTypes);
+            pubSubConnection1.ReaderGroups = pubSubConnection1.ReaderGroups.AddItem(readerGroup1);
 
             //create  pub sub configuration root object
             return new PubSubConfigurationDataType { Connections = [pubSubConnection1] };
@@ -767,7 +764,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             var subscribedDataSet = new TargetVariablesDataType { TargetVariables = [] };
             foreach (FieldMetaData fieldMetaData in simpleMetaData.Fields)
             {
-                subscribedDataSet.TargetVariables.Add(
+                subscribedDataSet.TargetVariables = subscribedDataSet.TargetVariables.AddItem(
                     new FieldTargetDataType
                     {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
@@ -781,7 +778,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             dataSetReaderSimple.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
 
-            readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
+            readerGroup1.DataSetReaders = readerGroup1.DataSetReaders.AddItem(dataSetReaderSimple);
 
             var dataSetReaderAllTypes = new DataSetReaderDataType
             {
@@ -823,7 +820,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             subscribedDataSet = new TargetVariablesDataType { TargetVariables = [] };
             foreach (FieldMetaData fieldMetaData in allTypesMetaData.Fields)
             {
-                subscribedDataSet.TargetVariables.Add(
+                subscribedDataSet.TargetVariables = subscribedDataSet.TargetVariables.AddItem(
                     new FieldTargetDataType
                     {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
@@ -837,9 +834,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             dataSetReaderAllTypes.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
 
-            readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
-
-            pubSubConnection1.ReaderGroups.Add(readerGroup1);
+            readerGroup1.DataSetReaders = readerGroup1.DataSetReaders.AddItem(dataSetReaderAllTypes);
+            pubSubConnection1.ReaderGroups = pubSubConnection1.ReaderGroups.AddItem(readerGroup1);
 
             //create  pub sub configuration root object
             return new PubSubConfigurationDataType { Connections = [pubSubConnection1] };

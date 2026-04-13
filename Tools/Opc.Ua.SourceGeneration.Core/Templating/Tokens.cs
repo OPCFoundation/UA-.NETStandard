@@ -47,10 +47,10 @@ namespace Opc.Ua.SourceGeneration
         public static string ChildName => nameof(ChildName);
         public static string ChildPath => nameof(ChildPath);
         public static string ClassName => nameof(ClassName);
+        public static string ClassFactory => nameof(ClassFactory);
         public static string ClientApi => nameof(ClientApi);
         public static string ClientMethod => nameof(ClientMethod);
         public static string CodeName => nameof(CodeName);
-        public static string CollectionClass => nameof(CollectionClass);
         public static string CollectionType => nameof(CollectionType);
         public static string DataType => nameof(DataType);
         public static string StructureType => nameof(StructureType);
@@ -65,6 +65,7 @@ namespace Opc.Ua.SourceGeneration
         public static string EnumerationName => nameof(EnumerationName);
         public static string EventNotifier => nameof(EventNotifier);
         public static string FieldIndex => nameof(FieldIndex);
+        public static string ExtraInterfaces => nameof(ExtraInterfaces);
         public static string FieldName => nameof(FieldName);
         public static string ListOfChildOperations => nameof(ListOfChildOperations);
         public static string Historizing => nameof(Historizing);
@@ -82,6 +83,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfChildInitializers => nameof(ListOfChildInitializers);
         public static string ListOfChildMethods => nameof(ListOfChildMethods);
         public static string ListOfClonedFields => nameof(ListOfClonedFields);
+        public static string ListOfAppendStringFields => nameof(ListOfAppendStringFields);
         public static string ListOfComparedFields => nameof(ListOfComparedFields);
         public static string ListOfDecodedFields => nameof(ListOfDecodedFields);
         public static string ListOfEncodedFields => nameof(ListOfEncodedFields);
@@ -145,6 +147,8 @@ namespace Opc.Ua.SourceGeneration
         public static string Version => nameof(Version);
         public static string Tool => nameof(Tool);
         public static string XmlEncodingId => nameof(XmlEncodingId);
+        public static string VariantFrom => nameof(VariantFrom);
+        public static string VariantTryGet => nameof(VariantTryGet);
         public static string XmlIdentifier => nameof(XmlIdentifier);
         public static string XmlNamespaceUri => nameof(XmlNamespaceUri);
         public static string XmlnsS0ListOfNamespaces => nameof(XmlnsS0ListOfNamespaces);
@@ -184,6 +188,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ReferenceTypeId => nameof(ReferenceTypeId);
         public static string ModellingRuleId => nameof(ModellingRuleId);
         public static string StateClassName => nameof(StateClassName);
+        public static string StateClassFactory => nameof(StateClassFactory);
         public static string DisplayName => nameof(DisplayName);
         public static string DataTypeDefinition => nameof(DataTypeDefinition);
         public static string DescriptionValue => nameof(DescriptionValue);

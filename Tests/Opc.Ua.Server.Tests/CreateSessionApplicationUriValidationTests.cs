@@ -41,7 +41,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -121,7 +120,7 @@ namespace Opc.Ua.Server.Tests
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             // Create client certificate with matching ApplicationUri
@@ -133,13 +132,13 @@ namespace Opc.Ua.Server.Tests
 
             // Attempt to create session - should succeed
             Client.ISession session = await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false);
-            Assert.NotNull(session);
-            Assert.IsTrue(session.Connected, "Session should be connected");
+            Assert.That(session, Is.Not.Null);
+            Assert.That(session.Connected, Is.True, "Session should be connected");
 
             // Verify session is functional by reading server state
             DataValue result = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false);
-            Assert.NotNull(result, "Should be able to read server state");
-            Assert.AreEqual(StatusCodes.Good, result.StatusCode, "Read operation should succeed");
+            Assert.That(result, Is.Not.Null, "Should be able to read server state");
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good), "Read operation should succeed");
 
             await session.CloseAsync(5_000, true).ConfigureAwait(false);
             session.Dispose();
@@ -155,7 +154,7 @@ namespace Opc.Ua.Server.Tests
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             // Create client certificate with different ApplicationUri
@@ -167,9 +166,9 @@ namespace Opc.Ua.Server.Tests
                 certificateType);
 
             // Attempt to create session - should throw BadCertificateUriInvalid
-            ServiceResultException ex = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false));
-            Assert.AreEqual(StatusCodes.BadCertificateUriInvalid, ex.StatusCode);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
         }
 
         /// <summary>
@@ -182,7 +181,7 @@ namespace Opc.Ua.Server.Tests
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             // Create client certificate with multiple URIs, including the matching one
@@ -198,20 +197,20 @@ namespace Opc.Ua.Server.Tests
 
             // Verify certificate has multiple URIs
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(clientCert);
-            Assert.AreEqual(3, uris.Count);
+            Assert.That(uris.Count, Is.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
             Assert.Contains(uri2, uris.ToList());
             Assert.Contains(uri3, uris.ToList());
 
             // Attempt to create session - should succeed because one URI matches
             Client.ISession session = await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false);
-            Assert.NotNull(session);
-            Assert.IsTrue(session.Connected, "Session should be connected");
+            Assert.That(session, Is.Not.Null);
+            Assert.That(session.Connected, Is.True, "Session should be connected");
 
             // Verify session is functional by reading server state
             DataValue result = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false);
-            Assert.NotNull(result, "Should be able to read server state");
-            Assert.AreEqual(StatusCodes.Good, result.StatusCode, "Read operation should succeed");
+            Assert.That(result, Is.Not.Null, "Should be able to read server state");
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good), "Read operation should succeed");
 
             await session.CloseAsync(5_000, true).ConfigureAwait(false);
             session.Dispose();
@@ -227,7 +226,7 @@ namespace Opc.Ua.Server.Tests
             // Skip test if certificate type is not supported on this platform
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+                Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
             }
 
             // Create client certificate with multiple URIs, none matching
@@ -243,18 +242,16 @@ namespace Opc.Ua.Server.Tests
 
             // Verify certificate has multiple URIs
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(clientCert);
-            Assert.AreEqual(3, uris.Count);
+            Assert.That(uris.Count, Is.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
             Assert.Contains(uri2, uris.ToList());
             Assert.Contains(uri3, uris.ToList());
 
             // Attempt to create session - should throw BadCertificateUriInvalid
-            ServiceResultException ex = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false));
-            Assert.AreEqual(StatusCodes.BadCertificateUriInvalid, ex.StatusCode);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
         }
-
-        #region Helper Methods
 
         /// <summary>
         /// Helper method to create a session with a custom client certificate.
@@ -311,10 +308,10 @@ namespace Opc.Ua.Server.Tests
 
                 // Get server endpoint with RSA-compatible security policy
                 EndpointDescription endpoint = m_serverFixture.Server.GetEndpoints()
-                    .FirstOrDefault(e => e.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
+                    .Find(e => e.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
                         e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
 
-                Assert.NotNull(endpoint, "No suitable endpoint found");
+                Assert.That(endpoint, Is.Not.Null, "No suitable endpoint found");
 
                 var endpointConfiguration = EndpointConfiguration.Create(clientConfig);
                 endpointConfiguration.OperationTimeout = 10000;
@@ -336,7 +333,7 @@ namespace Opc.Ua.Server.Tests
                             "TestSession",
                             60000, // sessionTimeout
                             null, // userIdentity
-                            null) // preferredLocales
+                            default) // preferredLocales
                             .ConfigureAwait(false);
                     }
                     catch (ServiceResultException e) when (
@@ -432,7 +429,5 @@ namespace Opc.Ua.Server.Tests
                 return builder.SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
             }
         }
-
-        #endregion Helper Methods
     }
 }

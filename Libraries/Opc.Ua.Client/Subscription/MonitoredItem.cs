@@ -137,7 +137,7 @@ namespace Opc.Ua.Client
             ClientHandle = state.ClientId;
             ServerId = state.ServerId;
             TriggeringItemId = state.TriggeringItemId;
-            TriggeredItems = state.TriggeredItems != null ? [.. state.TriggeredItems] : null;
+            TriggeredItems = state.TriggeredItems;
             CacheQueueSize = state.CacheQueueSize < 1 ? 1 : state.CacheQueueSize;
         }
 
@@ -149,7 +149,7 @@ namespace Opc.Ua.Client
                 ServerId = Status.Id,
                 ClientId = ClientHandle,
                 TriggeringItemId = TriggeringItemId,
-                TriggeredItems = TriggeredItems != null ? [.. TriggeredItems] : null,
+                TriggeredItems = TriggeredItems,
                 CacheQueueSize = CacheQueueSize
             };
         }
@@ -564,7 +564,7 @@ namespace Opc.Ua.Client
                             {
                                 m_logger.LogWarning(
                                     "Received ServerTimestamp {ServerTimestamp} is in the future for MonitoredItemId {MonitoredItemId}",
-                                    datachange.Value.ServerTimestamp.ToLocalTime(),
+                                    datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
                                     ClientHandle);
                             }
 
@@ -573,7 +573,7 @@ namespace Opc.Ua.Client
                             {
                                 m_logger.LogWarning(
                                     "Received SourceTimestamp {SourceTimestamp} is in the future for MonitoredItemId {MonitoredItemId}",
-                                    datachange.Value.SourceTimestamp.ToLocalTime(),
+                                    datachange.Value.SourceTimestamp.ToDateTime().ToLocalTime(),
                                     ClientHandle);
                             }
                         }
@@ -583,8 +583,8 @@ namespace Opc.Ua.Client
                             m_logger.LogWarning(
                                 "Overflow bit set for data change with ServerTimestamp {ServerTimestamp} " +
                                 "and value {Value} for MonitoredItemId {MonitoredItemId}",
-                                datachange.Value.ServerTimestamp.ToLocalTime(),
-                                datachange.Value.Value,
+                                datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
+                                datachange.Value.WrappedValue,
                                 ClientHandle);
                         }
                     }
@@ -639,7 +639,7 @@ namespace Opc.Ua.Client
         protected internal void SetResolvePathResult(
             BrowsePathResult result,
             int index,
-            DiagnosticInfoCollection diagnosticInfos,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
         {
             ServiceResult? error = null;
@@ -675,7 +675,7 @@ namespace Opc.Ua.Client
             MonitoredItemCreateRequest request,
             MonitoredItemCreateResult result,
             int index,
-            DiagnosticInfoCollection diagnosticInfos,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
         {
             ServiceResult? error = null;
@@ -700,7 +700,7 @@ namespace Opc.Ua.Client
             MonitoredItemModifyRequest request,
             MonitoredItemModifyResult result,
             int index,
-            DiagnosticInfoCollection diagnosticInfos,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
         {
             ServiceResult? error = null;
@@ -736,7 +736,7 @@ namespace Opc.Ua.Client
         protected internal void SetDeleteResult(
             StatusCode result,
             int index,
-            DiagnosticInfoCollection? diagnosticInfos,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader? responseHeader)
         {
             ServiceResult? error = null;
@@ -778,7 +778,7 @@ namespace Opc.Ua.Client
             string browsePath,
             uint attributeId)
         {
-            QualifiedNameCollection browseNames = SimpleAttributeOperand.Parse(browsePath);
+            ArrayOf<QualifiedName> browseNames = SimpleAttributeOperand.Parse(browsePath);
             return GetFieldValue(eventFields, eventTypeId, browseNames, attributeId);
         }
 
@@ -790,7 +790,7 @@ namespace Opc.Ua.Client
             NodeId eventTypeId,
             QualifiedName browseName)
         {
-            var browsePath = new QualifiedNameCollection { browseName };
+            ArrayOf<QualifiedName> browsePath = [browseName];
             return GetFieldValue(eventFields, eventTypeId, browsePath, Attributes.Value);
         }
 
@@ -800,7 +800,7 @@ namespace Opc.Ua.Client
         public object? GetFieldValue(
             EventFieldList eventFields,
             NodeId eventTypeId,
-            IList<QualifiedName> browsePath,
+            ArrayOf<QualifiedName> browsePath,
             uint attributeId)
         {
             if (eventFields == null)
@@ -830,9 +830,9 @@ namespace Opc.Ua.Client
                 }
 
                 // match null browse path.
-                if (browsePath == null || browsePath.Count == 0)
+                if (browsePath.IsEmpty)
                 {
-                    if (clause.BrowsePath != null && clause.BrowsePath.Count > 0)
+                    if (!clause.BrowsePath.IsEmpty)
                     {
                         continue;
                     }
@@ -891,7 +891,7 @@ namespace Opc.Ua.Client
             // get event type.
             if (GetFieldValue(
                 eventFields,
-                ObjectTypes.BaseEventType,
+                ObjectTypeIds.BaseEventType,
                 QualifiedName.From(BrowseNames.EventType)) is not NodeId eventTypeId)
             {
                 return null;
@@ -918,7 +918,7 @@ namespace Opc.Ua.Client
             // get event time.
             var eventTime = GetFieldValue(
                 eventFields,
-                ObjectTypes.BaseEventType,
+                ObjectTypeIds.BaseEventType,
                 QualifiedName.From(BrowseNames.Time)) as DateTime?;
 
             if (eventTime != null)
@@ -1055,15 +1055,15 @@ namespace Opc.Ua.Client
         {
             var filter = new EventFilter();
 
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.EventId));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.EventType));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.SourceName));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Time));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.ReceiveTime));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.LocalTime));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Message));
-            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Severity));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventId));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceName));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Time));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.ReceiveTime));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.LocalTime));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Message));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Severity));
 
             return filter;
         }
@@ -1088,7 +1088,7 @@ namespace Opc.Ua.Client
         /// Collection of server-side identifiers of monitored items that are
         /// triggered by this item. Null if this item does not trigger any other items.
         /// </summary>
-        internal UInt32Collection? TriggeredItems { get; set; }
+        internal ArrayOf<uint> TriggeredItems { get; set; } = [];
     }
 
     /// <summary>

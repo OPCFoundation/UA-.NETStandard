@@ -293,7 +293,7 @@ namespace Opc.Ua.PubSub.Transport
             UaNetworkMessage message = m_udpConnection.CreatePublisherEndpointsNetworkMessage(
                 [.. publisherEndpointsToSend],
                 publisherEndpointsToSend.Count > 0 ? StatusCodes.Good : StatusCodes.BadNotFound,
-                m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value);
+                m_udpConnection.PubSubConnectionConfiguration.PublisherId);
 
             m_logger.LogInformation(
                 "UdpDiscoveryPublisher.SendResponsePublisherEndpoints before sending message for PublisherEndpoints.");

@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text;
 using Opc.Ua.Types;
 using System.Text.Json.Serialization;
@@ -815,7 +814,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the interned status codes
         /// </summary>
-        public static StatusCodeCollection InternedStatusCodes => [.. s_statusCodes.Values];
+        public static ArrayOf<StatusCode> InternedStatusCodes => [.. s_statusCodes.Values];
 
         static StatusCode()
         {
@@ -942,111 +941,5 @@ namespace Opc.Ua
         /// values at different timestamps within the same interval)
         /// </summary>
         MultipleValues = 0x10
-    }
-
-    /// <summary>
-    /// A collection of StatusCodes.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfStatusCode",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "StatusCode")]
-    public class StatusCodeCollection : List<StatusCode>, ICloneable
-    {
-        /// <inheritdoc/>
-        public StatusCodeCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public StatusCodeCollection(IEnumerable<StatusCode> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public StatusCodeCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <param name="values">The array of <see cref="StatusCode"/>
-        /// values to return as a Collection</param>
-        public static StatusCodeCollection ToStatusCodeCollection(
-            StatusCode[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        public static implicit operator StatusCodeCollection(
-            StatusCode[] values)
-        {
-            return ToStatusCodeCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            return new StatusCodeCollection(this);
-        }
-    }
-
-    /// <summary>
-    /// Helper to allow data contract serialization of StatusCode
-    /// </summary>
-    [DataContract(
-        Name = "StatusCode",
-        Namespace = Namespaces.OpcUaXsd)]
-    public class SerializableStatusCode : ISurrogateFor<StatusCode>
-    {
-        /// <inheritdoc/>
-        public SerializableStatusCode()
-        {
-            Value = default;
-        }
-
-        /// <inheritdoc/>
-        public SerializableStatusCode(StatusCode value)
-        {
-            Value = value;
-        }
-
-        /// <inheritdoc/>
-        public StatusCode Value { get; private set; }
-
-        /// <inheritdoc/>
-        public object GetValue()
-        {
-            return Value;
-        }
-
-        /// <summary>
-        /// The entire 32-bit status value.
-        /// </summary>
-        [DataMember(Name = "Code", Order = 1, IsRequired = false)]
-        public uint Code
-        {
-            get => Value.Code;
-            set => Value = new StatusCode(value);
-        }
     }
 }

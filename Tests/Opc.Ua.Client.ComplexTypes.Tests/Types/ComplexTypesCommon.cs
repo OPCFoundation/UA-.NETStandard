@@ -36,7 +36,6 @@ using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
 using Opc.Ua.Test;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -69,7 +68,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     /// <summary>
     /// Complex Types Common Functions for Tests.
     /// </summary>
-    public class ComplexTypesCommon : EncoderCommon
+    public abstract class ComplexTypesCommon : EncoderCommon
     {
         protected AssemblyModule m_module;
         protected ComplexTypeBuilder m_complexTypeBuilder;
@@ -133,7 +132,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             .. GetAllBuiltInTypesFields().Select(s => new StructureFieldParameter(s))
         ];
 
-        public Type BuildComplexTypeWithAllBuiltInTypes(
+        internal Type BuildComplexTypeWithAllBuiltInTypes(
             StructureType structureType,
             string testFunc)
         {
@@ -143,7 +142,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <summary>
         /// Builds a complex type with all BuiltInTypes as properties.
         /// </summary>
-        public Type BuildComplexTypeWithAllBuiltInTypes(
+        private Type BuildComplexTypeWithAllBuiltInTypes(
             IServiceMessageContext context,
             StructureType structureType,
             string testFunc,
@@ -174,7 +173,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 Type fieldType = TypeInfo.GetSystemType(field.DataType, null);
                 field.IsOptional = structureType == StructureType.StructureWithOptionalFields;
-                fieldBuilder.AddField(field, fieldType, i++);
+                fieldBuilder.AddField(field, fieldType, i++, fieldType.IsEnum);
             }
             Type complexType = fieldBuilder.CreateType();
             if (context != null)
@@ -189,9 +188,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <summary>
         /// Return a collection of fields with BuiltInTypes.
         /// </summary>
-        public static StructureFieldCollection GetAllBuiltInTypesFields()
+        private static List<StructureField> GetAllBuiltInTypesFields()
         {
-            var collection = new StructureFieldCollection();
+            var collection = new List<StructureField>();
             foreach (BuiltInType builtInType in BuiltInTypes)
             {
                 if (builtInType
@@ -209,7 +208,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     {
                         Name = builtInType.ToString(),
                         DataType = new NodeId((uint)builtInType),
-                        ArrayDimensions = null,
+                        ArrayDimensions = default,
                         Description = LocalizedText.From($"A BuiltInType.{builtInType} property."),
                         IsOptional = false,
                         MaxStringLength = 0,
@@ -222,7 +221,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <summary>
         /// Create array of types for tests.
         /// </summary>
-        public void CreateComplexTypes(
+        internal void CreateComplexTypes(
             IServiceMessageContext context,
             Dictionary<StructureType, (ExpandedNodeId, Type)> dict,
             string nameExtension)
@@ -241,7 +240,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <summary>
         /// Helper to fill type with default values or random Data.
         /// </summary>
-        public void FillStructWithValues(
+        internal void FillStructWithValues(
             BaseComplexType structType,
             bool randomValues,
             NamespaceTable namespaceUris)
@@ -251,35 +250,35 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 BuiltInType builtInType = TypeInfo.GetBuiltInType(
                     TypeInfo.GetDataTypeId(property.PropertyType, namespaceUris));
-                object newObj = randomValues
-                    ? DataGenerator.GetRandom(builtInType)
-                    : TypeInfo.GetDefaultValue(builtInType);
-                if (newObj == null)
+                Variant newObj = randomValues
+                    ? DataGenerator.GetRandomVariant(property.TypeInfo.BuiltInType, !property.TypeInfo.IsScalar)
+                    : Variant.CreateDefault(TypeInfo.Create(builtInType, property.TypeInfo.ValueRank));
+                if (newObj.IsNull)
                 {
                     // fill known missing default values (by design)
                     switch (builtInType)
                     {
                         case BuiltInType.XmlElement:
                             var doc = new XmlDocument();
-                            newObj = doc.CreateElement("name");
+                            newObj = Variant.From(XmlElement.From(doc.CreateElement("name")));
                             break;
                         case BuiltInType.ByteString:
-                            newObj = Array.Empty<byte>();
+                            newObj = Variant.From(ByteString.From([1, 2, 3]));
                             break;
                         case BuiltInType.String:
-                            newObj = "This is a test";
+                            newObj = Variant.From("This is a test");
                             break;
                         case BuiltInType.ExtensionObject:
-                            newObj = ExtensionObject.Null;
+                            newObj = Variant.From(ExtensionObject.Null);
                             break;
                         default:
-                            NUnit.Framework.Assert.Fail("Unknown null default value");
+                            newObj = Variant.CreateDefault(property.TypeInfo);
                             break;
                     }
                 }
                 structType[property.Name] = newObj;
-                Assert.AreEqual(structType[property.Name], newObj);
-                Assert.AreEqual(structType[index], newObj);
+                Assert.That(newObj, Is.EqualTo(structType[property.Name]));
+                Assert.That(newObj, Is.EqualTo(structType[index]));
                 index++;
             }
         }
@@ -292,6 +291,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             MemoryStreamType memoryStreamType,
             EncodingType encoderType,
             JsonEncodingType jsonEncodingType,
+            bool useXmlParser,
             StructureType structureType,
             ExpandedNodeId nodeId,
             object data)
@@ -300,7 +300,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine(data);
             ExtensionObject expected = CreateExtensionObject(structureType, nodeId, data);
-            Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
+            Assert.That(expected.IsNull, Is.False, "Expected DataValue is Null, " + encodeInfo);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
 
@@ -322,42 +322,56 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             switch (encoderType)
             {
+                case EncodingType.Binary:
+                    TestContext.Out.WriteLine(PrettifyAndValidateBinary(buffer));
+                    break;
                 case EncodingType.Json:
-                    _ = PrettifyAndValidateJson(buffer);
+                    TestContext.Out.WriteLine(PrettifyAndValidateJson(buffer));
                     break;
                 case EncodingType.Xml:
-                    _ = PrettifyAndValidateXml(buffer);
+                    TestContext.Out.WriteLine(PrettifyAndValidateXml(buffer));
                     break;
             }
 
             using var decoderStream = new MemoryStream(buffer);
             using IDecoder decoder = CreateDecoder(
                 encoderType,
+                useXmlParser,
                 encoderContext,
                 decoderStream,
                 typeof(DataValue));
             ExtensionObject result = decoder.ReadExtensionObject("ExtensionObject");
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
-            Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
-            Assert.AreEqual(expected.Encoding, result.Encoding, encodeInfo);
-            //TODO: investigate why AreEqual cannot compare ExtensionObject and Body
-            //Assert.AreEqual(expected.Body, result.Body, encodeInfo);
-            Assert.IsTrue(
-                Utils.IsEqual(expected.Body, result.Body),
-                $"Opc.Ua.Utils.IsEqual failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected.Body}\r\n!=\r\n{result.Body}.");
+            Assert.That(result.IsNull, Is.False, "Resulting DataValue is Null, " + encodeInfo);
+            Assert.That(result.Encoding, Is.EqualTo(expected.Encoding), encodeInfo);
+            Assert.That(result, Is.EqualTo(expected),
+                $"Failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected}\r\n!=\r\n{result}.");
         }
 
         /// <summary>
         /// Create an ExtensionObject for a complex type.
         /// The complex type is the Body.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         protected ExtensionObject CreateExtensionObject(
             StructureType structureType,
             ExpandedNodeId nodeId,
             object data)
         {
-            return new ExtensionObject(nodeId, data);
+            switch (data)
+            {
+                case ByteString b:
+                    return new ExtensionObject(nodeId, b);
+                case XmlElement x:
+                    return new ExtensionObject(nodeId, x);
+                case IEncodeable e:
+                    return new ExtensionObject(e, true);
+                default:
+                    throw new ArgumentException(
+                        $"Unsupported data type {data.GetType()}" +
+                        $" for structure type {structureType}.");
+            }
         }
     }
 }

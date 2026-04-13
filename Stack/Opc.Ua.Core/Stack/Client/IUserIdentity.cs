@@ -69,7 +69,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get or sets the list of granted role ids associated to the UserIdentity.
         /// </summary>
-        NodeIdCollection GrantedRoleIds { get; }
+        ArrayOf<NodeId> GrantedRoleIds { get; }
 
         /// <summary>
         /// <para>

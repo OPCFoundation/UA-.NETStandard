@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -58,7 +59,8 @@ namespace Opc.Ua.Gds.Tests
         public async Task StartServerAsync(
             bool clean,
             int basePort = -1,
-            string storeType = CertificateStoreType.Directory)
+            string storeType = CertificateStoreType.Directory,
+            IEnumerable<CertificateGroupConfiguration> additionalCertGroups = null)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
 
@@ -112,6 +114,18 @@ namespace Opc.Ua.Gds.Tests
                     .ConfigureAwait(false);
 
                 Config = await LoadAsync(Application, basePort, m_maxTrustListSize).ConfigureAwait(false);
+            }
+
+            // Inject any additional certificate groups into the configuration.
+            if (additionalCertGroups != null)
+            {
+                GlobalDiscoveryServerConfiguration gdsConfig =
+                    Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
+                foreach (CertificateGroupConfiguration group in additionalCertGroups)
+                {
+                    gdsConfig.CertificateGroups.Add(group);
+                }
+                Config.UpdateExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig);
             }
 
             // check the application certificate.

@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public virtual LocalizedText Translate(
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             string key,
             string text,
             params object[] args)
@@ -90,7 +90,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public LocalizedText Translate(IList<string> preferredLocales, LocalizedText text)
+        public LocalizedText Translate(ArrayOf<string> preferredLocales, LocalizedText text)
         {
             return Translate(preferredLocales, text, text.TranslationInfo);
         }
@@ -98,7 +98,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Translates a service result.
         /// </summary>
-        public ServiceResult Translate(IList<string> preferredLocales, ServiceResult result)
+        public ServiceResult Translate(ArrayOf<string> preferredLocales, ServiceResult result)
         {
             if (result == null)
             {
@@ -136,7 +136,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                if (preferredLocales == null || preferredLocales.Count == 0)
+                if (preferredLocales.Count == 0)
                 {
                     return result;
                 }
@@ -304,7 +304,7 @@ namespace Opc.Ua.Server
         /// Translates the text provided.
         /// </summary>
         protected virtual LocalizedText Translate(
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             LocalizedText defaultText,
             TranslationInfo info)
         {
@@ -316,11 +316,11 @@ namespace Opc.Ua.Server
 
             defaultText = defaultText.WithTranslationInfo(info);
             bool isMultilanguageRequested =
-                preferredLocales?.Count > 0 &&
+                preferredLocales.Count > 0 &&
                 preferredLocales[0].ToLowerInvariant() is "mul" or "qst";
 
             // check for exact match.
-            if (preferredLocales != null && preferredLocales.Count > 0)
+            if (preferredLocales.Count > 0)
             {
                 if (!defaultText.IsNullOrEmpty &&
                     !isMultilanguageRequested &&
@@ -381,7 +381,7 @@ namespace Opc.Ua.Server
                         for (int i = 1; i < preferredLocales.Count; i++)
                         {
                             string translation = FindBestTranslation(
-                                [preferredLocales[i]],
+                                preferredLocales.Slice(i, 1),
                                 info.Key ?? info.Text,
                                 out CultureInfo culture);
                             if (translation != null)
@@ -461,14 +461,14 @@ namespace Opc.Ua.Server
         /// Finds the best translation for the requested locales.
         /// </summary>
         private string FindBestTranslation(
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             string key,
             out CultureInfo culture)
         {
             culture = null;
             TranslationTable match = null;
 
-            if (preferredLocales == null || preferredLocales.Count == 0)
+            if (preferredLocales.Count == 0)
             {
                 return null;
             }
@@ -530,7 +530,7 @@ namespace Opc.Ua.Server
         /// Translates a status code.
         /// </summary>
         private LocalizedText TranslateStatusCode(
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             StatusCode statusCode,
             object[] args)
         {
@@ -556,7 +556,7 @@ namespace Opc.Ua.Server
         /// Translates a symbolic id.
         /// </summary>
         private LocalizedText TranslateSymbolicId(
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             string symbolicId,
             string namespaceUri,
             object[] args)

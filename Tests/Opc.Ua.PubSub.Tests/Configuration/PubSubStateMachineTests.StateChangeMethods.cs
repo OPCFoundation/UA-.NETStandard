@@ -31,7 +31,6 @@ using System;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
@@ -46,7 +45,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
             configurator.Disable(pubSub);
-            Assert.AreEqual(StatusCodes.Good, configurator.Enable(pubSub));
+            Assert.That(configurator.Enable(pubSub), Is.EqualTo(StatusCodes.Good));
         }
 
         [Test(Description = "Validate Call Enable on Enabled object")]
@@ -58,7 +57,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
             configurator.Enable(pubSub);
-            Assert.AreEqual(StatusCodes.BadInvalidState, configurator.Enable(pubSub));
+            Assert.That(configurator.Enable(pubSub), Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test(Description = "Validate Call Disable on Enabled object")]
@@ -70,7 +69,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
             configurator.Enable(pubSub);
-            Assert.AreEqual(StatusCodes.Good, configurator.Disable(pubSub));
+            Assert.That(configurator.Disable(pubSub), Is.EqualTo(StatusCodes.Good));
         }
 
         [Test(Description = "Validate Call Disable on Disabled object")]
@@ -82,7 +81,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
             configurator.Disable(pubSub);
-            Assert.AreEqual(StatusCodes.BadInvalidState, configurator.Disable(pubSub));
+            Assert.That(configurator.Disable(pubSub), Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test(Description = "Validate Call Enable on null object")]
@@ -91,7 +90,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
-            NUnit.Framework.Assert.Throws<ArgumentException>(
+            Assert.Throws<ArgumentException>(
                 () => configurator.Enable(null),
                 "The Enable method does not throw exception when called with null parameter.");
         }
@@ -102,7 +101,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
-            NUnit.Framework.Assert.Throws<ArgumentException>(
+            Assert.Throws<ArgumentException>(
                 () => configurator.Disable(null),
                 "The Disable method does not throw exception when called with null parameter.");
         }
@@ -114,7 +113,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             var nonExisting = new PubSubConfigurationDataType();
-            NUnit.Framework.Assert.Throws<ArgumentException>(
+            Assert.Throws<ArgumentException>(
                 () => configurator.Enable(nonExisting),
                 "The Enable method does not throw exception when called with non existing parameter.");
         }
@@ -126,7 +125,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             var nonExisting = new PubSubConfigurationDataType();
-            NUnit.Framework.Assert.Throws<ArgumentException>(
+            Assert.Throws<ArgumentException>(
                 () => configurator.Disable(nonExisting),
                 "The Disable method does not throw exception when called with non existing parameter.");
         }

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -91,7 +90,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="typeId">The extended type identifier.</param>
         /// <returns>List of type identifiers for <paramref name="typeId"/></returns>
-        IList<NodeId> FindSubTypes(ExpandedNodeId typeId);
+        ArrayOf<NodeId> FindSubTypes(ExpandedNodeId typeId);
 
         /// <summary>
         /// Determines whether a type is a subtype of another type.

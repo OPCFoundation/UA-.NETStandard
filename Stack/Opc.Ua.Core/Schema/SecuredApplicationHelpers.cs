@@ -224,7 +224,7 @@ namespace Opc.Ua.Security
 
             if (configuration != null)
             {
-                if (configuration.BaseAddresses != null)
+                if (!configuration.BaseAddresses.IsEmpty)
                 {
                     for (int ii = 0; ii < configuration.BaseAddresses.Count; ii++)
                     {
@@ -232,7 +232,7 @@ namespace Opc.Ua.Security
                     }
                 }
 
-                if (configuration.AlternateBaseAddresses != null)
+                if (!configuration.AlternateBaseAddresses.IsEmpty)
                 {
                     for (int ii = 0; ii < configuration.AlternateBaseAddresses.Count; ii++)
                     {
@@ -255,8 +255,8 @@ namespace Opc.Ua.Security
 
             if (addresses != null && configuration != null)
             {
-                configuration.BaseAddresses = [];
-                configuration.AlternateBaseAddresses = null;
+                List<string> baseAddresses = [];
+                List<string> alternateBaseAddresses = [];
 
                 for (int ii = 0; ii < addresses.Count; ii++)
                 {
@@ -266,14 +266,17 @@ namespace Opc.Ua.Security
                     {
                         if (!map.TryAdd(url.Scheme, string.Empty))
                         {
-                            (configuration.AlternateBaseAddresses ??= []).Add(url.ToString());
+                            alternateBaseAddresses.Add(url.ToString());
                         }
                         else
                         {
-                            configuration.BaseAddresses.Add(url.ToString());
+                            baseAddresses.Add(url.ToString());
                         }
                     }
                 }
+
+                configuration.BaseAddresses = baseAddresses;
+                configuration.AlternateBaseAddresses = alternateBaseAddresses;
             }
         }
 

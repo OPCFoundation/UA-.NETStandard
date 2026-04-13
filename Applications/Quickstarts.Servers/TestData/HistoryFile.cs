@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using Opc.Ua;
@@ -57,7 +56,7 @@ namespace TestData
         /// <param name="position">A index that must be passed to the NextRaw call. </param>
         /// <returns>The DataValue.</returns>
         public DataValue FirstRaw(
-            DateTime startTime,
+            DateTimeUtc startTime,
             bool isForward,
             bool isReadModified,
             out int position)
@@ -98,7 +97,7 @@ namespace TestData
 
                 return new DataValue
                 {
-                    Value = entry.Value.Value,
+                    WrappedValue = entry.Value.WrappedValue,
                     ServerTimestamp = entry.Value.ServerTimestamp,
                     SourceTimestamp = entry.Value.SourceTimestamp,
                     StatusCode = entry.Value.StatusCode
@@ -115,7 +114,7 @@ namespace TestData
         /// <param name="position">An index previously returned by the reader.</param>
         /// <returns>The DataValue.</returns>
         public DataValue NextRaw(
-            DateTime lastTime,
+            DateTimeUtc lastTime,
             bool isForward,
             bool isReadModified,
             ref int position)
@@ -133,7 +132,7 @@ namespace TestData
 
                 return new DataValue
                 {
-                    Value = entry.Value.Value,
+                    WrappedValue = entry.Value.WrappedValue,
                     ServerTimestamp = entry.Value.ServerTimestamp,
                     SourceTimestamp = entry.Value.SourceTimestamp,
                     StatusCode = entry.Value.StatusCode

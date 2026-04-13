@@ -28,10 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Globalization;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
@@ -42,6 +40,7 @@ namespace Opc.Ua
     /// Extends a node id by adding a complete namespace URI.
     /// </summary>
     public readonly struct ExpandedNodeId :
+        INullable,
         IComparable,
         IEquatable<ExpandedNodeId>,
         IEquatable<NodeId>,
@@ -66,14 +65,15 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
             m_data.ServerIndex = serverIndex;
             if (!string.IsNullOrEmpty(namespaceUri))
             {
+                m_data.NamespaceUri = namespaceUri;
                 m_nodeId = nodeId.WithNamespaceIndex(0);
             }
             else
             {
+                m_data.NamespaceUri = null;
                 m_nodeId = nodeId;
             }
         }
@@ -91,7 +91,8 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
+            m_data.NamespaceUri =
+                string.IsNullOrEmpty(namespaceUri) ? null : namespaceUri;
             m_data.ServerIndex = serverIndex;
             m_nodeId = new NodeId(value);
         }
@@ -112,11 +113,17 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
             m_data.ServerIndex = serverIndex;
-            m_nodeId = new NodeId(
-                value,
-                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                m_data.NamespaceUri = null;
+                m_nodeId = new NodeId(value, namespaceIndex);
+            }
+            else
+            {
+                m_data.NamespaceUri = namespaceUri;
+                m_nodeId = new NodeId(value);
+            }
         }
 
         /// <summary>
@@ -133,7 +140,8 @@ namespace Opc.Ua
             string namespaceUri,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
+            m_data.NamespaceUri =
+                string.IsNullOrEmpty(namespaceUri) ? null : namespaceUri;
             m_data.ServerIndex = serverIndex;
             m_nodeId = new NodeId(value, 0); // Must use 0 or else it parses
         }
@@ -156,11 +164,17 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
             m_data.ServerIndex = serverIndex;
-            m_nodeId = new NodeId(
-                value,
-                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                m_data.NamespaceUri = null;
+                m_nodeId = new NodeId(value, namespaceIndex);
+            }
+            else
+            {
+                m_data.NamespaceUri = namespaceUri;
+                m_nodeId = new NodeId(value, 0);
+            }
         }
 
         /// <summary>
@@ -177,7 +191,8 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
+            m_data.NamespaceUri =
+                string.IsNullOrEmpty(namespaceUri) ? null : namespaceUri;
             m_data.ServerIndex = serverIndex;
             m_nodeId = new NodeId(value);
         }
@@ -198,27 +213,34 @@ namespace Opc.Ua
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
             m_data.ServerIndex = serverIndex;
-            m_nodeId = new NodeId(
-                value,
-                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                m_data.NamespaceUri = null;
+                m_nodeId = new NodeId(value, namespaceIndex);
+            }
+            else
+            {
+                m_data.NamespaceUri = namespaceUri;
+                m_nodeId = new NodeId(value);
+            }
         }
 
         /// <summary>
         /// Creates a new instance of the class while allowing you to
-        /// specify the byte[] id of the node.
+        /// specify the ByteString id of the node.
         /// </summary>
         /// <param name="value">The id of the node</param>
         /// <param name="namespaceUri">The actual namespace URI that this
         /// node belongs to</param>
         /// <param name="serverIndex">The server index</param>
         public ExpandedNodeId(
-            byte[] value,
+            ByteString value,
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
+            m_data.NamespaceUri =
+                string.IsNullOrEmpty(namespaceUri) ? null : namespaceUri;
             m_data.ServerIndex = serverIndex;
             m_nodeId = new NodeId(value);
         }
@@ -234,16 +256,22 @@ namespace Opc.Ua
         /// node belongs to</param>
         /// <param name="serverIndex">The server index</param>
         public ExpandedNodeId(
-            byte[] value,
+            ByteString value,
             ushort namespaceIndex,
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
-            m_data.NamespaceUri = namespaceUri;
             m_data.ServerIndex = serverIndex;
-            m_nodeId = new NodeId(
-                value,
-                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                m_data.NamespaceUri = null;
+                m_nodeId = new NodeId(value, namespaceIndex);
+            }
+            else
+            {
+                m_data.NamespaceUri = namespaceUri;
+                m_nodeId = new NodeId(value);
+            }
         }
 
         /// <summary>
@@ -273,7 +301,7 @@ namespace Opc.Ua
             string namespaceUri,
             uint serverIndex)
         {
-            m_data.NamespaceUri = namespaceUri;
+            m_data.NamespaceUri = string.IsNullOrEmpty(namespaceUri) ? null : namespaceUri;
             m_data.ServerIndex = serverIndex;
             m_nodeId = new NodeId(
                 identifier,
@@ -319,7 +347,7 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// Returns the node id in whatever form, i.e.
-        /// string, Guid, byte[] or uint.
+        /// string, Guid, ByteString or uint.
         /// </remarks>
         [Obsolete("Use TryGetIdentifier<T> to get strongly typed identifier values or " +
             "consider using IdentifierAsString if you want to stringify the identifier.")]
@@ -337,7 +365,7 @@ namespace Opc.Ua
         /// <summary>
         /// Try get the opque node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out byte[] identifier)
+        public bool TryGetIdentifier(out ByteString identifier)
         {
             return m_nodeId.TryGetIdentifier(out identifier);
         }
@@ -658,7 +686,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a byte array to an opaque node identifier.
         /// </summary>
-        public static explicit operator ExpandedNodeId(byte[] value)
+        public static explicit operator ExpandedNodeId(ByteString value)
         {
             return new ExpandedNodeId(value);
         }
@@ -697,9 +725,11 @@ namespace Opc.Ua
         /// <param name="namespaceTable">The namespace table that contains all
         /// the namespaces needed to resolve the namespace index as encoded within
         /// this object. </param>
+        /// <param name="updateNamespaceTable">Update the namespace table.</param>
         public static NodeId ToNodeId(
             ExpandedNodeId nodeId,
-            NamespaceTable namespaceTable)
+            NamespaceTable namespaceTable,
+            bool updateNamespaceTable = false)
         {
             // check for null.
             if (nodeId.IsNull)
@@ -721,7 +751,9 @@ namespace Opc.Ua
 
             if (namespaceTable != null)
             {
-                index = namespaceTable.GetIndex(nodeId.NamespaceUri);
+                index = updateNamespaceTable ?
+                    namespaceTable.GetIndexOrAppend(nodeId.NamespaceUri) :
+                    namespaceTable.GetIndex(nodeId.NamespaceUri);
             }
 
             if (index < 0)
@@ -841,6 +873,10 @@ namespace Opc.Ua
         /// </summary>
         public string Format(IFormatProvider formatProvider)
         {
+            if (IsNull)
+            {
+                return string.Empty;
+            }
             var buffer = new StringBuilder();
             Format(formatProvider ?? CultureInfo.InvariantCulture, buffer);
             return buffer.ToString();
@@ -1411,214 +1447,5 @@ namespace Opc.Ua
         private readonly NodeId m_nodeId;
         private readonly Inner m_data;
 #pragma warning restore IDE0032 // Use auto property
-    }
-
-    /// <summary>
-    /// List of expanded node ids
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfExpandedNodeId",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "ExpandedNodeId")]
-    public class ExpandedNodeIdCollection : List<ExpandedNodeId>, ICloneable
-    {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        /// <remarks>
-        /// Creates a new [empty] collection.
-        /// </remarks>
-        public ExpandedNodeIdCollection()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
-        public ExpandedNodeIdCollection(IEnumerable<ExpandedNodeId> collection)
-            : base(collection)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
-        public ExpandedNodeIdCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <param name="values">An array of <see cref="ExpandedNodeId"/>
-        /// values to return as a collection</param>
-        public static implicit operator ExpandedNodeIdCollection(
-            ExpandedNodeId[] values)
-        {
-            return values == null ? [] : [.. values];
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            var clone = new ExpandedNodeIdCollection(Count);
-
-            foreach (ExpandedNodeId element in this)
-            {
-                clone.Add(element);
-            }
-
-            return clone;
-        }
-    }
-
-    /// <summary>
-    /// Helper to allow data contract serialization of ExpadedNodeId
-    /// </summary>
-    [DataContract(
-        Name = "ExpandedNodeId",
-        Namespace = Namespaces.OpcUaXsd)]
-    public class SerializableExpandedNodeId :
-        ISurrogateFor<ExpandedNodeId>,
-        IEquatable<ExpandedNodeId>,
-        IEquatable<SerializableExpandedNodeId>
-    {
-        /// <inheritdoc/>
-        public SerializableExpandedNodeId()
-        {
-            Value = default;
-        }
-
-        /// <inheritdoc/>
-        public SerializableExpandedNodeId(ExpandedNodeId value)
-        {
-            Value = value;
-        }
-
-        /// <inheritdoc/>
-        public ExpandedNodeId Value { get; private set; }
-
-        /// <inheritdoc/>
-        public object GetValue()
-        {
-            return Value;
-        }
-
-        /// <summary>
-        /// The node identifier formatted as a URI.
-        /// </summary>
-        [DataMember(Name = "Identifier", Order = 1, IsRequired = true)]
-        internal string IdentifierText
-        {
-            get => Value.Format(CultureInfo.InvariantCulture);
-            set => Value = ExpandedNodeId.Parse(value);
-        }
-
-        /// <inheritdoc/>
-        public override bool Equals(object obj)
-        {
-            return obj switch
-            {
-                SerializableExpandedNodeId s => Equals(s),
-                ExpandedNodeId n => Equals(n),
-                _ => Value.Equals(obj)
-            };
-        }
-
-        /// <inheritdoc/>
-        public bool Equals(ExpandedNodeId obj)
-        {
-            return Value.Equals(obj);
-        }
-
-        /// <inheritdoc/>
-        public bool Equals(SerializableExpandedNodeId obj)
-        {
-            return Value.Equals(obj?.Value ?? default);
-        }
-
-        /// <inheritdoc/>
-        public override int GetHashCode()
-        {
-            return Value.GetHashCode();
-        }
-
-        /// <inheritdoc/>
-        public static bool operator ==(
-            SerializableExpandedNodeId left,
-            SerializableExpandedNodeId right)
-        {
-            return left is null ? right is null : left.Equals(right);
-        }
-
-        /// <inheritdoc/>
-        public static bool operator !=(
-            SerializableExpandedNodeId left,
-            SerializableExpandedNodeId right)
-        {
-            return !(left == right);
-        }
-
-        /// <inheritdoc/>
-        public static bool operator ==(
-            SerializableExpandedNodeId left,
-            ExpandedNodeId right)
-        {
-            return left is null ? right.IsNull : left.Equals(right);
-        }
-
-        /// <inheritdoc/>
-        public static bool operator !=(
-            SerializableExpandedNodeId left,
-            ExpandedNodeId right)
-        {
-            return !(left == right);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator SerializableExpandedNodeId(
-            ExpandedNodeId expandedNodeId)
-        {
-            return new SerializableExpandedNodeId(expandedNodeId);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ExpandedNodeId(
-            SerializableExpandedNodeId expandedNodeId)
-        {
-            return expandedNodeId.Value;
-        }
-
-        /// <inheritdoc/>
-        public static explicit operator string(
-            SerializableExpandedNodeId expandedNodeId)
-        {
-            return expandedNodeId.IdentifierText;
-        }
-
-        /// <inheritdoc/>
-        public static explicit operator SerializableExpandedNodeId(
-            string expandedNodeId)
-        {
-            return new SerializableExpandedNodeId
-            {
-                IdentifierText = expandedNodeId
-            };
-        }
     }
 }

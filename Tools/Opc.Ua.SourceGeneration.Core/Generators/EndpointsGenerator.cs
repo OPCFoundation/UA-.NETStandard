@@ -162,7 +162,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             context.Out.WriteLine(",");
-            context.Out.WriteLine("cancellationToken).ConfigureAwait(false);");
+            context.Out.WriteLine("    requestLifetime).ConfigureAwait(false);");
             return null;
         }
 

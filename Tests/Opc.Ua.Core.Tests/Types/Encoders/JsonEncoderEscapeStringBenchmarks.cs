@@ -38,7 +38,7 @@ using BenchmarkDotNet.Diagnosers;
 using Microsoft.IO;
 using Newtonsoft.Json;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 #if NET6_0_OR_GREATER
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -349,18 +349,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EscapeStringSystemTextJson(s_testString);
             byte[] resultSystemTextJson = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSystemTextJson));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSystemTextJson));
+            Assert.That(Utils.IsEqual(resultLegacy, resultSystemTextJson), Is.True);
 #endif
 
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, result));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultLegacyPlus));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpan));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanChars));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanCharsInline));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanCharsInlineConst));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanIndex));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanDict));
-            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultNewtonSoft));
+            Assert.That(Utils.IsEqual(resultLegacy, result), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultLegacyPlus), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpan), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanChars), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanCharsInline), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanCharsInlineConst), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanIndex), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultSpanDict), Is.True);
+            Assert.That(Utils.IsEqual(resultLegacy, resultNewtonSoft), Is.True);
         }
 
         [OneTimeSetUp]
@@ -389,7 +389,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public void GlobalSetup()
+        private void GlobalSetup()
         {
             m_memoryManager = new RecyclableMemoryStreamManager();
             m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
@@ -398,7 +398,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [GlobalCleanup]
-        public void GlobalCleanup()
+        private void GlobalCleanup()
         {
             m_streamWriter?.Dispose();
             m_streamWriter = null;
@@ -820,8 +820,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private static string s_testString;
         private RecyclableMemoryStreamManager m_memoryManager;
+#pragma warning disable NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
         private RecyclableMemoryStream m_memoryStream;
         private StreamWriter m_streamWriter;
+#pragma warning restore NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
         private readonly int m_streamSize = 1024;
         private const string kSpecialString = "\"\\\n\r\t\b\f";
 

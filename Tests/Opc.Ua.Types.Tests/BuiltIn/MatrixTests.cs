@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
@@ -66,8 +65,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 testArray,
                 TypeInfo.GetBuiltInType(new NodeId((int)BuiltInType.Int32)));
             var toArray = matrix.ToArray();
-            Assert.AreEqual(testArray, toArray);
-            Assert.True(CoreUtils.IsEqual(testArray, toArray));
+            Assert.That(toArray, Is.EqualTo(testArray));
+            Assert.That(CoreUtils.IsEqual(testArray, toArray), Is.True);
         }
     }
 }

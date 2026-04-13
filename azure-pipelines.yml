@@ -47,12 +47,8 @@ stages:
   jobs:
   - template: .azurepipelines/sln.yml
     parameters:
-      poolImage: 'windows-2025'
+      poolImage: 'windows-2025-vs2026'
       jobnamesuffix: win2025
-  - template: .azurepipelines/sln.yml
-    parameters:
-      poolImage: 'windows-2022'
-      jobnamesuffix: win2022
 - stage: testrelease
   dependsOn: [build]
   displayName: 'Test Core and SDK Release'
@@ -62,13 +58,13 @@ stages:
     parameters:
       configuration: Release
       framework: net48
-      agents: '@{ windows = "windows-2022" }'
+      agents: '@{ windows = "windows-2025-vs2026" }'
       jobnamesuffix: net48
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
       framework: net10.0
-      agents: '@{ windows = "windows-2025"; linux="ubuntu-24.04"; mac = "macOS-15"}'
+      agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-24.04"; mac = "macOS-15"}'
       jobnamesuffix: net100
       customtestarget: net10.0
 - stage: testreleasepr
@@ -80,7 +76,7 @@ stages:
     parameters:
       configuration: Release
       framework: net10.0
-      agents: '@{ windows = "windows-2025"; linux="ubuntu-22.04"}'
+      agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-22.04"}'
       jobnamesuffix: net100pr
 - stage: testdebug
   dependsOn: [build]
@@ -132,7 +128,7 @@ stages:
       framework: net472
       configuration: Release
       jobnamesuffix: net472
-      agents: '@{ windows = "windows-2025" }'
+      agents: '@{ windows = "windows-2025-vs2026" }'
       customtestarget: net472
 - stage: testnetstandard20
   dependsOn: [build]
@@ -144,7 +140,7 @@ stages:
       framework: net48
       configuration: Release
       jobnamesuffix: netstandard20
-      agents: '@{ windows = "windows-2022"}'
+      agents: '@{ windows = "windows-2025-vs2026"}'
       customtestarget: netstandard2.0
 - stage: testnetstandard21
   dependsOn: [build]

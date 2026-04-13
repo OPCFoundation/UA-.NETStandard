@@ -68,10 +68,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             var xmlDoc = new XmlDocument();
-            XmlElement defaultValue1 = xmlDoc.CreateElement("DefaultValue");
+            System.Xml.XmlElement defaultValue1 = xmlDoc.CreateElement("DefaultValue");
             defaultValue1.InnerText = "TestValue1";
 
-            XmlElement defaultValue2 = xmlDoc.CreateElement("DefaultValue");
+            System.Xml.XmlElement defaultValue2 = xmlDoc.CreateElement("DefaultValue");
             defaultValue2.InnerText = "TestValue2";
 
             var variableDesign1 = new VariableDesign
@@ -315,7 +315,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             var xmlDoc = new XmlDocument();
-            XmlElement defaultValue = xmlDoc.CreateElement("DefaultValue");
+            System.Xml.XmlElement defaultValue = xmlDoc.CreateElement("DefaultValue");
             defaultValue.InnerText = "TestValue";
 
             var variableDesign1 = new VariableDesign

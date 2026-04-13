@@ -375,7 +375,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act & Assert
             Assert.DoesNotThrow(() => instance.GetHashCode());
             int hashCode = instance.GetHashCode();
-            Assert.That(hashCode, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero.Or.Zero);
         }
 
         /// <summary>
@@ -394,7 +394,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act & Assert
             Assert.DoesNotThrow(() => instance.GetHashCode());
             int hashCode = instance.GetHashCode();
-            Assert.That(hashCode, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero.Or.Zero);
         }
 
         /// <summary>
@@ -422,7 +422,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act & Assert
             Assert.DoesNotThrow(() => instance.GetHashCode());
             int hashCode = instance.GetHashCode();
-            Assert.That(hashCode, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero.Or.Zero);
         }
 
         /// <summary>
@@ -447,7 +447,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act & Assert
             Assert.DoesNotThrow(() => instance.GetHashCode());
             int hashCode = instance.GetHashCode();
-            Assert.That(hashCode, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero.Or.Zero);
         }
 
         /// <summary>
@@ -471,7 +471,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act & Assert
             Assert.DoesNotThrow(() => instance.GetHashCode());
             int hashCode = instance.GetHashCode();
-            Assert.That(hashCode, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero.Or.Zero);
         }
 
         /// <summary>
@@ -675,7 +675,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act & Assert
             Assert.DoesNotThrow(() => instance.GetHashCode());
             int hashCode = instance.GetHashCode();
-            Assert.That(hashCode, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero.Or.Zero);
         }
 
         /// <summary>
@@ -726,7 +726,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act & Assert
             Assert.DoesNotThrow(() => instance.GetHashCode());
             int hashCode = instance.GetHashCode();
-            Assert.That(hashCode, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero.Or.Zero);
         }
 
         /// <summary>
@@ -748,7 +748,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act & Assert
             Assert.DoesNotThrow(() => instance.GetHashCode());
             int hashCode = instance.GetHashCode();
-            Assert.That(hashCode, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero.Or.Zero);
         }
 
         /// <summary>
@@ -792,7 +792,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act & Assert
             Assert.DoesNotThrow(() => instance.GetHashCode());
             int hashCode = instance.GetHashCode();
-            Assert.That(hashCode, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero.Or.Zero);
         }
 
         /// <summary>
@@ -826,7 +826,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act & Assert
             Assert.DoesNotThrow(() => instance.GetHashCode());
             int hashCode = instance.GetHashCode();
-            Assert.That(hashCode, Is.Not.EqualTo(0).Or.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero.Or.Zero);
         }
 
         /// <summary>

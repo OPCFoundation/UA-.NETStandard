@@ -119,9 +119,9 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group().ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].DesignFiles, Is.Not.Null);
-            Assert.That(result[0].DesignFiles.Count, Is.EqualTo(1));
+            Assert.That(result[0].DesignFiles, Has.Count.EqualTo(1));
             Assert.That(result[0].DesignFiles[0], Is.EqualTo(designFile));
             Assert.That(result[0].IdentifierFilePath, Is.EqualTo("global.csv"));
             Assert.That(result[0].Options, Is.EqualTo(options));
@@ -155,9 +155,9 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group().ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].DesignFiles, Is.Not.Null);
-            Assert.That(result[0].DesignFiles.Count, Is.EqualTo(3));
+            Assert.That(result[0].DesignFiles, Has.Count.EqualTo(3));
             Assert.That(result[0].DesignFiles, Is.EquivalentTo(designFiles));
             Assert.That(result[0].IdentifierFilePath, Is.EqualTo("fallback.csv"));
             Assert.That(result[0].Options, Is.EqualTo(options));
@@ -193,11 +193,11 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group().ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
             foreach (DesignFileCollection group in result)
             {
                 Assert.That(group.DesignFiles, Is.Not.Null);
-                Assert.That(group.DesignFiles.Count, Is.EqualTo(1));
+                Assert.That(group.DesignFiles, Has.Count.EqualTo(1));
                 Assert.That(group.IdentifierFilePath, Is.EqualTo("default.csv"));
                 Assert.That(group.Options, Is.EqualTo(options));
             }
@@ -225,7 +225,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group(null).ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].IdentifierFilePath, Is.EqualTo("collection_identifier.csv"));
         }
 
@@ -251,7 +251,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group([]).ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].IdentifierFilePath, Is.EqualTo("fallback.csv"));
         }
 
@@ -282,7 +282,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group(identifierFiles).ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].IdentifierFilePath, Is.EqualTo(Path.Combine(dir, "identifiers.csv")));
         }
 
@@ -314,7 +314,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group(identifierFiles).ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].IdentifierFilePath, Is.EqualTo(Path.Combine(dir, "identifiers1.csv")));
         }
 
@@ -345,7 +345,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group(identifierFiles).ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].IdentifierFilePath, Is.EqualTo("fallback.csv"));
         }
 
@@ -380,7 +380,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group(identifierFiles).ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
             DesignFileCollection group1 = result.FirstOrDefault(g => g.DesignFiles.Contains(Path.Combine(dir1, "Design1.xml")));
             Assert.That(group1, Is.Not.Null);
             Assert.That(group1.IdentifierFilePath, Is.EqualTo(Path.Combine(dir1, "id1.csv")));
@@ -429,15 +429,15 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group(identifierFiles).ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
             DesignFileCollection group1 = result.FirstOrDefault(g => g.DesignFiles.Contains(Path.Combine(dir1, "DesignA.xml")));
             Assert.That(group1, Is.Not.Null);
-            Assert.That(group1.DesignFiles.Count, Is.EqualTo(2));
+            Assert.That(group1.DesignFiles, Has.Count.EqualTo(2));
             Assert.That(group1.IdentifierFilePath, Is.EqualTo("global_fallback.csv"));
             Assert.That(group1.Options, Is.EqualTo(options));
             DesignFileCollection group2 = result.FirstOrDefault(g => g.DesignFiles.Contains(Path.Combine(dir2, "DesignC.xml")));
             Assert.That(group2, Is.Not.Null);
-            Assert.That(group2.DesignFiles.Count, Is.EqualTo(3));
+            Assert.That(group2.DesignFiles, Has.Count.EqualTo(3));
             Assert.That(group2.IdentifierFilePath, Is.EqualTo(Path.Combine(dir2, "identifiers_dir2.csv")));
             Assert.That(group2.Options, Is.EqualTo(options));
         }
@@ -464,7 +464,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group().ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].IdentifierFilePath, Is.Null);
         }
 
@@ -490,7 +490,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group().ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].IdentifierFilePath, Is.EqualTo(string.Empty));
         }
 
@@ -517,7 +517,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group().ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
         }
 
         /// <summary>
@@ -550,7 +550,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group().ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].Options, Is.EqualTo(options));
             Assert.That(result[0].Options.Version, Is.EqualTo("v105"));
             Assert.That(result[0].Options.StartId, Is.EqualTo(10000));

@@ -7,12 +7,14 @@ Provisioning mode is a special server startup mode designed to facilitate secure
 ## Purpose
 
 The provisioning mode addresses the need for secure server initialization by:
+
 - Providing a minimal server environment during initial setup
 - Requiring authenticated user access (anonymous access is disabled)
 - Enabling automatic certificate acceptance to simplify certificate provisioning
 - Preventing access to application-specific data and functionality until the server is properly configured
 
 This mode is particularly useful when:
+
 - Setting up a new OPC UA server installation
 - Provisioning certificates for production environments
 - Performing initial server configuration in a secure manner
@@ -46,12 +48,14 @@ Note: When provisioning mode is enabled, auto-accept for untrusted certificates 
 When the server starts in provisioning mode:
 
 ### 1. Limited Namespace
+
 - Only the core OPC UA namespace is exposed
 - Application-specific node managers are not loaded
 - Standard OPC UA objects (Objects, Types, Views) remain accessible
 - Custom server nodes and data are not available
 
 ### 2. Authentication Requirements
+
 - Anonymous authentication is disabled
 - Users must authenticate using:
   - Username/password
@@ -59,11 +63,13 @@ When the server starts in provisioning mode:
   - Other supported authentication mechanisms
 
 ### 3. Certificate Handling
+
 - Auto-accept for untrusted certificates is enabled
 - Administrators can provision certificates without manual approval
 - Certificate validation still occurs, but untrusted certificates are accepted
 
 ### 4. Reduced Attack Surface
+
 - No application-specific functionality is exposed
 - Minimal node managers are active
 - Only core server capabilities are available
@@ -71,6 +77,7 @@ When the server starts in provisioning mode:
 ## Use Cases
 
 ### Initial Server Setup
+
 1. Start the server in provisioning mode
 2. Connect as an authenticated administrator
 3. Provision required certificates
@@ -78,6 +85,7 @@ When the server starts in provisioning mode:
 5. Restart the server in normal mode
 
 ### Certificate Provisioning
+
 1. Start the server with `--provision`
 2. Use a GDS (Global Discovery Server) or certificate management tool
 3. Push certificates to the server
@@ -85,6 +93,7 @@ When the server starts in provisioning mode:
 5. Exit provisioning mode
 
 ### Secure Configuration
+
 1. Enable provisioning mode for configuration changes
 2. Make necessary updates to server configuration
 3. Test changes in the limited environment
@@ -101,6 +110,7 @@ public bool ProvisioningMode { get; set; }
 ```
 
 When `ProvisioningMode` is true:
+
 - `CreateMasterNodeManager` skips loading application-specific node managers
 - `GetUserTokenPolicies` removes anonymous authentication policies
 
@@ -125,16 +135,19 @@ var server = new ReferenceServer
 ## Security Considerations
 
 ### Benefits
+
 - Reduces attack surface during initial setup
 - Requires authenticated access for configuration
 - Prevents unauthorized access to application data
 
 ### Limitations
+
 - Auto-accept mode accepts all certificates (including potentially malicious ones)
 - Should only be used during controlled setup/configuration periods
 - Not intended for long-term operation
 
 ### Best Practices
+
 1. Use provisioning mode only during initial setup or maintenance windows
 2. Ensure the server is not accessible from untrusted networks while in provisioning mode
 3. Switch to normal mode as soon as provisioning is complete
@@ -157,11 +170,13 @@ var server = new ReferenceServer
 ### Start Server in Provisioning Mode
 
 Windows:
+
 ```cmd
 ConsoleReferenceServer.exe --provision --console --log
 ```
 
 Linux/Mac:
+
 ```bash
 dotnet ConsoleReferenceServer.dll --provision --console --log
 ```

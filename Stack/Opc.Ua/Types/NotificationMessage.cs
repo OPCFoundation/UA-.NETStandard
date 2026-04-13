@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 
 namespace Opc.Ua
@@ -40,7 +39,7 @@ namespace Opc.Ua
         /// <summary>
         /// The string table that was received with the message.
         /// </summary>
-        public StringCollection StringTable { get; set; }
+        public ArrayOf<string> StringTable { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether there are more
@@ -55,7 +54,7 @@ namespace Opc.Ua
         ///   <c>true</c> if this instance is empty; otherwise, <c>false</c>.
         /// </value>
         public bool IsEmpty => SequenceNumber == 0 &&
-            PublishTime == DateTime.MinValue &&
+            PublishTime == DateTimeUtc.MinValue &&
             NotificationData.Count == 0;
 
         /// <summary>
@@ -68,13 +67,7 @@ namespace Opc.Ua
             for (int jj = 0; jj < m_notificationData.Count; jj++)
             {
                 ExtensionObject extension = m_notificationData[jj];
-
-                if (ExtensionObject.IsNull(extension))
-                {
-                    continue;
-                }
-
-                if (extension.Body is not DataChangeNotification notification)
+                if (!extension.TryGetEncodeable(out DataChangeNotification notification))
                 {
                     continue;
                 }
@@ -119,12 +112,7 @@ namespace Opc.Ua
 
             foreach (ExtensionObject extension in m_notificationData)
             {
-                if (ExtensionObject.IsNull(extension))
-                {
-                    continue;
-                }
-
-                if (extension.Body is not EventNotificationList notification)
+                if (!extension.TryGetEncodeable(out EventNotificationList notification))
                 {
                     continue;
                 }

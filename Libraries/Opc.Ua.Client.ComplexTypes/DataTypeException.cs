@@ -39,7 +39,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The nodeId of the data type.
         /// </summary>
-        public ExpandedNodeIdCollection NodeIds { get; }
+        public ArrayOf<ExpandedNodeId> NodeIds { get; }
 
         /// <summary>
         /// Create exception
@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create the exception.
         /// </summary>
         /// <param name="nodeIds">The collection of nodeId of the data types not found.</param>
-        public DataTypeNotFoundException(ExpandedNodeIdCollection nodeIds)
+        public DataTypeNotFoundException(ArrayOf<ExpandedNodeId> nodeIds)
         {
             NodeIds = nodeIds;
         }
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         /// <param name="nodeIds">The collection of nodeId of the data types not found.</param>
         /// <param name="message">The exception message.</param>
-        public DataTypeNotFoundException(ExpandedNodeIdCollection nodeIds, string message)
+        public DataTypeNotFoundException(ArrayOf<ExpandedNodeId> nodeIds, string message)
             : base(message)
         {
             NodeIds = nodeIds;
@@ -94,7 +94,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="message">The exception message.</param>
         /// <param name="inner">The inner exception.</param>
         public DataTypeNotFoundException(
-            ExpandedNodeIdCollection nodeIds,
+            ArrayOf<ExpandedNodeId> nodeIds,
             string message,
             Exception inner)
             : base(message, inner)

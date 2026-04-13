@@ -28,11 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -209,7 +209,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         /// <param name="services">The service interface.</param>
         /// <param name="operationLimits">The operation limits.</param>
-        public static async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceWorkerAsync(
+        public static async Task<ArrayOf<ReferenceDescription>> BrowseFullAddressSpaceWorkerAsync(
             IServerTestServices services,
             RequestHeader requestHeader,
             OperationLimits operationLimits = null,
@@ -220,7 +220,7 @@ namespace Opc.Ua.Server.Tests
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // Browse template
-            const uint startingNode = Objects.RootFolder;
+            NodeId startingNode = ObjectIds.RootFolder;
             BrowseDescription browseTemplate =
                 browseDescription
                 ?? new BrowseDescription
@@ -232,60 +232,57 @@ namespace Opc.Ua.Server.Tests
                     NodeClassMask = 0,
                     ResultMask = (uint)BrowseResultMask.All
                 };
-            BrowseDescriptionCollection browseDescriptionCollection =
+            ArrayOf<BrowseDescription> browseDescriptionCollection =
                 ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
-                    [.. new NodeId[] { Objects.RootFolder }],
+                    [.. new NodeId[] { ObjectIds.RootFolder }],
                     browseTemplate);
 
             // Browse
             uint requestedMaxReferencesPerNode = operationLimits.MaxNodesPerBrowse;
             bool verifyMaxNodesPerBrowse = operationLimits.MaxNodesPerBrowse > 0;
-            var referenceDescriptions = new ReferenceDescriptionCollection();
+            var referenceDescriptions = new List<ReferenceDescription>();
 
             // Test if server responds with BadNothingToDo
             {
-                ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     _ = await services.BrowseAsync(
                         requestHeader,
                         null,
                         0,
-                        browseDescriptionCollection.Take(0).ToArray()).ConfigureAwait(false));
-                Assert.AreEqual(StatusCodes.BadNothingToDo, sre.StatusCode);
+                        ArrayOf<BrowseDescription>.Empty).ConfigureAwait(false));
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
             }
 
             while (browseDescriptionCollection.Count > 0)
             {
-                var allResults = new BrowseResultCollection();
+                var allResults = new List<BrowseResult>();
                 if (verifyMaxNodesPerBrowse &&
                     browseDescriptionCollection.Count > operationLimits.MaxNodesPerBrowse)
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                             _ = await services.BrowseAsync(
                                 requestHeader,
                                 null,
                                 0,
                                 browseDescriptionCollection).ConfigureAwait(false));
-                    Assert.AreEqual(
-                        StatusCodes.BadTooManyOperations,
-                        sre.StatusCode);
+                    Assert.That(
+                        sre.StatusCode,
+                        Is.EqualTo(StatusCodes.BadTooManyOperations));
 
                     // Test if server responds with BadTooManyOperations
-                    BrowseDescription[] tempBrowsePath =
-                    [
-                        .. browseDescriptionCollection.Take(
-                            (int)operationLimits.MaxNodesPerBrowse + 1)
-                    ];
-                    sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ArrayOf<BrowseDescription> tempBrowsePath =
+                        browseDescriptionCollection[..((int)operationLimits.MaxNodesPerBrowse + 1)];
+                    sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                         _ = await services.BrowseAsync(
                             requestHeader,
                             null,
                             0,
                             tempBrowsePath).ConfigureAwait(false));
-                    Assert.AreEqual(
-                        StatusCodes.BadTooManyOperations,
-                        sre.StatusCode);
+                    Assert.That(
+                        sre.StatusCode,
+                        Is.EqualTo(StatusCodes.BadTooManyOperations));
                 }
 
                 bool repeatBrowse;
@@ -293,10 +290,14 @@ namespace Opc.Ua.Server.Tests
                 BrowseResponse browseResponse = null;
                 do
                 {
-                    BrowseDescriptionCollection browseCollection =
-                        maxNodesPerBrowse == 0
-                            ? browseDescriptionCollection
-                            : browseDescriptionCollection.Take((int)maxNodesPerBrowse).ToArray();
+                    if (maxNodesPerBrowse >= browseDescriptionCollection.Count)
+                    {
+                        maxNodesPerBrowse = 0; // Do not slice, take all
+                    }
+
+                    ArrayOf<BrowseDescription> browseCollection = maxNodesPerBrowse == 0
+                        ? browseDescriptionCollection
+                        : browseDescriptionCollection[..(int)maxNodesPerBrowse];
                     repeatBrowse = false;
                     try
                     {
@@ -331,18 +332,12 @@ namespace Opc.Ua.Server.Tests
                     }
                 } while (repeatBrowse);
 
-                if (maxNodesPerBrowse == 0)
-                {
-                    browseDescriptionCollection.Clear();
-                }
-                else
-                {
-                    browseDescriptionCollection = browseDescriptionCollection.Skip(
-                        (int)maxNodesPerBrowse).ToArray();
-                }
+                browseDescriptionCollection = maxNodesPerBrowse == 0 ?
+                    default :
+                    browseDescriptionCollection[(int)maxNodesPerBrowse..];
 
                 // Browse next
-                ByteStringCollection continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
+                ArrayOf<ByteString> continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
                     browseResponse.Results);
                 while (continuationPoints.Count > 0)
                 {
@@ -366,7 +361,7 @@ namespace Opc.Ua.Server.Tests
                 }
 
                 // Build browse request for next level
-                var browseTable = new NodeIdCollection();
+                var browseTable = new List<NodeId>();
                 foreach (BrowseResult result in allResults)
                 {
                     referenceDescriptions.AddRange(result.References);
@@ -406,26 +401,25 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Worker method to translate the browse path.
         /// </summary>
-        public static async Task<BrowsePathResultCollection> TranslateBrowsePathWorkerAsync(
+        public static async Task<ArrayOf<BrowsePathResult>> TranslateBrowsePathWorkerAsync(
             IServerTestServices services,
-            ReferenceDescriptionCollection referenceDescriptions,
+            ArrayOf<ReferenceDescription> referenceDescriptions,
             RequestHeader requestHeader,
             OperationLimits operationLimits)
         {
             // Browse template
-            const uint startingNode = Objects.RootFolder;
+            NodeId startingNode = ObjectIds.RootFolder;
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // TranslateBrowsePath
             bool verifyMaxNodesPerBrowse = operationLimits
                 .MaxNodesPerTranslateBrowsePathsToNodeIds > 0;
-            var browsePaths = new BrowsePathCollection(
-                referenceDescriptions.Select(r => new BrowsePath
-                {
-                    RelativePath = new RelativePath(r.BrowseName),
-                    StartingNode = startingNode
-                }));
-            var allBrowsePaths = new BrowsePathResultCollection();
+            ArrayOf<BrowsePath> browsePaths = referenceDescriptions.ConvertAll(r => new BrowsePath
+            {
+                RelativePath = new RelativePath(r.BrowseName),
+                StartingNode = startingNode
+            });
+            var allBrowsePaths = new List<BrowsePathResult>();
             while (browsePaths.Count > 0)
             {
                 if (verifyMaxNodesPerBrowse &&
@@ -433,19 +427,19 @@ namespace Opc.Ua.Server.Tests
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                             _ = await services.TranslateBrowsePathsToNodeIdsAsync(
                                 requestHeader,
                                 browsePaths).ConfigureAwait(false));
-                    Assert.AreEqual(
-                        StatusCodes.BadTooManyOperations,
-                        sre.StatusCode);
+                    Assert.That(
+                        sre.StatusCode,
+                        Is.EqualTo(StatusCodes.BadTooManyOperations));
                 }
-                BrowsePathCollection browsePathSnippet =
-                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds > 0
-                        ? browsePaths.Take(
-                            (int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds).ToArray()
-                        : browsePaths;
+                ArrayOf<BrowsePath> browsePathSnippet =
+                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds == 0 ||
+                    browsePaths.Count <= operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds
+                        ? browsePaths // take all
+                        : browsePaths[..(int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds];
                 TranslateBrowsePathsToNodeIdsResponse translateResponse = await services.TranslateBrowsePathsToNodeIdsAsync(
                     requestHeader,
                     browsePathSnippet).ConfigureAwait(false);
@@ -458,23 +452,18 @@ namespace Opc.Ua.Server.Tests
                 allBrowsePaths.AddRange(translateResponse.Results);
                 foreach (BrowsePathResult result in translateResponse.Results)
                 {
-                    if (result.Targets?.Count > 0)
+                    if (!result.Targets.IsEmpty)
                     {
                         TestContext.Out.WriteLine("BrowsePath {0}",
                             result.Targets[0].TargetId.ToString());
                     }
                 }
 
-                if (operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds == 0)
-                {
-                    browsePaths.Clear();
-                }
-                else
-                {
-                    browsePaths = browsePaths
-                        .Skip((int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds)
-                        .ToArray();
-                }
+                browsePaths =
+                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds == 0 ||
+                    browsePaths.Count <= operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds ?
+                        default : // done
+                        browsePaths[(int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds..];
             }
             return allBrowsePaths;
         }
@@ -506,25 +495,26 @@ namespace Opc.Ua.Server.Tests
                 maxNotificationPerPublish,
                 enabled,
                 priority).ConfigureAwait(false);
-            Assert.AreEqual(publishingInterval, createSubscriptionResponse.RevisedPublishingInterval);
-            Assert.AreEqual(lifetimeCount, createSubscriptionResponse.RevisedLifetimeCount);
-            Assert.AreEqual(maxKeepAliveCount, createSubscriptionResponse.RevisedMaxKeepAliveCount);
+            Assert.That(createSubscriptionResponse.RevisedPublishingInterval, Is.EqualTo(publishingInterval));
+            Assert.That(createSubscriptionResponse.RevisedLifetimeCount, Is.EqualTo(lifetimeCount));
+            Assert.That(createSubscriptionResponse.RevisedMaxKeepAliveCount, Is.EqualTo(maxKeepAliveCount));
             ServerFixtureUtils.ValidateResponse(createSubscriptionResponse.ResponseHeader);
             uint id = createSubscriptionResponse.SubscriptionId;
 
-            var itemsToCreate = new MonitoredItemCreateRequestCollection();
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate = default;
             // check badnothingtodo
-            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await services.CreateMonitoredItemsAsync(
                     requestHeader,
                     id,
                     TimestampsToReturn.Neither,
                     itemsToCreate).ConfigureAwait(false));
-            Assert.AreEqual(StatusCodes.BadNothingToDo, sre.StatusCode);
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
 
             // add item
             uint handleCounter = 1;
-            itemsToCreate.Add(
+            itemsToCreate =
+            [
                 new MonitoredItemCreateRequest
                 {
                     ItemToMonitor = new ReadValueId
@@ -541,10 +531,10 @@ namespace Opc.Ua.Server.Tests
                         DiscardOldest = true,
                         QueueSize = queueSize
                     }
-                });
-
-            //add event item
-            itemsToCreate.Add(CreateEventMonitoredItem(queueSize, ref handleCounter));
+                },
+                //add event item
+                CreateEventMonitoredItem(queueSize, ref handleCounter)
+            ];
 
             CreateMonitoredItemsResponse createMonitoredItemsResponse = await services.CreateMonitoredItemsAsync(
                 requestHeader,
@@ -567,21 +557,17 @@ namespace Opc.Ua.Server.Tests
                 maxKeepAliveCount,
                 maxNotificationPerPublish,
                 priority).ConfigureAwait(false);
-            Assert.AreEqual(publishingInterval, modifySubscriptionResponse.RevisedPublishingInterval);
-            Assert.AreEqual(lifetimeCount, modifySubscriptionResponse.RevisedLifetimeCount);
-            Assert.AreEqual(maxKeepAliveCount, modifySubscriptionResponse.RevisedMaxKeepAliveCount);
+            Assert.That(modifySubscriptionResponse.RevisedPublishingInterval, Is.EqualTo(publishingInterval));
+            Assert.That(modifySubscriptionResponse.RevisedLifetimeCount, Is.EqualTo(lifetimeCount));
+            Assert.That(modifySubscriptionResponse.RevisedMaxKeepAliveCount, Is.EqualTo(maxKeepAliveCount));
             ServerFixtureUtils.ValidateResponse(modifySubscriptionResponse.ResponseHeader);
 
             // modify monitored item, just timestamps to return
-            var itemsToModify = new MonitoredItemModifyRequestCollection();
-            foreach (MonitoredItemCreateResult itemCreated in createMonitoredItemsResponse.Results)
-            {
-                itemsToModify.Add(
-                    new MonitoredItemModifyRequest
-                    {
-                        MonitoredItemId = itemCreated.MonitoredItemId
-                    });
-            }
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify = createMonitoredItemsResponse.Results
+                .ConvertAll(itemCreated => new MonitoredItemModifyRequest
+                {
+                    MonitoredItemId = itemCreated.MonitoredItemId
+                });
             ModifyMonitoredItemsResponse modifyMonitoredItemsResponse = await services.ModifyMonitoredItemsAsync(
                 requestHeader,
                 id,
@@ -595,7 +581,7 @@ namespace Opc.Ua.Server.Tests
                 services.Logger);
 
             // publish request
-            var acknowledgements = new SubscriptionAcknowledgementCollection();
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
             PublishResponse publishResponse = await services.PublishAsync(
                 requestHeader,
                 acknowledgements).ConfigureAwait(false);
@@ -605,12 +591,12 @@ namespace Opc.Ua.Server.Tests
                 acknowledgements,
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
-            Assert.AreEqual(id, publishResponse.SubscriptionId);
-            Assert.AreEqual(0, publishResponse.AvailableSequenceNumbers.Count);
+            Assert.That(publishResponse.SubscriptionId, Is.EqualTo(id));
+            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.EqualTo(0));
 
             // enable publishing
             enabled = true;
-            var subscriptions = new UInt32Collection { id };
+            ArrayOf<uint> subscriptions = [id];
             SetPublishingModeResponse setPublishingModeResponse = await services.SetPublishingModeAsync(
                 requestHeader,
                 enabled,
@@ -639,7 +625,7 @@ namespace Opc.Ua.Server.Tests
                     acknowledgements,
                     publishResponse.ResponseHeader.StringTable,
                     services.Logger);
-                Assert.AreEqual(id, publishResponse.SubscriptionId);
+                Assert.That(publishResponse.SubscriptionId, Is.EqualTo(id));
 
                 if (publishResponse.NotificationMessage.NotificationData.Count == 0)
                 {
@@ -647,23 +633,24 @@ namespace Opc.Ua.Server.Tests
                 }
                 else
                 {
-                    var dataChangeNotification = publishResponse.NotificationMessage.NotificationData[0]
-                        .Body as DataChangeNotification;
-                    var eventNotification = publishResponse.NotificationMessage.NotificationData[0]
-                        .Body as EventNotificationList;
+                    DataChangeNotification dataChangeNotification = publishResponse.NotificationMessage.NotificationData[0]
+                        .TryGetEncodeable(out DataChangeNotification d) ? d : default;
+                    EventNotificationList eventNotification = publishResponse.NotificationMessage.NotificationData[0]
+                        .TryGetEncodeable(out EventNotificationList e) ? e : default;
                     TestContext.Out.WriteLine(
                         "Notification: {0} {1}",
                         publishResponse.NotificationMessage.SequenceNumber,
                         publishResponse.NotificationMessage.PublishTime);
                 }
 
-                acknowledgements.Clear();
-                acknowledgements.Add(
+                acknowledgements =
+                [
                     new SubscriptionAcknowledgement
                     {
                         SubscriptionId = id,
                         SequenceNumber = publishResponse.NotificationMessage.SequenceNumber
-                    });
+                    }
+                ];
             } while (acknowledgements.Count > 0 && --loopCounter > 0);
 
             // republish
@@ -687,8 +674,8 @@ namespace Opc.Ua.Server.Tests
                 services.Logger);
 
             // disable monitoring
-            var monitoredItemIds = new UInt32Collection(
-                createMonitoredItemsResponse.Results.Select(r => r.MonitoredItemId));
+            ArrayOf<uint> monitoredItemIds =
+                createMonitoredItemsResponse.Results.ConvertAll(r => r.MonitoredItemId);
             SetMonitoringModeResponse setMonitoringModeResponse = await services.SetMonitoringModeAsync(
                 requestHeader,
                 id,
@@ -716,7 +703,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Worker method to test TransferSubscriptions of a server.
         /// </summary>
-        public static async Task<UInt32Collection> CreateSubscriptionForTransferAsync(
+        public static async Task<ArrayOf<uint>> CreateSubscriptionForTransferAsync(
             IServerTestServices services,
             RequestHeader requestHeader,
             NodeId[] testNodes,
@@ -740,7 +727,7 @@ namespace Opc.Ua.Server.Tests
                     samplingInterval).ConfigureAwait(false);
             }
 
-            var subscriptionIds = new UInt32Collection { subscriptionId };
+            ArrayOf<uint> subscriptionIds = [subscriptionId];
 
             // enable publishing
             SetPublishingModeResponse setPublishingModeResponse = await services.SetPublishingModeAsync(
@@ -758,11 +745,14 @@ namespace Opc.Ua.Server.Tests
             Thread.Sleep(1000);
 
             // publish request (use invalid sequence number for status)
-            var acknowledgements = new SubscriptionAcknowledgementCollection {
-                new SubscriptionAcknowledgement {
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements =
+            [
+                new SubscriptionAcknowledgement
+                {
                     SubscriptionId = subscriptionId,
-                    SequenceNumber = 123 }
-            };
+                    SequenceNumber = 123
+                }
+            ];
             PublishResponse publishResponse = await services.PublishAsync(
                 requestHeader,
                 acknowledgements).ConfigureAwait(false);
@@ -772,10 +762,10 @@ namespace Opc.Ua.Server.Tests
                 acknowledgements,
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
-            Assert.AreEqual(subscriptionId, publishResponse.SubscriptionId);
+            Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionId));
 
             // static node, do not acknowledge
-            Assert.AreEqual(1, publishResponse.AvailableSequenceNumbers.Count);
+            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.EqualTo(1));
 
             return subscriptionIds;
         }
@@ -786,19 +776,19 @@ namespace Opc.Ua.Server.Tests
         public static async Task TransferSubscriptionTestAsync(
             IServerTestServices services,
             RequestHeader requestHeader,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             bool sendInitialData,
             bool expectAccessDenied)
         {
-            Assert.AreEqual(1, subscriptionIds.Count);
+            Assert.That(subscriptionIds.Count, Is.EqualTo(1));
 
             requestHeader.Timestamp = DateTime.UtcNow;
             TransferSubscriptionsResponse transferResponse = await services.TransferSubscriptionsAsync(
                 requestHeader,
                 subscriptionIds,
                 sendInitialData).ConfigureAwait(false);
-            Assert.AreEqual(StatusCodes.Good, transferResponse.ResponseHeader.ServiceResult);
-            Assert.AreEqual(subscriptionIds.Count, transferResponse.Results.Count);
+            Assert.That(transferResponse.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(transferResponse.Results.Count, Is.EqualTo(subscriptionIds.Count));
             ServerFixtureUtils.ValidateResponse(transferResponse.ResponseHeader, transferResponse.Results, subscriptionIds);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 transferResponse.DiagnosticInfos,
@@ -811,14 +801,14 @@ namespace Opc.Ua.Server.Tests
                 TestContext.Out.WriteLine("TransferResult: {0}", transferResult.StatusCode);
                 if (expectAccessDenied)
                 {
-                    Assert.AreEqual(
-                        StatusCodes.BadUserAccessDenied,
-                        transferResult.StatusCode);
+                    Assert.That(
+                        transferResult.StatusCode,
+                        Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 }
                 else
                 {
-                    Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
-                    Assert.AreEqual(1, transferResult.AvailableSequenceNumbers.Count);
+                    Assert.That(StatusCode.IsGood(transferResult.StatusCode), Is.True);
+                    Assert.That(transferResult.AvailableSequenceNumbers.Count, Is.EqualTo(1));
                 }
             }
 
@@ -828,33 +818,31 @@ namespace Opc.Ua.Server.Tests
             }
 
             requestHeader.Timestamp = DateTime.UtcNow;
-            var acknowledgements = new SubscriptionAcknowledgementCollection();
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
             PublishResponse publishResponse = await services.PublishAsync(
                 requestHeader,
                 acknowledgements).ConfigureAwait(false);
-            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.That(publishResponse.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
                 acknowledgements,
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
-            Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
-            Assert.AreEqual(sendInitialData ? 1 : 0, publishResponse.NotificationMessage.NotificationData.Count);
+            Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(sendInitialData ? 1 : 0));
             if (sendInitialData)
             {
-                ExtensionObject items = publishResponse.NotificationMessage.NotificationData.FirstOrDefault();
-                Assert.IsTrue(items.Body is DataChangeNotification);
-                MonitoredItemNotificationCollection monitoredItemsCollection = (
-                    (DataChangeNotification)items.Body
-                ).MonitoredItems;
-                Assert.IsNotEmpty(monitoredItemsCollection);
+                ExtensionObject items = publishResponse.NotificationMessage.NotificationData[0];
+                Assert.That(items.TryGetEncodeable(out DataChangeNotification dataChangeNotification), Is.True);
+                ArrayOf<MonitoredItemNotification> monitoredItemsCollection = dataChangeNotification.MonitoredItems;
+                Assert.That(monitoredItemsCollection.IsEmpty, Is.False);
             }
             //Assert.AreEqual(0, availableSequenceNumbers.Count);
 
             requestHeader.Timestamp = DateTime.UtcNow;
             DeleteSubscriptionsResponse deleteResponse = await services.DeleteSubscriptionsAsync(requestHeader, subscriptionIds).ConfigureAwait(false);
-            Assert.AreEqual(StatusCodes.Good, deleteResponse.ResponseHeader.ServiceResult);
+            Assert.That(deleteResponse.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
         }
 
         /// <summary>
@@ -863,7 +851,7 @@ namespace Opc.Ua.Server.Tests
         public static async Task VerifySubscriptionTransferredAsync(
             IServerTestServices services,
             RequestHeader requestHeader,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             bool deleteSubscriptions)
         {
             // start time
@@ -873,7 +861,7 @@ namespace Opc.Ua.Server.Tests
             Thread.Sleep(100);
 
             // publish request
-            var acknowledgements = new SubscriptionAcknowledgementCollection();
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
             PublishResponse publishResponse = await services.PublishAsync(
                 requestHeader,
                 acknowledgements).ConfigureAwait(false);
@@ -883,18 +871,15 @@ namespace Opc.Ua.Server.Tests
                 acknowledgements,
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
-            Assert.IsFalse(publishResponse.MoreNotifications);
-            Assert.IsTrue(subscriptionIds.Contains(publishResponse.SubscriptionId));
-            Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
+            Assert.That(publishResponse.MoreNotifications, Is.False);
+            Assert.That(subscriptionIds.ToArray().Contains(publishResponse.SubscriptionId), Is.True);
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(1));
             string statusMessage = publishResponse.NotificationMessage.NotificationData[0].ToString();
             // Should contain GoodSubscriptionTransferred status code
-            Assert.AreEqual("{GoodSubscriptionTransferred [0x002D0000] | }", statusMessage);
+            Assert.That(statusMessage, Is.EqualTo("{GoodSubscriptionTransferred [0x002D0000] | }"));
 
             // static node, do not acknowledge
-            if (publishResponse.AvailableSequenceNumbers != null)
-            {
-                Assert.AreEqual(0, publishResponse.AvailableSequenceNumbers.Count);
-            }
+            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.EqualTo(0));
 
             if (deleteSubscriptions)
             {
@@ -946,7 +931,8 @@ namespace Opc.Ua.Server.Tests
             uint queueSize,
             int samplingInterval)
         {
-            var itemsToCreate = new MonitoredItemCreateRequestCollection {
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate =
+            [
                 // add item
                 new MonitoredItemCreateRequest
                 {
@@ -965,7 +951,7 @@ namespace Opc.Ua.Server.Tests
                         QueueSize = queueSize
                     }
                 }
-            };
+            ];
             CreateMonitoredItemsResponse response = await services.CreateMonitoredItemsAsync(
                 requestHeader,
                 subscriptionId,
@@ -988,14 +974,16 @@ namespace Opc.Ua.Server.Tests
             whereClause.Push(
                 FilterOperator.Equals,
                 [
-                    new SimpleAttributeOperand
+                    Variant.FromStructure(new SimpleAttributeOperand
                     {
                         AttributeId = Attributes.Value,
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
                         BrowsePath = [.. new QualifiedName[] { QualifiedName.From("EventType") }]
-                    },
-                    new LiteralOperand {
-                        Value = new Variant(ObjectTypeIds.BaseEventType) }
+                    }),
+                    Variant.FromStructure(new LiteralOperand
+                    {
+                        Value = Variant.From(ObjectTypeIds.BaseEventType)
+                    })
                 ]);
 
             return new MonitoredItemCreateRequest

@@ -704,7 +704,7 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         [Obsolete("Use UpdateExtension with telemetry context.")]
         public static void UpdateExtension<T>(
-            ref XmlElementCollection extensions,
+            ref ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
             object value)
         {
@@ -717,7 +717,7 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         [Obsolete("Use ParseExtension with telemetry context.")]
         public static T ParseExtension<T>(
-            IList<XmlElement> extensions,
+            ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName)
         {
             return ParseExtension<T>(extensions, elementName, null);

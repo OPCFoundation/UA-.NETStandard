@@ -123,7 +123,7 @@ namespace Opc.Ua
             string applicationUri,
             string applicationName,
             string subjectName,
-            IList<string> domainNames)
+            ArrayOf<string> domainNames = default)
         {
             SetSuitableDefaults(
                 ref applicationUri,
@@ -133,7 +133,7 @@ namespace Opc.Ua
 
             return CertificateBuilder
                 .Create(subjectName)
-                .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames));
+                .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames.ToArray()));
         }
 
         /// <summary>
@@ -249,7 +249,7 @@ namespace Opc.Ua
         public static byte[] CreateSigningRequest(
             X509Certificate2 certificate,
             // TODO: provide CertificateType to return CSR per certificate type
-            IList<string> domainNames = null)
+            ArrayOf<string> domainNames = default)
         {
             if (!certificate.HasPrivateKey)
             {
@@ -278,22 +278,22 @@ namespace Opc.Ua
             }
             X509SubjectAltNameExtension alternateName = certificate
                 .FindExtension<X509SubjectAltNameExtension>();
-            domainNames ??= [];
+            var domainNameList = domainNames.ToList();
             if (alternateName != null)
             {
                 foreach (string name in alternateName.DomainNames)
                 {
-                    if (!domainNames.Any(s => s.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    if (!domainNameList.Any(s => s.Equals(name, StringComparison.OrdinalIgnoreCase)))
                     {
-                        domainNames.Add(name);
+                        domainNameList.Add(name);
                     }
                 }
                 foreach (string ipAddress in alternateName.IPAddresses)
                 {
-                    if (!domainNames.Any(
+                    if (!domainNameList.Any(
                         s => s.Equals(ipAddress, StringComparison.OrdinalIgnoreCase)))
                     {
-                        domainNames.Add(ipAddress);
+                        domainNameList.Add(ipAddress);
                     }
                 }
             }
@@ -301,7 +301,7 @@ namespace Opc.Ua
             IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(certificate);
 
             // Subject Alternative Name
-            var subjectAltName = new X509SubjectAltNameExtension(applicationUris, domainNames);
+            var subjectAltName = new X509SubjectAltNameExtension(applicationUris, domainNameList);
             request.CertificateExtensions.Add(new X509Extension(subjectAltName, false));
             if (!isECDsaSignature)
             {
@@ -384,7 +384,7 @@ namespace Opc.Ua
             ref string applicationUri,
             ref string applicationName,
             ref string subjectName,
-            ref IList<string> domainNames)
+            ref ArrayOf<string> domainNames)
         {
             // parse the subject name if specified.
             List<string> subjectNameEntries = null;
@@ -440,7 +440,7 @@ namespace Opc.Ua
             applicationName = buffer.ToString();
 
             // ensure at least one host name.
-            if (domainNames == null || domainNames.Count == 0)
+            if (domainNames.IsEmpty)
             {
                 domainNames = [Utils.GetHostName()];
             }
@@ -479,7 +479,7 @@ namespace Opc.Ua
                 subjectName += Utils.Format(", O={0}", "OPC Foundation");
             }
 
-            if (domainNames != null && domainNames.Count > 0)
+            if (!domainNames.IsEmpty)
             {
                 if (!subjectName.Contains("DC=", StringComparison.Ordinal) &&
                     !subjectName.Contains('=', StringComparison.Ordinal))

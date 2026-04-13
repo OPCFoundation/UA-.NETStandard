@@ -385,7 +385,7 @@ namespace Opc.Ua.Server
 
                 while (m_server.IsRunning)
                 {
-                    DateTime start = DateTime.UtcNow;
+                    DateTime start = HiResClock.UtcNow;
 
                     // wait till next sample.
                     if (m_shutdownEvent.WaitOne(timeToWait))
@@ -426,7 +426,7 @@ namespace Opc.Ua.Server
                     // sample the values.
                     DoSample(items);
 
-                    int delay = (int)(DateTime.UtcNow - start).TotalMilliseconds;
+                    int delay = (int)(HiResClock.UtcNow - start).TotalMilliseconds;
                     timeToWait = sleepCycle;
 
                     if (delay > sleepCycle)
@@ -462,8 +462,8 @@ namespace Opc.Ua.Server
                 // read values for all enabled items.
                 if (state is List<ISampledDataChangeMonitoredItem> items && items.Count > 0)
                 {
-                    var itemsToRead = new ReadValueIdCollection(items.Count);
-                    var values = new DataValueCollection(items.Count);
+                    var itemsToRead = new List<ReadValueId>(items.Count);
+                    var values = new List<DataValue>(items.Count);
                     var errors = new List<ServiceResult>(items.Count);
 
                     // allocate space for results.

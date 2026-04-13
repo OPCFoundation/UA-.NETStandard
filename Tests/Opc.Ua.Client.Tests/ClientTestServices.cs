@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
+            ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken ct = default)
         {
             return m_session.BrowseAsync(
@@ -69,7 +69,7 @@ namespace Opc.Ua.Client.Tests
         public ValueTask<BrowseNextResponse> BrowseNextAsync(
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
-            ByteStringCollection continuationPoints,
+            ArrayOf<ByteString> continuationPoints,
             CancellationToken ct = default)
         {
             return m_session.BrowseNextAsync(
@@ -104,7 +104,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequestCollection itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken ct = default)
         {
             return m_session.CreateMonitoredItemsAsync(
@@ -140,7 +140,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemModifyRequestCollection itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken ct = default)
         {
             return m_session.ModifyMonitoredItemsAsync(
@@ -153,7 +153,7 @@ namespace Opc.Ua.Client.Tests
 
         public ValueTask<PublishResponse> PublishAsync(
             RequestHeader requestHeader,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             CancellationToken ct = default)
         {
             return m_session.PublishAsync(
@@ -165,7 +165,7 @@ namespace Opc.Ua.Client.Tests
         public ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
             RequestHeader requestHeader,
             bool publishingEnabled,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             CancellationToken ct = default)
         {
             return m_session.SetPublishingModeAsync(
@@ -179,7 +179,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken ct = default)
         {
             return m_session.SetMonitoringModeAsync(
@@ -205,7 +205,7 @@ namespace Opc.Ua.Client.Tests
 
         public ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             RequestHeader requestHeader,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             CancellationToken ct = default)
         {
             return m_session.DeleteSubscriptionsAsync(
@@ -216,7 +216,7 @@ namespace Opc.Ua.Client.Tests
 
         public ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             RequestHeader requestHeader,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             bool sendInitialValues,
             CancellationToken ct = default)
         {
@@ -229,7 +229,7 @@ namespace Opc.Ua.Client.Tests
 
         public ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader requestHeader,
-            BrowsePathCollection browsePaths,
+            ArrayOf<BrowsePath> browsePaths,
             CancellationToken ct = default)
         {
             return m_session.TranslateBrowsePathsToNodeIdsAsync(

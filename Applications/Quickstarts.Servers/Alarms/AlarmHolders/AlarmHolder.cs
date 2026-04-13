@@ -82,7 +82,7 @@ namespace Alarms
             return hasBranches;
         }
 
-        public BaseEventState GetBranch(byte[] eventId)
+        public BaseEventState GetBranch(ByteString eventId)
         {
             BaseEventState state = null;
 
@@ -137,7 +137,7 @@ namespace Alarms
 
             if (!isBranch)
             {
-                m_trigger.AddReference(ReferenceTypes.HasCondition, false, m_alarm.NodeId);
+                m_trigger.AddReference(ReferenceTypeIds.HasCondition, false, m_alarm.NodeId);
                 m_parent.AddChild(alarm);
             }
         }
@@ -197,7 +197,7 @@ namespace Alarms
                 "{Caller}: {MapName} EventId {EventIdHex} {Message}",
                 caller,
                 m_mapName,
-                Utils.ToHexString(m_alarm.EventId.Value),
+                m_alarm.EventId.Value.ToHexString(),
                 message);
         }
 

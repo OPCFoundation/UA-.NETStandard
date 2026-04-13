@@ -7,6 +7,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Encoders\JsonEncoderTestsOld.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging">
       <TreatAsUsed>true</TreatAsUsed>
     </PackageReference>
@@ -16,6 +19,10 @@
     <PackageReference Include="Moq" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit.Console" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="NUnit3TestAdapter">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>

@@ -34,7 +34,6 @@ using BenchmarkDotNet.Diagnosers;
 using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -89,7 +88,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void JsonEncoderConstructor()
         {
-            using var jsonEncoder = new JsonEncoder(m_context, false);
+            using var jsonEncoder = new JsonEncoder(m_context, JsonEncoderOptions.Compact);
             TestEncoding(jsonEncoder);
             _ = jsonEncoder.CloseAndReturnText();
         }
@@ -192,38 +191,27 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private void TestStreamEncode(MemoryStream memoryStream, bool toArray)
         {
-            using (var jsonEncoder = new JsonEncoder(
-                m_context,
-                false,
-                false,
-                memoryStream,
-                true,
-                StreamSize))
+            int length1 = 0;
+            using (var jsonEncoder = new JsonEncoder(memoryStream, m_context, JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
-                _ = jsonEncoder.Close();
+                length1 = jsonEncoder.Close();
             }
-            using (var jsonEncoder = new JsonEncoder(
-                m_context,
-                false,
-                false,
-                memoryStream,
-                true,
-                StreamSize))
+            using (var jsonEncoder = new JsonEncoder(memoryStream, m_context, JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
                 if (toArray)
                 {
-                    int length = jsonEncoder.Close();
-                    Assert.AreEqual(length, memoryStream.Position);
+                    int length2 = jsonEncoder.Close();
+                    Assert.That(memoryStream.Position, Is.EqualTo(length2 + length1));
                     byte[] result = memoryStream.ToArray();
-                    Assert.NotNull(result);
-                    Assert.AreEqual(length, result.Length);
+                    Assert.That(result, Is.Not.Null);
+                    Assert.That(result.Length, Is.EqualTo(length2 + length1));
                 }
                 else
                 {
                     string result = jsonEncoder.CloseAndReturnText();
-                    Assert.NotNull(result);
+                    Assert.That(result, Is.Not.Null);
                 }
             }
         }
@@ -234,23 +222,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int length2;
             stream.Position = 0;
             using (var jsonEncoder = new JsonEncoder(
-                m_context,
-                false,
-                false,
                 stream,
-                true,
-                StreamSize))
+                m_context,
+                JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
                 length1 = jsonEncoder.Close();
             }
             using (var jsonEncoder = new JsonEncoder(
-                m_context,
-                false,
-                false,
                 stream,
-                true,
-                StreamSize))
+                m_context,
+                JsonEncoderOptions.Compact))
             {
                 TestEncoding(jsonEncoder);
                 length2 = jsonEncoder.Close();
@@ -258,9 +240,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             if (testResult)
             {
                 string result = Encoding.UTF8.GetString(stream.ToArray());
-                Assert.NotNull(result);
-                Assert.AreEqual(length1 * 2, length2);
-                Assert.AreEqual(length2, result.Length);
+                Assert.That(result, Is.Not.Null);
+                Assert.That(length2, Is.EqualTo(length1 * 2));
+                Assert.That(result.Length, Is.EqualTo(length2));
             }
         }
 

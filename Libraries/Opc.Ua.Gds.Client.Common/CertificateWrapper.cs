@@ -223,7 +223,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     try
                     {
-                        return X509Utils.GetDomainsFromCertificate(Certificate);
+                        return X509Utils.GetDomainsFromCertificate(Certificate).ToList();
                     }
                     catch (Exception e)
                     {

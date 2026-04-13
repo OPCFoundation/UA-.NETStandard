@@ -80,7 +80,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// <summary>
         /// Tests GetNameForFile with a full file path.
         /// </summary>
-        public void GetNameForFile_FullFilePath_ExtractsFilenameOnly()
+        private void GetNameForFile_FullFilePath_ExtractsFilenameOnly()
         {
             string inputFile = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
                 "C:\\test\\test\\file.xml" :
@@ -96,7 +96,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// <summary>
         /// Tests GetNameForFile with a full file path.
         /// </summary>
-        public void GetNameForFile_RelativeFilePath_ExtractsFilenameOnly()
+        private void GetNameForFile_RelativeFilePath_ExtractsFilenameOnly()
         {
             string inputFile = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
                 "..\\..\\file.xml" :
@@ -533,7 +533,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Assert
             Assert.That(resource.ResourceGroup, Is.EqualTo(longGroup));
             Assert.That(resource.ResourceName, Is.EqualTo(longName));
-            Assert.That(resource.IsText, Is.EqualTo(false));
+            Assert.That(resource.IsText, Is.False);
         }
 
         /// <summary>
@@ -553,7 +553,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Assert
             Assert.That(resource.ResourceGroup, Is.EqualTo(string.Empty));
             Assert.That(resource.ResourceName, Is.EqualTo(".....X"));
-            Assert.That(resource.IsText, Is.EqualTo(true));
+            Assert.That(resource.IsText, Is.True);
         }
 
         /// <summary>
@@ -573,7 +573,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Assert
             Assert.That(resource.ResourceGroup, Is.EqualTo("Group\t"));
             Assert.That(resource.ResourceName, Is.EqualTo("Name\n"));
-            Assert.That(resource.IsText, Is.EqualTo(false));
+            Assert.That(resource.IsText, Is.False);
         }
 
         /// <summary>
@@ -591,7 +591,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Act
             var resource = new BinaryResource(resourceName, data, true);
             // Assert
-            Assert.That(resource.IsText, Is.EqualTo(true));
+            Assert.That(resource.IsText, Is.True);
         }
 
         /// <summary>
@@ -609,7 +609,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Act
             var resource = new BinaryResource(resourceName, data, false);
             // Assert
-            Assert.That(resource.IsText, Is.EqualTo(false));
+            Assert.That(resource.IsText, Is.False);
         }
 
         /// <summary>
@@ -629,7 +629,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Assert
             Assert.That(resource.ResourceGroup, Is.EqualTo("グループ"));
             Assert.That(resource.ResourceName, Is.EqualTo("名前"));
-            Assert.That(resource.IsText, Is.EqualTo(true));
+            Assert.That(resource.IsText, Is.True);
         }
 
         /// <summary>
@@ -649,7 +649,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Assert
             Assert.That(resource.ResourceGroup, Is.EqualTo("Group"));
             Assert.That(resource.ResourceName, Is.EqualTo(".Name"));
-            Assert.That(resource.IsText, Is.EqualTo(false));
+            Assert.That(resource.IsText, Is.False);
         }
 
         /// <summary>
@@ -669,7 +669,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Assert
             Assert.That(resource.ResourceGroup, Is.EqualTo(string.Empty));
             Assert.That(resource.ResourceName, Is.EqualTo(".....Name....."));
-            Assert.That(resource.IsText, Is.EqualTo(true));
+            Assert.That(resource.IsText, Is.True);
         }
     }
 }

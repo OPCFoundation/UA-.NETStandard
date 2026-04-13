@@ -94,7 +94,7 @@ namespace TestData
             // generate structure values here
             ServiceResult result = WriteValueAttribute(
                 context,
-                NumericRange.Empty,
+                default,
                 system.ReadValue(this),
                 StatusCodes.Good,
                 DateTime.UtcNow);

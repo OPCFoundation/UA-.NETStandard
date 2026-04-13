@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Xml;
 
@@ -89,6 +90,14 @@ namespace Opc.Ua.Server
         /// </summary>
         public static Role SecurityAdmin { get; } =
             new Role(ObjectIds.WellKnownRole_SecurityAdmin, BrowseNames.WellKnownRole_SecurityAdmin);
+
+        /// <summary>
+        /// The Role is always assigned when a Session has been authenticated with a trusted
+        /// ApplicationInstance Certificate and uses at least a signed communication channel.
+        /// https://reference.opcfoundation.org/Core/Part3/v105/docs/4.9
+        /// </summary>
+        public static Role TrustedApplication { get; } =
+            new Role(ObjectIds.WellKnownRole_TrustedApplication, BrowseNames.WellKnownRole_TrustedApplication);
 
         /// <summary>
         /// Constructor for new Role
@@ -190,22 +199,48 @@ namespace Opc.Ua.Server
         {
             m_identity = identity;
             Roles = roles;
-            foreach (Role role in roles)
+
+            if (identity is RoleBasedIdentity roleBasedIdentity)
             {
-                if (role != null)
-                {
-                    GrantedRoleIds.Add(ExpandedNodeId.ToNodeId(role.RoleId, namespaces));
-                }
+                Roles = roleBasedIdentity.Roles.Concat(roles);
             }
+
+            GrantedRoleIds = identity.GrantedRoleIds
+                .AddItems(roles
+                .Where(role => role != null)
+                .Select(role => ExpandedNodeId.ToNodeId(role.RoleId, namespaces))
+                .Where(roleID => !identity.GrantedRoleIds.Contains(roleID))
+                .ToArrayOf());
         }
 
         /// <inheritdoc/>
-        public NodeIdCollection GrantedRoleIds => m_identity.GrantedRoleIds;
+        public ArrayOf<NodeId> GrantedRoleIds { get; }
 
         /// <summary>
         /// The role in the context of a server.
         /// </summary>
         public IEnumerable<Role> Roles { get; }
+
+        /// <summary>
+        /// Returns a new <see cref="RoleBasedIdentity"/> that extends this identity with
+        /// <paramref name="additionalRoles"/> merged in. Subclasses should override this
+        /// method to preserve their concrete type (and any extra state such as
+        /// <c>ApplicationId</c>) when extra roles are layered on top.
+        /// </summary>
+        /// <param name="additionalRoles">Roles to add on top of the existing ones.</param>
+        /// <param name="namespaces">Namespace table used to resolve role NodeIds.</param>
+        /// <returns>A new identity that carries the union of the current and additional roles.</returns>
+        public virtual RoleBasedIdentity WithAdditionalRoles(
+            IEnumerable<Role> additionalRoles,
+            NamespaceTable namespaces)
+        {
+            return new RoleBasedIdentity(m_identity, Roles.Concat(additionalRoles), namespaces);
+        }
+
+        /// <summary>
+        /// The inner identity that this role-based identity wraps.
+        /// </summary>
+        protected IUserIdentity InnerIdentity => m_identity;
 
         /// <inheritdoc/>
         public string DisplayName => m_identity.DisplayName;

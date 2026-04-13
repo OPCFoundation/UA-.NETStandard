@@ -38,7 +38,10 @@ namespace Opc.Ua
     /// An element of a relative path
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class RelativePathElement : IEncodeable, IJsonEncodeable
+    public class RelativePathElement :
+        IEncodeable,
+        IJsonEncodeable,
+        IEquatable<RelativePathElement>
     {
         /// <inheritdoc/>
         public RelativePathElement()
@@ -54,10 +57,8 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            ReferenceTypeId = default;
             IsInverse = true;
             IncludeSubtypes = true;
-            TargetName = default;
         }
 
         /// <summary>
@@ -135,27 +136,57 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ReferenceTypeId, value.ReferenceTypeId))
+            if (ReferenceTypeId != value.ReferenceTypeId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(IsInverse, value.IsInverse))
+            if (IsInverse != value.IsInverse)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(IncludeSubtypes, value.IncludeSubtypes))
+            if (IncludeSubtypes != value.IncludeSubtypes)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(TargetName, value.TargetName))
+            if (TargetName != value.TargetName)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(ReferenceTypeId, IsInverse, IncludeSubtypes, TargetName);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(RelativePathElement other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(RelativePathElement left, RelativePathElement right)
+        {
+            return EqualityComparer<RelativePathElement>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(RelativePathElement left, RelativePathElement right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>
@@ -173,74 +204,6 @@ namespace Opc.Ua
             clone.IsInverse = CoreUtils.Clone(IsInverse);
             clone.IncludeSubtypes = CoreUtils.Clone(IncludeSubtypes);
             clone.TargetName = TargetName;
-
-            return clone;
-        }
-    }
-
-    /// <summary>
-    /// List of RelativePathElement objects
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfRelativePathElement",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "RelativePathElement")]
-    public class RelativePathElementCollection : List<RelativePathElement>, ICloneable
-    {
-        /// <inheritdoc/>
-        public RelativePathElementCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public RelativePathElementCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public RelativePathElementCollection(IEnumerable<RelativePathElement> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator RelativePathElementCollection(RelativePathElement[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <inheritdoc/>
-        public static explicit operator RelativePathElement[](RelativePathElementCollection values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return null;
-        }
-
-        /// <inheritdoc/>
-        public object Clone()
-        {
-            return (RelativePathElementCollection)MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new RelativePathElementCollection(Count);
-
-            for (int ii = 0; ii < Count; ii++)
-            {
-                clone.Add(CoreUtils.Clone(this[ii]));
-            }
 
             return clone;
         }

@@ -28,15 +28,13 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Opc.Ua.Client.Tests
 {
     public static class Extensions
     {
         public static bool HasArgsOfType(
-            this CallMethodRequestCollection requests,
+            this ArrayOf<CallMethodRequest> requests,
             params Type[] argTypes)
         {
             if (requests.Count != 1 || requests[0].InputArguments.Count != argTypes.Length)
@@ -45,16 +43,20 @@ namespace Opc.Ua.Client.Tests
             }
             for (int i = 0; i < argTypes.Length; i++)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 if (requests[0].InputArguments[i].Value.GetType() != argTypes[i])
                 {
                     return false;
                 }
+#pragma warning restore CS0618 // Type or member is obsolete
             }
             return true;
         }
 
         public static CallResponse ToResponse(
-            this List<object> outputArguments, StatusCode response = default, StatusCode result = default)
+            this ArrayOf<Variant> outputArguments,
+            StatusCode response = default,
+            StatusCode result = default)
         {
             return new CallResponse
             {
@@ -67,9 +69,7 @@ namespace Opc.Ua.Client.Tests
                     new CallMethodResult
                     {
                         StatusCode = result,
-                        OutputArguments = outputArguments == null ?
-                            null :
-                            [.. outputArguments.Select(o => new Variant(o))]
+                        OutputArguments = outputArguments
                     }
                 ]
             };

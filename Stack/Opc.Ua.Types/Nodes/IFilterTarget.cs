@@ -59,10 +59,10 @@ namespace Opc.Ua
         /// <returns>
         /// The attribute value. Returns null if the attribute does not exist.
         /// </returns>
-        object GetAttributeValue(
+        Variant GetAttributeValue(
             IFilterContext context,
             NodeId typeDefinitionId,
-            IList<QualifiedName> relativePath,
+            ArrayOf<QualifiedName> relativePath,
             uint attributeId,
             NumericRange indexRange);
     }
@@ -119,7 +119,7 @@ namespace Opc.Ua
         /// <returns>
         /// The attribute value. Returns null if the attribute does not exist.
         /// </returns>
-        object GetRelatedAttributeValue(
+        Variant GetRelatedAttributeValue(
             IFilterContext context,
             NodeId typeDefinitionId,
             RelativePath relativePath,

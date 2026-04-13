@@ -280,7 +280,7 @@ namespace Opc.Ua
         /// <param name="idx">The index into the dimensions array</param>
         /// <param name="dimensions">The dimensions collection describing a matrix</param>
         /// <returns>The validation result</returns>
-        public delegate bool ValidateDimensionsFunction(int idx, Int32Collection dimensions);
+        public delegate bool ValidateDimensionsFunction(int idx, int[] dimensions);
 
         /// <summary>
         /// Validate the dimensions of a given matrix.
@@ -296,11 +296,11 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static (bool valid, int flatLength) ValidateDimensions(
             bool allowZeroDimension,
-            Int32Collection dimensions,
+            int[] dimensions,
             int maxArrayLength,
             ILogger logger)
         {
-            bool ValidateWithSideEffect(int i, Int32Collection dimCollection)
+            bool ValidateWithSideEffect(int i, int[] dimCollection)
             {
                 bool zeroCompFails = allowZeroDimension
                     ? dimCollection[i] < 0
@@ -342,11 +342,11 @@ namespace Opc.Ua
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
         public static (bool valid, int flatLength) ValidateDimensions(
-            Int32Collection dimensions,
+            int[] dimensions,
             int flatLength,
             int maxArrayLength)
         {
-            bool ValidateAgainstExpectedFlatLength(int i, Int32Collection dimCollection)
+            bool ValidateAgainstExpectedFlatLength(int i, int[] dimCollection)
             {
                 if (dimCollection[i] == 0 && flatLength > 0)
                 {
@@ -380,7 +380,7 @@ namespace Opc.Ua
         /// <returns>Tuple with validation result and the calculated length of the flattended matrix</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public static (bool valid, int flatLength) ValidateDimensions(Int32Collection dimensions)
+        public static (bool valid, int flatLength) ValidateDimensions(int[] dimensions)
         {
             return ValidateDimensions(dimensions, maxArrayLength: 0, customValidation: null);
         }
@@ -396,14 +396,14 @@ namespace Opc.Ua
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
         private static (bool valid, int flatLength) ValidateDimensions(
-            Int32Collection dimensions,
+            int[] dimensions,
             int maxArrayLength,
             ValidateDimensionsFunction customValidation)
         {
             (bool valid, int flatLength) = (false, 1);
             try
             {
-                for (int ii = 0; ii < dimensions.Count; ii++)
+                for (int ii = 0; ii < dimensions.Length; ii++)
                 {
                     if (customValidation != null)
                     {

@@ -144,7 +144,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             int bytesRead = stream.Read(buffer2, 0, 5);
 
             // Assert
-            Assert.That(bytesRead, Is.EqualTo(0));
+            Assert.That(bytesRead, Is.Zero);
             Assert.That(stream.Position, Is.EqualTo(5));
         }
 
@@ -190,7 +190,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
                 Assert.That(readStream.CanWrite, Is.False);
                 Assert.That(readStream.CanSeek, Is.True);
                 Assert.That(readStream.Length, Is.EqualTo(content.Length));
-                Assert.That(readStream.Position, Is.EqualTo(0));
+                Assert.That(readStream.Position, Is.Zero);
             }
 
             // Act & Assert - Write stream
@@ -199,7 +199,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             Assert.That(writeStream.CanRead, Is.False);
             Assert.That(writeStream.CanWrite, Is.True);
             Assert.That(writeStream.CanSeek, Is.True);
-            Assert.That(writeStream.Position, Is.EqualTo(0));
+            Assert.That(writeStream.Position, Is.Zero);
         }
 
         [Test]

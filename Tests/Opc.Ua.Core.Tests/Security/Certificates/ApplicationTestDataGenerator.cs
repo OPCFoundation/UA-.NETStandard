@@ -91,7 +91,7 @@ namespace Opc.Ua.Core.Tests
             pureAppName = Regex1().Replace(pureAppName, string.Empty);
             string pureAppUri = Regex2().Replace(pureAppName, string.Empty);
             string appName = "UA " + pureAppName;
-            StringCollection domainNames = RandomDomainNames();
+            ArrayOf<string> domainNames = RandomDomainNames();
             string localhost = domainNames[0];
             string privateKeyFormat = RandomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLowerInvariant()).Replace(
@@ -153,12 +153,12 @@ namespace Opc.Ua.Core.Tests
             return result;
         }
 
-        private StringCollection RandomDiscoveryUrl(
-            StringCollection domainNames,
+        private ArrayOf<string> RandomDiscoveryUrl(
+            ArrayOf<string> domainNames,
             int port,
             string appUri)
         {
-            var result = new StringCollection();
+            var result = new List<string>();
             foreach (string name in domainNames)
             {
                 int random = RandomSource.NextInt32(7);

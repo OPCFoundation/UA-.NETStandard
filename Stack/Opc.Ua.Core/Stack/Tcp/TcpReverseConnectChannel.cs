@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -46,7 +47,7 @@ namespace Opc.Ua.Bindings
             ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            EndpointDescriptionCollection endpoints,
+            List<EndpointDescription> endpoints,
             ITelemetryContext telemetry)
             : base(contextId, listener, bufferManager, quotas, null, endpoints, telemetry)
         {

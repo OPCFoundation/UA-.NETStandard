@@ -141,7 +141,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public static void StructureFieldAttribute(
             this PropertyBuilder typeBuilder,
-            StructureField structureField)
+            StructureField structureField,
+            bool allowSubTypes,
+            bool isEnum)
         {
             Type attributeType = typeof(StructureFieldAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
@@ -160,9 +162,18 @@ namespace Opc.Ua.Client.ComplexTypes
             };
 
             // only unambiguous built in types get the info,
+            int builtInType = isEnum ?
+                (int)BuiltInType.Enumeration :
+                (int)GetBuiltInType(structureField.DataType);
+
             // IEncodeable types are handled by type property as BuiltInType.Null
-            int builtInType = (int)GetBuiltInType(structureField.DataType);
-            if (builtInType > (int)BuiltInType.Null)
+            // But if we allow subtypes for the field we encode as extension object
+            if (builtInType == 0 && allowSubTypes)
+            {
+                builtInType = (int)BuiltInType.ExtensionObject;
+            }
+
+            if (builtInType != 0)
             {
                 pi.Add(attributeType.GetProperty("BuiltInType"));
                 pv.Add(builtInType);
@@ -271,8 +282,10 @@ namespace Opc.Ua.Client.ComplexTypes
             return (uint)builtInType switch
             {
                 // supertypes of numbers
-                DataTypes.Integer or DataTypes.UInteger or DataTypes.Number or DataTypes
-                    .Decimal => BuiltInType.Variant,
+                DataTypes.Integer or
+                DataTypes.UInteger or
+                DataTypes.Number or
+                DataTypes.Decimal => BuiltInType.Variant,
                 _ => TypeInfo.GetBuiltInType(datatypeId)
             };
         }

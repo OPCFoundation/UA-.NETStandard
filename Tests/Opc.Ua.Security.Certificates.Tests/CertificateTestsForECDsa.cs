@@ -32,7 +32,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 #if NETFRAMEWORK
 using Org.BouncyCastle.X509;
 #endif
@@ -107,17 +107,17 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetHashAlgorithm(eCCurveHash.HashAlgorithmName)
                     .SetECCurve(eCCurveHash.Curve)
                     .CreateForECDsa();
-                Assert.NotNull(cert);
+                Assert.That(cert, Is.Not.Null);
                 WriteCertificate(
                     cert,
                     $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature.");
-                Assert.AreEqual(
-                    eCCurveHash.HashAlgorithmName,
-                    Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+                Assert.That(
+                    Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                    Is.EqualTo(eCCurveHash.HashAlgorithmName));
                 // ensure serial numbers are different
-                Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
+                Assert.That(cert.GetSerialNumber(), Is.Not.EqualTo(previousSerialNumber));
                 X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-                Assert.True(X509Utils.VerifySelfSigned(cert));
+                Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
                 CheckPEMWriterReader(cert);
             }
         }
@@ -134,31 +134,31 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .Create(Subject)
                 .SetECCurve(eccurveHashPair.Curve)
                 .CreateForECDsa();
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             WriteCertificate(cert, "Default ECDsa cert");
             using (ECDsa privateKey = cert.GetECDsaPrivateKey())
             {
-                Assert.NotNull(privateKey);
+                Assert.That(privateKey, Is.Not.Null);
                 privateKey.ExportParameters(false);
                 privateKey.ExportParameters(true);
             }
             using (ECDsa publicKey = cert.GetECDsaPublicKey())
             {
-                Assert.NotNull(publicKey);
+                Assert.That(publicKey, Is.Not.Null);
                 publicKey.ExportParameters(false);
             }
-            Assert.AreEqual(
-                eccurveHashPair.HashAlgorithmName,
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
-            Assert.GreaterOrEqual(DateTime.UtcNow, cert.NotBefore);
-            Assert.GreaterOrEqual(
+            Assert.That(
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                Is.EqualTo(eccurveHashPair.HashAlgorithmName));
+            Assert.That(DateTime.UtcNow, Is.GreaterThanOrEqualTo(cert.NotBefore));
+            Assert.That(
                 DateTime.UtcNow.AddMonths(X509Defaults.LifeTime),
-                cert.NotAfter.ToUniversalTime());
+                Is.GreaterThanOrEqualTo(cert.NotAfter.ToUniversalTime()));
             TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509KeyUsageExtension keyUsage = cert.Extensions.FindExtension<X509KeyUsageExtension>();
-            Assert.NotNull(keyUsage);
+            Assert.That(keyUsage, Is.Not.Null);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert), "Verify self signed.");
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.True, "Verify self signed.");
             CheckPEMWriterReader(cert);
         }
 
@@ -177,28 +177,28 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
                 .SetECCurve(ecCurveHashPair.Curve)
                 .CreateForECDsa();
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             WriteCertificate(
                 cert,
                 $"Default cert ECDsa {ecCurveHashPair.Curve.Oid.FriendlyName} with modified lifetime and alt name extension");
-            Assert.AreEqual(Subject, cert.Subject);
+            Assert.That(cert.Subject, Is.EqualTo(Subject));
             using (ECDsa privateKey = cert.GetECDsaPrivateKey())
             {
-                Assert.NotNull(privateKey);
+                Assert.That(privateKey, Is.Not.Null);
                 privateKey.ExportParameters(false);
                 privateKey.ExportParameters(true);
             }
             using (ECDsa publicKey = cert.GetECDsaPublicKey())
             {
-                Assert.NotNull(publicKey);
+                Assert.That(publicKey, Is.Not.Null);
                 publicKey.ExportParameters(false);
             }
-            Assert.AreEqual(
-                ecCurveHashPair.HashAlgorithmName,
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+            Assert.That(
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                Is.EqualTo(ecCurveHashPair.HashAlgorithmName));
             TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
             CheckPEMWriterReader(cert);
         }
 
@@ -214,20 +214,20 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .AddExtension(s_distributionPoints.BuildX509CRLDistributionPoints())
                 .SetECCurve(ecCurveHashPair.Curve)
                 .CreateForECDsa();
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             WriteCertificate(
                 cert,
                 "Default cert with RSA {keyHashPair.KeySize} {keyHashPair.HashAlgorithmName} and CRL distribution points");
-            Assert.AreEqual(
-                ecCurveHashPair.HashAlgorithmName,
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+            Assert.That(
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value),
+                Is.EqualTo(ecCurveHashPair.HashAlgorithmName));
             X509BasicConstraintsExtension basicConstraintsExtension =
                 cert.Extensions.FindExtension<X509BasicConstraintsExtension>();
-            Assert.NotNull(basicConstraintsExtension);
-            Assert.True(basicConstraintsExtension.CertificateAuthority);
-            Assert.False(basicConstraintsExtension.HasPathLengthConstraint);
+            Assert.That(basicConstraintsExtension, Is.Not.Null);
+            Assert.That(basicConstraintsExtension.CertificateAuthority, Is.True);
+            Assert.That(basicConstraintsExtension.HasPathLengthConstraint, Is.False);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.That(X509Utils.VerifySelfSigned(cert), Is.True);
             CheckPEMWriterReader(cert);
         }
 
@@ -236,10 +236,10 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             ECCurve eccurve = ECCurve.NamedCurves.nistP256;
             // default cert
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
                 CertificateBuilder.Create(Subject).SetSerialNumberLength(0).SetECCurve(eccurve)
                     .CreateForECDsa());
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
+            Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
                 .Create(Subject)
                 .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax + 1)
                 .SetECCurve(eccurve)
@@ -254,13 +254,13 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509Certificate2 cert2 = builder.CreateForECDsa();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             WriteCertificate(cert2, "Cert2 with max length serial number");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 X509Defaults.SerialNumberLengthMax,
-                cert1.GetSerialNumber().Length);
-            Assert.GreaterOrEqual(
+                Is.GreaterThanOrEqualTo(cert1.GetSerialNumber().Length));
+            Assert.That(
                 X509Defaults.SerialNumberLengthMax,
-                cert2.GetSerialNumber().Length);
-            Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
+                Is.GreaterThanOrEqualTo(cert2.GetSerialNumber().Length));
+            Assert.That(cert2.SerialNumber, Is.Not.EqualTo(cert1.SerialNumber));
         }
 
         [Test]
@@ -268,10 +268,10 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             ECCurve eccurve = ECCurve.NamedCurves.nistP256;
             // default cert
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
                 CertificateBuilder.Create(Subject).SetSerialNumber([]).SetECCurve(eccurve)
                     .CreateForECDsa());
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
+            Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
                     .Create(Subject)
                     .SetSerialNumber(new byte[X509Defaults.SerialNumberLengthMax + 1])
                     .SetECCurve(eccurve)
@@ -287,12 +287,12 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetSerialNumber(serial);
 
             serial[^1] &= 0x7f;
-            Assert.AreEqual(serial, builder.GetSerialNumber());
+            Assert.That(builder.GetSerialNumber(), Is.EqualTo(serial));
             X509Certificate2 cert1 = builder.SetECCurve(eccurve).CreateForECDsa();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {serial.ToHexString(true)}");
-            Assert.AreEqual(serial, cert1.GetSerialNumber());
-            Assert.AreEqual(X509Defaults.SerialNumberLengthMax, cert1.GetSerialNumber().Length);
+            Assert.That(cert1.GetSerialNumber(), Is.EqualTo(serial));
+            Assert.That(cert1.GetSerialNumber().Length, Is.EqualTo(X509Defaults.SerialNumberLengthMax));
 
             // clear sign bit
             builder.SetSerialNumberLength(X509Defaults.SerialNumberLengthMax);
@@ -300,10 +300,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509Certificate2 cert2 = builder.SetECCurve(eccurve).CreateForECDsa();
             WriteCertificate(cert2, "Cert2 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {cert2.SerialNumber}");
-            Assert.GreaterOrEqual(
+            Assert.That(
                 X509Defaults.SerialNumberLengthMax,
-                cert2.GetSerialNumber().Length);
-            Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
+                Is.GreaterThanOrEqualTo(cert2.GetSerialNumber().Length));
+            Assert.That(cert2.SerialNumber, Is.Not.EqualTo(cert1.SerialNumber));
         }
 
         [Theory]
@@ -328,7 +328,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .Create("CN=App Cert")
                     .SetIssuer(CertificateFactory.Create(signingCert.RawData))
                     .CreateForRSA(generator);
-                Assert.NotNull(cert);
+                Assert.That(cert, Is.Not.Null);
                 WriteCertificate(cert, "Default signed ECDsa cert");
             }
 
@@ -342,7 +342,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetIssuer(CertificateFactory.Create(signingCert.RawData))
                     .SetECDsaPublicKey(ecdsaPublicKey)
                     .CreateForECDsa(generator);
-                Assert.NotNull(cert);
+                Assert.That(cert, Is.Not.Null);
                 WriteCertificate(cert, "Default signed ECDsa cert with Public Key");
             }
 
@@ -355,13 +355,13 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetIssuer(CertificateFactory.Create(signingCert.RawData))
                     .SetECCurve(ecCurveHashPair.Curve)
                     .CreateForECDsa(generator);
-                Assert.NotNull(cert);
+                Assert.That(cert, Is.Not.Null);
                 WriteCertificate(cert, "Default signed RSA cert");
                 CheckPEMWriterReader(cert);
             }
 
             // ensure invalid path throws argument exception
-            NUnit.Framework.Assert.Throws<NotSupportedException>(() =>
+            Assert.Throws<NotSupportedException>(() =>
             {
                 using ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey();
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
@@ -399,7 +399,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetIssuer(CertificateFactory.Create(signingCert.RawData))
                 .SetECDsaPublicKey(pubKeyBytes)
                 .CreateForECDsa(generator);
-            Assert.NotNull(cert);
+            Assert.That(cert, Is.Not.Null);
             WriteCertificate(cert, "Default signed ECDsa cert with Public Key");
         }
 

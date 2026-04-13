@@ -33,7 +33,6 @@ using BenchmarkDotNet.Attributes;
 using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -55,7 +54,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var binaryEncoder = new BinaryEncoder(m_context);
             TestEncoding(binaryEncoder);
             byte[] result = binaryEncoder.CloseAndReturnBuffer();
-            Assert.NotNull(result);
+            Assert.That(result, Is.Not.Null);
         }
 
         /// <summary>
@@ -69,7 +68,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var binaryEncoder = new BinaryEncoder(memoryStream, m_context, true);
             TestEncoding(binaryEncoder);
             byte[] result = binaryEncoder.CloseAndReturnBuffer();
-            Assert.NotNull(result);
+            Assert.That(result, Is.Not.Null);
         }
 
         /// <summary>
@@ -178,15 +177,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 if (toArray)
                 {
                     int length = binaryEncoder.Close();
-                    Assert.AreEqual(length, memoryStream.Position);
+                    Assert.That(memoryStream.Position, Is.EqualTo(length));
                     byte[] result = memoryStream.ToArray();
-                    Assert.NotNull(result);
-                    Assert.AreEqual(length, result.Length);
+                    Assert.That(result, Is.Not.Null);
+                    Assert.That(result.Length, Is.EqualTo(length));
                 }
                 else
                 {
                     byte[] result = binaryEncoder.CloseAndReturnBuffer();
-                    Assert.NotNull(result);
+                    Assert.That(result, Is.Not.Null);
                 }
             }
         }
@@ -209,10 +208,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             if (testResult)
             {
-                Assert.AreEqual(length1 * 2, length2);
+                Assert.That(length2, Is.EqualTo(length1 * 2));
                 string result = Encoding.UTF8.GetString(memoryStream.ToArray());
-                Assert.NotNull(result);
-                Assert.AreEqual(length2, memoryStream.Position);
+                Assert.That(result, Is.Not.Null);
+                Assert.That(memoryStream.Position, Is.EqualTo(length2));
             }
             return length1 + length2;
         }

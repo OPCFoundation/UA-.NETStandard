@@ -49,8 +49,8 @@ namespace Opc.Ua.Server
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public CountAggregateCalculator(
             NodeId aggregateId,
-            DateTime startTime,
-            DateTime endTime,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration,
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server
             // set the timestamp and status.
             var value = new DataValue
             {
-                WrappedValue = new Variant(count, TypeInfo.Scalars.Int32),
+                WrappedValue = Variant.From(count),
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };
@@ -154,7 +154,7 @@ namespace Opc.Ua.Server
             // set the timestamp and status.
             var value = new DataValue
             {
-                WrappedValue = new Variant(count, TypeInfo.Scalars.Int32),
+                WrappedValue = Variant.From(count),
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };
@@ -206,7 +206,7 @@ namespace Opc.Ua.Server
             // set the timestamp and status.
             var value = new DataValue
             {
-                WrappedValue = new Variant(duration, TypeInfo.Scalars.Double),
+                WrappedValue = Variant.From(duration),
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };
@@ -277,7 +277,7 @@ namespace Opc.Ua.Server
             // set the timestamp and status.
             var value = new DataValue
             {
-                WrappedValue = new Variant(count, TypeInfo.Scalars.Int32),
+                WrappedValue = Variant.From(count),
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };

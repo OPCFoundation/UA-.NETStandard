@@ -61,7 +61,7 @@ namespace MemoryBuffer
             NumericId = offet;
             DataType = new NodeId((uint)parent.ElementType);
             ValueRank = ValueRanks.Scalar;
-            ArrayDimensions = null;
+            ArrayDimensions = default;
             AccessLevel = AccessLevels.CurrentReadOrWrite;
             UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             MinimumSamplingInterval = parent.MaximumScanRate;

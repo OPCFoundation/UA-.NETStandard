@@ -29,22 +29,23 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Collections;
+using System.Collections.Generic;
+using System.Runtime.Serialization;
+using System.Linq;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// NodeId Obsoleted static methods
     /// </summary>
-    public static class NodeIdStaticExtensions
+    public static class NodeIdStaticObsolete
     {
         extension(NodeId)
         {
             /// <summary>
             /// Checks if the node id represents a 'Null' node id.
             /// </summary>
-            /// <remarks>
-            /// Returns a true/false value to indicate if the specified NodeId is null.
-            /// </remarks>
             /// <param name="nodeId">The NodeId to validate</param>
             [Obsolete("Use NodeId.IsNull property instead.")]
             public static bool IsNull([NotNullWhen(false)] NodeId nodeId)
@@ -55,9 +56,6 @@ namespace Opc.Ua
             /// <summary>
             /// Checks if the node id represents a 'Null' node id.
             /// </summary>
-            /// <remarks>
-            /// Returns a true/false to indicate if the specified <see cref="ExpandedNodeId"/> is null.
-            /// </remarks>
             /// <param name="nodeId">The ExpandedNodeId to validate</param>
             [Obsolete("Use ExpandedNodeId.IsNull property instead.")]
             public static bool IsNull([NotNullWhen(false)] ExpandedNodeId nodeId)
@@ -70,7 +68,7 @@ namespace Opc.Ua
     /// <summary>
     /// Obsoleted members
     /// </summary>
-    public static class NodeIdExtensions
+    public static class NodeIdObsolete
     {
         extension(NodeId nodeId)
         {
@@ -85,7 +83,7 @@ namespace Opc.Ua
     /// <summary>
     /// QualifiedName obsolete static methods
     /// </summary>
-    public static class QualifiedNameStaticExtensions
+    public static class QualifiedNameStaticObsolete
     {
         extension(QualifiedName)
         {
@@ -103,7 +101,7 @@ namespace Opc.Ua
     /// <summary>
     /// QualifiedName obsolete members
     /// </summary>
-    public static class QualifiedNameExtensions
+    public static class QualifiedNameObsolete
     {
         extension(QualifiedName qualifiedName)
         {
@@ -118,7 +116,7 @@ namespace Opc.Ua
     /// <summary>
     /// LocalizedText extensions
     /// </summary>
-    public static class LocalizedTextExtensions
+    public static class LocalizedTextObsolete
     {
         extension(LocalizedText)
         {
@@ -136,18 +134,14 @@ namespace Opc.Ua
     /// <summary>
     /// Extension object extensions
     /// </summary>
-    public static class ExtensionObjectExtensions
+    public static class ExtensionObjectObsolete
     {
         extension(ExtensionObject)
         {
             /// <summary>
             /// Tests if the extension or embed objects are null value.
             /// </summary>
-            /// <param name="extension">The object to check if null</param>
-            /// <returns>
-            /// <c>true</c> if the specified <paramref name="extension"/> is null
-            /// of the embedded object is null; otherwise, <c>false</c>.
-            /// </returns>
+            [Obsolete("Use ExtensionObject.IsNull property instead.")]
             public static bool IsNull([NotNullWhen(false)] ExtensionObject extension)
             {
                 return extension.IsNull;
@@ -158,7 +152,7 @@ namespace Opc.Ua
     /// <summary>
     /// Status code extensions
     /// </summary>
-    public static class StatusCodeExtensions
+    public static class StatusCodeObsolete
     {
         extension(StatusCode statusCode)
         {

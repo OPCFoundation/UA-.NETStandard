@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 #if !NET8_0_OR_GREATER
 using System.Runtime.InteropServices;
 #endif
@@ -22,7 +22,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
@@ -34,45 +34,51 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509Certificate2Collection certs = PEMReader.ImportPublicKeysFromPEM(file);
 
             // Assert
-            Assert.IsNotNull(certs, "Certificates collection should not be null.");
-            Assert.IsNotEmpty(certs, "Certificates collection should not be empty.");
-            Assert.AreEqual(3, certs.Count, "Expected 3 certificates in the collection.");
-            Assert.NotNull(
-                certs.Find(X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0]);
-            Assert.NotNull(
-                certs.Find(X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0]);
+            Assert.That(certs, Is.Not.Null, "Certificates collection should not be null.");
+            Assert.That(certs, Is.Not.Empty, "Certificates collection should not be empty.");
+            Assert.That(certs.Count, Is.EqualTo(3), "Expected 3 certificates in the collection.");
+            Assert.That(
+                certs.Find(X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0],
+                Is.Not.Null);
+            Assert.That(
+                certs.Find(X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0],
+                Is.Not.Null);
             X509Certificate2 leaf = certs.Find(
                 X509FindType.FindBySerialNumber,
                 "51BB4F74500125AD",
                 false)[0];
-            Assert.NotNull(leaf);
+            Assert.That(leaf, Is.Not.Null);
 
             //Act
-            Assert.False(
+            Assert.That(
                 PEMReader.ContainsPrivateKey(file),
+                Is.False,
                 "PEM file should not contain a private key.");
 
             // Remove leaf certificate from the collection
-            Assert.True(
-                PEMWriter.TryRemovePublicKeyFromPEM(leaf.Thumbprint, file, out byte[] updatedFile));
+            Assert.That(
+                PEMWriter.TryRemovePublicKeyFromPEM(leaf.Thumbprint, file, out byte[] updatedFile),
+                Is.True);
 
-            Assert.IsNotNull(updatedFile, "Updated PEM file should not be null.");
+            Assert.That(updatedFile, Is.Not.Null, "Updated PEM file should not be null.");
             X509Certificate2Collection updatedCerts = PEMReader.ImportPublicKeysFromPEM(
                 updatedFile);
-            Assert.IsNotNull(updatedCerts, "Certificates collection should not be null.");
-            Assert.IsNotEmpty(updatedCerts, "Certificates collection should not be empty.");
-            Assert.AreEqual(2, updatedCerts.Count, "Expected 2 certificates in the collection.");
+            Assert.That(updatedCerts, Is.Not.Null, "Certificates collection should not be null.");
+            Assert.That(updatedCerts, Is.Not.Empty, "Certificates collection should not be empty.");
+            Assert.That(updatedCerts.Count, Is.EqualTo(2), "Expected 2 certificates in the collection.");
             //root
-            Assert.NotNull(
-                updatedCerts.Find(X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0]);
+            Assert.That(
+                updatedCerts.Find(X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0],
+                Is.Not.Null);
             //intermediate
-            Assert.NotNull(
-                updatedCerts.Find(X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0]);
+            Assert.That(
+                updatedCerts.Find(X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0],
+                Is.Not.Null);
             // leaf
-            Assert.AreEqual(
-                0,
+            Assert.That(
                 updatedCerts.Find(X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)
-                    .Count);
+                    .Count,
+                Is.Zero);
         }
 
         [Test]
@@ -81,7 +87,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert
+                Assert
                     .Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
@@ -92,18 +98,19 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509Certificate2Collection certs = PEMReader.ImportPublicKeysFromPEM(file);
 
             // Assert
-            Assert.IsNotNull(certs, "Certificates collection should not be null.");
-            Assert.IsNotEmpty(certs, "Certificates collection should not be empty.");
-            Assert.AreEqual(1, certs.Count, "Expected 1 certificate in the collection.");
+            Assert.That(certs, Is.Not.Null, "Certificates collection should not be null.");
+            Assert.That(certs, Is.Not.Empty, "Certificates collection should not be empty.");
+            Assert.That(certs.Count, Is.EqualTo(1), "Expected 1 certificate in the collection.");
             X509Certificate2 leaf = certs.Find(
                 X509FindType.FindBySerialNumber,
                 "51BB4F74500125AD",
                 false)[0];
-            Assert.NotNull(leaf);
+            Assert.That(leaf, Is.Not.Null);
 
             //Act
-            Assert.True(
+            Assert.That(
                 PEMReader.ContainsPrivateKey(file),
+                Is.True,
                 "PEM file should contain a private key.");
 
             X509Certificate2 newCert = null;
@@ -111,8 +118,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(leaf, file);
 
-                Assert.NotNull(newCert, "New certificate with private key should not be null.");
-                Assert.True(newCert.HasPrivateKey, "New certificate should have a private key.");
+                Assert.That(newCert, Is.Not.Null, "New certificate with private key should not be null.");
+                Assert.That(newCert.HasPrivateKey, Is.True, "New certificate should have a private key.");
             }
             finally
             {

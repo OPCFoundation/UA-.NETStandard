@@ -69,18 +69,18 @@ namespace Opc.Ua.Types.Buffers.Tests
             Assert.Throws<IOException>(() => stream.Seek(-1, SeekOrigin.Begin));
             Assert.Throws<IOException>(() => stream.Seek(0, (SeekOrigin)66));
 
-            Assert.That(stream.Seek(0, SeekOrigin.Begin), Is.EqualTo(0));
+            Assert.That(stream.Seek(0, SeekOrigin.Begin), Is.Zero);
             Assert.That(stream.ReadByte(), Is.EqualTo(-1));
-            Assert.That(stream.Read(buffer, 0, 1), Is.EqualTo(0));
+            Assert.That(stream.Read(buffer, 0, 1), Is.Zero);
 #if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
             Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.EqualTo(0));
 #endif
             stream.Position = 0;
-            Assert.That(stream.Position, Is.EqualTo(0));
+            Assert.That(stream.Position, Is.Zero);
 
-            Assert.That(stream.Length, Is.EqualTo(0));
+            Assert.That(stream.Length, Is.Zero);
 
-            Assert.That(stream.Seek(0, SeekOrigin.Begin), Is.EqualTo(0));
+            Assert.That(stream.Seek(0, SeekOrigin.Begin), Is.Zero);
             stream.WriteByte(0xaa);
             stream.Write(buffer, 0, 1);
 #if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
@@ -93,7 +93,7 @@ namespace Opc.Ua.Types.Buffers.Tests
             Assert.That(stream.Position, Is.EqualTo(3));
             Assert.That(stream.Length, Is.EqualTo(3));
 
-            Assert.That(stream.Seek(-3, SeekOrigin.Current), Is.EqualTo(0));
+            Assert.That(stream.Seek(-3, SeekOrigin.Current), Is.Zero);
             Assert.That(stream.ReadByte(), Is.EqualTo(0xaa));
             Assert.That(stream.Length, Is.EqualTo(3));
             Assert.That(stream.Position, Is.EqualTo(1));
@@ -110,7 +110,7 @@ namespace Opc.Ua.Types.Buffers.Tests
             Assert.That(stream.Length, Is.EqualTo(3));
             Assert.That(buffer[0], Is.EqualTo(0x55));
             Assert.That(stream.ReadByte(), Is.EqualTo(-1));
-            Assert.That(stream.Read(buffer, 0, 1), Is.EqualTo(0));
+            Assert.That(stream.Read(buffer, 0, 1), Is.Zero);
 #if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
             Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.EqualTo(0));
 #endif
@@ -191,14 +191,14 @@ namespace Opc.Ua.Types.Buffers.Tests
 
             length = (byte.MaxValue + 1) * chunkSize;
             long result = writer.Seek(0, SeekOrigin.Begin);
-            Assert.That(result, Is.EqualTo(0));
+            Assert.That(result, Is.Zero);
 
             result = writer.Seek(0, SeekOrigin.End);
             Assert.That(result, Is.EqualTo(length));
 
             // read back from writer MemoryStream
             result = writer.Seek(0, SeekOrigin.Begin);
-            Assert.That(result, Is.EqualTo(0));
+            Assert.That(result, Is.Zero);
 
             Assert.That(writer.Length, Is.EqualTo(length));
 
@@ -244,7 +244,7 @@ namespace Opc.Ua.Types.Buffers.Tests
             }
 
             position = writer.Seek(0, SeekOrigin.Begin);
-            Assert.That(position, Is.EqualTo(0));
+            Assert.That(position, Is.Zero);
 
             using BufferSequence bufferSequence = writer.GetSequence("Test");
             ReadOnlySequence<byte> sequence = bufferSequence.Sequence;

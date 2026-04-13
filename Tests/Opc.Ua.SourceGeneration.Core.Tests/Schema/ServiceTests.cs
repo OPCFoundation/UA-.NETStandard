@@ -77,7 +77,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hashCode2 = service2.GetHashCode();
 
             // Assert
-            Assert.That(service1.Equals(service2), Is.True);
+            Assert.That(service1, Is.EqualTo(service2));
             Assert.That(hashCode1, Is.EqualTo(hashCode2));
         }
 

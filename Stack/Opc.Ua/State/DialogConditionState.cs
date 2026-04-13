@@ -149,7 +149,7 @@ namespace Opc.Ua
                     return error = StatusCodes.BadDialogNotActive;
                 }
 
-                if (selectedResponse < 0 || selectedResponse >= ResponseOptionSet.Value.Length)
+                if (selectedResponse < 0 || selectedResponse >= ResponseOptionSet.Value.Count)
                 {
                     return error = StatusCodes.BadDialogResponseInvalid;
                 }
@@ -193,7 +193,7 @@ namespace Opc.Ua
                     e.SetChildValue(
                         context,
                         BrowseNames.InputArguments,
-                        new Variant[] { selectedResponse },
+                        Variant.From(new Variant[] { selectedResponse }),
                         false);
 
                     e.SetChildValue(

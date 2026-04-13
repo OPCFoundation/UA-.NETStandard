@@ -289,18 +289,18 @@ namespace Opc.Ua.Security
         /// <param name="parent">The parent.</param>
         /// <param name="localName">Name of the local.</param>
         /// <param name="namespaceUri">The namespace URI.</param>
-        private static XmlElement Find(XmlNode parent, string localName, string namespaceUri)
+        private static System.Xml.XmlElement Find(XmlNode parent, string localName, string namespaceUri)
         {
             for (XmlNode ii = parent.FirstChild; ii != null; ii = ii.NextSibling)
             {
-                if (ii is XmlElement xml &&
+                if (ii is System.Xml.XmlElement xml &&
                     ii.LocalName == "SecuredApplication" &&
                     ii.NamespaceURI == Namespaces.OpcUaSecurity)
                 {
                     return xml;
                 }
 
-                XmlElement child = Find(ii, localName, namespaceUri);
+                System.Xml.XmlElement child = Find(ii, localName, namespaceUri);
 
                 if (child != null)
                 {
@@ -341,7 +341,7 @@ namespace Opc.Ua.Security
             {
                 document.Load(xmlReader);
             }
-            XmlElement element = Find(
+            System.Xml.XmlElement element = Find(
                 document.DocumentElement,
                 "SecuredApplication",
                 Namespaces.OpcUaSecurity);
@@ -387,7 +387,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Updates the XML document with the new configuration information.
         /// </summary>
-        private void UpdateDocument(XmlElement element, SecuredApplication application)
+        private void UpdateDocument(System.Xml.XmlElement element, SecuredApplication application)
         {
             for (XmlNode node = element.FirstChild; node != null; node = node.NextSibling)
             {

@@ -155,7 +155,7 @@ namespace MemoryBuffer
                         throw ServiceResultException.Unexpected($"Unexpected BuiltInType {ElementType}");
                 }
 
-                m_lastScanTime = DateTime.UtcNow;
+                m_lastScanTime = DateTimeUtc.Now;
                 MaximumScanRate = 1000;
 
                 m_buffer = new byte[m_elementSize * noOfElements];
@@ -202,14 +202,14 @@ namespace MemoryBuffer
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             if (node is not MemoryTagState tag)
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
 
-            if (NumericRange.Empty != indexRange)
+            if (!indexRange.IsNull)
             {
                 return StatusCodes.BadIndexRangeInvalid;
             }
@@ -253,14 +253,14 @@ namespace MemoryBuffer
             QualifiedName dataEncoding,
             ref Variant value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTimeUtc timestamp)
         {
             if (node is not MemoryTagState tag)
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
 
-            if (NumericRange.Empty != indexRange)
+            if (!indexRange.IsNull)
             {
                 return StatusCodes.BadIndexRangeInvalid;
             }
@@ -275,7 +275,7 @@ namespace MemoryBuffer
                 return StatusCodes.BadWriteNotSupported;
             }
 
-            if (timestamp != DateTime.MinValue)
+            if (timestamp != DateTimeUtc.MinValue)
             {
                 return StatusCodes.BadWriteNotSupported;
             }
@@ -523,7 +523,7 @@ namespace MemoryBuffer
         /// </summary>
         private void DoScan(object state)
         {
-            DateTime start1 = DateTime.UtcNow;
+            DateTimeUtc start1 = DateTimeUtc.Now;
 
             lock (m_dataLock)
             {
@@ -535,12 +535,12 @@ namespace MemoryBuffer
                     OnBufferChanged(ii);
                 }
 
-                m_lastScanTime = DateTime.UtcNow;
+                m_lastScanTime = DateTimeUtc.Now;
             }
 
-            DateTime end1 = DateTime.UtcNow;
+            DateTimeUtc end1 = DateTimeUtc.Now;
 
-            double delta1 = ((double)(end1.Ticks - start1.Ticks)) / TimeSpan.TicksPerMillisecond;
+            double delta1 = (end1 - start1).TotalMilliseconds;
 
             if (delta1 > 100)
             {
@@ -634,7 +634,7 @@ namespace MemoryBuffer
                         {
                             WrappedValue = GetValueAtOffset(offset),
                             StatusCode = StatusCodes.Good,
-                            ServerTimestamp = DateTime.UtcNow,
+                            ServerTimestamp = DateTimeUtc.Now,
                             SourceTimestamp = m_lastScanTime
                         };
 
@@ -655,7 +655,7 @@ namespace MemoryBuffer
 
         private void PublishTimer_Tick(object sender, EventArgs e)
         {
-            DateTime start1 = DateTime.UtcNow;
+            DateTimeUtc start1 = DateTimeUtc.Now;
 
             lock (m_dataLock)
             {
@@ -663,7 +663,7 @@ namespace MemoryBuffer
                 {
                     m_logger.LogInformation(
                         "{Now:HH:mm:ss.fff} MEMORYBUFFER Reported  {UpdateCount}/{ItemCount} items ***.",
-                        DateTime.Now,
+                        DateTimeUtc.Now.ToLocalTime(),
                         m_updateCount,
                         m_itemCount);
                 }
@@ -671,9 +671,9 @@ namespace MemoryBuffer
                 m_updateCount = 0;
             }
 
-            DateTime end1 = DateTime.UtcNow;
+            DateTimeUtc end1 = DateTimeUtc.Now;
 
-            double delta1 = ((double)(end1.Ticks - start1.Ticks)) / TimeSpan.TicksPerMillisecond;
+            double delta1 = (end1 - start1).TotalMilliseconds;
 
             if (delta1 > 100)
             {
@@ -689,7 +689,7 @@ namespace MemoryBuffer
         private MemoryBufferMonitoredItem[][] m_monitoringTable;
         private Dictionary<uint, MemoryBufferMonitoredItem> m_nonValueMonitoredItems;
         private int m_elementSize;
-        private DateTime m_lastScanTime;
+        private DateTimeUtc m_lastScanTime;
         private byte[] m_buffer;
         private Timer m_scanTimer;
         private int m_updateCount;

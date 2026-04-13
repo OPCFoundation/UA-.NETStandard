@@ -61,7 +61,7 @@ namespace Opc.Ua
                 UpdateStateAfterUnacknowledge(context);
             }
 
-            AckedState.Timestamp = DateTime.UtcNow;
+            AckedState.Timestamp = DateTimeUtc.Now;
             ClearChangeMasks(context, includeChildren: true);
         }
 
@@ -81,7 +81,7 @@ namespace Opc.Ua
                 UpdateStateAfterUnconfirm(context);
             }
 
-            ConfirmedState?.Timestamp = DateTime.UtcNow;
+            ConfirmedState?.Timestamp = DateTimeUtc.Now;
 
             ClearChangeMasks(context, includeChildren: true);
         }
@@ -139,7 +139,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            byte[] eventId,
+            ByteString eventId,
             LocalizedText comment)
         {
             ServiceResult error = ProcessBeforeAcknowledge(context, eventId, comment);
@@ -211,7 +211,7 @@ namespace Opc.Ua
                 e.SetChildValue(
                     context,
                     BrowseNames.InputArguments,
-                    new Variant[] { eventId, comment },
+                    Variant.From(new Variant[] { eventId, comment }),
                     false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
@@ -231,10 +231,10 @@ namespace Opc.Ua
         /// <param name="comment">The comment.</param>
         protected virtual ServiceResult ProcessBeforeAcknowledge(
             ISystemContext context,
-            byte[] eventId,
+            ByteString eventId,
             LocalizedText comment)
         {
-            if (eventId == null)
+            if (eventId.IsEmpty)
             {
                 return StatusCodes.BadEventIdUnknown;
             }
@@ -276,7 +276,7 @@ namespace Opc.Ua
             AckedState.Value = new LocalizedText(state);
             AckedState.Id.Value = true;
 
-            AckedState.TransitionTime?.Value = DateTime.UtcNow;
+            AckedState.TransitionTime?.Value = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
         }
@@ -295,7 +295,7 @@ namespace Opc.Ua
             AckedState.Value = new LocalizedText(state);
             AckedState.Id.Value = false;
 
-            AckedState.TransitionTime?.Value = DateTime.UtcNow;
+            AckedState.TransitionTime?.Value = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
         }
@@ -313,7 +313,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            byte[] eventId,
+            ByteString eventId,
             LocalizedText comment)
         {
             ServiceResult error = ProcessBeforeConfirm(context, eventId, comment);
@@ -372,7 +372,7 @@ namespace Opc.Ua
                 e.SetChildValue(
                     context,
                     BrowseNames.InputArguments,
-                    new Variant[] { eventId, comment },
+                    Variant.From(new Variant[] { eventId, comment }),
                     false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
@@ -392,10 +392,10 @@ namespace Opc.Ua
         /// <param name="comment">The comment.</param>
         protected virtual ServiceResult ProcessBeforeConfirm(
             ISystemContext context,
-            byte[] eventId,
+            ByteString eventId,
             LocalizedText comment)
         {
-            if (eventId == null)
+            if (eventId.IsEmpty)
             {
                 return StatusCodes.BadEventIdUnknown;
             }
@@ -439,7 +439,7 @@ namespace Opc.Ua
                 ConfirmedState.Value = new LocalizedText(state);
                 ConfirmedState.Id.Value = true;
 
-                ConfirmedState.TransitionTime?.Value = DateTime.UtcNow;
+                ConfirmedState.TransitionTime?.Value = DateTimeUtc.Now;
 
                 UpdateEffectiveState(context);
             }
@@ -461,7 +461,7 @@ namespace Opc.Ua
                 ConfirmedState.Value = new LocalizedText(state);
                 ConfirmedState.Id.Value = false;
 
-                ConfirmedState.TransitionTime?.Value = DateTime.UtcNow;
+                ConfirmedState.TransitionTime?.Value = DateTimeUtc.Now;
 
                 UpdateEffectiveState(context);
             }
@@ -525,7 +525,7 @@ namespace Opc.Ua
         /// <returns>
         /// AcknowledgeableConditionState branch if it exists
         /// </returns>
-        private AcknowledgeableConditionState GetAcknowledgeableBranch(byte[] eventId)
+        private AcknowledgeableConditionState GetAcknowledgeableBranch(ByteString eventId)
         {
             AcknowledgeableConditionState acknowledgeableBranch = null;
             ConditionState branch = GetBranch(eventId);

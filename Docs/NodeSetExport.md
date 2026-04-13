@@ -142,11 +142,13 @@ public static void ExportNodesToNodeSet2(
 ```
 
 **Parameters:**
+
 - `context` - System context containing namespace and server URI information
 - `nodes` - List of nodes to export
 - `outputStream` - Stream to write the NodeSet2 XML to
 
 **Exceptions:**
+
 - `ArgumentNullException` - If any parameter is null
 
 ### ClientSamples.ExportNodesToNodeSet2
@@ -159,6 +161,7 @@ public void ExportNodesToNodeSet2(
 ```
 
 **Parameters:**
+
 - `session` - Active session to use for namespace information
 - `nodes` - List of nodes to export
 - `filePath` - Path where the NodeSet2 XML file will be saved

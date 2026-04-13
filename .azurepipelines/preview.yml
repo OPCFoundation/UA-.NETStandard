@@ -19,7 +19,7 @@ jobs:
 - job: nuget${{parameters.config}}
   displayName: Pack Nugets ${{parameters.config}}
   pool:
-    vmImage: 'windows-2025'
+    vmImage: 'windows-2025-vs2026'
   variables:
   - group: codesign
   - name: msbuildversion
@@ -81,8 +81,9 @@ jobs:
     displayName: 'List of assemblies to sign'
     inputs:
       script: |
-        dir /b /s Stack\Opc.Ua.*.dll > .\list.txt
-        dir /b /s Libraries\Opc.Ua.*.dll >> .\list.txt
+        dir /b /s Stack\Opc.Ua*.dll > .\list.txt
+        dir /b /s Tools\Opc.Ua*.dll >> .\list.txt
+        dir /b /s Libraries\Opc.Ua*.dll >> .\list.txt
         dir /b /s .azurepipelines\*.* >> .\list.txt
         type .\list.txt
   - task: CmdLine@2

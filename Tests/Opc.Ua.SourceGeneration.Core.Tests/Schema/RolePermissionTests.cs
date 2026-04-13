@@ -163,7 +163,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hashCode = rolePermission.GetHashCode();
 
             // Assert
-            Assert.That(hashCode, Is.Not.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero);
         }
 
         /// <summary>
@@ -184,7 +184,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hashCode = rolePermission.GetHashCode();
 
             // Assert
-            Assert.That(hashCode, Is.Not.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero);
         }
 
         /// <summary>
@@ -205,7 +205,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hashCode = rolePermission.GetHashCode();
 
             // Assert
-            Assert.That(hashCode, Is.Not.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero);
         }
 
         /// <summary>
@@ -226,7 +226,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hashCode = rolePermission.GetHashCode();
 
             // Assert
-            Assert.That(hashCode, Is.Not.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero);
         }
 
         /// <summary>
@@ -355,7 +355,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hashCode = rolePermission.GetHashCode();
 
             // Assert
-            Assert.That(hashCode, Is.Not.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero);
         }
 
         /// <summary>
@@ -376,7 +376,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hashCode = rolePermission.GetHashCode();
 
             // Assert
-            Assert.That(hashCode, Is.Not.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero);
         }
 
         /// <summary>
@@ -406,7 +406,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hashCode = rolePermission.GetHashCode();
 
             // Assert
-            Assert.That(hashCode, Is.Not.EqualTo(0));
+            Assert.That(hashCode, Is.Not.Zero);
         }
 
         /// <summary>
@@ -435,7 +435,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(hashCode1, Is.EqualTo(hashCode2));
-            Assert.That(rolePermission1.Equals(rolePermission2), Is.True);
+            Assert.That(rolePermission1, Is.EqualTo(rolePermission2));
         }
 
         /// <summary>

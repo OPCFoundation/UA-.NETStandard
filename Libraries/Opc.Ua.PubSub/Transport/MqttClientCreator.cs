@@ -62,13 +62,13 @@ namespace Opc.Ua.PubSub.Transport
             MqttClientOptions mqttClientOptions,
             Func<MqttApplicationMessageReceivedEventArgs, Task> receiveMessageHandler,
             ILogger logger,
-            StringCollection topicFilter = null,
+            ArrayOf<string> topicFilter = default,
             CancellationToken ct = default)
         {
             IMqttClient mqttClient = s_mqttClientFactory.Value.CreateMqttClient();
 
             // Hook the receiveMessageHandler in case we deal with a subscriber
-            if ((receiveMessageHandler != null) && (topicFilter != null))
+            if ((receiveMessageHandler != null) && !topicFilter.IsNull)
             {
                 mqttClient.ApplicationMessageReceivedAsync += receiveMessageHandler;
                 mqttClient.ConnectedAsync += async _ =>
@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub.Transport
 
                     try
                     {
-                        foreach (string topic in topicFilter)
+                        foreach (string topic in topicFilter.ToList())
                         {
                             // subscribe to provided topics, messages are also filtered on the receiveMessageHandler
                             await mqttClient.SubscribeAsync(topic).ConfigureAwait(false);
@@ -106,7 +106,7 @@ namespace Opc.Ua.PubSub.Transport
                         "The provided MQTT message handler is null therefore messages will not be processed on client {ClientId}!!!",
                         mqttClient?.Options?.ClientId);
                 }
-                if (topicFilter == null)
+                if (topicFilter.IsNull)
                 {
                     logger.LogInformation(
                         "The provided MQTT message topic filter is null therefore messages will not be processed on client {ClientId}!!!",

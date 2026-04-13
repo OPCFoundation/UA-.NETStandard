@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -48,7 +46,7 @@ namespace Opc.Ua
         /// If any error occur during format the unformatted text is used instead.
         /// </remarks>
         LocalizedText Translate(
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             string key,
             string text,
             params object[] args);
@@ -56,9 +54,9 @@ namespace Opc.Ua
         /// <summary>
         /// Translates the LocalizedText.
         /// </summary>
-        /// <seealso cref="Translate(IList{string},string,string,object[])" />
+        /// <seealso cref="Translate(ArrayOf{string},string,string,object[])" />
         LocalizedText Translate(
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             LocalizedText text);
 
         /// <summary>
@@ -69,7 +67,7 @@ namespace Opc.Ua
         /// <returns>The result with all localized text translated.</returns>
         /// <remarks>Recurssively translates text in inner results.</remarks>
         ServiceResult Translate(
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             ServiceResult result);
     }
 

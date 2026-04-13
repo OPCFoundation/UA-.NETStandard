@@ -36,8 +36,8 @@ namespace Opc.Ua.Server
     /// </summary>
     public delegate IAggregateCalculator AggregatorFactory(
         NodeId aggregateId,
-        DateTime startTime,
-        DateTime endTime,
+        DateTimeUtc startTime,
+        DateTimeUtc endTime,
         double processingInterval,
         bool stepped,
         AggregateConfiguration configuration,
@@ -327,8 +327,8 @@ namespace Opc.Ua.Server
         [Obsolete("Use CreateStandardCalculator with telemetry context.")]
         public static IAggregateCalculator CreateStandardCalculator(
             NodeId aggregateId,
-            DateTime startTime,
-            DateTime endTime,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
@@ -348,8 +348,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public static IAggregateCalculator CreateStandardCalculator(
             NodeId aggregateId,
-            DateTime startTime,
-            DateTime endTime,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration,

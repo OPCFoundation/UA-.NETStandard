@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Xml;
@@ -303,8 +304,7 @@ namespace Opc.Ua.Export
                     if (!o.Value.IsNull)
                     {
                         using XmlEncoder encoder = CreateEncoder(context);
-                        var variant = new Variant(o.Value);
-                        encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
+                        encoder.WriteVariantValue(null, o.Value);
 
                         var document = new XmlDocument();
                         document.LoadInnerXml(encoder.CloseAndReturnText());
@@ -369,8 +369,7 @@ namespace Opc.Ua.Export
                     if (!o.Value.IsNull)
                     {
                         using XmlEncoder encoder = CreateEncoder(context);
-                        var variant = new Variant(o.Value);
-                        encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
+                        encoder.WriteVariantValue(null, o.Value);
 
                         var document = new XmlDocument();
                         document.LoadInnerXml(encoder.CloseAndReturnText());
@@ -444,12 +443,12 @@ namespace Opc.Ua.Export
             exportedNode.ReleaseStatus = node.ReleaseStatus;
             exportedNode.WriteMask = (uint)node.WriteMask;
             exportedNode.UserWriteMask = (uint)node.UserWriteMask;
-            exportedNode.Extensions = node.Extensions;
+            exportedNode.Extensions = node.Extensions?.Select(x => x.AsXmlElement()).ToArray();
             exportedNode.RolePermissions = null;
             exportedNode.AccessRestrictions = 0;
             exportedNode.AccessRestrictionsSpecified = false;
 
-            if (node.RolePermissions != null)
+            if (!node.RolePermissions.IsNull)
             {
                 var permissions = new List<RolePermission>();
 
@@ -581,7 +580,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Creates an decoder to restore Variant values.
         /// </summary>
-        private XmlDecoder CreateDecoder(ISystemContext context, XmlElement source)
+        private XmlDecoder CreateDecoder(ISystemContext context, System.Xml.XmlElement source)
         {
             IServiceMessageContext messageContext = context.AsMessageContext();
 
@@ -823,11 +822,11 @@ namespace Opc.Ua.Export
             importedNode.ReleaseStatus = node.ReleaseStatus;
             importedNode.WriteMask = (AttributeWriteMask)node.WriteMask;
             importedNode.UserWriteMask = (AttributeWriteMask)node.UserWriteMask;
-            importedNode.Extensions = node.Extensions;
+            importedNode.Extensions = node.Extensions?.Select(x => XmlElement.From(x)).ToArray();
 
             if (node.RolePermissions != null)
             {
-                var permissions = new RolePermissionTypeCollection();
+                var permissions = new List<RolePermissionType>();
 
                 foreach (RolePermission ii in node.RolePermissions)
                 {
@@ -1117,7 +1116,7 @@ namespace Opc.Ua.Export
                 definition.SymbolicName = dataType.SymbolicName;
             }
 
-            if (source.Body is StructureDefinition sd)
+            if (source.TryGetEncodeable(out StructureDefinition sd))
             {
                 if (sd
                     .StructureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
@@ -1125,7 +1124,7 @@ namespace Opc.Ua.Export
                     definition.IsUnion = true;
                 }
 
-                if (sd.Fields != null)
+                if (!sd.Fields.IsNull)
                 {
                     var fields = new List<DataTypeField>();
 
@@ -1168,7 +1167,7 @@ namespace Opc.Ua.Export
 
                         output.ValueRank = field.ValueRank;
 
-                        if (field.ArrayDimensions != null && field.ArrayDimensions.Count != 0)
+                        if (!field.ArrayDimensions.IsEmpty)
                         {
                             if (output.ValueRank > 1 || field.ArrayDimensions[0] > 0)
                             {
@@ -1186,11 +1185,11 @@ namespace Opc.Ua.Export
                 }
             }
 
-            if (source.Body is EnumDefinition ed)
+            if (source.TryGetEncodeable(out EnumDefinition ed))
             {
                 definition.IsOptionSet = ed.IsOptionSet;
 
-                if (ed.Fields != null)
+                if (!ed.Fields.IsNull)
                 {
                     var fields = new List<DataTypeField>();
 
@@ -1319,14 +1318,17 @@ namespace Opc.Ua.Export
                             fields.Add(output);
                         }
 
-                        sd.Fields = fields.ToArray();
+                        sd.Fields = fields;
                     }
 
                     definition = sd;
                 }
                 else
                 {
-                    var ed = new EnumDefinition { IsOptionSet = source.IsOptionSet };
+                    var ed = new EnumDefinition
+                    {
+                        IsOptionSet = source.IsOptionSet
+                    };
 
                     if (source.Field != null)
                     {
@@ -1345,7 +1347,7 @@ namespace Opc.Ua.Export
                             fields.Add(output);
                         }
 
-                        ed.Fields = fields.ToArray();
+                        ed.Fields = fields;
                     }
 
                     definition = ed;
@@ -1379,9 +1381,9 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Exports the array dimensions.
         /// </summary>
-        private static string Export(ReadOnlyList<uint> arrayDimensions)
+        private static string Export(ArrayOf<uint> arrayDimensions)
         {
-            if (arrayDimensions == null)
+            if (arrayDimensions.IsEmpty)
             {
                 return string.Empty;
             }

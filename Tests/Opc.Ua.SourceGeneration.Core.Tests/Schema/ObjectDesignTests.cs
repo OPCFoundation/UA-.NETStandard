@@ -96,7 +96,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hashCode2 = objectDesign2.GetHashCode();
 
             // Assert
-            Assert.That(objectDesign1.Equals(objectDesign2), Is.True, "Objects should be equal");
+            Assert.That(objectDesign1, Is.EqualTo(objectDesign2), "Objects should be equal");
             Assert.That(hashCode1, Is.EqualTo(hashCode2));
         }
 
@@ -185,7 +185,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hashCode = objectDesign.GetHashCode();
 
             // Assert
-            Assert.That(hashCode, Is.Not.EqualTo(0).Or.EqualTo(0), "Hash code should be computed");
+            Assert.That(hashCode, Is.Not.Zero.Or.Zero, "Hash code should be computed");
         }
 
         /// <summary>
@@ -234,7 +234,7 @@ namespace Opc.Ua.Schema.Model.Tests
             int hashCode = objectDesign.GetHashCode();
 
             // Assert
-            Assert.That(hashCode, Is.Not.EqualTo(0).Or.EqualTo(0), "Hash code should be computed for default values");
+            Assert.That(hashCode, Is.Not.Zero.Or.Zero, "Hash code should be computed for default values");
         }
 
         /// <summary>
@@ -261,7 +261,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act & Assert
-            Assert.That(objectDesign1.Equals(objectDesign2), Is.True);
+            Assert.That(objectDesign1, Is.EqualTo(objectDesign2));
             Assert.That(objectDesign1.GetHashCode(), Is.EqualTo(objectDesign2.GetHashCode()));
         }
 
@@ -1001,7 +1001,7 @@ namespace Opc.Ua.Schema.Model.Tests
             }
 
             // Assert
-            Assert.That(hashCodes.Count, Is.EqualTo(4), "All four boolean combinations should produce distinct hash codes");
+            Assert.That(hashCodes, Has.Count.EqualTo(4), "All four boolean combinations should produce distinct hash codes");
         }
     }
 }

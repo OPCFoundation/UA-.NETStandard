@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -37,7 +36,6 @@ using NUnit.Framework;
 using Opc.Ua.Client.Tests;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {
@@ -108,15 +106,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = MaxByteStringLengthForTest;
             ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies
-                .Add(new UserTokenPolicy(UserTokenType.UserName));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.UserName);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.Certificate);
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken
-                });
+                };
 
             ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
@@ -179,9 +177,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     DataEncoding = default
                 };
 
-                var nodesToRead = new ReadValueIdCollection { readValueId };
+                ArrayOf<ReadValueId> nodesToRead = [readValueId];
 
-                ServiceResultException x = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException x = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await theSession.ReadAsync(
                         null,
                         0,
@@ -189,34 +187,36 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         nodesToRead,
                         default).ConfigureAwait(false));
 
-                Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, x.StatusCode);
+                Assert.That(x.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
 
                 // now ensure we get the dictionary in chunks
                 DataDictionary dictionary = await LoadDataDictionaryAsync(
                     theSession,
                     referenceDescription).ConfigureAwait(false);
-                Assert.IsNotNull(dictionary);
+                Assert.That(dictionary, Is.Not.Null);
 
                 // Sanity checks: verify that some well-known information is present
-                Assert.AreEqual(dictionary.TypeSystemName, "OPC Binary");
+                Assert.That(dictionary.TypeSystemName, Is.EqualTo("OPC Binary"));
 
                 if (dataDictionaryId == dictionaryIds[0])
                 {
-                    Assert.IsTrue(dictionary.DataTypes.Count > 160);
-                    Assert.IsTrue(
-                        dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_Union));
-                    Assert.IsTrue(
-                        dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_OptionSet));
-                    Assert.AreEqual(
-                        "http://opcfoundation.org/UA/",
-                        dictionary.TypeDictionary.TargetNamespace);
+                    Assert.That(dictionary.DataTypes.Count, Is.GreaterThan(160));
+                    Assert.That(
+                        dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_Union),
+                        Is.True);
+                    Assert.That(
+                        dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_OptionSet),
+                        Is.True);
+                    Assert.That(
+                        dictionary.TypeDictionary.TargetNamespace,
+                        Is.EqualTo("http://opcfoundation.org/UA/"));
                 }
                 else if (dataDictionaryId == dictionaryIds[1])
                 {
-                    Assert.IsTrue(dictionary.DataTypes.Count >= 10);
-                    Assert.AreEqual(
-                        "http://test.org/UA/Data/",
-                        dictionary.TypeDictionary.TargetNamespace);
+                    Assert.That(dictionary.DataTypes.Count >= 10, Is.True);
+                    Assert.That(
+                        dictionary.TypeDictionary.TargetNamespace,
+                        Is.EqualTo("http://test.org/UA/Data/"));
                 }
             }
         }
@@ -224,7 +224,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// <summary>
         /// Load the data dictionary from the server.
         /// </summary>
-        public Task<DataDictionary> LoadDataDictionaryAsync(
+        private Task<DataDictionary> LoadDataDictionaryAsync(
             ISession session,
             ReferenceDescription dictionaryNode,
             CancellationToken ct = default)
@@ -245,7 +245,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// hard coded identifiers
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        public async Task<NodeId> GetTestDataDictionaryNodeIdAsync(CancellationToken ct = default)
+        private async Task<NodeId> GetTestDataDictionaryNodeIdAsync(CancellationToken ct = default)
         {
             var browseDescription = new BrowseDescription
             {
@@ -256,9 +256,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 NodeClassMask = (uint)NodeClass.Variable,
                 ResultMask = (uint)BrowseResultMask.All
             };
-            var browseDescriptions = new BrowseDescriptionCollection { browseDescription };
+            ArrayOf<BrowseDescription> browseDescriptions = [browseDescription];
 
-            Assert.NotNull(Session, "Client not connected to Server.");
+            Assert.That(Session, Is.Not.Null, "Client not connected to Server.");
             BrowseResponse response = await Session.BrowseAsync(
                 null,
                 null,
@@ -266,15 +266,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 browseDescriptions,
                 ct).ConfigureAwait(false);
 
-            BrowseResultCollection results = response.Results;
-            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            ArrayOf<BrowseResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
             if (results[0] == null || results[0].StatusCode != StatusCodes.Good)
             {
                 throw new InvalidOperationException("cannot read the id of the test dictionary");
             }
             ReferenceDescription referenceDescription = results[0]
-                .References.FirstOrDefault(a => a.BrowseName.Name == "TestData");
+                .References.Find(a => a.BrowseName.Name == "TestData");
+            Assert.That(referenceDescription, Is.Not.Null, "cannot find the test dictionary node");
             return ExpandedNodeId.ToNodeId(referenceDescription.NodeId, Session.NamespaceUris);
         }
     }

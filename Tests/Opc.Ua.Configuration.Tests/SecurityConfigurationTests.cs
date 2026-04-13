@@ -32,7 +32,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -70,7 +69,7 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task LoadingConfigurationWithApplicationCertificateShouldMarkItDeprecatedAsync()
+        public void LoadingConfigurationWithApplicationCertificateShouldMarkItDeprecated()
         {
             string file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testlegacyconfig.xml");
 
@@ -85,7 +84,7 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task LoadingConfigurationWithApplicationCertificateAndApplicationCertificatesShouldNotMarkItDeprecatedAsync()
+        public void LoadingConfigurationWithApplicationCertificateAndApplicationCertificatesShouldNotMarkItDeprecated()
         {
             string file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testhybridconfig.xml");
 
@@ -337,7 +336,7 @@ namespace Opc.Ua.Configuration.Tests
                 document.Descendants(XName.Get("ApplicationCertificates", Namespaces.OpcUaConfig)).Any(),
                 Is.True,
                 "Hybrid configurations should serialize the modern ApplicationCertificates element.");
-            Assert.That(roundTripped.SecurityConfiguration.ApplicationCertificates.Count, Is.EqualTo(1));
+            Assert.That(roundTripped.SecurityConfiguration.ApplicationCertificates, Has.Count.EqualTo(1));
         }
 
         private static IEnumerable<TestCaseData> GetInvalidConfigurations()

@@ -36,7 +36,7 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
@@ -67,6 +67,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public const ushort NamespaceIndexAllTypes = 3;
         public const ushort NamespaceIndexMassTest = 4;
 
+        [OneTimeTearDown]
+        public void MyTestTearDown()
+        {
+            m_publisherApplication?.Dispose();
+            m_subscriberApplication?.Dispose();
+        }
+
         [OneTimeSetUp]
         public void MyTestInitialize()
         {
@@ -78,33 +85,34 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             m_telemetry = NUnitTelemetryContext.Create();
             m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile, m_telemetry);
-            Assert.IsNotNull(m_publisherApplication, "m_publisherApplication shall not be null");
+            Assert.That(m_publisherApplication, Is.Not.Null, "m_publisherApplication shall not be null");
 
             // Get the publisher configuration
             m_publisherConfiguration = m_publisherApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
-            Assert.IsNotNull(
+            Assert.That(
                 m_publisherConfiguration,
+                Is.Not.Null,
                 "m_publisherConfiguration should not be null");
 
-            //Get first connection
-            Assert.IsNotNull(
-                m_publisherConfiguration.Connections,
-                "m_publisherConfiguration.Connections should not be null");
-            Assert.IsNotEmpty(
-                m_publisherConfiguration.Connections,
+            // Get first connection
+            Assert.That(
+                m_publisherConfiguration.Connections.IsEmpty,
+                Is.False,
                 "m_publisherConfiguration.Connections should not be empty");
             m_firstPublisherConnection = m_publisherApplication.PubSubConnections[0];
-            Assert.IsNotNull(
+            Assert.That(
                 m_firstPublisherConnection,
+                Is.Not.Null,
                 "m_firstPublisherConnection should not be null");
 
             // Read the first writer group
-            Assert.IsNotEmpty(
-                m_publisherConfiguration.Connections[0].WriterGroups,
+            Assert.That(
+                m_publisherConfiguration.Connections[0].WriterGroups.IsEmpty,
+                Is.False,
                 "pubSubConfigConnection.WriterGroups should not be empty");
             m_firstWriterGroup = m_publisherConfiguration.Connections[0].WriterGroups[0];
-            Assert.IsNotNull(m_firstWriterGroup, "m_firstWriterGroup should not be null");
+            Assert.That(m_firstWriterGroup, Is.Not.Null, "m_firstWriterGroup should not be null");
 
             // Create a subscriber application
             string subscriberConfigurationFile = Utils.GetAbsoluteFilePath(
@@ -112,21 +120,37 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 checkCurrentDirectory: true,
                 createAlways: false);
             m_subscriberApplication = UaPubSubApplication.Create(subscriberConfigurationFile, m_telemetry);
-            Assert.IsNotNull(m_subscriberApplication, "m_subscriberApplication should not be null");
+            Assert.That(m_subscriberApplication, Is.Not.Null, "m_subscriberApplication should not be null");
 
             // Get the subscriber configuration
             m_subscriberConfiguration = m_subscriberApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
-            Assert.IsNotNull(
+            Assert.That(
                 m_subscriberConfiguration,
+                Is.Not.Null,
                 "m_subscriberConfiguration should not be null");
 
             // Get first reader group
             m_firstReaderGroup = m_subscriberConfiguration.Connections[0].ReaderGroups[0];
-            Assert.IsNotNull(m_firstWriterGroup, "m_firstReaderGroup should not be null");
+            Assert.That(m_firstWriterGroup, Is.Not.Null, "m_firstReaderGroup should not be null");
 
             m_firstDataSetReadersType = GetFirstDataSetReaders();
         }
+
+        private static readonly Variant[] s_validPublisherIds =
+        [
+            Variant.From((byte)10),
+            Variant.From((ushort)10),
+            Variant.From((uint)10),
+            Variant.From((ulong)10),
+            Variant.From((sbyte)10),
+            Variant.From((short)10),
+            Variant.From((int)10),
+            Variant.From((long)10),
+            Variant.From("abc"),
+            Variant.From("Test$!#$%^&*87"),
+            Variant.From("Begrüßung")
+        ];
 
         [Test(Description = "Validate PublisherId with supported data types")]
         public void ValidatePublisherId(
@@ -167,14 +191,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values(
-                (byte)10,
-                (ushort)10,
-                (uint)10,
-                (ulong)10,
-                "abc",
-                "Test$!#$%^&*87",
-                "Begrüßung")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))]
+                Variant publisherId)
         {
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
@@ -189,6 +207,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
             CompareEncodeDecode(uaNetworkMessage, logger);
         }
+
+        private static readonly Variant[] s_invalidPublisherIds =
+        [
+            Variant.From((float)10),
+            Variant.From((double)10),
+            Variant.From(ByteString.From(10, 20))
+        ];
 
         [Test(Description = "Invalidate PublisherId with wrong data type")]
         public void InvalidatePublisherId(
@@ -229,7 +254,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((float)10, (double)10)] object publisherId)
+            [ValueSource(nameof(s_invalidPublisherIds))]
+                Variant publisherId)
         {
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
@@ -748,7 +774,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private void LoadData()
         {
-            Assert.IsNotNull(m_publisherApplication, "m_publisherApplication should not be null");
+            Assert.That(m_publisherApplication, Is.Not.Null, "m_publisherApplication should not be null");
 
             // DataSet 'Simple' fill with data
             var booleanValue = new DataValue(new Variant(true));
@@ -836,12 +862,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private List<DataSetReaderDataType> GetFirstDataSetReaders()
         {
             // Read the first configured ReaderGroup
-            Assert.IsNotNull(m_firstReaderGroup, "m_firstReaderGroup should not be null");
-            Assert.IsNotEmpty(
-                m_firstReaderGroup.DataSetReaders,
+            Assert.That(m_firstReaderGroup, Is.Not.Null, "m_firstReaderGroup should not be null");
+            Assert.That(
+                m_firstReaderGroup.DataSetReaders.IsEmpty,
+                Is.False,
                 "m_firstReaderGroup.DataSetReaders should not be empty");
 
-            return m_firstReaderGroup.DataSetReaders;
+            return m_firstReaderGroup.DataSetReaders.ToList();
         }
 
         /// <summary>
@@ -867,17 +894,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new WriterGroupPublishState());
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
-            Assert.IsNotNull(
+            Assert.That(
                 networkMessages,
+                Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
-            Assert.AreEqual(
-                1,
+            Assert.That(
                 networkMessages.Count,
+                Is.EqualTo(1),
                 "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
-            Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
+            Assert.That(uaNetworkMessage, Is.Not.Null, "networkMessageEncode should not be null");
 
             return uaNetworkMessage;
         }
@@ -938,9 +966,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 UadpNetworkMessageContentMask.PublisherId)
             {
                 // special case for valid PublisherId type only
-                Assert.AreNotEqual(
-                    uadpNetworkMessageEncode.PublisherId,
+                Assert.That(
                     uadpNetworkMessageDecoded.PublisherId,
+                    Is.Not.EqualTo(uadpNetworkMessageEncode.PublisherId),
                     "PublisherId was not decoded correctly");
             }
         }
@@ -963,24 +991,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             // Verify flags
-            Assert.AreEqual(
-                uadpNetworkMessageEncode.UADPFlags,
+            Assert.That(
                 uadpNetworkMessageDecoded.UADPFlags,
+                Is.EqualTo(uadpNetworkMessageEncode.UADPFlags),
                 "UADPFlags were not decoded correctly");
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.PublisherId) != 0)
             {
-                Assert.AreEqual(
-                    uadpNetworkMessageEncode.PublisherId,
+                Assert.That(
                     uadpNetworkMessageDecoded.PublisherId,
+                    Is.EqualTo(uadpNetworkMessageEncode.PublisherId),
                     "PublisherId was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.DataSetClassId) != 0)
             {
-                Assert.AreEqual(
-                    uadpNetworkMessageEncode.DataSetClassId,
+                Assert.That(
                     uadpNetworkMessageDecoded.DataSetClassId,
+                    Is.EqualTo(uadpNetworkMessageEncode.DataSetClassId),
                     "DataSetClassId was not decoded correctly");
             }
 
@@ -994,51 +1022,51 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         UadpNetworkMessageContentMask.SequenceNumber)
                 ) != 0)
             {
-                Assert.AreEqual(
-                    uadpNetworkMessageEncode.GroupFlags,
+                Assert.That(
                     uadpNetworkMessageDecoded.GroupFlags,
+                    Is.EqualTo(uadpNetworkMessageEncode.GroupFlags),
                     "GroupFlags was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.WriterGroupId) != 0)
             {
-                Assert.AreEqual(
-                    uadpNetworkMessageEncode.WriterGroupId,
+                Assert.That(
                     uadpNetworkMessageDecoded.WriterGroupId,
+                    Is.EqualTo(uadpNetworkMessageEncode.WriterGroupId),
                     "WriterGroupId was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.GroupVersion) != 0)
             {
-                Assert.AreEqual(
-                    uadpNetworkMessageEncode.GroupVersion,
+                Assert.That(
                     uadpNetworkMessageDecoded.GroupVersion,
+                    Is.EqualTo(uadpNetworkMessageEncode.GroupVersion),
                     "GroupVersion was not decoded correctly");
             }
 
             if ((networkMessageContentMask &
                 UadpNetworkMessageContentMask.NetworkMessageNumber) != 0)
             {
-                Assert.AreEqual(
-                    uadpNetworkMessageEncode.NetworkMessageNumber,
+                Assert.That(
                     uadpNetworkMessageDecoded.NetworkMessageNumber,
+                    Is.EqualTo(uadpNetworkMessageEncode.NetworkMessageNumber),
                     "NetworkMessageNumber was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.SequenceNumber) != 0)
             {
-                Assert.AreEqual(
-                    uadpNetworkMessageEncode.SequenceNumber,
+                Assert.That(
                     uadpNetworkMessageDecoded.SequenceNumber,
+                    Is.EqualTo(uadpNetworkMessageEncode.SequenceNumber),
                     "SequenceNumber was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
             {
                 // check the number of UadpDataSetMessage counts
-                Assert.AreEqual(
-                    uadpNetworkMessageEncode.DataSetMessages.Count,
+                Assert.That(
                     uadpNetworkMessageDecoded.DataSetMessages.Count,
+                    Is.EqualTo(uadpNetworkMessageEncode.DataSetMessages.Count),
                     "UadpDataSetMessages.Count was not decoded correctly");
 
                 // check if the encoded match the decoded DataSetWriterId's
@@ -1053,31 +1081,29 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             decoded.DataSetWriterId == uadpDataSetMessage.DataSetWriterId
                         ) as UadpDataSetMessage;
 
-                    Assert.IsNotNull(
+                    Assert.That(
                         uadpDataSetMessageDecoded,
-                        "Decoded message did not found uadpDataSetMessage.DataSetWriterId = {0}",
-                        uadpDataSetMessage.DataSetWriterId);
+                        Is.Not.Null,
+                        $"Decoded message did not found uadpDataSetMessage.DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
 
                     // check payload data size in bytes
-                    Assert.AreEqual(
-                        uadpDataSetMessage.PayloadSizeInStream,
+                    Assert.That(
                         uadpDataSetMessageDecoded.PayloadSizeInStream,
-                        "PayloadSizeInStream was not decoded correctly, DataSetWriterId = {0}",
-                        uadpDataSetMessage.DataSetWriterId);
+                        Is.EqualTo(uadpDataSetMessage.PayloadSizeInStream),
+                        $"PayloadSizeInStream was not decoded correctly, DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
 
                     // check payload data fields count
                     // get related dataset from subscriber DataSets
                     DataSet decodedDataSet = uadpDataSetMessageDecoded.DataSet;
-                    Assert.IsNotNull(
+                    Assert.That(
                         decodedDataSet,
-                        "DataSet '{0}' is missing from subscriber datasets!",
-                        uadpDataSetMessage.DataSet.Name);
+                        Is.Not.Null,
+                        $"DataSet '{uadpDataSetMessage.DataSet.Name}' is missing from subscriber datasets!");
 
-                    Assert.AreEqual(
-                        uadpDataSetMessage.DataSet.Fields.Length,
+                    Assert.That(
                         decodedDataSet.Fields.Length,
-                        "DataSet.Fields.Length was not decoded correctly, DataSetWriterId = {0}",
-                        uadpDataSetMessage.DataSetWriterId);
+                        Is.EqualTo(uadpDataSetMessage.DataSet.Fields.Length),
+                        $"DataSet.Fields.Length was not decoded correctly, DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
 
                     // check the fields data consistency
                     // at this time the DataSetField has just value!?
@@ -1085,48 +1111,48 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     {
                         Field fieldEncoded = uadpDataSetMessage.DataSet.Fields[index];
                         Field fieldDecoded = decodedDataSet.Fields[index];
-                        Assert.IsNotNull(
+                        Assert.That(
                             fieldEncoded,
-                            "uadpDataSetMessage.DataSet.Fields[{0}] is null,  DataSetWriterId = {1}",
-                            index,
-                            uadpDataSetMessage.DataSetWriterId);
-                        Assert.IsNotNull(
+                            Is.Not.Null,
+                            $"uadpDataSetMessage.DataSet.Fields[{index}] is null,  DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
+                        Assert.That(
                             fieldDecoded,
-                            "uadpDataSetMessageDecoded.DataSet.Fields[{0}] is null,  DataSetWriterId = {1}",
-                            index,
-                            uadpDataSetMessage.DataSetWriterId);
+                            Is.Not.Null,
+                            $"uadpDataSetMessageDecoded.DataSet.Fields[{index}] is null,  DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
 
                         DataValue dataValueEncoded = fieldEncoded.Value;
                         DataValue dataValueDecoded = fieldDecoded.Value;
-                        Assert.IsNotNull(
+                        Assert.That(
                             fieldEncoded.Value,
-                            "uadpDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
-                            index,
-                            uadpDataSetMessage.DataSetWriterId);
-                        Assert.IsNotNull(
+                            Is.Not.Null,
+                            $"uadpDataSetMessage.DataSet.Fields[{index}].Value is null,  DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
+                        Assert.That(
                             fieldDecoded.Value,
-                            "uadpDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
-                            index,
-                            uadpDataSetMessage.DataSetWriterId);
+                            Is.Not.Null,
+                            $"uadpDataSetMessageDecoded.DataSet.Fields[{index}].Value is null,  DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
 
                         // check dataValues values
-                        Assert.IsNotNull(
+#pragma warning disable CS0618 // Type or member is obsolete
+                        Assert.That(
                             fieldEncoded.Value.Value,
-                            "uadpDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
-                            index,
-                            uadpDataSetMessage.DataSetWriterId);
-                        Assert.IsNotNull(
+                            Is.Not.Null,
+                            $"uadpDataSetMessage.DataSet.Fields[{index}].Value is null,  DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+                        Assert.That(
                             fieldDecoded.Value.Value,
-                            "uadpDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
-                            index,
-                            uadpDataSetMessage.DataSetWriterId);
+                            Is.Not.Null,
+                            $"uadpDataSetMessageDecoded.DataSet.Fields[{index}].Value is null,  DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
+#pragma warning restore CS0618 // Type or member is obsolete
 
-                        Assert.AreEqual(
-                            dataValueEncoded.Value,
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+                        Assert.That(
                             dataValueDecoded.Value,
-                            "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}",
-                            index,
-                            uadpDataSetMessage.DataSetWriterId);
+                            Is.EqualTo(dataValueEncoded.Value),
+                            $"Wrong: Fields[{index}].DataValue.Value; DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
 
                         // Checks just for DataValue type only
                         if ((uadpDataSetMessage.FieldContentMask &
@@ -1134,12 +1160,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             DataSetFieldContentMask.StatusCode)
                         {
                             // check dataValues StatusCode
-                            Assert.AreEqual(
-                                dataValueEncoded.StatusCode,
+                            Assert.That(
                                 dataValueDecoded.StatusCode,
-                                "Wrong: Fields[{0}].DataValue.StatusCode; DataSetWriterId = {1}",
-                                index,
-                                uadpDataSetMessage.DataSetWriterId);
+                                Is.EqualTo(dataValueEncoded.StatusCode),
+                                $"Wrong: Fields[{index}].DataValue.StatusCode; DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
                         }
 
                         // check dataValues SourceTimestamp
@@ -1147,12 +1171,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             DataSetFieldContentMask.SourceTimestamp) ==
                             DataSetFieldContentMask.SourceTimestamp)
                         {
-                            Assert.AreEqual(
-                                dataValueEncoded.SourceTimestamp,
+                            Assert.That(
                                 dataValueDecoded.SourceTimestamp,
-                                "Wrong: Fields[{0}].DataValue.SourceTimestamp; DataSetWriterId = {1}",
-                                index,
-                                uadpDataSetMessage.DataSetWriterId);
+                                Is.EqualTo(dataValueEncoded.SourceTimestamp),
+                                $"Wrong: Fields[{index}].DataValue.SourceTimestamp; DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
                         }
 
                         // check dataValues ServerTimestamp
@@ -1161,12 +1183,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             DataSetFieldContentMask.ServerTimestamp)
                         {
                             // check dataValues ServerTimestamp
-                            Assert.AreEqual(
-                                dataValueEncoded.ServerTimestamp,
+                            Assert.That(
                                 dataValueDecoded.ServerTimestamp,
-                                "Wrong: Fields[{0}].DataValue.ServerTimestamp; DataSetWriterId = {1}",
-                                index,
-                                uadpDataSetMessage.DataSetWriterId);
+                                Is.EqualTo(dataValueEncoded.ServerTimestamp),
+                                $"Wrong: Fields[{index}].DataValue.ServerTimestamp; DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
                         }
 
                         // check dataValues SourcePicoseconds
@@ -1174,12 +1194,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             DataSetFieldContentMask.SourcePicoSeconds) ==
                             DataSetFieldContentMask.SourcePicoSeconds)
                         {
-                            Assert.AreEqual(
-                                dataValueEncoded.SourcePicoseconds,
+                            Assert.That(
                                 dataValueDecoded.SourcePicoseconds,
-                                "Wrong: Fields[{0}].DataValue.SourcePicoseconds; DataSetWriterId = {1}",
-                                index,
-                                uadpDataSetMessage.DataSetWriterId);
+                                Is.EqualTo(dataValueEncoded.SourcePicoseconds),
+                                $"Wrong: Fields[{index}].DataValue.SourcePicoseconds; DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
                         }
 
                         // check dataValues ServerPicoSeconds
@@ -1188,12 +1206,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             DataSetFieldContentMask.ServerPicoSeconds)
                         {
                             // check dataValues ServerPicoseconds
-                            Assert.AreEqual(
-                                dataValueEncoded.ServerPicoseconds,
+                            Assert.That(
                                 dataValueDecoded.ServerPicoseconds,
-                                "Wrong: Fields[{0}].DataValue.ServerPicoseconds; DataSetWriterId = {1}",
-                                index,
-                                uadpDataSetMessage.DataSetWriterId);
+                                Is.EqualTo(dataValueEncoded.ServerPicoseconds),
+                                $"Wrong: Fields[{index}].DataValue.ServerPicoseconds; DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
                         }
                     }
                 }
@@ -1201,17 +1217,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.Timestamp) != 0)
             {
-                Assert.AreEqual(
-                    uadpNetworkMessageEncode.Timestamp,
+                Assert.That(
                     uadpNetworkMessageDecoded.Timestamp,
+                    Is.EqualTo(uadpNetworkMessageEncode.Timestamp),
                     "Timestamp was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.PicoSeconds) != 0)
             {
-                Assert.AreEqual(
-                    uadpNetworkMessageEncode.PicoSeconds,
+                Assert.That(
                     uadpNetworkMessageDecoded.PicoSeconds,
+                    Is.EqualTo(uadpNetworkMessageEncode.PicoSeconds),
                     "PicoSeconds was not decoded correctly");
             }
         }

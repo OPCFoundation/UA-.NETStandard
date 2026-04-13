@@ -76,7 +76,7 @@ namespace Opc.Ua.Server
 
                 foreach (OperationContext operation in operations)
                 {
-                    operation.SetStatusCode(StatusCodes.BadSessionClosed);
+                    operation.RequestLifetime.TryCancel(StatusCodes.BadSessionClosed);
                 }
 
                 Utils.SilentDispose(m_requestTimer);
@@ -143,6 +143,7 @@ namespace Opc.Ua.Server
                 // remove the request.
                 m_requests.Remove(context.RequestId);
             }
+            context.RequestLifetime?.MarkCompleted();
         }
 
         /// <summary>
@@ -159,7 +160,7 @@ namespace Opc.Ua.Server
                 {
                     if (request.ClientHandle == requestHandle)
                     {
-                        request.SetStatusCode(StatusCodes.BadRequestCancelledByRequest);
+                        request.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByRequest);
                         cancelledRequests.Add(request.RequestId);
 
                         // report the AuditCancelEventType
@@ -215,7 +216,7 @@ namespace Opc.Ua.Server
                 {
                     if (request.OperationDeadline < DateTime.UtcNow)
                     {
-                        request.SetStatusCode(StatusCodes.BadTimeout);
+                        request.RequestLifetime.TryCancel(StatusCodes.BadTimeout);
                         expiredRequests.Add(request.RequestId);
                     }
                     else if (request.OperationDeadline < DateTime.MaxValue)

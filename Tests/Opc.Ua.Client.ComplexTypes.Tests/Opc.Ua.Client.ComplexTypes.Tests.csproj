@@ -9,6 +9,10 @@
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit.Console" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="NUnit3TestAdapter">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
@@ -22,10 +26,7 @@
     <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <Compile
-      Include="..\..\Applications\ConsoleReferenceClient\ClientSamples.cs"
-      Link="Links\ClientSamples.cs"
-    />
+    <Compile Include="..\..\Applications\ConsoleReferenceClient\ClientSamples.cs" Link="Links\ClientSamples.cs" />
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>

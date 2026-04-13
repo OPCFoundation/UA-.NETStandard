@@ -103,7 +103,7 @@ namespace TestData
                     switch (dataType)
                     {
                         case BuiltInType.Int32:
-                            entry.Value.Value = ii;
+                            entry.Value.WrappedValue = ii;
                             break;
                     }
 
@@ -147,8 +147,8 @@ namespace TestData
                         switch (record.DataType)
                         {
                             case BuiltInType.Int32:
-                                int lastValue = (int)record.RawData[^1].Value.Value;
-                                entry.Value.Value = lastValue + 1;
+                                int lastValue = (int)record.RawData[^1].Value.WrappedValue;
+                                entry.Value.WrappedValue = lastValue + 1;
                                 break;
                         }
 

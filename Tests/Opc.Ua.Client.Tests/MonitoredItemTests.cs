@@ -65,8 +65,8 @@ namespace Opc.Ua.Client.Tests
 
             IList<DataValue> result = monitoredItem.DequeueValues();
 
-            Assert.That(result.Count, Is.EqualTo(1));
-            Assert.That(result[0].Value, Is.EqualTo(200));
+            Assert.That(result, Has.Count.EqualTo(1));
+            Assert.That((int)result[0].WrappedValue, Is.EqualTo(200));
         }
 
         [Test]
@@ -90,8 +90,8 @@ namespace Opc.Ua.Client.Tests
 
             IList<DataValue> result = monitoredItem.DequeueValues();
 
-            Assert.That(result.Count, Is.EqualTo(expectedValues.Count));
-            Assert.That(result.Select(x => x.Value), Is.EquivalentTo(expectedValues));
+            Assert.That(result, Has.Count.EqualTo(expectedValues.Count));
+            Assert.That(result.Select(x => (int)x.WrappedValue), Is.EquivalentTo(expectedValues));
 
             // Ensure the cache is empty after dequeue
             IList<DataValue> emptyResult = monitoredItem.DequeueValues();
@@ -120,8 +120,8 @@ namespace Opc.Ua.Client.Tests
 
             IList<DataValue> result = monitoredItem.DequeueValues();
 
-            Assert.That(result.Count, Is.EqualTo(kQueueSize));
-            Assert.That(result.Select(x => x.Value), Is.EquivalentTo(values.Skip(2)));
+            Assert.That(result, Has.Count.EqualTo(kQueueSize));
+            Assert.That(result.Select(x => (int)x.WrappedValue), Is.EquivalentTo(values.Skip(2)));
         }
 
         [Test]

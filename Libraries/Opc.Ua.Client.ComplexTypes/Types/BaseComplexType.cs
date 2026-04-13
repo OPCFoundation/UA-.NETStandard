@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -100,7 +99,7 @@ namespace Opc.Ua.Client.ComplexTypes
             // clone all properties of derived class
             foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
-                property.SetValue(clone, Utils.Clone(property.GetValue(this)));
+                property.SetValue(clone, property.GetValue(this));
             }
 
             return clone;
@@ -165,7 +164,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
-                if (!Utils.IsEqual(property.GetValue(this), property.GetValue(valueBaseType)))
+                if (property.GetValue(this) != property.GetValue(valueBaseType))
                 {
                     return false;
                 }
@@ -198,10 +197,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
                     AppendPropertyValue(
-                        formatProvider,
                         body,
-                        property.GetValue(this),
-                        property.ValueRank);
+                        property.GetValue(this));
                 }
 
                 if (body.Length > 0)
@@ -239,14 +236,14 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public virtual object this[int index]
+        public virtual Variant this[int index]
         {
             get => m_propertyList[index].GetValue(this);
             set => m_propertyList[index].SetValue(this, value);
         }
 
         /// <inheritdoc/>
-        public virtual object this[string name]
+        public virtual Variant this[string name]
         {
             get => m_propertyDict[name].GetValue(this);
             set => m_propertyDict[name].SetValue(this, value);
@@ -274,135 +271,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Append a property to the value string.
         /// Handle arrays and enumerations.
         /// </summary>
-        protected void AppendPropertyValue(
-            IFormatProvider formatProvider,
-            StringBuilder body,
-            object value,
-            int valueRank)
+        protected void AppendPropertyValue(StringBuilder body, Variant value)
         {
-            _ = AddSeparator(body);
-            if (valueRank >= 0 && value is Array array)
-            {
-                int rank = array.Rank;
-                int[] dimensions = new int[rank];
-                int[] mods = new int[rank];
-                for (int ii = 0; ii < rank; ii++)
-                {
-                    dimensions[ii] = array.GetLength(ii);
-                }
-
-                for (int ii = rank - 1; ii >= 0; ii--)
-                {
-                    mods[ii] = dimensions[ii];
-                    if (ii < rank - 1)
-                    {
-                        mods[ii] *= mods[ii + 1];
-                    }
-                }
-
-                int count = 0;
-                foreach (object item in array)
-                {
-                    bool needSeparator = true;
-                    for (int dc = 0; dc < rank; dc++)
-                    {
-                        if ((count % mods[dc]) == 0)
-                        {
-                            _ = body.Append('[');
-                            needSeparator = false;
-                        }
-                    }
-                    if (needSeparator)
-                    {
-                        _ = body.Append(',');
-                    }
-                    AppendPropertyValue(formatProvider, body, item);
-                    count++;
-                    needSeparator = false;
-                    for (int dc = 0; dc < rank; dc++)
-                    {
-                        if ((count % mods[dc]) == 0)
-                        {
-                            _ = body.Append(']');
-                            needSeparator = true;
-                        }
-                    }
-                    if (needSeparator && count < array.Length)
-                    {
-                        _ = body.Append(',');
-                    }
-                }
-            }
-            else if (valueRank >= 0 && value is IEnumerable enumerable)
-            {
-                bool first = true;
-                _ = body.Append('[');
-                foreach (object item in enumerable)
-                {
-                    if (!first)
-                    {
-                        _ = body.Append(',');
-                    }
-                    AppendPropertyValue(formatProvider, body, item);
-                    first = false;
-                }
-                _ = body.Append(']');
-            }
-            else
-            {
-                AppendPropertyValue(formatProvider, body, value);
-            }
-        }
-
-        /// <summary>
-        /// Append a property to the value string.
-        /// </summary>
-        private static void AppendPropertyValue(
-            IFormatProvider formatProvider,
-            StringBuilder body,
-            object value)
-        {
-            if (value is byte[] x)
-            {
-                _ = body.AppendFormat(formatProvider, "Byte[{0}]", x.Length);
-                return;
-            }
-
-            if (value is XmlElement xmlElements)
-            {
-                _ = body.AppendFormat(formatProvider, "<{0}>", xmlElements.Name);
-                return;
-            }
-
-            _ = body.AppendFormat(formatProvider, "{0}", value);
-        }
-
-        /// <summary>
-        /// Encode a property based on the property type and value rank.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        protected void EncodeProperty(
-            IEncoder encoder,
-            string name,
-            ComplexTypePropertyInfo property)
-        {
-            int valueRank = property.ValueRank;
-            BuiltInType builtInType = property.BuiltInType;
-            if (valueRank == ValueRanks.Scalar)
-            {
-                EncodeProperty(encoder, name, property.PropertyInfo, builtInType);
-            }
-            else if (valueRank >= ValueRanks.OneDimension)
-            {
-                EncodePropertyArray(encoder, name, property.PropertyInfo, builtInType, valueRank);
-            }
-            else
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingError,
-                    "Cannot encode a property with unsupported ValueRank {0}.",
-                    valueRank);
-            }
+            AddSeparator(body).Append(value);
         }
 
         /// <summary>
@@ -414,148 +285,58 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// Encode a scalar property based on the property type.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private void EncodeProperty(
-            IEncoder encoder,
-            string name,
-            PropertyInfo property,
-            BuiltInType builtInType)
-        {
-            Type propertyType = property.PropertyType;
-            if (propertyType.IsEnum)
-            {
-                builtInType = BuiltInType.Enumeration;
-            }
-            switch (builtInType)
-            {
-                case BuiltInType.Boolean:
-                    encoder.WriteBoolean(name, (bool)property.GetValue(this));
-                    break;
-                case BuiltInType.SByte:
-                    encoder.WriteSByte(name, (sbyte)property.GetValue(this));
-                    break;
-                case BuiltInType.Byte:
-                    encoder.WriteByte(name, (byte)property.GetValue(this));
-                    break;
-                case BuiltInType.Int16:
-                    encoder.WriteInt16(name, (short)property.GetValue(this));
-                    break;
-                case BuiltInType.UInt16:
-                    encoder.WriteUInt16(name, (ushort)property.GetValue(this));
-                    break;
-                case BuiltInType.Int32:
-                    encoder.WriteInt32(name, (int)property.GetValue(this));
-                    break;
-                case BuiltInType.UInt32:
-                    encoder.WriteUInt32(name, (uint)property.GetValue(this));
-                    break;
-                case BuiltInType.Int64:
-                    encoder.WriteInt64(name, (long)property.GetValue(this));
-                    break;
-                case BuiltInType.UInt64:
-                    encoder.WriteUInt64(name, (ulong)property.GetValue(this));
-                    break;
-                case BuiltInType.Float:
-                    encoder.WriteFloat(name, (float)property.GetValue(this));
-                    break;
-                case BuiltInType.Double:
-                    encoder.WriteDouble(name, (double)property.GetValue(this));
-                    break;
-                case BuiltInType.String:
-                    encoder.WriteString(name, (string)property.GetValue(this));
-                    break;
-                case BuiltInType.DateTime:
-                    encoder.WriteDateTime(name, (DateTime)property.GetValue(this));
-                    break;
-                case BuiltInType.Guid:
-                    encoder.WriteGuid(name, (Uuid)property.GetValue(this));
-                    break;
-                case BuiltInType.ByteString:
-                    encoder.WriteByteString(name, (byte[])property.GetValue(this));
-                    break;
-                case BuiltInType.XmlElement:
-                    encoder.WriteXmlElement(name, (XmlElement)property.GetValue(this));
-                    break;
-                case BuiltInType.NodeId:
-                    encoder.WriteNodeId(name, (NodeId)property.GetValue(this));
-                    break;
-                case BuiltInType.ExpandedNodeId:
-                    encoder.WriteExpandedNodeId(name, (ExpandedNodeId)property.GetValue(this));
-                    break;
-                case BuiltInType.StatusCode:
-                    encoder.WriteStatusCode(name, (StatusCode)property.GetValue(this));
-                    break;
-                case BuiltInType.DiagnosticInfo:
-                    encoder.WriteDiagnosticInfo(name, (DiagnosticInfo)property.GetValue(this));
-                    break;
-                case BuiltInType.QualifiedName:
-                    encoder.WriteQualifiedName(name, (QualifiedName)property.GetValue(this));
-                    break;
-                case BuiltInType.LocalizedText:
-                    encoder.WriteLocalizedText(name, (LocalizedText)property.GetValue(this));
-                    break;
-                case BuiltInType.DataValue:
-                    encoder.WriteDataValue(name, (DataValue)property.GetValue(this));
-                    break;
-                case BuiltInType.Variant:
-                    encoder.WriteVariant(name, (Variant)property.GetValue(this));
-                    break;
-                case BuiltInType.ExtensionObject:
-                    encoder.WriteExtensionObject(name, (ExtensionObject)property.GetValue(this));
-                    break;
-                case BuiltInType.Enumeration:
-                    if (propertyType.IsEnum)
-                    {
-                        encoder.WriteEnumerated(name, (Enum)property.GetValue(this));
-                        break;
-                    }
-                    goto case BuiltInType.Int32;
-                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
-                    if (typeof(IEncodeable).IsAssignableFrom(propertyType))
-                    {
-                        encoder.WriteEncodeable(
-                            name,
-                            (IEncodeable)property.GetValue(this),
-                            propertyType);
-                        break;
-                    }
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadEncodingError,
-                        "Cannot encode unknown type {0}.",
-                        propertyType.Name);
-                default:
-                    throw ServiceResultException.Unexpected(
-                        $"Unknown built in type {builtInType} encountered.");
-            }
-        }
-
-        /// <summary>
-        /// Encode an array property based on the base property type.
-        /// </summary>
-        private void EncodePropertyArray(
-            IEncoder encoder,
-            string name,
-            PropertyInfo property,
-            BuiltInType builtInType,
-            int valueRank)
-        {
-            Type elementType = property.PropertyType.GetElementType() ??
-                property.PropertyType.GetItemType();
-            if (elementType.IsEnum)
-            {
-                builtInType = BuiltInType.Enumeration;
-            }
-            encoder.WriteArray(name, property.GetValue(this), valueRank, builtInType);
-        }
-
-        /// <summary>
         /// Decode a property based on the property type and value rank.
         /// </summary>
         protected void DecodeProperty(IDecoder decoder, ComplexTypePropertyInfo property)
         {
             DecodeProperty(decoder, property.Name, property);
+        }
+
+        /// <summary>
+        /// Encode a property based on the property type and value rank.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        protected void EncodeProperty(
+            IEncoder encoder,
+            string name,
+            ComplexTypePropertyInfo property)
+        {
+            Variant variant = property.GetValue(this);
+            switch (property.TypeInfo.BuiltInType)
+            {
+                // IEncodeable types are handled by type property as BuiltInType.Null
+                case BuiltInType.Null:
+                    ExpandedNodeId dataTypeId =
+                        property.GetDataTypeId(encoder.Context.NamespaceUris);
+                    if (property.TypeInfo.IsScalar)
+                    {
+                        encoder.WriteEncodeable(
+                            name,
+                            variant.GetStructure<IEncodeable>(),
+                            dataTypeId);
+                    }
+                    else if (property.TypeInfo.IsArray)
+                    {
+                        encoder.WriteEncodeableArray(
+                            name,
+                            variant.GetStructureArray<IEncodeable>(),
+                            dataTypeId);
+                    }
+                    else
+                    {
+                        encoder.WriteEncodeableMatrix(
+                            name,
+                            variant.GetStructureMatrix<IEncodeable>(),
+                            dataTypeId);
+                    }
+                    break;
+                case BuiltInType.Variant when property.TypeInfo.IsScalar:
+                    encoder.WriteVariant(name, variant);
+                    break;
+                default:
+                    encoder.WriteVariantValue(name, variant);
+                    break;
+            }
         }
 
         /// <summary>
@@ -567,167 +348,40 @@ namespace Opc.Ua.Client.ComplexTypes
             string name,
             ComplexTypePropertyInfo property)
         {
-            int valueRank = property.ValueRank;
-            if (valueRank == ValueRanks.Scalar)
+            Variant variant;
+            switch (property.TypeInfo.BuiltInType)
             {
-                DecodeProperty(decoder, name, property.PropertyInfo, property.BuiltInType);
-            }
-            else if (valueRank >= ValueRanks.OneDimension)
-            {
-                DecodePropertyArray(
-                    decoder,
-                    name,
-                    property.PropertyInfo,
-                    property.BuiltInType,
-                    valueRank);
-            }
-            else
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Cannot decode a property with unsupported ValueRank {0}.",
-                    valueRank);
-            }
-        }
-
-        /// <summary>
-        /// Decode a scalar property based on the property type.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private void DecodeProperty(
-            IDecoder decoder,
-            string name,
-            PropertyInfo property,
-            BuiltInType builtInType)
-        {
-            Type propertyType = property.PropertyType;
-            if (propertyType.IsEnum)
-            {
-                builtInType = BuiltInType.Enumeration;
-            }
-            switch (builtInType)
-            {
-                case BuiltInType.Boolean:
-                    property.SetValue(this, decoder.ReadBoolean(name));
-                    break;
-                case BuiltInType.SByte:
-                    property.SetValue(this, decoder.ReadSByte(name));
-                    break;
-                case BuiltInType.Byte:
-                    property.SetValue(this, decoder.ReadByte(name));
-                    break;
-                case BuiltInType.Int16:
-                    property.SetValue(this, decoder.ReadInt16(name));
-                    break;
-                case BuiltInType.UInt16:
-                    property.SetValue(this, decoder.ReadUInt16(name));
-                    break;
-                case BuiltInType.Int32:
-                    property.SetValue(this, decoder.ReadInt32(name));
-                    break;
-                case BuiltInType.UInt32:
-                    property.SetValue(this, decoder.ReadUInt32(name));
-                    break;
-                case BuiltInType.Int64:
-                    property.SetValue(this, decoder.ReadInt64(name));
-                    break;
-                case BuiltInType.UInt64:
-                    property.SetValue(this, decoder.ReadUInt64(name));
-                    break;
-                case BuiltInType.Float:
-                    property.SetValue(this, decoder.ReadFloat(name));
-                    break;
-                case BuiltInType.Double:
-                    property.SetValue(this, decoder.ReadDouble(name));
-                    break;
-                case BuiltInType.String:
-                    property.SetValue(this, decoder.ReadString(name));
-                    break;
-                case BuiltInType.DateTime:
-                    property.SetValue(this, decoder.ReadDateTime(name));
-                    break;
-                case BuiltInType.Guid:
-                    property.SetValue(this, decoder.ReadGuid(name));
-                    break;
-                case BuiltInType.ByteString:
-                    property.SetValue(this, decoder.ReadByteString(name));
-                    break;
-                case BuiltInType.XmlElement:
-                    property.SetValue(this, decoder.ReadXmlElement(name));
-                    break;
-                case BuiltInType.NodeId:
-                    property.SetValue(this, decoder.ReadNodeId(name));
-                    break;
-                case BuiltInType.ExpandedNodeId:
-                    property.SetValue(this, decoder.ReadExpandedNodeId(name));
-                    break;
-                case BuiltInType.StatusCode:
-                    property.SetValue(this, decoder.ReadStatusCode(name));
-                    break;
-                case BuiltInType.QualifiedName:
-                    property.SetValue(this, decoder.ReadQualifiedName(name));
-                    break;
-                case BuiltInType.LocalizedText:
-                    property.SetValue(this, decoder.ReadLocalizedText(name));
-                    break;
-                case BuiltInType.DataValue:
-                    property.SetValue(this, decoder.ReadDataValue(name));
-                    break;
-                case BuiltInType.Variant:
-                    property.SetValue(this, decoder.ReadVariant(name));
-                    break;
-                case BuiltInType.DiagnosticInfo:
-                    property.SetValue(this, decoder.ReadDiagnosticInfo(name));
-                    break;
-                case BuiltInType.ExtensionObject:
-                    if (typeof(IEncodeable).IsAssignableFrom(propertyType))
+                // IEncodeable types are handled by type property as BuiltInType.Null
+                case BuiltInType.Null:
+                    ExpandedNodeId dataTypeId =
+                        property.GetDataTypeId(decoder.Context.NamespaceUris);
+                    if (property.TypeInfo.IsScalar)
                     {
-                        property.SetValue(this, decoder.ReadEncodeable(name, propertyType));
-                        break;
+                        IEncodeable encodeable =
+                            decoder.ReadEncodeable<IEncodeable>(name, dataTypeId);
+                        variant = Variant.FromStructure(encodeable);
                     }
-                    property.SetValue(this, decoder.ReadExtensionObject(name));
+                    else if (property.TypeInfo.IsArray)
+                    {
+                        ArrayOf<IEncodeable> encodeables =
+                            decoder.ReadEncodeableArray<IEncodeable>(name, dataTypeId);
+                        variant = Variant.FromStructure(encodeables);
+                    }
+                    else
+                    {
+                        MatrixOf<IEncodeable> encodeables =
+                            decoder.ReadEncodeableMatrix<IEncodeable>(name, dataTypeId);
+                        variant = Variant.FromStructure(encodeables);
+                    }
                     break;
-                case BuiltInType.Enumeration:
-                    if (propertyType.IsEnum)
-                    {
-                        property.SetValue(this, decoder.ReadEnumerated(name, propertyType));
-                        break;
-                    }
-                    goto case BuiltInType.Int32;
-                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
-                    if (typeof(IEncodeable).IsAssignableFrom(propertyType))
-                    {
-                        property.SetValue(this, decoder.ReadEncodeable(name, propertyType));
-                        break;
-                    }
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        "Cannot decode unknown type {0}.",
-                        propertyType.Name);
+                case BuiltInType.Variant when property.TypeInfo.IsScalar:
+                    variant = decoder.ReadVariant(name);
+                    break;
                 default:
-                    throw ServiceResultException.Unexpected(
-                        $"Unknown built in type {builtInType} encountered.");
+                    variant = decoder.ReadVariantValue(name, property.TypeInfo);
+                    break;
             }
-        }
-
-        /// <summary>
-        /// Decode an array property based on the base property type.
-        /// </summary>
-        private void DecodePropertyArray(
-            IDecoder decoder,
-            string name,
-            PropertyInfo property,
-            BuiltInType builtInType,
-            int valueRank)
-        {
-            Type elementType = property.PropertyType.GetElementType() ??
-                property.PropertyType.GetItemType();
-            if (elementType.IsEnum)
-            {
-                builtInType = BuiltInType.Enumeration;
-            }
-            Array decodedArray = decoder.ReadArray(name, valueRank, builtInType, elementType);
-            property.SetValue(this, decodedArray);
+            property.SetValue(this, variant);
         }
 
         /// <summary>

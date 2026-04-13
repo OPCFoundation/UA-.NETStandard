@@ -90,8 +90,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <remarks>
         /// Is called to allow for caching of encoding information on the client.
         /// </remarks>
-        Task<IList<NodeId>> BrowseForEncodingsAsync(
-            IList<ExpandedNodeId> nodeIds,
+        Task<ArrayOf<NodeId>> BrowseForEncodingsAsync(
+            ArrayOf<ExpandedNodeId> nodeIds,
             string[] supportedEncodings,
             CancellationToken ct = default);
 
@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Browse for binary encoding of a structure datatype.
         /// </remarks>
         Task<(
-            IList<NodeId> encodings,
+            ArrayOf<NodeId> encodings,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId
         )> BrowseForEncodingsAsync(
@@ -114,7 +114,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Load all subTypes and optionally nested subtypes of a type definition.
         /// Filter for all subtypes or only subtypes outside the default namespace.
         /// </summary>
-        Task<IList<INode>> LoadDataTypesAsync(
+        Task<ArrayOf<INode>> LoadDataTypesAsync(
             ExpandedNodeId dataType,
             bool nestedSubTypes = false,
             bool addRootNode = false,
@@ -143,7 +143,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <see cref="ExtensionObject"/> or of <see cref="LocalizedText"/>.
         /// <c>null</c> if the enum type array does not exist.
         /// </returns>
-        Task<object> GetEnumTypeArrayAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
+        Task<Variant> GetEnumTypeArrayAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
 
         /// <summary>
         /// Returns the immediate supertype for the type.

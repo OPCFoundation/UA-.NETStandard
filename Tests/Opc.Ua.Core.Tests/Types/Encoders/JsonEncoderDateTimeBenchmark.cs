@@ -60,11 +60,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void ConvertToUniversalTime()
         {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
-            Span<char> valueString = stackalloc char[JsonEncoder.DateTimeRoundTripKindLength];
-            JsonEncoder.ConvertUniversalTimeToString(m_dateTime, valueString, out int charsWritten);
+            Span<char> valueString = stackalloc char[DateTimeHelper.DateTimeRoundTripKindLength];
+            DateTimeHelper.ConvertUniversalTimeToString(m_dateTime, valueString, out int charsWritten);
             _ = valueString[..charsWritten];
 #else
-            _ = JsonEncoder.ConvertUniversalTimeToString(m_dateTime);
+            _ = DateTimeHelper.ConvertUniversalTimeToString(m_dateTime);
 #endif
         }
 
@@ -84,7 +84,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public void GlobalSetup()
+        private void GlobalSetup()
         {
             // for validating benchmark tests
             switch (DateTimeOmittedZeros)
@@ -108,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        public void GlobalCleanup()
+        private void GlobalCleanup()
         {
         }
 

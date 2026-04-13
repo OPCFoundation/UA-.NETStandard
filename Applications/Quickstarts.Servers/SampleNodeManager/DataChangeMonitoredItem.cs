@@ -366,7 +366,7 @@ namespace Opc.Ua.Sample
             var value = new DataValue();
 
             ServiceResult error = m_source.Node
-                .ReadAttribute(context, AttributeId, NumericRange.Empty, default, value);
+                .ReadAttribute(context, AttributeId, default, default, value);
 
             if (ServiceResult.IsBad(error))
             {
@@ -901,7 +901,7 @@ namespace Opc.Ua.Sample
         private readonly MonitoredNode m_source;
         private DataValue m_lastValue;
         private ServiceResult m_lastError;
-        private NumericRange m_indexRange;
+        private readonly NumericRange m_indexRange;
         private TimestampsToReturn m_timestampsToReturn;
         private DiagnosticsMasks m_diagnosticsMasks;
         private double m_samplingInterval;

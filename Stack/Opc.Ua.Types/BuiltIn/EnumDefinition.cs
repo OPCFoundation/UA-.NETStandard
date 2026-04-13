@@ -38,43 +38,13 @@ namespace Opc.Ua
     /// Enum definition
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class EnumDefinition : DataTypeDefinition
+    public class EnumDefinition : DataTypeDefinition, IEquatable<EnumDefinition>
     {
-        /// <inheritdoc/>
-        public EnumDefinition()
-        {
-            Initialize();
-        }
-
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            m_fields = [];
-        }
-
         /// <summary>
         /// Fields
         /// </summary>
         [DataMember(Name = "Fields", IsRequired = false, Order = 1)]
-        public EnumFieldCollection Fields
-        {
-            get => m_fields;
-
-            set
-            {
-                m_fields = value;
-
-                if (value == null)
-                {
-                    m_fields = [];
-                }
-            }
-        }
+        public ArrayOf<EnumField> Fields { get; set; }
 
         /// <summary>
         /// If TRUE the values are bit positions rather than values.
@@ -82,23 +52,27 @@ namespace Opc.Ua
         public bool IsOptionSet { get; set; }
 
         /// <inheritdoc/>
-        public override ExpandedNodeId TypeId => DataTypeIds.EnumDefinition;
+        public override ExpandedNodeId TypeId
+            => DataTypeIds.EnumDefinition;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId
+            => ObjectIds.EnumDefinition_Encoding_DefaultBinary;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId
+            => ObjectIds.EnumDefinition_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId
+            => ObjectIds.EnumDefinition_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            encoder.WriteEncodeableArray("Fields", [.. Fields], typeof(EnumField));
+            encoder.WriteEncodeableArray("Fields", Fields);
 
             encoder.PopNamespace();
         }
@@ -108,7 +82,7 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            Fields = (EnumFieldCollection)decoder.ReadEncodeableArray("Fields", typeof(EnumField));
+            Fields = decoder.ReadEncodeableArray<EnumField>("Fields");
 
             decoder.PopNamespace();
         }
@@ -126,12 +100,42 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(m_fields, value.m_fields))
+            if (Fields != value.Fields)
             {
                 return false;
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return IsEqual(obj as IEncodeable);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(base.GetHashCode(), Fields);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(EnumDefinition other)
+        {
+            return IsEqual(other);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(EnumDefinition left, EnumDefinition right)
+        {
+            return EqualityComparer<EnumDefinition>.Default.Equals(left, right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(EnumDefinition left, EnumDefinition right)
+        {
+            return !(left == right);
         }
 
         /// <inheritdoc/>
@@ -145,77 +149,7 @@ namespace Opc.Ua
         {
             var clone = (EnumDefinition)base.MemberwiseClone();
 
-            clone.m_fields = CoreUtils.Clone(m_fields);
-
-            return clone;
-        }
-
-        private EnumFieldCollection m_fields;
-    }
-
-    /// <summary>
-    /// Enum definition collection
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfEnumDefinition",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "EnumDefinition")]
-    public class EnumDefinitionCollection : List<EnumDefinition>, ICloneable
-    {
-        /// <inheritdoc/>
-        public EnumDefinitionCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public EnumDefinitionCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public EnumDefinitionCollection(IEnumerable<EnumDefinition> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator EnumDefinitionCollection(EnumDefinition[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <inheritdoc/>
-        public static explicit operator EnumDefinition[](EnumDefinitionCollection values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return null;
-        }
-
-        /// <inheritdoc/>
-        public object Clone()
-        {
-            return (EnumDefinitionCollection)MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new EnumDefinitionCollection(Count);
-
-            for (int ii = 0; ii < Count; ii++)
-            {
-                clone.Add(CoreUtils.Clone(this[ii]));
-            }
+            clone.Fields = CoreUtils.Clone(Fields);
 
             return clone;
         }

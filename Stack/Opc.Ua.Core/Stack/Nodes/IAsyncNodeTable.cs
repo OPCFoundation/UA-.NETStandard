@@ -29,7 +29,6 @@
 
 #nullable enable
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -110,7 +109,7 @@ namespace Opc.Ua
         /// Returns an empty list if the source does not exist or if there are no
         /// matching targets.
         /// </returns>
-        ValueTask<IList<INode>> FindAsync(
+        ValueTask<ArrayOf<INode>> FindAsync(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
             bool isInverse,
@@ -189,7 +188,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IList<INode> Find(
+        public ArrayOf<INode> Find(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
             bool isInverse,

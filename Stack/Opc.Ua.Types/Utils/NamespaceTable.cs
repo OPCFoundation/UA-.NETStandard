@@ -232,6 +232,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the contexts of the table.
+        /// </summary>
+        public ArrayOf<string> ToArrayOf()
+        {
+            lock (m_syncRoot)
+            {
+                return [.. m_strings];
+            }
+        }
+
+        /// <summary>
         /// Returns the number of entries in the table.
         /// </summary>
         public int Count

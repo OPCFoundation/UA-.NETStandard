@@ -94,7 +94,7 @@ namespace Alarms
                         false);
                 }
                 // Off normal does not create MaxTimeShelved.
-                alarm.MaxTimeShelved ??= new PropertyState<double>(alarm);
+                alarm.MaxTimeShelved ??= PropertyState<double>.With<VariantBuilder>(alarm);
             }
 
             // Call the base class to set parameters
@@ -112,7 +112,7 @@ namespace Alarms
                     oneShot: false,
                     shelvingTime: double.MaxValue);
                 alarm.ShelvingState.LastTransition.Value = new LocalizedText(string.Empty);
-                alarm.ShelvingState.LastTransition.Id.Value = 0;
+                alarm.ShelvingState.LastTransition.Id.Value = default;
 
                 alarm.OnShelve = OnShelve;
                 alarm.OnTimedUnshelve = OnTimedUnshelve;

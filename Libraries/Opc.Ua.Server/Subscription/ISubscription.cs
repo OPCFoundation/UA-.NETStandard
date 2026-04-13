@@ -117,7 +117,7 @@ namespace Opc.Ua.Server
         /// Returns the available sequence numbers for retransmission
         /// For example used in Transfer Subscription
         /// </summary>
-        UInt32Collection AvailableSequenceNumbersForRetransmission();
+        ArrayOf<uint> AvailableSequenceNumbersForRetransmission();
 
         /// <summary>
         /// Refreshes the conditions.
@@ -143,10 +143,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Changes the monitoring mode for a set of items.
         /// </summary>
-        ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> SetMonitoringModeAsync(
+        ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server
         /// </summary>
         ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -168,7 +168,7 @@ namespace Opc.Ua.Server
         ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemModifyRequestCollection itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -177,13 +177,15 @@ namespace Opc.Ua.Server
         ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequestCollection itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Gets the monitored items for the subscription.
         /// </summary>
-        void GetMonitoredItems(out uint[] serverHandles, out uint[] clientHandles);
+        void GetMonitoredItems(
+            out ArrayOf<uint> serverHandles,
+            out ArrayOf<uint> clientHandles);
 
         /// <summary>
         /// Sets the subscription to durable mode.
@@ -240,7 +242,7 @@ namespace Opc.Ua.Server
         /// </summary>
         NotificationMessage Publish(
             OperationContext context,
-            out UInt32Collection availableSequenceNumbers,
+            out ArrayOf<uint> availableSequenceNumbers,
             out bool moreNotifications);
 
         /// <summary>
@@ -257,12 +259,12 @@ namespace Opc.Ua.Server
         void SetTriggering(
             OperationContext context,
             uint triggeringItemId,
-            UInt32Collection linksToAdd,
-            UInt32Collection linksToRemove,
-            out StatusCodeCollection addResults,
-            out DiagnosticInfoCollection addDiagnosticInfos,
-            out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos);
+            ArrayOf<uint> linksToAdd,
+            ArrayOf<uint> linksToRemove,
+            out ArrayOf<StatusCode> addResults,
+            out ArrayOf<DiagnosticInfo> addDiagnosticInfos,
+            out ArrayOf<StatusCode> removeResults,
+            out ArrayOf<DiagnosticInfo> removeDiagnosticInfos);
 
         /// <summary>
         /// Return a StorableSubscription for restore after a server restart

@@ -37,7 +37,6 @@ using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -69,7 +68,7 @@ namespace Opc.Ua.Client.Tests
             // this test fails on macOS, ignore (TODO)
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert.Ignore("Reverse connect fails on mac OS.");
+                Assert.Ignore("Reverse connect fails on mac OS.");
             }
 
             // pki directory root for test runs.
@@ -142,7 +141,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Internal get endpoints which is called with semaphore.
         /// </summary>
-        public async Task GetEndpointsInternalAsync()
+        private async Task GetEndpointsInternalAsync()
         {
             ApplicationConfiguration config = ClientFixture.Config;
             ITransportWaitingConnection connection;
@@ -154,7 +153,7 @@ namespace Opc.Ua.Client.Tests
                         null,
                         cancellationTokenSource.Token)
                     .ConfigureAwait(false);
-                Assert.NotNull(connection, "Failed to get connection.");
+                Assert.That(connection, Is.Not.Null, "Failed to get connection.");
             }
 
             using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
@@ -166,7 +165,7 @@ namespace Opc.Ua.Client.Tests
                     connection,
                     endpointConfiguration,
                     ct: cancellationTokenSource.Token).ConfigureAwait(false);
-                Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token)
+                Endpoints = await client.GetEndpointsAsync(default, cancellationTokenSource.Token)
                     .ConfigureAwait(false);
                 await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);
             }
@@ -186,7 +185,7 @@ namespace Opc.Ua.Client.Tests
                         null,
                         cancellationTokenSource.Token)
                     .ConfigureAwait(false);
-                Assert.NotNull(connection, "Failed to get connection.");
+                Assert.That(connection, Is.Not.Null, "Failed to get connection.");
             }
             EndpointDescription selectedEndpoint = await CoreClientUtils.SelectEndpointAsync(
                 config,
@@ -194,7 +193,7 @@ namespace Opc.Ua.Client.Tests
                 true,
                 MaxTimeout,
                 Telemetry).ConfigureAwait(false);
-            Assert.NotNull(selectedEndpoint);
+            Assert.That(selectedEndpoint, Is.Not.Null);
         }
 
         [Theory]
@@ -217,7 +216,7 @@ namespace Opc.Ua.Client.Tests
                         null,
                         cancellationTokenSource.Token)
                     .ConfigureAwait(false);
-                Assert.NotNull(connection, "Failed to get connection.");
+                Assert.That(connection, Is.Not.Null, "Failed to get connection.");
             }
 
             // select the secure endpoint
@@ -227,9 +226,9 @@ namespace Opc.Ua.Client.Tests
                 Endpoints,
                 m_endpointUrl,
                 securityPolicy);
-            Assert.NotNull(selectedEndpoint);
+            Assert.That(selectedEndpoint, Is.Not.Null);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
-            Assert.NotNull(endpoint);
+            Assert.That(endpoint, Is.Not.Null);
 
             // connect
             ISession session = await sessionFactory.Create(telemetry)
@@ -242,9 +241,9 @@ namespace Opc.Ua.Client.Tests
                     "Reverse Connect Client",
                     MaxTimeout,
                     new UserIdentity(),
-                    null)
+                    default)
                 .ConfigureAwait(false);
-            Assert.NotNull(session);
+            Assert.That(session, Is.Not.Null);
 
             // default request header
             var requestHeader = new RequestHeader
@@ -255,16 +254,15 @@ namespace Opc.Ua.Client.Tests
 
             // Browse
             var clientTestServices = new ClientTestServices(session, telemetry);
-            ReferenceDescriptionCollection referenceDescriptions = await CommonTestWorkers
+            ArrayOf<ReferenceDescription> referenceDescriptions = await CommonTestWorkers
                 .BrowseFullAddressSpaceWorkerAsync(
                     clientTestServices,
                     requestHeader)
                 .ConfigureAwait(false);
-            Assert.NotNull(referenceDescriptions);
+            Assert.That(referenceDescriptions.IsNull, Is.False);
 
             // close session
             StatusCode result = await session.CloseAsync().ConfigureAwait(false);
-            Assert.NotNull(result);
             session.Dispose();
         }
 
@@ -292,9 +290,9 @@ namespace Opc.Ua.Client.Tests
                 Endpoints,
                 m_endpointUrl,
                 securityPolicy);
-            Assert.NotNull(selectedEndpoint);
+            Assert.That(selectedEndpoint, Is.Not.Null);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
-            Assert.NotNull(endpoint);
+            Assert.That(endpoint, Is.Not.Null);
 
             // connect
             ISession session = await sessionFactory.Create(telemetry)
@@ -307,10 +305,10 @@ namespace Opc.Ua.Client.Tests
                     "Reverse Connect Client",
                     MaxTimeout,
                     new UserIdentity(),
-                    null)
+                    default)
                 .ConfigureAwait(false);
 
-            Assert.NotNull(session);
+            Assert.That(session, Is.Not.Null);
 
             // header
             var requestHeader = new RequestHeader
@@ -321,16 +319,15 @@ namespace Opc.Ua.Client.Tests
 
             // Browse
             var clientTestServices = new ClientTestServices(session, telemetry);
-            ReferenceDescriptionCollection referenceDescriptions = await CommonTestWorkers
+            ArrayOf<ReferenceDescription> referenceDescriptions = await CommonTestWorkers
                 .BrowseFullAddressSpaceWorkerAsync(
                     clientTestServices,
                     requestHeader)
                 .ConfigureAwait(false);
-            Assert.NotNull(referenceDescriptions);
+            Assert.That(referenceDescriptions.IsNull, Is.False);
 
             // close session
             StatusCode result = await session.CloseAsync().ConfigureAwait(false);
-            Assert.NotNull(result);
             session.Dispose();
         }
 
@@ -339,7 +336,7 @@ namespace Opc.Ua.Client.Tests
             await m_requiredLock.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (Endpoints == null)
+                if (Endpoints.IsNull)
                 {
                     await GetEndpointsInternalAsync().ConfigureAwait(false);
                 }

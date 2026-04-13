@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
@@ -145,17 +144,17 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(ReferenceTypeId, value.ReferenceTypeId))
+            if (ReferenceTypeId != value.ReferenceTypeId)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(IsInverse, value.IsInverse))
+            if (IsInverse != value.IsInverse)
             {
                 return false;
             }
 
-            if (!CoreUtils.IsEqual(TargetId, value.TargetId))
+            if (TargetId != value.TargetId)
             {
                 return false;
             }
@@ -322,74 +321,6 @@ namespace Opc.Ua
         public static bool operator >=(ReferenceNode left, ReferenceNode right)
         {
             return left is null ? right is null : left.CompareTo(right) >= 0;
-        }
-    }
-
-    /// <summary>
-    /// Reference node collection
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfReferenceNode",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "ReferenceNode")]
-    public class ReferenceNodeCollection : List<ReferenceNode>, ICloneable
-    {
-        /// <inheritdoc/>
-        public ReferenceNodeCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public ReferenceNodeCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public ReferenceNodeCollection(IEnumerable<ReferenceNode> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ReferenceNodeCollection(ReferenceNode[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <inheritdoc/>
-        public static explicit operator ReferenceNode[](ReferenceNodeCollection values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return null;
-        }
-
-        /// <inheritdoc/>
-        public object Clone()
-        {
-            return (ReferenceNodeCollection)MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new ReferenceNodeCollection(Count);
-
-            for (int ii = 0; ii < Count; ii++)
-            {
-                clone.Add(CoreUtils.Clone(this[ii]));
-            }
-
-            return clone;
         }
     }
 }

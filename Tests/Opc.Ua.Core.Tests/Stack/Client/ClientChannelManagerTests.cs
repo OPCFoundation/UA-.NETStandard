@@ -511,7 +511,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             endpoint.Description.EndpointUrl = "opc.tcp://localhost:4840";
             endpoint.Description.SecurityMode = MessageSecurityMode.SignAndEncrypt;
             endpoint.Description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
-            endpoint.Description.ServerCertificate = serverCert.RawData;
+            endpoint.Description.ServerCertificate = serverCert.RawData.ToByteString();
             return endpoint;
         }
 

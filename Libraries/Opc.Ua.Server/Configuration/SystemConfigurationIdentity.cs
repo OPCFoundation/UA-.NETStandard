@@ -43,7 +43,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="identity">The user identity.</param>
         public SystemConfigurationIdentity(IUserIdentity identity)
-            : base(identity, [Role.SecurityAdmin, Role.ConfigureAdmin], new NamespaceTable())
+            : base(identity, [Role.SecurityAdmin, Role.ConfigureAdmin, Role.AuthenticatedUser], new NamespaceTable())
         {
         }
     }

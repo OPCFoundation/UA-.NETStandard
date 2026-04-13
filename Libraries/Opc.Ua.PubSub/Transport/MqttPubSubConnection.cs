@@ -430,7 +430,10 @@ namespace Opc.Ua.PubSub.Transport
             MqttClient publisherClient = null;
             MqttClient subscriberClient = null;
 
+            TimeSpan keepAlive = CalculateMqttKeepAlive();
+
             m_publisherMqttClientOptions ??= GetMqttClientOptions();
+            m_publisherMqttClientOptions.KeepAlivePeriod = keepAlive;
 
             int nrOfPublishers = Publishers.Count;
             int nrOfSubscribers = GetAllDataSetReaders().Count;
@@ -452,7 +455,7 @@ namespace Opc.Ua.PubSub.Transport
             if (nrOfSubscribers > 0)
             {
                 // collect all topics from all ReaderGroups
-                var topics = new StringCollection();
+                var topics = new List<string>();
                 foreach (ReaderGroupDataType readerGroup in PubSubConnectionConfiguration
                     .ReaderGroups)
                 {
@@ -483,6 +486,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
 
                 m_subscriberMqttClientOptions ??= GetMqttClientOptions();
+                m_subscriberMqttClientOptions.KeepAlivePeriod = keepAlive;
 
                 subscriberClient = (MqttClient)
                     await MqttClientCreator
@@ -730,14 +734,20 @@ namespace Opc.Ua.PubSub.Transport
             }
         }
 
+        private TimeSpan CalculateMqttKeepAlive()
+        {
+            // writer group KeepAliveTime is given in milliseconds
+            return TimeSpan.FromMilliseconds(GetWriterGroupsMaxKeepAlive()) +
+                TimeSpan.FromSeconds(m_maxKeepAliveIncrement);
+        }
+
         /// <summary>
         /// Get appropriate IMqttClientOptions with which to connect to the MQTTBroker
         /// </summary>
         private MqttClientOptions GetMqttClientOptions()
         {
             MqttClientOptions mqttOptions = null;
-            var mqttKeepAlive = TimeSpan.FromSeconds(
-                GetWriterGroupsMaxKeepAlive() + m_maxKeepAliveIncrement);
+            TimeSpan mqttKeepAlive = CalculateMqttKeepAlive();
 
             if (ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
                 is not NetworkAddressUrlDataType networkAddressUrlState)
@@ -802,15 +812,8 @@ namespace Opc.Ua.PubSub.Transport
                 var x509Certificate2s = new List<X509Certificate2>();
                 if (mqttTlsOptions?.Certificates != null)
                 {
-                    foreach (X509Certificate x509cert in mqttTlsOptions?.Certificates
-                        .X509Certificates)
-                    {
-                        if (x509cert is X509Certificate2 x509Certificate2)
-                        {
-                            x509Certificate2s.Add(
-                                CertificateFactory.Create(x509Certificate2.RawData));
-                        }
-                    }
+                    x509Certificate2s.AddRange(mqttTlsOptions?.Certificates
+                        .X509Certificates);
                 }
 
                 MqttClientOptionsBuilder mqttClientOptionsBuilder
@@ -1158,7 +1161,7 @@ namespace Opc.Ua.PubSub.Transport
 
                     // Network message header
                     jsonNetworkMessage.PublisherId =
-                        MqttConnection.PubSubConnectionConfiguration.PublisherId.Value.ToString();
+                        MqttConnection.PubSubConnectionConfiguration.PublisherId.ConvertToString().GetString();
                     jsonNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
 
                     if (((int)jsonNetworkMessage.NetworkMessageContentMask &
@@ -1185,7 +1188,7 @@ namespace Opc.Ua.PubSub.Transport
                 // return UADP metadata network message
                 return new Encoding.JsonNetworkMessage(writerGroup, dataSetMetaData, Logger)
                 {
-                    PublisherId = MqttConnection.PubSubConnectionConfiguration.PublisherId.Value.ToString(),
+                    PublisherId = MqttConnection.PubSubConnectionConfiguration.PublisherId.ToString(),
                     DataSetWriterId = dataSetWriterId
                 };
             }
@@ -1302,9 +1305,8 @@ namespace Opc.Ua.PubSub.Transport
                     (UadpNetworkMessageContentMask)uadpMessageSettings?.NetworkMessageContentMask);
 
                 // Network message header
-                uadpNetworkMessage.PublisherId = MqttConnection.PubSubConnectionConfiguration
-                    .PublisherId
-                    .Value;
+                uadpNetworkMessage.PublisherId =
+                    MqttConnection.PubSubConnectionConfiguration.PublisherId;
                 uadpNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
 
                 // Writer group header
@@ -1327,7 +1329,7 @@ namespace Opc.Ua.PubSub.Transport
                 // return UADP metadata network message
                 return new UadpNetworkMessage(writerGroup, dataSetMetaData, Logger)
                 {
-                    PublisherId = MqttConnection.PubSubConnectionConfiguration.PublisherId.Value,
+                    PublisherId = MqttConnection.PubSubConnectionConfiguration.PublisherId,
                     DataSetWriterId = dataSetWriterId
                 };
             }
