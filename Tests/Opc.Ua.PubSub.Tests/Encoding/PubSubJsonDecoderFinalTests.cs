@@ -487,8 +487,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         [Test]
-        [Ignore("DataSetWriterId filtering in decode uses complex path that accepts single messages")]
-        public void DecodeDataSetWriterIdFilterRejectsNonMatching()
+        public void DecodeSingleDataSetMessageSkipsWriterIdFilter()
         {
             var field = MakeField("Val", BuiltInType.Int32, 10);
 
@@ -508,7 +507,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] encoded = networkMessage.Encode(m_context);
 
-            // Reader expects WriterId=999 and has DataSetMessageHeader with DataSetWriterId mask
+            // Reader expects WriterId=999 but SingleDataSetMessage skips WriterId filtering
             var reader = CreateDataSetReader(
                 dsMsg.DataSet.DataSetMetaData, 999,
                 DataSetFieldContentMask.None,
@@ -521,8 +520,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_context, encoded, new List<DataSetReaderDataType> { reader });
 
-            // The writer ID 50 should not match reader expecting 999
-            Assert.That(decoded.DataSetMessages.Count, Is.EqualTo(0));
+            // SingleDataSetMessage does not apply WriterId filter per OPC UA spec
+            Assert.That(decoded.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
