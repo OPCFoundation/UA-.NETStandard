@@ -917,7 +917,7 @@ namespace Opc.Ua
             {
                 if (value.Value != 0)
                 {
-                    if (string.IsNullOrEmpty(value.Symbol))
+                    if (!string.IsNullOrEmpty(value.Symbol))
                     {
                         m_writer.WriteString(CoreUtils.Format("{0}_{1}",
                             value.Symbol,
