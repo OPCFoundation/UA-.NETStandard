@@ -39,7 +39,6 @@ using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
     [TestFixture(Description = "Tests for JsonNetworkMessage encode/decode paths")]
-    [Ignore("Pre-existing StackOverflow in JsonNetworkMessage construction on this branch")]
     public class JsonNetworkMessageTests
     {
         private ServiceMessageContext m_messageContext;
@@ -135,10 +134,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonNetworkMessageContentMask.DataSetMessageHeader,
                 ("IntField", Variant.From(42)));
 
-            using var stream = new MemoryStream();
+            var stream = new MemoryStream();
             msg.Encode(m_messageContext, stream);
 
-            Assert.That(stream.Length, Is.GreaterThan(0));
+            Assert.That(stream.ToArray().Length, Is.GreaterThan(0));
         }
 
         [Test]

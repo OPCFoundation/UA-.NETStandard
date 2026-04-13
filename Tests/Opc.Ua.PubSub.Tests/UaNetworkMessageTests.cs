@@ -36,7 +36,6 @@ using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 namespace Opc.Ua.PubSub.Tests
 {
     [TestFixture(Description = "Tests for UaNetworkMessage base class properties and events")]
-    [Ignore("Pre-existing StackOverflow in JsonNetworkMessage construction on this branch")]
     public class UaNetworkMessageTests
     {
         private ServiceMessageContext m_messageContext;
