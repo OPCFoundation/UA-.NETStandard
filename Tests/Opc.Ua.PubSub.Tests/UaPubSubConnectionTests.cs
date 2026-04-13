@@ -36,7 +36,7 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.PubSub.Tests
 {
     [TestFixture]
-    public class UaPubSubConnectionCoverageTests
+    public class UaPubSubConnectionTests
     {
         private static readonly string s_publisherConfigPath = Path.Combine(
             "Configuration",

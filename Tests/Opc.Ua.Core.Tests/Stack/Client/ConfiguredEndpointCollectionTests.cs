@@ -37,7 +37,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     [TestFixture]
     [Category("ConfiguredEndpointCollectionCoverage")]
     [Parallelizable]
-    public class ConfiguredEndpointCollectionCoverageTests
+    public class ConfiguredEndpointCollectionTests
     {
         private ITelemetryContext m_telemetry;
 

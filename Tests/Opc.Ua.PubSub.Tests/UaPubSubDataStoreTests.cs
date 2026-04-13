@@ -33,7 +33,7 @@ using NUnit.Framework;
 namespace Opc.Ua.PubSub.Tests
 {
     [TestFixture(Description = "Coverage tests for UaPubSubDataStore class")]
-    public class UaPubSubDataStoreCoverageTests
+    public class UaPubSubDataStoreTests
     {
         [Test]
         public void ConstructorCreatesEmptyStore()

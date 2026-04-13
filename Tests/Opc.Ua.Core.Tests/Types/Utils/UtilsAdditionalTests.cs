@@ -39,7 +39,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [TestFixture]
     [Category("UtilsAdditionalCoverage")]
     [Parallelizable]
-    public class UtilsAdditionalCoverageTests
+    public class UtilsAdditionalTests
     {
         [Test]
         public void ReplaceDCLocalhostNullReturnsNull()

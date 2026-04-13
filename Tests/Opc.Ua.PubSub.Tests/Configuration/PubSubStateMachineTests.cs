@@ -36,7 +36,7 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
     [TestFixture(Description = "Coverage tests for state machine transitions in UaPubSubConfigurator")]
-    public class PubSubStateMachineCoverageTests
+    public partial class PubSubStateMachineTests
     {
         private static UaPubSubConfigurator CreateConfigurator()
         {

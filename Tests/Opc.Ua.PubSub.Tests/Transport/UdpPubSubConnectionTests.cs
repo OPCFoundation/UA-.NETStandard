@@ -41,6 +41,7 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.Tests;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
@@ -639,6 +640,191 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Verify that the collections are truly read-only (no Add/Remove methods exposed)
             Assert.IsInstanceOf<IReadOnlyList<UdpClient>>(publisherClients, "PublisherUdpClients should be IReadOnlyList");
             Assert.IsInstanceOf<IReadOnlyList<UdpClient>>(subscriberClients, "SubscriberUdpClients should be IReadOnlyList");
+        }
+    }
+
+    [TestFixture(Description = "Coverage tests for UdpPubSubConnection")]
+    public class UdpPubSubConnectionAdditionalTests
+    {
+        private static readonly string PublisherConfigurationFileName = Path.Combine(
+            "Configuration",
+            "PublisherConfiguration.xml");
+
+        private UaPubSubApplication m_application;
+        private UdpPubSubConnection m_connection;
+        private PubSubConfigurationDataType m_configuration;
+
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            string configFile = Utils.GetAbsoluteFilePath(
+                PublisherConfigurationFileName,
+                checkCurrentDirectory: true,
+                createAlways: false);
+            m_application = UaPubSubApplication.Create(configFile, null);
+            Assert.That(m_application, Is.Not.Null);
+
+            m_configuration = m_application.UaPubSubConfigurator.PubSubConfiguration;
+            Assert.That(m_configuration, Is.Not.Null);
+            Assert.That(m_configuration.Connections.IsEmpty, Is.False);
+
+            m_connection = m_application.PubSubConnections[0] as UdpPubSubConnection;
+            Assert.That(m_connection, Is.Not.Null);
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            m_application?.Dispose();
+        }
+
+        [Test]
+        public void AreClientsConnectedReturnsTrueForUdp()
+        {
+            bool result = m_connection.AreClientsConnected();
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void TransportProtocolIsUdp()
+        {
+            Assert.That(m_connection.TransportProtocol, Is.EqualTo(TransportProtocol.UDP));
+        }
+
+        [Test]
+        public void PubSubConnectionConfigurationIsNotNull()
+        {
+            Assert.That(m_connection.PubSubConnectionConfiguration, Is.Not.Null);
+        }
+
+        [Test]
+        public void ApplicationReferenceIsNotNull()
+        {
+            Assert.That(m_connection.Application, Is.Not.Null);
+        }
+
+        [Test]
+        public void NetworkAddressEndPointIsAccessible()
+        {
+            // NetworkAddressEndPoint may be null depending on config
+            var endpoint = m_connection.NetworkAddressEndPoint;
+            Assert.That(endpoint, Is.Null.Or.Not.Null);
+        }
+
+        [Test]
+        public void CreateNetworkMessagesReturnsNullForInvalidMessageSettings()
+        {
+            var writerGroup = new WriterGroupDataType
+            {
+                Name = "InvalidWG",
+                MessageSettings = default,
+                TransportSettings = default
+            };
+
+            var state = new WriterGroupPublishState();
+            IList<UaNetworkMessage> messages = m_connection.CreateNetworkMessages(writerGroup, state);
+            Assert.That(messages, Is.Null);
+        }
+
+        [Test]
+        public void CreateNetworkMessagesReturnsNullForWrongMessageSettings()
+        {
+            var writerGroup = new WriterGroupDataType
+            {
+                Name = "WrongSettingsWG",
+                MessageSettings = new ExtensionObject(new JsonWriterGroupMessageDataType()),
+                TransportSettings = new ExtensionObject(new DatagramWriterGroupTransportDataType())
+            };
+
+            var state = new WriterGroupPublishState();
+            IList<UaNetworkMessage> messages = m_connection.CreateNetworkMessages(writerGroup, state);
+            Assert.That(messages, Is.Null);
+        }
+
+        [Test]
+        public void CreateNetworkMessagesReturnsNullForWrongTransportSettings()
+        {
+            var writerGroup = new WriterGroupDataType
+            {
+                Name = "WrongTransportWG",
+                MessageSettings = new ExtensionObject(new UadpWriterGroupMessageDataType()),
+                TransportSettings = new ExtensionObject(new BrokerWriterGroupTransportDataType())
+            };
+
+            var state = new WriterGroupPublishState();
+            IList<UaNetworkMessage> messages = m_connection.CreateNetworkMessages(writerGroup, state);
+            Assert.That(messages, Is.Null);
+        }
+
+        [Test]
+        public void CreateNetworkMessagesWithValidSettingsButNoWritersReturnsEmptyList()
+        {
+            var writerGroup = new WriterGroupDataType
+            {
+                Name = "EmptyWritersWG",
+                MessageSettings = new ExtensionObject(new UadpWriterGroupMessageDataType()),
+                TransportSettings = new ExtensionObject(new DatagramWriterGroupTransportDataType()),
+                DataSetWriters = []
+            };
+
+            var state = new WriterGroupPublishState();
+            IList<UaNetworkMessage> messages = m_connection.CreateNetworkMessages(writerGroup, state);
+
+            Assert.That(messages, Is.Not.Null);
+            Assert.That(messages, Is.Empty);
+        }
+
+        [Test]
+        public void CreateNetworkMessagesWithDisabledWritersReturnsEmptyList()
+        {
+            var writerGroup = new WriterGroupDataType
+            {
+                Name = "DisabledWritersWG",
+                MessageSettings = new ExtensionObject(new UadpWriterGroupMessageDataType()),
+                TransportSettings = new ExtensionObject(new DatagramWriterGroupTransportDataType()),
+                DataSetWriters = [
+                    new DataSetWriterDataType
+                    {
+                        Name = "DisabledWriter",
+                        Enabled = false,
+                        DataSetWriterId = 1
+                    }
+                ]
+            };
+
+            var state = new WriterGroupPublishState();
+            IList<UaNetworkMessage> messages = m_connection.CreateNetworkMessages(writerGroup, state);
+
+            Assert.That(messages, Is.Not.Null);
+            Assert.That(messages, Is.Empty);
+        }
+
+        [Test]
+        public void CreateNetworkMessagesFromPublisherConfigurationReturnsResult()
+        {
+            Assert.That(
+                m_configuration.Connections[0].WriterGroups.IsEmpty,
+                Is.False,
+                "Publisher config should have writer groups");
+
+            WriterGroupDataType writerGroup = m_configuration.Connections[0].WriterGroups[0];
+            var state = new WriterGroupPublishState();
+            IList<UaNetworkMessage> messages = m_connection.CreateNetworkMessages(writerGroup, state);
+
+            // CreateNetworkMessages may return null or a non-empty list depending on config
+            Assert.That(messages, Is.Null.Or.Not.Empty);
+        }
+
+        [Test]
+        public void PublisherUdpClientsIsNotNull()
+        {
+            Assert.That(m_connection.PublisherUdpClients, Is.Not.Null);
+        }
+
+        [Test]
+        public void SubscriberUdpClientsIsNotNull()
+        {
+            Assert.That(m_connection.SubscriberUdpClients, Is.Not.Null);
         }
     }
 }

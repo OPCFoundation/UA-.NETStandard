@@ -35,7 +35,7 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.PubSub.Tests.PublishedData
 {
     [TestFixture(Description = "Coverage tests for DataCollector class")]
-    public class DataCollectorCoverageTests
+    public class DataCollectorSetupTests
     {
         private const int NamespaceIndex = 2;
 

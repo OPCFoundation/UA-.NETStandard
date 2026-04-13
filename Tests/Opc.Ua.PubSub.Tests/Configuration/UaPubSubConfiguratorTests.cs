@@ -38,7 +38,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 {
     [TestFixture(Description = "Coverage tests for UaPubSubConfigurator lookup and state methods")]
     [Parallelizable]
-    public class UaPubSubConfiguratorCoverageTests
+    public class UaPubSubConfiguratorAdditionalTests
     {
         private static readonly string PublisherConfigurationFileName = Path.Combine(
             "Configuration",

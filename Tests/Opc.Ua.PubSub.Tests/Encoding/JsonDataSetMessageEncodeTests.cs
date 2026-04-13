@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
     /// </summary>
     [TestFixture]
     [Parallelizable]
-    public class JsonDataSetMessageCoverageTests
+    public class JsonDataSetMessageEncodeTests
     {
         [Test]
         public void DefaultConstructorSetsNullDataSet()

@@ -39,7 +39,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class EndpointBaseCoverageTests
+    public class EndpointBaseTests
     {
         private ILogger m_logger;
 

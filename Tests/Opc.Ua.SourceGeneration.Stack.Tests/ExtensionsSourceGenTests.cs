@@ -39,7 +39,7 @@ namespace Opc.Ua.SourceGeneration.Tests
     [Category("SourceGeneration")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public class ExtensionsCoverageTests
+    public class ExtensionsSourceGenTests
     {
         [Test]
         public void ToNodeSetOptionsWithNullReturnsDefaults()

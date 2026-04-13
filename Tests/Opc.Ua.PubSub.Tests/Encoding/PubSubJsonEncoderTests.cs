@@ -40,7 +40,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 {
     [TestFixture(Description = "Coverage tests for PubSubJsonEncoder")]
     [Parallelizable]
-    public class PubSubJsonEncoderCoverageTests
+    public class PubSubJsonEncoderTests
     {
         private ServiceMessageContext m_context;
 

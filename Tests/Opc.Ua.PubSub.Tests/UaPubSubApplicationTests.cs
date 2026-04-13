@@ -35,7 +35,7 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.PubSub.Tests
 {
     [TestFixture(Description = "Coverage tests for UaPubSubApplication class")]
-    public class UaPubSubApplicationCoverageTests
+    public class UaPubSubApplicationTests
     {
         private static readonly string s_publisherConfigPath =
             Path.Combine("Configuration", "PublisherConfiguration.xml");
