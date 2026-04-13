@@ -27,14 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.Encoders
 {
     /// <summary>
     /// Complex type property info.
     /// </summary>
-    public class Field : ICloneable, IStructureField
+    internal class Field : ICloneable, IStructureField
     {
         /// <summary>
         /// Create the property state of the structure field
@@ -97,7 +99,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public string Name => Definition.Name;
 
         /// <summary>
-        /// Field is optional
+        /// FieldState is optional
         /// </summary>
         public bool IsOptional => Definition.IsOptional;
 

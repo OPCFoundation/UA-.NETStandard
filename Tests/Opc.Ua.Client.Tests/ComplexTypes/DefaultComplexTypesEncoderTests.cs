@@ -32,7 +32,7 @@ using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
 using Opc.Ua.Tests;
 
-using ComplexStructure = Opc.Ua.Client.ComplexTypes.Structure;
+using ComplexStructure = Opc.Ua.Encoders.Structure;
 
 namespace Opc.Ua.Client.Tests.ComplexTypes
 {

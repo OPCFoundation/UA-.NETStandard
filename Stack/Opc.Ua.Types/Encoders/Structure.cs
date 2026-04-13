@@ -27,13 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Xml;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.Encoders
 {
     /// <summary>
     /// The base class for all complex types.
@@ -122,7 +124,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(XmlNamespace);
 
-            foreach (Field property in GetPropertyEnumerator())
+            foreach (Field property in PropertyList)
             {
                 EncodeProperty(encoder, property);
             }
@@ -135,7 +137,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             decoder.PushNamespace(XmlNamespace);
 
-            foreach (Field property in GetPropertyEnumerator())
+            foreach (Field property in PropertyList)
             {
                 DecodeProperty(decoder, property);
             }
@@ -186,7 +188,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 var body = new StringBuilder();
 
-                foreach (Field property in GetPropertyEnumerator())
+                foreach (Field property in PropertyList)
                 {
                     AppendPropertyValue(
                         body,
@@ -231,12 +233,6 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public virtual IEnumerable<Field> GetPropertyEnumerator()
-        {
-            return PropertyList;
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return new Structure(this);
@@ -266,7 +262,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Encode a property based on the property type and value rank.
         /// </summary>
-        protected void EncodeProperty(IEncoder encoder, Field property)
+        internal void EncodeProperty(IEncoder encoder, Field property)
         {
             EncodeProperty(encoder, property.Name, property);
         }
@@ -274,7 +270,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Decode a property based on the property type and value rank.
         /// </summary>
-        protected void DecodeProperty(IDecoder decoder, Field property)
+        internal void DecodeProperty(IDecoder decoder, Field property)
         {
             DecodeProperty(decoder, property.Name, property);
         }
@@ -283,7 +279,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Encode a property based on the property type and value rank.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        protected void EncodeProperty(
+        internal void EncodeProperty(
             IEncoder encoder,
             string name,
             Field property)
@@ -294,7 +290,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 // IEncodeable types are handled by type property as BuiltInType.Null
                 // vs ExtensionObject which allow optional and subtyped fields in structures
                 case BuiltInType.Null:
-                    ExpandedNodeId dataTypeId = NodeId.ToExpandedNodeId(
+                    var dataTypeId = NodeId.ToExpandedNodeId(
                         property.Definition.DataType,
                         encoder.Context.NamespaceUris);
                     if (property.TypeInfo.IsScalar)
@@ -335,7 +331,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Decode a property based on the property type and value rank.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        protected void DecodeProperty(
+        internal void DecodeProperty(
             IDecoder decoder,
             string name,
             Field property)
@@ -345,7 +341,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 // IEncodeable types are handled by type property as BuiltInType.Null
                 case BuiltInType.Null:
-                    ExpandedNodeId dataTypeId = NodeId.ToExpandedNodeId(
+                    var dataTypeId = NodeId.ToExpandedNodeId(
                         property.Definition.DataType,
                         decoder.Context.NamespaceUris);
                     if (property.TypeInfo.IsScalar)
@@ -401,12 +397,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The list of properties as dictionary.
         /// </summary>
-        protected Dictionary<string, Field> PropertyDict { get; }
+        internal Dictionary<string, Field> PropertyDict { get; }
 
         /// <summary>
         /// The list of properties of this complex type.
         /// </summary>
-        protected List<Field> PropertyList { get; } = [];
+        internal List<Field> PropertyList { get; } = [];
 
         /// <summary>
         /// Definition

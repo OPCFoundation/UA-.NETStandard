@@ -30,8 +30,8 @@
 using NUnit.Framework;
 using Opc.Ua.Client.ComplexTypes;
 
-using ComplexStructure = Opc.Ua.Client.ComplexTypes.Structure;
-using ComplexUnion = Opc.Ua.Client.ComplexTypes.Union;
+using ComplexStructure = Opc.Ua.Encoders.Structure;
+using ComplexUnion = Opc.Ua.Encoders.Union;
 
 namespace Opc.Ua.Client.Tests.ComplexTypes
 {
@@ -73,7 +73,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                     Assert.That(propertyBuiltInTypes, Is.EqualTo(structure.GetFields().Count));
                     break;
                 case StructureType.StructureWithOptionalFields:
-                    var optionalFields = instance as StructureWithOptionalFields;
+                    var optionalFields = instance as Encoders.StructureWithOptionalFields;
                     Assert.That(optionalFields, Is.Not.Null);
                     Assert.That(optionalFields.EncodingMask, Is.Zero);
                     Assert.That(

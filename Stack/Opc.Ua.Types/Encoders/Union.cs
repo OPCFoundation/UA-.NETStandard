@@ -27,12 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.Encoders
 {
     /// <summary>
     /// Implements a union complex type.
@@ -112,7 +114,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 int unionSelector = 1;
                 Field? unionProperty = null;
-                foreach (Field property in GetPropertyEnumerator())
+                foreach (Field property in PropertyList)
                 {
                     if (unionSelector == SwitchField)
                     {
@@ -143,7 +145,7 @@ namespace Opc.Ua.Client.ComplexTypes
             if (unionSelector == 0 && isJsonDecoder)
             {
                 var fields = new List<string>();
-                foreach (Field property in GetPropertyEnumerator())
+                foreach (Field property in PropertyList)
                 {
                     if (property.IsOptional)
                     {
@@ -157,7 +159,7 @@ namespace Opc.Ua.Client.ComplexTypes
             SwitchField = unionSelector;
             if (unionSelector > 0)
             {
-                foreach (Field property in GetPropertyEnumerator())
+                foreach (Field property in PropertyList)
                 {
                     if (--unionSelector == 0)
                     {
@@ -220,7 +222,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (SwitchField != 0)
                 {
                     uint unionSelector = SwitchField;
-                    foreach (Field property in GetPropertyEnumerator())
+                    foreach (Field property in PropertyList)
                     {
                         if (--unionSelector == 0)
                         {
@@ -247,7 +249,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return "(null)";
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <summary>
