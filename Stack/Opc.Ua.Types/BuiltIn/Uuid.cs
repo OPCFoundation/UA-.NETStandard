@@ -131,7 +131,7 @@ namespace Opc.Ua
         /// </summary>
         public static Uuid NewUuid()
         {
-            return Uuid.NewUuid();
+            return Guid.NewGuid();
         }
 
         /// <summary>
