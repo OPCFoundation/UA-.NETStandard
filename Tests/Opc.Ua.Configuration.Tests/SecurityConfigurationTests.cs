@@ -217,7 +217,7 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void DeprecatedConfigurationOmitsApplicationCertificatesElement()
+        public void DeprecatedConfigurationAlsoEmitsApplicationCertificatesElement()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
