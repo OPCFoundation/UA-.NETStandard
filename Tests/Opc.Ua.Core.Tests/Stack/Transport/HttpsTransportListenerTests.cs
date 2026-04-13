@@ -28,9 +28,17 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
+using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
+#if NET8_0_OR_GREATER
+using Microsoft.AspNetCore.Http;
+#endif
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
 {
@@ -259,5 +267,170 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             listener.Close();
             Assert.DoesNotThrow(() => listener.Close());
         }
+
+        // Verify Open throws when ServerCertificateTypesProvider is null.
+        [Test]
+        public void OpenThrowsWhenCertProviderIsNull()
+        {
+            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            var baseAddress = new Uri("https://localhost:51000");
+            var callback = new Mock<ITransportListenerCallback>();
+            var settings = new TransportListenerSettings
+            {
+                Descriptions = new List<EndpointDescription>(),
+                Configuration = EndpointConfiguration.Create(),
+                ServerCertificateTypesProvider = null,
+                CertificateValidator = new Mock<ICertificateValidator>().Object,
+                NamespaceUris = new NamespaceTable(),
+                Factory = null
+            };
+
+            Assert.That(
+                () => listener.Open(baseAddress, settings, callback.Object),
+                Throws.Exception);
+        }
+
+        // Verify Open sets ListenerId and EndpointUrl before Start fails.
+        [Test]
+        public void OpenSetsFieldsBeforeStartFails()
+        {
+            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            var baseAddress = new Uri("https://localhost:51001");
+            var callback = new Mock<ITransportListenerCallback>();
+            var settings = new TransportListenerSettings
+            {
+                Descriptions = new List<EndpointDescription>(),
+                Configuration = EndpointConfiguration.Create(),
+                ServerCertificateTypesProvider = null,
+                CertificateValidator = new Mock<ICertificateValidator>().Object,
+                NamespaceUris = new NamespaceTable(),
+                Factory = null
+            };
+
+            Assert.Catch(() => listener.Open(baseAddress, settings, callback.Object));
+
+            Assert.That(listener.ListenerId, Is.Not.Null.And.Not.Empty);
+            Assert.That(listener.EndpointUrl, Is.EqualTo(baseAddress));
+        }
+
+        // Verify Stop is equivalent to Dispose.
+        [Test]
+        public void StopDoesNotThrowOnUnopenedListener()
+        {
+            var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            listener.Stop();
+            Assert.DoesNotThrow(() => listener.Dispose());
+        }
+
+#if NET8_0_OR_GREATER
+        // Verify SendAsync returns 501 NotImplemented when callback is null.
+        [Test]
+        public async Task SendAsyncReturnsNotImplementedWhenCallbackIsNullAsync()
+        {
+            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Response.Body = new MemoryStream();
+
+            await listener.SendAsync(context).ConfigureAwait(false);
+
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotImplemented));
+        }
+
+        // Verify SendAsync returns BadRequest for unsupported content type.
+        [Test]
+        public async Task SendAsyncReturnsBadRequestForWrongContentTypeAsync()
+        {
+            using var listener = CreatePartiallyOpenedListener();
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = "text/xml";
+            context.Response.Body = new MemoryStream();
+
+            await listener.SendAsync(context).ConfigureAwait(false);
+
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
+        }
+
+        // Verify SendAsync returns BadRequest when buffer length does not match.
+        [Test]
+        public async Task SendAsyncReturnsBadRequestForBufferLengthMismatchAsync()
+        {
+            using var listener = CreatePartiallyOpenedListener();
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = "application/octet-stream";
+            context.Request.ContentLength = 100;
+            context.Request.Body = new MemoryStream(new byte[] { 0x01, 0x02 });
+            context.Response.Body = new MemoryStream();
+
+            await listener.SendAsync(context).ConfigureAwait(false);
+
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
+        }
+
+        // Verify SendAsync returns InternalServerError for invalid binary payload.
+        [Test]
+        public async Task SendAsyncReturnsInternalServerErrorForInvalidBodyAsync()
+        {
+            using var listener = CreatePartiallyOpenedListener();
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = "application/octet-stream";
+            context.Request.ContentLength = 4;
+            context.Request.Body = new MemoryStream(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+            context.Response.Body = new MemoryStream();
+
+            await listener.SendAsync(context).ConfigureAwait(false);
+
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.InternalServerError));
+        }
+
+        // Verify SendAsync response body contains an error message for wrong content type.
+        [Test]
+        public async Task SendAsyncWritesErrorMessageForWrongContentTypeAsync()
+        {
+            using var listener = CreatePartiallyOpenedListener();
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = "text/html";
+            var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
+
+            await listener.SendAsync(context).ConfigureAwait(false);
+
+            responseBody.Position = 0;
+            using var reader = new StreamReader(responseBody);
+            string body = await reader.ReadToEndAsync().ConfigureAwait(false);
+            Assert.That(body, Does.Contain("Unsupported content type"));
+        }
+
+        private HttpsTransportListener CreatePartiallyOpenedListener()
+        {
+            var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            var baseAddress = new Uri("https://localhost:51002");
+            var callback = new Mock<ITransportListenerCallback>();
+            var settings = new TransportListenerSettings
+            {
+                Descriptions = new List<EndpointDescription>(),
+                Configuration = EndpointConfiguration.Create(),
+                ServerCertificateTypesProvider = null,
+                CertificateValidator = new Mock<ICertificateValidator>().Object,
+                NamespaceUris = new NamespaceTable(),
+                Factory = null
+            };
+
+            try
+            {
+                listener.Open(baseAddress, settings, callback.Object);
+            }
+            catch (NullReferenceException)
+            {
+                // Expected: ServerCertificateTypesProvider is null, Start() fails.
+            }
+
+            return listener;
+        }
+#endif
     }
 }

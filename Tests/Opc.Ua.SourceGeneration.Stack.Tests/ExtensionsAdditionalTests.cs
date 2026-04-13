@@ -28,8 +28,11 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 
 namespace Opc.Ua.SourceGeneration.Tests
@@ -98,6 +101,18 @@ namespace Opc.Ua.SourceGeneration.Tests
             Assert.That(result, Does.Contain("b"));
         }
 
+        [Test]
+        public void ToNodeSetFileCollectionWithEmptyArrayReturnsCollection()
+        {
+            var files = ImmutableArray<(AdditionalText, NodesetFileOptions)>.Empty;
+            using var fileSystem = new VirtualFileSystem();
+            var telemetry = new NullTelemetry();
+
+            NodesetFileCollection collection = files.ToNodeSetFileCollection(fileSystem, telemetry);
+
+            Assert.That(collection, Is.Not.Null);
+        }
+
         private sealed class EmbeddedAdditionalText : AdditionalText
         {
             private EmbeddedAdditionalText(string path)
@@ -116,6 +131,14 @@ namespace Opc.Ua.SourceGeneration.Tests
             public static EmbeddedAdditionalText Create(string path)
             {
                 return new EmbeddedAdditionalText(path);
+            }
+        }
+
+        private sealed class NullTelemetry : TelemetryContextBase
+        {
+            public NullTelemetry()
+                : base(NullLoggerFactory.Instance)
+            {
             }
         }
     }
