@@ -35,7 +35,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Gds.Client;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -191,7 +190,7 @@ namespace Opc.Ua.Gds.Tests
         public void GetHttpsDomainNameReturnsHostFromDiscoveryUrl()
         {
             var app = new RegisteredApplication {
-                DiscoveryUrl = new[] { "opc.tcp://myserver.example.com:4840" }
+                DiscoveryUrl = ["opc.tcp://myserver.example.com:4840"]
             };
             string result = app.GetHttpsDomainName();
             Assert.That(result, Is.EqualTo("myserver.example.com"));
@@ -201,7 +200,7 @@ namespace Opc.Ua.Gds.Tests
         public void GetHttpsDomainNameReplacesLocalhostWithHostName()
         {
             var app = new RegisteredApplication {
-                DiscoveryUrl = new[] { "opc.tcp://localhost:4840" }
+                DiscoveryUrl = ["opc.tcp://localhost:4840"]
             };
             string result = app.GetHttpsDomainName();
             Assert.That(result, Is.EqualTo(Utils.GetHostName()));
@@ -219,7 +218,7 @@ namespace Opc.Ua.Gds.Tests
         public void GetHttpsDomainNameSkipsInvalidUrls()
         {
             var app = new RegisteredApplication {
-                DiscoveryUrl = new[] { "not a url", "opc.tcp://valid.example.com:4840" }
+                DiscoveryUrl = ["not a url", "opc.tcp://valid.example.com:4840"]
             };
             string result = app.GetHttpsDomainName();
             Assert.That(result, Is.EqualTo("valid.example.com"));
@@ -283,10 +282,10 @@ namespace Opc.Ua.Gds.Tests
         public void GetDomainNamesFromDiscoveryUrls()
         {
             var app = new RegisteredApplication {
-                DiscoveryUrl = new[] {
+                DiscoveryUrl = [
                     "opc.tcp://server1.example.com:4840",
                     "opc.tcp://server2.example.com:4840"
-                }
+                ]
             };
             List<string> result = app.GetDomainNames(null);
             Assert.That(result, Has.Count.EqualTo(2));
@@ -298,10 +297,10 @@ namespace Opc.Ua.Gds.Tests
         public void GetDomainNamesDeduplicatesUrls()
         {
             var app = new RegisteredApplication {
-                DiscoveryUrl = new[] {
+                DiscoveryUrl = [
                     "opc.tcp://server.example.com:4840",
                     "opc.tcp://server.example.com:4841"
-                }
+                ]
             };
             List<string> result = app.GetDomainNames(null);
             Assert.That(result, Has.Count.EqualTo(1));
@@ -339,7 +338,7 @@ namespace Opc.Ua.Gds.Tests
         {
             var app = new RegisteredApplication {
                 Domains = "  ,  ,  ",
-                DiscoveryUrl = new[] { "opc.tcp://fallback.example.com:4840" }
+                DiscoveryUrl = ["opc.tcp://fallback.example.com:4840"]
             };
             List<string> result = app.GetDomainNames(null);
             Assert.That(result, Does.Contain("fallback.example.com"));

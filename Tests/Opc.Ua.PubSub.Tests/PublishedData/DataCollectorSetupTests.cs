@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
         private static DataCollector CreateCollector(IUaPubSubDataStore dataStore = null)
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             return new DataCollector(dataStore ?? new UaPubSubDataStore(), telemetry);
         }
 
@@ -102,14 +102,14 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test]
         public void ConstructorWithValidParameters()
         {
-            var collector = CreateCollector();
+            DataCollector collector = CreateCollector();
             Assert.That(collector, Is.Not.Null);
         }
 
         [Test]
         public void ValidatePublishedDataSetThrowsOnNull()
         {
-            var collector = CreateCollector();
+            DataCollector collector = CreateCollector();
             Assert.Throws<ArgumentException>(
                 () => collector.ValidatePublishedDataSet(null));
         }
@@ -118,7 +118,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void ValidatePublishedDataSetReturnsTrueWhenMetaDataIsNull()
         {
             // Validation only fails when metadata is null AND a log is written
-            var collector = CreateCollector();
+            DataCollector collector = CreateCollector();
             var pds = new PublishedDataSetDataType { Name = "Test" };
             bool result = collector.ValidatePublishedDataSet(pds);
             Assert.That(result, Is.True);
@@ -127,8 +127,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test]
         public void ValidatePublishedDataSetReturnsTrueForValidDataSet()
         {
-            var collector = CreateCollector();
-            var pds = CreateSimpleDataSet("Valid", ("Field1", DataTypeIds.Int32));
+            DataCollector collector = CreateCollector();
+            PublishedDataSetDataType pds = CreateSimpleDataSet("Valid", ("Field1", DataTypeIds.Int32));
             bool result = collector.ValidatePublishedDataSet(pds);
             Assert.That(result, Is.True);
         }
@@ -136,7 +136,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test]
         public void ValidatePublishedDataSetReturnsFalseWhenFieldCountMismatch()
         {
-            var collector = CreateCollector();
+            DataCollector collector = CreateCollector();
             var pds = new PublishedDataSetDataType
             {
                 Name = "Mismatch",
@@ -168,15 +168,15 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test]
         public void AddPublishedDataSetThrowsOnNull()
         {
-            var collector = CreateCollector();
+            DataCollector collector = CreateCollector();
             Assert.Throws<ArgumentException>(() => collector.AddPublishedDataSet(null));
         }
 
         [Test]
         public void AddPublishedDataSetAddsValid()
         {
-            var collector = CreateCollector();
-            var pds = CreateSimpleDataSet("DS1", ("Field1", DataTypeIds.Int32));
+            DataCollector collector = CreateCollector();
+            PublishedDataSetDataType pds = CreateSimpleDataSet("DS1", ("Field1", DataTypeIds.Int32));
             collector.AddPublishedDataSet(pds);
             PublishedDataSetDataType found = collector.GetPublishedDataSet("DS1");
             Assert.That(found, Is.SameAs(pds));
@@ -186,7 +186,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void AddPublishedDataSetSkipsInvalidDataSet()
         {
             // A dataset with mismatched field counts is invalid and should not be registered
-            var collector = CreateCollector();
+            DataCollector collector = CreateCollector();
             var pds = new PublishedDataSetDataType
             {
                 Name = "Invalid",
@@ -218,15 +218,15 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test]
         public void RemovePublishedDataSetThrowsOnNull()
         {
-            var collector = CreateCollector();
+            DataCollector collector = CreateCollector();
             Assert.Throws<ArgumentException>(() => collector.RemovePublishedDataSet(null));
         }
 
         [Test]
         public void RemovePublishedDataSetRemovesExisting()
         {
-            var collector = CreateCollector();
-            var pds = CreateSimpleDataSet("DS1", ("Field1", DataTypeIds.Int32));
+            DataCollector collector = CreateCollector();
+            PublishedDataSetDataType pds = CreateSimpleDataSet("DS1", ("Field1", DataTypeIds.Int32));
             collector.AddPublishedDataSet(pds);
             collector.RemovePublishedDataSet(pds);
             Assert.That(collector.CollectData("DS1"), Is.Null);
@@ -235,28 +235,28 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test]
         public void GetPublishedDataSetThrowsOnNull()
         {
-            var collector = CreateCollector();
+            DataCollector collector = CreateCollector();
             Assert.Throws<ArgumentException>(() => collector.GetPublishedDataSet(null));
         }
 
         [Test]
         public void GetPublishedDataSetReturnsNullForUnknown()
         {
-            var collector = CreateCollector();
+            DataCollector collector = CreateCollector();
             Assert.That(collector.GetPublishedDataSet("Unknown"), Is.Null);
         }
 
         [Test]
         public void CollectDataReturnsNullForUnregisteredDataSet()
         {
-            var collector = CreateCollector();
+            DataCollector collector = CreateCollector();
             Assert.That(collector.CollectData("Unknown"), Is.Null);
         }
 
         [Test]
         public void CollectDataThrowsOnNullName()
         {
-            var collector = CreateCollector();
+            DataCollector collector = CreateCollector();
             Assert.Throws<ArgumentException>(() => collector.CollectData(null));
         }
 
@@ -268,8 +268,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 new NodeId("IntField", NamespaceIndex), Attributes.Value,
                 new DataValue(new Variant(42)));
 
-            var collector = CreateCollector(dataStore);
-            var pds = CreateSimpleDataSet("DS1", ("IntField", DataTypeIds.Int32));
+            DataCollector collector = CreateCollector(dataStore);
+            PublishedDataSetDataType pds = CreateSimpleDataSet("DS1", ("IntField", DataTypeIds.Int32));
             collector.AddPublishedDataSet(pds);
 
             DataSet result = collector.CollectData("DS1");
@@ -281,8 +281,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test]
         public void CollectDataReturnsBadValueWhenNodeMissingAndNoExtensionField()
         {
-            var collector = CreateCollector();
-            var pds = CreateSimpleDataSet("DS1", ("MissingNode", DataTypeIds.Int32));
+            DataCollector collector = CreateCollector();
+            PublishedDataSetDataType pds = CreateSimpleDataSet("DS1", ("MissingNode", DataTypeIds.Int32));
             collector.AddPublishedDataSet(pds);
 
             DataSet result = collector.CollectData("DS1");
@@ -298,8 +298,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 new NodeId("BadField", NamespaceIndex), Attributes.Value,
                 new DataValue(StatusCodes.Bad));
 
-            var collector = CreateCollector(dataStore);
-            var pds = CreateSimpleDataSet("DS1", ("BadField", DataTypeIds.Int32));
+            DataCollector collector = CreateCollector(dataStore);
+            PublishedDataSetDataType pds = CreateSimpleDataSet("DS1", ("BadField", DataTypeIds.Int32));
 
             // Set a substitute value on the published variable
             var publishedItems = ExtensionObject.ToEncodeable(pds.DataSetSource) as PublishedDataItemsDataType;
@@ -322,8 +322,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 new NodeId("StrField", NamespaceIndex), Attributes.Value,
                 new DataValue(new Variant("HelloWorldLongString")));
 
-            var collector = CreateCollector(dataStore);
-            var pds = CreateSimpleDataSet("DS1", ("StrField", DataTypeIds.String));
+            DataCollector collector = CreateCollector(dataStore);
+            PublishedDataSetDataType pds = CreateSimpleDataSet("DS1", ("StrField", DataTypeIds.String));
 
             // Set MaxStringLength on the field metadata
             pds.DataSetMetaData.Fields[0].MaxStringLength = 5;
@@ -342,8 +342,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 new NodeId("StrField", NamespaceIndex), Attributes.Value,
                 new DataValue(new Variant("Hello")));
 
-            var collector = CreateCollector(dataStore);
-            var pds = CreateSimpleDataSet("DS1", ("StrField", DataTypeIds.String));
+            DataCollector collector = CreateCollector(dataStore);
+            PublishedDataSetDataType pds = CreateSimpleDataSet("DS1", ("StrField", DataTypeIds.String));
             pds.DataSetMetaData.Fields[0].MaxStringLength = 0;
 
             collector.AddPublishedDataSet(pds);
@@ -360,7 +360,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 new NodeId("ByteField", NamespaceIndex), Attributes.Value,
                 new DataValue(Variant.From(bytes)));
 
-            var collector = CreateCollector(dataStore);
+            DataCollector collector = CreateCollector(dataStore);
             var meta = new DataSetMetaDataType
             {
                 Name = "DS1",
@@ -411,8 +411,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 new NodeId("Field1", NamespaceIndex), Attributes.Value,
                 new DataValue(new Variant(1)));
 
-            var collector = CreateCollector(dataStore);
-            var pds = CreateSimpleDataSet("DS1", ("Field1", DataTypeIds.Int32));
+            DataCollector collector = CreateCollector(dataStore);
+            PublishedDataSetDataType pds = CreateSimpleDataSet("DS1", ("Field1", DataTypeIds.Int32));
             collector.AddPublishedDataSet(pds);
 
             DataSet result = collector.CollectData("DS1");
@@ -427,8 +427,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 new NodeId("F1", NamespaceIndex), Attributes.Value,
                 new DataValue(new Variant(1)));
 
-            var collector = CreateCollector(dataStore);
-            var pds = CreateSimpleDataSet("DS1", ("F1", DataTypeIds.Int32));
+            DataCollector collector = CreateCollector(dataStore);
+            PublishedDataSetDataType pds = CreateSimpleDataSet("DS1", ("F1", DataTypeIds.Int32));
             collector.AddPublishedDataSet(pds);
 
             DataSet result = collector.CollectData("DS1");
@@ -438,7 +438,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         [Test]
         public void CollectDataFromExtensionFieldsWhenVariableIsNull()
         {
-            var collector = CreateCollector();
+            DataCollector collector = CreateCollector();
             var pds = new PublishedDataSetDataType
             {
                 Name = "ExtTest",
@@ -493,8 +493,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             dataStore.WritePublishedDataItem(
                 new NodeId("F1", NamespaceIndex), Attributes.Value, original);
 
-            var collector = CreateCollector(dataStore);
-            var pds = CreateSimpleDataSet("DS1", ("F1", DataTypeIds.Int32));
+            DataCollector collector = CreateCollector(dataStore);
+            PublishedDataSetDataType pds = CreateSimpleDataSet("DS1", ("F1", DataTypeIds.Int32));
             collector.AddPublishedDataSet(pds);
 
             DataSet result = collector.CollectData("DS1");

@@ -56,8 +56,13 @@ namespace Opc.Ua.Core.Tests
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            try { Directory.Delete(m_tempDir, true); }
-            catch { }
+            try
+            {
+                Directory.Delete(m_tempDir, true);
+            }
+            catch
+            {
+            }
         }
 
         private ConfiguredEndpointCollection CreateCollection()
@@ -145,7 +150,7 @@ namespace Opc.Ua.Core.Tests
         {
             var col = CreateCollection();
             ConfiguredEndpoint ep = col.Add(CreateEndpoint("opc.tcp://server1:4840"));
-            Assert.That(col.IndexOf(ep), Is.EqualTo(0));
+            Assert.That(col.IndexOf(ep), Is.Zero);
         }
 
         [Test]
@@ -190,7 +195,7 @@ namespace Opc.Ua.Core.Tests
             ConfiguredEndpoint ep = col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             Assert.That(col.Count, Is.EqualTo(1));
             col.RemoveAt(0);
-            Assert.That(col.Count, Is.EqualTo(0));
+            Assert.That(col.Count, Is.Zero);
         }
 
         [Test]
@@ -219,7 +224,7 @@ namespace Opc.Ua.Core.Tests
             col.Add(CreateEndpoint("opc.tcp://server2:4840"));
             Assert.That(col.Count, Is.EqualTo(2));
             col.Clear();
-            Assert.That(col.Count, Is.EqualTo(0));
+            Assert.That(col.Count, Is.Zero);
         }
 
         [Test]
@@ -283,7 +288,7 @@ namespace Opc.Ua.Core.Tests
             var col = CreateCollection();
             ConfiguredEndpoint ep = col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             Assert.That(col.Remove(ep), Is.True);
-            Assert.That(col.Count, Is.EqualTo(0));
+            Assert.That(col.Count, Is.Zero);
         }
 
         [Test]
@@ -307,7 +312,7 @@ namespace Opc.Ua.Core.Tests
             EndpointDescription desc = CreateEndpoint("opc.tcp://server1:4840");
             col.Add(desc);
             col.RemoveServer("opc.tcp://server1:4840");
-            Assert.That(col.Count, Is.EqualTo(0));
+            Assert.That(col.Count, Is.Zero);
         }
 
         [Test]
@@ -325,7 +330,7 @@ namespace Opc.Ua.Core.Tests
             col.Add(CreateEndpoint("opc.tcp://server2:4840"));
 
             List<ConfiguredEndpoint> results = col.GetEndpoints("opc.tcp://server1:4840");
-            Assert.That(results.Count, Is.EqualTo(1));
+            Assert.That(results, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -333,7 +338,7 @@ namespace Opc.Ua.Core.Tests
         {
             var col = CreateCollection();
             List<ConfiguredEndpoint> results = col.GetEndpoints("urn:unknown");
-            Assert.That(results.Count, Is.EqualTo(0));
+            Assert.That(results, Is.Empty);
         }
 
         [Test]
@@ -351,7 +356,7 @@ namespace Opc.Ua.Core.Tests
         public void DiscoveryUrlsGetSet()
         {
             var col = CreateCollection();
-            var urls = new ArrayOf<string>(new[] { "opc.tcp://discovery:4840" });
+            ArrayOf<string> urls = ["opc.tcp://discovery:4840"];
             col.DiscoveryUrls = urls;
             Assert.That(col.DiscoveryUrls.Count, Is.EqualTo(1));
         }
@@ -386,8 +391,8 @@ namespace Opc.Ua.Core.Tests
             var col = CreateCollection();
             var server = new ApplicationDescription
             {
-                ApplicationUri = "",
-                DiscoveryUrls = new ArrayOf<string>(new[] { "opc.tcp://localhost:4840" })
+                ApplicationUri = string.Empty,
+                DiscoveryUrls = ["opc.tcp://localhost:4840"]
             };
             Assert.That(
                 () => col.SetApplicationDescription("urn:test", server),
@@ -414,7 +419,7 @@ namespace Opc.Ua.Core.Tests
             var server = new ApplicationDescription
             {
                 ApplicationUri = "urn:test:newserver",
-                DiscoveryUrls = new ArrayOf<string>(new[] { "opc.tcp://localhost:4840" })
+                DiscoveryUrls = ["opc.tcp://localhost:4840"]
             };
             col.SetApplicationDescription("urn:test:newserver", server);
             Assert.That(col.Count, Is.EqualTo(1));
@@ -431,7 +436,7 @@ namespace Opc.Ua.Core.Tests
             {
                 ApplicationUri = "opc.tcp://server1:4840",
                 ApplicationName = new LocalizedText("Updated"),
-                DiscoveryUrls = new ArrayOf<string>(new[] { "opc.tcp://server1:4840" })
+                DiscoveryUrls = ["opc.tcp://server1:4840"]
             };
             col.SetApplicationDescription("opc.tcp://server1:4840", updatedServer);
 
@@ -445,8 +450,7 @@ namespace Opc.Ua.Core.Tests
             var server = new ApplicationDescription
             {
                 ApplicationUri = "urn:test:http",
-                DiscoveryUrls = new ArrayOf<string>(
-                    new[] { "https://localhost:4843/discovery" })
+                DiscoveryUrls = ["https://localhost:4843/discovery"]
             };
             col.SetApplicationDescription("urn:test:http", server);
             Assert.That(col.Count, Is.EqualTo(1));
@@ -458,15 +462,13 @@ namespace Opc.Ua.Core.Tests
             var col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
 
-            using (var stream = new MemoryStream())
-            {
-                col.Save(stream);
-                stream.Position = 0;
+            using var stream = new MemoryStream();
+            col.Save(stream);
+            stream.Position = 0;
 
-                ConfiguredEndpointCollection loaded =
-                    ConfiguredEndpointCollection.Load(stream, m_telemetry);
-                Assert.That(loaded.Count, Is.EqualTo(1));
-            }
+            ConfiguredEndpointCollection loaded =
+                ConfiguredEndpointCollection.Load(stream, m_telemetry);
+            Assert.That(loaded.Count, Is.EqualTo(1));
         }
 
         [Test]
@@ -537,8 +539,7 @@ namespace Opc.Ua.Core.Tests
                 ApplicationType = ApplicationType.Client,
                 ClientConfiguration = new ClientConfiguration()
             };
-            appConfig.ClientConfiguration.WellKnownDiscoveryUrls =
-                new ArrayOf<string>(new[] { "opc.tcp://discovery:4840" });
+            appConfig.ClientConfiguration.WellKnownDiscoveryUrls = ["opc.tcp://discovery:4840"];
 
             var col = new ConfiguredEndpointCollection(appConfig);
             Assert.That(col.DefaultConfiguration, Is.Not.Null);

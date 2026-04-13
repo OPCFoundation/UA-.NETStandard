@@ -201,8 +201,13 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             }
             finally
             {
-                try { File.Delete(configInCwd); }
-                catch { }
+                try
+                {
+                    File.Delete(configInCwd);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -298,8 +303,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
                     BaseAddresses = ["opc.tcp://localhost:4840"],
                     SecurityPolicies = new List<ServerSecurityPolicy>
                     {
-                        new ServerSecurityPolicy
-                        {
+                        new() {
                             SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
                             SecurityMode = MessageSecurityMode.SignAndEncrypt
                         }

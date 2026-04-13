@@ -43,69 +43,59 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void CreateWithDataStoreReturnsApplication()
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var dataStore = new UaPubSubDataStore();
-            using (var app = UaPubSubApplication.Create(dataStore, telemetry))
-            {
-                Assert.That(app, Is.Not.Null);
-                Assert.That(app.DataStore, Is.SameAs(dataStore));
-            }
+            using var app = UaPubSubApplication.Create(dataStore, telemetry);
+            Assert.That(app, Is.Not.Null);
+            Assert.That(app.DataStore, Is.SameAs(dataStore));
         }
 
         [Test]
         public void CreateWithTelemetryOnlyReturnsApplication()
         {
-            var telemetry = NUnitTelemetryContext.Create();
-            using (var app = UaPubSubApplication.Create(telemetry))
-            {
-                Assert.That(app, Is.Not.Null);
-            }
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var app = UaPubSubApplication.Create(telemetry);
+            Assert.That(app, Is.Not.Null);
         }
 
         [Test]
         public void CreateWithNullConfigReturnsApplication()
         {
-            var telemetry = NUnitTelemetryContext.Create();
-            using (var app = UaPubSubApplication.Create(
-                (PubSubConfigurationDataType)null, telemetry))
-            {
-                Assert.That(app, Is.Not.Null);
-            }
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var app = UaPubSubApplication.Create(
+                (PubSubConfigurationDataType)null, telemetry);
+            Assert.That(app, Is.Not.Null);
         }
 
         [Test]
         public void CreateWithEmptyConfigReturnsEmptyConnections()
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var config = new PubSubConfigurationDataType();
-            using (var app = UaPubSubApplication.Create(config, telemetry))
-            {
-                Assert.That(app, Is.Not.Null);
-                Assert.That(app.PubSubConnections.Count, Is.EqualTo(0));
-            }
+            using var app = UaPubSubApplication.Create(config, telemetry);
+            Assert.That(app, Is.Not.Null);
+            Assert.That(app.PubSubConnections.Count, Is.EqualTo(0));
         }
 
         [Test]
         public void CreateWithConfigFilePath()
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             string configFile = Utils.GetAbsoluteFilePath(
                 s_publisherConfigPath,
                 checkCurrentDirectory: true,
                 createAlways: false);
             Assert.That(configFile, Is.Not.Null, "Publisher config file not found");
 
-            using (var app = UaPubSubApplication.Create(configFile, telemetry))
-            {
-                Assert.That(app, Is.Not.Null);
-                Assert.That(app.PubSubConnections.Count, Is.GreaterThanOrEqualTo(0));
-            }
+            using var app = UaPubSubApplication.Create(configFile, telemetry);
+            Assert.That(app, Is.Not.Null);
+            Assert.That(app.PubSubConnections.Count, Is.GreaterThanOrEqualTo(0));
         }
 
         [Test]
         public void CreateWithNullFilePathThrowsArgumentNullException()
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             Assert.That(
                 () => UaPubSubApplication.Create((string)null, telemetry),
                 Throws.TypeOf<ArgumentNullException>());
@@ -114,7 +104,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void CreateWithNonExistentFilePathThrowsArgumentException()
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             Assert.That(
                 () => UaPubSubApplication.Create("NonExistentFile.xml", telemetry),
                 Throws.TypeOf<ArgumentException>());
@@ -123,23 +113,19 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void ApplicationIdIsNotNullOrEmpty()
         {
-            var telemetry = NUnitTelemetryContext.Create();
-            using (var app = UaPubSubApplication.Create(telemetry))
-            {
-                Assert.That(app.ApplicationId, Is.Not.Null.And.Not.Empty);
-            }
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var app = UaPubSubApplication.Create(telemetry);
+            Assert.That(app.ApplicationId, Is.Not.Null.And.Not.Empty);
         }
 
         [Test]
         public void ApplicationIdCanBeSet()
         {
-            var telemetry = NUnitTelemetryContext.Create();
-            using (var app = UaPubSubApplication.Create(telemetry))
-            {
-                string newId = "TestApplicationId";
-                app.ApplicationId = newId;
-                Assert.That(app.ApplicationId, Is.EqualTo(newId));
-            }
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var app = UaPubSubApplication.Create(telemetry);
+            const string newId = "TestApplicationId";
+            app.ApplicationId = newId;
+            Assert.That(app.ApplicationId, Is.EqualTo(newId));
         }
 
         [Test]
@@ -153,129 +139,111 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void DataStoreIsNotNull()
         {
-            var telemetry = NUnitTelemetryContext.Create();
-            using (var app = UaPubSubApplication.Create(telemetry))
-            {
-                Assert.That(app.DataStore, Is.Not.Null);
-            }
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var app = UaPubSubApplication.Create(telemetry);
+            Assert.That(app.DataStore, Is.Not.Null);
         }
 
         [Test]
         public void UaPubSubConfiguratorIsNotNull()
         {
-            var telemetry = NUnitTelemetryContext.Create();
-            using (var app = UaPubSubApplication.Create(telemetry))
-            {
-                Assert.That(app.UaPubSubConfigurator, Is.Not.Null);
-            }
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var app = UaPubSubApplication.Create(telemetry);
+            Assert.That(app.UaPubSubConfigurator, Is.Not.Null);
         }
 
         [Test]
         public void PubSubConnectionsIsNotNull()
         {
-            var telemetry = NUnitTelemetryContext.Create();
-            using (var app = UaPubSubApplication.Create(telemetry))
-            {
-                Assert.That(app.PubSubConnections.Count, Is.GreaterThanOrEqualTo(0));
-            }
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var app = UaPubSubApplication.Create(telemetry);
+            Assert.That(app.PubSubConnections.Count, Is.GreaterThanOrEqualTo(0));
         }
 
         [Test]
         public void StartAndStopDoNotThrowWithNoConnections()
         {
-            var telemetry = NUnitTelemetryContext.Create();
-            using (var app = UaPubSubApplication.Create(telemetry))
-            {
-                Assert.That(() => app.Start(), Throws.Nothing);
-                Assert.That(() => app.Stop(), Throws.Nothing);
-            }
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var app = UaPubSubApplication.Create(telemetry);
+            Assert.That(app.Start, Throws.Nothing);
+            Assert.That(app.Stop, Throws.Nothing);
         }
 
         [Test]
         public void DisposeDoesNotThrowWithNoConnections()
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var app = UaPubSubApplication.Create(telemetry);
-            Assert.That(() => app.Dispose(), Throws.Nothing);
+            Assert.That(app.Dispose, Throws.Nothing);
         }
 
         [Test]
         public void DoubleDisposeDoesNotThrow()
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var app = UaPubSubApplication.Create(telemetry);
             app.Dispose();
-            Assert.That(() => app.Dispose(), Throws.Nothing);
+            Assert.That(app.Dispose, Throws.Nothing);
         }
 
         [Test]
         public void StartAndStopWithConfiguredConnections()
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             string configFile = Utils.GetAbsoluteFilePath(
                 s_publisherConfigPath,
                 checkCurrentDirectory: true,
                 createAlways: false);
             Assert.That(configFile, Is.Not.Null, "Publisher config file not found");
 
-            using (var app = UaPubSubApplication.Create(configFile, telemetry))
-            {
-                Assert.That(() => app.Start(), Throws.Nothing);
-                Assert.That(() => app.Stop(), Throws.Nothing);
-            }
+            using var app = UaPubSubApplication.Create(configFile, telemetry);
+            Assert.That(app.Start, Throws.Nothing);
+            Assert.That(app.Stop, Throws.Nothing);
         }
 
         [Test]
         public void DataReceivedEventCanBeSubscribed()
         {
-            var telemetry = NUnitTelemetryContext.Create();
-            using (var app = UaPubSubApplication.Create(telemetry))
-            {
-                bool raised = false;
-                app.DataReceived += (sender, args) => raised = true;
-                app.RaiseDataReceivedEvent(new SubscribedDataEventArgs());
-                Assert.That(raised, Is.True);
-            }
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var app = UaPubSubApplication.Create(telemetry);
+            bool raised = false;
+            app.DataReceived += (sender, args) => raised = true;
+            app.RaiseDataReceivedEvent(new SubscribedDataEventArgs());
+            Assert.That(raised, Is.True);
         }
 
         [Test]
         public void MetaDataReceivedEventCanBeSubscribed()
         {
-            var telemetry = NUnitTelemetryContext.Create();
-            using (var app = UaPubSubApplication.Create(telemetry))
-            {
-                bool raised = false;
-                app.MetaDataReceived += (sender, args) => raised = true;
-                app.RaiseMetaDataReceivedEvent(new SubscribedDataEventArgs());
-                Assert.That(raised, Is.True);
-            }
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var app = UaPubSubApplication.Create(telemetry);
+            bool raised = false;
+            app.MetaDataReceived += (sender, args) => raised = true;
+            app.RaiseMetaDataReceivedEvent(new SubscribedDataEventArgs());
+            Assert.That(raised, Is.True);
         }
 
         [Test]
         public void RawDataReceivedEventCanBeSubscribed()
         {
-            var telemetry = NUnitTelemetryContext.Create();
-            using (var app = UaPubSubApplication.Create(telemetry))
-            {
-                bool raised = false;
-                app.RawDataReceived += (sender, args) => raised = true;
-                app.RaiseRawDataReceivedEvent(new RawDataReceivedEventArgs());
-                Assert.That(raised, Is.True);
-            }
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var app = UaPubSubApplication.Create(telemetry);
+            bool raised = false;
+            app.RawDataReceived += (sender, args) => raised = true;
+            app.RaiseRawDataReceivedEvent(new RawDataReceivedEventArgs());
+            Assert.That(raised, Is.True);
         }
 
         [Test]
         public void ConfigurationUpdatingEventCanBeSubscribed()
         {
-            var telemetry = NUnitTelemetryContext.Create();
-            using (var app = UaPubSubApplication.Create(telemetry))
-            {
-                bool raised = false;
-                app.ConfigurationUpdating += (sender, args) => raised = true;
-                app.RaiseConfigurationUpdatingEvent(
-                    new ConfigurationUpdatingEventArgs());
-                Assert.That(raised, Is.True);
-            }
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var app = UaPubSubApplication.Create(telemetry);
+            bool raised = false;
+            app.ConfigurationUpdating += (sender, args) => raised = true;
+            app.RaiseConfigurationUpdatingEvent(
+                new ConfigurationUpdatingEventArgs());
+            Assert.That(raised, Is.True);
         }
     }
 }

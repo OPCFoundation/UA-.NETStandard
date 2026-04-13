@@ -75,7 +75,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             collection.Add(ep1);
             collection.Add(ep2);
 
-            Assert.That(collection.IndexOf(ep1), Is.EqualTo(0));
+            Assert.That(collection.IndexOf(ep1), Is.Zero);
             Assert.That(collection.IndexOf(ep2), Is.EqualTo(1));
         }
 
@@ -188,7 +188,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             collection.RemoveServer(serverUri);
 
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
         }
 
         [Test]

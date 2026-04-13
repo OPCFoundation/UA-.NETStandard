@@ -65,8 +65,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void EmptyElementsArrayReturnsTrue()
         {
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = []
+            };
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -193,8 +195,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             };
             notElement.SetOperands(new FilterOperand[] { new ElementOperand(1) });
 
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [notElement, inner];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [notElement, inner]
+            };
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -209,8 +213,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             };
             notElement.SetOperands(new FilterOperand[] { new ElementOperand(1) });
 
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [notElement, inner];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [notElement, inner]
+            };
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -226,8 +232,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             };
             andElement.SetOperands(new FilterOperand[] { new ElementOperand(1), new ElementOperand(2) });
 
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [andElement, left, right];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [andElement, left, right]
+            };
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -243,8 +251,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             };
             andElement.SetOperands(new FilterOperand[] { new ElementOperand(1), new ElementOperand(2) });
 
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [andElement, left, right];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [andElement, left, right]
+            };
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -260,8 +270,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             };
             orElement.SetOperands(new FilterOperand[] { new ElementOperand(1), new ElementOperand(2) });
 
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [orElement, left, right];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [orElement, left, right]
+            };
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -277,8 +289,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             };
             orElement.SetOperands(new FilterOperand[] { new ElementOperand(1), new ElementOperand(2) });
 
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [orElement, left, right];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [orElement, left, right]
+            };
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -354,8 +368,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var element = new ContentFilterElement { FilterOperator = FilterOperator.InList };
             element.SetOperands(operands);
 
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [element];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [element]
+            };
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -374,8 +390,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var element = new ContentFilterElement { FilterOperator = FilterOperator.InList };
             element.SetOperands(operands);
 
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [element];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [element]
+            };
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -488,8 +506,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var element = new ContentFilterElement { FilterOperator = FilterOperator.Equals };
             element.SetOperands(new FilterOperand[] { operand, new LiteralOperand(Variant.From(42)) });
 
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [element];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [element]
+            };
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -506,8 +526,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var element = new ContentFilterElement { FilterOperator = FilterOperator.Between };
             element.SetOperands(operands);
 
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [element];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [element]
+            };
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -524,8 +546,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var element = new ContentFilterElement { FilterOperator = FilterOperator.Between };
             element.SetOperands(operands);
 
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [element];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [element]
+            };
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -567,8 +591,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         private static Ua.ContentFilter BuildBinaryFilter(FilterOperator op, Variant left, Variant right)
         {
             var element = BuildBinaryElement(op, left, right);
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [element];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [element]
+            };
             return filter;
         }
 
@@ -590,8 +616,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 new LiteralOperand(operand)
             });
-            var filter = new Ua.ContentFilter();
-            filter.Elements = [element];
+            var filter = new Ua.ContentFilter
+            {
+                Elements = [element]
+            };
             return filter;
         }
 

@@ -48,7 +48,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_telemetry = NUnitTelemetryContext.Create();
             m_tempDir = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
-                "ConfigHelperTests_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+                "ConfigHelperTests_" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(m_tempDir);
         }
 
@@ -74,7 +74,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             UaPubSubConfigurationHelper.SaveConfiguration(config, filePath, m_telemetry);
             Assert.That(File.Exists(filePath), Is.True);
 
-            var loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
+            PubSubConfigurationDataType loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
             Assert.That(loaded, Is.Not.Null);
         }
 
@@ -96,7 +96,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             string filePath = Path.Combine(m_tempDir, "conn_config.xml");
 
             UaPubSubConfigurationHelper.SaveConfiguration(config, filePath, m_telemetry);
-            var loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
+            PubSubConfigurationDataType loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
 
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded.Connections.Count, Is.EqualTo(1));
@@ -130,7 +130,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             string filePath = Path.Combine(m_tempDir, "wg_config.xml");
 
             UaPubSubConfigurationHelper.SaveConfiguration(config, filePath, m_telemetry);
-            var loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
+            PubSubConfigurationDataType loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
 
             Assert.That(loaded.Connections[0].WriterGroups.Count, Is.EqualTo(1));
             Assert.That(loaded.Connections[0].WriterGroups[0].Name, Is.EqualTo("WG1"));
@@ -168,7 +168,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             string filePath = Path.Combine(m_tempDir, "pds_config.xml");
 
             UaPubSubConfigurationHelper.SaveConfiguration(config, filePath, m_telemetry);
-            var loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
+            PubSubConfigurationDataType loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
 
             Assert.That(loaded.PublishedDataSets.Count, Is.EqualTo(1));
             Assert.That(loaded.PublishedDataSets[0].Name, Is.EqualTo("DataSet1"));
@@ -206,7 +206,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             config2.Connections = config2.Connections.AddItem(new PubSubConnectionDataType { Name = "Second" });
             UaPubSubConfigurationHelper.SaveConfiguration(config2, filePath, m_telemetry);
 
-            var loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
+            PubSubConfigurationDataType loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
             Assert.That(loaded.Connections[0].Name, Is.EqualTo("Second"));
         }
 
@@ -251,7 +251,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             string filePath = Path.Combine(m_tempDir, "reader_config.xml");
 
             UaPubSubConfigurationHelper.SaveConfiguration(config, filePath, m_telemetry);
-            var loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
+            PubSubConfigurationDataType loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
 
             Assert.That(loaded.Connections[0].ReaderGroups.Count, Is.EqualTo(1));
             Assert.That(loaded.Connections[0].ReaderGroups[0].DataSetReaders.Count, Is.EqualTo(1));
@@ -275,7 +275,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             string filePath = Path.Combine(m_tempDir, "multi_conn.xml");
 
             UaPubSubConfigurationHelper.SaveConfiguration(config, filePath, m_telemetry);
-            var loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
+            PubSubConfigurationDataType loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
 
             Assert.That(loaded.Connections.Count, Is.EqualTo(3));
             for (int i = 0; i < 3; i++)
@@ -319,9 +319,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             string filePath = Path.Combine(m_tempDir, "dsw_config.xml");
 
             UaPubSubConfigurationHelper.SaveConfiguration(config, filePath, m_telemetry);
-            var loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
+            PubSubConfigurationDataType loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
 
-            var loadedWriter = loaded.Connections[0].WriterGroups[0].DataSetWriters[0];
+            DataSetWriterDataType loadedWriter = loaded.Connections[0].WriterGroups[0].DataSetWriters[0];
             Assert.That(loadedWriter.Name, Is.EqualTo("Writer1"));
             Assert.That(loadedWriter.DataSetWriterId, Is.EqualTo((ushort)10));
             Assert.That(loadedWriter.KeyFrameCount, Is.EqualTo((uint)5));
@@ -335,7 +335,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 checkCurrentDirectory: true,
                 createAlways: false);
 
-            var loaded = UaPubSubConfigurationHelper.LoadConfiguration(configFile, m_telemetry);
+            PubSubConfigurationDataType loaded = UaPubSubConfigurationHelper.LoadConfiguration(configFile, m_telemetry);
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded.Connections.Count, Is.GreaterThan(0));
         }
@@ -348,7 +348,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 checkCurrentDirectory: true,
                 createAlways: false);
 
-            var loaded = UaPubSubConfigurationHelper.LoadConfiguration(configFile, m_telemetry);
+            PubSubConfigurationDataType loaded = UaPubSubConfigurationHelper.LoadConfiguration(configFile, m_telemetry);
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded.Connections.Count, Is.GreaterThan(0));
         }

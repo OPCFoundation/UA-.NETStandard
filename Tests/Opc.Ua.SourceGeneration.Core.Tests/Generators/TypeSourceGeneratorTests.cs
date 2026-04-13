@@ -91,8 +91,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceSymbol = "TestNs",
                 IsEnum = false,
                 IsRecord = false,
-                Fields = new[]
-                {
+                Fields =
+                [
                     new TypeFieldModel
                     {
                         PropertyName = "ServerName",
@@ -101,7 +101,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         ShortTypeName = "String",
                         Order = 0
                     }
-                }
+                ]
             };
 
             string result = TypeSourceGenerator.Generate(model);
@@ -121,10 +121,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceSymbol = "TestRecords",
                 IsEnum = false,
                 IsRecord = true,
-                Fields = new[]
-                {
+                Fields =
+                [
                     CreateField("Value", "Int32"),
-                }
+                ]
             };
 
             string result = TypeSourceGenerator.Generate(model);
@@ -146,10 +146,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 IsEnum = false,
                 IsRecord = true,
                 IsSealed = true,
-                Fields = new[]
-                {
+                Fields =
+                [
                     CreateField("Value", "Int32"),
-                }
+                ]
             };
 
             string result = TypeSourceGenerator.Generate(model);
@@ -173,10 +173,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 IsRecord = true,
                 IsDerived = true,
                 BaseTypeIsEncodeable = true,
-                Fields = new[]
-                {
+                Fields =
+                [
                     CreateField("Extra", "String"),
-                }
+                ]
             };
 
             string result = TypeSourceGenerator.Generate(model);
@@ -201,12 +201,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceUri = "urn:test:enums",
                 NamespaceSymbol = "TestEnums",
                 IsEnum = true,
-                EnumMembers = new[]
-                {
+                EnumMembers =
+                [
                     new TypeEnumMember { Name = "None", Value = "0" },
                     new TypeEnumMember { Name = "Active", Value = "1" },
                     new TypeEnumMember { Name = "Disabled", Value = "2" },
-                }
+                ]
             };
 
             string result = TypeSourceGenerator.Generate(model);
@@ -276,8 +276,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceSymbol = "TestNs",
                 IsEnum = false,
                 IsRecord = false,
-                Fields = new[]
-                {
+                Fields =
+                [
                     new TypeFieldModel
                     {
                         PropertyName = "Child",
@@ -287,7 +287,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         IsEncodeable = true,
                         Order = 0
                     }
-                }
+                ]
             };
 
             string result = TypeSourceGenerator.Generate(model);
@@ -307,8 +307,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceSymbol = "TestNs",
                 IsEnum = false,
                 IsRecord = false,
-                Fields = new[]
-                {
+                Fields =
+                [
                     new TypeFieldModel
                     {
                         PropertyName = "Child",
@@ -319,7 +319,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         FieldTypeIsSealed = true,
                         Order = 0
                     }
-                }
+                ]
             };
 
             string result = TypeSourceGenerator.Generate(model);
@@ -339,8 +339,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceSymbol = "TestNs",
                 IsEnum = false,
                 IsRecord = false,
-                Fields = new[]
-                {
+                Fields =
+                [
                     new TypeFieldModel
                     {
                         PropertyName = "Child",
@@ -351,7 +351,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         StructureHandling = 1, // Inline
                         Order = 0
                     }
-                }
+                ]
             };
 
             string result = TypeSourceGenerator.Generate(model);
@@ -371,8 +371,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceSymbol = "TestNs",
                 IsEnum = false,
                 IsRecord = false,
-                Fields = new[]
-                {
+                Fields =
+                [
                     new TypeFieldModel
                     {
                         PropertyName = "Items",
@@ -384,7 +384,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         ElementTypeName = "global::System.String",
                         Order = 0
                     }
-                }
+                ]
             };
 
             string result = TypeSourceGenerator.Generate(model);
@@ -398,8 +398,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void TypeMapContainsAllBuiltInTypes()
         {
-            string[] expectedTypes = new[]
-            {
+            string[] expectedTypes =
+            [
                 "Boolean", "SByte", "Byte", "Int16", "UInt16",
                 "Int32", "UInt32", "Int64", "UInt64",
                 "Float", "Double", "String", "DateTime",
@@ -407,7 +407,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "StatusCode", "QualifiedName", "LocalizedText",
                 "ExtensionObject", "DataValue", "Variant",
                 "DiagnosticInfo"
-            };
+            ];
 
             foreach (string typeName in expectedTypes)
             {
@@ -445,8 +445,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceUri = "urn:test",
                 NamespaceSymbol = "Test",
                 IsEnum = false,
-                Fields = new[]
-                {
+                Fields =
+                [
                     CreateField("Good", "String"),
                     new TypeFieldModel
                     {
@@ -456,7 +456,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         ShortTypeName = "CustomThing",
                         Order = 1
                     }
-                }
+                ]
             };
 
             IReadOnlyList<TypeSourceGeneratorDiagnostic> diagnostics =
@@ -478,8 +478,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 NamespaceUri = "urn:test",
                 NamespaceSymbol = "Test",
                 IsEnum = false,
-                Fields = new[]
-                {
+                Fields =
+                [
                     new TypeFieldModel
                     {
                         PropertyName = "Bad",
@@ -489,7 +489,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         HasDataTypeFieldAttribute = true,
                         Order = 0
                     }
-                }
+                ]
             };
 
             IReadOnlyList<TypeSourceGeneratorDiagnostic> diagnostics =

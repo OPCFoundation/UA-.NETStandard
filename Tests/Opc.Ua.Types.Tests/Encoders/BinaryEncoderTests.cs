@@ -5617,7 +5617,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateContext(0);
 
             var encoder = new BinaryEncoder(messageContext);
-            var testGuid = new Uuid(Guid.NewGuid());
+            var testGuid = Uuid.NewUuid();
             var singleArray = ArrayOf.Wrapped(testGuid);
             // Act
             encoder.WriteGuidArray("testField", singleArray);
@@ -5640,9 +5640,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateContext(0);
 
             var encoder = new BinaryEncoder(messageContext);
-            var guid1 = new Uuid(Guid.NewGuid());
-            var guid2 = new Uuid(Guid.NewGuid());
-            var guid3 = new Uuid(Guid.NewGuid());
+            var guid1 = Uuid.NewUuid();
+            var guid2 = Uuid.NewUuid();
+            var guid3 = Uuid.NewUuid();
             var multiArray = ArrayOf.Wrapped(guid1, guid2, guid3);
             // Act
             encoder.WriteGuidArray("testField", multiArray);
@@ -5672,9 +5672,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
             var encoder = new BinaryEncoder(messageContext);
-            var guid1 = new Uuid(Guid.NewGuid());
-            var guid2 = new Uuid(Guid.NewGuid());
-            var guid3 = new Uuid(Guid.NewGuid());
+            var guid1 = Uuid.NewUuid();
+            var guid2 = Uuid.NewUuid();
+            var guid3 = Uuid.NewUuid();
             var largeArray = ArrayOf.Wrapped(guid1, guid2, guid3);
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteGuidArray("testField", largeArray));
@@ -5715,9 +5715,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(3);
             var encoder = new BinaryEncoder(messageContext);
-            var guid1 = new Uuid(Guid.NewGuid());
-            var guid2 = new Uuid(Guid.NewGuid());
-            var guid3 = new Uuid(Guid.NewGuid());
+            var guid1 = Uuid.NewUuid();
+            var guid2 = Uuid.NewUuid();
+            var guid3 = Uuid.NewUuid();
             var boundaryArray = ArrayOf.Wrapped(guid1, guid2, guid3);
             // Act
             encoder.WriteGuidArray("testField", boundaryArray);
@@ -5761,7 +5761,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var guids = new Uuid[100];
             for (int i = 0; i < 100; i++)
             {
-                guids[i] = new Uuid(Guid.NewGuid());
+                guids[i] = Uuid.NewUuid();
             }
 
             var largeArray = ArrayOf.Wrapped(guids);

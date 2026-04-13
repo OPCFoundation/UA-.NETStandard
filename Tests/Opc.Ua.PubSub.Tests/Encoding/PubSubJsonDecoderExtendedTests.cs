@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
@@ -53,7 +52,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeRawDataScalarBoolean()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-1"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -64,7 +63,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "BoolVal",
@@ -72,14 +71,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarSByte()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-sb"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -90,7 +89,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "SByteVal",
@@ -98,14 +97,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarByte()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-b"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -116,7 +115,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "ByteVal",
@@ -124,14 +123,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarInt16()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-i16"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -142,7 +141,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "Int16Val",
@@ -150,14 +149,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarUInt16()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-u16"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -168,7 +167,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "UInt16Val",
@@ -176,14 +175,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarInt32()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-i32"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -194,7 +193,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "Int32Val",
@@ -202,14 +201,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarUInt32()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-u32"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -220,7 +219,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "UInt32Val",
@@ -228,14 +227,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarInt64()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-i64"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -246,7 +245,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "Int64Val",
@@ -254,14 +253,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarUInt64()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-u64"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -272,7 +271,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "UInt64Val",
@@ -280,14 +279,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarFloat()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-f"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -298,7 +297,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "FloatVal",
@@ -306,14 +305,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarDouble()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-d"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -324,7 +323,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "DoubleVal",
@@ -332,14 +331,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarString()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-s"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -350,7 +349,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "StrVal",
@@ -358,14 +357,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarDateTime()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-dt"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -376,7 +375,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "DateVal",
@@ -384,7 +383,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
@@ -403,7 +402,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }}]
             }}";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "GuidVal",
@@ -411,14 +410,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarByteString()
         {
-            string base64 = Convert.ToBase64String(new byte[] { 1, 2, 3, 4 });
+            string base64 = Convert.ToBase64String([1, 2, 3, 4]);
             string json = $@"{{
                 ""MessageId"": ""msg-bs"",
                 ""MessageType"": ""ua-data"",
@@ -430,7 +429,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }}]
             }}";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "ByteStrVal",
@@ -438,14 +437,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarNodeId()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-nid"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -456,7 +455,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "NodeIdVal",
@@ -464,14 +463,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarExpandedNodeId()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-enid"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -482,7 +481,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "EnidVal",
@@ -490,14 +489,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarStatusCode()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-sc"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -508,7 +507,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "StatusVal",
@@ -516,14 +515,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarQualifiedName()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-qn"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -534,7 +533,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "QnVal",
@@ -542,14 +541,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarLocalizedText()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-lt"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -560,7 +559,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "LtVal",
@@ -568,14 +567,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataScalarEnumeration()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-enum"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -586,7 +585,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "EnumVal",
@@ -594,14 +593,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeDataSetMessageWithDataSetHeader()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-hdr"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -614,7 +613,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReaderWithHeader("P1", 5,
+            DataSetReaderDataType reader = CreateDataSetReaderWithHeader("P1", 5,
                 new FieldMetaData
                 {
                     Name = "Temp",
@@ -622,14 +621,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeDataSetMessageFiltersByDataSetWriterId()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-filter"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -641,7 +640,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReaderWithHeader("P1", 99,
+            DataSetReaderDataType reader = CreateDataSetReaderWithHeader("P1", 99,
                 new FieldMetaData
                 {
                     Name = "Val",
@@ -649,14 +648,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.EqualTo(0));
         }
 
         [Test]
         public void DecodeDataSetWithMissingFieldReturnsNullVariant()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-miss"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -667,7 +666,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "Field1",
@@ -681,14 +680,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeMissingStatusCodeFieldReturnsGood()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-goodsc"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -697,7 +696,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "StatusField",
@@ -705,14 +704,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodePayloadWithExtraFieldsFilteredOut()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-extra"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -724,7 +723,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "Known",
@@ -732,14 +731,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.EqualTo(0));
         }
 
         [Test]
         public void DecodeDataValueEncodingWithStatusCodeAndTimestamps()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-dv"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -755,7 +754,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReaderDataValue("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReaderDataValue("P1", 0,
                 new FieldMetaData
                 {
                     Name = "Temp",
@@ -763,14 +762,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeDataValueEncodingWithPicoseconds()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-dv-pico"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -787,7 +786,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReaderDataValueWithPicos("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReaderDataValueWithPicos("P1", 0,
                 new FieldMetaData
                 {
                     Name = "Val",
@@ -795,14 +794,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeDataValueEncodingWithMissingValueForStatusCode()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-dv-novalue"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -815,7 +814,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReaderDataValue("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReaderDataValue("P1", 0,
                 new FieldMetaData
                 {
                     Name = "StatusField",
@@ -823,18 +822,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeNetworkMessageWithSingleDataSetNoHeader()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""Temperature"": 25.5
             }";
 
-            var reader = CreateDataSetReaderNoHeader("", 0,
+            DataSetReaderDataType reader = CreateDataSetReaderNoHeader("", 0,
                 new FieldMetaData
                 {
                     Name = "Temperature",
@@ -844,7 +843,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
-            networkMessage.Decode(m_context, messageBytes, new[] { reader });
+            networkMessage.Decode(m_context, messageBytes, [reader]);
 
             Assert.That(networkMessage, Is.Not.EqualTo(default(PubSubEncoding.JsonNetworkMessage)));
         }
@@ -852,7 +851,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeNetworkMessageWithMultipleMessages()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-multi"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -862,7 +861,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 ]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "F1",
@@ -870,14 +869,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThanOrEqualTo(1));
         }
 
         [Test]
         public void DecodeNetworkMessageWithMultipleReadersMatchesByPublisherId()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-mr"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""PubA"",
@@ -888,7 +887,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var readerA = CreateDataSetReader("PubA", 0,
+            DataSetReaderDataType readerA = CreateDataSetReader("PubA", 0,
                 new FieldMetaData
                 {
                     Name = "Val",
@@ -896,7 +895,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.Scalar
                 });
 
-            var readerB = CreateDataSetReader("PubB", 0,
+            DataSetReaderDataType readerB = CreateDataSetReader("PubB", 0,
                 new FieldMetaData
                 {
                     Name = "Val",
@@ -906,7 +905,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
-            networkMessage.Decode(m_context, messageBytes, new[] { readerA, readerB });
+            networkMessage.Decode(m_context, messageBytes, [readerA, readerB]);
 
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThanOrEqualTo(1));
         }
@@ -914,7 +913,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeRawDataArrayInt32()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-arr"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -925,7 +924,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "IntArr",
@@ -933,14 +932,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.OneDimension
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataArrayString()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-sarr"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -951,7 +950,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "StrArr",
@@ -959,14 +958,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.OneDimension
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataArrayDouble()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-darr"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -977,7 +976,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "DblArr",
@@ -985,14 +984,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.OneDimension
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeRawDataArrayBoolean()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""msg-barr"",
                 ""MessageType"": ""ua-data"",
                 ""PublisherId"": ""P1"",
@@ -1003,7 +1002,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }]
             }";
 
-            var reader = CreateDataSetReader("P1", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
                 {
                     Name = "BoolArr",
@@ -1011,14 +1010,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     ValueRank = ValueRanks.OneDimension
                 });
 
-            var networkMessage = DecodeNetworkMessage(json, reader);
+            PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
             Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public void DecodeMetaDataMessageProducesMetaData()
         {
-            string json = @"{
+            const string json = /*lang=json,strict*/ @"{
                 ""MessageId"": ""meta-ext"",
                 ""MessageType"": ""ua-metadata"",
                 ""PublisherId"": ""MetaPub"",
@@ -1046,7 +1045,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
-            networkMessage.Decode(m_context, messageBytes, new DataSetReaderDataType[0]);
+            networkMessage.Decode(m_context, messageBytes, Array.Empty<DataSetReaderDataType>());
 
             Assert.That(networkMessage.IsMetaDataMessage, Is.True);
             Assert.That(networkMessage.DataSetWriterId, Is.EqualTo((ushort)10));
@@ -1055,7 +1054,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderReadSByteReturnsCorrectValue()
         {
-            string json = "{\"Val\": -50}";
+            const string json = /*lang=json,strict*/ "{\"Val\": -50}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             sbyte result = decoder.ReadSByte("Val");
@@ -1065,7 +1064,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderReadInt16ReturnsCorrectValue()
         {
-            string json = "{\"Val\": -30000}";
+            const string json = /*lang=json,strict*/ "{\"Val\": -30000}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             short result = decoder.ReadInt16("Val");
@@ -1075,11 +1074,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderReadUInt32ReturnsCorrectValue()
         {
-            string json = "{\"Val\": 4000000000}";
+            const string json = /*lang=json,strict*/ "{\"Val\": 4000000000}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             uint result = decoder.ReadUInt32("Val");
-            Assert.That(result, Is.EqualTo((uint)4000000000));
+            Assert.That(result, Is.EqualTo(4000000000u));
         }
 
         [Test]
@@ -1096,17 +1095,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderReadDateTimeReturnsCorrectValue()
         {
-            string json = "{\"Val\": \"2024-06-15T12:30:00Z\"}";
+            const string json = /*lang=json,strict*/ "{\"Val\": \"2024-06-15T12:30:00Z\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadDateTime("Val");
+            DateTimeUtc result = decoder.ReadDateTime("Val");
             Assert.That(((DateTime)result).Year, Is.EqualTo(2024));
         }
 
         [Test]
         public void DecoderReadNodeIdReturnsValue()
         {
-            string json = "{\"Val\": \"i=1234\"}";
+            const string json = /*lang=json,strict*/ "{\"Val\": \"i=1234\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             NodeId result = decoder.ReadNodeId("Val");
@@ -1116,7 +1115,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderReadExpandedNodeIdReturnsValue()
         {
-            string json = "{\"Val\": \"i=5678\"}";
+            const string json = /*lang=json,strict*/ "{\"Val\": \"i=5678\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ExpandedNodeId result = decoder.ReadExpandedNodeId("Val");
@@ -1126,7 +1125,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderReadQualifiedNameReturnsValue()
         {
-            string json = "{\"Val\": \"TestQN\"}";
+            const string json = /*lang=json,strict*/ "{\"Val\": \"TestQN\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             QualifiedName result = decoder.ReadQualifiedName("Val");
@@ -1136,7 +1135,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderReadLocalizedTextReturnsValue()
         {
-            string json = "{\"Val\": \"Hello World\"}";
+            const string json = /*lang=json,strict*/ "{\"Val\": \"Hello World\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             LocalizedText result = decoder.ReadLocalizedText("Val");
@@ -1146,7 +1145,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderReadDiagnosticInfoReturnsValue()
         {
-            string json = "{\"Val\": {}}";
+            const string json = /*lang=json,strict*/ "{\"Val\": {}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             Assert.DoesNotThrow(() => decoder.ReadDiagnosticInfo("Val"));
@@ -1155,10 +1154,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderReadInt32ArrayReturnsCorrectValues()
         {
-            string json = "{\"Arr\": [10, 20, 30]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [10, 20, 30]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadInt32Array("Arr");
+            ArrayOf<int> result = decoder.ReadInt32Array("Arr");
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(10));
         }
@@ -1166,110 +1165,110 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderReadStringArrayReturnsCorrectValues()
         {
-            string json = "{\"Arr\": [\"a\", \"b\", \"c\"]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [\"a\", \"b\", \"c\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadStringArray("Arr");
+            ArrayOf<string> result = decoder.ReadStringArray("Arr");
             Assert.That(result.Count, Is.EqualTo(3));
         }
 
         [Test]
         public void DecoderReadDoubleArrayReturnsCorrectValues()
         {
-            string json = "{\"Arr\": [1.1, 2.2, 3.3]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [1.1, 2.2, 3.3]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadDoubleArray("Arr");
+            ArrayOf<double> result = decoder.ReadDoubleArray("Arr");
             Assert.That(result.Count, Is.EqualTo(3));
         }
 
         [Test]
         public void DecoderReadBooleanArrayReturnsCorrectValues()
         {
-            string json = "{\"Arr\": [true, false, true]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [true, false, true]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadBooleanArray("Arr");
+            ArrayOf<bool> result = decoder.ReadBooleanArray("Arr");
             Assert.That(result.Count, Is.EqualTo(3));
         }
 
         [Test]
         public void DecoderReadFloatArrayReturnsCorrectValues()
         {
-            string json = "{\"Arr\": [1.1, 2.2]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [1.1, 2.2]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadFloatArray("Arr");
+            ArrayOf<float> result = decoder.ReadFloatArray("Arr");
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
         [Test]
         public void DecoderReadUInt16ArrayReturnsCorrectValues()
         {
-            string json = "{\"Arr\": [100, 200, 300]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [100, 200, 300]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadUInt16Array("Arr");
+            ArrayOf<ushort> result = decoder.ReadUInt16Array("Arr");
             Assert.That(result.Count, Is.EqualTo(3));
         }
 
         [Test]
         public void DecoderReadInt64ArrayReturnsCorrectValues()
         {
-            string json = "{\"Arr\": [-1, 0, 1]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [-1, 0, 1]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadInt64Array("Arr");
+            ArrayOf<long> result = decoder.ReadInt64Array("Arr");
             Assert.That(result.Count, Is.EqualTo(3));
         }
 
         [Test]
         public void DecoderReadUInt64ArrayReturnsCorrectValues()
         {
-            string json = "{\"Arr\": [0, 999]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [0, 999]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadUInt64Array("Arr");
+            ArrayOf<ulong> result = decoder.ReadUInt64Array("Arr");
             Assert.That(result.Count, Is.EqualTo(2));
         }
 
         [Test]
         public void DecoderReadByteArrayReturnsCorrectValues()
         {
-            string json = "{\"Arr\": [1, 2, 3]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [1, 2, 3]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadByteArray("Arr");
+            ArrayOf<byte> result = decoder.ReadByteArray("Arr");
             Assert.That(result.Count, Is.EqualTo(3));
         }
 
         [Test]
         public void DecoderReadSByteArrayReturnsCorrectValues()
         {
-            string json = "{\"Arr\": [-1, 0, 1]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [-1, 0, 1]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadSByteArray("Arr");
+            ArrayOf<sbyte> result = decoder.ReadSByteArray("Arr");
             Assert.That(result.Count, Is.EqualTo(3));
         }
 
         [Test]
         public void DecoderReadInt16ArrayReturnsCorrectValues()
         {
-            string json = "{\"Arr\": [-100, 0, 100]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [-100, 0, 100]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadInt16Array("Arr");
+            ArrayOf<short> result = decoder.ReadInt16Array("Arr");
             Assert.That(result.Count, Is.EqualTo(3));
         }
 
         [Test]
         public void DecoderReadUInt32ArrayReturnsCorrectValues()
         {
-            string json = "{\"Arr\": [0, 1000, 2000]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [0, 1000, 2000]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
-            var result = decoder.ReadUInt32Array("Arr");
+            ArrayOf<uint> result = decoder.ReadUInt32Array("Arr");
             Assert.That(result.Count, Is.EqualTo(3));
         }
 
@@ -1285,7 +1284,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderDecodeMessageFromArraySegment()
         {
-            string json = "{}";
+            const string json = "{}";
             byte[] buffer = System.Text.Encoding.UTF8.GetBytes(json);
             var segment = new ArraySegment<byte>(buffer);
 
@@ -1296,7 +1295,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderDecodeMessageFromArraySegmentNullContextThrows()
         {
-            string json = "{}";
+            const string json = "{}";
             byte[] buffer = System.Text.Encoding.UTF8.GetBytes(json);
             var segment = new ArraySegment<byte>(buffer);
 
@@ -1307,7 +1306,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderReadExtensionObjectReturnsValue()
         {
-            string json = "{\"EO\": {}}";
+            const string json = /*lang=json,strict*/ "{\"EO\": {}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             Assert.DoesNotThrow(() => decoder.ReadExtensionObject("EO"));
@@ -1323,7 +1322,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderPushStructureForNonExistentFieldReturnsFalse()
         {
-            string json = "{\"A\": 1}";
+            const string json = /*lang=json,strict*/ "{\"A\": 1}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             bool pushed = decoder.PushStructure("NonExistent");
@@ -1333,7 +1332,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecoderPushArrayOutOfBoundsReturnsFalse()
         {
-            string json = "{\"Arr\": [1]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [1]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             bool pushed = decoder.PushArray("Arr", 5);
@@ -1346,8 +1345,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning disable CS0618 // Type or member is obsolete
             var fields = new Field[]
             {
-                new Field
-                {
+                new() {
                     FieldMetaData = new FieldMetaData
                     {
                         Name = "IntVal",
@@ -1356,8 +1354,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     },
                     Value = new DataValue(new Variant(42))
                 },
-                new Field
-                {
+                new() {
                     FieldMetaData = new FieldMetaData
                     {
                         Name = "DblVal",
@@ -1366,8 +1363,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     },
                     Value = new DataValue(new Variant(3.14))
                 },
-                new Field
-                {
+                new() {
                     FieldMetaData = new FieldMetaData
                     {
                         Name = "StrVal",
@@ -1376,8 +1372,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     },
                     Value = new DataValue(new Variant("test"))
                 },
-                new Field
-                {
+                new() {
                     FieldMetaData = new FieldMetaData
                     {
                         Name = "BoolVal",
@@ -1402,7 +1397,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { message });
+                [message]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage |
@@ -1411,7 +1406,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] encoded = networkMessage.Encode(m_context);
 
-            var reader = CreateDataSetReader("RTPub", 0,
+            DataSetReaderDataType reader = CreateDataSetReader("RTPub", 0,
                 new FieldMetaData
                 {
                     Name = "IntVal",
@@ -1438,7 +1433,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
-            decoded.Decode(m_context, encoded, new[] { reader });
+            decoded.Decode(m_context, encoded, [reader]);
 
             Assert.That(decoded.PublisherId, Is.EqualTo("RTPub"));
             Assert.That(decoded.DataSetMessages.Count, Is.GreaterThan(0));
@@ -1468,12 +1463,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.None);
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { message });
+                [message]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage |
@@ -1525,7 +1520,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] encoded = networkMessage.Encode(m_context);
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
-            decoded.Decode(m_context, encoded, new DataSetReaderDataType[0]);
+            decoded.Decode(m_context, encoded, Array.Empty<DataSetReaderDataType>());
 
             Assert.That(decoded.IsMetaDataMessage, Is.True);
             Assert.That(decoded.PublisherId, Is.EqualTo("MetaPub"));
@@ -1538,7 +1533,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
-            networkMessage.Decode(m_context, messageBytes, new[] { reader });
+            networkMessage.Decode(m_context, messageBytes, [reader]);
             return networkMessage;
         }
 

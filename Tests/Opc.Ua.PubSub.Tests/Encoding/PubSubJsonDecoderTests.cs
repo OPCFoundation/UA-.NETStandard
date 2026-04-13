@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.Tests;
@@ -52,7 +51,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ConstructorWithStringCreatesDecoder()
         {
-            string json = "{\"Field1\": 42}";
+            const string json = /*lang=json,strict*/ "{\"Field1\": 42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             Assert.That(decoder.Context, Is.Not.Null);
@@ -68,7 +67,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadBooleanReturnsCorrectValue()
         {
-            string json = "{\"Flag\": true}";
+            const string json = /*lang=json,strict*/ "{\"Flag\": true}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             bool result = decoder.ReadBoolean("Flag");
@@ -78,7 +77,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadInt32ReturnsCorrectValue()
         {
-            string json = "{\"Number\": 42}";
+            const string json = /*lang=json,strict*/ "{\"Number\": 42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             int result = decoder.ReadInt32("Number");
@@ -88,7 +87,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadUInt32ReturnsCorrectValue()
         {
-            string json = "{\"Value\": 100}";
+            const string json = /*lang=json,strict*/ "{\"Value\": 100}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             uint result = decoder.ReadUInt32("Value");
@@ -98,7 +97,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadStringReturnsCorrectValue()
         {
-            string json = "{\"Name\": \"Test\"}";
+            const string json = /*lang=json,strict*/ "{\"Name\": \"Test\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             string result = decoder.ReadString("Name");
@@ -108,7 +107,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadDoubleReturnsCorrectValue()
         {
-            string json = "{\"Value\": 3.14}";
+            const string json = /*lang=json,strict*/ "{\"Value\": 3.14}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             double result = decoder.ReadDouble("Value");
@@ -118,7 +117,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadFloatReturnsCorrectValue()
         {
-            string json = "{\"Value\": 1.5}";
+            const string json = /*lang=json,strict*/ "{\"Value\": 1.5}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             float result = decoder.ReadFloat("Value");
@@ -128,7 +127,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadByteReturnsCorrectValue()
         {
-            string json = "{\"Value\": 255}";
+            const string json = /*lang=json,strict*/ "{\"Value\": 255}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             byte result = decoder.ReadByte("Value");
@@ -138,7 +137,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadSByteReturnsCorrectValue()
         {
-            string json = "{\"Value\": -1}";
+            const string json = /*lang=json,strict*/ "{\"Value\": -1}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             sbyte result = decoder.ReadSByte("Value");
@@ -148,7 +147,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadInt16ReturnsCorrectValue()
         {
-            string json = "{\"Value\": -32000}";
+            const string json = /*lang=json,strict*/ "{\"Value\": -32000}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             short result = decoder.ReadInt16("Value");
@@ -158,7 +157,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadUInt16ReturnsCorrectValue()
         {
-            string json = "{\"Value\": 65000}";
+            const string json = /*lang=json,strict*/ "{\"Value\": 65000}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ushort result = decoder.ReadUInt16("Value");
@@ -168,7 +167,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadInt64ReturnsCorrectValue()
         {
-            string json = "{\"Value\": \"999999999\"}";
+            const string json = /*lang=json,strict*/ "{\"Value\": \"999999999\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             long result = decoder.ReadInt64("Value");
@@ -178,7 +177,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadUInt64ReturnsCorrectValue()
         {
-            string json = "{\"Value\": \"999999999\"}";
+            const string json = /*lang=json,strict*/ "{\"Value\": \"999999999\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ulong result = decoder.ReadUInt64("Value");
@@ -188,7 +187,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadMissingFieldReturnsDefault()
         {
-            string json = "{\"Other\": 42}";
+            const string json = /*lang=json,strict*/ "{\"Other\": 42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             int result = decoder.ReadInt32("Missing");
@@ -198,7 +197,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadSwitchFieldWithSwitchFieldKeyReturnsSwitchValue()
         {
-            string json = "{\"SwitchField\": 2, \"Value\": 42}";
+            const string json = /*lang=json,strict*/ "{\"SwitchField\": 2, \"Value\": 42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             var switches = new List<string> { "Option1", "Option2", "Option3" };
@@ -211,7 +210,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadSwitchFieldWithoutSwitchFieldKeyMatchesByFieldName()
         {
-            string json = "{\"Option2\": 42}";
+            const string json = /*lang=json,strict*/ "{\"Option2\": 42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             var switches = new List<string> { "Option1", "Option2", "Option3" };
@@ -224,7 +223,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadSwitchFieldWithNullSwitchesReturnsZero()
         {
-            string json = "{\"SwitchField\": 2}";
+            const string json = /*lang=json,strict*/ "{\"SwitchField\": 2}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             uint index = decoder.ReadSwitchField(null, out string fieldName);
@@ -234,7 +233,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadSwitchFieldWithIndexExceedingSwitchCountReturnsIndex()
         {
-            string json = "{\"SwitchField\": 10}";
+            const string json = /*lang=json,strict*/ "{\"SwitchField\": 10}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             var switches = new List<string> { "Option1", "Option2" };
@@ -246,7 +245,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadSwitchFieldWithNoMatchReturnsZero()
         {
-            string json = "{\"UnrelatedField\": 42}";
+            const string json = /*lang=json,strict*/ "{\"UnrelatedField\": 42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             var switches = new List<string> { "Option1", "Option2" };
@@ -258,7 +257,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadEncodingMaskWithEncodingMaskKeyReturnsValue()
         {
-            string json = "{\"EncodingMask\": 7}";
+            const string json = /*lang=json,strict*/ "{\"EncodingMask\": 7}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             var masks = new List<string> { "Field1", "Field2", "Field3" };
@@ -270,7 +269,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadEncodingMaskWithoutKeyComputesMaskFromFields()
         {
-            string json = "{\"Field1\": 1, \"Field3\": 3}";
+            const string json = /*lang=json,strict*/ "{\"Field1\": 1, \"Field3\": 3}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             var masks = new List<string> { "Field1", "Field2", "Field3" };
@@ -284,7 +283,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadEncodingMaskWithNullMasksReturnsZero()
         {
-            string json = "{\"Field1\": 1}";
+            const string json = /*lang=json,strict*/ "{\"Field1\": 1}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             uint result = decoder.ReadEncodingMask(null);
@@ -294,7 +293,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadEncodingMaskWithEmptyObjectReturnsZero()
         {
-            string json = "{}";
+            const string json = "{}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             var masks = new List<string> { "Field1", "Field2" };
@@ -306,7 +305,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void SetMappingTablesWithNullsDoesNotThrow()
         {
-            string json = "{}";
+            const string json = "{}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             Assert.DoesNotThrow(() => decoder.SetMappingTables(null, null));
@@ -315,7 +314,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void SetMappingTablesWithValidTablesDoesNotThrow()
         {
-            string json = "{}";
+            const string json = "{}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             Assert.DoesNotThrow(
@@ -325,7 +324,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void PushAndPopStructureNavigatesJson()
         {
-            string json = "{\"Outer\": {\"Inner\": 42}}";
+            const string json = /*lang=json,strict*/ "{\"Outer\": {\"Inner\": 42}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             decoder.PushStructure("Outer");
@@ -338,7 +337,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadNullStringReturnsNull()
         {
-            string json = "{\"Value\": null}";
+            const string json = /*lang=json,strict*/ "{\"Value\": null}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             string result = decoder.ReadString("Value");
@@ -356,7 +355,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadDateTimeReturnsValue()
         {
-            string isoDate = "2024-01-15T10:30:00Z";
+            const string isoDate = "2024-01-15T10:30:00Z";
             string json = "{\"Timestamp\": \"" + isoDate + "\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
@@ -381,13 +380,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             var decoder = new PubSubJsonDecoder("{}", m_context);
             decoder.Dispose();
-            Assert.DoesNotThrow(() => decoder.Dispose());
+            Assert.DoesNotThrow(decoder.Dispose);
         }
 
         [Test]
         public void ReadSwitchFieldWithSwitchFieldAndNoValueKeyUsesFieldName()
         {
-            string json = "{\"SwitchField\": 1}";
+            const string json = /*lang=json,strict*/ "{\"SwitchField\": 1}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             var switches = new List<string> { "First", "Second" };
@@ -400,7 +399,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadEncodingMaskComputesBitmaskCorrectlyForAllFields()
         {
-            string json = "{\"A\": 1, \"B\": 2, \"C\": 3}";
+            const string json = /*lang=json,strict*/ "{\"A\": 1, \"B\": 2, \"C\": 3}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             var masks = new List<string> { "A", "B", "C" };
@@ -419,7 +418,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadNestedStructure()
         {
-            string json = "{\"Level1\": {\"Level2\": {\"Value\": 99}}}";
+            const string json = /*lang=json,strict*/ "{\"Level1\": {\"Level2\": {\"Value\": 99}}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             decoder.PushStructure("Level1");

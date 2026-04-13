@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -145,10 +146,10 @@ namespace Opc.Ua.PubSub.Tests
             using var app = UaPubSubApplication.Create(configFile, telemetry);
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
 
-            var writerGroups = connection.PubSubConnectionConfiguration.WriterGroups;
+            ArrayOf<WriterGroupDataType> writerGroups = connection.PubSubConnectionConfiguration.WriterGroups;
             Assert.That(writerGroups.Count, Is.GreaterThanOrEqualTo(0));
             Assert.That(writerGroups.Count, Is.GreaterThan(0));
-            foreach (var wg in writerGroups)
+            foreach (WriterGroupDataType wg in writerGroups)
             {
                 Assert.That(wg.WriterGroupId, Is.GreaterThan(0));
                 Assert.That(wg.Name, Is.Not.Null.And.Not.Empty);
@@ -166,7 +167,7 @@ namespace Opc.Ua.PubSub.Tests
             using var app = UaPubSubApplication.Create(configFile, telemetry);
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
 
-            var readerGroups = connection.PubSubConnectionConfiguration.ReaderGroups;
+            ArrayOf<ReaderGroupDataType> readerGroups = connection.PubSubConnectionConfiguration.ReaderGroups;
             Assert.That(readerGroups.Count, Is.GreaterThanOrEqualTo(0));
         }
 
@@ -181,7 +182,7 @@ namespace Opc.Ua.PubSub.Tests
             using var app = UaPubSubApplication.Create(configFile, telemetry);
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
 
-            var readers = connection.GetOperationalDataSetReaders();
+            List<DataSetReaderDataType> readers = connection.GetOperationalDataSetReaders();
             Assert.That(readers, Is.Not.Null);
             Assert.That(readers.Count, Is.GreaterThanOrEqualTo(0));
         }
@@ -218,7 +219,7 @@ namespace Opc.Ua.PubSub.Tests
 
             Assert.That(app.PubSubConnections.Count, Is.GreaterThan(0));
 
-            foreach (var conn in app.PubSubConnections)
+            foreach (IUaPubSubConnection conn in app.PubSubConnections)
             {
                 var pubSubConn = conn as UaPubSubConnection;
                 Assert.That(pubSubConn, Is.Not.Null);
@@ -238,7 +239,7 @@ namespace Opc.Ua.PubSub.Tests
             using var app = UaPubSubApplication.Create(configFile, telemetry);
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
 
-            var protocol = connection.TransportProtocol;
+            TransportProtocol protocol = connection.TransportProtocol;
             Assert.That(protocol, Is.Not.EqualTo(TransportProtocol.NotAvailable));
         }
 
@@ -253,7 +254,7 @@ namespace Opc.Ua.PubSub.Tests
             using var app = UaPubSubApplication.Create(configFile, telemetry);
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
 
-            var pubId = connection.PubSubConnectionConfiguration.PublisherId;
+            Variant pubId = connection.PubSubConnectionConfiguration.PublisherId;
             Assert.That(pubId, Is.Not.EqualTo(Variant.Null));
         }
 
@@ -283,7 +284,7 @@ namespace Opc.Ua.PubSub.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var app = UaPubSubApplication.Create(configFile, telemetry);
 
-            Assert.DoesNotThrow(() => app.Dispose());
+            Assert.DoesNotThrow(app.Dispose);
         }
 
         [Test]
@@ -297,7 +298,7 @@ namespace Opc.Ua.PubSub.Tests
             using var app = UaPubSubApplication.Create(configFile, telemetry);
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
 
-            var wg = connection.PubSubConnectionConfiguration.WriterGroups[0];
+            WriterGroupDataType wg = connection.PubSubConnectionConfiguration.WriterGroups[0];
             Assert.That(wg.DataSetWriters, Is.Not.EqualTo(default(ArrayOf<DataSetWriterDataType>)));
             Assert.That(wg.DataSetWriters.Count, Is.GreaterThan(0));
         }
@@ -313,10 +314,10 @@ namespace Opc.Ua.PubSub.Tests
             using var app = UaPubSubApplication.Create(configFile, telemetry);
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
 
-            var readerGroups = connection.PubSubConnectionConfiguration.ReaderGroups;
+            ArrayOf<ReaderGroupDataType> readerGroups = connection.PubSubConnectionConfiguration.ReaderGroups;
             if (readerGroups.Count > 0 && readerGroups[0].DataSetReaders.Count > 0)
             {
-                var reader = readerGroups[0].DataSetReaders[0];
+                DataSetReaderDataType reader = readerGroups[0].DataSetReaders[0];
                 Assert.That(reader.DataSetMetaData, Is.Not.Null);
             }
         }

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -104,7 +103,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void ValidationOptionsDefaultsToZero()
         {
             var id = new CertificateIdentifier();
-            Assert.That(id.ValidationOptions, Is.EqualTo((CertificateValidationOptions)0));
+            Assert.That(id.ValidationOptions, Is.Zero);
         }
 
         [Test]
@@ -289,10 +288,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 StoreType = CertificateStoreType.Directory,
                 StorePath = "%LocalApplicationData%/OPC/CertIdTests/certs"
             };
-            using (ICertificateStore store = id.OpenStore(NUnitTelemetryContext.Create()))
-            {
-                Assert.That(store, Is.Not.Null);
-            }
+            using ICertificateStore store = id.OpenStore(NUnitTelemetryContext.Create());
+            Assert.That(store, Is.Not.Null);
         }
 
         [Test]
@@ -337,7 +334,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateType = ObjectTypeIds.EccNistP256ApplicationCertificateType
             };
             ushort keySize = id.GetMinKeySize(secConfig);
-            Assert.That(keySize, Is.EqualTo(0));
+            Assert.That(keySize, Is.Zero);
         }
     }
 
@@ -411,33 +408,27 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void CreateStoreNullTypeReturnsCertificateIdentifierCollectionStore()
         {
-            using (ICertificateStore store = CertificateStoreIdentifier
-                .CreateStore(null, NUnitTelemetryContext.Create()))
-            {
-                Assert.That(store, Is.Not.Null);
-            }
+            using ICertificateStore store = CertificateStoreIdentifier
+                .CreateStore(null, NUnitTelemetryContext.Create());
+            Assert.That(store, Is.Not.Null);
         }
 
         [Test]
         public void CreateStoreDirectoryTypeReturnsDirectoryStore()
         {
-            using (ICertificateStore store = CertificateStoreIdentifier
-                .CreateStore(CertificateStoreType.Directory, NUnitTelemetryContext.Create()))
-            {
-                Assert.That(store, Is.Not.Null);
-                Assert.That(store, Is.InstanceOf<DirectoryCertificateStore>());
-            }
+            using ICertificateStore store = CertificateStoreIdentifier
+                .CreateStore(CertificateStoreType.Directory, NUnitTelemetryContext.Create());
+            Assert.That(store, Is.Not.Null);
+            Assert.That(store, Is.InstanceOf<DirectoryCertificateStore>());
         }
 
         [Test]
         public void CreateStoreX509TypeReturnsX509Store()
         {
-            using (ICertificateStore store = CertificateStoreIdentifier
-                .CreateStore(CertificateStoreType.X509Store, NUnitTelemetryContext.Create()))
-            {
-                Assert.That(store, Is.Not.Null);
-                Assert.That(store, Is.InstanceOf<X509CertificateStore>());
-            }
+            using ICertificateStore store = CertificateStoreIdentifier
+                .CreateStore(CertificateStoreType.X509Store, NUnitTelemetryContext.Create());
+            Assert.That(store, Is.Not.Null);
+            Assert.That(store, Is.InstanceOf<X509CertificateStore>());
         }
 
         [Test]
@@ -453,10 +444,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             var id = new CertificateStoreIdentifier(
                 "%LocalApplicationData%/OPC/CertStoreIdTests/certs");
-            using (ICertificateStore store = id.OpenStore(NUnitTelemetryContext.Create()))
-            {
-                Assert.That(store, Is.Not.Null);
-            }
+            using ICertificateStore store = id.OpenStore(NUnitTelemetryContext.Create());
+            Assert.That(store, Is.Not.Null);
         }
 
         [Test]

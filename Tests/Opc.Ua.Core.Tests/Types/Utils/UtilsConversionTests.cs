@@ -30,8 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Threading;
 using NUnit.Framework;
+
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
@@ -52,28 +53,28 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToHexStringWithSingleByte()
         {
-            string result = Utils.ToHexString(new byte[] { 0xAB });
+            string result = Utils.ToHexString([0xAB]);
             Assert.That(result, Is.EqualTo("AB"));
         }
 
         [Test]
         public void ToHexStringWithMultipleBytes()
         {
-            string result = Utils.ToHexString(new byte[] { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF });
+            string result = Utils.ToHexString([0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF]);
             Assert.That(result, Is.EqualTo("0123456789ABCDEF"));
         }
 
         [Test]
         public void ToHexStringInvertEndian()
         {
-            string result = Utils.ToHexString(new byte[] { 0x01, 0x02, 0x03 }, invertEndian: true);
+            string result = Utils.ToHexString([0x01, 0x02, 0x03], invertEndian: true);
             Assert.That(result, Is.EqualTo("030201"));
         }
 
         [Test]
         public void FromHexStringRoundTrip()
         {
-            byte[] original = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF };
+            byte[] original = [0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF];
             string hex = Utils.ToHexString(original);
             byte[] result = Utils.FromHexString(hex);
             Assert.That(result, Is.EqualTo(original));
@@ -124,7 +125,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void ToUInt32WithZero()
         {
             uint result = Utils.ToUInt32(0);
-            Assert.That(result, Is.EqualTo(0u));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -166,7 +167,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             uint id = uint.MaxValue;
             uint result = Utils.IncrementIdentifier(ref id);
-            Assert.That(result, Is.Not.EqualTo(0u));
+            Assert.That(result, Is.Not.Zero);
         }
 
         [Test]
@@ -174,7 +175,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             int id = -1;
             int result = Utils.IncrementIdentifier(ref id);
-            Assert.That(result, Is.Not.EqualTo(0));
+            Assert.That(result, Is.Not.Zero);
         }
 
         [Test]
@@ -255,8 +256,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var locales = new List<string> { "de-DE", "en-US" };
             var names = new List<LocalizedText>
             {
-                new LocalizedText("en-US", "Hello"),
-                new LocalizedText("de-DE", "Hallo")
+                new("en-US", "Hello"),
+                new("de-DE", "Hallo")
             };
             var defaultName = new LocalizedText("en", "Default");
 
@@ -270,8 +271,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var locales = new List<string> { "en" };
             var names = new List<LocalizedText>
             {
-                new LocalizedText("en-US", "Hello"),
-                new LocalizedText("de-DE", "Hallo")
+                new("en-US", "Hello"),
+                new("de-DE", "Hallo")
             };
             var defaultName = new LocalizedText("en", "Default");
 
@@ -285,8 +286,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var locales = new List<string> { "fr-FR" };
             var names = new List<LocalizedText>
             {
-                new LocalizedText("en-US", "Hello"),
-                new LocalizedText("de-DE", "Hallo")
+                new("en-US", "Hello"),
+                new("de-DE", "Hallo")
             };
             var defaultName = new LocalizedText("en", "Default");
 
@@ -299,7 +300,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var names = new List<LocalizedText>
             {
-                new LocalizedText("en-US", "Hello")
+                new("en-US", "Hello")
             };
             var defaultName = new LocalizedText("en", "Default");
 
@@ -438,15 +439,15 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void FindStringIgnoreCaseEmptyList()
         {
-            Assert.That(Utils.FindStringIgnoreCase(new List<string>(), "test"), Is.False);
+            Assert.That(Utils.FindStringIgnoreCase([], "test"), Is.False);
         }
 
         [Test]
         public void AppendByteArrays()
         {
-            byte[] a = { 1, 2, 3 };
-            byte[] b = { 4, 5 };
-            byte[] c = { 6 };
+            byte[] a = [1, 2, 3];
+            byte[] b = [4, 5];
+            byte[] c = [6];
             byte[] result = Utils.Append(a, b, c);
             Assert.That(result, Is.EqualTo(new byte[] { 1, 2, 3, 4, 5, 6 }));
         }
@@ -461,15 +462,15 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void AppendWithNullEntries()
         {
-            byte[] a = { 1, 2 };
-            byte[] result = Utils.Append(a, null, new byte[] { 3 });
+            byte[] a = [1, 2];
+            byte[] result = Utils.Append(a, null, [3]);
             Assert.That(result, Is.EqualTo(new byte[] { 1, 2, 3 }));
         }
 
         [Test]
         public void AppendSingleArray()
         {
-            byte[] a = { 1, 2, 3 };
+            byte[] a = [1, 2, 3];
             byte[] result = Utils.Append(a);
             Assert.That(result, Is.EqualTo(a));
         }
@@ -500,7 +501,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void GetTimeoutNegativeTimeSpan()
         {
             int timeout = Utils.GetTimeout(TimeSpan.FromSeconds(-1));
-            Assert.That(timeout, Is.EqualTo(0));
+            Assert.That(timeout, Is.Zero);
         }
 
         [Test]
@@ -615,24 +616,24 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void IsEqualReadOnlySpanEqual()
         {
-            ReadOnlySpan<byte> a = new byte[] { 1, 2, 3 };
-            ReadOnlySpan<byte> b = new byte[] { 1, 2, 3 };
+            ReadOnlySpan<byte> a = [1, 2, 3];
+            ReadOnlySpan<byte> b = [1, 2, 3];
             Assert.That(Utils.IsEqual(a, b), Is.True);
         }
 
         [Test]
         public void IsEqualReadOnlySpanDifferent()
         {
-            ReadOnlySpan<byte> a = new byte[] { 1, 2, 3 };
-            ReadOnlySpan<byte> b = new byte[] { 1, 2, 4 };
+            ReadOnlySpan<byte> a = [1, 2, 3];
+            ReadOnlySpan<byte> b = [1, 2, 4];
             Assert.That(Utils.IsEqual(a, b), Is.False);
         }
 
         [Test]
         public void IsEqualReadOnlySpanDifferentLength()
         {
-            ReadOnlySpan<byte> a = new byte[] { 1, 2, 3 };
-            ReadOnlySpan<byte> b = new byte[] { 1, 2 };
+            ReadOnlySpan<byte> a = [1, 2, 3];
+            ReadOnlySpan<byte> b = [1, 2];
             Assert.That(Utils.IsEqual(a, b), Is.False);
         }
 
@@ -645,16 +646,16 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void IsEqualArrays()
         {
-            byte[] a = { 1, 2, 3 };
-            byte[] b = { 1, 2, 3 };
+            byte[] a = [1, 2, 3];
+            byte[] b = [1, 2, 3];
             Assert.That(Utils.IsEqual(a, b), Is.True);
         }
 
         [Test]
         public void IsEqualArraysDifferent()
         {
-            byte[] a = { 1, 2, 3 };
-            byte[] b = { 4, 5, 6 };
+            byte[] a = [1, 2, 3];
+            byte[] b = [4, 5, 6];
             Assert.That(Utils.IsEqual(a, b), Is.False);
         }
 
@@ -720,28 +721,28 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void PSHANullHmacThrows()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                Utils.PSHA(null, "label", new byte[] { 1 }, 0, 32));
+                Utils.PSHA(null, "label", [1], 0, 32));
         }
 
         [Test]
         public void PSHA1NullSecretThrows()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                Utils.PSHA1((byte[])null, "label", new byte[] { 1 }, 0, 32));
+                Utils.PSHA1((byte[])null, "label", [1], 0, 32));
         }
 
         [Test]
         public void PSHA256NullSecretThrows()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                Utils.PSHA256((byte[])null, "label", new byte[] { 1 }, 0, 32));
+                Utils.PSHA256((byte[])null, "label", [1], 0, 32));
         }
 
         [Test]
         public void PSHA1ProducesOutput()
         {
-            byte[] secret = { 0x01, 0x02, 0x03, 0x04 };
-            byte[] data = { 0x05, 0x06, 0x07, 0x08 };
+            byte[] secret = [0x01, 0x02, 0x03, 0x04];
+            byte[] data = [0x05, 0x06, 0x07, 0x08];
             byte[] result = Utils.PSHA1(secret, "test", data, 0, 32);
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(32));
@@ -750,8 +751,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void PSHA256ProducesOutput()
         {
-            byte[] secret = { 0x01, 0x02, 0x03, 0x04 };
-            byte[] data = { 0x05, 0x06, 0x07, 0x08 };
+            byte[] secret = [0x01, 0x02, 0x03, 0x04];
+            byte[] data = [0x05, 0x06, 0x07, 0x08];
             byte[] result = Utils.PSHA256(secret, "test", data, 0, 32);
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(32));
@@ -760,8 +761,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void PSHA1DeterministicOutput()
         {
-            byte[] secret = { 0x01, 0x02, 0x03, 0x04 };
-            byte[] data = { 0x05, 0x06, 0x07, 0x08 };
+            byte[] secret = [0x01, 0x02, 0x03, 0x04];
+            byte[] data = [0x05, 0x06, 0x07, 0x08];
             byte[] result1 = Utils.PSHA1(secret, "test", data, 0, 32);
             byte[] result2 = Utils.PSHA1(secret, "test", data, 0, 32);
             Assert.That(result1, Is.EqualTo(result2));
@@ -770,23 +771,23 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void PSHAWithNegativeOffsetThrows()
         {
-            using var hmac = new HMACSHA256(new byte[] { 1, 2, 3, 4 });
+            using var hmac = new HMACSHA256([1, 2, 3, 4]);
             Assert.Throws<ArgumentOutOfRangeException>(() =>
-                Utils.PSHA(hmac, "label", new byte[] { 1 }, -1, 32));
+                Utils.PSHA(hmac, "label", [1], -1, 32));
         }
 
         [Test]
         public void PSHAWithNegativeLengthThrows()
         {
-            using var hmac = new HMACSHA256(new byte[] { 1, 2, 3, 4 });
+            using var hmac = new HMACSHA256([1, 2, 3, 4]);
             Assert.Throws<ArgumentOutOfRangeException>(() =>
-                Utils.PSHA(hmac, "label", new byte[] { 1 }, 0, -1));
+                Utils.PSHA(hmac, "label", [1], 0, -1));
         }
 
         [Test]
         public void CreateHMACWithSHA1()
         {
-            using var hmac = Utils.CreateHMAC(HashAlgorithmName.SHA1, new byte[] { 1, 2, 3 });
+            using var hmac = Utils.CreateHMAC(HashAlgorithmName.SHA1, [1, 2, 3]);
             Assert.That(hmac, Is.Not.Null);
             Assert.That(hmac, Is.InstanceOf<HMACSHA1>());
         }
@@ -794,7 +795,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void CreateHMACWithSHA256()
         {
-            using var hmac = Utils.CreateHMAC(HashAlgorithmName.SHA256, new byte[] { 1, 2, 3 });
+            using var hmac = Utils.CreateHMAC(HashAlgorithmName.SHA256, [1, 2, 3]);
             Assert.That(hmac, Is.Not.Null);
             Assert.That(hmac, Is.InstanceOf<HMACSHA256>());
         }
@@ -803,14 +804,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void DefaultUriSchemesNotEmpty()
         {
             Assert.That(Utils.DefaultUriSchemes, Is.Not.Null);
-            Assert.That(Utils.DefaultUriSchemes.Length, Is.GreaterThan(0));
+            Assert.That(Utils.DefaultUriSchemes, Is.Not.Empty);
         }
 
         [Test]
         public void DefaultBindingsNotEmpty()
         {
             Assert.That(Utils.DefaultBindings, Is.Not.Null);
-            Assert.That(Utils.DefaultBindings.Count, Is.GreaterThan(0));
+            Assert.That(Utils.DefaultBindings, Is.Not.Empty);
         }
 
         [Test]
@@ -883,8 +884,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void PSHAWithHmacOverload()
         {
-            using var hmac = new HMACSHA256(new byte[] { 1, 2, 3, 4 });
-            byte[] data = { 5, 6, 7, 8 };
+            using var hmac = new HMACSHA256([1, 2, 3, 4]);
+            byte[] data = [5, 6, 7, 8];
             byte[] result = Utils.PSHA(hmac, "test", data, 0, 64);
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(64));
@@ -894,8 +895,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms", Justification = "Testing existing API")]
         public void PSHA1WithHmacOverload()
         {
-            using var hmac = new HMACSHA1(new byte[] { 1, 2, 3, 4 });
-            byte[] data = { 5, 6, 7, 8 };
+            using var hmac = new HMACSHA1([1, 2, 3, 4]);
+            byte[] data = [5, 6, 7, 8];
             byte[] result = Utils.PSHA1(hmac, "test", data, 0, 32);
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(32));
@@ -904,8 +905,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void PSHA256WithHmacOverload()
         {
-            using var hmac = new HMACSHA256(new byte[] { 1, 2, 3, 4 });
-            byte[] data = { 5, 6, 7, 8 };
+            using var hmac = new HMACSHA256([1, 2, 3, 4]);
+            byte[] data = [5, 6, 7, 8];
             byte[] result = Utils.PSHA256(hmac, "test", data, 0, 32);
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(32));

@@ -29,8 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
-using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
@@ -101,7 +99,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeNetworkMessageWithPublisherIdAndReplyTo()
         {
-            var dsMsg = CreateSimpleDataSetMessage(
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateSimpleDataSetMessage(
                 FieldTypeEncodingMask.Variant,
                 "IntField", BuiltInType.Int32, 42);
             dsMsg.HasDataSetMessageHeader = true;
@@ -112,7 +110,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg.SequenceNumber = 5;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.PublisherId = "TestPublisher";
             networkMessage.ReplyTo = "mqtt://reply/topic";
             networkMessage.SetNetworkMessageContentMask(
@@ -150,10 +148,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var dsMsg = new PubSubEncoding.JsonDataSetMessage(new DataSet("ClassIdTest")
             {
                 DataSetMetaData = metaData,
-                Fields = new Field[]
-                {
+                Fields =
+                [
                     new Field { FieldMetaData = metaData.Fields[0], Value = new DataValue(new Variant("hello")) }
-                }
+                ]
             });
             dsMsg.SetFieldContentMask(DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = true;
@@ -161,7 +159,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg.DataSetWriterId = 1;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.PublisherId = "Pub";
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
@@ -180,14 +178,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeMultipleDataSetMessagesAsArray()
         {
-            var dsMsg1 = CreateSimpleDataSetMessage(
+            PubSubEncoding.JsonDataSetMessage dsMsg1 = CreateSimpleDataSetMessage(
                 FieldTypeEncodingMask.Variant,
                 "F1", BuiltInType.Int32, 10);
             dsMsg1.HasDataSetMessageHeader = true;
             dsMsg1.DataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
             dsMsg1.DataSetWriterId = 1;
 
-            var dsMsg2 = CreateSimpleDataSetMessage(
+            PubSubEncoding.JsonDataSetMessage dsMsg2 = CreateSimpleDataSetMessage(
                 FieldTypeEncodingMask.Variant,
                 "F2", BuiltInType.Int32, 20);
             dsMsg2.HasDataSetMessageHeader = true;
@@ -195,7 +193,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg2.DataSetWriterId = 2;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg1, dsMsg2 });
+                null, [dsMsg1, dsMsg2]);
             networkMessage.PublisherId = "Pub";
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
@@ -211,18 +209,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeNoHeaderNoSingleDataSetProducesTopLevelArray()
         {
-            var dsMsg1 = CreateSimpleDataSetMessage(
+            PubSubEncoding.JsonDataSetMessage dsMsg1 = CreateSimpleDataSetMessage(
                 FieldTypeEncodingMask.Variant,
                 "F1", BuiltInType.Int32, 100);
             dsMsg1.HasDataSetMessageHeader = false;
 
-            var dsMsg2 = CreateSimpleDataSetMessage(
+            PubSubEncoding.JsonDataSetMessage dsMsg2 = CreateSimpleDataSetMessage(
                 FieldTypeEncodingMask.Variant,
                 "F2", BuiltInType.Int32, 200);
             dsMsg2.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg1, dsMsg2 });
+                null, [dsMsg1, dsMsg2]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.DataSetMessageHeader);
 
@@ -235,13 +233,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeSingleDataSetNoHeadersProducesPayloadOnly()
         {
-            var dsMsg = CreateSimpleDataSetMessage(
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateSimpleDataSetMessage(
                 FieldTypeEncodingMask.Variant,
                 "Temperature", BuiltInType.Double, 36.6);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
 
@@ -255,7 +253,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeSingleDataSetWithHeaderNoNetworkHeader()
         {
-            var dsMsg = CreateSimpleDataSetMessage(
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateSimpleDataSetMessage(
                 FieldTypeEncodingMask.Variant,
                 "Pressure", BuiltInType.Float, 101.3f);
             dsMsg.HasDataSetMessageHeader = true;
@@ -266,7 +264,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg.Timestamp = DateTime.UtcNow;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.SingleDataSetMessage |
                 JsonNetworkMessageContentMask.DataSetMessageHeader);
@@ -282,7 +280,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeDataSetMessageWithAllHeaderFlags()
         {
-            var dsMsg = CreateSimpleDataSetMessage(
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateSimpleDataSetMessage(
                 FieldTypeEncodingMask.Variant,
                 "Val", BuiltInType.UInt32, (uint)999);
             dsMsg.HasDataSetMessageHeader = true;
@@ -299,7 +297,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg.Status = StatusCodes.BadTimeout;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.DataSetMessageHeader |
@@ -330,21 +328,21 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("DoubleField", BuiltInType.Double, 2.71828),
                 MakeField("StringField", BuiltInType.String, "hello world"),
                 MakeField("DateTimeField", BuiltInType.DateTime, new DateTime(2025, 6, 15, 12, 0, 0, DateTimeKind.Utc)),
-                MakeField("GuidField", BuiltInType.Guid, new Uuid(Guid.NewGuid())),
+                MakeField("GuidField", BuiltInType.Guid, Uuid.NewUuid()),
             };
 
-            var fieldMetaData = Array.ConvertAll(fields.ToArray(), f => f.FieldMetaData);
+            FieldMetaData[] fieldMetaData = Array.ConvertAll(fields.ToArray(), f => f.FieldMetaData);
 
             var dsMsg = new PubSubEncoding.JsonDataSetMessage(new DataSet("RawTest")
             {
-                Fields = fields.ToArray(),
+                Fields = [.. fields],
                 DataSetMetaData = new DataSetMetaDataType { Name = "RawTest", Fields = [.. fieldMetaData] }
             });
             dsMsg.SetFieldContentMask(DataSetFieldContentMask.RawData);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -365,7 +363,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var expandedNodeId = new ExpandedNodeId(5678, 3, "http://test.org/UA", 0);
             var qualifiedName = new QualifiedName("TestName", 2);
             var localizedText = new LocalizedText("en", "Test Text");
-            var statusCode = StatusCodes.BadTimeout;
+            StatusCode statusCode = StatusCodes.BadTimeout;
 
             var fields = new List<Field>
             {
@@ -376,18 +374,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("StatusCodeField", BuiltInType.StatusCode, statusCode),
             };
 
-            var fieldMetaData = Array.ConvertAll(fields.ToArray(), f => f.FieldMetaData);
+            FieldMetaData[] fieldMetaData = Array.ConvertAll(fields.ToArray(), f => f.FieldMetaData);
 
             var dsMsg = new PubSubEncoding.JsonDataSetMessage(new DataSet("ComplexRaw")
             {
-                Fields = fields.ToArray(),
+                Fields = [.. fields],
                 DataSetMetaData = new DataSetMetaDataType { Name = "ComplexRaw", Fields = [.. fieldMetaData] }
             });
             dsMsg.SetFieldContentMask(DataSetFieldContentMask.RawData);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -426,7 +424,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var dsMsg = new PubSubEncoding.JsonDataSetMessage(new DataSet("DVTest")
             {
-                Fields = new Field[] { field },
+                Fields = [field],
                 DataSetMetaData = new DataSetMetaDataType { Name = "DVTest", Fields = [field.FieldMetaData] }
             });
 
@@ -439,7 +437,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -473,7 +471,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var dsMsg = new PubSubEncoding.JsonDataSetMessage(new DataSet("StatusDV")
             {
-                Fields = new Field[] { field },
+                Fields = [field],
                 DataSetMetaData = new DataSetMetaDataType { Name = "StatusDV", Fields = [field.FieldMetaData] }
             });
 
@@ -481,7 +479,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -507,13 +505,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Value = new DataValue(new Variant(StatusCodes.Good))
             };
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.RawData);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -541,13 +539,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             };
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -562,15 +560,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeVariantFieldWithArrayValues()
         {
             var intArray = new int[] { 1, 2, 3, 4, 5 };
-            var field = MakeField("IntArray", BuiltInType.Int32, intArray, ValueRanks.OneDimension);
+            Field field = MakeField("IntArray", BuiltInType.Int32, intArray, ValueRanks.OneDimension);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -587,15 +585,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeRawDataFieldWithArrayValues()
         {
             var doubleArray = new double[] { 1.1, 2.2, 3.3 };
-            var field = MakeField("DoubleArray", BuiltInType.Double, doubleArray, ValueRanks.OneDimension);
+            Field field = MakeField("DoubleArray", BuiltInType.Double, doubleArray, ValueRanks.OneDimension);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.RawData);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -618,13 +616,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("ExtObjField", BuiltInType.ExtensionObject, extObj),
             };
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                fields.ToArray(),
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [.. fields],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -641,15 +639,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             var dataValue = new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow);
 
-            var field = MakeField("DataValueField", BuiltInType.DataValue, dataValue);
+            Field field = MakeField("DataValueField", BuiltInType.DataValue, dataValue);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -674,13 +672,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Value = new DataValue(Variant.Null)
             };
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -694,13 +692,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeStreamOverloadProducesOutput()
         {
-            var dsMsg = CreateSimpleDataSetMessage(
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateSimpleDataSetMessage(
                 FieldTypeEncodingMask.Variant,
                 "StreamField", BuiltInType.Int32, 77);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -714,7 +712,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeEmptyDataSetMessagesProducesValidJson()
         {
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage>());
+                null, []);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader);
 
@@ -728,15 +726,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeRawDataFieldWithStringArrayValues()
         {
             var stringArray = new string[] { "alpha", "beta", "gamma" };
-            var field = MakeField("StringArray", BuiltInType.String, stringArray, ValueRanks.OneDimension);
+            Field field = MakeField("StringArray", BuiltInType.String, stringArray, ValueRanks.OneDimension);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.RawData);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -873,16 +871,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeVariantFieldWithVariantArrayValue()
         {
-            var variants = new Variant[] { new Variant(1), new Variant("text"), new Variant(3.14) };
-            var field = MakeField("VarArray", BuiltInType.Variant, variants, ValueRanks.OneDimension);
+            var variants = new Variant[] { new(1), new("text"), new(3.14) };
+            Field field = MakeField("VarArray", BuiltInType.Variant, variants, ValueRanks.OneDimension);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -912,13 +910,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             };
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.SourceTimestamp | DataSetFieldContentMask.SourcePicoSeconds);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -950,13 +948,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             };
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.ServerTimestamp | DataSetFieldContentMask.ServerPicoSeconds);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -973,15 +971,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeRawDataWithByteStringField()
         {
             var byteStr = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
-            var field = MakeField("RawBytes", BuiltInType.ByteString, byteStr);
+            Field field = MakeField("RawBytes", BuiltInType.ByteString, byteStr);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.RawData);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -995,15 +993,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeRawDataWithEnumerationField()
         {
-            var field = MakeField("EnumField", BuiltInType.Enumeration, 2);
+            Field field = MakeField("EnumField", BuiltInType.Enumeration, 2);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.RawData);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -1017,14 +1015,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeWithTopLevelArrayAndMultipleMessages()
         {
-            var ds1 = CreateSimpleDataSetMessage(
+            PubSubEncoding.JsonDataSetMessage ds1 = CreateSimpleDataSetMessage(
                 FieldTypeEncodingMask.Variant,
                 "A", BuiltInType.Int32, 1);
             ds1.HasDataSetMessageHeader = true;
             ds1.DataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
             ds1.DataSetWriterId = 1;
 
-            var ds2 = CreateSimpleDataSetMessage(
+            PubSubEncoding.JsonDataSetMessage ds2 = CreateSimpleDataSetMessage(
                 FieldTypeEncodingMask.Variant,
                 "B", BuiltInType.Int32, 2);
             ds2.HasDataSetMessageHeader = true;
@@ -1032,7 +1030,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ds2.DataSetWriterId = 2;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { ds1, ds2 });
+                null, [ds1, ds2]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.DataSetMessageHeader);
 
@@ -1058,13 +1056,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Value = new DataValue(new Variant("diagnostic info value"))
             };
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.RawData);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -1078,16 +1076,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeRawDataWithNodeIdArrayField()
         {
-            var nodeIds = new NodeId[] { new NodeId(1, 0), new NodeId(2, 1), new NodeId("s=test", 2) };
-            var field = MakeField("NodeIdArray", BuiltInType.NodeId, nodeIds, ValueRanks.OneDimension);
+            var nodeIds = new NodeId[] { new(1, 0), new(2, 1), new("s=test", 2) };
+            Field field = MakeField("NodeIdArray", BuiltInType.NodeId, nodeIds, ValueRanks.OneDimension);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.RawData);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -1115,13 +1113,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             };
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.StatusCode | DataSetFieldContentMask.SourceTimestamp);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -1137,18 +1135,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             var ltArray = new LocalizedText[]
             {
-                new LocalizedText("en", "Hello"),
-                new LocalizedText("de", "Hallo"),
+                new("en", "Hello"),
+                new("de", "Hallo"),
             };
-            var field = MakeField("LtArray", BuiltInType.LocalizedText, ltArray, ValueRanks.OneDimension);
+            Field field = MakeField("LtArray", BuiltInType.LocalizedText, ltArray, ValueRanks.OneDimension);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -1164,18 +1162,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             var qnArray = new QualifiedName[]
             {
-                new QualifiedName("Name1", 0),
-                new QualifiedName("Name2", 1),
+                new("Name1", 0),
+                new("Name2", 1),
             };
-            var field = MakeField("QnArray", BuiltInType.QualifiedName, qnArray, ValueRanks.OneDimension);
+            Field field = MakeField("QnArray", BuiltInType.QualifiedName, qnArray, ValueRanks.OneDimension);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -1223,11 +1221,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             BuiltInType builtInType,
             object value)
         {
-            var field = MakeField(fieldName, builtInType, value);
+            Field field = MakeField(fieldName, builtInType, value);
 
             var dataSet = new DataSet(fieldName + "DS")
             {
-                Fields = new Field[] { field },
+                Fields = [field],
                 DataSetMetaData = new DataSetMetaDataType { Name = fieldName + "DS", Fields = [field.FieldMetaData] }
             };
 
@@ -1253,7 +1251,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Field[] fields,
             DataSetFieldContentMask fieldContentMask)
         {
-            var fieldMetaData = Array.ConvertAll(fields, f => f.FieldMetaData);
+            FieldMetaData[] fieldMetaData = Array.ConvertAll(fields, f => f.FieldMetaData);
 
             var dataSet = new DataSet("TestDS")
             {

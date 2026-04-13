@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Linq;
 using NUnit.Framework;
 
 namespace Opc.Ua.Client.Tests
@@ -397,7 +396,7 @@ namespace Opc.Ua.Client.Tests
 
             var state = new SubscriptionState(options)
             {
-                MonitoredItems = new MonitoredItemStateCollection(),
+                MonitoredItems = [],
                 CurrentPublishingInterval = 500.0,
                 CurrentKeepAliveCount = 10,
                 CurrentLifetimeCount = 30
@@ -483,7 +482,7 @@ namespace Opc.Ua.Client.Tests
             var sub = new SubscriptionState
             {
                 DisplayName = "Sub1",
-                MonitoredItems = new MonitoredItemStateCollection()
+                MonitoredItems = []
             };
             var collection = new SubscriptionStateCollection { sub };
 
@@ -505,7 +504,7 @@ namespace Opc.Ua.Client.Tests
             var sub = new SubscriptionState
             {
                 DisplayName = "S",
-                MonitoredItems = new MonitoredItemStateCollection()
+                MonitoredItems = []
             };
             var fromEnumerable = new SubscriptionStateCollection(
                 new[] { sub });

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Xml;
 using NUnit.Framework;
@@ -159,12 +158,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var dataSetMessage = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             dataSetMessage.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { dataSetMessage });
+                [dataSetMessage]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.PublisherId |
@@ -205,7 +204,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var dataSetMessage = new PubSubEncoding.JsonDataSetMessage(
                 new DataSet
                 {
-                    Fields = new Field[] { field },
+                    Fields = [field],
                     DataSetMetaData = new DataSetMetaDataType
                     {
                         DataSetClassId = new Uuid(classId)
@@ -215,7 +214,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { dataSetMessage });
+                [dataSetMessage]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.DataSetClassId |
@@ -242,7 +241,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
             message.HasDataSetMessageHeader = true;
             message.DataSetMessageContentMask =
@@ -286,7 +285,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -312,7 +311,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -337,7 +336,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -363,7 +362,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -389,7 +388,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -420,7 +419,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -450,7 +449,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -475,7 +474,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -503,7 +502,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -531,7 +530,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.None);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.Reversible);
@@ -544,7 +543,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeDataSetWithDataValueEncodingAllTimestampsAndPicos()
         {
-            var now = DateTime.UtcNow;
+            DateTime now = DateTime.UtcNow;
             var field = new Field
             {
                 FieldMetaData = new FieldMetaData
@@ -564,7 +563,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(
                 DataSetFieldContentMask.StatusCode |
                 DataSetFieldContentMask.SourceTimestamp |
@@ -582,6 +581,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeDataSetFieldWithIntegerArrayType()
         {
+            int[] value = [1, 2, 3, 4, 5];
             var field = new Field
             {
                 FieldMetaData = new FieldMetaData
@@ -590,11 +590,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Int32,
                     ValueRank = ValueRanks.OneDimension
                 },
-                Value = new DataValue(new Variant(new int[] { 1, 2, 3, 4, 5 }))
+                Value = new DataValue(new Variant(value))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -607,6 +607,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeDataSetFieldWithStringArrayType()
         {
+            string[] value = ["a", "b", "c"];
             var field = new Field
             {
                 FieldMetaData = new FieldMetaData
@@ -615,11 +616,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.String,
                     ValueRank = ValueRanks.OneDimension
                 },
-                Value = new DataValue(new Variant(new string[] { "a", "b", "c" }))
+                Value = new DataValue(new Variant(value))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -632,6 +633,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeDataSetFieldWithDoubleArrayType()
         {
+            double[] value = [1.1, 2.2, 3.3];
             var field = new Field
             {
                 FieldMetaData = new FieldMetaData
@@ -640,11 +642,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Double,
                     ValueRank = ValueRanks.OneDimension
                 },
-                Value = new DataValue(new Variant(new double[] { 1.1, 2.2, 3.3 }))
+                Value = new DataValue(new Variant(value))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -657,6 +659,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeDataSetFieldWithBooleanArrayType()
         {
+            bool[] value = [true, false, true];
             var field = new Field
             {
                 FieldMetaData = new FieldMetaData
@@ -665,11 +668,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Boolean,
                     ValueRank = ValueRanks.OneDimension
                 },
-                Value = new DataValue(new Variant(new bool[] { true, false, true }))
+                Value = new DataValue(new Variant(value))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -694,7 +697,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.None);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.Reversible);
@@ -719,7 +722,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -744,7 +747,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -757,6 +760,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeDataSetFieldWithFloatArrayType()
         {
+            float[] value = [1.1f, 2.2f];
             var field = new Field
             {
                 FieldMetaData = new FieldMetaData
@@ -765,11 +769,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Float,
                     ValueRank = ValueRanks.OneDimension
                 },
-                Value = new DataValue(new Variant(new float[] { 1.1f, 2.2f }))
+                Value = new DataValue(new Variant(value))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -794,7 +798,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -815,11 +819,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Guid,
                     ValueRank = ValueRanks.OneDimension
                 },
-                Value = new DataValue(new Variant(new Uuid[] { new Uuid(Guid.NewGuid()), new Uuid(Guid.NewGuid()) }))
+                Value = new DataValue(new Variant(new Uuid[] { Uuid.NewUuid(), Uuid.NewUuid() }))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -840,11 +844,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.NodeId,
                     ValueRank = ValueRanks.OneDimension
                 },
-                Value = new DataValue(new Variant(new NodeId[] { new NodeId(1, 0), new NodeId(2, 0) }))
+                Value = new DataValue(new Variant(new NodeId[] { new(1, 0), new(2, 0) }))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -867,13 +871,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 },
                 Value = new DataValue(new Variant(new LocalizedText[]
                 {
-                    new LocalizedText("en", "Hi"),
-                    new LocalizedText("de", "Hallo")
+                    new("en", "Hi"),
+                    new("de", "Hallo")
                 }))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -894,11 +898,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Variant,
                     ValueRank = ValueRanks.OneDimension
                 },
-                Value = new DataValue(new Variant(new Variant[] { new Variant(1), new Variant("two") }))
+                Value = new DataValue(new Variant(new Variant[] { new(1), new("two") }))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.None);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.Reversible);
@@ -923,7 +927,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -948,7 +952,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -973,7 +977,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -986,6 +990,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeDataSetFieldWithUInt64ArrayType()
         {
+            ulong[] value = [0UL, 999UL];
             var field = new Field
             {
                 FieldMetaData = new FieldMetaData
@@ -994,11 +999,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.UInt64,
                     ValueRank = ValueRanks.OneDimension
                 },
-                Value = new DataValue(new Variant(new ulong[] { 0UL, 999UL }))
+                Value = new DataValue(new Variant(value))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -1023,7 +1028,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.None);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.Reversible);
@@ -1046,13 +1051,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 },
                 Value = new DataValue(new Variant(new QualifiedName[]
                 {
-                    new QualifiedName("A", 0),
-                    new QualifiedName("B", 1)
+                    new("A", 0),
+                    new("B", 1)
                 }))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -1075,13 +1080,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 },
                 Value = new DataValue(new Variant(new ExpandedNodeId[]
                 {
-                    new ExpandedNodeId(1, 0),
-                    new ExpandedNodeId(2, 0)
+                    new(1, 0),
+                    new(2, 0)
                 }))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -1104,13 +1109,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 },
                 Value = new DataValue(new Variant(new byte[][]
                 {
-                    new byte[] { 1, 2 },
-                    new byte[] { 3, 4 }
+                    [1, 2],
+                    [3, 4]
                 }))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -1142,7 +1147,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var dataSetMessage = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             dataSetMessage.SetFieldContentMask(DataSetFieldContentMask.RawData);
             dataSetMessage.HasDataSetMessageHeader = true;
             dataSetMessage.DataSetMessageContentMask =
@@ -1151,7 +1156,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { dataSetMessage });
+                [dataSetMessage]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage |
@@ -1197,14 +1202,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var msg1 = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field1 } });
+                new DataSet { Fields = [field1] });
             msg1.SetFieldContentMask(DataSetFieldContentMask.RawData);
             msg1.HasDataSetMessageHeader = true;
             msg1.DataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
             msg1.DataSetWriterId = 1;
 
             var msg2 = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field2 } });
+                new DataSet { Fields = [field2] });
             msg2.SetFieldContentMask(DataSetFieldContentMask.RawData);
             msg2.HasDataSetMessageHeader = true;
             msg2.DataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
@@ -1212,7 +1217,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { msg1, msg2 });
+                [msg1, msg2]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.DataSetMessageHeader);
@@ -1247,12 +1252,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var dataSetMessage = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             dataSetMessage.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { dataSetMessage });
+                [dataSetMessage]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -1266,8 +1271,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             var fields = new Field[]
             {
-                new Field
-                {
+                new() {
                     FieldMetaData = new FieldMetaData
                     {
                         Name = "ValidField",
@@ -1326,7 +1330,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
@@ -1352,7 +1356,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = new Field[] { field } });
+                new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.None);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.Reversible);
@@ -1373,15 +1377,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 CreateField("Int16F", BuiltInType.Int16, (short)-32000),
                 CreateField("UInt16F", BuiltInType.UInt16, (ushort)65000),
                 CreateField("Int32F", BuiltInType.Int32, -100000),
-                CreateField("UInt32F", BuiltInType.UInt32, (uint)4000000000),
-                CreateField("Int64F", BuiltInType.Int64, (long)-999999999999),
-                CreateField("UInt64F", BuiltInType.UInt64, (ulong)999999999999),
+                CreateField("UInt32F", BuiltInType.UInt32, 4000000000u),
+                CreateField("Int64F", BuiltInType.Int64, -999999999999L),
+                CreateField("UInt64F", BuiltInType.UInt64, 999999999999UL),
                 CreateField("FloatF", BuiltInType.Float, 3.14f),
                 CreateField("DoubleF", BuiltInType.Double, 2.718281828),
                 CreateField("StringF", BuiltInType.String, "hello world"),
                 CreateField("DateTimeF", BuiltInType.DateTime, DateTime.UtcNow),
-                CreateField("GuidF", BuiltInType.Guid, new Uuid(Guid.NewGuid())),
-                CreateField("ByteStringF", BuiltInType.ByteString, new byte[] { 0xDE, 0xAD })
+                CreateField("GuidF", BuiltInType.Guid, Uuid.NewUuid()),
+                CreateField("ByteStringF", BuiltInType.ByteString, "ޭ"u8.ToArray())
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
@@ -1493,7 +1497,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.Reversible);
             encoder.Close();
-            Assert.DoesNotThrow(() => encoder.Dispose());
+            Assert.DoesNotThrow(encoder.Dispose);
         }
 
         [Test]

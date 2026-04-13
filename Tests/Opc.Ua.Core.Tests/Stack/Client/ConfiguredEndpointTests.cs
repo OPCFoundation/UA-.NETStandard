@@ -415,8 +415,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 EndpointUrl = "opc.tcp://remotehost:4841",
                 SecurityMode = MessageSecurityMode.SignAndEncrypt,
                 SecurityPolicyUri = SecurityPolicies.Basic256Sha256
-            });
-            source.UpdateBeforeConnect = false;
+            })
+            {
+                UpdateBeforeConnect = false
+            };
 
             var target = new ConfiguredEndpoint(null, new EndpointDescription
             {
@@ -482,8 +484,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
-            });
-            endpoint.EndpointUrl = new Uri("opc.tcp://newhost:5000");
+            })
+            {
+                EndpointUrl = new Uri("opc.tcp://newhost:5000")
+            };
             Assert.That(endpoint.Description.EndpointUrl, Does.Contain("newhost"));
         }
 
@@ -493,8 +497,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
-            });
-            endpoint.EndpointUrl = null;
+            })
+            {
+                EndpointUrl = null
+            };
             Assert.That(endpoint.EndpointUrl, Is.Null);
         }
 
@@ -523,8 +529,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 UserIdentityTokens = [policy]
-            });
-            endpoint.SelectedUserTokenPolicyIndex = 0;
+            })
+            {
+                SelectedUserTokenPolicyIndex = 0
+            };
 
             Assert.That(endpoint.SelectedUserTokenPolicy, Is.Not.Null);
             Assert.That(endpoint.SelectedUserTokenPolicy.TokenType, Is.EqualTo(UserTokenType.Anonymous));
@@ -539,8 +547,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 UserIdentityTokens = [
                     new UserTokenPolicy(UserTokenType.Anonymous)
                 ]
-            });
-            endpoint.SelectedUserTokenPolicyIndex = 99;
+            })
+            {
+                SelectedUserTokenPolicyIndex = 99
+            };
             Assert.That(endpoint.SelectedUserTokenPolicy, Is.Null);
         }
 
@@ -555,8 +565,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 UserIdentityTokens = [
                     new UserTokenPolicy(UserTokenType.Anonymous)
                 ]
-            });
-            endpoint.SelectedUserTokenPolicyIndex = 0;
+            })
+            {
+                SelectedUserTokenPolicyIndex = 0
+            };
 
             Assert.That(endpoint.NeedUpdateFromServer(), Is.False);
         }
@@ -615,8 +627,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void BinaryEncodingSupportProperty()
         {
-            var endpoint = new ConfiguredEndpoint();
-            endpoint.BinaryEncodingSupport = BinaryEncodingSupport.Required;
+            var endpoint = new ConfiguredEndpoint
+            {
+                BinaryEncodingSupport = BinaryEncodingSupport.Required
+            };
             Assert.That(endpoint.BinaryEncodingSupport, Is.EqualTo(BinaryEncodingSupport.Required));
 
             endpoint.BinaryEncodingSupport = BinaryEncodingSupport.None;

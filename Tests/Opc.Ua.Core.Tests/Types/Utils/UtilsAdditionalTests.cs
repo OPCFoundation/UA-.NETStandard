@@ -191,7 +191,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             id = uint.MaxValue;
             result = Utils.IncrementIdentifier(ref id);
-            Assert.That(result, Is.Not.EqualTo(0u));
+            Assert.That(result, Is.Not.Zero);
         }
 
         [Test]
@@ -203,7 +203,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             id = -1;
             result = Utils.IncrementIdentifier(ref id);
-            Assert.That(result, Is.Not.EqualTo(0));
+            Assert.That(result, Is.Not.Zero);
         }
 
         [Test]
@@ -309,7 +309,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             byte[] raw = cert.RawData;
 
             X509Certificate2Collection chain = Utils.ParseCertificateChainBlob(raw, telemetry);
-            Assert.That(chain.Count, Is.EqualTo(1));
+            Assert.That(chain, Has.Count.EqualTo(1));
             Assert.That(chain[0].Subject, Does.Contain("ChainTest"));
         }
 

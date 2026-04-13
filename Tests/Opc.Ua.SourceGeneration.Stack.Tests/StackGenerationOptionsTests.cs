@@ -41,7 +41,7 @@ namespace Opc.Ua.SourceGeneration.Tests
         [Test]
         public void FromProviderWithNoOptionsReturnsEmptyExclude()
         {
-            var provider = new AnalyzerOptionsProvider(new Dictionary<string, string>());
+            var provider = new AnalyzerOptionsProvider([]);
 
             StackGenerationOptions options = StackGenerationOptions.FromProvider(provider);
 

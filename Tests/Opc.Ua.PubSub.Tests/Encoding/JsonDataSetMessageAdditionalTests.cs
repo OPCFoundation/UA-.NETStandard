@@ -159,7 +159,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonDataSetMessageContentMask.SequenceNumber;
             decodeMsg.SetFieldContentMask(DataSetFieldContentMask.None);
 
-            var reader = CreateDataSetReader("TestField", BuiltInType.Int32);
+            DataSetReaderDataType reader = CreateDataSetReader("TestField", BuiltInType.Int32);
             reader.DataSetWriterId = 5;
 
             decodeMsg.DecodePossibleDataSetReader(decoder, 0, null, reader);
@@ -187,7 +187,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             decodeMsg.HasDataSetMessageHeader = false;
             decodeMsg.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
-            var reader = CreateDataSetReader("TestField", BuiltInType.Int32);
+            DataSetReaderDataType reader = CreateDataSetReader("TestField", BuiltInType.Int32);
             decodeMsg.DecodePossibleDataSetReader(decoder, 0, null, reader);
 
             Assert.That(decodeMsg.DataSet, Is.Not.Null, "DataSet should be decoded for RawData.");
@@ -206,7 +206,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 SourcePicoseconds = 10,
                 ServerPicoseconds = 20
             };
-            DataSetFieldContentMask mask =
+            const DataSetFieldContentMask mask =
                 DataSetFieldContentMask.StatusCode |
                 DataSetFieldContentMask.SourceTimestamp |
                 DataSetFieldContentMask.ServerTimestamp |
@@ -226,7 +226,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             decodeMsg.HasDataSetMessageHeader = false;
             decodeMsg.SetFieldContentMask(mask);
 
-            var reader = CreateDataSetReader("TestField", BuiltInType.Int32);
+            DataSetReaderDataType reader = CreateDataSetReader("TestField", BuiltInType.Int32);
             decodeMsg.DecodePossibleDataSetReader(decoder, 0, null, reader);
 
             Assert.That(decodeMsg.DataSet, Is.Not.Null, "DataSet should be decoded for DataValue.");
@@ -266,7 +266,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             decodeMsg.DataSetMessageContentMask = encodeMsg.DataSetMessageContentMask;
             decodeMsg.SetFieldContentMask(DataSetFieldContentMask.None);
 
-            var reader = CreateDataSetReader("F1", BuiltInType.String);
+            DataSetReaderDataType reader = CreateDataSetReader("F1", BuiltInType.String);
             reader.DataSetWriterId = 7;
             reader.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType
             {
@@ -285,13 +285,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeMultipleFieldTypes()
         {
-            var fields = new[]
-            {
+            Field[] fields =
+            [
                 CreateField("IntField", BuiltInType.Int32, 42),
                 CreateField("StringField", BuiltInType.String, "hello"),
                 CreateField("BoolField", BuiltInType.Boolean, true),
                 CreateField("DoubleField", BuiltInType.Double, 3.14)
-            };
+            ];
             var dataSet = new DataSet { Fields = fields };
             var message = new PubSubEncoding.JsonDataSetMessage(dataSet);
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
@@ -333,7 +333,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeStatusCodeGoodOmissionInVariantMode()
         {
-            string json = "{\"StatusField\":null}";
+            const string json = /*lang=json,strict*/ "{\"StatusField\":null}";
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var decoder = new PubSubJsonDecoder(json, ServiceMessageContext.Create(telemetry));
 
@@ -341,7 +341,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             decodeMsg.HasDataSetMessageHeader = false;
             decodeMsg.SetFieldContentMask(DataSetFieldContentMask.None);
 
-            var reader = CreateDataSetReader("StatusField", BuiltInType.StatusCode);
+            DataSetReaderDataType reader = CreateDataSetReader("StatusField", BuiltInType.StatusCode);
             decodeMsg.DecodePossibleDataSetReader(decoder, 0, null, reader);
 
             // The field should be decoded (as Null variant since field not found)

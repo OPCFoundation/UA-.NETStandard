@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -169,7 +170,7 @@ namespace Opc.Ua.PubSub.Tests
             using var app = UaPubSubApplication.Create(configFile, telemetry);
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
 
-            var readers = connection.GetOperationalDataSetReaders();
+            List<DataSetReaderDataType> readers = connection.GetOperationalDataSetReaders();
             Assert.That(readers, Is.Not.Null);
         }
 
@@ -200,7 +201,7 @@ namespace Opc.Ua.PubSub.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var app = UaPubSubApplication.Create(configFile, telemetry);
             app.Dispose();
-            Assert.DoesNotThrow(() => app.Dispose());
+            Assert.DoesNotThrow(app.Dispose);
         }
 
         [Test]
@@ -268,7 +269,7 @@ namespace Opc.Ua.PubSub.Tests
             using var app = UaPubSubApplication.Create(configFile, telemetry);
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
 
-            var readers = connection.GetOperationalDataSetReaders();
+            List<DataSetReaderDataType> readers = connection.GetOperationalDataSetReaders();
             Assert.That(readers, Is.Not.Null);
         }
 

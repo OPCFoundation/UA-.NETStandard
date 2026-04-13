@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         {
             bool result = EndpointBase.TryExtractActivityContextFromParameters(null, out ActivityContext context);
             Assert.That(result, Is.False);
-            Assert.That(context, Is.EqualTo(default(ActivityContext)));
+            Assert.That(context, Is.Default);
         }
 
         [Test]
@@ -202,7 +202,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var parameters = new AdditionalParametersType();
             bool result = EndpointBase.TryExtractActivityContextFromParameters(parameters, out ActivityContext context);
             Assert.That(result, Is.False);
-            Assert.That(context, Is.EqualTo(default(ActivityContext)));
+            Assert.That(context, Is.Default);
         }
 
         [Test]

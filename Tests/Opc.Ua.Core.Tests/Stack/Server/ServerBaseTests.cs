@@ -565,14 +565,14 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
 
             // Verify that the base addresses include same-port entries for different IPs.
-            Assert.That(BaseAddresses.Count, Is.EqualTo(BaseAddressCount));
+            Assert.That(BaseAddresses, Has.Count.EqualTo(BaseAddressCount));
 
             // Verify that opc.tcp has exactly 2 base addresses (localhost and 192.168.1.100)
             // both on the same port - this is the core scenario under test.
             List<BaseAddress> tcpAddresses = BaseAddresses
                 .Where(a => a.Url.Scheme == Utils.UriSchemeOpcTcp)
                 .ToList();
-            Assert.That(tcpAddresses.Count, Is.EqualTo(2),
+            Assert.That(tcpAddresses, Has.Count.EqualTo(2),
                 "There should be 2 opc.tcp base addresses for the MultipleIPsSamePort configuration.");
             Assert.That(tcpAddresses[0].Url.Port, Is.EqualTo(tcpAddresses[1].Url.Port),
                 "Both opc.tcp base addresses should use the same port number.");
@@ -608,13 +608,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     "Translated endpoint URLs should use the IP address that the client connected with.");
             }
         }
-    }
 
-    [TestFixture]
-    [Category("ServerBaseCoverage")]
-    [Parallelizable]
-    public class ServerBaseAdditionalTests
-    {
         [Test]
         public void RequireEncryptionNullDescriptionReturnsFalse()
         {
@@ -753,7 +747,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         public void EndpointDescriptionSecurityLevelDefaults()
         {
             var desc = new EndpointDescription();
-            Assert.That(desc.SecurityLevel, Is.EqualTo((byte)0));
+            Assert.That(desc.SecurityLevel, Is.Zero);
         }
 
         [Test]

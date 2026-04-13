@@ -30,7 +30,6 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -57,8 +56,13 @@ namespace Opc.Ua.Core.Tests
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            try { Directory.Delete(m_tempDir, true); }
-            catch { }
+            try
+            {
+                Directory.Delete(m_tempDir, true);
+            }
+            catch
+            {
+            }
         }
 
         [Test]
@@ -83,11 +87,11 @@ namespace Opc.Ua.Core.Tests
                 ApplicationUri = "urn:test:app",
                 ApplicationType = ApplicationType.Client,
                 ProductUri = "urn:test:product",
-                DisableHiResClock = true
-            };
-            original.TransportQuotas = new TransportQuotas
-            {
-                MaxMessageSize = 4096
+                DisableHiResClock = true,
+                TransportQuotas = new TransportQuotas
+                {
+                    MaxMessageSize = 4096
+                }
             };
 
             var copy = new ApplicationConfiguration(original);
@@ -102,8 +106,10 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void SecurityConfigurationSetterRejectsNull()
         {
-            var config = new ApplicationConfiguration(m_telemetry);
-            config.SecurityConfiguration = null;
+            var config = new ApplicationConfiguration(m_telemetry)
+            {
+                SecurityConfiguration = null
+            };
             Assert.That(config.SecurityConfiguration, Is.Not.Null);
         }
 
@@ -188,7 +194,7 @@ namespace Opc.Ua.Core.Tests
         {
             var config = new ApplicationConfiguration(m_telemetry);
             ArrayOf<string> domains = config.GetServerDomainNames();
-            Assert.That(domains.Count, Is.EqualTo(0));
+            Assert.That(domains.Count, Is.Zero);
         }
 
         [Test]
@@ -198,8 +204,7 @@ namespace Opc.Ua.Core.Tests
             {
                 ServerConfiguration = new ServerConfiguration()
             };
-            config.ServerConfiguration.BaseAddresses =
-                new ArrayOf<string>(new[] { "opc.tcp://localhost:4840" });
+            config.ServerConfiguration.BaseAddresses = ["opc.tcp://localhost:4840"];
 
             ArrayOf<string> domains = config.GetServerDomainNames();
             Assert.That(domains.Count, Is.GreaterThan(0));
@@ -212,8 +217,7 @@ namespace Opc.Ua.Core.Tests
             {
                 ServerConfiguration = new ServerConfiguration()
             };
-            config.ServerConfiguration.AlternateBaseAddresses =
-                new ArrayOf<string>(new[] { "opc.tcp://192.168.1.1:4840" });
+            config.ServerConfiguration.AlternateBaseAddresses = ["opc.tcp://192.168.1.1:4840"];
 
             ArrayOf<string> domains = config.GetServerDomainNames();
             Assert.That(domains.Count, Is.GreaterThan(0));
@@ -226,8 +230,7 @@ namespace Opc.Ua.Core.Tests
             {
                 DiscoveryServerConfiguration = new DiscoveryServerConfiguration()
             };
-            config.DiscoveryServerConfiguration.BaseAddresses =
-                new ArrayOf<string>(new[] { "opc.tcp://localhost:4840" });
+            config.DiscoveryServerConfiguration.BaseAddresses = ["opc.tcp://localhost:4840"];
 
             ArrayOf<string> domains = config.GetServerDomainNames();
             Assert.That(domains.Count, Is.GreaterThan(0));
@@ -241,11 +244,10 @@ namespace Opc.Ua.Core.Tests
                 ServerConfiguration = new ServerConfiguration()
             };
             config.ServerConfiguration.BaseAddresses =
-                new ArrayOf<string>(new[]
-                {
-                    "opc.tcp://localhost:4840",
-                    "opc.tcp://localhost:4841"
-                });
+            [
+                "opc.tcp://localhost:4840",
+                "opc.tcp://localhost:4841"
+            ];
 
             ArrayOf<string> domains = config.GetServerDomainNames();
             Assert.That(domains.Count, Is.EqualTo(1));
@@ -258,11 +260,10 @@ namespace Opc.Ua.Core.Tests
             {
                 ServerConfiguration = new ServerConfiguration()
             };
-            config.ServerConfiguration.BaseAddresses =
-                new ArrayOf<string>(new[] { "not a valid uri !!!" });
+            config.ServerConfiguration.BaseAddresses = ["not a valid uri !!!"];
 
             ArrayOf<string> domains = config.GetServerDomainNames();
-            Assert.That(domains.Count, Is.EqualTo(0));
+            Assert.That(domains.Count, Is.Zero);
         }
 
         [Test]
@@ -332,8 +333,7 @@ namespace Opc.Ua.Core.Tests
                 ApplicationType = ApplicationType.Server,
                 ServerConfiguration = new ServerConfiguration()
             };
-            config.ServerConfiguration.BaseAddresses =
-                new ArrayOf<string>(new[] { "opc.tcp://localhost:4840" });
+            config.ServerConfiguration.BaseAddresses = ["opc.tcp://localhost:4840"];
             config.ServerConfiguration.MaxRegistrationInterval = 30000;
 
             string filePath = Path.Combine(m_tempDir, "server_config.xml");
@@ -420,7 +420,7 @@ namespace Opc.Ua.Core.Tests
         {
             var config = new ApplicationConfiguration(m_telemetry)
             {
-                ApplicationName = "",
+                ApplicationName = string.Empty,
                 ApplicationUri = "urn:test:empty"
             };
             Assert.That(
@@ -453,8 +453,7 @@ namespace Opc.Ua.Core.Tests
                 ApplicationType = ApplicationType.DiscoveryServer,
                 DiscoveryServerConfiguration = new DiscoveryServerConfiguration()
             };
-            config.DiscoveryServerConfiguration.BaseAddresses =
-                new ArrayOf<string>(new[] { "opc.tcp://localhost:4840/discovery" });
+            config.DiscoveryServerConfiguration.BaseAddresses = ["opc.tcp://localhost:4840/discovery"];
 
             string filePath = Path.Combine(m_tempDir, "discovery_config.xml");
             config.SaveToFile(filePath);
@@ -520,7 +519,7 @@ namespace Opc.Ua.Core.Tests
 
             Assert.That(config.Properties["key1"], Is.EqualTo("value1"));
             Assert.That(config.Properties["key2"], Is.EqualTo(42));
-            Assert.That(config.Properties.Count, Is.EqualTo(2));
+            Assert.That(config.Properties, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -528,7 +527,7 @@ namespace Opc.Ua.Core.Tests
         {
             var config = new ApplicationConfiguration(m_telemetry);
             config.ExtensionObjects.Add("test");
-            Assert.That(config.ExtensionObjects.Count, Is.EqualTo(1));
+            Assert.That(config.ExtensionObjects, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -598,8 +597,7 @@ namespace Opc.Ua.Core.Tests
             {
                 DiscoveryServerConfiguration = new DiscoveryServerConfiguration()
             };
-            config.DiscoveryServerConfiguration.AlternateBaseAddresses =
-                new ArrayOf<string>(new[] { "opc.tcp://10.0.0.1:4840" });
+            config.DiscoveryServerConfiguration.AlternateBaseAddresses = ["opc.tcp://10.0.0.1:4840"];
 
             ArrayOf<string> domains = config.GetServerDomainNames();
             Assert.That(domains.Count, Is.GreaterThan(0));

@@ -27,9 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -140,7 +139,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void GetOperationalDataSetReadersReturnsEmptyWhenNoReaders()
         {
-            var readers = m_connection.GetOperationalDataSetReaders();
+            List<DataSetReaderDataType> readers = m_connection.GetOperationalDataSetReaders();
             Assert.That(readers, Is.Not.Null);
             Assert.That(readers, Is.Empty);
         }
@@ -158,7 +157,7 @@ namespace Opc.Ua.PubSub.Tests
             var subscriberConnection = subscriberApp.PubSubConnections[0] as UaPubSubConnection;
             Assert.That(subscriberConnection, Is.Not.Null);
 
-            var readers = subscriberConnection.GetOperationalDataSetReaders();
+            List<DataSetReaderDataType> readers = subscriberConnection.GetOperationalDataSetReaders();
             Assert.That(readers, Is.Not.Null);
             Assert.That(readers.Count, Is.GreaterThan(0));
         }
@@ -166,7 +165,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void StartSetsIsRunning()
         {
-            using var app = CreateUdpApp();
+            using UaPubSubApplication app = CreateUdpApp();
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
             Assert.That(connection, Is.Not.Null);
 
@@ -184,7 +183,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void StopClearsIsRunning()
         {
-            using var app = CreateUdpApp();
+            using UaPubSubApplication app = CreateUdpApp();
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
             Assert.That(connection, Is.Not.Null);
 
@@ -198,7 +197,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void DisposeStopsConnection()
         {
-            var app = CreateUdpApp();
+            UaPubSubApplication app = CreateUdpApp();
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
             Assert.That(connection, Is.Not.Null);
 
@@ -212,10 +211,12 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void CreateConnectionFromProgrammaticConfig()
         {
-            var connectionConfig = new PubSubConnectionDataType {
+            var connectionConfig = new PubSubConnectionDataType
+            {
                 Name = "TestConnection",
                 TransportProfileUri = Profiles.PubSubUdpUadpTransport,
-                Address = new ExtensionObject(new NetworkAddressUrlDataType {
+                Address = new ExtensionObject(new NetworkAddressUrlDataType
+                {
                     Url = "opc.udp://239.0.0.1:4840"
                 }),
                 PublisherId = new Variant((ushort)1),
@@ -224,7 +225,8 @@ namespace Opc.Ua.PubSub.Tests
                 ReaderGroups = []
             };
 
-            var pubSubConfig = new PubSubConfigurationDataType {
+            var pubSubConfig = new PubSubConfigurationDataType
+            {
                 Connections = [connectionConfig]
             };
 

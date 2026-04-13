@@ -29,7 +29,6 @@
 
 using System;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Encoding;
 
 using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 

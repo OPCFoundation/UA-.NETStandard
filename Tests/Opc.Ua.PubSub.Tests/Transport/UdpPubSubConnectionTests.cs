@@ -41,7 +41,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.Tests;
-using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
@@ -707,7 +706,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void NetworkAddressEndPointIsAccessible()
         {
             // NetworkAddressEndPoint may be null depending on config
-            var endpoint = m_connection.NetworkAddressEndPoint;
+            IPEndPoint endpoint = m_connection.NetworkAddressEndPoint;
             Assert.That(endpoint, Is.Null.Or.Not.Null);
         }
 

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
@@ -83,7 +82,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] encoded = encodedMsg.Encode(m_context);
 
             var decodedMsg = new PubSubEncoding.JsonNetworkMessage();
-            decodedMsg.Decode(m_context, encoded, new List<DataSetReaderDataType>());
+            decodedMsg.Decode(m_context, encoded, []);
 
             Assert.That(decodedMsg.MessageType, Is.EqualTo("ua-metadata"));
             Assert.That(decodedMsg.PublisherId, Is.EqualTo("Publisher1"));
@@ -94,11 +93,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeNetworkMessageHeaderWithPublisherIdAndDataSetClassId()
         {
-            string json = "{\"MessageId\":\"msg-1\",\"MessageType\":\"ua-data\",\"PublisherId\":\"Pub42\",\"DataSetClassId\":\"abc-def\"}";
+            const string json =
+                /*lang=json,strict*/
+                "{\"MessageId\":\"msg-1\",\"MessageType\":\"ua-data\",\"PublisherId\":\"Pub42\",\"DataSetClassId\":\"abc-def\"}";
             byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
-            networkMessage.Decode(m_context, bytes, new List<DataSetReaderDataType>());
+            networkMessage.Decode(m_context, bytes, []);
 
             Assert.That(networkMessage.MessageId, Is.EqualTo("msg-1"));
             Assert.That(networkMessage.PublisherId, Is.EqualTo("Pub42"));
@@ -111,11 +112,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeNetworkMessageWithInvalidMessageType()
         {
-            string json = "{\"MessageId\":\"msg-2\",\"MessageType\":\"ua-invalid\"}";
+            const string json = /*lang=json,strict*/ "{\"MessageId\":\"msg-2\",\"MessageType\":\"ua-invalid\"}";
             byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
-            networkMessage.Decode(m_context, bytes, new List<DataSetReaderDataType>());
+            networkMessage.Decode(m_context, bytes, []);
 
             Assert.That(networkMessage.MessageType, Is.EqualTo("ua-invalid"));
         }
@@ -123,7 +124,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeNetworkMessageWithNoReaders()
         {
-            string json = "{\"MessageId\":\"msg-3\",\"MessageType\":\"ua-data\",\"Messages\":[]}";
+            const string json = /*lang=json,strict*/ "{\"MessageId\":\"msg-3\",\"MessageType\":\"ua-data\",\"Messages\":[]}";
             byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
@@ -135,9 +136,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeDataSetMessageVariantFieldRoundTrip()
         {
-            var field = MakeField("IntField", BuiltInType.Int32, 42);
-            var result = EncodeDecodeRoundTrip(
-                new Field[] { field },
+            Field field = MakeField("IntField", BuiltInType.Int32, 42);
+            DataSet result = EncodeDecodeRoundTrip(
+                [field],
                 DataSetFieldContentMask.None,
                 JsonDataSetMessageContentMask.DataSetWriterId,
                 1);
@@ -167,7 +168,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("StringField", BuiltInType.String, "test string"),
             };
 
-            var result = EncodeDecodeRoundTrip(
+            DataSet result = EncodeDecodeRoundTrip(
                 fields,
                 DataSetFieldContentMask.RawData,
                 JsonDataSetMessageContentMask.DataSetWriterId,
@@ -181,7 +182,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void DecodeDataSetMessageRawDataDateTimeAndGuid()
         {
             var dateTime = new DateTime(2025, 6, 15, 12, 30, 45, DateTimeKind.Utc);
-            var guid = new Uuid(Guid.NewGuid());
+            var guid = Uuid.NewUuid();
 
             var fields = new Field[]
             {
@@ -189,7 +190,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("GuidField", BuiltInType.Guid, guid),
             };
 
-            var result = EncodeDecodeRoundTrip(
+            DataSet result = EncodeDecodeRoundTrip(
                 fields,
                 DataSetFieldContentMask.RawData,
                 JsonDataSetMessageContentMask.DataSetWriterId,
@@ -211,7 +212,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("StatusCodeField", BuiltInType.StatusCode, StatusCodes.BadTimeout),
             };
 
-            var result = EncodeDecodeRoundTrip(
+            DataSet result = EncodeDecodeRoundTrip(
                 fields,
                 DataSetFieldContentMask.RawData,
                 JsonDataSetMessageContentMask.DataSetWriterId,
@@ -230,7 +231,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("ByteStringField", BuiltInType.ByteString, byteStr),
             };
 
-            var result = EncodeDecodeRoundTrip(
+            DataSet result = EncodeDecodeRoundTrip(
                 fields,
                 DataSetFieldContentMask.RawData,
                 JsonDataSetMessageContentMask.DataSetWriterId,
@@ -264,8 +265,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             };
 
-            var result = EncodeDecodeRoundTrip(
-                new Field[] { field },
+            DataSet result = EncodeDecodeRoundTrip(
+                [field],
                 DataSetFieldContentMask.StatusCode |
                 DataSetFieldContentMask.SourceTimestamp |
                 DataSetFieldContentMask.SourcePicoSeconds |
@@ -295,8 +296,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             };
 
-            var result = EncodeDecodeRoundTrip(
-                new Field[] { field },
+            DataSet result = EncodeDecodeRoundTrip(
+                [field],
                 DataSetFieldContentMask.StatusCode,
                 JsonDataSetMessageContentMask.DataSetWriterId,
                 1);
@@ -308,10 +309,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeDataSetMessageWithMissingFieldReturnsNullVariant()
         {
-            var field1 = MakeField("ExistingField", BuiltInType.Int32, 100);
+            Field field1 = MakeField("ExistingField", BuiltInType.Int32, 100);
 
             var encodedMsg = EncodeNetworkMessage(
-                new Field[] { field1 },
+                [field1],
                 DataSetFieldContentMask.None,
                 JsonDataSetMessageContentMask.DataSetWriterId,
                 1);
@@ -330,7 +331,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 0 }
             };
 
-            var reader = CreateDataSetReader(decodeMeta, 1,
+            DataSetReaderDataType reader = CreateDataSetReader(decodeMeta, 1,
                 DataSetFieldContentMask.None,
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.DataSetMessageHeader |
@@ -338,7 +339,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dsContentMask: JsonDataSetMessageContentMask.DataSetWriterId);
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
-            decoded.Decode(m_context, encodedMsg, new List<DataSetReaderDataType> { reader });
+            decoded.Decode(m_context, encodedMsg, [reader]);
 
             Assert.That(decoded.DataSetMessages.Count, Is.EqualTo(0).Or.GreaterThan(0));
         }
@@ -346,10 +347,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeDataSetMessageWithMissingStatusCodeFieldReturnsGood()
         {
-            var field = MakeField("StatusField", BuiltInType.StatusCode, StatusCodes.Good);
+            Field field = MakeField("StatusField", BuiltInType.StatusCode, StatusCodes.Good);
 
-            var result = EncodeDecodeRoundTrip(
-                new Field[] { field },
+            DataSet result = EncodeDecodeRoundTrip(
+                [field],
                 DataSetFieldContentMask.None,
                 JsonDataSetMessageContentMask.DataSetWriterId,
                 1);
@@ -361,10 +362,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeDataSetMessageWithSequenceNumberAndMetaDataVersion()
         {
-            var field = MakeField("Val", BuiltInType.Int32, 55);
+            Field field = MakeField("Val", BuiltInType.Int32, 55);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = true;
             dsMsg.DataSetMessageContentMask =
@@ -380,7 +381,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg.Status = StatusCodes.Good;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.PublisherId = "Pub";
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
@@ -390,7 +391,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] encoded = networkMessage.Encode(m_context);
 
-            var reader = CreateDataSetReader(
+            DataSetReaderDataType reader = CreateDataSetReader(
                 dsMsg.DataSet.DataSetMetaData, 5,
                 DataSetFieldContentMask.None,
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
@@ -405,7 +406,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonDataSetMessageContentMask.Status);
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
-            decoded.Decode(m_context, encoded, new List<DataSetReaderDataType> { reader });
+            decoded.Decode(m_context, encoded, [reader]);
 
             Assert.That(decoded.DataSetMessages.Count, Is.GreaterThan(0));
         }
@@ -413,17 +414,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodePublisherIdFilteringMatchesCorrectReader()
         {
-            var field = MakeField("Temp", BuiltInType.Double, 22.5);
+            Field field = MakeField("Temp", BuiltInType.Double, 22.5);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = true;
             dsMsg.DataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
             dsMsg.DataSetWriterId = 1;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.PublisherId = "CorrectPublisher";
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
@@ -433,7 +434,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] encoded = networkMessage.Encode(m_context);
 
-            var wrongReader = CreateDataSetReader(
+            DataSetReaderDataType wrongReader = CreateDataSetReader(
                 dsMsg.DataSet.DataSetMetaData, 1,
                 DataSetFieldContentMask.None,
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
@@ -443,7 +444,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "WrongPublisher");
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
-            decoded.Decode(m_context, encoded, new List<DataSetReaderDataType> { wrongReader });
+            decoded.Decode(m_context, encoded, [wrongReader]);
 
             Assert.That(decoded.DataSetMessages.Count, Is.EqualTo(0));
         }
@@ -451,17 +452,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodePublisherIdNullPassesFilter()
         {
-            var field = MakeField("Val", BuiltInType.Int32, 10);
+            Field field = MakeField("Val", BuiltInType.Int32, 10);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = true;
             dsMsg.DataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
             dsMsg.DataSetWriterId = 1;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.PublisherId = "AnyPublisher";
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
@@ -471,7 +472,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] encoded = networkMessage.Encode(m_context);
 
-            var reader = CreateDataSetReader(
+            DataSetReaderDataType reader = CreateDataSetReader(
                 dsMsg.DataSet.DataSetMetaData, 1,
                 DataSetFieldContentMask.None,
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
@@ -481,7 +482,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 null);
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
-            decoded.Decode(m_context, encoded, new List<DataSetReaderDataType> { reader });
+            decoded.Decode(m_context, encoded, [reader]);
 
             Assert.That(decoded.DataSetMessages.Count, Is.GreaterThan(0));
         }
@@ -489,17 +490,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeSingleDataSetMessageSkipsWriterIdFilter()
         {
-            var field = MakeField("Val", BuiltInType.Int32, 10);
+            Field field = MakeField("Val", BuiltInType.Int32, 10);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = true;
             dsMsg.DataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
             dsMsg.DataSetWriterId = 50;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.DataSetMessageHeader |
@@ -508,7 +509,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] encoded = networkMessage.Encode(m_context);
 
             // Reader expects WriterId=999 but SingleDataSetMessage skips WriterId filtering
-            var reader = CreateDataSetReader(
+            DataSetReaderDataType reader = CreateDataSetReader(
                 dsMsg.DataSet.DataSetMetaData, 999,
                 DataSetFieldContentMask.None,
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
@@ -518,7 +519,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonDataSetMessageContentMask.DataSetWriterId);
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
-            decoded.Decode(m_context, encoded, new List<DataSetReaderDataType> { reader });
+            decoded.Decode(m_context, encoded, [reader]);
 
             // SingleDataSetMessage does not apply WriterId filter per OPC UA spec
             Assert.That(decoded.DataSetMessages.Count, Is.GreaterThan(0));
@@ -527,39 +528,39 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeMultipleDataSetMessagesInArray()
         {
-            var field1 = MakeField("F1", BuiltInType.Int32, 10);
-            var field2 = MakeField("F2", BuiltInType.Int32, 20);
+            Field field1 = MakeField("F1", BuiltInType.Int32, 10);
+            Field field2 = MakeField("F2", BuiltInType.Int32, 20);
 
-            var dsMsg1 = CreateDataSetMessageFromFields(
-                new Field[] { field1 },
+            PubSubEncoding.JsonDataSetMessage dsMsg1 = CreateDataSetMessageFromFields(
+                [field1],
                 DataSetFieldContentMask.None);
             dsMsg1.HasDataSetMessageHeader = true;
             dsMsg1.DataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
             dsMsg1.DataSetWriterId = 1;
 
-            var dsMsg2 = CreateDataSetMessageFromFields(
-                new Field[] { field2 },
+            PubSubEncoding.JsonDataSetMessage dsMsg2 = CreateDataSetMessageFromFields(
+                [field2],
                 DataSetFieldContentMask.None);
             dsMsg2.HasDataSetMessageHeader = true;
             dsMsg2.DataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
             dsMsg2.DataSetWriterId = 2;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg1, dsMsg2 });
+                null, [dsMsg1, dsMsg2]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.DataSetMessageHeader);
 
             byte[] encoded = networkMessage.Encode(m_context);
 
-            var reader = CreateDataSetReader(
+            DataSetReaderDataType reader = CreateDataSetReader(
                 dsMsg1.DataSet.DataSetMetaData, 1,
                 DataSetFieldContentMask.None,
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.DataSetMessageHeader);
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
-            decoded.Decode(m_context, encoded, new List<DataSetReaderDataType> { reader });
+            decoded.Decode(m_context, encoded, [reader]);
 
             Assert.That(decoded.DataSetMessages.Count, Is.GreaterThanOrEqualTo(1));
         }
@@ -567,7 +568,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadBooleanFromJson()
         {
-            string json = "{\"B\": true}";
+            const string json = /*lang=json,strict*/ "{\"B\": true}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             bool val = decoder.ReadBoolean("B");
             Assert.That(val, Is.True);
@@ -576,7 +577,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadSByteFromJson()
         {
-            string json = "{\"V\": -42}";
+            const string json = /*lang=json,strict*/ "{\"V\": -42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             sbyte val = decoder.ReadSByte("V");
             Assert.That(val, Is.EqualTo(-42));
@@ -585,7 +586,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadByteFromJson()
         {
-            string json = "{\"V\": 200}";
+            const string json = /*lang=json,strict*/ "{\"V\": 200}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             byte val = decoder.ReadByte("V");
             Assert.That(val, Is.EqualTo(200));
@@ -594,7 +595,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadInt16FromJson()
         {
-            string json = "{\"V\": -1234}";
+            const string json = /*lang=json,strict*/ "{\"V\": -1234}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             short val = decoder.ReadInt16("V");
             Assert.That(val, Is.EqualTo(-1234));
@@ -603,7 +604,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadUInt16FromJson()
         {
-            string json = "{\"V\": 50000}";
+            const string json = /*lang=json,strict*/ "{\"V\": 50000}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ushort val = decoder.ReadUInt16("V");
             Assert.That(val, Is.EqualTo(50000));
@@ -612,7 +613,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadInt64FromJson()
         {
-            string json = "{\"V\": \"9999999999\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"9999999999\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             long val = decoder.ReadInt64("V");
             Assert.That(val, Is.EqualTo(9999999999L));
@@ -621,7 +622,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadUInt64FromJson()
         {
-            string json = "{\"V\": \"18446744073709551615\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"18446744073709551615\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ulong val = decoder.ReadUInt64("V");
             Assert.That(val, Is.EqualTo(ulong.MaxValue));
@@ -630,7 +631,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadFloatFromJson()
         {
-            string json = "{\"V\": 3.14}";
+            const string json = /*lang=json,strict*/ "{\"V\": 3.14}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             float val = decoder.ReadFloat("V");
             Assert.That(val, Is.EqualTo(3.14f).Within(0.01f));
@@ -639,7 +640,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadFloatInfinityFromJson()
         {
-            string json = "{\"V\": \"Infinity\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"Infinity\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             float val = decoder.ReadFloat("V");
             Assert.That(float.IsInfinity(val), Is.True);
@@ -648,7 +649,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadFloatNegativeInfinityFromJson()
         {
-            string json = "{\"V\": \"-Infinity\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"-Infinity\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             float val = decoder.ReadFloat("V");
             Assert.That(float.IsNegativeInfinity(val), Is.True);
@@ -657,7 +658,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadFloatNaNFromJson()
         {
-            string json = "{\"V\": \"NaN\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"NaN\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             float val = decoder.ReadFloat("V");
             Assert.That(float.IsNaN(val), Is.True);
@@ -666,7 +667,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadDoubleInfinityFromJson()
         {
-            string json = "{\"V\": \"Infinity\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"Infinity\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             double val = decoder.ReadDouble("V");
             Assert.That(double.IsInfinity(val), Is.True);
@@ -675,7 +676,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadDoubleNaNFromJson()
         {
-            string json = "{\"V\": \"NaN\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"NaN\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             double val = decoder.ReadDouble("V");
             Assert.That(double.IsNaN(val), Is.True);
@@ -684,7 +685,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadStringFromJson()
         {
-            string json = "{\"V\": \"hello world\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"hello world\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             string val = decoder.ReadString("V");
             Assert.That(val, Is.EqualTo("hello world"));
@@ -693,7 +694,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadDateTimeFromJson()
         {
-            string json = "{\"V\": \"2025-06-15T12:00:00Z\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"2025-06-15T12:00:00Z\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             DateTimeUtc val = decoder.ReadDateTime("V");
             Assert.That((DateTime)val, Is.Not.EqualTo(DateTime.MinValue));
@@ -712,7 +713,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadByteStringFromJson()
         {
-            byte[] data = new byte[] { 0x01, 0x02, 0x03 };
+            byte[] data = [0x01, 0x02, 0x03];
             string b64 = Convert.ToBase64String(data);
             string json = "{\"V\": \"" + b64 + "\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
@@ -724,7 +725,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadNodeIdStringFormFromJson()
         {
-            string json = "{\"V\": \"ns=2;i=1234\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"ns=2;i=1234\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             NodeId val = decoder.ReadNodeId("V");
             Assert.That(val, Is.Not.Null);
@@ -733,7 +734,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadNodeIdObjectFormFromJson()
         {
-            string json = "{\"V\": {\"IdType\": 0, \"Id\": 1234, \"Namespace\": 2}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"IdType\": 0, \"Id\": 1234, \"Namespace\": 2}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             NodeId val = decoder.ReadNodeId("V");
             Assert.That(val, Is.Not.Null);
@@ -744,7 +745,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadNodeIdStringTypeFromJson()
         {
-            string json = "{\"V\": {\"IdType\": 1, \"Id\": \"TestString\", \"Namespace\": 0}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"IdType\": 1, \"Id\": \"TestString\", \"Namespace\": 0}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             NodeId val = decoder.ReadNodeId("V");
             Assert.That(val, Is.Not.Null);
@@ -765,7 +766,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadNodeIdOpaqueTypeFromJson()
         {
-            string b64 = Convert.ToBase64String(new byte[] { 0xDE, 0xAD });
+            string b64 = Convert.ToBase64String([0xDE, 0xAD]);
             string json = "{\"V\": {\"IdType\": 3, \"Id\": \"" + b64 + "\", \"Namespace\": 0}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             NodeId val = decoder.ReadNodeId("V");
@@ -776,7 +777,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadExpandedNodeIdStringFormFromJson()
         {
-            string json = "{\"V\": \"ns=2;i=5678\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"ns=2;i=5678\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ExpandedNodeId val = decoder.ReadExpandedNodeId("V");
             Assert.That(val, Is.Not.Null);
@@ -785,7 +786,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadExpandedNodeIdObjectFormFromJson()
         {
-            string json = "{\"V\": {\"IdType\": 0, \"Id\": 5678, \"Namespace\": 2}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"IdType\": 0, \"Id\": 5678, \"Namespace\": 2}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ExpandedNodeId val = decoder.ReadExpandedNodeId("V");
             Assert.That(val, Is.Not.Null);
@@ -794,7 +795,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadExpandedNodeIdWithServerUriFromJson()
         {
-            string json = "{\"V\": {\"IdType\": 0, \"Id\": 100, \"Namespace\": \"http://test.org\", \"ServerUri\": \"http://server.org\"}}";
+            const string json =
+                /*lang=json,strict*/
+                "{\"V\": {\"IdType\": 0, \"Id\": 100, \"Namespace\": \"http://test.org\", \"ServerUri\": \"http://server.org\"}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ExpandedNodeId val = decoder.ReadExpandedNodeId("V");
             Assert.That(val, Is.Not.Null);
@@ -803,7 +806,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadStatusCodeFromJsonNumeric()
         {
-            string json = "{\"V\": 2155085824}";
+            const string json = /*lang=json,strict*/ "{\"V\": 2155085824}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             StatusCode val = decoder.ReadStatusCode("V");
             Assert.That((uint)val.Code, Is.EqualTo((uint)2155085824));
@@ -812,7 +815,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadStatusCodeFromJsonObject()
         {
-            string json = "{\"V\": {\"Code\": 2155085824}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"Code\": 2155085824}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             StatusCode val = decoder.ReadStatusCode("V");
             Assert.That((uint)val.Code, Is.EqualTo((uint)2155085824));
@@ -821,7 +824,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadStatusCodeMissingFieldReturnsGood()
         {
-            string json = "{\"Other\": 42}";
+            const string json = /*lang=json,strict*/ "{\"Other\": 42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             StatusCode val = decoder.ReadStatusCode("V");
             Assert.That(val, Is.EqualTo(StatusCodes.Good));
@@ -830,7 +833,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadQualifiedNameStringFormFromJson()
         {
-            string json = "{\"V\": \"TestName\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"TestName\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             QualifiedName val = decoder.ReadQualifiedName("V");
             Assert.That(val.Name, Is.EqualTo("TestName"));
@@ -839,7 +842,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadQualifiedNameObjectFormFromJson()
         {
-            string json = "{\"V\": {\"Name\": \"Qn\", \"Uri\": 2}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"Name\": \"Qn\", \"Uri\": 2}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             QualifiedName val = decoder.ReadQualifiedName("V");
             Assert.That(val.Name, Is.EqualTo("Qn"));
@@ -848,7 +851,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadLocalizedTextStringFormFromJson()
         {
-            string json = "{\"V\": \"Simple Text\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"Simple Text\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             LocalizedText val = decoder.ReadLocalizedText("V");
             Assert.That(val.Text, Is.EqualTo("Simple Text"));
@@ -857,7 +860,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadLocalizedTextObjectFormFromJson()
         {
-            string json = "{\"V\": {\"Locale\": \"en\", \"Text\": \"Hello\"}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"Locale\": \"en\", \"Text\": \"Hello\"}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             LocalizedText val = decoder.ReadLocalizedText("V");
             Assert.That(val.Text, Is.EqualTo("Hello"));
@@ -867,7 +870,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadVariantWithTypeFromJson()
         {
-            string json = "{\"V\": {\"Type\": 6, \"Body\": 42}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"Type\": 6, \"Body\": 42}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Variant val = decoder.ReadVariant("V");
             Assert.That(val.AsBoxedObject(), Is.Not.Null);
@@ -876,7 +879,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadDataValueFromJson()
         {
-            string json = "{\"V\": {\"Value\": {\"Type\": 6, \"Body\": 99}, \"StatusCode\": {\"Code\": 0}}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"Value\": {\"Type\": 6, \"Body\": 99}, \"StatusCode\": {\"Code\": 0}}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             DataValue val = decoder.ReadDataValue("V");
             Assert.That(val, Is.Not.Null);
@@ -885,7 +888,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadDiagnosticInfoFromJson()
         {
-            string json = "{\"V\": {\"SymbolicId\": 1, \"NamespaceUri\": 2, \"LocalizedText\": 3, \"AdditionalInfo\": \"extra\"}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"SymbolicId\": 1, \"NamespaceUri\": 2, \"LocalizedText\": 3, \"AdditionalInfo\": \"extra\"}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             DiagnosticInfo val = decoder.ReadDiagnosticInfo("V");
             Assert.That(val, Is.Not.Null);
@@ -894,7 +897,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeScalarReadDiagnosticInfoWithInnerFromJson()
         {
-            string json = "{\"V\": {\"SymbolicId\": 1, \"InnerStatusCode\": 2155085824, \"InnerDiagnosticInfo\": {\"SymbolicId\": 2}}}";
+            const string json =
+                /*lang=json,strict*/
+                "{\"V\": {\"SymbolicId\": 1, \"InnerStatusCode\": 2155085824, \"InnerDiagnosticInfo\": {\"SymbolicId\": 2}}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             DiagnosticInfo val = decoder.ReadDiagnosticInfo("V");
             Assert.That(val, Is.Not.Null);
@@ -904,9 +909,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadInt32ArrayFromJson()
         {
-            string json = "{\"V\": [1, 2, 3, 4, 5]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [1, 2, 3, 4, 5]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadInt32Array("V");
+            ArrayOf<int> val = decoder.ReadInt32Array("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(5));
         }
@@ -914,9 +919,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadStringArrayFromJson()
         {
-            string json = "{\"V\": [\"a\", \"b\", \"c\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"a\", \"b\", \"c\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadStringArray("V");
+            ArrayOf<string> val = decoder.ReadStringArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(3));
         }
@@ -924,9 +929,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadDoubleArrayFromJson()
         {
-            string json = "{\"V\": [1.1, 2.2, 3.3]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [1.1, 2.2, 3.3]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadDoubleArray("V");
+            ArrayOf<double> val = decoder.ReadDoubleArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(3));
         }
@@ -934,9 +939,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadBooleanArrayFromJson()
         {
-            string json = "{\"V\": [true, false, true]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [true, false, true]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadBooleanArray("V");
+            ArrayOf<bool> val = decoder.ReadBooleanArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(3));
         }
@@ -944,9 +949,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadFloatArrayFromJson()
         {
-            string json = "{\"V\": [1.0, 2.5, 3.7]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [1.0, 2.5, 3.7]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadFloatArray("V");
+            ArrayOf<float> val = decoder.ReadFloatArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(3));
         }
@@ -954,9 +959,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadSByteArrayFromJson()
         {
-            string json = "{\"V\": [-1, 0, 127]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [-1, 0, 127]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadSByteArray("V");
+            ArrayOf<sbyte> val = decoder.ReadSByteArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(3));
         }
@@ -964,10 +969,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadByteArrayFromBase64Json()
         {
-            string b64 = Convert.ToBase64String(new byte[] { 1, 2, 3 });
+            string b64 = Convert.ToBase64String([1, 2, 3]);
             string json = "{\"V\": \"" + b64 + "\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadByteArray("V");
+            ArrayOf<byte> val = decoder.ReadByteArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(3));
         }
@@ -975,9 +980,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadByteArrayFromArrayJson()
         {
-            string json = "{\"V\": [1, 2, 255]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [1, 2, 255]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadByteArray("V");
+            ArrayOf<byte> val = decoder.ReadByteArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(3));
         }
@@ -985,9 +990,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadInt16ArrayFromJson()
         {
-            string json = "{\"V\": [-100, 0, 100]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [-100, 0, 100]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadInt16Array("V");
+            ArrayOf<short> val = decoder.ReadInt16Array("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(3));
         }
@@ -995,9 +1000,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadUInt16ArrayFromJson()
         {
-            string json = "{\"V\": [100, 200, 65535]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [100, 200, 65535]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadUInt16Array("V");
+            ArrayOf<ushort> val = decoder.ReadUInt16Array("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(3));
         }
@@ -1005,9 +1010,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadUInt32ArrayFromJson()
         {
-            string json = "{\"V\": [0, 100, 4294967295]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [0, 100, 4294967295]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadUInt32Array("V");
+            ArrayOf<uint> val = decoder.ReadUInt32Array("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(3));
         }
@@ -1015,9 +1020,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadInt64ArrayFromJson()
         {
-            string json = "{\"V\": [\"0\", \"9999999999\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"0\", \"9999999999\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadInt64Array("V");
+            ArrayOf<long> val = decoder.ReadInt64Array("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1025,9 +1030,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadUInt64ArrayFromJson()
         {
-            string json = "{\"V\": [\"0\", \"18446744073709551615\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"0\", \"18446744073709551615\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadUInt64Array("V");
+            ArrayOf<ulong> val = decoder.ReadUInt64Array("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1035,9 +1040,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadDateTimeArrayFromJson()
         {
-            string json = "{\"V\": [\"2025-01-01T00:00:00Z\", \"2025-06-15T12:00:00Z\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"2025-01-01T00:00:00Z\", \"2025-06-15T12:00:00Z\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadDateTimeArray("V");
+            ArrayOf<DateTimeUtc> val = decoder.ReadDateTimeArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1049,7 +1054,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var g2 = Guid.NewGuid().ToString();
             string json = "{\"V\": [\"" + g1 + "\", \"" + g2 + "\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadGuidArray("V");
+            ArrayOf<Uuid> val = decoder.ReadGuidArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1057,9 +1062,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadNodeIdArrayFromJson()
         {
-            string json = "{\"V\": [\"ns=0;i=1\", \"ns=0;i=2\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"ns=0;i=1\", \"ns=0;i=2\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadNodeIdArray("V");
+            ArrayOf<NodeId> val = decoder.ReadNodeIdArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1067,9 +1072,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadExpandedNodeIdArrayFromJson()
         {
-            string json = "{\"V\": [\"ns=0;i=1\", \"ns=0;i=2\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"ns=0;i=1\", \"ns=0;i=2\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadExpandedNodeIdArray("V");
+            ArrayOf<ExpandedNodeId> val = decoder.ReadExpandedNodeIdArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1077,9 +1082,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadStatusCodeArrayFromJson()
         {
-            string json = "{\"V\": [0, 2155085824]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [0, 2155085824]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadStatusCodeArray("V");
+            ArrayOf<StatusCode> val = decoder.ReadStatusCodeArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1087,9 +1092,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadQualifiedNameArrayFromJson()
         {
-            string json = "{\"V\": [\"Name1\", \"Name2\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"Name1\", \"Name2\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadQualifiedNameArray("V");
+            ArrayOf<QualifiedName> val = decoder.ReadQualifiedNameArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1097,9 +1102,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadLocalizedTextArrayFromJson()
         {
-            string json = "{\"V\": [\"Text1\", \"Text2\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"Text1\", \"Text2\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadLocalizedTextArray("V");
+            ArrayOf<LocalizedText> val = decoder.ReadLocalizedTextArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1107,9 +1112,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadVariantArrayFromJson()
         {
-            string json = "{\"V\": [{\"Type\": 6, \"Body\": 1}, {\"Type\": 6, \"Body\": 2}]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [{\"Type\": 6, \"Body\": 1}, {\"Type\": 6, \"Body\": 2}]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadVariantArray("V");
+            ArrayOf<Variant> val = decoder.ReadVariantArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1117,9 +1122,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadDataValueArrayFromJson()
         {
-            string json = "{\"V\": [{\"Value\": {\"Type\": 6, \"Body\": 10}}, {\"Value\": {\"Type\": 6, \"Body\": 20}}]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [{\"Value\": {\"Type\": 6, \"Body\": 10}}, {\"Value\": {\"Type\": 6, \"Body\": 20}}]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadDataValueArray("V");
+            ArrayOf<DataValue> val = decoder.ReadDataValueArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1127,9 +1132,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadExtensionObjectArrayFromJson()
         {
-            string json = "{\"V\": [null, null]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [null, null]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadExtensionObjectArray("V");
+            ArrayOf<ExtensionObject> val = decoder.ReadExtensionObjectArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1137,11 +1142,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadByteStringArrayFromJson()
         {
-            string b64a = Convert.ToBase64String(new byte[] { 1, 2 });
-            string b64b = Convert.ToBase64String(new byte[] { 3, 4 });
+            string b64a = Convert.ToBase64String([1, 2]);
+            string b64b = Convert.ToBase64String([3, 4]);
             string json = "{\"V\": [\"" + b64a + "\", \"" + b64b + "\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadByteStringArray("V");
+            ArrayOf<ByteString> val = decoder.ReadByteStringArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1149,9 +1154,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadDiagnosticInfoArrayFromJson()
         {
-            string json = "{\"V\": [{\"SymbolicId\": 1}, {\"SymbolicId\": 2}]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [{\"SymbolicId\": 1}, {\"SymbolicId\": 2}]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadDiagnosticInfoArray("V");
+            ArrayOf<DiagnosticInfo> val = decoder.ReadDiagnosticInfoArray("V");
             Assert.That(val, Is.Not.Null);
             Assert.That(val.Count, Is.EqualTo(2));
         }
@@ -1159,7 +1164,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionInt32()
         {
-            string json = "{\"V\": [10, 20, 30]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [10, 20, 30]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.Int32);
             Assert.That(val, Is.Not.Null);
@@ -1169,7 +1174,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionBoolean()
         {
-            string json = "{\"V\": [true, false]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [true, false]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.Boolean);
             Assert.That(val, Is.Not.Null);
@@ -1179,7 +1184,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionString()
         {
-            string json = "{\"V\": [\"x\", \"y\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"x\", \"y\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.String);
             Assert.That(val, Is.Not.Null);
@@ -1189,7 +1194,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionDouble()
         {
-            string json = "{\"V\": [1.1, 2.2]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [1.1, 2.2]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.Double);
             Assert.That(val, Is.Not.Null);
@@ -1199,7 +1204,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionFloat()
         {
-            string json = "{\"V\": [1.0, 2.0]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [1.0, 2.0]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.Float);
             Assert.That(val, Is.Not.Null);
@@ -1209,7 +1214,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionByte()
         {
-            string json = "{\"V\": [1, 2, 255]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [1, 2, 255]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.Byte);
             Assert.That(val, Is.Not.Null);
@@ -1218,7 +1223,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionSByte()
         {
-            string json = "{\"V\": [-1, 0, 127]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [-1, 0, 127]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.SByte);
             Assert.That(val, Is.Not.Null);
@@ -1227,7 +1232,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionInt16()
         {
-            string json = "{\"V\": [-100, 0, 100]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [-100, 0, 100]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.Int16);
             Assert.That(val, Is.Not.Null);
@@ -1236,7 +1241,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionUInt16()
         {
-            string json = "{\"V\": [100, 200]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [100, 200]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.UInt16);
             Assert.That(val, Is.Not.Null);
@@ -1245,7 +1250,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionUInt32()
         {
-            string json = "{\"V\": [100, 200]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [100, 200]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.UInt32);
             Assert.That(val, Is.Not.Null);
@@ -1254,7 +1259,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionInt64()
         {
-            string json = "{\"V\": [\"100\", \"200\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"100\", \"200\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.Int64);
             Assert.That(val, Is.Not.Null);
@@ -1263,7 +1268,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionUInt64()
         {
-            string json = "{\"V\": [\"100\", \"200\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"100\", \"200\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.UInt64);
             Assert.That(val, Is.Not.Null);
@@ -1272,7 +1277,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionDateTime()
         {
-            string json = "{\"V\": [\"2025-01-01T00:00:00Z\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"2025-01-01T00:00:00Z\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.DateTime);
             Assert.That(val, Is.Not.Null);
@@ -1290,7 +1295,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionByteString()
         {
-            string b64 = Convert.ToBase64String(new byte[] { 1, 2, 3 });
+            string b64 = Convert.ToBase64String([1, 2, 3]);
             string json = "{\"V\": [\"" + b64 + "\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.ByteString);
@@ -1300,7 +1305,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionNodeId()
         {
-            string json = "{\"V\": [\"ns=0;i=1\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"ns=0;i=1\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.NodeId);
             Assert.That(val, Is.Not.Null);
@@ -1309,7 +1314,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionExpandedNodeId()
         {
-            string json = "{\"V\": [\"ns=0;i=1\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"ns=0;i=1\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.ExpandedNodeId);
             Assert.That(val, Is.Not.Null);
@@ -1318,7 +1323,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionStatusCode()
         {
-            string json = "{\"V\": [0, 2155085824]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [0, 2155085824]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.StatusCode);
             Assert.That(val, Is.Not.Null);
@@ -1327,7 +1332,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionQualifiedName()
         {
-            string json = "{\"V\": [\"Name1\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"Name1\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.QualifiedName);
             Assert.That(val, Is.Not.Null);
@@ -1336,7 +1341,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionLocalizedText()
         {
-            string json = "{\"V\": [\"Text1\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"Text1\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.LocalizedText);
             Assert.That(val, Is.Not.Null);
@@ -1345,7 +1350,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionExtensionObject()
         {
-            string json = "{\"V\": [null]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [null]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.ExtensionObject);
             Assert.That(val, Is.Not.Null);
@@ -1354,7 +1359,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionDataValue()
         {
-            string json = "{\"V\": [{\"Value\": {\"Type\": 6, \"Body\": 1}}]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [{\"Value\": {\"Type\": 6, \"Body\": 1}}]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.DataValue);
             Assert.That(val, Is.Not.Null);
@@ -1363,7 +1368,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionVariant()
         {
-            string json = "{\"V\": [{\"Type\": 6, \"Body\": 1}]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [{\"Type\": 6, \"Body\": 1}]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.Variant);
             Assert.That(val, Is.Not.Null);
@@ -1372,7 +1377,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodePushAndPopStructure()
         {
-            string json = "{\"Outer\": {\"Inner\": 42}}";
+            const string json = /*lang=json,strict*/ "{\"Outer\": {\"Inner\": 42}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             bool pushed = decoder.PushStructure("Outer");
             Assert.That(pushed, Is.True);
@@ -1384,7 +1389,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodePushStructureNonExistentReturnsFalse()
         {
-            string json = "{\"A\": 1}";
+            const string json = /*lang=json,strict*/ "{\"A\": 1}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             bool pushed = decoder.PushStructure("NonExistent");
             Assert.That(pushed, Is.False);
@@ -1393,7 +1398,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodePushArrayAndRead()
         {
-            string json = "{\"Arr\": [10, 20, 30]}";
+            const string json = /*lang=json,strict*/ "{\"Arr\": [10, 20, 30]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             bool pushed = decoder.PushArray("Arr", 1);
             Assert.That(pushed, Is.True);
@@ -1403,7 +1408,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeHasFieldReturnsTrueForExistingField()
         {
-            string json = "{\"Exists\": 42}";
+            const string json = /*lang=json,strict*/ "{\"Exists\": 42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Assert.That(decoder.HasField("Exists"), Is.True);
             Assert.That(decoder.HasField("Missing"), Is.False);
@@ -1412,7 +1417,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadFieldReturnsTokenForExistingField()
         {
-            string json = "{\"Val\": 42}";
+            const string json = /*lang=json,strict*/ "{\"Val\": 42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             bool found = decoder.ReadField("Val", out object token);
             Assert.That(found, Is.True);
@@ -1422,7 +1427,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeExtensionObjectEmptyReturnsNull()
         {
-            string json = "{\"V\": null}";
+            const string json = /*lang=json,strict*/ "{\"V\": null}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ExtensionObject val = decoder.ReadExtensionObject("V");
             Assert.That(val, Is.Not.Null);
@@ -1431,7 +1436,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeSetMappingTablesUpdatesNamespaces()
         {
-            string json = "{\"V\": 1}";
+            const string json = /*lang=json,strict*/ "{\"V\": 1}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             var nsTable = new NamespaceTable();
             nsTable.Append("http://test.org");
@@ -1444,7 +1449,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadSwitchFieldFromJson()
         {
-            string json = "{\"SwitchField\": 2, \"Value\": 42}";
+            const string json = /*lang=json,strict*/ "{\"SwitchField\": 2, \"Value\": 42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             var switches = new List<string> { "Option0", "Option1", "Option2" };
             uint val = decoder.ReadSwitchField(switches, out string fieldName);
@@ -1454,7 +1459,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadSwitchFieldNullSwitchesReturnsZero()
         {
-            string json = "{\"SwitchField\": 1}";
+            const string json = /*lang=json,strict*/ "{\"SwitchField\": 1}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             uint val = decoder.ReadSwitchField(null, out string fieldName);
             Assert.That(val, Is.EqualTo(0));
@@ -1463,7 +1468,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadEncodingMaskFromJson()
         {
-            string json = "{\"EncodingMask\": 15}";
+            const string json = /*lang=json,strict*/ "{\"EncodingMask\": 15}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             var masks = new List<string> { "Bit0", "Bit1", "Bit2", "Bit3" };
             uint val = decoder.ReadEncodingMask(masks);
@@ -1473,7 +1478,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadEncodingMaskNullMasksReturnsZero()
         {
-            string json = "{\"Other\": 15}";
+            const string json = /*lang=json,strict*/ "{\"Other\": 15}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             uint val = decoder.ReadEncodingMask(null);
             Assert.That(val, Is.EqualTo(0));
@@ -1482,7 +1487,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadEncodingMaskFromFieldPresence()
         {
-            string json = "{\"Bit0\": 1, \"Bit2\": 2}";
+            const string json = /*lang=json,strict*/ "{\"Bit0\": 1, \"Bit2\": 2}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             var masks = new List<string> { "Bit0", "Bit1", "Bit2", "Bit3" };
             uint val = decoder.ReadEncodingMask(masks);
@@ -1493,10 +1498,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void DecodeRawDataFieldWithArrayRoundTrip()
         {
             var intArray = new int[] { 10, 20, 30 };
-            var field = MakeField("IntArr", BuiltInType.Int32, intArray, ValueRanks.OneDimension);
+            Field field = MakeField("IntArr", BuiltInType.Int32, intArray, ValueRanks.OneDimension);
 
-            var result = EncodeDecodeRoundTrip(
-                new Field[] { field },
+            DataSet result = EncodeDecodeRoundTrip(
+                [field],
                 DataSetFieldContentMask.RawData,
                 JsonDataSetMessageContentMask.DataSetWriterId,
                 1);
@@ -1508,11 +1513,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeMetadataMessageWithMissingDataSetWriterId()
         {
-            string json = "{\"MessageId\":\"m1\",\"MessageType\":\"ua-metadata\",\"PublisherId\":\"P1\",\"MetaData\":{\"Name\":\"DS\",\"Fields\":[]}}";
+            const string json =
+                /*lang=json,strict*/
+                "{\"MessageId\":\"m1\",\"MessageType\":\"ua-metadata\",\"PublisherId\":\"P1\",\"MetaData\":{\"Name\":\"DS\",\"Fields\":[]}}";
             byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
-            decoded.Decode(m_context, bytes, new List<DataSetReaderDataType>());
+            decoded.Decode(m_context, bytes, []);
 
             Assert.That(decoded.MessageType, Is.EqualTo("ua-metadata"));
         }
@@ -1520,7 +1527,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeExtensionObjectWithBinaryEncoding()
         {
-            string b64 = Convert.ToBase64String(new byte[] { 0x01, 0x02 });
+            string b64 = Convert.ToBase64String([0x01, 0x02]);
             string json = "{\"V\": {\"TypeId\": \"i=1\", \"Encoding\": 1, \"Body\": \"" + b64 + "\"}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ExtensionObject val = decoder.ReadExtensionObject("V");
@@ -1530,7 +1537,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeExtensionObjectWithJsonEncoding()
         {
-            string json = "{\"V\": {\"TypeId\": \"i=1\", \"Encoding\": 3, \"Body\": \"{\\\"x\\\": 1}\"}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"TypeId\": \"i=1\", \"Encoding\": 3, \"Body\": \"{\\\"x\\\": 1}\"}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ExtensionObject val = decoder.ReadExtensionObject("V");
             Assert.That(val, Is.Not.Null);
@@ -1539,16 +1546,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeXmlElementArrayFromJson()
         {
-            string json = "{\"V\": [\"<root/>\", \"<item/>\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"<root/>\", \"<item/>\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
-            var val = decoder.ReadXmlElementArray("V");
+            ArrayOf<XmlElement> val = decoder.ReadXmlElementArray("V");
             Assert.That(val, Is.Not.Null);
         }
 
         [Test]
         public void DecodeReadArrayOneDimensionXmlElement()
         {
-            string json = "{\"V\": [\"<a/>\", \"<b/>\"]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [\"<a/>\", \"<b/>\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.XmlElement);
             Assert.That(val, Is.Not.Null);
@@ -1557,7 +1564,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeReadArrayOneDimensionDiagnosticInfo()
         {
-            string json = "{\"V\": [{\"SymbolicId\": 1}]}";
+            const string json = /*lang=json,strict*/ "{\"V\": [{\"SymbolicId\": 1}]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.DiagnosticInfo);
             Assert.That(val, Is.Not.Null);
@@ -1566,7 +1573,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeInt64FromNumericJson()
         {
-            string json = "{\"V\": 42}";
+            const string json = /*lang=json,strict*/ "{\"V\": 42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             long val = decoder.ReadInt64("V");
             Assert.That(val, Is.EqualTo(42));
@@ -1575,7 +1582,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeUInt64FromNumericJson()
         {
-            string json = "{\"V\": 42}";
+            const string json = /*lang=json,strict*/ "{\"V\": 42}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ulong val = decoder.ReadUInt64("V");
             Assert.That(val, Is.EqualTo(42));
@@ -1584,7 +1591,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeDoubleNegativeInfinity()
         {
-            string json = "{\"V\": \"-Infinity\"}";
+            const string json = /*lang=json,strict*/ "{\"V\": \"-Infinity\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             double val = decoder.ReadDouble("V");
             Assert.That(double.IsNegativeInfinity(val), Is.True);
@@ -1593,7 +1600,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeNodeIdWithNamespaceUriFromJson()
         {
-            string json = "{\"V\": {\"IdType\": 0, \"Id\": 100, \"Namespace\": \"http://opcfoundation.org/UA/\"}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"IdType\": 0, \"Id\": 100, \"Namespace\": \"http://opcfoundation.org/UA/\"}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             NodeId val = decoder.ReadNodeId("V");
             Assert.That(val, Is.Not.Null);
@@ -1613,7 +1620,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeExpandedNodeIdOpaqueTypeFromJson()
         {
-            string b64 = Convert.ToBase64String(new byte[] { 0xAB, 0xCD });
+            string b64 = Convert.ToBase64String([0xAB, 0xCD]);
             string json = "{\"V\": {\"IdType\": 3, \"Id\": \"" + b64 + "\", \"Namespace\": 0}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ExpandedNodeId val = decoder.ReadExpandedNodeId("V");
@@ -1624,7 +1631,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeExpandedNodeIdStringTypeFromJson()
         {
-            string json = "{\"V\": {\"IdType\": 1, \"Id\": \"TestId\", \"Namespace\": 0}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"IdType\": 1, \"Id\": \"TestId\", \"Namespace\": 0}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ExpandedNodeId val = decoder.ReadExpandedNodeId("V");
             Assert.That(val, Is.Not.Null);
@@ -1634,7 +1641,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeExpandedNodeIdWithNumericServerUri()
         {
-            string json = "{\"V\": {\"IdType\": 0, \"Id\": 50, \"Namespace\": 0, \"ServerUri\": 1}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"IdType\": 0, \"Id\": 50, \"Namespace\": 0, \"ServerUri\": 1}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ExpandedNodeId val = decoder.ReadExpandedNodeId("V");
             Assert.That(val, Is.Not.Null);
@@ -1643,7 +1650,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeNodeIdWithMissingIdFieldUsesDefault()
         {
-            string json = "{\"V\": {\"IdType\": 0, \"Namespace\": 0}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"IdType\": 0, \"Namespace\": 0}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             NodeId val = decoder.ReadNodeId("V");
             Assert.That(val, Is.Not.Null);
@@ -1652,7 +1659,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeExpandedNodeIdWithMissingIdFieldUsesDefault()
         {
-            string json = "{\"V\": {\"IdType\": 0, \"Namespace\": 0}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"IdType\": 0, \"Namespace\": 0}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ExpandedNodeId val = decoder.ReadExpandedNodeId("V");
             Assert.That(val, Is.Not.Null);
@@ -1661,7 +1668,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeQualifiedNameWithUriNamespace()
         {
-            string json = "{\"V\": {\"Name\": \"QN\", \"Uri\": \"http://test.org\"}}";
+            const string json = /*lang=json,strict*/ "{\"V\": {\"Name\": \"QN\", \"Uri\": \"http://test.org\"}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             QualifiedName val = decoder.ReadQualifiedName("V");
             Assert.That(val.Name, Is.EqualTo("QN"));
@@ -1670,27 +1677,27 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeSingleDataSetMessageNoHeaderPayloadOnly()
         {
-            var field = MakeField("Temp", BuiltInType.Double, 22.5);
+            Field field = MakeField("Temp", BuiltInType.Double, 22.5);
 
-            var dsMsg = CreateDataSetMessageFromFields(
-                new Field[] { field },
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
+                [field],
                 DataSetFieldContentMask.None);
             dsMsg.HasDataSetMessageHeader = false;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
 
             byte[] encoded = networkMessage.Encode(m_context);
 
-            var reader = CreateDataSetReader(
+            DataSetReaderDataType reader = CreateDataSetReader(
                 dsMsg.DataSet.DataSetMetaData, 0,
                 DataSetFieldContentMask.None,
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
-            decoded.Decode(m_context, encoded, new List<DataSetReaderDataType> { reader });
+            decoded.Decode(m_context, encoded, [reader]);
 
             Assert.That(decoded.DataSetMessages.Count, Is.GreaterThanOrEqualTo(0));
         }
@@ -1715,7 +1722,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Field[] fields,
             DataSetFieldContentMask fieldContentMask)
         {
-            var fieldMetaData = Array.ConvertAll(fields, f => f.FieldMetaData);
+            FieldMetaData[] fieldMetaData = Array.ConvertAll(fields, f => f.FieldMetaData);
 
             var dataSet = new DataSet("TestDS")
             {
@@ -1743,14 +1750,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             JsonDataSetMessageContentMask dsContentMask,
             ushort dataSetWriterId)
         {
-            var dsMsg = CreateDataSetMessageFromFields(fields, fieldContentMask);
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(fields, fieldContentMask);
             dsMsg.HasDataSetMessageHeader = true;
             dsMsg.DataSetMessageContentMask = dsContentMask;
             dsMsg.DataSetWriterId = dataSetWriterId;
             dsMsg.MetaDataVersion = dsMsg.DataSet.DataSetMetaData.ConfigurationVersion;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.DataSetMessageHeader |
@@ -1765,14 +1772,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             JsonDataSetMessageContentMask dsContentMask,
             ushort dataSetWriterId)
         {
-            var dsMsg = CreateDataSetMessageFromFields(fields, fieldContentMask);
+            PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(fields, fieldContentMask);
             dsMsg.HasDataSetMessageHeader = true;
             dsMsg.DataSetMessageContentMask = dsContentMask;
             dsMsg.DataSetWriterId = dataSetWriterId;
             dsMsg.MetaDataVersion = dsMsg.DataSet.DataSetMetaData.ConfigurationVersion;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, new List<PubSubEncoding.JsonDataSetMessage> { dsMsg });
+                null, [dsMsg]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.DataSetMessageHeader |
@@ -1780,7 +1787,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] encoded = networkMessage.Encode(m_context);
 
-            var reader = CreateDataSetReader(
+            DataSetReaderDataType reader = CreateDataSetReader(
                 dsMsg.DataSet.DataSetMetaData,
                 dataSetWriterId,
                 fieldContentMask,
@@ -1791,7 +1798,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dsContentMask);
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
-            decoded.Decode(m_context, encoded, new List<DataSetReaderDataType> { reader });
+            decoded.Decode(m_context, encoded, [reader]);
 
             if (decoded.DataSetMessages.Count > 0)
             {

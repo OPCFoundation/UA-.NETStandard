@@ -460,7 +460,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             };
             parent.AddChild(child);
 
-            List<BaseInstanceState> children = new List<BaseInstanceState>();
+            List<BaseInstanceState> children = [];
             parent.GetChildren(null, children);
             Assert.That(children, Has.Count.GreaterThanOrEqualTo(1));
         }
@@ -479,7 +479,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId(200, 0));
 
             // Verify references exist
-            List<IReference> references = new List<IReference>();
+            List<IReference> references = [];
             node.GetReferences(null, references);
             Assert.That(references, Has.Count.GreaterThanOrEqualTo(1));
         }
@@ -495,7 +495,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(200, 0));
             node.AddReference(ReferenceTypeIds.HasComponent, false, new NodeId(201, 0));
 
-            List<IReference> references = new List<IReference>();
+            List<IReference> references = [];
             node.GetReferences(null, references);
             Assert.That(references, Has.Count.GreaterThanOrEqualTo(2));
         }
@@ -597,7 +597,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 BrowseName = new QualifiedName("Test")
             };
             int hash = method.DeepGetHashCode();
-            Assert.That(hash, Is.Not.EqualTo(0));
+            Assert.That(hash, Is.Not.Zero);
         }
 
         [Test]
@@ -713,10 +713,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void MethodStateOnCallMethodHandlerCanBeAssigned()
         {
-            var method = new MethodState(null);
-            method.OnCallMethod = (context, methodState, inputArgs, outputArgs) =>
+            var method = new MethodState(null)
             {
-                return ServiceResult.Good;
+                OnCallMethod = (context, methodState, inputArgs, outputArgs) =>
+                {
+                    return ServiceResult.Good;
+                }
             };
             Assert.That(method.OnCallMethod, Is.Not.Null);
         }
@@ -724,10 +726,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void MethodStateOnCallMethod2HandlerCanBeAssigned()
         {
-            var method = new MethodState(null);
-            method.OnCallMethod2 = (context, methodToCall, objectId, inputArgs, outputArgs) =>
+            var method = new MethodState(null)
             {
-                return ServiceResult.Good;
+                OnCallMethod2 = (context, methodToCall, objectId, inputArgs, outputArgs) =>
+                {
+                    return ServiceResult.Good;
+                }
             };
             Assert.That(method.OnCallMethod2, Is.Not.Null);
         }

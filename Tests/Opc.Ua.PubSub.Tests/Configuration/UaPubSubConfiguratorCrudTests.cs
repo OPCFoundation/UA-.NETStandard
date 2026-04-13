@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
@@ -46,7 +44,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
         private UaPubSubConfigurator CreateConfiguratorFromFile()
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             PubSubConfigurationDataType config = UaPubSubConfigurationHelper.LoadConfiguration(
                 PublisherConfigurationFileName, telemetry);
             return new UaPubSubConfigurator(telemetry);
@@ -54,7 +52,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
         private UaPubSubConfigurator CreateConfiguratorWithConfig(PubSubConfigurationDataType config)
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var configurator = new UaPubSubConfigurator(telemetry);
             configurator.LoadConfiguration(config);
             return configurator;
@@ -64,7 +62,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddConnectionWithDuplicateNameReturnsBadBrowseNameDuplicated()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             var connection1 = new PubSubConnectionDataType { Name = "TestConnection" };
             StatusCode result1 = configurator.AddConnection(connection1);
@@ -79,7 +77,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddConnectionWithWriterGroupsProcessesSubGroups()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             var writerGroup = new WriterGroupDataType { Name = "WG1" };
             var connection = new PubSubConnectionDataType
@@ -96,7 +94,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddConnectionWithReaderGroupsProcessesSubGroups()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             var readerGroup = new ReaderGroupDataType { Name = "RG1" };
             var connection = new PubSubConnectionDataType
@@ -113,7 +111,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddConnectionWithEmptyNamedGroups()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             var writerGroup = new WriterGroupDataType { Name = "" };
             var readerGroup = new ReaderGroupDataType { Name = "" };
@@ -132,7 +130,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void RemoveConnectionByIdWithInvalidIdReturnsBadNodeIdUnknown()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             StatusCode result = configurator.RemoveConnection(9999);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
@@ -142,7 +140,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddAndRemoveConnectionRoundTrip()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             bool connectionAddedFired = false;
             bool connectionRemovedFired = false;
@@ -169,7 +167,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddPublishedDataSetAndRemove()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             bool addedFired = false;
             bool removedFired = false;
@@ -196,7 +194,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void RemovePublishedDataSetByInvalidIdReturnsGood()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             StatusCode result = configurator.RemovePublishedDataSet(9999);
             Assert.That(StatusCode.IsGood(result), Is.True);
@@ -206,7 +204,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void RemovePublishedDataSetAlsoRemovesAssociatedWriters()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             var dataSet = new PublishedDataSetDataType { Name = "DS1" };
             configurator.AddPublishedDataSet(dataSet);
@@ -232,7 +230,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddExtensionFieldAndRemove()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint dataSetId = 0;
             configurator.PublishedDataSetAdded += (s, e) => { dataSetId = e.PublishedDataSetId; };
@@ -269,7 +267,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddExtensionFieldWithDuplicateNameReturnsBadNodeIdExists()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint dataSetId = 0;
             configurator.PublishedDataSetAdded += (s, e) => { dataSetId = e.PublishedDataSetId; };
@@ -297,7 +295,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddExtensionFieldWithInvalidDataSetIdReturnsBadNodeIdInvalid()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             var field = new KeyValuePair
             {
@@ -312,7 +310,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void RemoveExtensionFieldWithInvalidIdsReturnsBadNodeIdInvalid()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             StatusCode result = configurator.RemoveExtensionField(9999, 8888);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
@@ -322,7 +320,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddPublishedDataSetWithExtensionFieldsProcessesThem()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             var field = new KeyValuePair
             {
@@ -343,7 +341,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddPublishedDataSetWithDuplicateNameReturnsBadBrowseNameDuplicated()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             var ds1 = new PublishedDataSetDataType { Name = "SameName" };
             StatusCode result1 = configurator.AddPublishedDataSet(ds1);
@@ -358,7 +356,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddWriterGroupWithDuplicateNameReturnsBadBrowseNameDuplicated()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
             configurator.ConnectionAdded += (s, e) => { connectionId = e.ConnectionId; };
@@ -379,7 +377,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddReaderGroupWithDuplicateNameReturnsBadBrowseNameDuplicated()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
             configurator.ConnectionAdded += (s, e) => { connectionId = e.ConnectionId; };
@@ -400,7 +398,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddAndRemoveWriterGroupRoundTrip()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
             configurator.ConnectionAdded += (s, e) => { connectionId = e.ConnectionId; };
@@ -421,7 +419,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddAndRemoveReaderGroupRoundTrip()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
             configurator.ConnectionAdded += (s, e) => { connectionId = e.ConnectionId; };
@@ -442,7 +440,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddDataSetWriterToWriterGroup()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
             configurator.ConnectionAdded += (s, e) => { connectionId = e.ConnectionId; };
@@ -464,7 +462,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AddDataSetReaderToReaderGroup()
         {
             var config = new PubSubConfigurationDataType();
-            var configurator = CreateConfiguratorWithConfig(config);
+            UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
             configurator.ConnectionAdded += (s, e) => { connectionId = e.ConnectionId; };

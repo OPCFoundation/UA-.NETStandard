@@ -58,8 +58,13 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            try { Directory.Delete(m_tempDir, true); }
-            catch { }
+            try
+            {
+                Directory.Delete(m_tempDir, true);
+            }
+            catch
+            {
+            }
         }
 
         private string CreateAppConfigXml(
@@ -207,9 +212,9 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             SecuredApplication app = manager.ReadConfiguration(filePath);
 
             Assert.That(app.BaseAddresses, Is.Not.Null);
-            Assert.That(app.BaseAddresses.Count, Is.GreaterThan(0));
+            Assert.That(app.BaseAddresses, Is.Not.Empty);
             Assert.That(app.SecurityProfiles, Is.Not.Null);
-            Assert.That(app.SecurityProfiles.Count, Is.GreaterThan(0));
+            Assert.That(app.SecurityProfiles, Is.Not.Empty);
         }
 
         [Test]
@@ -242,7 +247,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             var manager = new SecurityConfigurationManager(m_telemetry);
             var config = new SecuredApplication();
             Assert.That(
-                () => manager.WriteConfiguration("", config),
+                () => manager.WriteConfiguration(string.Empty, config),
                 Throws.TypeOf<ServiceResultException>());
         }
 

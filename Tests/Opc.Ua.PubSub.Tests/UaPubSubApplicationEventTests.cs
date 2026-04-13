@@ -257,7 +257,7 @@ namespace Opc.Ua.PubSub.Tests
         {
             UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
             app.Dispose();
-            Assert.DoesNotThrow(() => app.Dispose());
+            Assert.DoesNotThrow(app.Dispose);
         }
 
         // SupportedTransportProfiles contains expected values

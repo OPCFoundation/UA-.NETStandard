@@ -480,8 +480,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning disable CS0618 // Type or member is obsolete
             var fields = new Field[]
             {
-                new Field
-                {
+                new() {
                     FieldMetaData = new FieldMetaData
                     {
                         Name = "Field1",
@@ -490,8 +489,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     },
                     Value = new DataValue(new Variant(1))
                 },
-                new Field
-                {
+                new() {
                     FieldMetaData = new FieldMetaData
                     {
                         Name = "Field2",
@@ -500,8 +498,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     },
                     Value = new DataValue(new Variant("Hello"))
                 },
-                new Field
-                {
+                new() {
                     FieldMetaData = new FieldMetaData
                     {
                         Name = "Field3",
@@ -547,7 +544,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             encoder.PushStructure(null);
             encoder.PopStructure();
             encoder.Dispose();
-            Assert.DoesNotThrow(() => encoder.Dispose());
+            Assert.DoesNotThrow(encoder.Dispose);
         }
 
 #pragma warning disable CS0618 // Type or member is obsolete

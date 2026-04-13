@@ -58,7 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void NewConfiguratorHasOperationalRootState()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             PubSubState state = configurator.FindStateForObject(configurator.PubSubConfiguration);
             Assert.That(state, Is.EqualTo(PubSubState.Operational));
         }
@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void DisableRootTransitionsToDisabled()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             StatusCode result = configurator.Disable(configurator.PubSubConfiguration);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
             Assert.That(
@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableRootAfterDisableTransitionsToOperational()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             configurator.Disable(configurator.PubSubConfiguration);
             StatusCode result = configurator.Enable(configurator.PubSubConfiguration);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -90,7 +90,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void EnableAlreadyEnabledReturnsInvalidState()
         {
             // Root is already Operational by default
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             StatusCode result = configurator.Enable(configurator.PubSubConfiguration);
             Assert.That(result, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -98,7 +98,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void DisableAlreadyDisabledReturnsInvalidState()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             configurator.Disable(configurator.PubSubConfiguration);
             StatusCode result = configurator.Disable(configurator.PubSubConfiguration);
             Assert.That(result, Is.EqualTo(StatusCodes.BadInvalidState));
@@ -107,21 +107,21 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableNullThrowsArgumentException()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             Assert.Throws<ArgumentException>(() => configurator.Enable(null));
         }
 
         [Test]
         public void DisableNullThrowsArgumentException()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             Assert.Throws<ArgumentException>(() => configurator.Disable(null));
         }
 
         [Test]
         public void EnableUnknownObjectThrowsArgumentException()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             Assert.Throws<ArgumentException>(
                 () => configurator.Enable(new PubSubConnectionDataType()));
         }
@@ -129,7 +129,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void DisableUnknownObjectThrowsArgumentException()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             Assert.Throws<ArgumentException>(
                 () => configurator.Disable(new PubSubConnectionDataType()));
         }
@@ -137,8 +137,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddConnectionRegistersConnection()
         {
-            var configurator = CreateConfigurator();
-            var conn = CreateConnection();
+            UaPubSubConfigurator configurator = CreateConfigurator();
+            PubSubConnectionDataType conn = CreateConnection();
             StatusCode result = configurator.AddConnection(conn);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
         }
@@ -146,9 +146,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void ConnectionStateIsPausedWhenRootDisabled()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             configurator.Disable(configurator.PubSubConfiguration);
-            var conn = CreateConnection();
+            PubSubConnectionDataType conn = CreateConnection();
             configurator.AddConnection(conn);
             PubSubState state = configurator.FindStateForObject(conn);
             Assert.That(state, Is.EqualTo(PubSubState.Paused));
@@ -157,8 +157,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void ConnectionStateIsOperationalWhenRootEnabled()
         {
-            var configurator = CreateConfigurator();
-            var conn = CreateConnection();
+            UaPubSubConfigurator configurator = CreateConfigurator();
+            PubSubConnectionDataType conn = CreateConnection();
             configurator.AddConnection(conn);
             PubSubState state = configurator.FindStateForObject(conn);
             Assert.That(state, Is.EqualTo(PubSubState.Operational));
@@ -167,8 +167,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void DisableConnectionTransitionsToDisabled()
         {
-            var configurator = CreateConfigurator();
-            var conn = CreateConnection();
+            UaPubSubConfigurator configurator = CreateConfigurator();
+            PubSubConnectionDataType conn = CreateConnection();
             configurator.AddConnection(conn);
             configurator.Disable(conn);
             Assert.That(
@@ -179,8 +179,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableDisabledConnectionTransitionsToOperational()
         {
-            var configurator = CreateConfigurator();
-            var conn = CreateConnection();
+            UaPubSubConfigurator configurator = CreateConfigurator();
+            PubSubConnectionDataType conn = CreateConnection();
             configurator.AddConnection(conn);
             configurator.Disable(conn);
             configurator.Enable(conn);
@@ -192,9 +192,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableConnectionWhenParentDisabledBecomesPaused()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             configurator.Disable(configurator.PubSubConfiguration);
-            var conn = CreateConnection();
+            PubSubConnectionDataType conn = CreateConnection();
             configurator.AddConnection(conn);
             // conn is Paused because root is Disabled. Disable conn, then re-enable.
             configurator.Disable(conn);
@@ -208,8 +208,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void DisablingParentPausesChildren()
         {
-            var configurator = CreateConfigurator();
-            var conn = CreateConnection();
+            UaPubSubConfigurator configurator = CreateConfigurator();
+            PubSubConnectionDataType conn = CreateConnection();
             configurator.AddConnection(conn);
             Assert.That(
                 configurator.FindStateForObject(conn),
@@ -223,8 +223,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnablingParentResumesChildren()
         {
-            var configurator = CreateConfigurator();
-            var conn = CreateConnection();
+            UaPubSubConfigurator configurator = CreateConfigurator();
+            PubSubConnectionDataType conn = CreateConnection();
             configurator.AddConnection(conn);
             configurator.Disable(configurator.PubSubConfiguration);
             configurator.Enable(configurator.PubSubConfiguration);
@@ -236,7 +236,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void PubSubStateChangedEventFires()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             var stateChanges = new List<PubSubStateChangedEventArgs>();
             configurator.PubSubStateChanged += (sender, e) => stateChanges.Add(e);
             configurator.Disable(configurator.PubSubConfiguration);
@@ -247,7 +247,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindStateForUnknownObjectReturnsError()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             PubSubState state = configurator.FindStateForObject(
                 new PubSubConnectionDataType());
             Assert.That(state, Is.EqualTo(PubSubState.Error));
@@ -256,7 +256,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindStateForIdUnknownReturnsError()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             PubSubState state = configurator.FindStateForId(999);
             Assert.That(state, Is.EqualTo(PubSubState.Error));
         }
@@ -264,7 +264,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindIdForUnknownObjectReturnsInvalidId()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             uint id = configurator.FindIdForObject(new PubSubConnectionDataType());
             Assert.That(id, Is.EqualTo(UaPubSubConfigurator.InvalidId));
         }
@@ -272,7 +272,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindObjectByIdReturnsNullForUnknownId()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             object obj = configurator.FindObjectById(999);
             Assert.That(obj, Is.Null);
         }
@@ -280,7 +280,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindParentForUnknownObjectReturnsNull()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             object parent = configurator.FindParentForObject(
                 new PubSubConnectionDataType());
             Assert.That(parent, Is.Null);
@@ -289,7 +289,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindChildrenIdsForUnknownObjectReturnsEmpty()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             List<uint> children = configurator.FindChildrenIdsForObject(
                 new PubSubConnectionDataType());
             Assert.That(children, Is.Empty);
@@ -298,8 +298,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void RemoveConnectionRemovesObject()
         {
-            var configurator = CreateConfigurator();
-            var conn = CreateConnection();
+            UaPubSubConfigurator configurator = CreateConfigurator();
+            PubSubConnectionDataType conn = CreateConnection();
             configurator.AddConnection(conn);
             StatusCode result = configurator.RemoveConnection(conn);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -310,7 +310,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddPublishedDataSetRegisters()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             var pds = new PublishedDataSetDataType { Name = "PDS1" };
             StatusCode result = configurator.AddPublishedDataSet(pds);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -320,7 +320,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddDuplicatePublishedDataSetReturnsDuplicate()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             var pds1 = new PublishedDataSetDataType { Name = "PDS1" };
             var pds2 = new PublishedDataSetDataType { Name = "PDS1" };
             configurator.AddPublishedDataSet(pds1);
@@ -333,7 +333,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void RemovePublishedDataSetByIdSucceeds()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             var pds = new PublishedDataSetDataType { Name = "PDS1" };
             configurator.AddPublishedDataSet(pds);
             uint id = configurator.FindIdForObject(pds);
@@ -345,7 +345,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void RemovePublishedDataSetByUnknownIdReturnsGood()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             StatusCode result = configurator.RemovePublishedDataSet(999u);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
         }
@@ -353,7 +353,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableByIdDelegatesToEnableByObject()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             configurator.Disable(configurator.PubSubConfiguration);
             uint rootId = configurator.FindIdForObject(configurator.PubSubConfiguration);
             StatusCode result = configurator.Enable(rootId);
@@ -363,7 +363,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void DisableByIdDelegatesToDisableByObject()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             uint rootId = configurator.FindIdForObject(configurator.PubSubConfiguration);
             StatusCode result = configurator.Disable(rootId);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -372,7 +372,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindPublishedDataSetByNameReturnsNullWhenNotFound()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
             Assert.That(
                 configurator.FindPublishedDataSetByName("NonExistent"),
                 Is.Null);
@@ -381,7 +381,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void WriterGroupStateFollowsConnectionState()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
 
             var writerGroup = new WriterGroupDataType
             {
@@ -412,7 +412,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void DisabledWriterGroupStaysDisabledWhenConnectionEnabled()
         {
-            var configurator = CreateConfigurator();
+            UaPubSubConfigurator configurator = CreateConfigurator();
 
             var writerGroup = new WriterGroupDataType
             {

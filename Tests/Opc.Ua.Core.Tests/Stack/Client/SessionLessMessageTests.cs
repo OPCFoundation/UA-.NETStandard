@@ -60,30 +60,26 @@ namespace Opc.Ua.Core.Tests
         public void DecodeAsJsonThrowsOnNullContext()
         {
             Assert.That(
-                () => SessionLessMessage.DecodeAsJson(new byte[0], null),
+                () => SessionLessMessage.DecodeAsJson([], null),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
         public void EncodeAsJsonThrowsOnNullMessage()
         {
-            using (var stream = new MemoryStream())
-            {
-                Assert.That(
-                    () => SessionLessMessage.EncodeAsJson(null, stream, m_context, true),
-                    Throws.TypeOf<ArgumentNullException>());
-            }
+            using var stream = new MemoryStream();
+            Assert.That(
+                () => SessionLessMessage.EncodeAsJson(null, stream, m_context, true),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
         public void EncodeAsJsonThrowsOnNullContext()
         {
-            using (var stream = new MemoryStream())
-            {
-                Assert.That(
-                    () => SessionLessMessage.EncodeAsJson(new ReadRequest(), stream, null, true),
-                    Throws.TypeOf<ArgumentNullException>());
-            }
+            using var stream = new MemoryStream();
+            Assert.That(
+                () => SessionLessMessage.EncodeAsJson(new ReadRequest(), stream, null, true),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -99,16 +95,14 @@ namespace Opc.Ua.Core.Tests
                 TimestampsToReturn = TimestampsToReturn.Both
             };
 
-            using (var stream = new MemoryStream())
-            {
-                SessionLessMessage.EncodeAsJson(request, stream, m_context, true);
+            using var stream = new MemoryStream();
+            SessionLessMessage.EncodeAsJson(request, stream, m_context, true);
 
-                byte[] buffer = stream.ToArray();
-                Assert.That(buffer.Length, Is.GreaterThan(0));
+            byte[] buffer = stream.ToArray();
+            Assert.That(buffer, Is.Not.Empty);
 
-                IEncodeable decoded = SessionLessMessage.DecodeAsJson(buffer, m_context);
-                Assert.That(decoded, Is.Not.Null);
-            }
+            IEncodeable decoded = SessionLessMessage.DecodeAsJson(buffer, m_context);
+            Assert.That(decoded, Is.Not.Null);
         }
 
         [Test]
@@ -126,11 +120,9 @@ namespace Opc.Ua.Core.Tests
         public void EncodeAsJsonLeaveOpenTrueResetsPosition()
         {
             var request = new ReadRequest();
-            using (var stream = new MemoryStream())
-            {
-                SessionLessMessage.EncodeAsJson(request, stream, m_context, true);
-                Assert.That(stream.Position, Is.EqualTo(0));
-            }
+            using var stream = new MemoryStream();
+            SessionLessMessage.EncodeAsJson(request, stream, m_context, true);
+            Assert.That(stream.Position, Is.Zero);
         }
 
         [Test]
@@ -161,30 +153,26 @@ namespace Opc.Ua.Core.Tests
         public void DecodeAsBinaryThrowsOnNullContext()
         {
             Assert.That(
-                () => SessionLessMessage.DecodeAsBinary(new byte[0], null),
+                () => SessionLessMessage.DecodeAsBinary([], null),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
         public void EncodeAsBinaryThrowsOnNullContext()
         {
-            using (var stream = new MemoryStream())
-            {
-                Assert.That(
-                    () => SessionLessMessage.EncodeAsBinary(new ReadRequest(), stream, null, true),
-                    Throws.TypeOf<ArgumentNullException>());
-            }
+            using var stream = new MemoryStream();
+            Assert.That(
+                () => SessionLessMessage.EncodeAsBinary(new ReadRequest(), stream, null, true),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
         public void EncodeAsBinaryThrowsOnNullMessage()
         {
-            using (var stream = new MemoryStream())
-            {
-                Assert.That(
-                    () => SessionLessMessage.EncodeAsBinary(null, stream, m_context, true),
-                    Throws.TypeOf<ArgumentNullException>());
-            }
+            using var stream = new MemoryStream();
+            Assert.That(
+                () => SessionLessMessage.EncodeAsBinary(null, stream, m_context, true),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -200,33 +188,29 @@ namespace Opc.Ua.Core.Tests
                 TimestampsToReturn = TimestampsToReturn.Server
             };
 
-            using (var stream = new MemoryStream())
-            {
-                SessionLessMessage.EncodeAsBinary(request, stream, m_context, true);
+            using var stream = new MemoryStream();
+            SessionLessMessage.EncodeAsBinary(request, stream, m_context, true);
 
-                byte[] buffer = stream.ToArray();
-                Assert.That(buffer.Length, Is.GreaterThan(0));
+            byte[] buffer = stream.ToArray();
+            Assert.That(buffer, Is.Not.Empty);
 
-                IEncodeable decoded = SessionLessMessage.DecodeAsBinary(buffer, m_context);
-                Assert.That(decoded, Is.Not.Null);
-            }
+            IEncodeable decoded = SessionLessMessage.DecodeAsBinary(buffer, m_context);
+            Assert.That(decoded, Is.Not.Null);
         }
 
         [Test]
         public void DecodeAsBinaryThrowsOnInvalidTypeId()
         {
-            using (var stream = new MemoryStream())
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, m_context, true))
             {
-                using (var encoder = new BinaryEncoder(stream, m_context, true))
-                {
-                    encoder.WriteNodeId(null, new NodeId(999999));
-                }
-
-                byte[] buffer = stream.ToArray();
-                Assert.That(
-                    () => SessionLessMessage.DecodeAsBinary(buffer, m_context),
-                    Throws.TypeOf<ServiceResultException>());
+                encoder.WriteNodeId(null, new NodeId(999999));
             }
+
+            byte[] buffer = stream.ToArray();
+            Assert.That(
+                () => SessionLessMessage.DecodeAsBinary(buffer, m_context),
+                Throws.TypeOf<ServiceResultException>());
         }
 
         [Test]
@@ -239,24 +223,20 @@ namespace Opc.Ua.Core.Tests
             {
                 RequestHeader = new RequestHeader()
             };
-            using (var stream = new MemoryStream())
-            {
-                Assert.That(
-                    () => SessionLessMessage.EncodeAsBinary(request, stream, smallContext, true),
-                    Throws.TypeOf<ServiceResultException>());
-            }
+            using var stream = new MemoryStream();
+            Assert.That(
+                () => SessionLessMessage.EncodeAsBinary(request, stream, smallContext, true),
+                Throws.TypeOf<ServiceResultException>());
         }
 
         [Test]
         public void EncodeAsBinaryLeaveOpenTrueKeepsStreamOpen()
         {
             var request = new ReadRequest();
-            using (var stream = new MemoryStream())
-            {
-                SessionLessMessage.EncodeAsBinary(request, stream, m_context, true);
-                Assert.That(stream.CanRead, Is.True);
-                Assert.That(stream.Length, Is.GreaterThan(0));
-            }
+            using var stream = new MemoryStream();
+            SessionLessMessage.EncodeAsBinary(request, stream, m_context, true);
+            Assert.That(stream.CanRead, Is.True);
+            Assert.That(stream.Length, Is.GreaterThan(0));
         }
 
         [Test]

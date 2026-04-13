@@ -79,7 +79,7 @@ namespace Opc.Ua.SourceGeneration.Tests
         [Test]
         public void ToNodeSetOptionsWithEmptyOptionsSetsDefaults()
         {
-            var options = new AnalyzerOptions(new Dictionary<string, string>());
+            var options = new AnalyzerOptions([]);
 
             NodesetFileOptions result = options.ToNodeSetOptions();
 
@@ -396,7 +396,7 @@ namespace Test
         [Test]
         public void GetValueWithMissingKeyPassesNullToConverter()
         {
-            var options = new AnalyzerOptions(new Dictionary<string, string>());
+            var options = new AnalyzerOptions([]);
 
             string result = options.GetValue("Missing", s => s ?? "default");
 

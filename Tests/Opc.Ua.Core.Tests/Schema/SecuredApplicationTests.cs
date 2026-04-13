@@ -36,6 +36,8 @@ using Opc.Ua.Security;
 using Opc.Ua.Tests;
 using SecurityNs = Opc.Ua.Security;
 
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
+
 namespace Opc.Ua.Core.Tests.Schema
 {
     [TestFixture]
@@ -55,11 +57,14 @@ namespace Opc.Ua.Core.Tests.Schema
         public void FromApplicationTypeRoundTrip()
         {
             foreach (SecurityNs.ApplicationType appType in
+#if NET8_0_OR_GREATER
+                Enum.GetValues<SecurityNs.ApplicationType>())
+#else
                 (SecurityNs.ApplicationType[])Enum.GetValues(typeof(SecurityNs.ApplicationType)))
+#endif
             {
-                Opc.Ua.ApplicationType uaType = SecuredApplication.FromApplicationType(appType);
-                SecurityNs.ApplicationType roundTripped =
-                    SecuredApplication.ToApplicationType(uaType);
+                ApplicationType uaType = SecuredApplication.FromApplicationType(appType);
+                var roundTripped = SecuredApplication.ToApplicationType(uaType);
                 Assert.That(roundTripped, Is.EqualTo(appType));
             }
         }
@@ -67,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Schema
         [Test]
         public void ToCertificateIdentifierRoundTrip()
         {
-            var input = new Opc.Ua.CertificateIdentifier
+            var input = new CertificateIdentifier
             {
                 StoreType = CertificateStoreType.Directory,
                 StorePath = "%LocalApplicationData%/OPC/certs",
@@ -75,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Schema
                 Thumbprint = "AABB"
             };
 
-            SecurityNs.CertificateIdentifier secured =
+            var secured =
                 SecuredApplication.ToCertificateIdentifier(input);
 
             Assert.That(secured, Is.Not.Null);
@@ -83,7 +88,7 @@ namespace Opc.Ua.Core.Tests.Schema
             Assert.That(secured.StorePath, Is.EqualTo(input.StorePath));
             Assert.That(secured.SubjectName, Is.EqualTo("CN=TestApp"));
 
-            Opc.Ua.CertificateIdentifier restored =
+            CertificateIdentifier restored =
                 SecuredApplication.FromCertificateIdentifier(secured);
 
             Assert.That(restored.StoreType, Is.EqualTo(input.StoreType));
@@ -94,7 +99,7 @@ namespace Opc.Ua.Core.Tests.Schema
         [Test]
         public void ToCertificateIdentifierNullReturnsNull()
         {
-            SecurityNs.CertificateIdentifier result =
+            var result =
                 SecuredApplication.ToCertificateIdentifier(null);
             Assert.That(result, Is.Null);
         }
@@ -102,12 +107,12 @@ namespace Opc.Ua.Core.Tests.Schema
         [Test]
         public void ToCertificateIdentifierEmptyStoreReturnsNull()
         {
-            var input = new Opc.Ua.CertificateIdentifier
+            var input = new CertificateIdentifier
             {
                 StoreType = null,
                 StorePath = null
             };
-            SecurityNs.CertificateIdentifier result =
+            var result =
                 SecuredApplication.ToCertificateIdentifier(input);
             Assert.That(result, Is.Null);
         }
@@ -115,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Schema
         [Test]
         public void FromCertificateIdentifierNullCreatesEmpty()
         {
-            Opc.Ua.CertificateIdentifier result =
+            CertificateIdentifier result =
                 SecuredApplication.FromCertificateIdentifier(null);
             Assert.That(result, Is.Not.Null);
             Assert.That(result.StoreType, Is.Null);
@@ -124,19 +129,19 @@ namespace Opc.Ua.Core.Tests.Schema
         [Test]
         public void ToCertificateStoreIdentifierRoundTrip()
         {
-            var input = new Opc.Ua.CertificateStoreIdentifier
+            var input = new CertificateStoreIdentifier
             {
                 StoreType = CertificateStoreType.Directory,
                 StorePath = "%LocalApplicationData%/OPC/trusted"
             };
 
-            SecurityNs.CertificateStoreIdentifier secured =
+            var secured =
                 SecuredApplication.ToCertificateStoreIdentifier(input);
 
             Assert.That(secured, Is.Not.Null);
             Assert.That(secured.StorePath, Is.EqualTo(input.StorePath));
 
-            Opc.Ua.CertificateStoreIdentifier restored =
+            CertificateStoreIdentifier restored =
                 SecuredApplication.FromCertificateStoreIdentifier(secured);
 
             Assert.That(restored.StoreType, Is.EqualTo(input.StoreType));
@@ -146,16 +151,16 @@ namespace Opc.Ua.Core.Tests.Schema
         [Test]
         public void ToCertificateStoreIdentifierNullReturnsNull()
         {
-            SecurityNs.CertificateStoreIdentifier result =
+            var result =
                 SecuredApplication.ToCertificateStoreIdentifier(
-                    (Opc.Ua.CertificateStoreIdentifier)null);
+                    (CertificateStoreIdentifier)null);
             Assert.That(result, Is.Null);
         }
 
         [Test]
         public void FromCertificateStoreIdentifierNullCreatesDefault()
         {
-            Opc.Ua.CertificateStoreIdentifier result =
+            CertificateStoreIdentifier result =
                 SecuredApplication.FromCertificateStoreIdentifier(null);
             Assert.That(result, Is.Not.Null);
         }
@@ -194,7 +199,7 @@ namespace Opc.Ua.Core.Tests.Schema
                 ValidationOptions = 1
             };
 
-            CertificateTrustList trust =
+            var trust =
                 SecuredApplication.ToCertificateTrustList(input);
 
             Assert.That(trust.StoreType, Is.EqualTo(CertificateStoreType.Directory));
@@ -204,29 +209,27 @@ namespace Opc.Ua.Core.Tests.Schema
         [Test]
         public void ToCertificateListRoundTrip()
         {
-            var certs = new List<Opc.Ua.CertificateIdentifier>
+            var certs = new List<CertificateIdentifier>
             {
-                new Opc.Ua.CertificateIdentifier
-                {
+                new() {
                     StoreType = CertificateStoreType.Directory,
                     StorePath = "/certs/1",
                     SubjectName = "CN=Cert1"
                 },
-                new Opc.Ua.CertificateIdentifier
-                {
+                new() {
                     StoreType = CertificateStoreType.Directory,
                     StorePath = "/certs/2",
                     SubjectName = "CN=Cert2"
                 }
             };
 
-            CertificateList secured =
+            var secured =
                 SecuredApplication.ToCertificateList(certs.ToArrayOf());
 
             Assert.That(secured.Certificates, Is.Not.Null);
-            Assert.That(secured.Certificates.Count, Is.EqualTo(2));
+            Assert.That(secured.Certificates, Has.Count.EqualTo(2));
 
-            ArrayOf<Opc.Ua.CertificateIdentifier> restored =
+            ArrayOf<CertificateIdentifier> restored =
                 SecuredApplication.FromCertificateList(secured);
 
             Assert.That(restored.Count, Is.EqualTo(2));
@@ -237,29 +240,31 @@ namespace Opc.Ua.Core.Tests.Schema
         [Test]
         public void FromCertificateListNullReturnsEmpty()
         {
-            ArrayOf<Opc.Ua.CertificateIdentifier> result =
+            ArrayOf<CertificateIdentifier> result =
                 SecuredApplication.FromCertificateList(null);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result.Count, Is.Zero);
         }
 
         [Test]
         public void ToListOfBaseAddressesRoundTrip()
         {
-            var config = new ServerConfiguration();
-            config.BaseAddresses = new List<string>
+            var config = new ServerConfiguration
             {
-                "opc.tcp://host:4840",
-                "https://host:443"
-            };
-            config.AlternateBaseAddresses = new List<string>
-            {
-                "opc.tcp://althost:4840"
+                BaseAddresses = new List<string>
+                {
+                    "opc.tcp://host:4840",
+                    "https://host:443"
+                },
+                AlternateBaseAddresses = new List<string>
+                {
+                    "opc.tcp://althost:4840"
+                }
             };
 
-            ListOfBaseAddresses addresses =
+            var addresses =
                 SecuredApplication.ToListOfBaseAddresses(config);
 
-            Assert.That(addresses.Count, Is.EqualTo(3));
+            Assert.That(addresses, Has.Count.EqualTo(3));
 
             var restored = new ServerConfiguration();
             SecuredApplication.FromListOfBaseAddresses(restored, addresses);
@@ -270,10 +275,10 @@ namespace Opc.Ua.Core.Tests.Schema
         [Test]
         public void ToListOfBaseAddressesNullReturnsEmpty()
         {
-            ListOfBaseAddresses result =
+            var result =
                 SecuredApplication.ToListOfBaseAddresses(null);
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(0));
+            Assert.That(result, Is.Empty);
         }
 
         [Test]
@@ -289,17 +294,16 @@ namespace Opc.Ua.Core.Tests.Schema
         {
             var policies = new List<ServerSecurityPolicy>
             {
-                new ServerSecurityPolicy
-                {
+                new() {
                     SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
                     SecurityMode = MessageSecurityMode.SignAndEncrypt
                 }
             };
 
-            ListOfSecurityProfiles profiles =
+            var profiles =
                 SecuredApplication.ToListOfSecurityProfiles(policies.ToArrayOf());
 
-            Assert.That(profiles.Count, Is.GreaterThan(0));
+            Assert.That(profiles, Is.Not.Empty);
 
             bool foundEnabled = false;
             for (int i = 0; i < profiles.Count; i++)
@@ -386,18 +390,18 @@ namespace Opc.Ua.Core.Tests.Schema
                     StoreType = CertificateStoreType.Directory,
                     StorePath = "/certs/rejected"
                 },
-                BaseAddresses = new ListOfBaseAddresses
-                {
+                BaseAddresses =
+                [
                     "opc.tcp://testhost:4840"
-                },
-                SecurityProfiles = new ListOfSecurityProfiles
-                {
+                ],
+                SecurityProfiles =
+                [
                     new SecurityProfile
                     {
                         ProfileUri = SecurityPolicies.Basic256Sha256,
                         Enabled = true
                     }
-                }
+                ]
             };
 
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
@@ -433,9 +437,9 @@ namespace Opc.Ua.Core.Tests.Schema
             Assert.That(decoded.IssuerCertificateStore, Is.Not.Null);
             Assert.That(decoded.RejectedCertificatesStore, Is.Not.Null);
             Assert.That(decoded.BaseAddresses, Is.Not.Null);
-            Assert.That(decoded.BaseAddresses.Count, Is.GreaterThan(0));
+            Assert.That(decoded.BaseAddresses, Is.Not.Empty);
             Assert.That(decoded.SecurityProfiles, Is.Not.Null);
-            Assert.That(decoded.SecurityProfiles.Count, Is.GreaterThan(0));
+            Assert.That(decoded.SecurityProfiles, Is.Not.Empty);
         }
 
         [Test]

@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void CalculateConfigurationVersionThrowsOnNullNewMetaData()
         {
-            var oldMetaData = CreateMetaData(1);
+            DataSetMetaDataType oldMetaData = CreateMetaData(1);
 
             Assert.That(
                 () => ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, null),
@@ -49,9 +49,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void CalculateConfigurationVersionMajorChangeWhenOldIsNull()
         {
-            var newMetaData = CreateMetaData(2);
+            DataSetMetaDataType newMetaData = CreateMetaData(2);
 
-            var result = ConfigurationVersionUtils.CalculateConfigurationVersion(null, newMetaData);
+            ConfigurationVersionDataType result = ConfigurationVersionUtils.CalculateConfigurationVersion(null, newMetaData);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.MajorVersion, Is.GreaterThan(0));
@@ -61,10 +61,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void CalculateConfigurationVersionMajorChangeWhenFieldsRemoved()
         {
-            var oldMetaData = CreateMetaData(3);
-            var newMetaData = CreateMetaData(1);
+            DataSetMetaDataType oldMetaData = CreateMetaData(3);
+            DataSetMetaDataType newMetaData = CreateMetaData(1);
 
-            var result = ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, newMetaData);
+            ConfigurationVersionDataType result = ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, newMetaData);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.MajorVersion, Is.GreaterThan(0));
@@ -74,10 +74,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void CalculateConfigurationVersionMinorChangeWhenFieldsAppended()
         {
-            var oldMetaData = CreateMetaData(2, majorVersion: 10, minorVersion: 5);
-            var newMetaData = CreateMetaData(4, majorVersion: 10, minorVersion: 5);
+            DataSetMetaDataType oldMetaData = CreateMetaData(2, majorVersion: 10, minorVersion: 5);
+            DataSetMetaDataType newMetaData = CreateMetaData(4, majorVersion: 10, minorVersion: 5);
 
-            var result = ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, newMetaData);
+            ConfigurationVersionDataType result = ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, newMetaData);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.MajorVersion, Is.EqualTo(10));
@@ -88,10 +88,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void CalculateConfigurationVersionNoChangeWhenFieldsSame()
         {
-            var oldMetaData = CreateMetaData(2, majorVersion: 10, minorVersion: 5);
-            var newMetaData = CreateMetaData(2, majorVersion: 10, minorVersion: 5);
+            DataSetMetaDataType oldMetaData = CreateMetaData(2, majorVersion: 10, minorVersion: 5);
+            DataSetMetaDataType newMetaData = CreateMetaData(2, majorVersion: 10, minorVersion: 5);
 
-            var result = ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, newMetaData);
+            ConfigurationVersionDataType result = ConfigurationVersionUtils.CalculateConfigurationVersion(oldMetaData, newMetaData);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.MajorVersion, Is.EqualTo(10));
@@ -127,7 +127,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void IsUsableReturnsFalseForEmptyFields()
         {
-            var metaData = CreateMetaData(0);
+            DataSetMetaDataType metaData = CreateMetaData(0);
 
             Assert.That(ConfigurationVersionUtils.IsUsable(metaData), Is.False);
         }
@@ -135,7 +135,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void IsUsableReturnsFalseForNullConfigVersion()
         {
-            var metaData = CreateMetaData(1);
+            DataSetMetaDataType metaData = CreateMetaData(1);
             metaData.ConfigurationVersion = null;
 
             Assert.That(ConfigurationVersionUtils.IsUsable(metaData), Is.False);
@@ -144,7 +144,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void IsUsableReturnsFalseForZeroMajorVersion()
         {
-            var metaData = CreateMetaData(1, majorVersion: 0, minorVersion: 1);
+            DataSetMetaDataType metaData = CreateMetaData(1, majorVersion: 0, minorVersion: 1);
 
             Assert.That(ConfigurationVersionUtils.IsUsable(metaData), Is.False);
         }
@@ -152,7 +152,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void IsUsableReturnsFalseForZeroMinorVersion()
         {
-            var metaData = CreateMetaData(1, majorVersion: 1, minorVersion: 0);
+            DataSetMetaDataType metaData = CreateMetaData(1, majorVersion: 1, minorVersion: 0);
 
             Assert.That(ConfigurationVersionUtils.IsUsable(metaData), Is.False);
         }
@@ -160,7 +160,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void IsUsableReturnsTrueForValidMetaData()
         {
-            var metaData = CreateMetaData(2, majorVersion: 1, minorVersion: 1);
+            DataSetMetaDataType metaData = CreateMetaData(2, majorVersion: 1, minorVersion: 1);
 
             Assert.That(ConfigurationVersionUtils.IsUsable(metaData), Is.True);
         }
@@ -172,8 +172,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 fields[i] = new FieldMetaData { Name = $"Field{i}" };
             }
-            return new DataSetMetaDataType {
-                ConfigurationVersion = new ConfigurationVersionDataType {
+            return new DataSetMetaDataType
+            {
+                ConfigurationVersion = new ConfigurationVersionDataType
+                {
                     MajorVersion = majorVersion,
                     MinorVersion = minorVersion
                 },

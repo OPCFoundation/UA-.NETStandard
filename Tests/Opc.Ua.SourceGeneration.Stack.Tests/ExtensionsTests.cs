@@ -80,7 +80,7 @@ namespace Opc.Ua.SourceGeneration.Tests
         [Test]
         public void GetBoolReturnsFalseWhenKeyMissing()
         {
-            var options = new AnalyzerOptions(new Dictionary<string, string>());
+            var options = new AnalyzerOptions([]);
 
             bool result = options.GetBool("NonExistent");
 
@@ -103,7 +103,7 @@ namespace Opc.Ua.SourceGeneration.Tests
         [Test]
         public void GetStringReturnsEmptyStringWhenKeyMissing()
         {
-            var options = new AnalyzerOptions(new Dictionary<string, string>());
+            var options = new AnalyzerOptions([]);
 
             string result = options.GetString("NonExistent");
 
@@ -126,7 +126,7 @@ namespace Opc.Ua.SourceGeneration.Tests
         [Test]
         public void GetIntegerReturnsZeroWhenKeyMissing()
         {
-            var options = new AnalyzerOptions(new Dictionary<string, string>());
+            var options = new AnalyzerOptions([]);
 
             int result = options.GetInteger("NonExistent");
 
@@ -194,7 +194,7 @@ namespace Opc.Ua.SourceGeneration.Tests
         [Test]
         public void GetStringsReturnsEmptyListWhenKeyMissing()
         {
-            var options = new AnalyzerOptions(new Dictionary<string, string>());
+            var options = new AnalyzerOptions([]);
 
             List<string> result = options.GetStrings("NonExistent");
 

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -205,8 +204,10 @@ namespace Opc.Ua.Core.Tests
         /// SecurityConfiguration set with null reverts to default.
         public void SecurityConfigurationSetNullReturnsDefault()
         {
-            var config = new ApplicationConfiguration(m_telemetry);
-            config.SecurityConfiguration = null;
+            var config = new ApplicationConfiguration(m_telemetry)
+            {
+                SecurityConfiguration = null
+            };
             Assert.That(config.SecurityConfiguration, Is.Not.Null);
         }
 
@@ -254,7 +255,7 @@ namespace Opc.Ua.Core.Tests
             ArrayOf<TransportConfiguration> transports =
                 new List<TransportConfiguration>
                 {
-                    new TransportConfiguration("opc.tcp", typeof(object))
+                    new("opc.tcp", typeof(object))
                 }.ToArrayOf();
             config.TransportConfigurations = transports;
             Assert.That(config.TransportConfigurations.Count, Is.EqualTo(1));
@@ -340,7 +341,7 @@ namespace Opc.Ua.Core.Tests
         {
             var config = new ApplicationConfiguration(m_telemetry);
             Assert.That(config.Properties, Is.Not.Null);
-            Assert.That(config.Properties.Count, Is.EqualTo(0));
+            Assert.That(config.Properties, Is.Empty);
         }
 
         [Test]
@@ -422,7 +423,7 @@ namespace Opc.Ua.Core.Tests
         {
             var config = new ApplicationConfiguration(m_telemetry);
             ArrayOf<string> domains = config.GetServerDomainNames();
-            Assert.That(domains.Count, Is.EqualTo(0));
+            Assert.That(domains.Count, Is.Zero);
         }
 
         [Test]
@@ -557,10 +558,12 @@ namespace Opc.Ua.Core.Tests
         /// Extensions property get/set round-trips correctly.
         public void ExtensionsGetSet()
         {
-            var config = new ApplicationConfiguration(m_telemetry);
-            config.Extensions = new List<XmlElement>().ToArrayOf();
+            var config = new ApplicationConfiguration(m_telemetry)
+            {
+                Extensions = new List<XmlElement>().ToArrayOf()
+            };
             Assert.That(config.Extensions.IsNull, Is.False);
-            Assert.That(config.Extensions.Count, Is.EqualTo(0));
+            Assert.That(config.Extensions.Count, Is.Zero);
         }
 
         [Test]

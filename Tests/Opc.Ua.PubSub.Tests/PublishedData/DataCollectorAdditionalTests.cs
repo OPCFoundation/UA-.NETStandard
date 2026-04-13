@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
     {
         private static DataCollector CreateCollector(IUaPubSubDataStore dataStore = null)
         {
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             return new DataCollector(dataStore ?? new UaPubSubDataStore(), telemetry);
         }
 
@@ -144,7 +144,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void CollectDataReturnsNullWhenDataSetSourceIsNull()
         {
             DataCollector collector = CreateCollector();
-            var pds = CreateValidPds("Test", ExtensionObject.Null, BuiltInType.Int32);
+            PublishedDataSetDataType pds = CreateValidPds("Test", ExtensionObject.Null, BuiltInType.Int32);
             collector.AddPublishedDataSet(pds);
 
             DataSet result = collector.CollectData("Test");
@@ -412,7 +412,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void RemovePublishedDataSetSucceeds()
         {
             DataCollector collector = CreateCollector();
-            var pds = CreateValidPds("RemoveTest", BuiltInType.Int32);
+            PublishedDataSetDataType pds = CreateValidPds("RemoveTest", BuiltInType.Int32);
             collector.AddPublishedDataSet(pds);
 
             Assert.That(collector.GetPublishedDataSet("RemoveTest"), Is.Not.Null);

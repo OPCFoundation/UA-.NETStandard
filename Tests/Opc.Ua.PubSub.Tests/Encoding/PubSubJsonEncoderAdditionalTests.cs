@@ -28,9 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.IO;
-using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
@@ -95,7 +92,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { dataSetMessage });
+                [dataSetMessage]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.DataSetMessageHeader |
@@ -145,7 +142,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { dataSetMessage });
+                [dataSetMessage]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
@@ -200,7 +197,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { msg1, msg2 });
+                [msg1, msg2]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.DataSetMessageHeader);
@@ -284,7 +281,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { dataSetMessage });
+                [dataSetMessage]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
 
@@ -338,7 +335,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { msg1, msg2 });
+                [msg1, msg2]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.DataSetMessageHeader);
 
@@ -940,7 +937,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { dataSetMessage });
+                [dataSetMessage]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage |
@@ -996,7 +993,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { dataSetMessage });
+                [dataSetMessage]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage |
@@ -1145,7 +1142,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             using var encoder = new PubSubJsonEncoder(m_context, useReversibleEncoding: true);
             encoder.PushStructure(null);
-            encoder.WriteGuid("GU", new Uuid(Guid.NewGuid()));
+            encoder.WriteGuid("GU", Uuid.NewUuid());
             encoder.PopStructure();
 
             string result = encoder.CloseAndReturnText();
@@ -1304,7 +1301,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage>());
+                []);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader);
 
@@ -1347,7 +1344,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
-                new List<PubSubEncoding.JsonDataSetMessage> { dataSetMessage });
+                [dataSetMessage]);
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.SingleDataSetMessage |
                 JsonNetworkMessageContentMask.DataSetMessageHeader);
@@ -1365,7 +1362,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             encoder.PushStructure(null);
             encoder.WriteVariantArray(
                 "VarArr",
-                new Variant[] { new Variant(1), new Variant("two"), new Variant(3.0) });
+                new Variant[] { new(1), new("two"), new(3.0) });
             encoder.PopStructure();
 
             string result = encoder.CloseAndReturnText();
@@ -1381,8 +1378,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "DVArr",
                 new DataValue[]
                 {
-                    new DataValue(new Variant(1)),
-                    new DataValue(new Variant(2))
+                    new(new Variant(1)),
+                    new(new Variant(2))
                 });
             encoder.PopStructure();
 

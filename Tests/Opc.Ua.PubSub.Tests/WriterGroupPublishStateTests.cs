@@ -57,14 +57,14 @@ namespace Opc.Ua.PubSub.Tests
 
             var dataset = new DataSet("Test")
             {
-                Fields = new Field[]
-                {
+                Fields =
+                [
                     new Field { Value = new DataValue(new Variant(42)) },
                     new Field { Value = new DataValue(new Variant("hello")) }
-                }
+                ]
             };
 
-            var result = state.ExcludeUnchangedFields(writer, dataset);
+            DataSet result = state.ExcludeUnchangedFields(writer, dataset);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.SameAs(dataset));
@@ -79,25 +79,25 @@ namespace Opc.Ua.PubSub.Tests
 
             var dataset1 = new DataSet("Test")
             {
-                Fields = new Field[]
-                {
+                Fields =
+                [
                     new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) },
                     new Field { Value = new DataValue(new Variant("hello"), StatusCodes.Good) }
-                }
+                ]
             };
 
             state.ExcludeUnchangedFields(writer, dataset1);
 
             var dataset2 = new DataSet("Test")
             {
-                Fields = new Field[]
-                {
+                Fields =
+                [
                     new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) },
                     new Field { Value = new DataValue(new Variant("hello"), StatusCodes.Good) }
-                }
+                ]
             };
 
-            var result = state.ExcludeUnchangedFields(writer, dataset2);
+            DataSet result = state.ExcludeUnchangedFields(writer, dataset2);
 
             Assert.That(result, Is.Null);
         }
@@ -111,25 +111,25 @@ namespace Opc.Ua.PubSub.Tests
 
             var dataset1 = new DataSet("Test")
             {
-                Fields = new Field[]
-                {
+                Fields =
+                [
                     new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) },
                     new Field { Value = new DataValue(new Variant("hello"), StatusCodes.Good) }
-                }
+                ]
             };
 
             state.ExcludeUnchangedFields(writer, dataset1);
 
             var dataset2 = new DataSet("Test")
             {
-                Fields = new Field[]
-                {
+                Fields =
+                [
                     new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) },
                     new Field { Value = new DataValue(new Variant("changed"), StatusCodes.Good) }
-                }
+                ]
             };
 
-            var result = state.ExcludeUnchangedFields(writer, dataset2);
+            DataSet result = state.ExcludeUnchangedFields(writer, dataset2);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Fields[0], Is.Null, "Unchanged field should be nulled");
@@ -145,23 +145,23 @@ namespace Opc.Ua.PubSub.Tests
 
             var dataset1 = new DataSet("Test")
             {
-                Fields = new Field[]
-                {
+                Fields =
+                [
                     new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) }
-                }
+                ]
             };
 
             state.ExcludeUnchangedFields(writer, dataset1);
 
             var dataset2 = new DataSet("Test")
             {
-                Fields = new Field[]
-                {
+                Fields =
+                [
                     new Field { Value = new DataValue(new Variant(42), StatusCodes.Bad) }
-                }
+                ]
             };
 
-            var result = state.ExcludeUnchangedFields(writer, dataset2);
+            DataSet result = state.ExcludeUnchangedFields(writer, dataset2);
 
             Assert.That(result, Is.Not.Null);
         }
@@ -175,25 +175,25 @@ namespace Opc.Ua.PubSub.Tests
 
             var dataset1 = new DataSet("Test")
             {
-                Fields = new Field[]
-                {
+                Fields =
+                [
                     new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) },
                     new Field { Value = new DataValue(new Variant(99), StatusCodes.Good) }
-                }
+                ]
             };
 
             state.ExcludeUnchangedFields(writer, dataset1);
 
             var dataset2 = new DataSet("Test")
             {
-                Fields = new Field[]
-                {
+                Fields =
+                [
                     null,
                     new Field { Value = new DataValue(new Variant(99), StatusCodes.Good) }
-                }
+                ]
             };
 
-            var result = state.ExcludeUnchangedFields(writer, dataset2);
+            DataSet result = state.ExcludeUnchangedFields(writer, dataset2);
 
             Assert.That(result, Is.Not.Null);
         }
@@ -207,25 +207,25 @@ namespace Opc.Ua.PubSub.Tests
 
             var dataset1 = new DataSet("Test")
             {
-                Fields = new Field[]
-                {
+                Fields =
+                [
                     null,
                     new Field { Value = new DataValue(new Variant(99), StatusCodes.Good) }
-                }
+                ]
             };
 
             state.ExcludeUnchangedFields(writer, dataset1);
 
             var dataset2 = new DataSet("Test")
             {
-                Fields = new Field[]
-                {
+                Fields =
+                [
                     new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) },
                     new Field { Value = new DataValue(new Variant(99), StatusCodes.Good) }
-                }
+                ]
             };
 
-            var result = state.ExcludeUnchangedFields(writer, dataset2);
+            DataSet result = state.ExcludeUnchangedFields(writer, dataset2);
 
             Assert.That(result, Is.Not.Null);
         }

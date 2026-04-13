@@ -31,9 +31,9 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 
 #pragma warning disable CS0618 // Obsolete members tested intentionally for coverage
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
@@ -85,7 +85,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToHexStringReturnsUppercaseHex()
         {
-            byte[] data = new byte[] { 0xAB, 0xCD, 0xEF };
+            byte[] data = [0xAB, 0xCD, 0xEF];
             string result = Utils.ToHexString(data);
             Assert.That(result, Is.EqualTo("ABCDEF"));
         }
@@ -93,7 +93,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToHexStringInvertedEndian()
         {
-            byte[] data = new byte[] { 0x01, 0x02, 0x03 };
+            byte[] data = [0x01, 0x02, 0x03];
             string result = Utils.ToHexString(data, invertEndian: true);
             Assert.That(result, Is.EqualTo("030201"));
         }
@@ -101,7 +101,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToHexStringSingleByte()
         {
-            byte[] data = new byte[] { 0x0F };
+            byte[] data = [0x0F];
             string result = Utils.ToHexString(data);
             Assert.That(result, Is.EqualTo("0F"));
         }
@@ -109,7 +109,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void FromHexStringRoundTrip()
         {
-            byte[] original = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
+            byte[] original = [0xDE, 0xAD, 0xBE, 0xEF];
             string hex = Utils.ToHexString(original);
             byte[] result = Utils.FromHexString(hex);
             Assert.That(result, Is.EqualTo(original));
@@ -221,7 +221,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void IsEqualEnumerableBothNullReturnsTrue()
         {
             Assert.That(
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
                 Utils.IsEqual<int>((IEnumerable<int>)null, (IEnumerable<int>)null),
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
                 Is.True);
         }
 
@@ -229,23 +231,25 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void IsEqualEnumerableOneNullReturnsFalse()
         {
             Assert.That(
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
                 Utils.IsEqual<int>(new List<int> { 1 }, (IEnumerable<int>)null),
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
                 Is.False);
         }
 
         [Test]
         public void IsEqualArraySameReturnsTrue()
         {
-            int[] a = new int[] { 1, 2, 3 };
-            int[] b = new int[] { 1, 2, 3 };
+            int[] a = [1, 2, 3];
+            int[] b = [1, 2, 3];
             Assert.That(Utils.IsEqual(a, b), Is.True);
         }
 
         [Test]
         public void IsEqualArrayDifferentReturnsFalse()
         {
-            int[] a = new int[] { 1, 2 };
-            int[] b = new int[] { 3, 4 };
+            int[] a = [1, 2];
+            int[] b = [3, 4];
             Assert.That(Utils.IsEqual(a, b), Is.False);
         }
 
@@ -260,7 +264,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void AppendSingleArrayReturnsCopy()
         {
-            byte[] input = new byte[] { 1, 2, 3 };
+            byte[] input = [1, 2, 3];
             byte[] result = Utils.Append(input);
             Assert.That(result, Is.EqualTo(input));
         }
@@ -268,8 +272,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void AppendMultipleArraysConcatenates()
         {
-            byte[] a = new byte[] { 1, 2 };
-            byte[] b = new byte[] { 3, 4 };
+            byte[] a = [1, 2];
+            byte[] b = [3, 4];
             byte[] result = Utils.Append(a, b);
             Assert.That(result, Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
         }
@@ -277,8 +281,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void AppendWithNullArrayInMiddleSkipsNull()
         {
-            byte[] a = new byte[] { 1 };
-            byte[] b = new byte[] { 2 };
+            byte[] a = [1];
+            byte[] b = [2];
             byte[] result = Utils.Append(a, null, b);
             Assert.That(result, Is.EqualTo(new byte[] { 1, 2 }));
         }
@@ -479,7 +483,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToHexStringSpanVariant()
         {
-            byte[] data = new byte[] { 0x01, 0xFF };
+            byte[] data = [0x01, 0xFF];
             string result = Utils.ToHexString((ReadOnlySpan<byte>)data);
             Assert.That(result, Is.EqualTo("01FF"));
         }
@@ -487,7 +491,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToHexStringSpanInvertedEndian()
         {
-            byte[] data = new byte[] { 0x01, 0xFF };
+            byte[] data = [0x01, 0xFF];
             string result = Utils.ToHexString((ReadOnlySpan<byte>)data, invertEndian: true);
             Assert.That(result, Is.EqualTo("FF01"));
         }
