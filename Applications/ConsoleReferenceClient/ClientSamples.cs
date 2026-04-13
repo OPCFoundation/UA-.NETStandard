@@ -1363,27 +1363,16 @@ namespace Quickstarts
                 textbuffer = jsonEncoder.CloseAndReturnText();
             }
 
-            // prettify
-            try
+            using var doc = System.Text.Json.JsonDocument.Parse(textbuffer);
+            using var stream = new MemoryStream();
+            using (var writer = new System.Text.Json.Utf8JsonWriter(stream, new System.Text.Json.JsonWriterOptions
             {
-                using var doc = System.Text.Json.JsonDocument.Parse(textbuffer);
-                using var stream = new MemoryStream();
-                using (var writer = new System.Text.Json.Utf8JsonWriter(stream, new System.Text.Json.JsonWriterOptions
-                {
-                    Indented = true
-                }))
-                {
-                    doc.WriteTo(writer);
-                }
-                return Encoding.UTF8.GetString(stream.ToArray());
-            }
-            catch (Exception ex)
+                Indented = true
+            }))
             {
-                using var stringWriter = new StringWriter();
-                stringWriter.WriteLine("Failed to format the JSON output: {0}", ex.Message);
-                stringWriter.WriteLine(textbuffer);
-                throw;
+                doc.WriteTo(writer);
             }
+            return Encoding.UTF8.GetString(stream.ToArray());
         }
 
         /// <summary>

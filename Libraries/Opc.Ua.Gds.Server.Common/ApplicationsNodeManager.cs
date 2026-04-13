@@ -137,8 +137,7 @@ namespace Opc.Ua.Gds.Server
                 m_logger.LogInformation("Database Initialized!");
             }
 
-            Server.MessageContext.Factory.Builder
-                .AddOpcUaGds().Commit();
+            Server.MessageContext.Factory.Builder.AddOpcUaGds().Commit();
         }
 
         /// <summary>

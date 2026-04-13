@@ -97,21 +97,37 @@ namespace Opc.Ua.Client.ComplexTypes
         public Enumeration(XmlQualifiedName name, EnumDefinition definition)
         {
             m_definition = definition;
-            m_name = name;
+            XmlName = name;
         }
 
         /// <inheritdoc/>
-        public EnumValue Default => default;
+        public EnumValue Default
+        {
+            get
+            {
+                if (m_definition.Fields.IsEmpty)
+                {
+                    return default;
+                }
+                return new EnumValue((int)m_definition.Fields[0].Value, this);
+            }
+        }
 
         /// <inheritdoc/>
-        public Type Type => GetType();
+        public Type Type => typeof(Enumeration);
 
         /// <inheritdoc/>
-        public XmlQualifiedName XmlName => m_name;
+        public XmlQualifiedName XmlName { get; }
 
         /// <inheritdoc/>
         public bool TryGetSymbol(int value, out string? symbol)
         {
+            EnumField found = m_definition.Fields.Find(e => e.Value == value);
+            if (found?.Name != null)
+            {
+                symbol = found.Name;
+                return true;
+            }
             symbol = default;
             return false;
         }
@@ -119,11 +135,16 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public bool TryGetValue(string symbol, out int value)
         {
+            EnumField found = m_definition.Fields.Find(e => e.Name == symbol);
+            if (found != null)
+            {
+                value = (int)found.Value;
+                return true;
+            }
             value = default;
             return false;
         }
 
         private readonly EnumDefinition m_definition;
-        private readonly XmlQualifiedName m_name;
     }
 }

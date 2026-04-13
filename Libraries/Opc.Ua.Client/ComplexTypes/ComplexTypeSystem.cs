@@ -431,7 +431,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         foreach (StructureField field in structureDefinition.Fields)
                         {
                             if (!IsRecursiveDataType(nodeId, field.DataType) &&
-                                !collect.ContainsKey(nodeId))
+                                !collect.ContainsKey(field.DataType))
                             {
                                 CollectAllDataTypeDefinitions(field.DataType, collect);
                             }

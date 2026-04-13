@@ -286,13 +286,16 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (PropertyDict.TryGetValue(name, out Field? property))
                 {
                     property.Value = value;
-                    if (value.IsNull)
+                    if (property.IsOptional)
                     {
-                        EncodingMask &= ~property.OptionalFieldMask;
-                    }
-                    else
-                    {
-                        EncodingMask |= property.OptionalFieldMask;
+                        if (value.IsNull)
+                        {
+                            EncodingMask &= ~property.OptionalFieldMask;
+                        }
+                        else
+                        {
+                            EncodingMask |= property.OptionalFieldMask;
+                        }
                     }
                 }
                 else

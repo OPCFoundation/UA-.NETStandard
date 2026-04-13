@@ -949,7 +949,8 @@ namespace Opc.Ua.Client
             Snapshot(out SessionConfiguration sessionConfiguration);
             if (stream != null)
             {
-                IServiceMessageContext context = MessageContext!;
+                IServiceMessageContext context = MessageContext
+                    ?? throw new InvalidOperationException("Missing service message context");
                 using var encoder = new BinaryEncoder(
                     stream, context, true);
                 encoder.WriteStringArray(
@@ -977,7 +978,8 @@ namespace Opc.Ua.Client
                 subscriptionStateCollection.Add(state);
             }
 
-            IServiceMessageContext context = MessageContext!;
+            IServiceMessageContext context = MessageContext
+                ?? throw new InvalidOperationException("Missing service message context");
             using var encoder = new BinaryEncoder(
                 stream, context, true);
             encoder.WriteStringArray(
@@ -999,7 +1001,8 @@ namespace Opc.Ua.Client
         {
             using Activity? activity = m_telemetry.StartActivity();
 
-            IServiceMessageContext context = MessageContext!;
+            IServiceMessageContext context = MessageContext
+                ?? throw new InvalidOperationException("Missing service message context");
             using var decoder = new BinaryDecoder(
                 stream, context, true);
             ArrayOf<string> nsUris = decoder.ReadStringArray(null);
