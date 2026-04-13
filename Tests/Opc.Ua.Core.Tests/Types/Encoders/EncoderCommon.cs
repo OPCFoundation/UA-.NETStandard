@@ -660,7 +660,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             System.Reflection.TypeInfo systemTypeInfo = systemType.GetTypeInfo();
             if (systemTypeInfo.IsAbstract ||
-                !typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
+                !typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemTypeInfo) ||
+                typeof(Ua.Encoders.Structure).IsAssignableFrom(systemType))
             {
                 return false;
             }
