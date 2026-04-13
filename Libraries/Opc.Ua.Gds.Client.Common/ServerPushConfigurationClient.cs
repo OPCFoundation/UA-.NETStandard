@@ -1413,9 +1413,9 @@ namespace Opc.Ua.Gds.Client
                 null,
                 [browsePath], ct).ConfigureAwait(false);
 
-            BrowsePathTarget firstTarget = response.Results
+            BrowsePathTarget firstTarget = response.Results.ToList()
                 .Where(r => StatusCode.IsGood(r.StatusCode) && r.Targets.Count > 0)
-                .SelectMany(r => r.Targets)
+                .SelectMany(r => r.Targets.ToList())
                 .FirstOrDefault();
 
             if (firstTarget != null)
@@ -1478,9 +1478,9 @@ namespace Opc.Ua.Gds.Client
             BrowseResponse results = await Session.BrowseAsync(
                 null, null, 0, [browseDescription], ct).ConfigureAwait(false);
 
-            ReferenceDescription reference = results.Results
+            ReferenceDescription reference = results.Results.ToList()
                 .Where(r => StatusCode.IsGood(r.StatusCode))
-                .SelectMany(r => r.References)
+                .SelectMany(r => r.References.ToList())
                 .FirstOrDefault(r => r.TypeDefinition == targetTypeDefinitionId);
 
             if (reference != null)
