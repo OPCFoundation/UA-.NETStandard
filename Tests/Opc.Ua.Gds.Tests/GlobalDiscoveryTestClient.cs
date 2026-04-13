@@ -30,7 +30,6 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -107,7 +106,7 @@ namespace Opc.Ua.Gds.Tests
                 AdminPassword = "demo"
             };
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,
@@ -415,22 +414,22 @@ namespace Opc.Ua.Gds.Tests
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
-    public class GlobalDiscoveryTestClientConfiguration
+    [DataType(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
+    public partial class GlobalDiscoveryTestClientConfiguration
     {
-        [DataMember(Order = 1)]
+        [DataTypeField(Order = 1)]
         public string GlobalDiscoveryServerUrl { get; set; }
 
-        [DataMember(Order = 2)]
+        [DataTypeField(Order = 2)]
         public string AppUserName { get; set; }
 
-        [DataMember(Order = 3)]
+        [DataTypeField(Order = 3)]
         public string AppPassword { get; set; }
 
-        [DataMember(Order = 4, IsRequired = true)]
+        [DataTypeField(Order = 4)]
         public string AdminUserName { get; set; }
 
-        [DataMember(Order = 5, IsRequired = true)]
+        [DataTypeField(Order = 5)]
         public string AdminPassword { get; set; }
     }
 }

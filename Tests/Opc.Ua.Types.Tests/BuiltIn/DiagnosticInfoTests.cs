@@ -70,8 +70,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CopyConstructorWithNullThrowsArgumentNullException()
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(() => new DiagnosticInfo((DiagnosticInfo)null),
                 Throws.TypeOf<ArgumentNullException>());
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -105,12 +107,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ServiceResultConstructorWithAllMasksSetsAllFields()
         {
             var innerResult = new ServiceResult(StatusCodes.BadUnexpectedError);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(
                 "http://test.org/ns",
                 StatusCodes.Bad,
                 new LocalizedText("en", "Error occurred"),
                 "debug info",
                 (ServiceResult)innerResult);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             var stringTable = new StringTable();
             const DiagnosticsMasks mask = DiagnosticsMasks.ServiceAll | DiagnosticsMasks.UserPermissionAdditionalInfo;
@@ -289,12 +293,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 new LocalizedText("en", "Inner error"),
                 null,
                 (ServiceResult)null);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(
                 "http://outer.org",
                 StatusCodes.Bad,
                 new LocalizedText("en", "Outer error"),
                 null,
                 (ServiceResult)innerResult);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             var stringTable = new StringTable();
             const DiagnosticsMasks mask = DiagnosticsMasks.ServiceAll;
@@ -308,7 +314,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ServiceResultConstructorTruncatesAtMaxDepth()
         {
             // Build a chain deeper than MaxInnerDepth (5)
-            ServiceResult current = new ServiceResult(StatusCodes.Bad);
+            var current = new ServiceResult(StatusCodes.Bad);
             for (int i = 0; i < DiagnosticInfo.MaxInnerDepth + 2; i++)
             {
                 current = new ServiceResult(StatusCodes.Bad, current);
@@ -319,7 +325,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 DiagnosticsMasks.ServiceInnerDiagnostics | DiagnosticsMasks.ServiceInnerStatusCode;
 
             // Navigate to the deepest inner diagnostic info
-            DiagnosticInfo innermost = new DiagnosticInfo(current, mask, true, stringTable, s_logger);
+            var innermost = new DiagnosticInfo(current, mask, true, stringTable, s_logger);
             int depth = 0;
             while (innermost.InnerDiagnosticInfo != null)
             {
@@ -492,7 +498,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // MaxInnerDepth is 5, so at depth 5, Equals returns true even if inners differ
             static DiagnosticInfo BuildChain(int depth, int leafSymbolicId)
             {
-                DiagnosticInfo current = new DiagnosticInfo(leafSymbolicId, 0, 0, 0, null);
+                var current = new DiagnosticInfo(leafSymbolicId, 0, 0, 0, null);
                 for (int i = 0; i < depth; i++)
                 {
                     current = new DiagnosticInfo(1, 2, 3, 4, null) { InnerDiagnosticInfo = current };

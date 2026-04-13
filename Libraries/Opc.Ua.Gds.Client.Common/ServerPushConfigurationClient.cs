@@ -29,7 +29,6 @@
 
 using System;
 using System.IO;
-using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1241,9 +1240,9 @@ namespace Opc.Ua.Gds.Client
                 Session.KeepAlive += Session_KeepAliveAsync;
                 Session.KeepAlive += KeepAlive;
 
-                if (Session.Factory.GetSystemType(Ua.DataTypeIds.TrustListDataType) == null)
+                if (!Session.Factory.ContainsEncodeableType(Ua.DataTypeIds.TrustListDataType))
                 {
-                    Session.Factory.AddEncodeableTypes(typeof(Ua.DataTypeIds).GetTypeInfo().Assembly);
+                    Session.Factory.Builder.AddOpcUaGds().Commit();
                 }
 
                 m_endpoint = Session.ConfiguredEndpoint;

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<OAuth2Credential
+  xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
+  <AuthorityUrl>https://auth.example.com</AuthorityUrl>
+  <GrantType>authorization_code</GrantType>
+  <ClientId>test-client-id</ClientId>
+  <ClientSecret>test-client-secret</ClientSecret>
+  <RedirectUrl>https://auth.example.com/callback</RedirectUrl>
+  <TokenEndpoint>https://auth.example.com/token</TokenEndpoint>
+  <AuthorizationEndpoint>https://auth.example.com/authorize</AuthorizationEndpoint>
+</OAuth2Credential>

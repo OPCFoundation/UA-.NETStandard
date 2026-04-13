@@ -423,8 +423,10 @@ namespace Opc.Ua
                 };
                 if (request.RequestHeader.AdditionalHeader.IsNull)
                 {
-                    var additionalHeader = new AdditionalParametersType();
-                    additionalHeader.Parameters = [spanContextParameter];
+                    var additionalHeader = new AdditionalParametersType
+                    {
+                        Parameters = [spanContextParameter]
+                    };
                     request.RequestHeader.AdditionalHeader
                         = new ExtensionObject(additionalHeader);
                 }

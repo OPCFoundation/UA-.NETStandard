@@ -1004,7 +1004,7 @@ namespace Opc.Ua
                     if (batchSize >= collection.Count - ii)
                     {
                         // Return remaining slice
-                        yield return collection.Slice(ii);
+                        yield return collection[ii..];
                     }
                     else
                     {

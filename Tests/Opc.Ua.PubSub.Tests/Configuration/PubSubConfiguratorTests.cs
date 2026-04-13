@@ -659,7 +659,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
             {
-                var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
+                PubSubConnectionDataType psconNew = CoreUtils.Clone(pscon);
 
                 StatusCode result = uaPubSubApplication.UaPubSubConfigurator
                     .AddConnection(psconNew);
@@ -672,7 +672,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .WriterGroups
                     .Count;
 
-                var writerGroup = (WriterGroupDataType)psconNew.WriterGroups[0].MemberwiseClone();
+                WriterGroupDataType writerGroup = CoreUtils.Clone(psconNew.WriterGroups[0]);
                 writerGroup.Name += "_";
 
                 uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
@@ -703,7 +703,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
             {
-                var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
+                PubSubConnectionDataType psconNew = CoreUtils.Clone(pscon);
 
                 StatusCode result = uaPubSubApplication.UaPubSubConfigurator
                     .AddConnection(psconNew);
@@ -711,7 +711,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
                 // Add the first writer group in the configuration and check that it is reflected in Application
 
-                var writerGroup = (WriterGroupDataType)psconNew.WriterGroups[0].MemberwiseClone();
+                WriterGroupDataType writerGroup = CoreUtils.Clone(psconNew.WriterGroups[0]);
                 writerGroup.Name += "_";
 
                 uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
@@ -752,7 +752,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
             {
-                var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
+                PubSubConnectionDataType psconNew = CoreUtils.Clone(pscon);
 
                 StatusCode result = uaPubSubApplication.UaPubSubConfigurator
                     .AddConnection(psconNew);
@@ -765,7 +765,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .WriterGroups
                     .Count;
 
-                var writerGroup = (WriterGroupDataType)psconNew.WriterGroups[0].MemberwiseClone();
+                WriterGroupDataType writerGroup = CoreUtils.Clone(psconNew.WriterGroups[0]);
                 uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
                     .FindIdForObject(psconNew);
                 writerGroup.Name += "_";
@@ -793,9 +793,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .WriterGroups[0]
                     .DataSetWriters
                     .Count;
-                var dataSetWriter = (DataSetWriterDataType)psconNew.WriterGroups[0]
-                    .DataSetWriters[0]
-                    .MemberwiseClone();
+                DataSetWriterDataType dataSetWriter = CoreUtils.Clone(psconNew.WriterGroups[0].DataSetWriters[0]);
                 dataSetWriter.Name += "_";
                 result = uaPubSubApplication.UaPubSubConfigurator
                     .AddDataSetWriter(addedWriterGroupId, dataSetWriter);
@@ -822,7 +820,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
             {
-                var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
+                PubSubConnectionDataType psconNew = CoreUtils.Clone(pscon);
 
                 StatusCode result = uaPubSubApplication.UaPubSubConfigurator
                     .AddConnection(psconNew);
@@ -835,7 +833,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .WriterGroups
                     .Count;
 
-                var writerGroup = (WriterGroupDataType)psconNew.WriterGroups[0].MemberwiseClone();
+                WriterGroupDataType writerGroup = CoreUtils.Clone(psconNew.WriterGroups[0]);
                 uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
                     .FindIdForObject(psconNew);
                 writerGroup.Name += "_";
@@ -857,9 +855,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                             ]));
 
                 // Add the first data set writer in the configuration and check that it is reflected in Application
-                var dataSetWriter = (DataSetWriterDataType)psconNew.WriterGroups[0]
-                    .DataSetWriters[0]
-                    .MemberwiseClone();
+                DataSetWriterDataType dataSetWriter = CoreUtils.Clone(psconNew.WriterGroups[0].DataSetWriters[0]);
                 dataSetWriter.Name += "_";
 
                 int nrInitialDsWriters = uaPubSubApplication
@@ -1015,7 +1011,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
             {
-                var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
+                PubSubConnectionDataType psconNew = CoreUtils.Clone(pscon);
 
                 StatusCode result = uaPubSubApplication.UaPubSubConfigurator
                     .AddConnection(psconNew);
@@ -1028,7 +1024,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .ReaderGroups
                     .Count;
 
-                var readerGroup = (ReaderGroupDataType)psconNew.ReaderGroups[0].MemberwiseClone();
+                ReaderGroupDataType readerGroup = CoreUtils.Clone(psconNew.ReaderGroups[0]);
                 readerGroup.Name += "_";
                 uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
                     .FindIdForObject(psconNew);
@@ -1065,14 +1061,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
             {
-                var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
+                PubSubConnectionDataType psconNew = CoreUtils.Clone(pscon);
 
                 StatusCode result = uaPubSubApplication.UaPubSubConfigurator
                     .AddConnection(psconNew);
                 Assert.That(StatusCode.IsGood(result), Is.True, "Status code received: " + result);
 
                 // Add the first writer group in the configuration and check that it is reflected in Application
-                var readerGroup = (ReaderGroupDataType)psconNew.ReaderGroups[0].MemberwiseClone();
+                ReaderGroupDataType readerGroup = CoreUtils.Clone(psconNew.ReaderGroups[0]);
                 readerGroup.Name += "_";
                 uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
                     .FindIdForObject(psconNew);
@@ -1086,7 +1082,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 result = uaPubSubApplication.UaPubSubConfigurator
                     .AddReaderGroup(lastAddedConnId, readerGroup);
                 Assert.That(StatusCode.IsGood(result), Is.True, "Status code received: " + result);
-                result = uaPubSubApplication.UaPubSubConfigurator.RemoveReaderGroup(readerGroup);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .RemoveReaderGroup(readerGroup);
                 Assert.That(StatusCode.IsGood(result), Is.True, "Status code received: " + result);
 
                 int nrActualReaderGroups = uaPubSubApplication
@@ -1110,7 +1107,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
             {
-                var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
+                PubSubConnectionDataType psconNew = CoreUtils.Clone(pscon);
 
                 StatusCode result = uaPubSubApplication.UaPubSubConfigurator
                     .AddConnection(psconNew);
@@ -1123,7 +1120,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .ReaderGroups
                     .Count;
 
-                var readerGroup = (ReaderGroupDataType)psconNew.ReaderGroups[0].MemberwiseClone();
+                ReaderGroupDataType readerGroup = CoreUtils.Clone(psconNew.ReaderGroups[0]);
                 readerGroup.Name += "_";
                 uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
                     .FindIdForObject(psconNew);
@@ -1148,9 +1145,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .ReaderGroups[0]
                     .DataSetReaders
                     .Count;
-                var dataSetReader = (DataSetReaderDataType)psconNew.ReaderGroups[0]
-                    .DataSetReaders[0]
-                    .MemberwiseClone();
+                DataSetReaderDataType dataSetReader = CoreUtils.Clone(psconNew.ReaderGroups[0].DataSetReaders[0]);
                 dataSetReader.Name += "_";
                 uint addedReaderGroupId = uaPubSubApplication.UaPubSubConfigurator
                     .FindIdForObject(readerGroup);
@@ -1178,7 +1173,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
             {
-                var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
+                PubSubConnectionDataType psconNew = CoreUtils.Clone(pscon);
 
                 StatusCode result = uaPubSubApplication.UaPubSubConfigurator
                     .AddConnection(psconNew);
@@ -1191,7 +1186,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .ReaderGroups
                     .Count;
 
-                var readerGroup = (ReaderGroupDataType)psconNew.ReaderGroups[0].MemberwiseClone();
+                ReaderGroupDataType readerGroup = CoreUtils.Clone(psconNew.ReaderGroups[0]);
                 readerGroup.Name += "_";
                 uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
                     .FindIdForObject(psconNew);
@@ -1212,9 +1207,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                             ]));
 
                 // Add the first data set Reader in the configuration and check that it is reflected in Application
-                var dataSetReader = (DataSetReaderDataType)psconNew.ReaderGroups[0]
-                    .DataSetReaders[0]
-                    .MemberwiseClone();
+                DataSetReaderDataType dataSetReader = CoreUtils.Clone(psconNew.ReaderGroups[0].DataSetReaders[0]);
                 dataSetReader.Name += "_";
 
                 int nrInitialDsReaders = uaPubSubApplication

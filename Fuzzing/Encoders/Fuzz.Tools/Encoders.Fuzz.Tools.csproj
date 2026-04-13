@@ -18,7 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="SharpFuzz" />
-    <PackageReference Include="Mono.Options" />
+    <PackageReference Include="System.CommandLine" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Expressions" />

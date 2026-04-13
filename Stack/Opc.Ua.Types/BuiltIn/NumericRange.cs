@@ -31,8 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Globalization;
-using System.Linq;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
 
@@ -577,11 +575,11 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Enumeration
-                    when s.TryGet(out ArrayOf<int> src):
+                    when s.TryGet(out ArrayOf<EnumValue> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
-                            value = Variant.FromEnumeration(src);
+                            value = Variant.From(src);
                             return status;
                         }
                         break;
@@ -816,11 +814,11 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Enumeration
-                    when s.TryGet(out MatrixOf<int> src):
+                    when s.TryGet(out MatrixOf<EnumValue> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
-                            value = Variant.FromEnumeration(src);
+                            value = Variant.From(src);
                             return status;
                         }
                         break;
@@ -1118,12 +1116,12 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Enumeration
-                    when s.TryGet(out ArrayOf<int> src) &&
-                        d.TryGet(out ArrayOf<int> dst):
+                    when s.TryGet(out ArrayOf<EnumValue> src) &&
+                        d.TryGet(out ArrayOf<EnumValue> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
-                            value = Variant.FromEnumeration(dst);
+                            value = Variant.From(dst);
                             return status;
                         }
                         break;
@@ -1382,12 +1380,12 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Enumeration
-                    when s.TryGet(out MatrixOf<int> src) &&
-                        d.TryGet(out MatrixOf<int> dst):
+                    when s.TryGet(out MatrixOf<EnumValue> src) &&
+                        d.TryGet(out MatrixOf<EnumValue> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
-                            value = Variant.FromEnumeration(dst);
+                            value = Variant.From(dst);
                             return status;
                         }
                         break;

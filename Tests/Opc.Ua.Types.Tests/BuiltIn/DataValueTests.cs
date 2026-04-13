@@ -30,7 +30,6 @@
 using System;
 using NUnit.Framework;
 
-#pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable NUnit2010
 
 namespace Opc.Ua.Types.Tests.BuiltIn
@@ -79,8 +78,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CopyConstructorThrowsOnNull()
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(() => new DataValue((DataValue)null),
                 Throws.TypeOf<ArgumentNullException>());
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -386,16 +387,20 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(42));
 
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.That(dv.Value, Is.EqualTo(42));
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [Test]
         public void ValueSetterSetsVariant()
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             var dv = new DataValue
             {
                 Value = "hello"
             };
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(dv.WrappedValue, Is.EqualTo(new Variant("hello")));
         }
@@ -548,7 +553,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(42));
 
+#pragma warning disable CS0618 // Type or member is obsolete
             int result = dv.GetValueOrDefault<int>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.EqualTo(42));
         }
@@ -558,7 +565,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(42), StatusCodes.Bad);
 
+#pragma warning disable CS0618 // Type or member is obsolete
             int result = dv.GetValueOrDefault<int>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.Zero);
         }
@@ -568,7 +577,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant("hello"), StatusCodes.Bad);
 
+#pragma warning disable CS0618 // Type or member is obsolete
             string result = dv.GetValueOrDefault<string>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.Null);
         }
@@ -579,8 +590,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Use Argument (IEncodeable) as target type which cannot be cast from an int variant
             var dv = new DataValue(new Variant(42));
 
-            Assert.That(() => dv.GetValueOrDefault<Argument>(),
+#pragma warning disable CS0618 // Type or member is obsolete
+            Assert.That(dv.GetValueOrDefault<Argument>,
                 Throws.TypeOf<ServiceResultException>());
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [Test]
@@ -588,8 +601,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue();
 
-            Assert.That(() => dv.GetValueOrDefault<int>(),
+#pragma warning disable CS0618 // Type or member is obsolete
+            Assert.That(dv.GetValueOrDefault<int>,
                 Throws.TypeOf<ServiceResultException>());
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [Test]
@@ -597,7 +612,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue();
 
+#pragma warning disable CS0618 // Type or member is obsolete
             string result = dv.GetValueOrDefault<string>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.Null);
         }
@@ -609,7 +626,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var ext = new ExtensionObject(arg);
             var dv = new DataValue(new Variant(ext));
 
+#pragma warning disable CS0618 // Type or member is obsolete
             Argument result = dv.GetValueOrDefault<Argument>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo("test"));
@@ -764,7 +783,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(true));
 
+#pragma warning disable CS0618 // Type or member is obsolete
             bool result = dv.GetValueOrDefault<bool>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.True);
         }
@@ -774,7 +795,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(3.14));
 
+#pragma warning disable CS0618 // Type or member is obsolete
             double result = dv.GetValueOrDefault<double>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.EqualTo(3.14));
         }

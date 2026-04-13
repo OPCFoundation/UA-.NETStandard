@@ -96,7 +96,7 @@ jobs:
     displayName: Pack Nuget ${{parameters.config}}
     inputs:
       command: pack
-      packagesToPack:  'UA Core Library.slnx'
+      packagesToPack: 'UA Core Library.slnx'
       configuration: ${{parameters.config}}
       configurationToPack: ${{parameters.config}}
       nobuild: true

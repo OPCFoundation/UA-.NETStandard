@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -83,14 +82,6 @@ namespace Opc.Ua
             bool throwOnError)
         {
             return value;
-        }
-
-        /// <inheritdoc/>
-        public override object Clone()
-        {
-            var clone = (BaseVariableTypeState)Activator.CreateInstance(GetType());
-            CopyTo(clone);
-            return clone;
         }
 
         /// <inheritdoc/>
@@ -744,6 +735,12 @@ namespace Opc.Ua
             return new BaseDataVariableTypeState();
         }
 
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new BaseDataVariableTypeState();
+        }
+
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
@@ -830,6 +827,12 @@ namespace Opc.Ua
             {
                 get => m_builder.GetValue(WrappedValue);
                 set => WrappedValue = m_builder.WithValue(value);
+            }
+
+            /// <inheritdoc/>
+            protected override NodeState CreateCopy()
+            {
+                return new Implementation<TBuilder>();
             }
 
             private readonly TBuilder m_builder = new();

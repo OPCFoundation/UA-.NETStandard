@@ -485,6 +485,30 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public EnumValue ReadEnumerated(string fieldName)
+        {
+            if (TryGetEnumerationFromElement(
+                GetPropertyElement(fieldName),
+                out EnumValue value))
+            {
+                return value;
+            }
+            return DefaultOrThrow(value);
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<EnumValue> ReadEnumeratedArray(string fieldName)
+        {
+            if (TryGetEnumerationArrayFromElement(
+                GetPropertyElement(fieldName),
+                out ArrayOf<EnumValue> values))
+            {
+                return values;
+            }
+            return DefaultOrThrow(values);
+        }
+
+        /// <inheritdoc/>
         public ExpandedNodeId ReadExpandedNodeId(string fieldName)
         {
             if (TryGetExpandedNodeIdFromElement(
@@ -1051,6 +1075,19 @@ namespace Opc.Ua
                 return value;
             }
             return DefaultOrThrow(value);
+        }
+
+        /// <inheritdoc/>
+        public bool HasField(string fieldName)
+        {
+            if (string.IsNullOrEmpty(fieldName) || m_stack.Count == 0)
+            {
+                return true;
+            }
+
+            JsonElement top = m_stack.Peek();
+            return top.ValueKind == JsonValueKind.Object &&
+                top.TryGetProperty(fieldName, out _);
         }
 
         /// <summary>
@@ -1625,7 +1662,7 @@ namespace Opc.Ua
                     if (split >= 0)
                     {
                         symbol = text[..split];
-                        text = text[split..];
+                        text = text[(split + 1)..];
                     }
                     if (int.TryParse(text, out int enumValue))
                     {
@@ -1653,7 +1690,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get enumeration from element
         /// </summary>
-        private static bool TryGetEnumerationFromElement(JsonElement element, out int value)
+        private static bool TryGetEnumerationFromElement(JsonElement element, out EnumValue value)
         {
             switch (element.ValueKind)
             {
@@ -1674,20 +1711,19 @@ namespace Opc.Ua
                     if (split >= 0)
                     {
                         symbol = text[..split];
-                        text = text[split..];
+                        text = text[(split + 1)..];
                     }
                     if (int.TryParse(text, out int enumValue))
                     {
-                        value = enumValue;
+                        value = new EnumValue(enumValue, symbol);
                         return true;
                     }
-                    // TODO: Use the symbol for EnumValue
                     value = default;
                     return false;
                 case JsonValueKind.Number when element.TryGetInt32(out int i):
                     // Compact or Variant encoding
                     // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4.1.1
-                    value = i;
+                    value = (EnumValue)i;
                     return true;
                 default:
                     value = default;
@@ -1731,7 +1767,7 @@ namespace Opc.Ua
         /// </summary>
         private static bool TryGetEnumerationArrayFromElement(
             JsonElement element,
-            out ArrayOf<int> values)
+            out ArrayOf<EnumValue> values)
         {
             if (TryGetArrayElements(element, out ArrayOf<JsonElement> elements))
             {
@@ -1740,7 +1776,7 @@ namespace Opc.Ua
                     values = default;
                     return true;
                 }
-                int[] result = new int[elements.Count];
+                EnumValue[] result = new EnumValue[elements.Count];
                 for (int i = 0; i < elements.Count; i++)
                 {
                     if (!TryGetEnumerationFromElement(elements[i], out result[i]))
@@ -3209,8 +3245,8 @@ namespace Opc.Ua
                         return true;
                     case BuiltInType.Enumeration when TryGetEnumerationFromElement(
                         element,
-                        out int v):
-                        value = Variant.FromEnumeration(v);
+                        out EnumValue v):
+                        value = Variant.From(v);
                         return true;
                     case BuiltInType.Int32 when TryGetInt32FromElement(
                         element,
@@ -3357,8 +3393,8 @@ namespace Opc.Ua
                         return true;
                     case BuiltInType.Enumeration when TryGetEnumerationArrayFromElement(
                         element,
-                        out ArrayOf<int> v):
-                        value = Variant.FromEnumeration(v);
+                        out ArrayOf<EnumValue> v):
+                        value = Variant.From(v);
                         return true;
                     case BuiltInType.Int32 when TryGetInt32ArrayFromElement(
                         element,
@@ -3541,8 +3577,8 @@ namespace Opc.Ua
                             return true;
                         case BuiltInType.Enumeration when TryGetEnumerationArrayFromElement(
                             element,
-                            out ArrayOf<int> v):
-                            value = Variant.FromEnumeration(v.ToMatrix(dims));
+                            out ArrayOf<EnumValue> v):
+                            value = Variant.From(v.ToMatrix(dims));
                             return true;
                         case BuiltInType.Int32 when TryGetInt32ArrayFromElement(
                             element,

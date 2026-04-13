@@ -30,9 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
-using System.Reflection;
-using System.Runtime.Serialization;
-using System.Text;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
 
@@ -275,91 +272,48 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                if (m_body is ByteString byteString)
+                switch (m_body)
                 {
-                    return string.Format(
-                        formatProvider,
-                        "Byte[{0}]",
-                        byteString.Length);
-                }
-
-                if (m_body is XmlElement element)
-                {
-                    return string.Format(
-                        formatProvider,
-                        "<{0}>",
-                        element.OuterXml);
-                }
-
-                if (m_body is string json)
-                {
-                    return string.Format(
-                        formatProvider,
-                        "{0}",
-                        json);
-                }
-
-                if (m_body is IFormattable formattable)
-                {
-                    return string.Format(
-                        formatProvider,
-                        "{0}",
-                        formattable.ToString(null, formatProvider));
-                }
-
-                if (m_body is IEncodeable)
-                {
-                    var body = new StringBuilder();
-
-                    foreach (
-                        PropertyInfo property in m_body
-                            .GetType()
-                            .GetProperties(BindingFlags.Public |
-                                BindingFlags.FlattenHierarchy |
-                                BindingFlags.Instance))
-                    {
-                        object[] attributes = [.. property.GetCustomAttributes(
-                            typeof(DataMemberAttribute),
-                            true)];
-
-                        for (int ii = 0; ii < attributes.Length; ii++)
+                    case ByteString byteString:
+                        return string.Format(
+                            formatProvider,
+                            "Byte[{0}]",
+                            byteString.Length);
+                    case XmlElement element:
+                        return string.Format(
+                            formatProvider,
+                            "<{0}>",
+                            element.OuterXml);
+                    case string json:
+                        return string.Format(
+                            formatProvider,
+                            "{0}",
+                            json);
+                    case IFormattable formattable:
+                        return string.Format(
+                            formatProvider,
+                            "{0}",
+                            formattable.ToString(null, formatProvider));
+                    case IEncodeable encodeable:
+                        return string.Format(
+                            formatProvider,
+                            "{0}",
+                            encodeable);
+                    default:
+                        if (TypeId.IsNull)
                         {
-                            if (attributes[ii] is DataMemberAttribute)
-                            {
-                                if (body.Length == 0)
-                                {
-                                    body.Append('{');
-                                }
-                                else
-                                {
-                                    body.Append(" | ");
-                                }
-
-                                body.AppendFormat(
-                                    formatProvider,
-                                    "{0}",
-                                    property.GetGetMethod().Invoke(m_body, null));
-                            }
+                            return "(null)";
                         }
-                    }
-
-                    if (body.Length > 0)
-                    {
-                        body.Append('}');
-                    }
-
-                    return string.Format(formatProvider, "{0}", body);
+                        return string.Format(
+                            formatProvider,
+                            "{{{0}}}",
+                            TypeId);
                 }
-
-                if (!TypeId.IsNull)
-                {
-                    return string.Format(formatProvider, "{{{0}}}", TypeId);
-                }
-
-                return "(null)";
             }
 
-            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(
+                CoreUtils.Format("Invalid format string: '{0}'.",
+                format));
         }
 
         /// <summary>
@@ -496,69 +450,26 @@ namespace Opc.Ua
         /// Converts an array of extension objects to an array of
         /// the specified type.
         /// </summary>
-        /// <param name="source">The array to convert.</param>
-        /// <param name="elementType">The type of each element.</param>
+        /// <param name="extensions">The array to convert.</param>
+        /// <typeparam name="T">The type of each element.</typeparam>
         /// <returns>The new array</returns>
         /// <remarks>
-        /// Will add null elements if individual elements cannot be converted.
+        /// Will leave entry in returned array as default if
+        /// individual elements cannot be obtained from the
+        /// extension object.
         /// </remarks>
-        public static Array ToArray(object source, Type elementType)
+        public static ArrayOf<T> ToArray<T>(ArrayOf<ExtensionObject> extensions)
+            where T : IEncodeable
         {
-            if (source is not Array extensions)
-            {
-                return null;
-            }
-
-            var output = Array.CreateInstance(elementType, extensions.Length);
-
+            var output = new T[extensions.Count];
             for (int ii = 0; ii < output.Length; ii++)
             {
-                if (extensions.GetValue(ii) is ExtensionObject e &&
-                    e.TryGetEncodeable(out IEncodeable element) &&
-                    elementType.IsInstanceOfType(element))
+                if (extensions[ii].TryGetEncodeable(out T element))
                 {
-                    output.SetValue(element, ii);
+                    output[ii] = element;
                 }
             }
-
             return output;
-        }
-
-        /// <summary>
-        /// Converts an array of extension objects to a List of the specified
-        /// type.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="source">The array to convert.</param>
-        /// <returns>The new typed List</returns>
-        /// <remarks>
-        /// Will add null elements if individual elements cannot be converted.
-        /// </remarks>
-        public static List<T> ToList<T>(object source)
-            where T : class
-        {
-            if (source is not Array extensions)
-            {
-                return null;
-            }
-
-            var list = new List<T>();
-
-            for (int ii = 0; ii < extensions.Length; ii++)
-            {
-                if (extensions.GetValue(ii) is ExtensionObject e &&
-                    e.TryGetEncodeable(out IEncodeable element) &&
-                    element is T typedElement)
-                {
-                    list.Add(typedElement);
-                }
-                else
-                {
-                    list.Add(null);
-                }
-            }
-
-            return list;
         }
 
         /// <summary>
@@ -607,6 +518,17 @@ namespace Opc.Ua
             }
 
             return extensibles;
+        }
+
+        /// <summary>
+        /// Get structures of type T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> GetStructuresOf<T>(
+            this ArrayOf<ExtensionObject> extensions)
+            where T : IEncodeable
+        {
+            return ExtensionObject.ToArray<T>(extensions);
         }
     }
 

@@ -62,7 +62,7 @@ namespace Opc.Ua.Bindings
             ApplicationConfiguration configuration,
             ArrayOf<string> baseAddresses,
             ApplicationDescription serverDescription,
-            List<ServerSecurityPolicy> securityPolicies,
+            ArrayOf<ServerSecurityPolicy> securityPolicies,
             CertificateTypesProvider instanceCertificateTypesProvider)
         {
             // generate a unique host name.

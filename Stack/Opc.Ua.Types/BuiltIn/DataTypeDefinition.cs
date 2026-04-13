@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// Data type definition
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public abstract class DataTypeDefinition : IEncodeable, IJsonEncodeable
     {
         /// <inheritdoc/>

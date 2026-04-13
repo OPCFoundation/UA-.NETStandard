@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -1558,9 +1557,9 @@ namespace Opc.Ua.Gds.Client
                 {
                 }
 
-                if (Session.Factory.GetSystemType(DataTypeIds.ApplicationRecordDataType) == null)
+                if (!Session.Factory.ContainsEncodeableType(DataTypeIds.ApplicationRecordDataType))
                 {
-                    Session.Factory.AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
+                    Session.Factory.Builder.AddOpcUaGds().Commit();
                 }
 
                 m_endpoint = Session.ConfiguredEndpoint;

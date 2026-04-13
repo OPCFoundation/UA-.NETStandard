@@ -90,6 +90,8 @@ namespace Opc.Ua.Schema
         /// Loads an input file for validation.
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         protected T LoadInput<T>(Stream stream)
         {
             LoadedFiles.Clear();
@@ -102,6 +104,8 @@ namespace Opc.Ua.Schema
         /// Loads an input file for validation.
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         protected T LoadInput<T>(string path)
         {
             LoadedFiles.Clear();
@@ -116,6 +120,8 @@ namespace Opc.Ua.Schema
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <exception cref="FileNotFoundException"></exception>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         protected T Load<T>(string path, string namespaceUri)
         {
             if (namespaceUri != null)
@@ -156,6 +162,8 @@ namespace Opc.Ua.Schema
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <exception cref="FileNotFoundException"></exception>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         protected T Load<T>(string path)
         {
             using Stream stream = OpenRead(path);
@@ -327,6 +335,8 @@ namespace Opc.Ua.Schema
         /// Loads a type from a location
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         private T LoadInternal<T>(string path)
         {
             using Stream stream = FileSystem.OpenRead(path);
@@ -337,6 +347,8 @@ namespace Opc.Ua.Schema
         /// Deserializes a type t from a stream
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         private static T LoadInternal<T>(Stream stream)
         {
             using var reader = new StreamReader(stream);

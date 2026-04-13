@@ -408,7 +408,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
-            IServiceMessageContext messageContextEncode = new ServiceMessageContext(m_telemetry);
+            IServiceMessageContext messageContextEncode = ServiceMessageContext.Create(m_telemetry);
             byte[] bytes;
             var memoryStream = new MemoryStream();
             using (var encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
@@ -423,7 +423,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
                 // Make sure the reader MajorVersion and MinorVersion are the same with the ones on the dataset message
-                var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+                DataSetReaderDataType reader = CoreUtils.Clone(m_firstDataSetReaderType);
                 reader.DataSetMetaData.ConfigurationVersion.MajorVersion = versionValue;
                 reader.DataSetMetaData.ConfigurationVersion.MinorVersion = versionValue * 10;
 
@@ -436,8 +436,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(
                 uaDataSetMessageDecoded.DecodeErrorReason,
                 Is.EqualTo(DataSetDecodeErrorReason.NoError));
-            Assert.That(uaDataSetMessageDecoded.IsMetadataMajorVersionChange, Is.EqualTo(false));
-            Assert.That(uaDataSetMessageDecoded.DataSet, Is.Not.EqualTo(null));
+            Assert.That(uaDataSetMessageDecoded.IsMetadataMajorVersionChange, Is.False);
+            Assert.That(uaDataSetMessageDecoded.DataSet, Is.Not.Null);
             // compare uadpDataSetMessage with uaDataSetMessageDecoded
             CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);
         }
@@ -496,7 +496,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
-            IServiceMessageContext messageContextEncode = new ServiceMessageContext(m_telemetry);
+            IServiceMessageContext messageContextEncode = ServiceMessageContext.Create(m_telemetry);
             byte[] bytes;
             using var memoryStream = new MemoryStream();
             using var encoder = new BinaryEncoder(memoryStream, messageContextEncode, true);
@@ -510,7 +510,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 // Make sure the reader MajorVersion is same with the ones on the dataset message
                 // and MinorVersion differ
-                var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+                DataSetReaderDataType reader = CoreUtils.Clone(m_firstDataSetReaderType);
                 reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage
                     .MetaDataVersion
                     .MajorVersion;
@@ -526,8 +526,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(
                 uaDataSetMessageDecoded.DecodeErrorReason,
                 Is.EqualTo(DataSetDecodeErrorReason.NoError));
-            Assert.That(uaDataSetMessageDecoded.IsMetadataMajorVersionChange, Is.EqualTo(false));
-            Assert.That(uaDataSetMessageDecoded.DataSet, Is.Not.EqualTo(null));
+            Assert.That(uaDataSetMessageDecoded.IsMetadataMajorVersionChange, Is.False);
+            Assert.That(uaDataSetMessageDecoded.DataSet, Is.Not.Null);
             // compare uadpDataSetMessage with uaDataSetMessageDecoded
             CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);
         }
@@ -586,7 +586,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
-            IServiceMessageContext messageContextEncode = new ServiceMessageContext(m_telemetry);
+            IServiceMessageContext messageContextEncode = ServiceMessageContext.Create(m_telemetry);
             byte[] bytes;
             using (var memoryStream = new MemoryStream())
             using (var encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
@@ -601,7 +601,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
                 // Make sure the reader MajorVersion differ and MinorVersion are equal
-                var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+                DataSetReaderDataType reader = CoreUtils.Clone(m_firstDataSetReaderType);
                 reader.DataSetMetaData.ConfigurationVersion.MajorVersion =
                     uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
                 reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage
@@ -617,8 +617,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(
                 uaDataSetMessageDecoded.DecodeErrorReason,
                 Is.EqualTo(DataSetDecodeErrorReason.MetadataMajorVersion));
-            Assert.That(uaDataSetMessageDecoded.IsMetadataMajorVersionChange, Is.EqualTo(true));
-            Assert.That(uaDataSetMessageDecoded.DataSet, Is.EqualTo(null));
+            Assert.That(uaDataSetMessageDecoded.IsMetadataMajorVersionChange, Is.True);
+            Assert.That(uaDataSetMessageDecoded.DataSet, Is.Null);
         }
 
         [Test(Description = "Validate MajorVersion differ and MinorVersion differ")]
@@ -675,7 +675,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
-            IServiceMessageContext messageContextEncode = new ServiceMessageContext(m_telemetry);
+            IServiceMessageContext messageContextEncode = ServiceMessageContext.Create(m_telemetry);
             byte[] bytes;
             var memoryStream = new MemoryStream();
             using (var encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
@@ -690,7 +690,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
                 // Make sure the reader MajorVersion differ and MinorVersion differ
-                var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+                DataSetReaderDataType reader = CoreUtils.Clone(m_firstDataSetReaderType);
                 reader.DataSetMetaData.ConfigurationVersion.MajorVersion =
                     uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
                 reader.DataSetMetaData.ConfigurationVersion.MinorVersion =
@@ -705,8 +705,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(
                 uaDataSetMessageDecoded.DecodeErrorReason,
                 Is.EqualTo(DataSetDecodeErrorReason.MetadataMajorVersion));
-            Assert.That(uaDataSetMessageDecoded.IsMetadataMajorVersionChange, Is.EqualTo(true));
-            Assert.That(uaDataSetMessageDecoded.DataSet, Is.EqualTo(null));
+            Assert.That(uaDataSetMessageDecoded.IsMetadataMajorVersionChange, Is.True);
+            Assert.That(uaDataSetMessageDecoded.DataSet, Is.Null);
         }
 
         [Test(Description = "Validate SequenceNumber")]
@@ -845,8 +845,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.That(
-                networkMessages.Count,
-                Is.EqualTo(1),
+                networkMessages,
+                Has.Count.EqualTo(1),
                 "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
@@ -870,7 +870,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private void CompareEncodeDecode(UadpDataSetMessage uadpDataSetMessage, ILogger logger)
         {
-            IServiceMessageContext messageContextEncode = new ServiceMessageContext(m_telemetry);
+            IServiceMessageContext messageContextEncode = ServiceMessageContext.Create(m_telemetry);
             byte[] bytes;
             using (var memoryStream = new MemoryStream())
             using (var encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
@@ -961,8 +961,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // check also the payload data
             Assert.That(
-                dataSetDecoded.Fields.Length,
-                Is.EqualTo(uadpDataSetMessageEncode.DataSet.Fields.Length),
+                dataSetDecoded.Fields,
+                Has.Length.EqualTo(uadpDataSetMessageEncode.DataSet.Fields.Length),
                 "DataSetMessages DataSet fields size do not match:");
 
             for (int index = 0; index < uadpDataSetMessageEncode.DataSet.Fields.Length; index++)

@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// Data type node
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class DataTypeNode : TypeNode, IDataType
     {
         /// <summary>

@@ -170,19 +170,6 @@ namespace Opc.Ua.Test
             // create a random source if none provided.
             m_random ??= new RandomSource();
 
-            // load the boundary values.
-            Dictionary<BuiltInType, Variant[]> boundaryValues = [];
-
-            for (int ii = 0; ii < s_availableBoundaryValues.Length; ii++)
-            {
-                boundaryValues[s_availableBoundaryValues[ii].BuiltInType] =
-                [
-                    .. s_availableBoundaryValues[ii].Values
-                ];
-            }
-
-            m_boundaryValues = boundaryValues.ToFrozenDictionary();
-
             // load the localized tokens.
             m_tokenValues = LoadStringData("Opc.Ua.Types.Utils.LocalizedData.txt");
             if (m_tokenValues.Count == 0)
@@ -247,32 +234,23 @@ namespace Opc.Ua.Test
         public int BoundaryValueFrequency { get; set; }
 
         /// <summary>
-        /// Returns true if a boundary value should be used.
-        /// </summary>
-        private bool UseBoundaryValue()
-        {
-            return m_random.NextInt32(99) < BoundaryValueFrequency;
-        }
-
-        /// <summary>
         /// Returns a random value of the specified built-in type.
         /// </summary>
         public Variant GetRandom(
             NodeId dataType,
             int valueRank,
-            IList<uint> arrayDimensions,
+            uint[] arrayDimensions,
             ITypeTable typeTree)
         {
             BuiltInType expectedType = TypeInfo.GetBuiltInType(dataType, typeTree);
-
             // calculate total number of dimensions.
             int dimensions;
             switch (valueRank)
             {
                 case ValueRanks.Any:
-                    if (arrayDimensions != null && arrayDimensions.Count > 0)
+                    if (arrayDimensions != null && arrayDimensions.Length > 0)
                     {
-                        dimensions = arrayDimensions.Count;
+                        dimensions = arrayDimensions.Length;
                         break;
                     }
 
@@ -282,9 +260,9 @@ namespace Opc.Ua.Test
                     dimensions = GetRandomRange(0, 1);
                     break;
                 case ValueRanks.OneOrMoreDimensions:
-                    if (arrayDimensions != null && arrayDimensions.Count > 0)
+                    if (arrayDimensions != null && arrayDimensions.Length > 0)
                     {
-                        dimensions = arrayDimensions.Count;
+                        dimensions = arrayDimensions.Length;
                         break;
                     }
 
@@ -304,25 +282,17 @@ namespace Opc.Ua.Test
                 if (expectedType == BuiltInType.Variant)
                 {
                     // randomly choose a built-in type.
-                    BuiltInType builtInType = BuiltInType.Variant;
-
-                    while (builtInType is BuiltInType.Variant or BuiltInType.DataValue)
-                    {
-                        builtInType = (BuiltInType)m_random.NextInt32((int)BuiltInType.Variant);
-                    }
-
-                    return GetRandomVariant(builtInType, false);
+                    return GetRandomVariant(GetRandomBuiltInType(), false);
                 }
-
                 return GetRandomScalar(expectedType);
             }
 
-            // calculate the length of each dimension.
+            // calculate the length of each dimension and total length.
             int[] actualDimensions = new int[dimensions];
-
+            int length = 1;
             for (int ii = 0; ii < dimensions; ii++)
             {
-                if (arrayDimensions != null && arrayDimensions.Count > ii)
+                if (arrayDimensions != null && arrayDimensions.Length > ii)
                 {
                     actualDimensions[ii] = (int)arrayDimensions[ii];
                 }
@@ -331,208 +301,273 @@ namespace Opc.Ua.Test
                 {
                     actualDimensions[ii] = m_random.NextInt32(MaxArrayLength);
                 }
+                length *= actualDimensions[ii];
             }
-
-            // create an array.
-            Array output = TypeInfo.CreateArray(expectedType, actualDimensions);
-
-            // generate random values for each element in the array.
-            int length = output.Length;
-            int[] indexes = new int[actualDimensions.Length];
-
-            for (int ii = 0; ii < length; ii++)
+            // Get random array or matrix.
+            if (dimensions == 1)
             {
-                int divisor = output.Length;
-
-                for (int jj = 0; jj < indexes.Length; jj++)
-                {
-                    divisor /= actualDimensions[jj];
-                    indexes[jj] = ii / divisor % actualDimensions[jj];
-                }
-
-                Variant value = GetRandom(dataType, ValueRanks.Scalar, null, typeTree);
-
-                if (!value.IsNull)
-                {
-                    switch (expectedType)
-                    {
-                        case BuiltInType.Variant:
-                        case BuiltInType.Number:
-                        case BuiltInType.UInteger:
-                        case BuiltInType.Integer:
-                            output.SetValue(value, indexes);
-                            break;
-                        default:
-                            output.SetValue(value.AsBoxedObject(), indexes);
-                            break;
-                    }
-                }
+                return GetRandomArray(expectedType, length);
             }
-
-            // return array value.
-#pragma warning disable CS0618 // Type or member is obsolete
-            return new Variant(output);
-#pragma warning restore CS0618 // Type or member is obsolete
+            return GetRandomMatrix(expectedType, length, actualDimensions);
         }
 
         /// <summary>
         /// Returns a random value of the specified built-in type.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public Variant GetRandomScalar(BuiltInType expectedType)
+        public Variant GetRandomScalar(
+            BuiltInType builtInType,
+            bool useBoundaryValues = false)
         {
-            switch (expectedType)
+            switch (builtInType)
             {
                 case BuiltInType.Boolean:
-                    return GetRandomBoolean();
+                    return GetRandomBoolean(useBoundaryValues);
                 case BuiltInType.SByte:
-                    return GetRandomSByte();
+                    return GetRandomSByte(useBoundaryValues);
                 case BuiltInType.Byte:
-                    return GetRandomByte();
+                    return GetRandomByte(useBoundaryValues);
                 case BuiltInType.Int16:
-                    return GetRandomInt16();
+                    return GetRandomInt16(useBoundaryValues);
                 case BuiltInType.UInt16:
-                    return GetRandomUInt16();
+                    return GetRandomUInt16(useBoundaryValues);
                 case BuiltInType.Int32:
-                    return GetRandomInt32();
+                    return GetRandomInt32(useBoundaryValues);
                 case BuiltInType.UInt32:
-                    return GetRandomUInt32();
+                    return GetRandomUInt32(useBoundaryValues);
                 case BuiltInType.Int64:
-                    return GetRandomInt64();
+                    return GetRandomInt64(useBoundaryValues);
                 case BuiltInType.UInt64:
-                    return GetRandomUInt64();
+                    return GetRandomUInt64(useBoundaryValues);
                 case BuiltInType.Float:
-                    return GetRandomFloat();
+                    return GetRandomFloat(useBoundaryValues);
                 case BuiltInType.Double:
-                    return GetRandomDouble();
+                    return GetRandomDouble(useBoundaryValues);
                 case BuiltInType.String:
-                    return GetRandomString();
+                    return GetRandomString(useBoundaryValues);
                 case BuiltInType.DateTime:
-                    return GetRandomDateTime();
+                    return GetRandomDateTime(useBoundaryValues);
                 case BuiltInType.Guid:
-                    return GetRandomGuid();
+                    return GetRandomGuid(useBoundaryValues);
                 case BuiltInType.ByteString:
-                    return GetRandomByteString();
+                    return GetRandomByteString(useBoundaryValues);
                 case BuiltInType.XmlElement:
-                    return GetRandomXmlElement();
+                    return GetRandomXmlElement(useBoundaryValues);
                 case BuiltInType.NodeId:
-                    return GetRandomNodeId();
+                    return GetRandomNodeId(useBoundaryValues);
                 case BuiltInType.ExpandedNodeId:
-                    return GetRandomExpandedNodeId();
+                    return GetRandomExpandedNodeId(useBoundaryValues);
                 case BuiltInType.QualifiedName:
-                    return GetRandomQualifiedName();
+                    return GetRandomQualifiedName(useBoundaryValues);
                 case BuiltInType.LocalizedText:
-                    return GetRandomLocalizedText();
+                    return GetRandomLocalizedText(useBoundaryValues);
                 case BuiltInType.StatusCode:
-                    return GetRandomStatusCode();
+                    return GetRandomStatusCode(useBoundaryValues);
                 case BuiltInType.Variant:
-                    return GetRandomVariant();
+                    return GetRandomVariant(useBoundaryValues);
                 case BuiltInType.Enumeration:
-                    return GetRandomInt32();
+                    return GetRandomInt32(useBoundaryValues);
                 case BuiltInType.ExtensionObject:
-                    return GetRandomExtensionObject();
+                    return GetRandomExtensionObject(useBoundaryValues);
                 case BuiltInType.DataValue:
-                    return GetRandomDataValue();
+                    return GetRandomDataValue(useBoundaryValues);
                 case BuiltInType.Number:
-                {
-                    var builtInType = (BuiltInType)(m_random.NextInt32(9) + (int)BuiltInType.SByte);
-                    return GetRandomVariant(builtInType, false);
-                }
+                    builtInType = (BuiltInType)(m_random.NextInt32(9) + (int)BuiltInType.SByte);
+                    return GetRandomVariant(builtInType, false, useBoundaryValues);
                 case BuiltInType.Integer:
-                {
-                    var builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) +
-                        (int)BuiltInType.SByte);
-                    return GetRandomVariant(builtInType, false);
-                }
+                    builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.SByte);
+                    return GetRandomVariant(builtInType, false, useBoundaryValues);
                 case BuiltInType.UInteger:
-                {
-                    var builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) +
-                        (int)BuiltInType.Byte);
-                    return GetRandomVariant(builtInType, false);
-                }
+                    builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.Byte);
+                    return GetRandomVariant(builtInType, false, useBoundaryValues);
                 case BuiltInType.DiagnosticInfo:
                 case BuiltInType.Null:
                     return Variant.Null;
                 default:
                     throw ServiceResultException.Unexpected(
-                        $"Unexpected BuiltInType {expectedType}");
+                        $"Unexpected BuiltInType {builtInType}");
             }
         }
 
         /// <summary>
-        /// This method returns a random array of values for the type.
+        /// Get random array value wrapped in a variant.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        public T[] GetNullArray<T>(int length, bool fixedLength)
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant GetRandomArray(
+            BuiltInType builtInType,
+            int length,
+            bool useBoundaryValues = true,
+            bool fixedLength = true)
         {
-            if (length < 0)
+            switch (builtInType)
             {
-                return null;
+                case BuiltInType.Boolean:
+                    return Variant.From(GetRandomBooleanArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.SByte:
+                    return Variant.From(GetRandomSByteArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.Byte:
+                    return Variant.From(GetRandomByteArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.Int16:
+                    return Variant.From(GetRandomInt16Array(useBoundaryValues, length, fixedLength));
+                case BuiltInType.UInt16:
+                    return Variant.From(GetRandomUInt16Array(useBoundaryValues, length, fixedLength));
+                case BuiltInType.Int32:
+                    return Variant.From(GetRandomInt32Array(useBoundaryValues, length, fixedLength));
+                case BuiltInType.UInt32:
+                    return Variant.From(GetRandomUInt32Array(useBoundaryValues, length, fixedLength));
+                case BuiltInType.Int64:
+                    return Variant.From(GetRandomInt64Array(useBoundaryValues, length, fixedLength));
+                case BuiltInType.UInt64:
+                    return Variant.From(GetRandomUInt64Array(useBoundaryValues, length, fixedLength));
+                case BuiltInType.Float:
+                    return Variant.From(GetRandomFloatArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.Double:
+                    return Variant.From(GetRandomDoubleArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.String:
+                    return Variant.From(GetRandomStringArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.DateTime:
+                    return Variant.From(GetRandomDateTimeArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.Guid:
+                    return Variant.From(GetRandomGuidArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.ByteString:
+                    return Variant.From(GetRandomByteStringArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.XmlElement:
+                    return Variant.From(GetRandomXmlElementArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.NodeId:
+                    return Variant.From(GetRandomNodeIdArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.ExpandedNodeId:
+                    return Variant.From(GetRandomExpandedNodeIdArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.QualifiedName:
+                    return Variant.From(GetRandomQualifiedNameArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.LocalizedText:
+                    return Variant.From(GetRandomLocalizedTextArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.StatusCode:
+                    return Variant.From(GetRandomStatusCodeArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.Variant:
+                    return Variant.From(GetRandomVariantArray(useBoundaryValues, length, fixedLength));
+                case BuiltInType.Enumeration:
+                    return Variant.From(EnumValue.From(GetRandomInt32Array(useBoundaryValues, length, fixedLength)));
+                case BuiltInType.Null:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DataValue:
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                    return Variant.Null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {builtInType}");
             }
-
-            if (!fixedLength)
-            {
-                length = m_random.NextInt32(length);
-            }
-
-            var value = new T[length];
-
-            for (int ii = 0; ii < value.Length; ii++)
-            {
-                value[ii] = default;
-            }
-
-            return value;
         }
 
         /// <summary>
-        /// This method returns a random array of values for the type.
+        /// Get random matrix value wrapped in a variant.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        public T[] GetRandomArray<T>(bool useBoundaryValues, int length, bool fixedLength)
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant GetRandomMatrix(
+            BuiltInType builtInType,
+            int length,
+            int[] dimensions,
+            bool useBoundaryValues = true,
+            bool fixedLength = true)
         {
-            if (length < 0)
+            switch (builtInType)
             {
-                return null;
+                case BuiltInType.Boolean:
+                    return Variant.From(GetRandomBooleanArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.SByte:
+                    return Variant.From(GetRandomSByteArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Byte:
+                    return Variant.From(GetRandomByteArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Int16:
+                    return Variant.From(GetRandomInt16Array(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.UInt16:
+                    return Variant.From(GetRandomUInt16Array(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Int32:
+                    return Variant.From(GetRandomInt32Array(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.UInt32:
+                    return Variant.From(GetRandomUInt32Array(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Int64:
+                    return Variant.From(GetRandomInt64Array(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.UInt64:
+                    return Variant.From(GetRandomUInt64Array(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Float:
+                    return Variant.From(GetRandomFloatArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Double:
+                    return Variant.From(GetRandomDoubleArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.String:
+                    return Variant.From(GetRandomStringArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.DateTime:
+                    return Variant.From(GetRandomDateTimeArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Guid:
+                    return Variant.From(GetRandomGuidArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.ByteString:
+                    return Variant.From(GetRandomByteStringArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.XmlElement:
+                    return Variant.From(GetRandomXmlElementArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.NodeId:
+                    return Variant.From(GetRandomNodeIdArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.ExpandedNodeId:
+                    return Variant.From(GetRandomExpandedNodeIdArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.QualifiedName:
+                    return Variant.From(GetRandomQualifiedNameArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.LocalizedText:
+                    return Variant.From(GetRandomLocalizedTextArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.StatusCode:
+                    return Variant.From(GetRandomStatusCodeArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Variant:
+                    return Variant.From(GetRandomVariantArray(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions));
+                case BuiltInType.Enumeration:
+                    return Variant.From(EnumValue.From(GetRandomInt32Array(useBoundaryValues, length, fixedLength)
+                        .ToMatrixOf(dimensions)));
+                case BuiltInType.Null:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DataValue:
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                    return Variant.Null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {builtInType}");
             }
-
-            if (!fixedLength)
-            {
-                length = m_random.NextInt32(length);
-            }
-
-            var value = new T[length];
-
-            for (int ii = 0; ii < value.Length; ii++)
-            {
-                Variant element;
-                var typeInfo = TypeInfo.Construct(typeof(T));
-                if (useBoundaryValues && UseBoundaryValue())
-                {
-                    element = GetBoundaryValue(typeInfo.BuiltInType);
-                }
-                else
-                {
-                    element = GetRandomScalar(typeInfo.BuiltInType);
-                }
-
-                if (!element.IsNull)
-                {
-                    value[ii] = (T)element.AsBoxedObject(Variant.BoxingBehavior.Legacy);
-                }
-            }
-
-            return value;
         }
 
         /// <inheritdoc/>
-        public bool GetRandomBoolean()
+        public bool GetRandomBoolean(bool useBoundaryValues = false)
         {
-            return m_random.NextInt32(1) != 0;
+            return GetBoundaryValue(
+                useBoundaryValues,
+                m_random.NextInt32(1) != 0,
+                []);
         }
 
         /// <inheritdoc/>
-        public sbyte GetRandomSByte()
+        public sbyte GetRandomSByte(bool useBoundaryValues = false)
         {
             int buffer = m_random.NextInt32(byte.MaxValue);
 
@@ -541,17 +576,23 @@ namespace Opc.Ua.Test
                 return (sbyte)(sbyte.MinValue + (buffer - sbyte.MaxValue) - 1);
             }
 
-            return (sbyte)buffer;
+            return GetBoundaryValue(
+                useBoundaryValues,
+                (sbyte)buffer,
+                [sbyte.MinValue, (sbyte)0, sbyte.MaxValue]);
         }
 
         /// <inheritdoc/>
-        public byte GetRandomByte()
+        public byte GetRandomByte(bool useBoundaryValues = false)
         {
-            return (byte)m_random.NextInt32(byte.MaxValue);
+            return GetBoundaryValue(
+                useBoundaryValues,
+                (byte)m_random.NextInt32(byte.MaxValue),
+                [byte.MinValue, byte.MaxValue]);
         }
 
         /// <inheritdoc/>
-        public short GetRandomInt16()
+        public short GetRandomInt16(bool useBoundaryValues = false)
         {
             int buffer = m_random.NextInt32(ushort.MaxValue);
 
@@ -560,95 +601,135 @@ namespace Opc.Ua.Test
                 return (short)(short.MinValue + (buffer - short.MaxValue) - 1);
             }
 
-            return (short)buffer;
+            return GetBoundaryValue(
+                useBoundaryValues,
+                (short)buffer,
+                [short.MinValue, (short)0, short.MaxValue]);
         }
 
         /// <inheritdoc/>
-        public ushort GetRandomUInt16()
+        public ushort GetRandomUInt16(bool useBoundaryValues = false)
         {
-            return (ushort)m_random.NextInt32(ushort.MaxValue);
+            return GetBoundaryValue(
+                useBoundaryValues,
+                (ushort)m_random.NextInt32(ushort.MaxValue),
+                [ushort.MinValue, ushort.MaxValue]);
         }
 
         /// <inheritdoc/>
-        public int GetRandomInt32()
+        public int GetRandomInt32(bool useBoundaryValues = false)
         {
-            return m_random.NextInt32(int.MaxValue);
+            return GetBoundaryValue(
+                useBoundaryValues,
+                m_random.NextInt32(int.MaxValue),
+                [int.MinValue, 0, int.MaxValue]);
         }
 
         /// <inheritdoc/>
-        public uint GetRandomUInt32()
-        {
-            byte[] bytes = new byte[4];
-            m_random.NextBytes(bytes, 0, bytes.Length);
-            return BitConverter.ToUInt32(bytes, 0);
-        }
-
-        /// <inheritdoc/>
-        public long GetRandomInt64()
-        {
-            byte[] bytes = new byte[8];
-            m_random.NextBytes(bytes, 0, bytes.Length);
-            return BitConverter.ToInt64(bytes, 0);
-        }
-
-        /// <inheritdoc/>
-        public ulong GetRandomUInt64()
-        {
-            byte[] bytes = new byte[8];
-            m_random.NextBytes(bytes, 0, bytes.Length);
-            return BitConverter.ToUInt64(bytes, 0);
-        }
-
-        /// <inheritdoc/>
-        public float GetRandomFloat()
+        public uint GetRandomUInt32(bool useBoundaryValues = false)
         {
             byte[] bytes = new byte[4];
             m_random.NextBytes(bytes, 0, bytes.Length);
-            return BitConverter.ToSingle(bytes, 0);
+            return GetBoundaryValue(
+                useBoundaryValues,
+                BitConverter.ToUInt32(bytes, 0),
+                [uint.MinValue, uint.MaxValue]);
         }
 
         /// <inheritdoc/>
-        public double GetRandomDouble()
+        public long GetRandomInt64(bool useBoundaryValues = false)
         {
             byte[] bytes = new byte[8];
             m_random.NextBytes(bytes, 0, bytes.Length);
-            return BitConverter.ToSingle(bytes, 0);
+            return GetBoundaryValue(
+                useBoundaryValues,
+                BitConverter.ToInt64(bytes, 0),
+                [long.MinValue, 0L, long.MaxValue]);
+        }
+
+        /// <inheritdoc/>
+        public ulong GetRandomUInt64(bool useBoundaryValues = false)
+        {
+            byte[] bytes = new byte[8];
+            m_random.NextBytes(bytes, 0, bytes.Length);
+            return GetBoundaryValue(
+                useBoundaryValues,
+                BitConverter.ToUInt64(bytes, 0),
+                [ulong.MinValue, ulong.MaxValue]);
+        }
+
+        /// <inheritdoc/>
+        public float GetRandomFloat(bool useBoundaryValues = false)
+        {
+            byte[] bytes = new byte[4];
+            m_random.NextBytes(bytes, 0, bytes.Length);
+            return GetBoundaryValue(
+                useBoundaryValues,
+                BitConverter.ToSingle(bytes, 0),
+                [
+                    float.Epsilon,
+                    float.MaxValue,
+                    float.MinValue,
+                    float.NaN,
+                    float.NegativeInfinity,
+                    float.PositiveInfinity,
+                    0f
+                ]);
+        }
+
+        /// <inheritdoc/>
+        public double GetRandomDouble(bool useBoundaryValues = false)
+        {
+            byte[] bytes = new byte[8];
+            m_random.NextBytes(bytes, 0, bytes.Length);
+            return GetBoundaryValue(
+                useBoundaryValues,
+                BitConverter.ToSingle(bytes, 0),
+                [
+                    double.Epsilon,
+                    double.MaxValue,
+                    double.MinValue,
+                    double.NaN,
+                    double.NegativeInfinity,
+                    double.PositiveInfinity,
+                    0.0
+                ]);
         }
 
         /// <summary>
         /// Creates a random string with a random locale.
         /// </summary>
-        public string GetRandomString()
+        public string GetRandomString(bool useBoundaryValues = false)
         {
-            return CreateString(GetRandomLocale(), false);
+            return CreateString(GetRandomLocale(), false, useBoundaryValues);
         }
 
         /// <summary>
         /// Creates a random string for the locale.
         /// </summary>
-        public string GetRandomString(string locale)
+        public string GetRandomString(string locale, bool useBoundaryValues = false)
         {
-            return CreateString(locale, false);
+            return CreateString(locale, false, useBoundaryValues);
         }
 
         /// <summary>
         /// Creates a random symbol with a random locale.
         /// </summary>
-        public string GetRandomSymbol()
+        public string GetRandomSymbol(bool useBoundaryValues = false)
         {
-            return CreateString(GetRandomLocale(), true);
+            return CreateString(GetRandomLocale(), true, useBoundaryValues);
         }
 
         /// <summary>
         /// Creates a random symbol for the locale.
         /// </summary>
-        public string GetRandomSymbol(string locale)
+        public string GetRandomSymbol(string locale, bool useBoundaryValues = false)
         {
-            return CreateString(locale, false);
+            return CreateString(locale, false, useBoundaryValues);
         }
 
         /// <inheritdoc/>
-        public DateTimeUtc GetRandomDateTime()
+        public DateTimeUtc GetRandomDateTime(bool useBoundaryValues = false)
         {
             int minTicks = (int)(MinDateTimeValue.Value >> 32);
             int maxTicks = (int)(MaxDateTimeValue.Value >> 32);
@@ -659,30 +740,40 @@ namespace Opc.Ua.Test
 
             uint lowerTicks = GetRandomUInt32();
 
-            return new DateTimeUtc(higherTicks + lowerTicks);
+            return GetBoundaryValue(useBoundaryValues, new DateTimeUtc(higherTicks + lowerTicks),
+            [
+                DateTimeUtc.MinValue,
+                DateTimeUtc.MaxValue,
+                new DateTimeUtc(1099, 1, 1),
+                new DateTimeUtc(2039, 4, 4),
+                new DateTimeUtc(new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local))
+            ]);
         }
 
         /// <inheritdoc/>
-        public Uuid GetRandomGuid()
+        public Uuid GetRandomGuid(bool useBoundaryValues = false)
         {
             byte[] bytes = new byte[16];
             m_random.NextBytes(bytes, 0, bytes.Length);
-            return new Uuid(bytes);
+            return GetBoundaryValue(useBoundaryValues, new Uuid(bytes), [Uuid.Empty]);
         }
 
         /// <inheritdoc/>
-        public ByteString GetRandomByteString()
+        public ByteString GetRandomByteString(bool useBoundaryValues = false)
         {
             int length = m_random.NextInt32(MaxStringLength);
 
             byte[] bytes = new byte[length];
             m_random.NextBytes(bytes, 0, bytes.Length);
 
-            return ByteString.From(bytes);
+            return GetBoundaryValue(
+                useBoundaryValues,
+                ByteString.From(bytes),
+                [ByteString.Empty, default]);
         }
 
         /// <inheritdoc/>
-        public XmlElement GetRandomXmlElement()
+        public XmlElement GetRandomXmlElement(bool useBoundaryValues = false)
         {
             string locale1 = GetRandomLocale();
             string locale2 = GetRandomLocale();
@@ -725,90 +816,123 @@ namespace Opc.Ua.Test
                 element.AppendChild(childElement);
             }
 
-            return XmlElement.From(element);
+            return GetBoundaryValue(
+                useBoundaryValues,
+                XmlElement.From(element),
+                [XmlElement.Empty, default]);
         }
 
         /// <inheritdoc/>
-        public NodeId GetRandomNodeId()
+        public NodeId GetRandomNodeId(bool useBoundaryValues = false)
         {
             ushort ns = (ushort)m_random.NextInt32(NamespaceUris.Count - 1);
 
+            NodeId nodeId;
             switch ((IdType)m_random.NextInt32(3))
             {
                 case IdType.Numeric:
-                    return new NodeId(GetRandomUInt32(), ns);
+                    nodeId = new NodeId(GetRandomUInt32(), ns);
+                    break;
                 case IdType.String:
-                    return new NodeId(CreateString(GetRandomLocale(), true), ns);
+                    nodeId = new NodeId(CreateString(GetRandomLocale(), true), ns);
+                    break;
                 case IdType.Guid:
-                    return new NodeId(GetRandomGuid(), ns);
+                    nodeId = new NodeId(GetRandomGuid(), ns);
+                    break;
                 case IdType.Opaque:
-                    return new NodeId(GetRandomByteString(), ns);
+                    nodeId = new NodeId(GetRandomByteString(), ns);
+                    break;
                 default:
                     throw ServiceResultException.Unexpected(
                         "Unexpected IdType value");
             }
+            return GetBoundaryValue(
+                useBoundaryValues,
+                nodeId,
+                [
+                    NodeId.Null,
+                    new NodeId(Guid.Empty),
+                    new NodeId(string.Empty, 0),
+                    new NodeId(ByteString.Empty)
+                ]);
         }
 
         /// <inheritdoc/>
-        public ExpandedNodeId GetRandomExpandedNodeId()
+        public ExpandedNodeId GetRandomExpandedNodeId(bool useBoundaryValues = false)
         {
             NodeId nodeId = GetRandomNodeId();
             ushort serverIndex = ServerUris.Count == 0
                 ? (ushort)0
                 : (ushort)m_random.NextInt32(ServerUris.Count - 1);
-            return new ExpandedNodeId(
-                nodeId,
-                nodeId.NamespaceIndex > 0 ? NamespaceUris.GetString(nodeId.NamespaceIndex) : null,
-                serverIndex);
+            return GetBoundaryValue(useBoundaryValues,
+                new ExpandedNodeId(
+                    nodeId,
+                    nodeId.NamespaceIndex > 0 ? NamespaceUris.GetString(nodeId.NamespaceIndex) : null,
+                    serverIndex),
+                [
+                    ExpandedNodeId.Null,
+                    new ExpandedNodeId(Guid.Empty),
+                    new ExpandedNodeId(string.Empty, 0),
+                    new ExpandedNodeId(ByteString.Empty)
+                ]);
         }
 
         /// <inheritdoc/>
-        public QualifiedName GetRandomQualifiedName()
+        public QualifiedName GetRandomQualifiedName(bool useBoundaryValues = false)
         {
             ushort ns = (ushort)m_random.NextInt32(NamespaceUris.Count - 1);
-            return new QualifiedName(CreateString(GetRandomLocale(), true), ns);
+            return GetBoundaryValue(
+                useBoundaryValues,
+                new QualifiedName(CreateString(GetRandomLocale(), true), ns),
+                [QualifiedName.Null, default]);
         }
 
         /// <inheritdoc/>
-        public LocalizedText GetRandomLocalizedText()
+        public LocalizedText GetRandomLocalizedText(bool useBoundaryValues = false)
         {
             string locale = GetRandomLocale();
-            return new LocalizedText(locale, CreateString(locale, false));
+            return GetBoundaryValue(
+                useBoundaryValues,
+                new LocalizedText(locale, CreateString(locale, false)),
+                [LocalizedText.Null, default]);
         }
 
         /// <inheritdoc/>
-        public StatusCode GetRandomStatusCode()
+        public StatusCode GetRandomStatusCode(bool useBoundaryValues = false)
         {
             ArrayOf<StatusCode> interned = StatusCode.InternedStatusCodes;
             int index = GetRandomRange(0, interned.Count - 1);
-            return interned[index];
+            return GetBoundaryValue(
+                useBoundaryValues,
+                interned[index],
+                [StatusCodes.Good, StatusCodes.Uncertain, StatusCodes.Bad]);
         }
 
         /// <inheritdoc/>
-        public Variant GetRandomVariant()
+        public Variant GetRandomVariant(bool useBoundaryValues = false)
         {
-            return GetRandomVariant(true);
+            return GetRandomVariant(true, useBoundaryValues);
         }
 
         /// <inheritdoc/>
-        public Variant GetRandomVariant(bool allowArrays)
+        public Variant GetRandomVariant(
+            bool allowArrays,
+            bool useBoundaryValues = false)
         {
-            // randomly choose a built-in type.
-            BuiltInType builtInType = BuiltInType.Variant;
-
-            while (builtInType is BuiltInType.Variant or BuiltInType.DataValue)
-            {
-                builtInType = (BuiltInType)m_random.NextInt32((int)BuiltInType.Variant);
-            }
-
-            return GetRandomVariant(builtInType, allowArrays && m_random.NextInt32(1) == 1);
+            return GetRandomVariant(
+                GetRandomBuiltInType(),
+                allowArrays && m_random.NextInt32(1) == 1,
+                useBoundaryValues);
         }
 
         /// <summary>
         /// Returns a random variant containing a scalar or array value.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public Variant GetRandomVariant(BuiltInType builtInType, bool isArray)
+        public Variant GetRandomVariant(
+            BuiltInType builtInType,
+            bool isArray,
+            bool useBoundaryValues = false)
         {
             if (builtInType == BuiltInType.Null)
             {
@@ -830,238 +954,75 @@ namespace Opc.Ua.Test
             {
                 return GetRandomScalar(builtInType);
             }
-            return GetRandomArrayVariant(builtInType, length);
-        }
-
-        /// <summary>
-        /// Get random array value wrapped in a variant.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public Variant GetRandomArrayVariant(
-            BuiltInType builtInType,
-            int length,
-            bool useBoundaryValues = true,
-            bool fixedLength = true)
-        {
-            switch (builtInType)
-            {
-                case BuiltInType.Boolean:
-                    return Variant.From(GetRandomArray<bool>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.SByte:
-                    return Variant.From(GetRandomArray<sbyte>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.Byte:
-                    return Variant.From(GetRandomArray<byte>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.Int16:
-                    return Variant.From(GetRandomArray<short>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.UInt16:
-                    return Variant.From(GetRandomArray<ushort>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.Int32:
-                    return Variant.From(GetRandomArray<int>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.UInt32:
-                    return Variant.From(GetRandomArray<uint>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.Int64:
-                    return Variant.From(GetRandomArray<long>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.UInt64:
-                    return Variant.From(GetRandomArray<ulong>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.Float:
-                    return Variant.From(GetRandomArray<float>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.Double:
-                    return Variant.From(GetRandomArray<double>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.String:
-                    return Variant.From(GetRandomArray<string>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.DateTime:
-                    return Variant.From(GetRandomArray<DateTimeUtc>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.Guid:
-                    return Variant.From(GetRandomArray<Uuid>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.ByteString:
-                    return Variant.From(GetRandomArray<ByteString>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.XmlElement:
-                    return Variant.From(GetRandomArray<XmlElement>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.NodeId:
-                    return Variant.From(GetRandomArray<NodeId>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.ExpandedNodeId:
-                    return Variant.From(GetRandomArray<ExpandedNodeId>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.QualifiedName:
-                    return Variant.From(GetRandomArray<QualifiedName>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.LocalizedText:
-                    return Variant.From(GetRandomArray<LocalizedText>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.StatusCode:
-                    return Variant.From(GetRandomArray<StatusCode>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.Variant:
-                    return Variant.From(GetRandomVariantArray(useBoundaryValues, length, fixedLength));
-                case BuiltInType.Enumeration:
-                    return Variant.FromEnumeration(GetRandomArray<int>(useBoundaryValues, length, fixedLength));
-                case BuiltInType.Null:
-                case BuiltInType.ExtensionObject:
-                case BuiltInType.DataValue:
-                case BuiltInType.DiagnosticInfo:
-                case BuiltInType.Number:
-                case BuiltInType.Integer:
-                case BuiltInType.UInteger:
-                    return Variant.Null;
-                default:
-                    throw ServiceResultException.Unexpected(
-                        $"Unexpected BuiltInType {builtInType}");
-            }
-        }
-
-        /// <summary>
-        /// Get random matrix value wrapped in a variant.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public Variant GetRandomMatrixVariant(
-            BuiltInType builtInType,
-            int length,
-            int[] dimensions,
-            bool useBoundaryValues = true,
-            bool fixedLength = true)
-        {
-            switch (builtInType)
-            {
-                case BuiltInType.Boolean:
-                    return Variant.From(GetRandomArray<bool>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.SByte:
-                    return Variant.From(GetRandomArray<sbyte>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.Byte:
-                    return Variant.From(GetRandomArray<byte>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.Int16:
-                    return Variant.From(GetRandomArray<short>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.UInt16:
-                    return Variant.From(GetRandomArray<ushort>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.Int32:
-                    return Variant.From(GetRandomArray<int>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.UInt32:
-                    return Variant.From(GetRandomArray<uint>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.Int64:
-                    return Variant.From(GetRandomArray<long>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.UInt64:
-                    return Variant.From(GetRandomArray<ulong>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.Float:
-                    return Variant.From(GetRandomArray<float>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.Double:
-                    return Variant.From(GetRandomArray<double>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.String:
-                    return Variant.From(GetRandomArray<string>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.DateTime:
-                    return Variant.From(GetRandomArray<DateTimeUtc>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.Guid:
-                    return Variant.From(GetRandomArray<Uuid>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.ByteString:
-                    return Variant.From(GetRandomArray<ByteString>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.XmlElement:
-                    return Variant.From(GetRandomArray<XmlElement>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.NodeId:
-                    return Variant.From(GetRandomArray<NodeId>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.ExpandedNodeId:
-                    return Variant.From(GetRandomArray<ExpandedNodeId>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.QualifiedName:
-                    return Variant.From(GetRandomArray<QualifiedName>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.LocalizedText:
-                    return Variant.From(GetRandomArray<LocalizedText>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.StatusCode:
-                    return Variant.From(GetRandomArray<StatusCode>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.Variant:
-                    return Variant.From(GetRandomVariantArray(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.Enumeration:
-                    return Variant.FromEnumeration(GetRandomArray<int>(useBoundaryValues, length, fixedLength)
-                        .ToMatrixOf(dimensions));
-                case BuiltInType.Null:
-                case BuiltInType.ExtensionObject:
-                case BuiltInType.DataValue:
-                case BuiltInType.DiagnosticInfo:
-                case BuiltInType.Number:
-                case BuiltInType.Integer:
-                case BuiltInType.UInteger:
-                    return Variant.Null;
-                default:
-                    throw ServiceResultException.Unexpected(
-                        $"Unexpected BuiltInType {builtInType}");
-            }
+            return GetRandomArray(builtInType, length, useBoundaryValues);
         }
 
         /// <inheritdoc/>
-        public ExtensionObject GetRandomExtensionObject()
+        public ExtensionObject GetRandomExtensionObject(bool useBoundaryValues = false)
         {
             NodeId typeId = GetRandomNodeId();
-
+            ExtensionObject extensionObject;
             if (typeId.IsNull)
             {
-                return ExtensionObject.Null;
+                extensionObject = ExtensionObject.Null;
             }
-            if (m_random.NextInt32(1) != 0)
+            else if (m_random.NextInt32(1) != 0)
             {
-                return new ExtensionObject(typeId, GetRandomByteString());
+                extensionObject = new ExtensionObject(typeId, GetRandomByteString());
             }
-
-            return new ExtensionObject(typeId, GetRandomXmlElement());
+            else
+            {
+                extensionObject = new ExtensionObject(typeId, GetRandomXmlElement());
+            }
+            return GetBoundaryValue(useBoundaryValues, extensionObject, [ExtensionObject.Null, default]);
         }
 
         /// <summary>
         /// Get a random DataValue.
         /// </summary>
-        public DataValue GetRandomDataValue()
+        public DataValue GetRandomDataValue(bool useBoundaryValues = false)
         {
             Variant variant = GetRandomVariant();
             StatusCode statusCode = GetRandomStatusCode();
             DateTimeUtc sourceTimeStamp = GetRandomDateTime();
 
-            return new DataValue(variant, statusCode, sourceTimeStamp, DateTimeUtc.Now);
+            return GetBoundaryValue(useBoundaryValues,
+                new DataValue(variant, statusCode, sourceTimeStamp, DateTimeUtc.Now),
+                [new DataValue(), default]);
         }
 
         /// <summary>
         /// Get random diagnostic info.
         /// </summary>
-        public DiagnosticInfo GetRandomDiagnosticInfo()
+        public DiagnosticInfo GetRandomDiagnosticInfo(bool useBoundaryValues = false)
         {
             // TODO: return random values
-            return new DiagnosticInfo(
+            return GetBoundaryValue(useBoundaryValues, new DiagnosticInfo(
                 ServiceResult.Good,
                 DiagnosticsMasks.NoInnerStatus,
                 true,
                 new StringTable(),
-                m_logger);
+                m_logger), [new DiagnosticInfo(), default]);
         }
 
         /// <summary>
         /// Get random number variant
         /// </summary>
-        public Variant GetRandomNumber()
+        public Variant GetRandomNumber(bool useBoundaryValues = false)
         {
             switch (m_random.NextInt32(5))
             {
                 case 0:
                 case 1:
-                    return GetRandomInteger();
+                    return GetRandomInteger(useBoundaryValues);
                 case 2:
                 case 3:
-                    return GetRandomUInteger();
+                    return GetRandomUInteger(useBoundaryValues);
                 case 4:
-                    return GetRandomFloat();
+                    return GetRandomFloat(useBoundaryValues);
                 //case 6: return GetRandomDecimal();
                 default:
-                    return GetRandomDouble();
+                    return GetRandomDouble(useBoundaryValues);
             }
         }
 
@@ -1069,18 +1030,18 @@ namespace Opc.Ua.Test
         /// Get random integer variant
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public Variant GetRandomInteger()
+        public Variant GetRandomInteger(bool useBoundaryValues = false)
         {
             switch (m_random.NextInt32(3))
             {
                 case 0:
-                    return GetRandomSByte();
+                    return GetRandomSByte(useBoundaryValues);
                 case 1:
-                    return GetRandomInt16();
+                    return GetRandomInt16(useBoundaryValues);
                 case 2:
-                    return GetRandomInt32();
+                    return GetRandomInt32(useBoundaryValues);
                 case 3:
-                    return GetRandomInt64();
+                    return GetRandomInt64(useBoundaryValues);
                 default:
                     throw ServiceResultException.Unexpected(
                         "Unexpected random value");
@@ -1091,52 +1052,484 @@ namespace Opc.Ua.Test
         /// Get random unsigned integer variant
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public Variant GetRandomUInteger()
+        public Variant GetRandomUInteger(bool useBoundaryValues = false)
         {
             switch (m_random.NextInt32(3))
             {
                 case 0:
-                    return GetRandomByte();
+                    return GetRandomByte(useBoundaryValues);
                 case 1:
-                    return GetRandomUInt16();
+                    return GetRandomUInt16(useBoundaryValues);
                 case 2:
-                    return GetRandomUInt32();
+                    return GetRandomUInt32(useBoundaryValues);
                 case 3:
-                    return GetRandomUInt64();
+                    return GetRandomUInt64(useBoundaryValues);
                 default:
                     throw ServiceResultException.Unexpected(
                         "Unexpected random value");
             }
         }
 
-        /// <summary>
-        /// Returns an array wrapped in a variant.
-        /// </summary>
-        private Variant[] GetRandomArrayInVariant(
-            BuiltInType builtInType,
-            bool useBoundaryValues,
-            int length,
-            bool fixedLength)
+        /// <inheritdoc/>
+        public bool[] GetRandomBooleanArray(bool useBoundaryValues, int length, bool fixedLength)
         {
             if (length < 0)
             {
-                return Array.Empty<Variant>();
+                return [];
             }
-
             if (!fixedLength)
             {
                 length = m_random.NextInt32(length);
             }
-
-            var variants = new Variant[length];
-            var typeInfo = TypeInfo.CreateScalar(builtInType);
-
-            for (int ii = 0; ii < variants.Length; ii++)
+            bool[] values = new bool[length];
+            for (int ii = 0; ii < values.Length; ii++)
             {
-                variants[ii] = GetRandomVariant(false);
+                values[ii] = GetRandomBoolean(useBoundaryValues);
             }
+            return values;
+        }
 
-            return variants;
+        /// <inheritdoc/>
+        public sbyte[] GetRandomSByteArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            sbyte[] values = new sbyte[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomSByte(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public byte[] GetRandomByteArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            byte[] values = new byte[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomByte(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public short[] GetRandomInt16Array(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            short[] values = new short[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomInt16(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public ushort[] GetRandomUInt16Array(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            ushort[] values = new ushort[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomUInt16(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public int[] GetRandomInt32Array(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            int[] values = new int[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomInt32(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public uint[] GetRandomUInt32Array(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            uint[] values = new uint[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomUInt32(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public long[] GetRandomInt64Array(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            long[] values = new long[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomInt64(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public ulong[] GetRandomUInt64Array(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            ulong[] values = new ulong[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomUInt64(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public float[] GetRandomFloatArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            float[] values = new float[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomFloat(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public double[] GetRandomDoubleArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            double[] values = new double[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomDouble(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <summary>
+        /// Creates a random string with a random locale.
+        /// </summary>
+        public string[] GetRandomStringArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            string[] values = new string[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomString(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public DateTimeUtc[] GetRandomDateTimeArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            var values = new DateTimeUtc[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomDateTime(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public Uuid[] GetRandomGuidArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            var values = new Uuid[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomGuid(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public ByteString[] GetRandomByteStringArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            var values = new ByteString[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomByteString(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public XmlElement[] GetRandomXmlElementArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            var values = new XmlElement[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomXmlElement(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public NodeId[] GetRandomNodeIdArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            var values = new NodeId[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomNodeId(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public ExpandedNodeId[] GetRandomExpandedNodeIdArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            var values = new ExpandedNodeId[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomExpandedNodeId(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public QualifiedName[] GetRandomQualifiedNameArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            var values = new QualifiedName[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomQualifiedName(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public LocalizedText[] GetRandomLocalizedTextArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            var values = new LocalizedText[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomLocalizedText(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public StatusCode[] GetRandomStatusCodeArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            var values = new StatusCode[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomStatusCode(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public ExtensionObject[] GetRandomExtensionObjectArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            var values = new ExtensionObject[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomExtensionObject(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <summary>
+        /// Get a random DataValue.
+        /// </summary>
+        public DataValue[] GetRandomDataValueArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            var values = new DataValue[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomDataValue(useBoundaryValues);
+            }
+            return values;
+        }
+
+        /// <summary>
+        /// Get random diagnostic info.
+        /// </summary>
+        public DiagnosticInfo[] GetRandomDiagnosticInfoArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            if (length < 0)
+            {
+                return [];
+            }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
+            var values = new DiagnosticInfo[length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = GetRandomDiagnosticInfo(useBoundaryValues);
+            }
+            return values;
         }
 
         /// <summary>
@@ -1192,186 +1585,59 @@ namespace Opc.Ua.Test
         }
 
         /// <summary>
-        /// Returns a random value of the specified built-in type.
+        /// Helper to get a boundary value from the provided list if the flag is passed.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public object GetRandom(BuiltInType expectedType)
+        /// <typeparam name="T"></typeparam>
+        private T GetBoundaryValue<T>(bool useBoundaryValues, T value, T[] boundaryValues)
         {
-            switch (expectedType)
+            if (useBoundaryValues)
             {
-                case BuiltInType.DiagnosticInfo:
-                    return GetRandomDiagnosticInfo();
-                case BuiltInType.Null:
-                    return null;
-                case BuiltInType.Number:
-                case BuiltInType.Integer:
-                case BuiltInType.UInteger:
-                case BuiltInType.Variant:
-                    return GetRandomScalar(expectedType);
-                default:
-                    return GetRandomScalar(expectedType).AsBoxedObject();
+                // Determine if a boundary value should be used or default returned.
+                useBoundaryValues = m_random.NextInt32(99) < BoundaryValueFrequency;
             }
+
+            if (!useBoundaryValues)
+            {
+                return value;
+            }
+
+            if (boundaryValues == null || boundaryValues.Length == 0)
+            {
+                return value;
+            }
+
+            return boundaryValues[m_random.NextInt32(boundaryValues.Length - 1)];
         }
 
         /// <summary>
-        /// Returns a random value of the specified built-in type.
+        /// Returns an array wrapped in a variant.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public Array GetRandomArray(
-            BuiltInType expectedType,
+        private Variant[] GetRandomArrayInVariant(
+            BuiltInType builtInType,
             bool useBoundaryValues,
             int length,
             bool fixedLength)
         {
-            switch (expectedType)
+            if (length < 0)
             {
-                case BuiltInType.Null:
-                    return GetNullArray<object>(length, fixedLength);
-                case BuiltInType.Boolean:
-                    return GetRandomArray<bool>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.SByte:
-                    return GetRandomArray<sbyte>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.Byte:
-                    return GetRandomArray<byte>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.Int16:
-                    return GetRandomArray<short>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.UInt16:
-                    return GetRandomArray<ushort>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.Int32:
-                    return GetRandomArray<int>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.UInt32:
-                    return GetRandomArray<uint>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.Int64:
-                    return GetRandomArray<long>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.UInt64:
-                    return GetRandomArray<ulong>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.Float:
-                    return GetRandomArray<float>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.Double:
-                    return GetRandomArray<double>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.String:
-                    return GetRandomArray<string>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.DateTime:
-                    return GetRandomArray<DateTimeUtc>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.Guid:
-                    return GetRandomArray<Uuid>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.ByteString:
-                    return GetRandomArray<ByteString>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.XmlElement:
-                    return GetRandomArray<XmlElement>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.NodeId:
-                    return GetRandomArray<NodeId>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.ExpandedNodeId:
-                    return GetRandomArray<ExpandedNodeId>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.QualifiedName:
-                    return GetRandomArray<QualifiedName>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.LocalizedText:
-                    return GetRandomArray<LocalizedText>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.StatusCode:
-                    return GetRandomArray<StatusCode>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.Variant:
-                    return GetRandomArray<Variant>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.ExtensionObject:
-                    return GetRandomArray<ExtensionObject>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.Number:
-                    return GetRandomNumberArray(useBoundaryValues, length, fixedLength);
-                case BuiltInType.Integer:
-                    return GetRandomIntegerArray(useBoundaryValues, length, fixedLength);
-                case BuiltInType.UInteger:
-                    return GetRandomUIntegerArray(useBoundaryValues, length, fixedLength);
-                case BuiltInType.Enumeration:
-                    return GetRandomArray<int>(useBoundaryValues, length, fixedLength);
-                case BuiltInType.DataValue:
-                case BuiltInType.DiagnosticInfo:
-                    return null;
-                default:
-                    throw ServiceResultException.Unexpected(
-                        $"Unexpected BuiltInType {expectedType}");
-            }
-        }
-
-        /// <summary>
-        /// Stores the boundary values for a data type.
-        /// </summary>
-        private class BoundaryValues
-        {
-            public BoundaryValues(BuiltInType builtInType, params Variant[] values)
-            {
-                BuiltInType = builtInType;
-
-                if (values != null)
-                {
-                    Values = [.. values];
-                }
-                else
-                {
-                    Values = [];
-                }
+                return [];
             }
 
-            public BuiltInType BuiltInType { get; set; }
-            public List<Variant> Values { get; set; }
-        }
+            if (!fixedLength)
+            {
+                length = m_random.NextInt32(length);
+            }
 
-        /// <summary>
-        /// Boundary values used or testing.
-        /// </summary>
-        private static readonly BoundaryValues[] s_availableBoundaryValues =
-        [
-            new(BuiltInType.SByte, sbyte.MinValue, (sbyte)0, sbyte.MaxValue),
-            new(BuiltInType.Byte, byte.MinValue, byte.MaxValue),
-            new(BuiltInType.Int16, short.MinValue, (short)0, short.MaxValue),
-            new(BuiltInType.UInt16, ushort.MinValue, ushort.MaxValue),
-            new(BuiltInType.Int32, int.MinValue, 0, int.MaxValue),
-            new(BuiltInType.UInt32, uint.MinValue, uint.MaxValue),
-            new(BuiltInType.Int64, long.MinValue, (long)0, long.MaxValue),
-            new(BuiltInType.UInt64, ulong.MinValue, ulong.MaxValue),
-            new(BuiltInType.Float,
-                float.Epsilon,
-                float.MaxValue,
-                float.MinValue,
-                float.NaN,
-                float.NegativeInfinity,
-                float.PositiveInfinity,
-                (float)0
-            ),
-            new(BuiltInType.Double,
-                double.Epsilon,
-                double.MaxValue,
-                double.MinValue,
-                double.NaN,
-                double.NegativeInfinity,
-                double.PositiveInfinity,
-                (double)0
-            ),
-            new(BuiltInType.String, (string)null, string.Empty),
-            new(BuiltInType.DateTime,
-                DateTimeUtc.MinValue,
-                DateTimeUtc.MaxValue,
-                new DateTimeUtc(1099, 1, 1),
-                new DateTimeUtc(2039, 4, 4),
-                new DateTimeUtc(new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local))
-            ),
-            new(BuiltInType.Guid, Uuid.Empty),
-            new(BuiltInType.ByteString, ByteString.Empty, (ByteString)default),
-            new(BuiltInType.XmlElement, XmlElement.Empty),
-            new(BuiltInType.NodeId,
-                NodeId.Null,
-                new NodeId(Guid.Empty),
-                new NodeId(string.Empty, 0),
-                new NodeId(ByteString.Empty)
-            ),
-            new(BuiltInType.ExpandedNodeId,
-                ExpandedNodeId.Null,
-                new ExpandedNodeId(Guid.Empty),
-                new ExpandedNodeId(string.Empty, 0),
-                new ExpandedNodeId(ByteString.Empty)
-            ),
-            new(BuiltInType.QualifiedName, QualifiedName.Null),
-            new(BuiltInType.LocalizedText, LocalizedText.Null),
-            new(BuiltInType.StatusCode, StatusCodes.Good, StatusCodes.Uncertain, StatusCodes.Bad),
-            new(BuiltInType.ExtensionObject, ExtensionObject.Null)
-        ];
+            var variants = new Variant[length];
+            var typeInfo = TypeInfo.CreateScalar(builtInType);
+
+            for (int ii = 0; ii < variants.Length; ii++)
+            {
+                variants[ii] = GetRandomVariant(false);
+            }
+
+            return variants;
+        }
 
         /// <summary>
         /// Loads some string data from a resource.
@@ -1430,21 +1696,22 @@ namespace Opc.Ua.Test
         }
 
         /// <summary>
-        /// Randomly selects a boundary value for type.
+        /// Returns a random valid built in type
         /// </summary>
-        private Variant GetBoundaryValue(BuiltInType type)
+        private BuiltInType GetRandomBuiltInType()
         {
-            if (!m_boundaryValues.TryGetValue(type, out Variant[] boundaryValues))
+            // randomly choose a built-in type.
+            BuiltInType builtInType = BuiltInType.Variant;
+            while (builtInType is
+                BuiltInType.Variant or
+                BuiltInType.DataValue or
+                BuiltInType.Null or
+                BuiltInType.XmlElement or
+                BuiltInType.DiagnosticInfo) // Invalid
             {
-                return default;
+                builtInType = (BuiltInType)m_random.NextInt32((int)BuiltInType.Variant);
             }
-
-            if (boundaryValues == null || boundaryValues.Length == 0)
-            {
-                return default;
-            }
-
-            return boundaryValues[m_random.NextInt32(boundaryValues.Length - 1)];
+            return builtInType;
         }
 
         /// <summary>
@@ -1482,7 +1749,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Creates a string from the tokens for the locale.
         /// </summary>
-        private string CreateString(string locale, bool isSymbol)
+        private string CreateString(string locale, bool isSymbol, bool useBoundaryValues = false)
         {
             if (!m_tokenValues.TryGetValue(locale, out string[] tokens))
             {
@@ -1518,12 +1785,11 @@ namespace Opc.Ua.Test
                 }
             }
 
-            return buffer.ToString();
+            return GetBoundaryValue(useBoundaryValues, buffer.ToString(), [string.Empty, default]);
         }
 
         private readonly ILogger m_logger;
         private readonly IRandomSource m_random;
-        private readonly FrozenDictionary<BuiltInType, Variant[]> m_boundaryValues;
         private readonly string[] m_availableLocales;
         private readonly FrozenDictionary<string, string[]> m_tokenValues;
         private const string kPunctuation = "`~!@#$%^&*()_-+={}[]:\"';?><,./";

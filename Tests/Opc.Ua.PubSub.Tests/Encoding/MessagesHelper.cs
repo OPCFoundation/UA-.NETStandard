@@ -3180,36 +3180,36 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var boolNodeId = new NodeId("BoolToggle", namespaceIndexAllTypes);
             DataValue boolToggle = pubSubApplication.DataStore
                 .ReadPublishedDataItem(boolNodeId, Attributes.Value);
-            snapshotData.Add(boolNodeId, (DataValue)boolToggle.MemberwiseClone());
+            snapshotData.Add(boolNodeId, CoreUtils.Clone(boolToggle));
             var byteNodeId = new NodeId("Byte", namespaceIndexAllTypes);
             DataValue byteValue = pubSubApplication.DataStore
                 .ReadPublishedDataItem(byteNodeId, Attributes.Value);
-            snapshotData.Add(byteNodeId, (DataValue)byteValue.MemberwiseClone());
+            snapshotData.Add(byteNodeId, CoreUtils.Clone(byteValue));
             var int16NodeId = new NodeId("Int16", namespaceIndexAllTypes);
             DataValue int16Value = pubSubApplication.DataStore
                 .ReadPublishedDataItem(int16NodeId, Attributes.Value);
-            snapshotData.Add(int16NodeId, (DataValue)int16Value.MemberwiseClone());
+            snapshotData.Add(int16NodeId, CoreUtils.Clone(int16Value));
             var int32NodeId = new NodeId("Int32", namespaceIndexAllTypes);
             DataValue int32Value = pubSubApplication.DataStore
                 .ReadPublishedDataItem(int32NodeId, Attributes.Value);
-            snapshotData.Add(int32NodeId, (DataValue)int32Value.MemberwiseClone());
+            snapshotData.Add(int32NodeId, CoreUtils.Clone(int32Value));
             var uint16NodeId = new NodeId("UInt16", namespaceIndexAllTypes);
             DataValue uInt16Value = pubSubApplication.DataStore
                 .ReadPublishedDataItem(uint16NodeId, Attributes.Value);
-            snapshotData.Add(uint16NodeId, (DataValue)uInt16Value.MemberwiseClone());
+            snapshotData.Add(uint16NodeId, CoreUtils.Clone(uInt16Value));
             var uint32NodeId = new NodeId("UInt32", namespaceIndexAllTypes);
             DataValue uInt32Value = pubSubApplication.DataStore
                 .ReadPublishedDataItem(uint32NodeId, Attributes.Value);
-            snapshotData.Add(uint32NodeId, (DataValue)uInt32Value.MemberwiseClone());
+            snapshotData.Add(uint32NodeId, CoreUtils.Clone(uInt32Value));
             var doubleNodeId = new NodeId("Double", namespaceIndexAllTypes);
             DataValue doubleValue = pubSubApplication.DataStore
                 .ReadPublishedDataItem(doubleNodeId, Attributes.Value);
-            snapshotData.Add(doubleNodeId, (DataValue)doubleValue.MemberwiseClone());
+            snapshotData.Add(doubleNodeId, CoreUtils.Clone(doubleValue));
             var dateTimeNodeId = new NodeId("DateTime", namespaceIndexAllTypes);
             DataValue dateTimeValue = pubSubApplication.DataStore.ReadPublishedDataItem(
                 dateTimeNodeId,
                 Attributes.Value);
-            snapshotData.Add(dateTimeNodeId, (DataValue)dateTimeValue.MemberwiseClone());
+            snapshotData.Add(dateTimeNodeId, CoreUtils.Clone(dateTimeValue));
 
             return snapshotData;
         }

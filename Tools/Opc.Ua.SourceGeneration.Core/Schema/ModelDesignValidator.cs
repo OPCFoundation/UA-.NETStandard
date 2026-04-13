@@ -60,7 +60,7 @@ namespace Opc.Ua.Schema.Model
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ModelDesignValidator>();
-            m_context = new ServiceMessageContext(telemetry);
+            m_context = ServiceMessageContext.CreateEmpty(telemetry);
             m_startId = startId;
             m_exclusions = exclusions;
             m_standardVersion = standardVersion;

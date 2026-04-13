@@ -178,11 +178,11 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a CertificateList object.
         /// </summary>
-        public static CertificateList ToCertificateList(CertificateIdentifierCollection input)
+        public static CertificateList ToCertificateList(ArrayOf<Ua.CertificateIdentifier> input)
         {
             var output = new CertificateList();
 
-            if (input != null)
+            if (!input.IsEmpty)
             {
                 output.ValidationOptions = 0;
                 output.Certificates = [];
@@ -197,11 +197,11 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a CertificateIdentifierCollection object.
+        /// Creates an ArrayOf&lt;CertificateIdentifier&gt; object.
         /// </summary>
-        public static CertificateIdentifierCollection FromCertificateList(CertificateList input)
+        public static ArrayOf<Ua.CertificateIdentifier> FromCertificateList(CertificateList input)
         {
-            var output = new CertificateIdentifierCollection();
+            var output = new List<Ua.CertificateIdentifier>();
 
             if (input != null && input.Certificates != null)
             {
@@ -211,7 +211,7 @@ namespace Opc.Ua.Security
                 }
             }
 
-            return output;
+            return output.ToArrayOf();
         }
 
         /// <summary>
@@ -284,7 +284,7 @@ namespace Opc.Ua.Security
         /// Creates a ListOfSecurityProfiles object.
         /// </summary>
         public static ListOfSecurityProfiles ToListOfSecurityProfiles(
-            ServerSecurityPolicyCollection policies)
+            ArrayOf<ServerSecurityPolicy> policies)
         {
             var profiles = new ListOfSecurityProfiles
             {
@@ -296,7 +296,7 @@ namespace Opc.Ua.Security
                 CreateProfile(SecurityPolicies.Aes256_Sha256_RsaPss)
             };
 
-            if (policies != null)
+            if (!policies.IsEmpty)
             {
                 for (int ii = 0; ii < policies.Count; ii++)
                 {
@@ -314,12 +314,12 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a ServerSecurityPolicyCollection object.
+        /// Creates an ArrayOf&lt;ServerSecurityPolicy&gt; object.
         /// </summary>
-        public static ServerSecurityPolicyCollection FromListOfSecurityProfiles(
+        public static ArrayOf<ServerSecurityPolicy> FromListOfSecurityProfiles(
             ListOfSecurityProfiles profiles)
         {
-            var policies = new ServerSecurityPolicyCollection();
+            var policies = new List<ServerSecurityPolicy>();
 
             if (profiles != null)
             {
@@ -337,7 +337,7 @@ namespace Opc.Ua.Security
                 policies.Add(CreatePolicy(SecurityPolicies.None));
             }
 
-            return policies;
+            return policies.ToArrayOf();
         }
 
         /// <summary>

@@ -196,7 +196,7 @@ namespace Opc.Ua.Server.Tests
             ResetKeepAlive(subscription);
             SetExpiryTime(subscription, HiResClock.TickCount64 - 100);
 
-            Assert.That(subscription.Diagnostics.CurrentKeepAliveCount, Is.EqualTo(0));
+            Assert.That(subscription.Diagnostics.CurrentKeepAliveCount, Is.Zero);
 
             subscription.PublishTimerExpired();
 

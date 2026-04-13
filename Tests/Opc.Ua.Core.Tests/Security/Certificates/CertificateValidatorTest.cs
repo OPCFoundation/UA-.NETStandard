@@ -472,7 +472,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certValidator.MaxRejectedCertificates = -1;
                 certificates = await WaitForRejectedStoreCountAsync(
                     validator, count => count == 0, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                Assert.That(certificates.Count, Is.Zero);
+                Assert.That(certificates, Is.Empty);
 
                 // ensure no certs are added to the rejected store
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
@@ -492,7 +492,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await WaitForRejectedStoreCountAsync(
                     validator, count => count == 0, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                Assert.That(certificates.Count, Is.Zero);
+                Assert.That(certificates, Is.Empty);
             }
             finally
             {

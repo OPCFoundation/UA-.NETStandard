@@ -899,8 +899,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Is.Not.Null,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.That(
-                networkMessages.Count,
-                Is.EqualTo(1),
+                networkMessages,
+                Has.Count.EqualTo(1),
                 "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
@@ -915,11 +915,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private void CompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage, ILogger logger)
         {
-            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(m_telemetry));
+            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.Create(m_telemetry));
 
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
-                new ServiceMessageContext(m_telemetry),
+                ServiceMessageContext.Create(m_telemetry),
                 bytes,
                 m_firstDataSetReadersType);
 
@@ -932,11 +932,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private void InvalidCompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage, ILogger logger)
         {
-            byte[] bytes = uadpNetworkMessage.Encode(new ServiceMessageContext(m_telemetry));
+            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.Create(m_telemetry));
 
             var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
-                new ServiceMessageContext(m_telemetry),
+                ServiceMessageContext.Create(m_telemetry),
                 bytes,
                 m_firstDataSetReadersType);
 
@@ -1065,8 +1065,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 // check the number of UadpDataSetMessage counts
                 Assert.That(
-                    uadpNetworkMessageDecoded.DataSetMessages.Count,
-                    Is.EqualTo(uadpNetworkMessageEncode.DataSetMessages.Count),
+                    uadpNetworkMessageDecoded.DataSetMessages,
+                    Has.Count.EqualTo(uadpNetworkMessageEncode.DataSetMessages.Count),
                     "UadpDataSetMessages.Count was not decoded correctly");
 
                 // check if the encoded match the decoded DataSetWriterId's
@@ -1101,8 +1101,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         $"DataSet '{uadpDataSetMessage.DataSet.Name}' is missing from subscriber datasets!");
 
                     Assert.That(
-                        decodedDataSet.Fields.Length,
-                        Is.EqualTo(uadpDataSetMessage.DataSet.Fields.Length),
+                        decodedDataSet.Fields,
+                        Has.Length.EqualTo(uadpDataSetMessage.DataSet.Fields.Length),
                         $"DataSet.Fields.Length was not decoded correctly, DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
 
                     // check the fields data consistency

@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reference description
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class ReferenceDescription :
         IEncodeable,
         IJsonEncodeable,

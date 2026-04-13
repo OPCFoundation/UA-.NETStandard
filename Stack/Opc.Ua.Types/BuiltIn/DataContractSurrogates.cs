@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -43,6 +44,8 @@ namespace Opc.Ua
     /// Surrogates for data contract serializer. Used to swap types that
     /// are not directly supported by the serializer for types that are.
     /// </summary>
+    [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+    [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
     public class DataContractSurrogates : ISerializationSurrogateProvider
     {
         /// <summary>
@@ -86,6 +89,10 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2067",
+            Justification = "Surrogate types are statically registered and their constructors are preserved.")]
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "Surrogate types are statically registered and their constructors are preserved.")]
         public object GetObjectToSerialize(object obj, Type targetType)
         {
             // Fast path for already surrogated objects.
@@ -135,6 +142,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Type.MakeGenericType is used with known OPC UA surrogate types.")]
         public Type GetSurrogateType(Type type)
         {
             if (SurrogateMappings.TryGetValue(type, out Type surrogateType))
@@ -304,12 +313,18 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
         public void WriteXml(XmlWriter writer)
         {
             XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
+#pragma warning disable CS0618 // Type or member is obsolete
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(
                 Context,
                 rootName: xmlName);
+#pragma warning restore CS0618 // Type or member is obsolete
 
             foreach (T item in this)
             {
@@ -318,12 +333,18 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "DataContractSerializer is used with known OPC UA types.")]
         public void ReadXml(XmlReader reader)
         {
             XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
+#pragma warning disable CS0618 // Type or member is obsolete
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(
                 Context,
                 rootName: xmlName);
+#pragma warning restore CS0618 // Type or member is obsolete
 
             if (reader.IsEmptyElement)
             {
@@ -344,7 +365,9 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the name and fills schema
         /// </summary>
+#pragma warning disable RCS1158 // Static member in generic type should use a type parameter
         public static XmlQualifiedName GetSchemaMethod(XmlSchemaSet xs)
+#pragma warning restore RCS1158 // Static member in generic type should use a type parameter
         {
             XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
             return new XmlQualifiedName("ListOf" + xmlName.Name, xmlName.Namespace);

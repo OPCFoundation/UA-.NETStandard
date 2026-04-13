@@ -193,7 +193,7 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(expected));
-            Assert.That(result.Length, Is.EqualTo(10001));
+            Assert.That(result, Has.Length.EqualTo(10001));
         }
 
         /// <summary>

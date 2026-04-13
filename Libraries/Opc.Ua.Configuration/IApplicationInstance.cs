@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -38,7 +39,7 @@ namespace Opc.Ua.Configuration
     /// <summary>
     /// A class that installs, configures and runs a UA application.
     /// </summary>
-    public interface IApplicationInstance
+    public interface IApplicationInstance : IAsyncDisposable
     {
         /// <summary>
         /// Gets the application configuration used when the Start() method was called.
@@ -74,6 +75,7 @@ namespace Opc.Ua.Configuration
         /// Gets or sets the type of configuration file.
         /// </summary>
         /// <value>The type of configuration file.</value>
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
         Type ConfigurationType { get; set; }
 
         /// <summary>
@@ -143,11 +145,13 @@ namespace Opc.Ua.Configuration
         /// Starts the UA server.
         /// </summary>
         /// <param name="server">The server.</param>
-        Task StartAsync(IServerBase server);
+        /// <param name="ct">Cancellation token to cancel the startup operation.</param>
+        Task StartAsync(IServerBase server, CancellationToken ct = default);
 
         /// <summary>
         /// Stops the UA server.
         /// </summary>
-        ValueTask StopAsync();
+        /// <param name="ct">Cancellation token to cancel the stop operation.</param>
+        ValueTask StopAsync(CancellationToken ct = default);
     }
 }

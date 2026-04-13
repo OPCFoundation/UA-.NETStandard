@@ -44,15 +44,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             trustedIssuersStore.Close();
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
             Assert.That(
-                instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore,
-                Is.True);
+                instancesCreatedWhileLoadingConfig,
+                Is.LessThan(instancesCreatedWhileOpeningAuthRootStore));
 
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
             using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
             Assert.That(
-                instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated,
-                Is.True);
+                instancesCreatedWhileOpeningAuthRootStore,
+                Is.LessThan(TestCertStore.InstancesCreated));
         }
     }
 

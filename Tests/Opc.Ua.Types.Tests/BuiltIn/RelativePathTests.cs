@@ -100,14 +100,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ElementsSetterAcceptsCollection()
         {
-            var path = new RelativePath();
-            path.Elements = [
-                new RelativePathElement
-                {
-                    ReferenceTypeId = ReferenceTypeIds.Organizes,
-                    TargetName = new QualifiedName("Child")
-                }
-            ];
+            var path = new RelativePath
+            {
+                Elements =
+                [
+                    new RelativePathElement
+                    {
+                        ReferenceTypeId = ReferenceTypeIds.Organizes,
+                        TargetName = new QualifiedName("Child")
+                    }
+                ]
+            };
 
             Assert.That(path.Elements.Count, Is.EqualTo(1));
         }

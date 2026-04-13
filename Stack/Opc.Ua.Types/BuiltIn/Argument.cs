@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Argument
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class Argument : IEncodeable, IJsonEncodeable, IEquatable<Argument>
     {
         /// <summary>
@@ -211,21 +211,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return (Argument)MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = (Argument)base.MemberwiseClone();
-
-            clone.Name = CoreUtils.Clone(Name);
-            clone.DataType = DataType;
-            clone.ValueRank = ValueRank;
-            clone.ArrayDimensions = CoreUtils.Clone(ArrayDimensions);
-            clone.Description = CoreUtils.Clone(Description);
-
-            return clone;
+            return new Argument
+            {
+                Name = Name,
+                DataType = DataType,
+                ValueRank = ValueRank,
+                ArrayDimensions = ArrayDimensions,
+                Description = Description
+            };
         }
     }
 }

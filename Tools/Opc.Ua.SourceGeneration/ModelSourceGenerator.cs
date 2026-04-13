@@ -85,12 +85,20 @@ namespace Opc.Ua.SourceGeneration
                     combination.Right,
                     Logger).Emit(context.CancellationToken));
 
+            IncrementalValueProvider<bool> publicDataTypeExtensions =
+                context.AnalyzerConfigOptionsProvider
+                    .Select((p, _) => p.GlobalOptions.GetBool(
+                        "PublicDataTypeExtensions"));
+
             context.RegisterSourceOutput(context.SyntaxProvider.ForAttributeWithMetadataName(
                     "Opc.Ua.DataTypeAttribute",
                     static (node, ct) => DataTypeCompilation.Handles(node, ct),
                     static (context, ct) => new DataTypeCompilation(context, ct))
-                .Where(static m => m is not null),
-                static (spc, source) => source.Emit(spc));
+                .Where(static m => m is not null)
+                .Collect()
+                .Combine(publicDataTypeExtensions),
+                static (spc, pair) => DataTypeCompilation.EmitBatch(
+                    spc, pair.Left, pair.Right));
         }
     }
 }

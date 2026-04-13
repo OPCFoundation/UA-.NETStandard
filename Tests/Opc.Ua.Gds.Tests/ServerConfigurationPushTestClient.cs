@@ -29,7 +29,6 @@
 
 using System;
 using System.IO;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -99,7 +98,7 @@ namespace Opc.Ua.Gds.Tests
                 SecurityTokenLifetime = 3600000
             };
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=Server Configuration Push Test Client, O=OPC Foundation",
                     CertificateStoreType.Directory,
@@ -250,25 +249,25 @@ namespace Opc.Ua.Gds.Tests
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Ua.Namespaces.OpcUaConfig)]
-    public class ServerConfigurationPushTestClientConfiguration
+    [DataType(Namespace = Ua.Namespaces.OpcUaConfig)]
+    public partial class ServerConfigurationPushTestClientConfiguration
     {
-        [DataMember(Order = 1, IsRequired = true)]
+        [DataTypeField(Order = 1)]
         public string ServerUrl { get; set; }
 
-        [DataMember(Order = 2)]
+        [DataTypeField(Order = 2)]
         public string AppUserName { get; set; }
 
-        [DataMember(Order = 3)]
+        [DataTypeField(Order = 3)]
         public string AppPassword { get; set; }
 
-        [DataMember(Order = 4, IsRequired = true)]
+        [DataTypeField(Order = 4)]
         public string SysAdminUserName { get; set; }
 
-        [DataMember(Order = 5, IsRequired = true)]
+        [DataTypeField(Order = 5)]
         public string SysAdminPassword { get; set; }
 
-        [DataMember(Order = 6, IsRequired = true)]
+        [DataTypeField(Order = 6)]
         public string TempStorePath { get; set; }
     }
 }

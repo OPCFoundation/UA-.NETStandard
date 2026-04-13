@@ -81,6 +81,8 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         public void Validate(Stream stream)
         {
             // read and parse the file.
@@ -91,6 +93,8 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
+        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         public void Validate(string inputPath)
         {
             // read and parse the file.
@@ -101,6 +105,10 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Returns the schema for the specified type (returns the entire schema if null).
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "XmlSerializer is used with known schema types at design time.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "XmlSerializer is used with known schema types at design time.")]
         public override string GetSchema(string typeName)
         {
             XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
@@ -154,10 +162,10 @@ namespace Opc.Ua.Schema.Binary
                     Import(directive.Location, directive.Namespace);
                 }
             }
-            else if (Dictionary.TargetNamespace != Namespaces.OpcUa)
+            else if (Dictionary.TargetNamespace != Opc.Ua.Types.Namespaces.OpcUa)
             {
                 // Import built-in types if no imports are specified and not built in.
-                Import(null, Namespaces.OpcUa);
+                Import(null, Opc.Ua.Types.Namespaces.OpcUa);
             }
 
             // import types from imported dictionaries.
@@ -192,6 +200,10 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Imports a dictionary identified by an import directive.
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "XmlSerializer is used with known schema types at design time.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "XmlSerializer is used with known schema types at design time.")]
         private void Import(string location, string namespaceUri)
         {
             // check if already loaded.
@@ -585,14 +597,14 @@ namespace Opc.Ua.Schema.Binary
                     using (var ms = new MemoryStream())
                     {
                         stream.CopyTo(ms);
-                        dictionary[Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
+                        dictionary[Opc.Ua.Types.Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
                     }
                     using (Stream stream = resourceAssembly.GetManifestResourceStream(
                       "Opc.Ua.Schema.StandardTypes.bsd"))
                     using (var ms = new MemoryStream())
                     {
                         stream.CopyTo(ms);
-                        dictionary[Namespaces.OpcBinarySchema] = ms.ToArray();
+                        dictionary[Opc.Ua.Types.Namespaces.OpcBinarySchema] = ms.ToArray();
                     }
                     field = dictionary;
                 }

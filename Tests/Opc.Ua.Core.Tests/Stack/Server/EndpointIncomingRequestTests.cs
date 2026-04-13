@@ -48,13 +48,17 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             public TestServer()
                 : base(NUnitTelemetryContext.Create(true))
             {
-                FieldInfo field = typeof(ServerBase).GetField("m_messageContext", BindingFlags.NonPublic | BindingFlags.Instance);
-                field.SetValue(this, new ServiceMessageContext(NUnitTelemetryContext.Create(true)));
+                FieldInfo field = typeof(ServerBase).GetField(
+                    "m_messageContext",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                field.SetValue(this, ServiceMessageContext.Create(NUnitTelemetryContext.Create(true)));
             }
 
             public Action<IEndpointIncomingRequest> OnScheduleIncomingRequest { get; set; }
 
-            public override void ScheduleIncomingRequest(IEndpointIncomingRequest request, CancellationToken cancellationToken = default)
+            public override void ScheduleIncomingRequest(
+                IEndpointIncomingRequest request,
+                CancellationToken cancellationToken = default)
             {
                 if (OnScheduleIncomingRequest != null)
                 {
@@ -84,7 +88,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 Type requestType,
                 Func<IServiceRequest, SecureChannelContext, RequestLifetime, ValueTask<IServiceResponse>> invokeService)
             {
-                SupportedServices[typeId] = new ServiceDefinition(requestType, (req, ctx, lifetime) => invokeService(req, ctx, lifetime));
+                SupportedServices[typeId] = new ServiceDefinition(
+                    requestType,
+                    (req, ctx, lifetime) => invokeService(req, ctx, lifetime));
             }
 
             public static ValueTask<IServiceResponse> ProcessAsyncLocal(object incomingRequest)

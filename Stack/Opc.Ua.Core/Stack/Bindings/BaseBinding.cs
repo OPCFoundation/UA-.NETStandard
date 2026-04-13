@@ -43,7 +43,7 @@ namespace Opc.Ua.Bindings
             EndpointConfiguration configuration,
             ITelemetryContext telemetry)
         {
-            MessageContext = new ServiceMessageContext(telemetry)
+            MessageContext = new ServiceMessageContext(telemetry, factory)
             {
                 MaxStringLength = configuration.MaxStringLength,
                 MaxByteStringLength = configuration.MaxByteStringLength,
@@ -51,7 +51,6 @@ namespace Opc.Ua.Bindings
                 MaxMessageSize = configuration.MaxMessageSize,
                 MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
-                Factory = factory,
                 NamespaceUris = namespaceUris
             };
         }

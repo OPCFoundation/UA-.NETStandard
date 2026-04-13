@@ -4789,6 +4789,12 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase(BasicDataType.StatusCode)]
         [TestCase(BasicDataType.Structure)]
         [TestCase(BasicDataType.BaseDataType)]
+        [TestCase(BasicDataType.ByteString)]
+        [TestCase(BasicDataType.XmlElement)]
+        [TestCase(BasicDataType.Number)]
+        [TestCase(BasicDataType.Integer)]
+        [TestCase(BasicDataType.UInteger)]
+        [TestCase(BasicDataType.Enumeration)]
         public void IsDotNetValueType_ScalarValueTypeBasicDataType_ReturnsTrue(BasicDataType basicDataType)
         {
             // Arrange
@@ -4810,15 +4816,9 @@ namespace Opc.Ua.Schema.Model.Tests
         /// Expected: Returns false.
         /// </summary>
         [TestCase(BasicDataType.String)]
-        [TestCase(BasicDataType.ByteString)]
-        [TestCase(BasicDataType.XmlElement)]
         [TestCase(BasicDataType.DiagnosticInfo)]
-        [TestCase(BasicDataType.DataValue)]
-        [TestCase(BasicDataType.Number)]
-        [TestCase(BasicDataType.Integer)]
-        [TestCase(BasicDataType.UInteger)]
-        [TestCase(BasicDataType.Enumeration)]
         [TestCase(BasicDataType.UserDefined)]
+        [TestCase(BasicDataType.DataValue)]
         public void IsDotNetValueType_ScalarReferenceTypeBasicDataType_ReturnsFalse(BasicDataType basicDataType)
         {
             // Arrange
@@ -7351,7 +7351,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(expected));
-            Assert.That(result.Length, Is.EqualTo(1003));
+            Assert.That(result, Has.Length.EqualTo(1003));
         }
 
         /// <summary>
@@ -9148,6 +9148,12 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase(BasicDataType.StatusCode)]
         [TestCase(BasicDataType.Structure)]
         [TestCase(BasicDataType.BaseDataType)]
+        [TestCase(BasicDataType.ByteString)]
+        [TestCase(BasicDataType.XmlElement)]
+        [TestCase(BasicDataType.Enumeration)]
+        [TestCase(BasicDataType.Number)]
+        [TestCase(BasicDataType.Integer)]
+        [TestCase(BasicDataType.UInteger)]
         public void IsDotNetEqualityComparable_ScalarValueType_ReturnsTrue(BasicDataType basicDataType)
         {
             // Arrange
@@ -9161,11 +9167,6 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(result, Is.True);
         }
 
-        /// <summary>
-        /// Tests that IsDotNetEqualityComparable returns true for scalar strings.
-        /// Strings are reference types but support equality comparison in .NET.
-        /// The method should return true for scalar String type.
-        /// </summary>
         [Test]
         public void IsDotNetEqualityComparable_ScalarString_ReturnsTrue()
         {
@@ -9180,20 +9181,9 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(result, Is.True);
         }
 
-        /// <summary>
-        /// Tests that IsDotNetEqualityComparable returns false for scalar reference types that are not strings.
-        /// Tests reference types like ByteString, XmlElement, DiagnosticInfo, DataValue, etc.
-        /// These types do not support simple equality comparison.
-        /// </summary>
-        [TestCase(BasicDataType.ByteString)]
-        [TestCase(BasicDataType.XmlElement)]
-        [TestCase(BasicDataType.DiagnosticInfo)]
         [TestCase(BasicDataType.DataValue)]
-        [TestCase(BasicDataType.Number)]
-        [TestCase(BasicDataType.Integer)]
-        [TestCase(BasicDataType.UInteger)]
-        [TestCase(BasicDataType.Enumeration)]
         [TestCase(BasicDataType.UserDefined)]
+        [TestCase(BasicDataType.DiagnosticInfo)]
         public void IsDotNetEqualityComparable_ScalarReferenceTypeNotString_ReturnsFalse(BasicDataType basicDataType)
         {
             // Arrange

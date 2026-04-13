@@ -25,7 +25,7 @@ WORKDIR "/src/Applications/ConsoleReferenceServer"
 ARG Version
 ARG SimpleVersion
 ARG InformationalVersion
-ENV OPTIONS="-c Release -f net10.0 -p:NoHttps=true -p:Dockerbuild=true -p:Version=${Version} -p:AssemblyVersion=${SimpleVersion} -p:FileVersion=${Version} -p:InformationalVersion=${InformationalVersion} -p:CustomTestTarget=net10.0"
+ENV OPTIONS="-c Release -f net10.0 -p:PublishAot=false -p:NoHttps=true -p:Dockerbuild=true -p:Version=${Version} -p:AssemblyVersion=${SimpleVersion} -p:FileVersion=${Version} -p:InformationalVersion=${InformationalVersion} -p:CustomTestTarget=net10.0"
 
 FROM build AS publish
 ENV DOTNET_EnableWriteXorExecute=0

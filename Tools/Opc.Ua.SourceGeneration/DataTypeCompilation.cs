@@ -27,115 +27,492 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SourceProductionContext = SGF.SgfSourceProductionContext;
 
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Data type compilation
+    /// Handles a single [DataType]-annotated class or enum.
+    /// Builds and validates a <see cref="TypeSourceModel"/> during
+    /// construction. Models are collected via <c>.Collect()</c> and
+    /// emitted as a batch (one file per namespace) by
+    /// <see cref="EmitBatch"/> to avoid conflicting extension methods.
     /// </summary>
     internal sealed record class DataTypeCompilation
     {
         /// <summary>
-        /// Check whether the generator can handle the node
+        /// The validated model, or null if structural validation failed.
+        /// </summary>
+        public TypeSourceModel Model { get; }
+
+        /// <summary>
+        /// The validated fields (empty for enums or on error).
+        /// </summary>
+        public IReadOnlyList<TypeFieldModel> ValidFields { get; }
+
+        /// <summary>
+        /// Diagnostics from field validation.
+        /// </summary>
+        public IReadOnlyList<TypeSourceGeneratorDiagnostic> Diagnostics { get; }
+
+        /// <summary>
+        /// Location for diagnostic reporting.
+        /// </summary>
+        public Location Location { get; }
+
+        /// <summary>
+        /// True if the model has fatal errors.
+        /// </summary>
+        public bool HasErrors { get; }
+
+        /// <summary>
+        /// Structural error message (non-partial, no ctor).
+        /// </summary>
+        public string ErrorMessage { get; }
+
+        /// <summary>
+        /// Check whether the generator can handle the node.
         /// </summary>
         public static bool Handles(SyntaxNode node, CancellationToken ct)
         {
-            return node is ClassDeclarationSyntax m && m.AttributeLists.Count > 0;
+            ct.ThrowIfCancellationRequested();
+            return node is TypeDeclarationSyntax t && t.AttributeLists.Count > 0;
         }
 
         /// <summary>
-        /// Create data type compilation
+        /// Create data type compilation from a Roslyn symbol.
+        /// Builds and validates the model eagerly.
         /// </summary>
         public DataTypeCompilation(
             GeneratorAttributeSyntaxContext context,
             CancellationToken cancellationToken)
         {
-            m_cancellationToken = cancellationToken;
+            INamedTypeSymbol symbol = (INamedTypeSymbol)context.TargetSymbol;
+            Location = symbol.Locations.FirstOrDefault();
 
-            var classSymbol = (INamedTypeSymbol)context.TargetSymbol;
+            AttributeData dataTypeAttr = context.Attributes.FirstOrDefault();
+            string dataTypeNamespace =
+                dataTypeAttr.GetValue(nameof(DataTypeAttribute.Namespace));
+            string dataTypeId =
+                dataTypeAttr.GetValue(nameof(DataTypeAttribute.DataTypeId));
+            string binaryEncodingId =
+                dataTypeAttr.GetValue(
+                    nameof(DataTypeAttribute.BinaryEncodingId));
+            string xmlEncodingId =
+                dataTypeAttr.GetValue(nameof(DataTypeAttribute.XmlEncodingId));
+            string jsonEncodingId =
+                dataTypeAttr.GetValue(
+                    nameof(DataTypeAttribute.JsonEncodingId));
 
-            m_location = classSymbol.Locations.FirstOrDefault();
-            m_className = classSymbol.Name;
-            m_namespace = classSymbol.ContainingNamespace.Name;
-            m_parameterlessContructor = classSymbol.Constructors.Any(c => c.Parameters.Length == 0);
-
-            if (m_parameterlessContructor)
+            try
             {
-                m_dataContract = classSymbol
-                    .GetAttributes()
-                    .Where(a => a.AttributeClass.Name == nameof(DataContractAttribute))
-                    .Select(a => a?.NamedArguments.ToDictionary(a => a.Key, a => a.Value.Value))
-                    .FirstOrDefault();
-                m_properties = [.. classSymbol.GetMembers()
-                    .OfType<IPropertySymbol>()
-                    .Where(m => !m.IsAbstract && !m.IsStatic && !m.IsReadOnly)
-                    .Select(DataTypeProperty.ToProperty)];
+                if (symbol.TypeKind == TypeKind.Enum)
+                {
+                    Model = BuildEnumModel(
+                        symbol, dataTypeNamespace, dataTypeId,
+                        binaryEncodingId, xmlEncodingId, jsonEncodingId);
+                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    Diagnostics =
+                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                    return;
+                }
+
+                bool isPartial = symbol.DeclaringSyntaxReferences
+                    .Any(r => r.GetSyntax(cancellationToken)
+                        is TypeDeclarationSyntax tds &&
+                        tds.Modifiers.Any(SyntaxKind.PartialKeyword));
+                if (!isPartial)
+                {
+                    HasErrors = true;
+                    ErrorMessage =
+                        "[DataType] class must be declared as partial.";
+                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    Diagnostics =
+                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                    return;
+                }
+
+                bool hasCtor = symbol.Constructors
+                    .Any(c => c.Parameters.Length == 0);
+                if (!hasCtor)
+                {
+                    HasErrors = true;
+                    ErrorMessage =
+                        "[DataType] class must have a parameterless ctor.";
+                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    Diagnostics =
+                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                    return;
+                }
+
+                Model = BuildClassModel(
+                    symbol, dataTypeNamespace, dataTypeId,
+                    binaryEncodingId, xmlEncodingId, jsonEncodingId,
+                    cancellationToken);
+
+                IReadOnlyList<TypeSourceGeneratorDiagnostic> diags =
+                    TypeSourceGenerator.ValidateAndFilter(
+                        Model, out IReadOnlyList<TypeFieldModel> valid);
+
+                ValidFields = valid;
+                Diagnostics = diags;
+                HasErrors = diags.Any(d => d.IsError);
+            }
+            catch (System.Exception ex)
+            {
+                HasErrors = true;
+                ErrorMessage =
+                    $"[DataType] generator error for '{symbol.Name}': " +
+                    $"{ex.GetType().Name}: {ex.Message}";
+                ValidFields ??= System.Array.Empty<TypeFieldModel>();
+                Diagnostics ??=
+                    System.Array.Empty<TypeSourceGeneratorDiagnostic>();
             }
         }
 
         /// <summary>
-        /// Emit the generated code
+        /// Emit a batch of compilations as one file per namespace.
         /// </summary>
-        public void Emit(SourceProductionContext sourceContext)
+        public static void EmitBatch(
+            SourceProductionContext sourceContext,
+            ImmutableArray<DataTypeCompilation> compilations,
+            bool publicExtensions)
         {
-            if (!m_parameterlessContructor)
+            foreach (DataTypeCompilation comp in compilations)
             {
-                sourceContext.ReportDiagnostic(
-                    Diagnostic.Create(
-                        SourceGenerator.Exception,
-                        m_location,
-                        "Must have a paremeterless constructor"));
-                return;
-            }
-
-            foreach (DataTypeProperty property in m_properties)
-            {
-                m_cancellationToken.ThrowIfCancellationRequested();
-
-                // Example of reporting a diagnostic
-                if (string.IsNullOrEmpty(property.Type))
+                if (comp.ErrorMessage != null)
                 {
                     sourceContext.ReportDiagnostic(
                         Diagnostic.Create(
-                            SourceGenerator.GenericWarning,
-                            m_location,
-                            $"Property '{property.Name}' has an invalid type."));
+                            SourceGenerator.Exception,
+                            comp.Location,
+                            comp.ErrorMessage));
                 }
+
+                foreach (TypeSourceGeneratorDiagnostic diag in comp.Diagnostics)
+                {
+                    sourceContext.ReportDiagnostic(
+                        Diagnostic.Create(
+                            diag.IsError
+                                ? SourceGenerator.Exception
+                                : SourceGenerator.GenericWarning,
+                            comp.Location,
+                            diag.Message));
+                }
+            }
+
+            IEnumerable<IGrouping<string, DataTypeCompilation>> validByNamespace =
+                compilations
+                    .Where(c => !c.HasErrors && c.Model != null)
+                    .GroupBy(c => c.Model.Namespace);
+            foreach (IGrouping<string, DataTypeCompilation> group in validByNamespace)
+            {
+                List<DataTypeCompilation> entries = [.. group];
+                TypeSourceModel first = entries[0].Model;
+
+                var allTypes = new List<TypeSourceModel>();
+                var allActivators = new List<TypeSourceModel>();
+
+                foreach (DataTypeCompilation comp in entries)
+                {
+                    TypeSourceModel model = comp.Model with
+                    {
+                        PublicExtensions = publicExtensions
+                    };
+                    if (model.IsEnum)
+                    {
+                        allActivators.Add(model);
+                    }
+                    else
+                    {
+                        allTypes.Add(model with { Fields = comp.ValidFields });
+                        allActivators.Add(model);
+                    }
+                }
+
+                string source = TypeSourceGenerator.GenerateBatch(
+                    first.Namespace,
+                    first.NamespaceSymbol,
+                    first.NamespaceUri,
+                    publicExtensions,
+                    allTypes,
+                    allActivators);
+
+                sourceContext.AddSource(
+                    first.NamespaceSymbol + ".Types.g.cs", source);
             }
         }
 
-        private readonly CancellationToken m_cancellationToken;
-        private readonly Location m_location;
-        private readonly string m_className;
-        private readonly string m_namespace;
-        private readonly bool m_parameterlessContructor;
-        private readonly Dictionary<string, object> m_dataContract;
-        private readonly DataTypeProperty[] m_properties;
-    }
-
-    internal sealed record class DataTypeProperty(
-        string Name,
-        string Type,
-        bool IsOptional,
-        IReadOnlyDictionary<string, object> DataMemberAttribute)
-    {
-        public static DataTypeProperty ToProperty(IPropertySymbol propertySymbol)
+        private static TypeSourceModel BuildClassModel(
+            INamedTypeSymbol symbol,
+            string dataTypeNamespace,
+            string dataTypeId,
+            string binaryEncodingId,
+            string xmlEncodingId,
+            string jsonEncodingId,
+            CancellationToken ct)
         {
-            AttributeData dataMemberAttribute = propertySymbol
-                .GetAttributes()
-                .FirstOrDefault(a => a.AttributeClass.Name == nameof(DataMemberAttribute));
-            return new DataTypeProperty(
-                propertySymbol.Name,
-                propertySymbol.Type.Name,
-                propertySymbol.NullableAnnotation == NullableAnnotation.Annotated,
-                dataMemberAttribute?.NamedArguments.ToDictionary(a => a.Key, a => a.Value.Value));
+            string ns = symbol.GetFullNamespace();
+            bool baseTypeIsEncodeable = symbol.BaseType != null &&
+                symbol.BaseType.Name != "Object" &&
+                (symbol.BaseType.ImplementsInterface("IEncodeable") ||
+                    symbol.BaseType.HasAttribute("DataTypeAttribute"));
+            return new TypeSourceModel
+            {
+                ClassName = symbol.Name,
+                Namespace = ns,
+                NamespaceUri = ResolveNamespaceUri(
+                    symbol, dataTypeNamespace, ns),
+                NamespaceSymbol = ns.Replace(".", string.Empty),
+                DataTypeId = dataTypeId,
+                BinaryEncodingId = binaryEncodingId,
+                XmlEncodingId = xmlEncodingId,
+                JsonEncodingId = jsonEncodingId,
+                IsRecord = symbol.IsRecord,
+                IsEnum = false,
+                IsSealed = symbol.IsSealed,
+                IsDerived = baseTypeIsEncodeable,
+                IsInternal =
+                    symbol.DeclaredAccessibility == Accessibility.Internal ||
+                    symbol.DeclaredAccessibility == Accessibility.NotApplicable,
+                BaseTypeIsEncodeable = baseTypeIsEncodeable,
+                HasManualClone = symbol.GetMembers()
+                    .OfType<IMethodSymbol>()
+                    .Any(m => m.Name is "Clone" or "MemberwiseClone" &&
+                        !m.IsImplicitlyDeclared),
+                Fields = CollectFields(symbol, ct),
+                BaseClassName = symbol.BaseType?.Name == "Object"
+                    ? null : symbol.BaseType?.Name
+            };
+        }
+
+        private static TypeSourceModel BuildEnumModel(
+            INamedTypeSymbol symbol,
+            string dataTypeNamespace,
+            string dataTypeId,
+            string binaryEncodingId,
+            string xmlEncodingId,
+            string jsonEncodingId)
+        {
+            string ns = symbol.GetFullNamespace();
+            var members = new List<TypeEnumMember>();
+            foreach (ISymbol member in symbol.GetMembers())
+            {
+                if (member is IFieldSymbol field && field.HasConstantValue)
+                {
+                    members.Add(new TypeEnumMember
+                    {
+                        Name = field.Name,
+                        Value = field.ConstantValue?.ToString() ?? "0"
+                    });
+                }
+            }
+
+            return new TypeSourceModel
+            {
+                ClassName = symbol.Name,
+                Namespace = ns,
+                NamespaceUri = ResolveNamespaceUri(
+                    symbol, dataTypeNamespace, ns),
+                NamespaceSymbol = ns.Replace(".", string.Empty),
+                DataTypeId = dataTypeId,
+                BinaryEncodingId = binaryEncodingId,
+                XmlEncodingId = xmlEncodingId,
+                JsonEncodingId = jsonEncodingId,
+                IsEnum = true,
+                IsFlags = symbol.GetAttributes().Any(a =>
+                    a.AttributeClass?.Name == "FlagsAttribute"),
+                EnumMembers = members
+            };
+        }
+
+        private static List<TypeFieldModel> CollectFields(
+            INamedTypeSymbol symbol, CancellationToken ct)
+        {
+            // Get ALL non-abstract, non-static properties regardless of
+            // accessibility for [DataTypeField] scanning.
+            IPropertySymbol[] allProperties =
+            [
+                .. symbol.GetMembers()
+                    .OfType<IPropertySymbol>()
+                    .Where(p => !p.IsAbstract &&
+                        !p.IsStatic &&
+                        !p.IsReadOnly)
+            ];
+            // Check if any property has [DataTypeField] — if so, use only those
+            Tuple<IPropertySymbol, AttributeData>[] selectedPropsWithAttribute =
+            [
+                .. allProperties
+                    .Select(p => Tuple.Create(p, p.GetAttributes()
+                        .FirstOrDefault(a =>
+                            a.AttributeClass?.Name == nameof(DataTypeFieldAttribute))))
+                    .Where(p => p.Item2 != null)
+            ];
+            var fields = new List<TypeFieldModel>();
+            int orderIndex = 0;
+            if (selectedPropsWithAttribute.Length == 0)
+            {
+                // None annotated — auto-discover PUBLIC properties only
+                foreach (IPropertySymbol prop in allProperties)
+                {
+                    if (prop.DeclaredAccessibility != Accessibility.Public)
+                    {
+                        continue;
+                    }
+                    ct.ThrowIfCancellationRequested();
+                    fields.Add(CreateField(prop, prop.Name, orderIndex++, false));
+                }
+            }
+            else
+            {
+                // Use only annotated properties (any accessibility)
+                foreach (Tuple<IPropertySymbol, AttributeData> propWithAttribute
+                    in selectedPropsWithAttribute)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    AttributeData dtfAttr = propWithAttribute.Item2;
+                    IPropertySymbol prop = propWithAttribute.Item1;
+                    orderIndex = dtfAttr.GetInteger(
+                        nameof(DataTypeFieldAttribute.Order),
+                        ++orderIndex);
+                    string fieldName = dtfAttr.GetValue(
+                        nameof(DataTypeFieldAttribute.Name))
+                        ?? prop.Name;
+                    fields.Add(CreateField(prop, fieldName, orderIndex, true, dtfAttr));
+                }
+            }
+            fields.Sort((a, b) => a.Order.CompareTo(b.Order));
+            return fields;
+        }
+
+        private static TypeFieldModel CreateField(
+            IPropertySymbol prop, string fieldName,
+            int order, bool hasDataTypeFieldAttr,
+            AttributeData dtfAttr = null)
+        {
+            ITypeSymbol type = prop.Type;
+            string shortName = type.Name;
+            bool isNullable =
+                prop.NullableAnnotation == NullableAnnotation.Annotated;
+            bool isEnum = type.TypeKind == TypeKind.Enum;
+            bool isEncodeable = !isEnum &&
+                (type.ImplementsInterface(nameof(IEncodeable)) ||
+                    type.HasAttribute(nameof(DataTypeAttribute)));
+            bool isArray = false;
+            bool isMatrix = false;
+            string elementShortTypeName = null;
+            string elementTypeName = null;
+            ITypeSymbol encodeableType = type;
+
+            if (shortName == "ArrayOf" &&
+                type is INamedTypeSymbol arrayType &&
+                arrayType.IsGenericType &&
+                arrayType.TypeArguments.Length == 1)
+            {
+                isArray = true;
+                ITypeSymbol elem = arrayType.TypeArguments[0];
+                elementShortTypeName = elem.Name;
+                elementTypeName = elem.GetFullyQualifiedTypeName();
+                isEnum = elem.TypeKind == TypeKind.Enum;
+                isEncodeable = !isEnum &&
+                    (elem.ImplementsInterface(nameof(IEncodeable)) ||
+                        elem.HasAttribute(nameof(DataTypeAttribute)));
+                encodeableType = elem;
+            }
+            else if (shortName == "MatrixOf" &&
+                type is INamedTypeSymbol matrixType &&
+                matrixType.IsGenericType &&
+                matrixType.TypeArguments.Length == 1)
+            {
+                isMatrix = true;
+                ITypeSymbol elem = matrixType.TypeArguments[0];
+                elementShortTypeName = elem.Name;
+                elementTypeName = elem.GetFullyQualifiedTypeName();
+                isEnum = elem.TypeKind == TypeKind.Enum;
+                isEncodeable = !isEnum &&
+                    (elem.ImplementsInterface(nameof(IEncodeable)) ||
+                        elem.HasAttribute(nameof(DataTypeAttribute)));
+                encodeableType = elem;
+            }
+
+            int structureHandling = 0;
+            int defaultValueHandling = 0;
+            if (dtfAttr != null)
+            {
+                foreach (KeyValuePair<string, TypedConstant> kvp in dtfAttr.NamedArguments)
+                {
+                    switch (kvp.Key)
+                    {
+                        case "StructureHandling" when kvp.Value.Value is int sh:
+                            structureHandling = sh;
+                            break;
+                        case "DefaultValueHandling" when kvp.Value.Value is int dvh:
+                            defaultValueHandling = dvh;
+                            break;
+                    }
+                }
+            }
+
+            bool fieldTypeIsSealed = encodeableType.IsSealed;
+            bool fieldTypeHasEncodeableBase =
+                encodeableType is INamedTypeSymbol namedFieldType &&
+                namedFieldType.BaseType != null &&
+                namedFieldType.BaseType.Name != "Object" &&
+                namedFieldType.BaseType.ImplementsInterface("IEncodeable");
+
+            return new TypeFieldModel
+            {
+                PropertyName = prop.Name,
+                FieldName = fieldName,
+                TypeName = prop.Type.GetFullyQualifiedTypeName(),
+                ShortTypeName = shortName,
+                IsArray = isArray,
+                IsMatrix = isMatrix,
+                ElementShortTypeName = elementShortTypeName,
+                ElementTypeName = elementTypeName,
+                IsOptional = isNullable,
+                IsEncodeable = isEncodeable,
+                IsEnum = isEnum,
+                Order = order,
+                HasDataTypeFieldAttribute = hasDataTypeFieldAttr,
+                StructureHandling = structureHandling,
+                DefaultValueHandling = defaultValueHandling,
+                FieldTypeIsSealed = fieldTypeIsSealed,
+                FieldTypeHasEncodeableBase = fieldTypeHasEncodeableBase
+            };
+        }
+
+        private static string ResolveNamespaceUri(
+            INamedTypeSymbol symbol, string dataTypeNamespace,
+            string dotNetNamespace)
+        {
+            if (!string.IsNullOrEmpty(dataTypeNamespace))
+            {
+                return dataTypeNamespace;
+            }
+
+            AttributeData dcAttr = symbol.GetAttributes()
+                .FirstOrDefault(a =>
+                    a.AttributeClass?.Name == nameof(DataContractAttribute));
+            if (dcAttr != null)
+            {
+                string dcNs = dcAttr.GetValue(nameof(DataContractAttribute.Namespace));
+                if (!string.IsNullOrEmpty(dcNs))
+                {
+                    return dcNs;
+                }
+            }
+
+            return "urn:" + dotNetNamespace.ToLowerInvariant();
         }
     }
 }

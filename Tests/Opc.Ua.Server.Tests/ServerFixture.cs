@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
@@ -171,7 +172,7 @@ namespace Opc.Ua.Server.Tests
                     });
             }
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,
@@ -279,7 +280,8 @@ namespace Opc.Ua.Server.Tests
             {
                 Quickstarts.Servers.Utils.EnableProvisioningMode(provisioningReferenceServer);
             }
-            await Application.StartAsync(server).ConfigureAwait(false);
+            m_startupCts = new CancellationTokenSource();
+            await Application.StartAsync(server, m_startupCts.Token).ConfigureAwait(false);
             Server = server;
             Port = port;
         }
@@ -333,6 +335,10 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public async Task StopAsync()
         {
+            // Cancel any in-progress startup (e.g., address space creation)
+            Utils.SilentDispose(m_startupCts);
+            m_startupCts = null;
+
             if (Server != null)
             {
                 await Server.StopAsync().ConfigureAwait(false);
@@ -344,6 +350,7 @@ namespace Opc.Ua.Server.Tests
             await Task.Delay(100).ConfigureAwait(false);
         }
 
+        private CancellationTokenSource m_startupCts;
         private readonly Func<ITelemetryContext, T> m_factory;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;

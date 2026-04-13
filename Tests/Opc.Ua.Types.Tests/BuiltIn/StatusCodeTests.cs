@@ -602,7 +602,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectWithUintComparesFullCode()
         {
             var sc = new StatusCode(0x80010005);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             object code = (uint)0x80010005;
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(sc, Is.EqualTo(code));
         }
 
@@ -610,7 +612,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsObjectWithUintReturnsFalseForDifferentValues()
         {
             var sc = new StatusCode(0x80010005);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             object code = (uint)0x80010006;
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(sc, Is.Not.EqualTo(code));
         }
 
@@ -718,7 +722,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ImplicitConversionFromUintCreatesStatusCode()
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             StatusCode sc = (uint)0x80000000;
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(sc.Code, Is.EqualTo(0x80000000));
         }
 

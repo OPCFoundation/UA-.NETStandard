@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -96,7 +97,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             string filePath,
             ApplicationType applicationType,
-            Type configurationType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {
@@ -119,7 +120,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             Stream stream,
             ApplicationType applicationType,
-            Type configurationType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {

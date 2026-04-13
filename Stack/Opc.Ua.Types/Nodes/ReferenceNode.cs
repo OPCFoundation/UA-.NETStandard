@@ -36,7 +36,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reference node
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class ReferenceNode :
         IEncodeable,
         IJsonEncodeable,

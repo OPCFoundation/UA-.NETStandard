@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -268,6 +269,8 @@ namespace Opc.Ua.Client
         /// Called when the configuration is changed on disk.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        [UnconditionalSuppressMessage("Trimming", "IL2074",
+            Justification = "The configuration type was loaded with PublicParameterlessConstructor, so GetType() is safe to store.")]
         protected virtual void OnUpdateConfiguration(ApplicationConfiguration configuration)
         {
             // save types for config watcher
@@ -835,12 +838,13 @@ namespace Opc.Ua.Client
             cts.Dispose();
         }
 
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
+        private Type? m_configType;
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private ConfigurationWatcher? m_configurationWatcher;
         private ApplicationType m_applicationType;
-        private Type? m_configType;
         private ReverseConnectClientConfiguration? m_configuration;
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;

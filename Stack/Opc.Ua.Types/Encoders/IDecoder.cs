@@ -246,6 +246,11 @@ namespace Opc.Ua
         T ReadEnumerated<T>(string fieldName) where T : struct, Enum;
 
         /// <summary>
+        /// Reads an enumerated value from the stream.
+        /// </summary>
+        EnumValue ReadEnumerated(string fieldName);
+
+        /// <summary>
         /// Reads a boolean array from the stream.
         /// </summary>
         ArrayOf<bool> ReadBooleanArray(string fieldName);
@@ -418,6 +423,11 @@ namespace Opc.Ua
             where T : struct, Enum;
 
         /// <summary>
+        /// Reads an enumerated value array from the stream.
+        /// </summary>
+        ArrayOf<EnumValue> ReadEnumeratedArray(string fieldName);
+
+        /// <summary>
         /// Reads a value of a <see cref="Variant"/> from the stream with
         /// the specified TypeInfo.
         /// </summary>
@@ -449,5 +459,12 @@ namespace Opc.Ua
         /// <param name="masks">The list of field names in the order of the
         /// bits in the optional fields mask.</param>
         uint ReadEncodingMask(IList<string> masks);
+
+        /// <summary>
+        /// Returns true if the named field exists in the encoded data.
+        /// Binary decoding always returns true (all fields are present).
+        /// XML checks for the element; JSON checks for the property.
+        /// </summary>
+        bool HasField(string fieldName);
     }
 }

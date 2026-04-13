@@ -852,6 +852,381 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(byteString.Span.ToArray(), Is.EqualTo(expected));
         }
 
+        [Test]
+        public void CompareToByteStringLessThan()
+        {
+            var smaller = new ByteString(new byte[] { 1, 2, 3 });
+            var larger = new ByteString(new byte[] { 1, 2, 4 });
+
+            Assert.That(smaller.CompareTo(larger), Is.LessThan(0));
+        }
+
+        [Test]
+        public void CompareToByteStringGreaterThan()
+        {
+            var smaller = new ByteString(new byte[] { 1, 2, 3 });
+            var larger = new ByteString(new byte[] { 1, 2, 4 });
+
+            Assert.That(larger.CompareTo(smaller), Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void CompareToByteStringEqual()
+        {
+            var bs1 = new ByteString(new byte[] { 1, 2, 3 });
+            var bs2 = new ByteString(new byte[] { 1, 2, 3 });
+
+            Assert.That(bs1.CompareTo(bs2), Is.Zero);
+        }
+
+        [Test]
+        public void CompareToReadOnlyMemoryLessThan()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            var memory = new ReadOnlyMemory<byte>([1, 2, 4]);
+
+            Assert.That(bs.CompareTo(memory), Is.LessThan(0));
+        }
+
+        [Test]
+        public void CompareToReadOnlyMemoryGreaterThan()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 4 });
+            var memory = new ReadOnlyMemory<byte>([1, 2, 3]);
+
+            Assert.That(bs.CompareTo(memory), Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void CompareToReadOnlyMemoryEqual()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            var memory = new ReadOnlyMemory<byte>([1, 2, 3]);
+
+            Assert.That(bs.CompareTo(memory), Is.Zero);
+        }
+
+        [Test]
+        public void CompareToByteArrayLessThan()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            byte[] array = [1, 2, 4];
+
+            Assert.That(bs.CompareTo(array), Is.LessThan(0));
+        }
+
+        [Test]
+        public void CompareToByteArrayGreaterThan()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 4 });
+            byte[] array = [1, 2, 3];
+
+            Assert.That(bs.CompareTo(array), Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void CompareToByteArrayEqual()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            byte[] array = [1, 2, 3];
+
+            Assert.That(bs.CompareTo(array), Is.Zero);
+        }
+
+        [Test]
+        public void CompareToByteArrayWithNull()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
+            Assert.That(bs.CompareTo((byte[]?)null), Is.LessThan(0));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
+        }
+
+        [Test]
+        public void CompareToByteArrayWithNullWhenEmpty()
+        {
+            ByteString bs = ByteString.Empty;
+
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
+            Assert.That(bs.CompareTo((byte[]?)null), Is.Zero);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
+        }
+
+        [Test]
+        public void CompareToArrayOfByteLessThan()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            var arrayOf = new ArrayOf<byte>([1, 2, 4]);
+
+            Assert.That(bs.CompareTo(arrayOf), Is.LessThan(0));
+        }
+
+        [Test]
+        public void CompareToArrayOfByteGreaterThan()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 4 });
+            var arrayOf = new ArrayOf<byte>([1, 2, 3]);
+
+            Assert.That(bs.CompareTo(arrayOf), Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void CompareToArrayOfByteEqual()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            var arrayOf = new ArrayOf<byte>([1, 2, 3]);
+
+            Assert.That(bs.CompareTo(arrayOf), Is.Zero);
+        }
+
+        [Test]
+        public void CompareToReadOnlySpanLessThan()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            var span = new ReadOnlySpan<byte>([1, 2, 4]);
+
+            Assert.That(bs.CompareTo(span), Is.LessThan(0));
+        }
+
+        [Test]
+        public void CompareToReadOnlySpanGreaterThan()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 4 });
+            var span = new ReadOnlySpan<byte>([1, 2, 3]);
+
+            Assert.That(bs.CompareTo(span), Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void CompareToReadOnlySpanEqual()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            var span = new ReadOnlySpan<byte>([1, 2, 3]);
+
+            Assert.That(bs.CompareTo(span), Is.Zero);
+        }
+
+#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+        [Test]
+        public void OperatorLessThanByteString()
+        {
+            var smaller = new ByteString(new byte[] { 1, 2, 3 });
+            var larger = new ByteString(new byte[] { 1, 2, 4 });
+
+            Assert.That(smaller < larger, Is.True);
+            Assert.That(larger < smaller, Is.False);
+        }
+
+        [Test]
+        public void OperatorGreaterThanByteString()
+        {
+            var smaller = new ByteString(new byte[] { 1, 2, 3 });
+            var larger = new ByteString(new byte[] { 1, 2, 4 });
+
+            Assert.That(larger > smaller, Is.True);
+            Assert.That(smaller > larger, Is.False);
+        }
+
+        [Test]
+        public void OperatorLessOrEqualByteString()
+        {
+            var bs1 = new ByteString(new byte[] { 1, 2, 3 });
+            var bs2 = new ByteString(new byte[] { 1, 2, 3 });
+            var larger = new ByteString(new byte[] { 1, 2, 4 });
+
+            Assert.That(bs1 <= bs2, Is.True);
+            Assert.That(bs1 <= larger, Is.True);
+            Assert.That(larger <= bs1, Is.False);
+        }
+
+        [Test]
+        public void OperatorGreaterOrEqualByteString()
+        {
+            var bs1 = new ByteString(new byte[] { 1, 2, 3 });
+            var bs2 = new ByteString(new byte[] { 1, 2, 3 });
+            var larger = new ByteString(new byte[] { 1, 2, 4 });
+
+            Assert.That(bs1 >= bs2, Is.True);
+            Assert.That(larger >= bs1, Is.True);
+            Assert.That(bs1 >= larger, Is.False);
+        }
+
+        [Test]
+        public void OperatorLessThanReadOnlyMemory()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            var memory = new ReadOnlyMemory<byte>([1, 2, 4]);
+
+            Assert.That(bs < memory, Is.True);
+            Assert.That(bs > memory, Is.False);
+        }
+
+        [Test]
+        public void OperatorGreaterOrEqualReadOnlyMemory()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 4 });
+            var memory = new ReadOnlyMemory<byte>([1, 2, 3]);
+
+            Assert.That(bs >= memory, Is.True);
+            Assert.That(bs <= memory, Is.False);
+        }
+
+        [Test]
+        public void OperatorLessThanByteArray()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            byte[] array = [1, 2, 4];
+
+            Assert.That(bs < array, Is.True);
+            Assert.That(bs > array, Is.False);
+        }
+
+        [Test]
+        public void OperatorGreaterOrEqualByteArray()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 4 });
+            byte[] array = [1, 2, 3];
+
+            Assert.That(bs >= array, Is.True);
+            Assert.That(bs <= array, Is.False);
+        }
+
+        [Test]
+        public void OperatorLessThanArrayOfByte()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            var arrayOf = new ArrayOf<byte>([1, 2, 4]);
+
+            Assert.That(bs < arrayOf, Is.True);
+            Assert.That(bs > arrayOf, Is.False);
+        }
+
+        [Test]
+        public void OperatorGreaterOrEqualArrayOfByte()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 4 });
+            var arrayOf = new ArrayOf<byte>([1, 2, 3]);
+
+            Assert.That(bs >= arrayOf, Is.True);
+            Assert.That(bs <= arrayOf, Is.False);
+        }
+
+        [Test]
+        public void OperatorLessThanReadOnlySpan()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            ReadOnlySpan<byte> span = [1, 2, 4];
+
+            Assert.That(bs < span, Is.True);
+            Assert.That(bs > span, Is.False);
+        }
+
+        [Test]
+        public void OperatorGreaterOrEqualReadOnlySpan()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 4 });
+            ReadOnlySpan<byte> span = [1, 2, 3];
+
+            Assert.That(bs >= span, Is.True);
+            Assert.That(bs <= span, Is.False);
+        }
+#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
+
+        [Test]
+        public void ToHexStringAndFromHexStringRoundTrip()
+        {
+            var original = new ByteString(new byte[] { 0xAB, 0xCD, 0xEF, 0x01 });
+
+            string hex = original.ToHexString();
+            var roundTripped = ByteString.FromHexString(hex);
+
+            Assert.That(roundTripped, Is.EqualTo(original));
+        }
+
+        [Test]
+        public void FromBase64StaticMethod()
+        {
+            byte[] expected = [1, 2, 3, 4, 5];
+            string base64 = Convert.ToBase64String(expected);
+
+            var bs = ByteString.FromBase64(base64);
+
+            Assert.That(bs.Span.ToArray(), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void ToByteStringFromGuid()
+        {
+            var guid = Guid.NewGuid();
+
+            var bs = guid.ToByteString();
+
+            Assert.That(bs.Span.ToArray(), Is.EqualTo(guid.ToByteArray()));
+        }
+
+        [Test]
+        public void ToByteStringFromBigInteger()
+        {
+            var bigInt = new System.Numerics.BigInteger(123456789);
+
+            var bs = bigInt.ToByteString();
+
+            Assert.That(bs.Span.ToArray(), Is.EqualTo(bigInt.ToByteArray()));
+        }
+
+        [Test]
+        public void ToByteStringFromIEnumerable()
+        {
+            byte[] expected = [10, 20, 30];
+            System.Collections.Generic.IEnumerable<byte> enumerable = expected;
+
+            var bs = enumerable.ToByteString();
+
+            Assert.That(bs.Span.ToArray(), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void ToByteStringFromNullIEnumerable()
+        {
+            System.Collections.Generic.IEnumerable<byte>? enumerable = null;
+
+            var bs = enumerable.ToByteString();
+
+            Assert.That(bs.IsNull, Is.True);
+        }
+
+        [Test]
+        public void CreateFromReadOnlySpanTest()
+        {
+            ReadOnlySpan<byte> span = [7, 8, 9];
+
+            var bs = ByteString.Create(span);
+
+            Assert.That(bs.Span.ToArray(), Is.EqualTo(new byte[] { 7, 8, 9 }));
+        }
+
+        [Test]
+        public void EqualsArrayOfByteTest()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            var arrayOf = new ArrayOf<byte>([1, 2, 3]);
+            var different = new ArrayOf<byte>([4, 5, 6]);
+
+            Assert.That(bs, Is.EqualTo(arrayOf));
+            Assert.That(bs, Is.Not.EqualTo(different));
+        }
+
+        [Test]
+        public void ToByteStringFromArrayOfByte()
+        {
+            var arrayOf = new ArrayOf<byte>([1, 2, 3]);
+
+            var bs = arrayOf.ToByteString();
+
+            Assert.That(bs.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+        }
+
         private static void Fill(byte[] buffer, byte value)
         {
 #if NETFRAMEWORK

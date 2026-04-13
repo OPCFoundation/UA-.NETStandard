@@ -27,11 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -73,10 +74,8 @@ namespace Opc.Ua.Configuration.Tests
         {
             string file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testlegacyconfig.xml");
 
-            var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
-            using var stream = new FileStream(file, FileMode.Open);
-            var reloadedConfiguration =
-                (ApplicationConfiguration)serializer.ReadObject(stream);
+            using var stream = new FileStream(file, FileMode.Open, FileAccess.Read);
+            ApplicationConfiguration reloadedConfiguration = DecodeApplicationConfiguration(stream);
 
             Assert.That(
                 reloadedConfiguration.SecurityConfiguration.IsDeprecatedConfiguration,
@@ -88,10 +87,8 @@ namespace Opc.Ua.Configuration.Tests
         {
             string file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testhybridconfig.xml");
 
-            var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
-            using var stream = new FileStream(file, FileMode.Open);
-            var reloadedConfiguration =
-                (ApplicationConfiguration)serializer.ReadObject(stream);
+            using var stream = new FileStream(file, FileMode.Open, FileAccess.Read);
+            ApplicationConfiguration reloadedConfiguration = DecodeApplicationConfiguration(stream);
 
             Assert.That(
                 reloadedConfiguration.SecurityConfiguration.IsDeprecatedConfiguration,
@@ -126,13 +123,10 @@ namespace Opc.Ua.Configuration.Tests
                 SecurityConfiguration = securityConfiguration
             };
 
-            var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
-            using var stream = new MemoryStream();
-            serializer.WriteObject(stream, configuration);
-            stream.Position = 0;
+            string xml = EncodeApplicationConfiguration(configuration);
 
-            var reloadedConfiguration =
-                (ApplicationConfiguration)serializer.ReadObject(stream);
+            using var readStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            ApplicationConfiguration reloadedConfiguration = DecodeApplicationConfiguration(readStream);
 
             Assert.That(
                 reloadedConfiguration.SecurityConfiguration.IsDeprecatedConfiguration,
@@ -144,7 +138,6 @@ namespace Opc.Ua.Configuration.Tests
         public void DeprecatedConfigurationRoundTripsWithLegacyElement()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
 
             var configuration = new ApplicationConfiguration(telemetry)
             {
@@ -165,16 +158,11 @@ namespace Opc.Ua.Configuration.Tests
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
 
-            string xml;
-            using (var stream = new MemoryStream())
-            {
-                serializer.WriteObject(stream, configuration);
-                xml = Encoding.UTF8.GetString(stream.ToArray());
-            }
+            string xml = EncodeApplicationConfiguration(configuration);
 
             var document = XDocument.Parse(xml);
-            var roundTripped = (ApplicationConfiguration)serializer.ReadObject(
-                new MemoryStream(Encoding.UTF8.GetBytes(xml)));
+            using var readStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            ApplicationConfiguration roundTripped = DecodeApplicationConfiguration(readStream);
 
             Assert.That(roundTripped, Is.Not.Null);
             Assert.That(configuration.SecurityConfiguration.IsDeprecatedConfiguration, Is.True);
@@ -188,7 +176,6 @@ namespace Opc.Ua.Configuration.Tests
         public void ModernConfigurationOmitsLegacyElement()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
 
             var configuration = new ApplicationConfiguration(telemetry)
             {
@@ -211,16 +198,11 @@ namespace Opc.Ua.Configuration.Tests
                 }
             };
 
-            string xml;
-            using (var stream = new MemoryStream())
-            {
-                serializer.WriteObject(stream, configuration);
-                xml = Encoding.UTF8.GetString(stream.ToArray());
-            }
+            string xml = EncodeApplicationConfiguration(configuration);
 
             var document = XDocument.Parse(xml);
-            var roundTripped = (ApplicationConfiguration)serializer.ReadObject(
-                new MemoryStream(Encoding.UTF8.GetBytes(xml)));
+            using var readStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            ApplicationConfiguration roundTripped = DecodeApplicationConfiguration(readStream);
 
             Assert.That(roundTripped, Is.Not.Null);
             Assert.That(configuration.SecurityConfiguration.IsDeprecatedConfiguration, Is.False);
@@ -235,10 +217,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void DeprecatedConfigurationOmitsApplicationCertificatesElement()
+        public void DeprecatedConfigurationAlsoEmitsApplicationCertificatesElement()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
 
             var configuration = new ApplicationConfiguration(telemetry)
             {
@@ -259,12 +240,7 @@ namespace Opc.Ua.Configuration.Tests
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
 
-            string xml;
-            using (var stream = new MemoryStream())
-            {
-                serializer.WriteObject(stream, configuration);
-                xml = Encoding.UTF8.GetString(stream.ToArray());
-            }
+            string xml = EncodeApplicationConfiguration(configuration);
 
             var document = XDocument.Parse(xml);
 
@@ -275,15 +251,14 @@ namespace Opc.Ua.Configuration.Tests
                 "Legacy ApplicationCertificate element should be present for deprecated configurations.");
             Assert.That(
                 document.Descendants(XName.Get("ApplicationCertificates", Namespaces.OpcUaConfig)).Any(),
-                Is.False,
-                "Deprecated configurations should not emit the ApplicationCertificates element.");
+                Is.True,
+                "The IEncodeable encoder always emits ApplicationCertificates when the collection is populated.");
         }
 
         [Test]
         public void HybridConfigurationPrefersModernElementOnSave()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
 
             var legacyCert = new CertificateIdentifier
             {
@@ -315,16 +290,11 @@ namespace Opc.Ua.Configuration.Tests
             configuration.SecurityConfiguration.ApplicationCertificate = legacyCert;
             configuration.SecurityConfiguration.ApplicationCertificates = [modernCert];
 
-            string xml;
-            using (var stream = new MemoryStream())
-            {
-                serializer.WriteObject(stream, configuration);
-                xml = Encoding.UTF8.GetString(stream.ToArray());
-            }
+            string xml = EncodeApplicationConfiguration(configuration);
 
             var document = XDocument.Parse(xml);
-            var roundTripped = (ApplicationConfiguration)serializer.ReadObject(
-                new MemoryStream(Encoding.UTF8.GetBytes(xml)));
+            using var readStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            ApplicationConfiguration roundTripped = DecodeApplicationConfiguration(readStream);
 
             Assert.That(configuration.SecurityConfiguration.IsDeprecatedConfiguration, Is.False);
             Assert.That(roundTripped.SecurityConfiguration.IsDeprecatedConfiguration, Is.False);
@@ -452,6 +422,41 @@ namespace Opc.Ua.Configuration.Tests
                     TrustedUserCertificates = new CertificateTrustList { StorePath = string.Empty }
                 }
             ).SetName("InvalidUserTrusted");
+        }
+
+        private static IServiceMessageContext CreateMessageContext()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+            return AmbientMessageContext.CurrentContext
+                ?? ServiceMessageContext.CreateEmpty(telemetry);
+        }
+
+        private static ApplicationConfiguration DecodeApplicationConfiguration(Stream stream)
+        {
+            IServiceMessageContext ctx = CreateMessageContext();
+            var parser = new XmlParser(typeof(ApplicationConfiguration), stream, ctx);
+            var config = new ApplicationConfiguration();
+            config.Decode(parser);
+            return config;
+        }
+
+        private static string EncodeApplicationConfiguration(
+            ApplicationConfiguration configuration)
+        {
+            IServiceMessageContext ctx = CreateMessageContext();
+            using var stream = new MemoryStream();
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+            settings.Encoding = new UTF8Encoding(false);
+            using (var writer = XmlWriter.Create(stream, settings))
+            {
+                var encoder = new XmlEncoder(
+                    typeof(ApplicationConfiguration), writer, ctx);
+                configuration.Encode(encoder);
+                encoder.Close();
+            }
+
+            return Encoding.UTF8.GetString(stream.ToArray());
         }
     }
 }

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
@@ -43,6 +44,24 @@ namespace Opc.Ua.Configuration
     /// <inheritdoc/>
     public class ApplicationInstance : IApplicationInstance
     {
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            if (Server != null)
+            {
+                try
+                {
+                    await StopAsync().ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    m_logger.LogError(e, "Error stopping server during dispose.");
+                }
+                Server.Dispose();
+                Server = null;
+            }
+            GC.SuppressFinalize(this);
+        }
         /// <summary>
         /// Obsolete constructor
         /// </summary>
@@ -94,6 +113,7 @@ namespace Opc.Ua.Configuration
         public string ConfigSectionName { get; set; }
 
         /// <inheritdoc/>
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
         public Type ConfigurationType { get; set; }
 
         /// <inheritdoc/>
@@ -114,22 +134,22 @@ namespace Opc.Ua.Configuration
         public bool DisableCertificateAutoCreation { get; set; }
 
         /// <inheritdoc/>
-        public async Task StartAsync(IServerBase server)
+        public async Task StartAsync(IServerBase server, CancellationToken ct = default)
         {
             Server = server;
 
             if (ApplicationConfiguration == null)
             {
-                await LoadApplicationConfigurationAsync(false).ConfigureAwait(false);
+                await LoadApplicationConfigurationAsync(false, ct).ConfigureAwait(false);
             }
 
-            await server.StartAsync(ApplicationConfiguration).ConfigureAwait(false);
+            await server.StartAsync(ApplicationConfiguration, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public ValueTask StopAsync()
+        public ValueTask StopAsync(CancellationToken ct = default)
         {
-            return Server.StopAsync();
+            return Server.StopAsync(ct);
         }
 
         /// <summary>
@@ -273,9 +293,11 @@ namespace Opc.Ua.Configuration
                 throw new ArgumentException("Missing configuration.");
             }
 
-            foreach (CertificateIdentifier id in ApplicationConfiguration.SecurityConfiguration
-                .ApplicationCertificates)
+            ArrayOf<CertificateIdentifier> applicationCerts = ApplicationConfiguration
+                .SecurityConfiguration.ApplicationCertificates;
+            for (int ii = 0; ii < applicationCerts.Count; ii++)
             {
+                CertificateIdentifier id = applicationCerts[ii];
                 await DeleteApplicationInstanceCertificateAsync(ApplicationConfiguration, id, ct)
                     .ConfigureAwait(false);
             }
@@ -310,8 +332,9 @@ namespace Opc.Ua.Configuration
             // in CheckApplicationInstanceCertificateAsync (called via CheckOrCreateCertificateAsync) to ensure it contains
             // the configuration's ApplicationUri.
             bool result = true;
-            foreach (CertificateIdentifier certId in securityConfiguration.ApplicationCertificates)
+            for (int ii = 0; ii < securityConfiguration.ApplicationCertificates.Count; ii++)
             {
+                CertificateIdentifier certId = securityConfiguration.ApplicationCertificates[ii];
                 ushort minimumKeySize = certId.GetMinKeySize(securityConfiguration);
                 bool nextResult = await CheckOrCreateCertificateAsync(
                         certId,
@@ -493,7 +516,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             string filePath,
             ApplicationType applicationType,
-            Type configurationType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null,
             CancellationToken ct = default)
@@ -541,7 +564,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             Stream stream,
             ApplicationType applicationType,
-            Type configurationType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null,
             CancellationToken ct = default)

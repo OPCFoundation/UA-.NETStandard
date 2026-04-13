@@ -69,7 +69,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public abstract object Clone();
+        public object Clone()
+        {
+            NodeState copy = CreateCopy();
+            CopyTo(copy);
+            return copy;
+        }
 
         /// <inheritdoc/>
         public virtual bool DeepEquals(NodeState node)
@@ -156,6 +161,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Create a copy of the node state which will become
+        /// the target node state for the CopyTo operation
+        /// </summary>
+        /// <returns></returns>
+        protected abstract NodeState CreateCopy();
+
+        /// <summary>
         /// Copy all state to the target node state. This performs
         /// the actual deep copy of the node state.
         /// </summary>
@@ -226,7 +238,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < children.Count; ii++)
                 {
-                    var child = (BaseInstanceState)children[ii].Clone();
+                    BaseInstanceState child = CoreUtils.Clone(children[ii]);
                     clone.m_children.Add(child);
                 }
             }
@@ -2807,7 +2819,7 @@ namespace Opc.Ua
         /// <summary>
         /// Called after a node is created.
         /// </summary>
-        protected virtual void OnAfterCreate(ISystemContext context, NodeState node)
+        protected virtual void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
         {
             // defined by the sub-class.
         }
@@ -2933,7 +2945,7 @@ namespace Opc.Ua
         /// <summary>
         /// Recusivesly calls OnAfterCreate for the node and its children.
         /// </summary>
-        private void CallOnAfterCreate(ISystemContext context, List<BaseInstanceState> children)
+        private void CallOnAfterCreate(ISystemContext context, List<BaseInstanceState> children, CancellationToken ct = default)
         {
             if (children == null)
             {
@@ -2943,10 +2955,10 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                children[ii].CallOnAfterCreate(context, null);
+                children[ii].CallOnAfterCreate(context, null, ct);
             }
 
-            OnAfterCreate(context, this);
+            OnAfterCreate(context, this, ct);
         }
 
         /// <summary>

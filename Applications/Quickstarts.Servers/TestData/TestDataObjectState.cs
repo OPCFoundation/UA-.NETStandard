@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading;
 using Opc.Ua;
 using Range = Opc.Ua.Range;
 
@@ -40,9 +41,9 @@ namespace TestData
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
-        protected override void OnAfterCreate(ISystemContext context, NodeState node)
+        protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
         {
-            base.OnAfterCreate(context, node);
+            base.OnAfterCreate(context, node, ct);
 
             GenerateValues.OnCall = OnGenerateValues;
         }
@@ -61,13 +62,34 @@ namespace TestData
             if (SimulationActive.Value)
             {
                 variable.OnReadValue = DoDeviceRead;
+                // Skip expensive initial value generation for simulated variables.
+                // DoDeviceRead produces fresh values on demand; the initial value
+                // from the generated code or a null is sufficient here.
             }
-
-            // set a valid initial value.
-
-            if (context.SystemHandle is TestDataSystem system)
+            else if (context.SystemHandle is TestDataSystem system)
             {
-                GenerateValue(system, variable);
+                // Generate initial values only for non-simulated (static) variables
+                // that don't have a DoDeviceRead callback. Use reduced complexity
+                // to speed up address space creation.
+                int savedMaxArrayLength = system.Generator.MaxArrayLength;
+                int savedMaxStringLength = system.Generator.MaxStringLength;
+                int savedMaxXmlElementCount = system.Generator.MaxXmlElementCount;
+                int savedMaxXmlAttributeCount = system.Generator.MaxXmlAttributeCount;
+                system.Generator.MaxArrayLength = 5;
+                system.Generator.MaxStringLength = 10;
+                system.Generator.MaxXmlElementCount = 2;
+                system.Generator.MaxXmlAttributeCount = 2;
+                try
+                {
+                    GenerateValue(system, variable);
+                }
+                finally
+                {
+                    system.Generator.MaxArrayLength = savedMaxArrayLength;
+                    system.Generator.MaxStringLength = savedMaxStringLength;
+                    system.Generator.MaxXmlElementCount = savedMaxXmlElementCount;
+                    system.Generator.MaxXmlAttributeCount = savedMaxXmlAttributeCount;
+                }
             }
 
             // allow writes if the simulation is not active.

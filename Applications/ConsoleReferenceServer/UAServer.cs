@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -155,7 +156,7 @@ namespace Quickstarts
         /// Start the server.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
-        public async Task StartAsync()
+        public async Task StartAsync(CancellationToken ct = default)
         {
             try
             {
@@ -163,7 +164,7 @@ namespace Quickstarts
                 Server ??= m_factory(m_telemetry);
 
                 // start the server
-                await Application.StartAsync(Server).ConfigureAwait(false);
+                await Application.StartAsync(Server, ct).ConfigureAwait(false);
 
                 // save state
                 ExitCode = ExitCode.ErrorRunning;
@@ -179,7 +180,7 @@ namespace Quickstarts
                 }
 
                 // start the status thread
-                m_status = Task.Run(StatusThreadAsync);
+                m_status = Task.Run(StatusThreadAsync, default);
 
                 // print notification on session events
                 Server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
@@ -196,19 +197,19 @@ namespace Quickstarts
         /// Stops the server.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
-        public async Task StopAsync()
+        public async Task StopAsync(CancellationToken ct = default)
         {
             try
             {
                 if (Server != null)
                 {
                     using T server = Server;
-                    // Stop status thread
+                    // Stop status thread which monitores the server property.
                     Server = null;
                     await m_status.ConfigureAwait(false);
 
                     // Stop server and dispose
-                    await server.StopAsync().ConfigureAwait(false);
+                    await server.StopAsync(ct).ConfigureAwait(false);
                 }
 
                 ExitCode = ExitCode.Ok;

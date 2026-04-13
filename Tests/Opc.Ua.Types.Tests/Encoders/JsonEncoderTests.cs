@@ -32,9 +32,8 @@ using System.Buffers;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Opc.Ua.Types;
 
-namespace Opc.Ua.UnitTests
+namespace Opc.Ua.Types.Tests.Encoders
 {
     /// <summary>
     /// Unit tests for the <see cref = "JsonDecoder"/> class.
@@ -44,13 +43,13 @@ namespace Opc.Ua.UnitTests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class JsonWriterTests
+    public class JsonEncoderTests
     {
         [Test]
         public void WriteBadVariantThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 #pragma warning disable CS0618 // Type or member is obsolete
             var badVariant = new Variant(new DiagnosticInfo(), TypeInfo.Scalars.DiagnosticInfo);
 #pragma warning restore CS0618 // Type or member is obsolete
@@ -72,7 +71,7 @@ namespace Opc.Ua.UnitTests
         public void WriteBadVariantValuesThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var badVariant = new Variant(
                 default,
                 TypeInfo.Arrays.DiagnosticInfo,
@@ -95,7 +94,7 @@ namespace Opc.Ua.UnitTests
         public void WriteBooleanValuesWithLengthExceedingThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxArrayLength = 4
             };
@@ -118,7 +117,7 @@ namespace Opc.Ua.UnitTests
         public void WriteByteStringWithLengthExceedingThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxByteStringLength = 4
             };
@@ -142,7 +141,7 @@ namespace Opc.Ua.UnitTests
         public void WriteByteValuesWithLengthExceedingThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxArrayLength = 4
             };
@@ -166,7 +165,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfosWithNestingLevelsExceedingThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxEncodingNestingLevels = 1
             };
@@ -198,8 +197,10 @@ namespace Opc.Ua.UnitTests
         public void WriteLocalDateTime()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
-            DateTime expected = (DateTime)DateTime.UtcNow;
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
+            var expected = (DateTime)DateTime.UtcNow;
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             var buffers = new PooledBufferWriter();
 
             using (var writer = new JsonEncoder(buffers, messageContext))
@@ -208,7 +209,7 @@ namespace Opc.Ua.UnitTests
             }
 
             var reader = new JsonDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            DateTime result = (DateTime)reader.ReadDateTime(JsonProperties.Value);
+            var result = (DateTime)reader.ReadDateTime(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -217,7 +218,7 @@ namespace Opc.Ua.UnitTests
         public void WriteStringWithLengthExceedingThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxStringLength = 4
             };
@@ -240,7 +241,7 @@ namespace Opc.Ua.UnitTests
         public void WriteStructureThrowsIfNestingLimitsExceeded()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxEncodingNestingLevels = 1
             };
@@ -263,7 +264,7 @@ namespace Opc.Ua.UnitTests
         public void WriteVariantThrowsIfNestingLimitsExceeded()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext)
+            var messageContext = new ServiceMessageContext(telemetryContext, new EncodeableFactory())
             {
                 MaxEncodingNestingLevels = 1
             };

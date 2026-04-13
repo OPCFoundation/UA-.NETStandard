@@ -694,7 +694,7 @@ namespace Opc.Ua
         public CertificateTypesProvider InstanceCertificateTypesProvider { get; private set; }
 
         /// <summary>
-        /// Gets or sets the private encodeable factory to use for this server instance.
+        /// Gets or sets the encodeable factory to use for this server instance.
         /// </summary>
         /// <remarks>
         /// <para>
@@ -704,7 +704,7 @@ namespace Opc.Ua
         /// </para>
         /// <para>
         /// If this property is null (the default), a new factory will be created
-        /// during server startup via <see cref="EncodeableFactory.Create()"/>.
+        /// during server startup.
         /// </para>
         /// </remarks>
         public IEncodeableFactory PrivateEncodeableFactory { get; set; }
@@ -775,11 +775,10 @@ namespace Opc.Ua
             {
                 InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
 
-                foreach (
-                    CertificateIdentifier certificateIdentifier in Configuration
-                        .SecurityConfiguration
-                        .ApplicationCertificates)
+                ArrayOf<CertificateIdentifier> applicationCertificates = Configuration.SecurityConfiguration.ApplicationCertificates;
+                for (int i = 0; i < applicationCertificates.Count; i++)
                 {
+                    CertificateIdentifier certificateIdentifier = applicationCertificates[i];
                     // preload chain
                     X509Certificate2 certificate = await certificateIdentifier.FindAsync(false)
                         .ConfigureAwait(false);
@@ -1352,15 +1351,12 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             StringTable stringTable)
         {
-            var responseHeader = new ResponseHeader
+            return new ResponseHeader
             {
                 Timestamp = DateTime.UtcNow,
-                RequestHandle = requestHeader.RequestHandle
+                RequestHandle = requestHeader.RequestHandle,
+                StringTable = stringTable.ToArrayOf()
             };
-
-            responseHeader.StringTable = stringTable.ToArrayOf();
-
-            return responseHeader;
         }
 
         /// <summary>
@@ -1400,7 +1396,8 @@ namespace Opc.Ua
         {
             // use the message context from the configuration to ensure the channels are
             // using the same one. This also sets the telemetry context for the server
-            // from configuration. If a private factory was specified, use it.
+            // from configuration. If a private factory was specified, use it, otherwise
+            // create a new encodeable factory with the Opc ua types included.
             ServiceMessageContext messageContext = configuration.CreateMessageContext(PrivateEncodeableFactory);
             messageContext.NamespaceUris = new NamespaceTable();
             m_messageContext = messageContext;
@@ -1414,8 +1411,9 @@ namespace Opc.Ua
             {
                 if (configuration.ServerConfiguration.SecurityPolicies.Count == 0)
                 {
-                    configuration.ServerConfiguration.SecurityPolicies
-                        .Add(new ServerSecurityPolicy());
+                    configuration.ServerConfiguration.SecurityPolicies =
+                        configuration.ServerConfiguration.SecurityPolicies
+                            .AddItem(new ServerSecurityPolicy());
                 }
 
                 // ensure at least one user token policy exists.

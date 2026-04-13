@@ -62,7 +62,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void InputArgumentsInitializedAfterDecode()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             var originalRequest = new CallMethodRequest
             {
                 ObjectId = new NodeId(1000),
@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void InputArgumentsWithValuesEncodeDecode()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             var originalRequest = new CallMethodRequest
             {
                 ObjectId = new NodeId(1000),

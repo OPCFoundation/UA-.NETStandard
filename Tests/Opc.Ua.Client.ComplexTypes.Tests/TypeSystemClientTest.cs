@@ -34,6 +34,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Client.Tests;
 using Opc.Ua.Server.Tests;
@@ -164,7 +165,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             bool disableDataTypeDefinition,
             bool disableDataTypeDictionary)
         {
-            var typeSystem = new ComplexTypeSystem(Session, m_telemetry);
+            ComplexTypeSystem typeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
             Assert.That(typeSystem, Is.Not.Null);
             typeSystem.DisableDataTypeDefinition = disableDataTypeDefinition;
             typeSystem.DisableDataTypeDictionary = disableDataTypeDictionary;
@@ -172,11 +173,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             bool success = await typeSystem.LoadAsync(onlyEnumTypes, true).ConfigureAwait(false);
             Assert.That(success, Is.True);
 
-            Type[] types = typeSystem.GetDefinedTypes();
-            TestContext.Out.WriteLine("Types loaded: {0} ", types.Length);
-            foreach (Type type in types)
+            IReadOnlyList<XmlQualifiedName> types = typeSystem.GetDefinedTypes();
+            TestContext.Out.WriteLine("Types loaded: {0} ", types.Count);
+            foreach (XmlQualifiedName type in types)
             {
-                TestContext.Out.WriteLine("Type: {0} ", type.FullName);
+                TestContext.Out.WriteLine("Type: {0} ", type);
             }
 
             foreach (ExpandedNodeId dataTypeId in typeSystem.GetDefinedDataTypeIds())
@@ -191,7 +192,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 var localTypeId = ExpandedNodeId.ToNodeId(dataTypeId, Session.NamespaceUris);
                 if (type.IsEnum)
                 {
-                    Assert.That(definitions.Count, Is.EqualTo(1));
+                    Assert.That(definitions, Has.Count.EqualTo(1));
                     Assert.That(definitions.First().Value, Is.InstanceOf<EnumDefinition>());
                     Assert.That(definitions.First().Key, Is.EqualTo(localTypeId));
                 }
@@ -207,8 +208,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task BrowseComplexTypesServerAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
-
-            await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
+            ComplexTypeSystem complexTypeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            await samples.LoadTypeSystemAsync(complexTypeSystem, default).ConfigureAwait(false);
 
             ArrayOf<ReferenceDescription> referenceDescriptions = await samples
                 .BrowseFullAddressSpaceAsync(this, ObjectIds.RootFolder)
@@ -245,8 +246,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task FetchComplexTypesServerAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
-
-            await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
+            ComplexTypeSystem complexTypeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            await samples.LoadTypeSystemAsync(complexTypeSystem, default).ConfigureAwait(false);
 
             IList<INode> allNodes = await samples
                 .FetchAllNodesNodeCacheAsync(this, ObjectIds.RootFolder, true, false, false)
@@ -393,7 +394,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task ReadWriteScalarVariableTypeAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
-            await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
+            ComplexTypeSystem complexTypeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            await samples.LoadTypeSystemAsync(complexTypeSystem, default).ConfigureAwait(false);
 
             // test the static version of the structure
             ExpandedNodeId structureVariable = TestData.VariableIds
@@ -481,11 +483,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     complexType[property.Name].ToString());
             }
 
-            Assert.That(complexType["ByteValue"], Is.EqualTo((byte)0));
-            Assert.That(complexType["StringValue"], Is.EqualTo("badbeef"));
-            Assert.That(new Variant((uint)3210), Is.EqualTo(complexType["NumberValue"]));
-            Assert.That(new Variant((long)54321), Is.EqualTo(complexType["IntegerValue"]));
-            Assert.That(new Variant((ulong)12345), Is.EqualTo(complexType["UIntegerValue"]));
+            Assert.That(complexType["ByteValue"], Is.EqualTo(new Variant((byte)0)));
+            Assert.That(complexType["StringValue"], Is.EqualTo(new Variant("badbeef")));
+            Assert.That(complexType["NumberValue"], Is.EqualTo(new Variant((uint)3210)));
+            Assert.That(complexType["IntegerValue"], Is.EqualTo(new Variant((long)54321)));
+            Assert.That(complexType["UIntegerValue"], Is.EqualTo(new Variant((ulong)12345)));
         }
     }
 }

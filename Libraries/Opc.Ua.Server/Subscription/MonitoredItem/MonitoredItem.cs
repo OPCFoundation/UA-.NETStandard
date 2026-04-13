@@ -366,13 +366,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public bool IsResendData
-        {
-            get
-            {
-                return Volatile.Read(ref m_resendData);
-            }
-        }
+        public bool IsResendData => Volatile.Read(ref m_resendData);
 
         /// <inheritdoc/>
         public void SetupResendDataTrigger()

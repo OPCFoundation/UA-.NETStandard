@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -37,9 +39,9 @@ namespace Opc.Ua
         /// <summary>
         /// Called after a node is created.
         /// </summary>
-        protected override void OnAfterCreate(ISystemContext context, NodeState node)
+        protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
         {
-            base.OnAfterCreate(context, node);
+            base.OnAfterCreate(context, node, ct);
 
             Enable?.OnCallMethod = OnEnableCalled;
 
@@ -166,26 +168,36 @@ namespace Opc.Ua
         {
             ConditionState state = null;
 
-            Type alarmType = GetType();
-            object branchedAlarm = Activator.CreateInstance(alarmType, this);
+            ConditionState branchedAlarm = CreateBranchInstance();
             if (branchedAlarm != null)
             {
-                var branchedNodeState = (ConditionState)branchedAlarm;
-                branchedNodeState.Initialize(context, this);
-                branchedNodeState.BranchId.Value = branchId;
-                branchedNodeState.AutoReportStateChanges = AutoReportStateChanges;
-                branchedNodeState.ReportStateChange(context, false);
+                branchedAlarm.Initialize(context, this);
+                branchedAlarm.BranchId.Value = branchId;
+                branchedAlarm.AutoReportStateChanges = AutoReportStateChanges;
+                branchedAlarm.ReportStateChange(context, false);
 
-                string postEventId = branchedNodeState.EventId.Value.ToHexString();
+                string postEventId = branchedAlarm.EventId.Value.ToHexString();
 
                 Dictionary<string, ConditionState> branches = GetBranches();
 
-                branches.Add(postEventId, branchedNodeState);
+                branches.Add(postEventId, branchedAlarm);
 
-                state = branchedNodeState;
+                state = branchedAlarm;
             }
 
             return state;
+        }
+
+        /// <summary>
+        /// Creates a new instance of the current condition type for branching.
+        /// Override in derived types to avoid reflection-based instantiation.
+        /// </summary>
+        /// <returns>A new instance of the same type as the current condition.</returns>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "Derived ConditionState types are preserved by the server node manager registration.")]
+        protected virtual ConditionState CreateBranchInstance()
+        {
+            return Activator.CreateInstance(GetType(), this) as ConditionState;
         }
 
         /// <summary>

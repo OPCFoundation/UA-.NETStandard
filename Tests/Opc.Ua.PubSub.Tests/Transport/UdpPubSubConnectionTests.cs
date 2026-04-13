@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void MyTestInitialize()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            m_messageContext = new ServiceMessageContext(telemetry);
+            m_messageContext = ServiceMessageContext.Create(telemetry);
             m_logger = telemetry.CreateLogger<UdpPubSubConnectionTests>();
 
             // Create a publisher application
@@ -214,8 +214,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Is.Not.Null,
                 "The UADP connection Publishers is invalid.");
             Assert.That(
-                m_udpPublisherConnection.Publishers.Count,
-                Is.EqualTo(1),
+                m_udpPublisherConnection.Publishers,
+                Has.Count.EqualTo(1),
                 "The UADP connection Publishers.Count is invalid.");
             int index = 0;
             foreach (IUaPublisher publisher in m_udpPublisherConnection.Publishers)
@@ -313,8 +313,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Is.Not.Null,
                 "UadpNetworkMessage.UadpDataSetMessages is null.");
             Assert.That(
-                networkMessage0.DataSetMessages.Count,
-                Is.EqualTo(3),
+                networkMessage0.DataSetMessages,
+                Has.Count.EqualTo(3),
                 "UadpNetworkMessage.UadpDataSetMessages.Count is not 3.");
             //validate flags
             Assert.That(
@@ -374,8 +374,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     Is.Not.Null,
                     "CreateNetworkMessage did not return an UadpNetworkMessage.UadpDataSetMessages.");
                 Assert.That(
-                    networkMessage.DataSetMessages.Count,
-                    Is.EqualTo(3),
+                    networkMessage.DataSetMessages,
+                    Has.Count.EqualTo(3),
                     "CreateNetworkMessage did not return 3 UadpNetworkMessage.UadpDataSetMessages.");
                 Assert.That(
                     (i * 3) + 1,
@@ -564,8 +564,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert - Should return empty lists before connection is started
             Assert.That(publisherClients, Is.Not.Null, "PublisherUdpClients should not be null");
             Assert.That(subscriberClients, Is.Not.Null, "SubscriberUdpClients should not be null");
-            Assert.That(publisherClients.Count, Is.EqualTo(0), "PublisherUdpClients should be empty before start");
-            Assert.That(subscriberClients.Count, Is.EqualTo(0), "SubscriberUdpClients should be empty before start");
+            Assert.That(publisherClients.Count, Is.Zero, "PublisherUdpClients should be empty before start");
+            Assert.That(subscriberClients.Count, Is.Zero, "SubscriberUdpClients should be empty before start");
         }
 
         [Test(Description = "Validate UDP client socket access after connection is started")]

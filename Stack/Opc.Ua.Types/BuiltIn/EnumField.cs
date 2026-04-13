@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Enum field
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class EnumField : EnumValueType, IEquatable<EnumField>
     {
         /// <summary>

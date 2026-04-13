@@ -50,7 +50,7 @@ namespace Opc.Ua.SourceGeneration
         public NodeStateGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
-            m_messageContext = new ServiceMessageContext(context.Telemetry);
+            m_messageContext = ServiceMessageContext.CreateEmpty(context.Telemetry);
             m_systemContext = new SystemContext(context.Telemetry)
             {
                 NamespaceUris = context.ModelDesign.NamespaceUris
@@ -558,12 +558,27 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(Tokens.ChildName, field.Key);
             context.Template.AddReplacement(Tokens.ChildPath, field.Key);
-            context.Template.AddReplacement(Tokens.ChildDataType,
-                field.Value.DataTypeNode.GetDotNetTypeName(
-                    field.Value.ValueRank,
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces,
-                    nullable: NullableAnnotation.NonNullable));
+
+            string childDataType = field.Value.DataTypeNode.GetDotNetTypeName(
+                field.Value.ValueRank,
+                m_context.ModelDesign.TargetNamespace.Value,
+                m_context.ModelDesign.Namespaces,
+                nullable: NullableAnnotation.NonNullable);
+
+            context.Template.AddReplacement(Tokens.ChildDataType, childDataType);
+
+            if (field.Value.DataTypeNode.NeedsCloning())
+            {
+                context.Template.AddReplacement(
+                    Tokens.ValueWrite,
+                    CoreUtils.Format(
+                        "CopyOnWrite ? ({0})global::Opc.Ua.CoreUtils.Clone(newValue) : newValue",
+                        childDataType));
+            }
+            else
+            {
+                context.Template.AddReplacement(Tokens.ValueWrite, "newValue");
+            }
 
             AddVariantAccessor(context, field.Value.DataTypeNode);
 
@@ -1711,6 +1726,27 @@ namespace Opc.Ua.SourceGeneration
 
             AddVariantAccessor(context, variableType.DataTypeNode);
 
+            if (variableType.DataTypeNode.NeedsCloning())
+            {
+                context.Template.AddReplacement(
+                    Tokens.ValueWrite,
+                    CoreUtils.Format(
+                        "CopyOnWrite ? ({0})global::Opc.Ua.CoreUtils.Clone(newValue) : newValue",
+                        variableType.DataTypeNode.SymbolicName.Name));
+            }
+            else
+            {
+                context.Template.AddReplacement(Tokens.ValueWrite, "newValue");
+            }
+            if (variableType.DataTypeNode.IsDotNetEqualityComparable(variableType.ValueRank))
+            {
+                context.Template.AddReplacement(Tokens.ValueComparison, "m_value != newValue");
+            }
+            else
+            {
+                context.Template.AddReplacement(Tokens.ValueComparison,
+                    "!global::Opc.Ua.CoreUtils.IsEqual(m_value, newValue)");
+            }
             context.Template.AddReplacement(
                 Tokens.DefaultValue,
                 variableType.DataTypeNode.GetValueAsCode(

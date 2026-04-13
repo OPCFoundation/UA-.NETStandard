@@ -81,7 +81,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             Assert.That(channelTlsOptions.UseTls, Is.True);
             X509CertificateCollection clientCertificates = channelTlsOptions.ClientCertificatesProvider.GetCertificates();
-            Assert.That(clientCertificates.Count, Is.EqualTo(1));
+            Assert.That(clientCertificates, Has.Count.EqualTo(1));
             Assert.That((clientCertificates[0] as X509Certificate2)!.HasPrivateKey, Is.True, "Client certificate needs private key");
         }
 
@@ -342,7 +342,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             public string MosquittoConfigFilePath { get; private set; }
             public string ClientCertificatePfxPath { get; private set; }
-            public string ServerCertificateCertPath { get; private set; }
+            public string ServerCertificateCertPath { get; set; }
 
             private string CombinePath(string fileName)
             {

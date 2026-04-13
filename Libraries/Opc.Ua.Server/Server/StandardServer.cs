@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -2667,6 +2668,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sender">The sender.</param>
         /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "Configuration.GetType() returns a concrete type whose constructor is preserved at the call site.")]
         protected virtual async void OnConfigurationChangedAsync(
             object sender,
             ConfigurationWatcherEventArgs args)
@@ -2775,9 +2778,10 @@ namespace Opc.Ua.Server
             var hosts = new Dictionary<string, ServiceHost>();
 
             // ensure at least one security policy exists.
-            if (configuration.ServerConfiguration.SecurityPolicies.Count == 0)
+            if (configuration.ServerConfiguration.SecurityPolicies.IsEmpty)
             {
-                configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy());
+                configuration.ServerConfiguration.SecurityPolicies =
+                    configuration.ServerConfiguration.SecurityPolicies.AddItem(new ServerSecurityPolicy());
             }
 
             // ensure at least one user token policy exists.

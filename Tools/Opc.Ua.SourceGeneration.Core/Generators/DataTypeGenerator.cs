@@ -47,7 +47,7 @@ namespace Opc.Ua.SourceGeneration
         public DataTypeGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
-            m_messageContext = new ServiceMessageContext(context.Telemetry);
+            m_messageContext = ServiceMessageContext.CreateEmpty(context.Telemetry);
             m_logger = context.Telemetry.CreateLogger<DataTypeGenerator>();
         }
 
@@ -121,11 +121,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return DataTypeTemplates.StructureActivatorClass;
             }
-            // if (datatype.BasicDataType == BasicDataType.Enumeration &&
-            //      datatype.IsEnumeration)
-            // {
-            //     // TODO
-            // }
+            if (datatype.BasicDataType == BasicDataType.Enumeration &&
+                datatype.IsEnumeration)
+            {
+                return DataTypeTemplates.EnumerationActivatorClass;
+            }
             return null;
         }
 
@@ -141,11 +141,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return DataTypeTemplates.StructureActivatorRegistration;
             }
-            // if (datatype.BasicDataType == BasicDataType.Enumeration &&
-            //      datatype.IsEnumeration)
-            // {
-            //     // TODO
-            // }
+            if (datatype.BasicDataType == BasicDataType.Enumeration &&
+                datatype.IsEnumeration)
+            {
+                return DataTypeTemplates.EnumerationActivatorRegistration;
+            }
             return null;
         }
 
@@ -171,11 +171,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            if (datatype.BasicDataType == BasicDataType.UserDefined && datatype.IsStructure)
+            if (datatype.BasicDataType == BasicDataType.UserDefined &&
+                datatype.IsStructure)
             {
                 return DataTypeTemplates.StructureDefinition;
             }
-            if (datatype.BasicDataType == BasicDataType.Enumeration && datatype.IsEnumeration)
+            if (datatype.BasicDataType == BasicDataType.Enumeration &&
+                datatype.IsEnumeration)
             {
                 return DataTypeTemplates.EnumDefinition;
             }
@@ -984,10 +986,7 @@ namespace Opc.Ua.SourceGeneration
                     if (field.ValueRank == ValueRank.Array)
                     {
                         context.Out.WriteLine(
-                            $"({elementName}[])global::Opc.Ua.ExtensionObject.ToArray(");
-                        context.Out.WriteLine(
-                            $"    decoder.ReadExtensionObjectArray({fieldName}), typeof({elementName}));");
-
+                            $"decoder.ReadEncodeableArrayAsExtensionObjects<{elementName}>({fieldName});");
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");
@@ -1002,10 +1001,7 @@ namespace Opc.Ua.SourceGeneration
                     if (field.ValueRank == ValueRank.Scalar)
                     {
                         context.Out.WriteLine(
-                            $"({elementName})global::Opc.Ua.ExtensionObject.ToEncodeable(");
-                        context.Out.WriteLine(
-                            $"    decoder.ReadExtensionObject({fieldName}));");
-
+                            $"decoder.ReadEncodeableAsExtensionObject<{elementName}>({fieldName});");
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");
@@ -1101,13 +1097,21 @@ namespace Opc.Ua.SourceGeneration
                     $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
             }
 
-            context.Out.WriteLine("clone.{0} = ({1})global::Opc.Ua.CoreUtils.Clone(this.{0});",
-                field.GetChildFieldName(),
-                field.DataTypeNode.GetDotNetTypeName(
-                    field.ValueRank,
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces,
-                    nullable: NullableAnnotation.NullableExceptDataTypes));
+            if (field.DataTypeNode.NeedsCloning())
+            {
+                context.Out.WriteLine("clone.{0} = ({1})global::Opc.Ua.CoreUtils.Clone(this.{0});",
+                    field.GetChildFieldName(),
+                    field.DataTypeNode.GetDotNetTypeName(
+                        field.ValueRank,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        nullable: NullableAnnotation.NullableExceptDataTypes));
+            }
+            else
+            {
+                context.Out.WriteLine("clone.{0} = this.{0};",
+                    field.GetChildFieldName());
+            }
 
             if (dataType.IsUnion)
             {

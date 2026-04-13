@@ -44,6 +44,8 @@ namespace Opc.Ua.SourceGeneration
         public static string SymbolicNameSymbol => nameof(SymbolicNameSymbol);
         public static string BuiltInTypes => nameof(BuiltInTypes);
         public static string ChildDataType => nameof(ChildDataType);
+        public static string ValueWrite => nameof(ValueWrite);
+        public static string ValueComparison => nameof(ValueComparison);
         public static string ChildName => nameof(ChildName);
         public static string ChildPath => nameof(ChildPath);
         public static string ClassName => nameof(ClassName);

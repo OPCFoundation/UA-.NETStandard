@@ -86,14 +86,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override object Clone()
-        {
-            var clone = (ViewState)Activator.CreateInstance(GetType());
-            CopyTo(clone);
-            return clone;
-        }
-
-        /// <inheritdoc/>
         public override bool DeepEquals(NodeState node)
         {
             if (node is not ViewState state)
@@ -125,6 +117,12 @@ namespace Opc.Ua
                 state.ContainsNoLoops = ContainsNoLoops;
             }
             base.CopyTo(target);
+        }
+
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new ViewState();
         }
 
         /// <summary>

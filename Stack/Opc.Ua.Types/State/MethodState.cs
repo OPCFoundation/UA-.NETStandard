@@ -86,14 +86,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override object Clone()
-        {
-            var clone = (MethodState)Activator.CreateInstance(GetType(), Parent);
-            CopyTo(clone);
-            return clone;
-        }
-
-        /// <inheritdoc/>
         public override bool DeepEquals(NodeState node)
         {
             if (node is not MethodState state)
@@ -135,6 +127,12 @@ namespace Opc.Ua
                 state.UserExecutable = UserExecutable;
             }
             base.CopyTo(target);
+        }
+
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new MethodState(Parent);
         }
 
         /// <summary>

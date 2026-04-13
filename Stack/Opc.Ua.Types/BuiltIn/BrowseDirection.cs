@@ -34,7 +34,7 @@ namespace Opc.Ua
     /// <summary>
     /// Browse direction
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public enum BrowseDirection
     {
         /// <summary>

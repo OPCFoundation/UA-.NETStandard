@@ -251,6 +251,9 @@ namespace Opc.Ua
         /// </summary>
         public EncodingType EncodingType => EncodingType.Xml;
 
+        /// <inheritdoc/>
+        public bool CanOmitFields => true;
+
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
@@ -901,6 +904,30 @@ namespace Opc.Ua
                     m_writer.WriteString(CoreUtils.Format("{0}_{1}",
                         value.ToString(),
                         int32Value));
+                }
+
+                EndField(fieldName);
+            }
+        }
+
+        /// <inheritdoc/>
+        public void WriteEnumerated(string fieldName, EnumValue value)
+        {
+            if (BeginField(fieldName, value.Value == 0, true))
+            {
+                if (value.Value != 0)
+                {
+                    if (!string.IsNullOrEmpty(value.Symbol))
+                    {
+                        m_writer.WriteString(CoreUtils.Format("{0}_{1}",
+                            value.Symbol,
+                            value.Value));
+                    }
+                    else
+                    {
+                        m_writer.WriteString(CoreUtils.Format("{0}",
+                            value.Value));
+                    }
                 }
 
                 EndField(fieldName);
@@ -1654,7 +1681,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values) where T : struct, Enum
+        public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values)
+            where T : struct, Enum
         {
             if (BeginField(fieldName, values.IsNull, true, true))
             {
@@ -1681,6 +1709,35 @@ namespace Opc.Ua
                 }
 
                 PopNamespace();
+
+                EndField(fieldName);
+            }
+        }
+
+        /// <inheritdoc/>
+        public void WriteEnumeratedArray(string fieldName, ArrayOf<EnumValue> values)
+        {
+            if (BeginField(fieldName, values.IsNull, true, true))
+            {
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Enumerated Array length={0}",
+                        values.Count);
+                }
+
+                // encode each element in the array.
+                foreach (EnumValue value in values)
+                {
+                    XmlQualifiedName xmlName = value.XmlName
+                        ?? new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
+
+                    PushNamespace(xmlName.Namespace);
+                    WriteEnumerated(xmlName.Name, value);
+                    PopNamespace();
+                }
 
                 EndField(fieldName);
             }
@@ -1792,6 +1849,8 @@ namespace Opc.Ua
                             case BuiltInType.UInt16:
                                 WriteUInt16("UInt16", value.GetUInt16());
                                 return;
+                            // case BuiltInType.Enumeration when writeRawValue:
+                            //     WriteEnumerated("Enumeration", value.GetEnumeration());
                             case BuiltInType.Int32:
                             case BuiltInType.Enumeration:
                                 WriteInt32("Int32", value.GetInt32());
@@ -1883,6 +1942,8 @@ namespace Opc.Ua
                             case BuiltInType.UInt16:
                                 WriteUInt16Array("ListOfUInt16", value.GetUInt16Array());
                                 return;
+                            // case BuiltInType.Enumeration when writeRawValue:
+                            //     WriteEnumerated("ListOfEnumeration", value.GetEnumerationArray());
                             case BuiltInType.Int32:
                             case BuiltInType.Enumeration:
                                 WriteInt32Array("ListOfInt32", value.GetInt32Array());
@@ -1968,9 +2029,7 @@ namespace Opc.Ua
                         {
                             const string elements = "Elements";
                             void WriteDimensions<T>(MatrixOf<T> matrix)
-                            {
-                                WriteInt32Array("Dimensions", matrix.Dimensions);
-                            }
+                                => WriteInt32Array("Dimensions", matrix.Dimensions);
 
                             PushNamespace(Namespaces.OpcUaXsd);
                             if (!value.IsNull)
@@ -2012,6 +2071,13 @@ namespace Opc.Ua
                                         WriteUInt16Array(elements, matrix.ToArrayOf());
                                         break;
                                     }
+                                    // case BuiltInType.Enumeration when writeRawValue:
+                                    // {
+                                    //     MatrixOf<int> matrix = value.GetEnumerationMatrix();
+                                    //     WriteDimensions(matrix);
+                                    //     WriteEnumeratedArray(elements, matrix.ToArrayOf());
+                                    //     break;
+                                    // }
                                     case BuiltInType.Int32:
                                     case BuiltInType.Enumeration:
                                     {

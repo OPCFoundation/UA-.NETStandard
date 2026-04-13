@@ -122,7 +122,7 @@ namespace Opc.Ua.Configuration.Tests
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     SubjectName,
                     CertificateStoreType.Directory,
@@ -149,7 +149,7 @@ namespace Opc.Ua.Configuration.Tests
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     SubjectName,
                     CertificateStoreType.Directory,
@@ -192,7 +192,7 @@ namespace Opc.Ua.Configuration.Tests
             var applicationInstance = new ApplicationInstance(telemetry);
             Assert.That(applicationInstance, Is.Not.Null);
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     SubjectName,
                     CertificateStoreType.Directory,
@@ -303,7 +303,7 @@ namespace Opc.Ua.Configuration.Tests
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     SubjectName,
                     CertificateStoreType.Directory,
@@ -331,7 +331,7 @@ namespace Opc.Ua.Configuration.Tests
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     SubjectName,
                     CertificateStoreType.Directory,
@@ -382,7 +382,7 @@ namespace Opc.Ua.Configuration.Tests
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     SubjectName,
                     CertificateStoreType.Directory,
@@ -431,7 +431,7 @@ namespace Opc.Ua.Configuration.Tests
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     SubjectName,
                     CertificateStoreType.Directory,
@@ -501,7 +501,7 @@ namespace Opc.Ua.Configuration.Tests
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     SubjectName,
                     CertificateStoreType.Directory,
@@ -559,7 +559,7 @@ namespace Opc.Ua.Configuration.Tests
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     SubjectName,
                     CertificateStoreType.Directory,
@@ -658,7 +658,7 @@ namespace Opc.Ua.Configuration.Tests
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     SubjectName,
                     CertificateStoreType.Directory,
@@ -889,7 +889,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(applicationInstance, Is.Not.Null);
             ApplicationConfiguration config;
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     SubjectName,
                     CertificateStoreType.Directory,

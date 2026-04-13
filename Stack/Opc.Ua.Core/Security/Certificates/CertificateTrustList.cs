@@ -106,8 +106,9 @@ namespace Opc.Ua
                 }
             }
 
-            foreach (CertificateIdentifier trustedCertificate in TrustedCertificates)
+            for (int i = 0; i < TrustedCertificates.Count; i++)
             {
+                CertificateIdentifier trustedCertificate = TrustedCertificates[i];
                 X509Certificate2 certificate = await trustedCertificate.FindAsync(null, telemetry, ct)
                     .ConfigureAwait(false);
 

@@ -16,6 +16,7 @@
         - [Deprecated boxing behavior](#deprecated-boxing-behavior)
         - [Replacement of all use of System.Object in generated code and API](#replacement-of-all-use-of-systemobject-in-generated-code-and-api)
       - [XmlElement](#xmlelement)
+      - [EnumValue to represent the enumeration built in type](#enumvalue-to-represent-the-enumeration-built-in-type)
       - [Other Data Types](#other-data-types)
       - [Obsoleted APIs and replacements](#obsoleted-apis-and-replacements)
       - [APIs permanently removed](#apis-permanently-removed)
@@ -24,6 +25,25 @@
       - [Generics and Typed BaseVariableState and BaseVariableTypeState](#generics-and-typed-basevariablestate-and-basevariabletypestate)
       - [Predefined node processing](#predefined-node-processing)
     - [User Identity Token Handlers](#user-identity-token-handlers)
+    - [Serialization and Configuration](#serialization-and-configuration)
+      - [DataContract to DataType migration](#datacontract-to-datatype-migration)
+      - [Configuration collection types removed](#configuration-collection-types-removed)
+      - [DataContractSerializer replaced](#datacontractserializer-replaced)
+      - [Newtonsoft.Json removed from Opc.Ua.Core](#newtonsoftjson-removed-from-opcuacore)
+      - [ParseExtension/UpdateExtension signature changed](#parseextensionupdateextension-signature-changed)
+    - [NodeState Cloning and Lifecycle](#nodestate-cloning-and-lifecycle)
+      - [Clone() replaced with CreateCopy()](#clone-replaced-with-createcopy)
+      - [BaseVariableState Read/Write helpers removed](#basevariablestate-readwrite-helpers-removed)
+      - [OnAfterCreate gains CancellationToken](#onaftercreate-gains-cancellationtoken)
+    - [Encodeable Factory and Type System](#encodeable-factory-and-type-system)
+      - [IType hierarchy](#itype-hierarchy)
+      - [IEncodeableTypeLookup changes](#iencodeabletypelookup-changes)
+      - [IEncodeableFactoryBuilder changes](#iencodeablefactorybuilder-changes)
+      - [EncodeableFactory.GlobalFactory removed](#encodeablefactoryglobalfactory-removed)
+      - [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
+    - [Complex Types](#complex-types)
+      - [ComplexTypes moved to Opc.Ua.Client assembly](#complextypes-moved-to-opcuaclient-assembly)
+    - [Other Breaking Changes](#other-breaking-changes)
   - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
     - [Asynchronous as default](#asynchronous-as-default)
     - [Observability](#observability)
@@ -67,7 +87,9 @@ To migrate remove all your generated files (ending in `*.Classes.cs`, `*.Constan
   </ItemGroup>
 ```
 
-The [source generator model](https://devblogs.microsoft.com/dotnet/introducing-c-source-generators/) has several benefits that go beyond custom `msbuild` targets: Among the most important is that the generator ships with the stack and therefore code that is generated conforms to the stack version that ships the analyzer (the source generator is part of Opc.Ua.Core nuget package). Therefore when updating to a newer version the code generated automatically takes advantage of the improvements made across the entire stack. Code generation during compilation also allows not just emitting code ahead of time, but also to generate code while you are developing. We intend to take advantage of this to generate data types and node states from stub code on the fly in future releases including enabling faster migration of code by injecting functionality such as conversion between types.
+The [source generator model](https://devblogs.microsoft.com/dotnet/introducing-c-source-generators/) has several benefits that go beyond custom `msbuild` targets: Among the most important is that the generator ships with the stack and therefore code that is generated conforms to the stack version that ships the analyzer (the source generator will be part of `Opc.Ua.Core` nuget package). Therefore when updating to a newer version the code generated automatically takes advantage of the improvements made across the entire stack.
+
+Code generation during compilation also allows not just emitting code ahead of time, but also to generate code while you are developing. We now take advantage of this feature to generate `IEncodeable` implementations for partial POCO types on the fly using the `[DataType]` and `[DataTypeField]` attributes as annotation (similar to `DataContract`/`DataMember`).
 
 The stack itself uses source generators to generate the core opc ua code. Therefore all pre-generated code files (`Generated/` folders) have been removed and are now generated at build time. As a result of using source generators to generate the stack code all `*.nodeset2.xml` files previously included as embedded zip have been removed. Also, all `*.Types.xsd` and `*.Types.bsd` files are now included as string resource instead of embedded resources. If you need access to these, use the new `Schemas.XmlAsStream` and `Schemas.BinaryAsStream` APIs in the node manager namespace which produce a utf8 stream. Alternatively you can use the existing ModelCompiler tool to generate these files.
 
@@ -96,7 +118,7 @@ Previously the OPC UA built-in type *ByteString* was represented as `byte[]`. Th
 
 Note that equality operation compare the content of the byte string. A `ByteString` is a value type while `System.Byte[]` is not. It cannot be compared against `null`. However, it supports checking for empty `IsEmpty` and `IsNull` whereby the first checks whether the ByteString is effectively a `ByteString.Empty` amd the second checks whether `ByteString` was initialized using `default`.
 
-While it was tempting to make `ByteString` implicitly convertable from `byte[]`, an explicit cast is needed to strictly distinguish against `ArrayOf<byte>` which implicit converts to `byte[]`. Prefer the `ByteString.From` or `ToByteString()` calls to cast operators to make your code's intentions explicit. Note that a `byte[]` implicitly converts to `ReadOnlyMemory<byte>` in .net therefore any conversion from `ByteString` is explicit.
+While it was tempting to make `ByteString` implicitly convertible from `byte[]`, an explicit cast is needed to strictly distinguish against `ArrayOf<byte>` which implicit converts to `byte[]`. Prefer the `ByteString.From` or `ToByteString()` calls to cast operators to make your code's intentions explicit. Note that a `byte[]` implicitly converts to `ReadOnlyMemory<byte>` in .net therefore any conversion from `ByteString` is explicit.
 
 To migrate, perform the following general replacements in your code:
 
@@ -119,7 +141,7 @@ Internally an `ArrayOf`/`MatrixOf` stores a reference to "memory" and a offset a
 
 `ArrayOf<T>` provides helper methods e.g. to  `AddItem` an item or `AddItems` of items in another `ArrayOf<T>`. Both return a new `ArrayOf<T>`, very similar to the .net ImmutableCollection classes or the `Append` or `Concat` extension methods in the `System.Linq`.
 
-`Contains`, `IndexOf`, `Filter`, `Find`, `FindIndex` and `ConvertAll` methods mimic the Linq `Where`, `Any`, `FirstOrDefault`, `Select` or the respective methods on the `List<T>` type. Use `SafeSlice` instead of `Take` to slice up to the length and which returns an empty array instead of throwing which is what the regular Slice/range operators do.  You cannot use more advanced `Linq` expressions (e.g. order by or group by) without converting to a list (`ToList`) or array (`ToArray`) first. Linq is slow, so using the methods on the array type where possible will provide a performance improvement.
+`Contains`, `IndexOf`, `Filter`, `Find`, `FindIndex` and `ConvertAll` methods mimic the Linq `Where`, `Any`, `FirstOrDefault`, `Select` or the respective methods on the `List<T>` type. Use `SafeSlice` instead of `Take` to slice up to the length and which returns an empty array instead of throwing which is what the regular Slice/range operators do.  You cannot use more advanced Linq expressions (e.g. order by or group by) without converting to a list (`ToList`) or array (`ToArray`) first. Linq is slow, so using the methods on the array type where possible will provide a performance improvement.
 
 All generated APIs, Encoders/decoders, and the Variant type now use `ArrayOf`/`MatrixOf` instead of the previously generated/built-in non-generic collection types which have been removed.
 
@@ -143,6 +165,7 @@ Note that equality operators and methods now compare the content of the Array an
     c.Add(new Variant(1))
     var first = c.FirstOrDefault();
     Int32Collection i = c.Select(v => (int)v).ToList();
+
     // need to change to
     ArrayOf<Variant> c = [new Variant(1)]; // or
     ArrayOf<Variant> c = default; c = c.Add(new Variant(1)); // or
@@ -193,10 +216,9 @@ In some cases it is desirable to gain access to what was returned from the now o
 
 To perform conversion from `<T>` to a Variant, helper methods are available in `VariantHelper` static class. These helper methods are split into ones that use reflection and ones that do not. Overall, use of these helper methods is not recommended in favor of switching on the type information in the Variant.
 
-> (*) Note that Enumerations while sized always below or equal 8 bytes are only stored "unboxed" in .net 8 or higher, but boxed in .net framework due to missing APIs.
-> `DateTimeUtc` is always stored unboxed.
+> `DateTimeUtc` and `EnumValue` are always stored unboxed inside a Variant. However, converting a enum (`System.Enum`) to an EnumValue requires boxing on .net standard and .net framework.
 > All other built in value types (`ExtensionObject`, `NodeId`, `QualifiedName`, `LocalizedText`, `Uuid`, etc.) are > 8 bytes in size and are therefore boxed when stored inside a Variant.
-> `ArrayOf` is stored *spliced* inside the Variant (where the array pointer is stored in the object, and length/offset inside the union).
+> Future improvements will make certain types like `ArrayOf` be stored *spliced* inside the Variant (where the array pointer is stored in the object, and length/offset inside the union).
 
 ##### Replacement of all use of System.Object in generated code and API
 
@@ -232,6 +254,23 @@ To migrate, perform the following general replacements in your code:
 Previously the `XmlElement` built in type was represented by the `System.Xml.XmlElement` system type. While officially a deprecated, there is now a value type `XmlElement` that merely wraps a string but provides conversion operations to `System.Xml.XmlElement` and `System.Linq.Xml.XNode` as well as validation and equality/hashing operations. Normally you just need to remove `using System.Xml` and code continues working as is.  If you need to have access to the `System.Xml.XmlElement` cast or use the `ToXmlElement` method.
 
 > `XmlElement` types are compared via a normalized version of the XML `string` contained, which removes all whitespace before comparing. This can result in some ambiguity, but operates well enough for test operations. For complete equality, cast to XNode and use `DeepEquals`.
+
+#### EnumValue to represent the enumeration built in type
+
+`EnumValue` bundles a symbol with a integer value (same as `StatusCode`). While most API works with standard .net `enum` types, these do not work in scenarios where the enum value is the result of a `EnumDefinition`. For these
+cases the `EnumValue` overloads provide a similar experience to using `enum`. In addition, the `EnumValue` type
+allows more efficient storage inside `Variant`. For this case, `Variant(Enum)` constructor, `IEquatable<Enum>`, and `operator ==/!=(Variant, Enum)` do not exist anymore. 
+
+Change code as follows:
+
+```csharp
+// Before
+Variant v = new Variant(MyEnum.Value);
+// After
+Variant v = EnumValue.From(MyEnum.Value); // or
+Variant v = new Variant(EnumValue.From(MyEnum.Value)); // or
+Variant v = Variant.From(MyEnum.Value);
+```
 
 #### Other Data Types
 
@@ -296,6 +335,13 @@ The `IEncoder` and `IDecoder` interfaces have changed to use `ArrayOf<T>` instea
 
 Furthermore, `ReadArray`/`WriteArray` methods have been removed. A new `ReadVariantValue` and `WriteVariantValue` method has been added to write "only" the content (Value) of a Variant, or read the value using `TypeInfo` information. Neither supports `DiagnosticInfo` but also supports writing and reading scalar values. The return type is Variant. To read a `TypeInfo.Scalars.Variant` use ReadVariant instead because a Variant cannot contain a scalar Variant.
 
+In addition to the generic Write/ReadEnumerated, the non-generic `EnumValue` variants were also added.
+
+- `IEncoder`: `WriteEnumerated(string, EnumValue)`, `WriteEnumeratedArray(string, ArrayOf<EnumValue>)`
+- `IDecoder`: `ReadEnumerated(string)` returning `EnumValue`, `ReadEnumeratedArray(string)` returning `ArrayOf<EnumValue>`
+
+Custom encoder/decoder implementations must adjust to comply with the new interfaces.
+
 **Change code as follows:**
 
 - Change all `ReadEncodeable`/`WriteEncodeable` calls to use the type as part of the generic expression. E.g. `ReadEncodeable("field", typeof(T))` to `ReadEncodeable<T>("field")` and `WriteEncodeable("field", value, typeof(T))` to `WriteEncodeable("field", value)`. If value is a type that cannot be created using a parameterless constructor, pass the type id as last argument.
@@ -309,15 +355,15 @@ Furthermore, `ReadArray`/`WriteArray` methods have been removed. A new `ReadVari
 With the changes to Variant, the generic node state classes reflecting the inner value of the variant "value" have been changed to not rely on "casting" from object to T. The conversion is "baked in" when creating an instance of a typed state using a "builder" struct. Whether the value is scalar, array or matrix is irrelevant to which builder to use. There are 3 situations and the respective builder struct to use:
 
 1. T is a built in type -> use `VariantBuilder`
-2. T is a instance of IEncodeable (a complex structure) -> Use `StructureBuilder<T>` where T is the name of the structure.
+2. T is a instance of `IEncodeable` (a complex structure) -> Use `StructureBuilder<T>` where T is the name of the structure.
 3. T is an instance of Enum (an enumeration) -> Use `EnumBuilder<T>` where T is the name fo the enumeration type.
 
 E.g. to create an instance of a `PropertyState<T>` where T is `ArrayOf<ExtensionObject>` use
 
 ``` csharp
-    var state = new PropertyState<ArrayOf<ExtensionObjecct>>.Implementation<VariantBuilder>(parent)
+    var state = new PropertyState<ArrayOf<ExtensionObject>>.Implementation<VariantBuilder>(parent)
     // or
-    var state = PropertyState<ArrayOf<ExtensionObjecct>>.With<VariantBuilder>(parent)
+    var state = PropertyState<ArrayOf<ExtensionObject>>.With<VariantBuilder>(parent)
 ```
 
 To create an instance of a `PropertyState<T>` where T is `Argument` (an IEncodeable type) use
@@ -440,11 +486,147 @@ See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more info
    - `X509IdentityTokenHandler`
    - `IssuedIdentityTokenHandler`
 
+### Serialization and Configuration
+
+Because **Data Contract serialization** is not AOT compliant and does not support trimming, all use of `DataContract` in the configuration has been removed. Instead, the source generator enables generating *IEncodeable* implementations using the `DataType` and `DataTypeField` attributes which are now consequently used for all configuration. Because the configuration is now `IEncodeable` the existing encoders and decoders (in particular the new `XmlParser` which parses Xml and allows out of order fields) compliant with Part 6 can be used to serialize and deserialize all configuration and configuration extensions.
+
+> Generated Data types still support DataContract based serialization, however, consider this a deprecated feature.
+
+#### DataContract to DataType migration
+
+All configuration DTO classes (`ApplicationConfiguration`, `ServerConfiguration`, `TraceConfiguration`, `TransportConfiguration`, `ServerSecurityPolicy`, `OAuth2ServerSettings`, `OAuth2Credential`, `GlobalDiscoveryServerConfiguration`, `CertificateGroupConfiguration`, `BrowserOptions`, etc.) migrated from `[DataContract]`/`[DataMember]` to source-generated `[DataType]`/`[DataTypeField]` attributes and are now `partial` classes.
+
+**Change code as follows:**
+
+- Replace `[DataContract(Namespace = ...)]` with `[DataType(Namespace = ...)]` and `[DataMember(...)]` with `[DataTypeField(...)]` on custom configuration subtypes.
+- Add the `partial` keyword to any subclass of these configuration types.
+- Custom configuration extension types must implement `IEncodeable` (the `[DataType]` source generator handles this automatically for `partial` classes).
+- Code using reflection to inspect `[DataContract]`/`[DataMember]` attributes must switch to `[DataType]`/`[DataTypeField]`.
+
+#### Configuration collection types removed
+
+All `List<T>`-based collection wrappers for configuration types have been removed and replaced with `ArrayOf<T>`: `ServerSecurityPolicyCollection`, `TransportConfigurationCollection`, `SamplingRateGroupCollection`, `ReverseConnectClientCollection`, `ReverseConnectClientEndpointCollection`, `ServerRegistrationCollection`, `CertificateIdentifierCollection`, `CertificateGroupConfigurationCollection`, `OAuth2ServerSettingsCollection`, `OAuth2CredentialCollection`.
+
+See the [ArrayOf and MatrixOf](#arrayof-and-matrixof) section for migration guidance on using `ArrayOf<T>`.
+
+#### DataContractSerializer replaced
+
+`DataContractSerializer` has been removed from config loading and persistence paths:
+
+- `ApplicationConfiguration.LoadWithNoValidation` uses `XmlParser`/`IEncodeable.Decode()`. Existing XML config files should remain loadable.
+- Browser and session state persistence switched from XML to OPC UA Binary encoding. **Old persisted files cannot be loaded** — delete and re-save.
+- `SecuredApplication` uses `SecuredApplicationEncoding` helpers instead of `DataContractSerializer`.
+
+#### Newtonsoft.Json removed from Opc.Ua.Core
+
+`Newtonsoft.Json` is no longer a dependency of `Opc.Ua.Core`. Projects relying on its transitive availability must add an explicit reference:
+
+```xml
+<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+```
+
+#### ParseExtension/UpdateExtension signature changed
+
+`ParseExtension<T>()` and `UpdateExtension<T>()` now require `T` to implement `IEncodeable`. New delegate-based overloads were added for custom decoding:
+
+```csharp
+// Generic overload (T must implement IEncodeable)
+var config = configuration.ParseExtension<MyConfig>();
+
+// Delegate overload for custom decoding
+var config = configuration.ParseExtension<MyConfig>(
+    new XmlQualifiedName("MyConfig", myNamespace),
+    decoder => { var c = new MyConfig(); c.Decode(decoder); return c; });
+```
+
+### NodeState Cloning and Lifecycle
+
+#### Clone() replaced with CreateCopy()
+
+`NodeState.Clone()` is now a concrete method that calls `CreateCopy()` + `CopyTo()`. The new `protected abstract NodeState CreateCopy()` must be overridden by all direct NodeState subclasses.
+
+```csharp
+// Before
+public override object Clone()
+{
+    var clone = new MyNodeState(Parent);
+    CopyTo(clone);
+    return clone;
+}
+
+// After
+protected override NodeState CreateCopy()
+{
+    return new MyNodeState(Parent);
+}
+```
+
+If you had custom deep-copy logic beyond what `CopyTo()` does, override `CopyTo()` instead.
+
+#### BaseVariableState Read/Write helpers removed
+
+The `protected ServiceResult Read(object, ref object)` and `protected object Write(object)` methods were removed.
+Use the `CopyPolicy` property or the new `CopyOnWrite` bool directly with `CoreUtils.Clone()` for copy-on-read/write semantics.
+
+#### OnAfterCreate gains CancellationToken
+
+`OnAfterCreate(ISystemContext, NodeState)` now has an optional `CancellationToken ct = default` parameter.
+Existing overrides compile (source-compatible) but are **binary-incompatible** — pre-compiled assemblies won't match at runtime.
+
+```csharp
+protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
+{
+    base.OnAfterCreate(context, node, ct);
+}
+```
+
+### Encodeable Factory and Type System
+
+#### IType hierarchy
+
+New type abstraction layer: `IType` (base) with `IBuiltInType`, `IEnumeratedType` (new), and `IEncodeableType` (now extends `IType`). Many APIs return `IType` instead of `Type`:
+
+- `TypeInfo.GetSystemType(ExpandedNodeId, IEncodeableTypeLookup)` → returns `IType` (was `Type`). Use `.Type` property to get the CLR `Type`.
+- The overload `TypeInfo.GetSystemType(BuiltInType, int valueRank)` was removed.
+
+#### IEncodeableTypeLookup changes
+
+- `TryGetEncodeableType<T>()` removed.
+- Added: `TryGetEnumeratedType(ExpandedNodeId, out IEnumeratedType?)`, `TryGetType(XmlQualifiedName, out IType?)`.
+
+#### IEncodeableFactoryBuilder changes
+
+- `AddEncodeableType(ExpandedNodeId, Type)` → renamed to `AddType(ExpandedNodeId, Type)`.
+- Added: `AddEnumeratedType(IEnumeratedType)`, `AddEnumeratedType(ExpandedNodeId, IEnumeratedType)`.
+- `AddEncodeableType(Type)` and `AddEncodeableTypes(Assembly)` now have AOT annotations (`[DynamicallyAccessedMembers]`, `[RequiresUnreferencedCode]`).
+
+#### EncodeableFactory.GlobalFactory removed
+
+The `[Obsolete]` static `EncodeableFactory.GlobalFactory` was removed. `EncodeableFactory.Create()` renamed to `Fork()`. Use `ServiceMessageContext.Factory` instead.
+
+#### ExtensionObject array helpers changed
+
+`ExtensionObject.ToArray(object, Type)` and `ToList<T>(object)` removed. Use `extensionObjects.GetStructuresOf<T>()` or `ExtensionObject.ToArray<T>(ArrayOf<ExtensionObject>)`.
+
+### Complex Types
+
+#### ComplexTypes moved to Opc.Ua.Client assembly
+
+Core complex type interfaces and default (non-reflection-emit) implementations moved from `Opc.Ua.Client.ComplexTypes` to `Libraries/Opc.Ua.Client/ComplexTypes/`.
+Namespace remains `Opc.Ua.Client.ComplexTypes`. If you used the default constructors without specifying the builder, and want to use the Reflection.Emit based type builders,
+you need to change your code to call `ComplexTypeSystem.Create(...)` instead of `new ComplexTypeSystem(...)` which now uses the new default builder not supporting Reflection.Emit.
+
+### Other Breaking Changes
+
+- **Session/Browser state format**: Persistence switched from `DataContractSerializer` XML to `BinaryEncoder`. Delete old persisted files and re-establish sessions.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default
 
-The server now supports AsyncNodeManagers, see [Server Async (TAP) Support](Docs/AsyncServerSupport.md). The client APIs are async by default and all synchronous and APM based API has been deprecated. To migrate update your code to use the Async version of all API if possible. Not recommended but for expedience sake you can use the Async version and make it sync by appending `GetAwaiter().GetResult()` to it.
+The server now supports AsyncNodeManagers, see [Server Async (TAP) Support](Docs/AsyncServerSupport.md). The client APIs are async by default and all synchronous and APM
+based API has been deprecated. To migrate update your code to use the Async version of all API if possible. Not recommended but for expedience sake you can use the Async
+version and make it sync by appending `GetAwaiter().GetResult()` to it.
 
 ### Observability
 

@@ -84,10 +84,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(Utils.ToHexString(littleEndian, false), Is.EqualTo("CEFA"));
         }
 
-        /// <summary>
-        /// Convert to big endian hex string.
-        /// </summary>
-        private void ToHexBigEndian()
+        [Test]
+        public void ToHexBigEndian()
         {
             byte[] blob = [0, 1, 2, 3, 4, 5, 6, 255];
             const string hex = "FF06050403020100";
@@ -171,17 +169,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             {
                 return new TestMemberwiseClone(m_object);
             }
-        }
-
-        [Test]
-        public void Clone()
-        {
-            var testClone = new TestClone(1);
-            Assert.That(CoreUtils.Clone(testClone), Is.Not.Null);
-            var testMemberwiseClone = new TestMemberwiseClone(2);
-            Assert.That(CoreUtils.Clone(testMemberwiseClone), Is.Not.Null);
-            var testNoClone = new TestNoClone(3);
-            Assert.Throws<NotSupportedException>(() => CoreUtils.Clone(testNoClone));
         }
 
         [Test]

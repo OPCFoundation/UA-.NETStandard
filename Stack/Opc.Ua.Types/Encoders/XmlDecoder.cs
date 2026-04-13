@@ -323,7 +323,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public T DecodeMessage<T>() where T : IEncodeable
         {
-            if (!Context.Factory.TryGetEncodeableType<T>(out IEncodeableType activator))
+            XmlQualifiedName typeName = Peek(XmlNodeType.Element);
+            if (!Context.Factory.TryGetType(typeName, out IType type) ||
+                type is not IEncodeableType activator)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -331,10 +333,7 @@ namespace Opc.Ua
                     typeof(T));
             }
 
-            XmlQualifiedName typeName = activator.XmlName;
-            string ns = typeName.Namespace;
             string name = typeName.Name;
-
             int index = name.IndexOf(':', StringComparison.Ordinal);
 
             if (index != -1)
@@ -342,7 +341,7 @@ namespace Opc.Ua
                 name = name[(index + 1)..];
             }
 
-            PushNamespace(ns);
+            PushNamespace(typeName.Namespace);
 
             // read the message.
             T encodeable = ReadEncodeable(name, (T)activator.CreateInstance());
@@ -1081,6 +1080,52 @@ namespace Opc.Ua
 #else
                             value = (T)Enum.Parse(typeof(T), xml, false);
 #endif
+                        }
+                    }
+                    catch (Exception ex) when (ex is
+                        ArgumentException or
+                        FormatException or
+                        OverflowException)
+                    {
+                        throw CreateBadDecodingError(fieldName, ex, value: xml);
+                    }
+                }
+
+                EndField(fieldName);
+            }
+
+            return value;
+        }
+
+        /// <inheritdoc/>
+        public EnumValue ReadEnumerated(string fieldName)
+        {
+            EnumValue value = default;
+
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    int index = xml.LastIndexOf('_');
+
+                    try
+                    {
+                        if (index != -1)
+                        {
+                            int numericValue = Convert.ToInt32(
+                                xml[(index + 1)..],
+                                CultureInfo.InvariantCulture);
+                            value = new EnumValue(numericValue, xml[..index]);
+                        }
+                        else if (int.TryParse(xml, out var numeric))
+                        {
+                            value = (EnumValue)numeric;
+                        }
+                        else
+                        {
+                            value = new EnumValue(0, xml);
                         }
                     }
                     catch (Exception ex) when (ex is
@@ -1947,6 +1992,37 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public ArrayOf<EnumValue> ReadEnumeratedArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var enums = new List<EnumValue>();
+
+                // TODO: We need to blindly discover the structure of the enumeration array
+                // We peek the first element and push the namespace, then move to it. But
+                // what if there is no first element?  We need test coverage here.
+                XmlQualifiedName xmlName = Peek(XmlNodeType.Element);
+                PushNamespace(xmlName.Namespace);
+
+                while (MoveToElement(xmlName.Name))
+                {
+                    enums.Add(ReadEnumerated(xmlName.Name));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < enums.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+                EndField(fieldName);
+                return enums.ToArrayOf();
+            }
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
         public uint ReadSwitchField(IList<string> switches, out string fieldName)
         {
             fieldName = null;
@@ -1957,6 +2033,12 @@ namespace Opc.Ua
         public uint ReadEncodingMask(IList<string> masks)
         {
             return ReadUInt32("EncodingMask");
+        }
+
+        /// <inheritdoc/>
+        public bool HasField(string fieldName)
+        {
+            return Peek(fieldName);
         }
 
         /// <inheritdoc/>
