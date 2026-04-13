@@ -35,6 +35,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -1363,9 +1364,9 @@ namespace Quickstarts
                 textbuffer = jsonEncoder.CloseAndReturnText();
             }
 
-            using var doc = System.Text.Json.JsonDocument.Parse(textbuffer);
+            using var doc = JsonDocument.Parse(textbuffer);
             using var stream = new MemoryStream();
-            using (var writer = new System.Text.Json.Utf8JsonWriter(stream, new System.Text.Json.JsonWriterOptions
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions
             {
                 Indented = true
             }))

@@ -27,9 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System.Collections.Generic;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua
 {
     /// <summary>
     /// Interface to access properties of a complex type.

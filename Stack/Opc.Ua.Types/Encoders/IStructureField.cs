@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.ComplexTypes
+#nullable enable
+
+namespace Opc.Ua
 {
     /// <summary>
     /// Field of a <see cref="IStructure"/>

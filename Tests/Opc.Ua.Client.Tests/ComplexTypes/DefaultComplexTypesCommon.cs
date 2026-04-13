@@ -38,7 +38,7 @@ using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Core.Tests.Types.Encoders;
 using Opc.Ua.Test;
 
-using ComplexStructure = Opc.Ua.Client.ComplexTypes.Structure;
+using ComplexStructure = Opc.Ua.Encoders.Structure;
 
 namespace Opc.Ua.Client.Tests.ComplexTypes
 {
@@ -248,11 +248,11 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             NamespaceTable namespaceUris)
         {
             int index = 0;
-            foreach (Field property in structType.GetPropertyEnumerator())
+            foreach (IStructureField property in structType.GetFields())
             {
-                BuiltInType builtInType = property.BuiltInType;
+                BuiltInType builtInType = property.TypeInfo.BuiltInType;
                 Variant newObj = randomValues
-                    ? DataGenerator.GetRandomVariant(property.TypeInfo.BuiltInType, !property.TypeInfo.IsScalar)
+                    ? DataGenerator.GetRandomVariant(builtInType, !property.TypeInfo.IsScalar)
                     : Variant.CreateDefault(TypeInfo.Create(builtInType, property.TypeInfo.ValueRank));
                 if (newObj.IsNull)
                 {
@@ -352,6 +352,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
         /// <summary>
         /// Create an ExtensionObject for a complex type.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         protected ExtensionObject CreateExtensionObject(
             StructureType structureType,
             ExpandedNodeId nodeId,

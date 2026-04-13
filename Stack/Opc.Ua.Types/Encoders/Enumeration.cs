@@ -27,61 +27,72 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
+using System;
 using System.Xml;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.Encoders
 {
     /// <summary>
-    /// Default complex type builder
+    /// Enumeration wrapping an enum definition
     /// </summary>
-    internal sealed class DefaultComplexTypeBuilder : IComplexTypeBuilder
+    public sealed class Enumeration : IEnumeratedType
     {
         /// <summary>
-        /// Create type builder
+        /// Create enumeration
         /// </summary>
-        public DefaultComplexTypeBuilder(
-            DefaultComplexTypeFactory defaultComplexTypeFactory,
-            string targetNamespace,
-            int targetNamespaceIndex)
+        public Enumeration(XmlQualifiedName name, EnumDefinition definition)
         {
-            TargetNamespace = targetNamespace;
-            TargetNamespaceIndex = targetNamespaceIndex;
-            m_defaultComplexTypeFactory = defaultComplexTypeFactory;
+            m_definition = definition;
+            XmlName = name;
         }
 
         /// <inheritdoc/>
-        public string TargetNamespace { get; }
-
-        /// <inheritdoc/>
-        public int TargetNamespaceIndex { get; }
-
-        /// <inheritdoc/>
-        public IEnumeratedType AddEnumType(
-            QualifiedName typeName,
-            EnumDefinition enumDefinition)
+        public EnumValue Default
         {
-            var xmlName = new XmlQualifiedName(typeName.Name, TargetNamespace);
-            var type = new Encoders.Enumeration(xmlName, enumDefinition);
-            OnTypeCreated(type);
-            return type;
+            get
+            {
+                if (m_definition.Fields.IsEmpty)
+                {
+                    return default;
+                }
+                return new EnumValue((int)m_definition.Fields[0].Value, this);
+            }
         }
 
         /// <inheritdoc/>
-        public IComplexTypeFieldBuilder AddStructuredType(
-            QualifiedName name,
-            StructureDefinition structureDefinition)
+        public Type Type => typeof(Enumeration);
+
+        /// <inheritdoc/>
+        public XmlQualifiedName XmlName { get; }
+
+        /// <inheritdoc/>
+        public bool TryGetSymbol(int value, out string? symbol)
         {
-            return new DefaultComplexTypeFieldBuilder(this, name, structureDefinition);
+            EnumField found = m_definition.Fields.Find(e => e.Value == value);
+            if (found?.Name != null)
+            {
+                symbol = found.Name;
+                return true;
+            }
+            symbol = default;
+            return false;
         }
 
-        /// <summary>
-        /// Type created
-        /// </summary>
-        internal void OnTypeCreated(IType type)
+        /// <inheritdoc/>
+        public bool TryGetValue(string symbol, out int value)
         {
-            m_defaultComplexTypeFactory.OnTypeCreated(type);
+            EnumField found = m_definition.Fields.Find(e => e.Name == symbol);
+            if (found != null)
+            {
+                value = (int)found.Value;
+                return true;
+            }
+            value = default;
+            return false;
         }
 
-        private readonly DefaultComplexTypeFactory m_defaultComplexTypeFactory;
+        private readonly EnumDefinition m_definition;
     }
 }

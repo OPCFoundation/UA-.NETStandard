@@ -99,7 +99,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 case StructureType.Structure:
                 case StructureType.StructureWithSubtypedValues:
-                    m_structureToBuild = new Structure(
+                    m_structureToBuild = new Encoders.Structure(
                         xmlName,
                         m_typeId,
                         m_binaryEncodingId,
@@ -108,7 +108,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         m_fieldTypes);
                     break;
                 case StructureType.StructureWithOptionalFields:
-                    m_structureToBuild = new StructureWithOptionalFields(
+                    m_structureToBuild = new Encoders.StructureWithOptionalFields(
                         xmlName,
                         m_typeId,
                         m_binaryEncodingId,
@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     break;
                 case StructureType.Union:
                 case StructureType.UnionWithSubtypedValues:
-                    m_structureToBuild = new Union(
+                    m_structureToBuild = new Encoders.Union(
                         xmlName,
                         m_typeId,
                         m_binaryEncodingId,
@@ -142,7 +142,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         private readonly Dictionary<string, BuiltInType> m_fieldTypes = [];
-        private Structure? m_structureToBuild;
+        private Encoders.Structure? m_structureToBuild;
         private ExpandedNodeId m_typeId;
         private ExpandedNodeId m_binaryEncodingId;
         private ExpandedNodeId m_xmlEncodingId;

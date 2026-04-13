@@ -27,12 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.Encoders
 {
     /// <summary>
     /// A complex type with optional fields.
@@ -61,7 +63,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             // build optional field mask attribute
             uint optionalFieldMask = 1;
-            foreach (Field property in GetPropertyEnumerator())
+            foreach (Field property in PropertyList)
             {
                 property.OptionalFieldMask = 0;
                 if (property.IsOptional)
@@ -114,7 +116,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             encoder.WriteEncodingMask(EncodingMask);
 
-            foreach (Field property in GetPropertyEnumerator())
+            foreach (Field property in PropertyList)
             {
                 if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                 {
@@ -137,7 +139,7 @@ namespace Opc.Ua.Client.ComplexTypes
             if (EncodingMask == 0 && decoder is JsonDecoder)
             {
                 var masks = new List<string>();
-                foreach (Field property in GetPropertyEnumerator())
+                foreach (Field property in PropertyList)
                 {
                     if (property.IsOptional)
                     {
@@ -148,7 +150,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 EncodingMask = decoder.ReadEncodingMask(masks);
             }
 
-            foreach (Field property in GetPropertyEnumerator())
+            foreach (Field property in PropertyList)
             {
                 if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                 {
@@ -207,7 +209,7 @@ namespace Opc.Ua.Client.ComplexTypes
             if (format == null)
             {
                 var body = new StringBuilder();
-                foreach (Field property in GetPropertyEnumerator())
+                foreach (Field property in PropertyList)
                 {
                     if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                     {
@@ -233,7 +235,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return "(null)";
             }
 
-            throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
         /// <inheritdoc/>
