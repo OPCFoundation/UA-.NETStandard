@@ -103,7 +103,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void ValidationOptionsDefaultsToZero()
         {
             var id = new CertificateIdentifier();
-            Assert.That(id.ValidationOptions, Is.Zero);
+            Assert.That(id.ValidationOptions, Is.EqualTo(CertificateValidationOptions.Default));
         }
 
         [Test]
