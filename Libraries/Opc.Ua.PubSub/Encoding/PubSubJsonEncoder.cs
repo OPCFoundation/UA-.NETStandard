@@ -1951,7 +1951,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Writes an enumerated EnuMValue value to the stream.
+        /// Writes an enumerated EnumValue value to the stream.
         /// </summary>
         public void WriteEnumerated(string fieldName, EnumValue value)
         {

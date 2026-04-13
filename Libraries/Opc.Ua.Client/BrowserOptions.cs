@@ -69,12 +69,12 @@ namespace Opc.Ua.Client
         /// The reference type to follow.
         /// </summary>
         [DataTypeField(Order = 4)]
-        public NodeId ReferenceTypeId { get; set; } = NodeId.Null;
+        public NodeId ReferenceTypeId { get; set; }
 
         /// <summary>
         /// Whether subtypes of the reference type should be included.
         /// </summary>
-        [DataTypeField(Order = 5)]
+        [DataTypeField(Order = 5, DefaultValueHandling = DefaultValueHandling.Emit)]
         public bool IncludeSubtypes { get; set; } = true;
 
         /// <summary>

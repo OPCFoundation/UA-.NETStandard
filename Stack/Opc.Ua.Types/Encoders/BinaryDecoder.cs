@@ -707,7 +707,8 @@ namespace Opc.Ua
                 extension.TypeId,
                 out IEncodeableType activator))
             {
-                m_logger.LogDebug("Failed to retrieve activator for extension");
+                m_logger.LogDebug("Failed to retrieve activator for extension object.");
+                // Continue without registered type by reading the binary blob for later.
             }
 
             // check for XML bodies.

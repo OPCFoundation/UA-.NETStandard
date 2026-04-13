@@ -73,7 +73,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 null => throw new InvalidOperationException(
                     $"Null field type for field '{field.Name}' with DataType '{field.DataType}'"),
                 _ => throw new InvalidOperationException(
-                    $"Unknown field type '{fieldType.GetType().Name}' for field '{field.Name}'" +
+                    $"Unknown field type '{fieldType.XmlName?.Name}' for field '{field.Name}'" +
                     $" with DataType '{field.DataType}'")
             };
         }
@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         m_xmlEncodingId,
                         m_structureDefinition,
                         m_fieldTypes,
-                        0);  // TODO: switch field?
+                        0);
                     break;
             }
             if (m_structureToBuild != null)

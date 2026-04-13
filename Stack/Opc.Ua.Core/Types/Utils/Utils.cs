@@ -1406,7 +1406,8 @@ namespace Opc.Ua
             {
                 System.Xml.XmlElement element = extensions[ii].AsXmlElement();
 
-                if (element.LocalName != elementName.Name ||
+                if (element == null ||
+                    element.LocalName != elementName.Name ||
                     element.NamespaceURI != elementName.Namespace)
                 {
                     continue;
@@ -1462,6 +1463,11 @@ namespace Opc.Ua
                 encoder.Pop();
                 string xml = encoder.CloseAndReturnText();
                 document.LoadInnerXml(xml);
+            }
+
+            if (document.DocumentElement == null)
+            {
+                return;
             }
 
             var xmlElements = extensions.ToList();
@@ -1526,7 +1532,8 @@ namespace Opc.Ua
             {
                 System.Xml.XmlElement element = extensions[ii].AsXmlElement();
 
-                if (element.LocalName != elementName.Name ||
+                if (element == null ||
+                    element.LocalName != elementName.Name ||
                     element.NamespaceURI != elementName.Namespace)
                 {
                     continue;
@@ -1576,6 +1583,11 @@ namespace Opc.Ua
                 encoder.Pop();
                 string xml = encoder.CloseAndReturnText();
                 document.LoadInnerXml(xml);
+            }
+
+            if (document.DocumentElement == null)
+            {
+                return;
             }
 
             var xmlElements = extensions.ToList();

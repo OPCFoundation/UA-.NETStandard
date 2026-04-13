@@ -208,10 +208,7 @@ namespace Opc.Ua.Aot.Tests
                 .GetCertificateGroupsAsync(id)
                 .ConfigureAwait(false);
 
-            await Assert.That(groups.IsNull).IsFalse();
-            // Certificate groups may be empty in the AOT test config
-            // since the programmatic setup doesn't configure CA certs.
-            await Assert.That(groups.Count).IsGreaterThanOrEqualTo(0);
+            await Assert.That(groups.IsEmpty).IsFalse();
 
             // cleanup
             await fixture.GdsClient

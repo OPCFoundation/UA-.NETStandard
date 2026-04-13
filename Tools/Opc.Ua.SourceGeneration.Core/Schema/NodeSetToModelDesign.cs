@@ -1304,14 +1304,11 @@ namespace Opc.Ua.Schema.Model
                 return null;
             }
 
-            foreach (UANode ii in nodeset.Items)
-            {
-                NodeId id = ImportNodeId(ii.NodeId, true);
+            var nodeId = ExpandedNodeId.ToNodeId(targetId, m_settings.NamespaceUris);
 
-                if (id == targetId)
-                {
-                    return ii;
-                }
+            if (!nodeId.IsNull && m_index.TryGetValue(nodeId, out UANode node))
+            {
+                return node;
             }
 
             return null;
@@ -1822,6 +1819,18 @@ namespace Opc.Ua.Schema.Model
                             {
                                 instance.ParentNodeId = ii.Value;
                                 break;
+                            }
+                        }
+
+                        // ensure inferred parents are in the same namespace.
+                        if (instance.ParentNodeId != null)
+                        {
+                            NodeId parentId = ImportNodeId(instance.ParentNodeId);
+                            NodeId childId = ImportNodeId(instance.NodeId);
+
+                            if (parentId.NamespaceIndex != childId.NamespaceIndex)
+                            {
+                                instance.ParentNodeId = null;
                             }
                         }
                     }

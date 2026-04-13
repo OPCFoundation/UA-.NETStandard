@@ -336,14 +336,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    try
-                    {
-                        configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType, [telemetry]);
-                    }
-                    catch
-                    {
-                        configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType);
-                    }
+                    configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType, [telemetry]);
                 }
 
                 configuration.Decode(parser);
@@ -534,14 +527,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    try
-                    {
-                        configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType, [telemetry]);
-                    }
-                    catch
-                    {
-                        configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType);
-                    }
+                    configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType, [telemetry]);
                 }
                 configuration.Decode(parser);
                 configuration.ServerConfiguration?.ValidateSecurityPolicies();
