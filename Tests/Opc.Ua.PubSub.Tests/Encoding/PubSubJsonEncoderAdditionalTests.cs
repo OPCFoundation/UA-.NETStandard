@@ -1121,7 +1121,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             using var encoder = new PubSubJsonEncoder(m_context, useReversibleEncoding: true);
             encoder.PushStructure(null);
-            encoder.WriteByteString("BS", new byte[] { 0x01, 0x02, 0x03 });
+            encoder.WriteByteString("BS", (ByteString)new byte[] { 0x01, 0x02, 0x03 });
             encoder.PopStructure();
 
             string result = encoder.CloseAndReturnText();

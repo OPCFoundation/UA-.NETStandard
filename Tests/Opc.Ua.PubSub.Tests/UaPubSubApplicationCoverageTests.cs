@@ -1,0 +1,281 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.IO;
+using NUnit.Framework;
+using Opc.Ua.Tests;
+
+namespace Opc.Ua.PubSub.Tests
+{
+    [TestFixture(Description = "Coverage tests for UaPubSubApplication class")]
+    public class UaPubSubApplicationCoverageTests
+    {
+        private static readonly string s_publisherConfigPath =
+            Path.Combine("Configuration", "PublisherConfiguration.xml");
+
+        [Test]
+        public void CreateWithDataStoreReturnsApplication()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            var dataStore = new UaPubSubDataStore();
+            using (var app = UaPubSubApplication.Create(dataStore, telemetry))
+            {
+                Assert.That(app, Is.Not.Null);
+                Assert.That(app.DataStore, Is.SameAs(dataStore));
+            }
+        }
+
+        [Test]
+        public void CreateWithTelemetryOnlyReturnsApplication()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            using (var app = UaPubSubApplication.Create(telemetry))
+            {
+                Assert.That(app, Is.Not.Null);
+            }
+        }
+
+        [Test]
+        public void CreateWithNullConfigReturnsApplication()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            using (var app = UaPubSubApplication.Create(
+                (PubSubConfigurationDataType)null, telemetry))
+            {
+                Assert.That(app, Is.Not.Null);
+            }
+        }
+
+        [Test]
+        public void CreateWithEmptyConfigReturnsEmptyConnections()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            var config = new PubSubConfigurationDataType();
+            using (var app = UaPubSubApplication.Create(config, telemetry))
+            {
+                Assert.That(app, Is.Not.Null);
+                Assert.That(app.PubSubConnections.Count, Is.EqualTo(0));
+            }
+        }
+
+        [Test]
+        public void CreateWithConfigFilePath()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            string configFile = Utils.GetAbsoluteFilePath(
+                s_publisherConfigPath,
+                checkCurrentDirectory: true,
+                createAlways: false);
+            Assert.That(configFile, Is.Not.Null, "Publisher config file not found");
+
+            using (var app = UaPubSubApplication.Create(configFile, telemetry))
+            {
+                Assert.That(app, Is.Not.Null);
+                Assert.That(app.PubSubConnections.Count, Is.GreaterThanOrEqualTo(0));
+            }
+        }
+
+        [Test]
+        public void CreateWithNullFilePathThrowsArgumentNullException()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            Assert.That(
+                () => UaPubSubApplication.Create((string)null, telemetry),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void CreateWithNonExistentFilePathThrowsArgumentException()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            Assert.That(
+                () => UaPubSubApplication.Create("NonExistentFile.xml", telemetry),
+                Throws.TypeOf<ArgumentException>());
+        }
+
+        [Test]
+        public void ApplicationIdIsNotNullOrEmpty()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            using (var app = UaPubSubApplication.Create(telemetry))
+            {
+                Assert.That(app.ApplicationId, Is.Not.Null.And.Not.Empty);
+            }
+        }
+
+        [Test]
+        public void ApplicationIdCanBeSet()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            using (var app = UaPubSubApplication.Create(telemetry))
+            {
+                string newId = "TestApplicationId";
+                app.ApplicationId = newId;
+                Assert.That(app.ApplicationId, Is.EqualTo(newId));
+            }
+        }
+
+        [Test]
+        public void SupportedTransportProfilesHasThreeEntries()
+        {
+            string[] profiles = UaPubSubApplication.SupportedTransportProfiles;
+            Assert.That(profiles, Is.Not.Null);
+            Assert.That(profiles, Has.Length.EqualTo(3));
+        }
+
+        [Test]
+        public void DataStoreIsNotNull()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            using (var app = UaPubSubApplication.Create(telemetry))
+            {
+                Assert.That(app.DataStore, Is.Not.Null);
+            }
+        }
+
+        [Test]
+        public void UaPubSubConfiguratorIsNotNull()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            using (var app = UaPubSubApplication.Create(telemetry))
+            {
+                Assert.That(app.UaPubSubConfigurator, Is.Not.Null);
+            }
+        }
+
+        [Test]
+        public void PubSubConnectionsIsNotNull()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            using (var app = UaPubSubApplication.Create(telemetry))
+            {
+                Assert.That(app.PubSubConnections.Count, Is.GreaterThanOrEqualTo(0));
+            }
+        }
+
+        [Test]
+        public void StartAndStopDoNotThrowWithNoConnections()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            using (var app = UaPubSubApplication.Create(telemetry))
+            {
+                Assert.That(() => app.Start(), Throws.Nothing);
+                Assert.That(() => app.Stop(), Throws.Nothing);
+            }
+        }
+
+        [Test]
+        public void DisposeDoesNotThrowWithNoConnections()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            var app = UaPubSubApplication.Create(telemetry);
+            Assert.That(() => app.Dispose(), Throws.Nothing);
+        }
+
+        [Test]
+        public void DoubleDisposeDoesNotThrow()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            var app = UaPubSubApplication.Create(telemetry);
+            app.Dispose();
+            Assert.That(() => app.Dispose(), Throws.Nothing);
+        }
+
+        [Test]
+        public void StartAndStopWithConfiguredConnections()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            string configFile = Utils.GetAbsoluteFilePath(
+                s_publisherConfigPath,
+                checkCurrentDirectory: true,
+                createAlways: false);
+            Assert.That(configFile, Is.Not.Null, "Publisher config file not found");
+
+            using (var app = UaPubSubApplication.Create(configFile, telemetry))
+            {
+                Assert.That(() => app.Start(), Throws.Nothing);
+                Assert.That(() => app.Stop(), Throws.Nothing);
+            }
+        }
+
+        [Test]
+        public void DataReceivedEventCanBeSubscribed()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            using (var app = UaPubSubApplication.Create(telemetry))
+            {
+                bool raised = false;
+                app.DataReceived += (sender, args) => raised = true;
+                app.RaiseDataReceivedEvent(new SubscribedDataEventArgs());
+                Assert.That(raised, Is.True);
+            }
+        }
+
+        [Test]
+        public void MetaDataReceivedEventCanBeSubscribed()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            using (var app = UaPubSubApplication.Create(telemetry))
+            {
+                bool raised = false;
+                app.MetaDataReceived += (sender, args) => raised = true;
+                app.RaiseMetaDataReceivedEvent(new SubscribedDataEventArgs());
+                Assert.That(raised, Is.True);
+            }
+        }
+
+        [Test]
+        public void RawDataReceivedEventCanBeSubscribed()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            using (var app = UaPubSubApplication.Create(telemetry))
+            {
+                bool raised = false;
+                app.RawDataReceived += (sender, args) => raised = true;
+                app.RaiseRawDataReceivedEvent(new RawDataReceivedEventArgs());
+                Assert.That(raised, Is.True);
+            }
+        }
+
+        [Test]
+        public void ConfigurationUpdatingEventCanBeSubscribed()
+        {
+            var telemetry = NUnitTelemetryContext.Create();
+            using (var app = UaPubSubApplication.Create(telemetry))
+            {
+                bool raised = false;
+                app.ConfigurationUpdating += (sender, args) => raised = true;
+                app.RaiseConfigurationUpdatingEvent(
+                    new ConfigurationUpdatingEventArgs());
+                Assert.That(raised, Is.True);
+            }
+        }
+    }
+}

@@ -32,6 +32,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.csproj" />
+    <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration.Core\Opc.Ua.SourceGeneration.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Opc.Ua.SourceGeneration.Core.Tests\CompilerUtils.cs" />

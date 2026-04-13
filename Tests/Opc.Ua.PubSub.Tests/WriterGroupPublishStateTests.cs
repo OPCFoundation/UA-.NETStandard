@@ -1,0 +1,233 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using NUnit.Framework;
+using Opc.Ua.PubSub.PublishedData;
+
+namespace Opc.Ua.PubSub.Tests
+{
+    [TestFixture]
+    [Parallelizable]
+    public class WriterGroupPublishStateTests
+    {
+        // Tests HasMetaDataChanged returns false for null metadata
+        [Test]
+        public void HasMetaDataChangedReturnsFalseForNullMetadata()
+        {
+            var state = new WriterGroupPublishState();
+            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+
+            bool result = state.HasMetaDataChanged(writer, null);
+
+            Assert.That(result, Is.False);
+        }
+
+        // Tests ExcludeUnchangedFields returns dataset on first call
+        [Test]
+        public void ExcludeUnchangedFieldsReturnsDataSetOnFirstCall()
+        {
+            var state = new WriterGroupPublishState();
+            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+
+            var dataset = new DataSet("Test")
+            {
+                Fields = new Field[]
+                {
+                    new Field { Value = new DataValue(new Variant(42)) },
+                    new Field { Value = new DataValue(new Variant("hello")) }
+                }
+            };
+
+            var result = state.ExcludeUnchangedFields(writer, dataset);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Is.SameAs(dataset));
+        }
+
+        // Tests ExcludeUnchangedFields returns null when no fields changed
+        [Test]
+        public void ExcludeUnchangedFieldsReturnsNullWhenNoChange()
+        {
+            var state = new WriterGroupPublishState();
+            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+
+            var dataset1 = new DataSet("Test")
+            {
+                Fields = new Field[]
+                {
+                    new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) },
+                    new Field { Value = new DataValue(new Variant("hello"), StatusCodes.Good) }
+                }
+            };
+
+            state.ExcludeUnchangedFields(writer, dataset1);
+
+            var dataset2 = new DataSet("Test")
+            {
+                Fields = new Field[]
+                {
+                    new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) },
+                    new Field { Value = new DataValue(new Variant("hello"), StatusCodes.Good) }
+                }
+            };
+
+            var result = state.ExcludeUnchangedFields(writer, dataset2);
+
+            Assert.That(result, Is.Null);
+        }
+
+        // Tests ExcludeUnchangedFields detects value change
+        [Test]
+        public void ExcludeUnchangedFieldsDetectsValueChange()
+        {
+            var state = new WriterGroupPublishState();
+            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+
+            var dataset1 = new DataSet("Test")
+            {
+                Fields = new Field[]
+                {
+                    new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) },
+                    new Field { Value = new DataValue(new Variant("hello"), StatusCodes.Good) }
+                }
+            };
+
+            state.ExcludeUnchangedFields(writer, dataset1);
+
+            var dataset2 = new DataSet("Test")
+            {
+                Fields = new Field[]
+                {
+                    new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) },
+                    new Field { Value = new DataValue(new Variant("changed"), StatusCodes.Good) }
+                }
+            };
+
+            var result = state.ExcludeUnchangedFields(writer, dataset2);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Fields[0], Is.Null, "Unchanged field should be nulled");
+            Assert.That(result.Fields[1], Is.Not.Null, "Changed field should be kept");
+        }
+
+        // Tests ExcludeUnchangedFields detects status code change
+        [Test]
+        public void ExcludeUnchangedFieldsDetectsStatusCodeChange()
+        {
+            var state = new WriterGroupPublishState();
+            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+
+            var dataset1 = new DataSet("Test")
+            {
+                Fields = new Field[]
+                {
+                    new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) }
+                }
+            };
+
+            state.ExcludeUnchangedFields(writer, dataset1);
+
+            var dataset2 = new DataSet("Test")
+            {
+                Fields = new Field[]
+                {
+                    new Field { Value = new DataValue(new Variant(42), StatusCodes.Bad) }
+                }
+            };
+
+            var result = state.ExcludeUnchangedFields(writer, dataset2);
+
+            Assert.That(result, Is.Not.Null);
+        }
+
+        // Tests ExcludeUnchangedFields handles null field in second dataset
+        [Test]
+        public void ExcludeUnchangedFieldsHandlesNullFieldInSecondDataSet()
+        {
+            var state = new WriterGroupPublishState();
+            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+
+            var dataset1 = new DataSet("Test")
+            {
+                Fields = new Field[]
+                {
+                    new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) },
+                    new Field { Value = new DataValue(new Variant(99), StatusCodes.Good) }
+                }
+            };
+
+            state.ExcludeUnchangedFields(writer, dataset1);
+
+            var dataset2 = new DataSet("Test")
+            {
+                Fields = new Field[]
+                {
+                    null,
+                    new Field { Value = new DataValue(new Variant(99), StatusCodes.Good) }
+                }
+            };
+
+            var result = state.ExcludeUnchangedFields(writer, dataset2);
+
+            Assert.That(result, Is.Not.Null);
+        }
+
+        // Tests ExcludeUnchangedFields handles null field in first (last) dataset
+        [Test]
+        public void ExcludeUnchangedFieldsHandlesNullFieldInLastDataSet()
+        {
+            var state = new WriterGroupPublishState();
+            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+
+            var dataset1 = new DataSet("Test")
+            {
+                Fields = new Field[]
+                {
+                    null,
+                    new Field { Value = new DataValue(new Variant(99), StatusCodes.Good) }
+                }
+            };
+
+            state.ExcludeUnchangedFields(writer, dataset1);
+
+            var dataset2 = new DataSet("Test")
+            {
+                Fields = new Field[]
+                {
+                    new Field { Value = new DataValue(new Variant(42), StatusCodes.Good) },
+                    new Field { Value = new DataValue(new Variant(99), StatusCodes.Good) }
+                }
+            };
+
+            var result = state.ExcludeUnchangedFields(writer, dataset2);
+
+            Assert.That(result, Is.Not.Null);
+        }
+    }
+}
