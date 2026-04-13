@@ -275,42 +275,42 @@ namespace Opc.Ua
             {
                 return null;
             }
-            Type enumType = type.GetEnumUnderlyingType();
-            if (type == typeof(int))
+            Type underlyingType = type.GetEnumUnderlyingType();
+            if (underlyingType == typeof(int))
             {
-                return Enum.ToObject(enumType, value);
+                return Enum.ToObject(type, value);
             }
-            else if (type == typeof(uint))
+            else if (underlyingType == typeof(uint))
             {
-                return Enum.ToObject(enumType, (uint)value);
+                return Enum.ToObject(type, (uint)value);
             }
-            else if (type == typeof(byte))
+            else if (underlyingType == typeof(byte))
             {
-                return Enum.ToObject(enumType, (byte)value);
+                return Enum.ToObject(type, (byte)value);
             }
-            else if (type == typeof(sbyte))
+            else if (underlyingType == typeof(sbyte))
             {
-                return Enum.ToObject(enumType, (sbyte)value);
+                return Enum.ToObject(type, (sbyte)value);
             }
-            else if (type == typeof(short))
+            else if (underlyingType == typeof(short))
             {
-                return Enum.ToObject(enumType, (short)value);
+                return Enum.ToObject(type, (short)value);
             }
-            else if (type == typeof(ushort))
+            else if (underlyingType == typeof(ushort))
             {
-                return Enum.ToObject(enumType, (ushort)value);
+                return Enum.ToObject(type, (ushort)value);
             }
-            else if (type == typeof(long))
+            else if (underlyingType == typeof(long))
             {
-                return Enum.ToObject(enumType, (long)value);
+                return Enum.ToObject(type, (long)value);
             }
-            else if(type == typeof(ulong))
+            else if(underlyingType == typeof(ulong))
             {
-                return Enum.ToObject(enumType, (ulong)value);
+                return Enum.ToObject(type, (ulong)value);
             }
             else
             {
-                return Enum.ToObject(type, value);
+                return Enum.ToObject(underlyingType, value);
             }
         }
 
