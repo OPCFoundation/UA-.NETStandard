@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project>
-  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'Opc.Ua.Client.Tests'">
-    <EnableNETAnalyzers>false</EnableNETAnalyzers>
-    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
-  </PropertyGroup>
-</Project>
