@@ -119,14 +119,35 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                 enumDefinition);
 
             Assert.That(enumType, Is.Not.Null);
-            Assert.That(enumType.Default, Is.EqualTo(default(EnumValue)));
+            Assert.That(enumType.Default.Value, Is.Zero);
+            Assert.That(enumType.Default.Symbol, Is.EqualTo("None"));
         }
 
         /// <summary>
-        /// Verify TryGetSymbol returns false (not yet implemented in Enumeration).
+        /// Verify the default value of an enumeration.
         /// </summary>
         [Test]
-        public void EnumTryGetSymbolNotImplemented()
+        public void EnumDefaultValueWhenValueIsNotZero()
+        {
+            var enumDefinition = new EnumDefinition
+            {
+                Fields =
+                [
+                    new EnumField { Name = "Active", Value = 1 }
+                ]
+            };
+
+            IEnumeratedType enumType = m_builder.AddEnumType(
+                QualifiedName.From("TestStatus"),
+                enumDefinition);
+
+            Assert.That(enumType, Is.Not.Null);
+            Assert.That(enumType.Default.Value, Is.EqualTo(1));
+            Assert.That(enumType.Default.Symbol, Is.EqualTo("Active"));
+        }
+
+        [Test]
+        public void EnumTryGetSymbolTest()
         {
             var enumDefinition = new EnumDefinition
             {
@@ -142,15 +163,20 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                 enumDefinition);
 
             bool result = enumType.TryGetSymbol(0, out string symbol);
+            Assert.That(result, Is.True);
+            Assert.That(symbol, Is.EqualTo("First"));
+
+            result = enumType.TryGetSymbol(1, out symbol);
+            Assert.That(result, Is.True);
+            Assert.That(symbol, Is.EqualTo("Second"));
+
+            result = enumType.TryGetSymbol(3, out symbol);
             Assert.That(result, Is.False);
             Assert.That(symbol, Is.Null);
         }
 
-        /// <summary>
-        /// Verify TryGetValue returns false (not yet implemented in Enumeration).
-        /// </summary>
         [Test]
-        public void EnumTryGetValueNotImplemented()
+        public void EnumTryGetValueTest()
         {
             var enumDefinition = new EnumDefinition
             {
@@ -166,13 +192,18 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                 enumDefinition);
 
             bool result = enumType.TryGetValue("First", out int value);
+            Assert.That(result, Is.True);
+            Assert.That(value, Is.Zero);
+
+            result = enumType.TryGetValue("Second", out value);
+            Assert.That(result, Is.True);
+            Assert.That(value, Is.EqualTo(1));
+
+            result = enumType.TryGetValue("Third", out value);
             Assert.That(result, Is.False);
-            Assert.That(value, Is.EqualTo(0));
+            Assert.That(value, Is.Zero);
         }
 
-        /// <summary>
-        /// Verify enumeration with empty fields.
-        /// </summary>
         [Test]
         public void CreateEnumTypeWithEmptyFields()
         {
