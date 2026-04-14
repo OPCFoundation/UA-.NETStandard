@@ -52,7 +52,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_configurator = new UaPubSubConfigurator(m_telemetry);
         }
 
-        // Verifies Enable on a non-disabled object returns BadInvalidState
+        /// <summary>
+        /// Verifies Enable on a non-disabled object returns BadInvalidState
+        /// </summary>
         [Test]
         public void EnableOnOperationalObjectReturnsBadInvalidState()
         {
@@ -67,7 +69,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(enableResult, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
-        // Verifies Disable on an already-disabled object returns BadInvalidState
+        /// <summary>
+        /// Verifies Disable on an already-disabled object returns BadInvalidState
+        /// </summary>
         [Test]
         public void DisableOnDisabledObjectReturnsBadInvalidState()
         {
@@ -82,21 +86,27 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(disableResult, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
-        // Enable(null) throws ArgumentException
+        /// <summary>
+        /// Enable(null) throws ArgumentException
+        /// </summary>
         [Test]
         public void EnableNullThrowsArgumentException()
         {
             Assert.That(() => m_configurator.Enable((object)null), Throws.TypeOf<ArgumentException>());
         }
 
-        // Disable(null) throws ArgumentException
+        /// <summary>
+        /// Disable(null) throws ArgumentException
+        /// </summary>
         [Test]
         public void DisableNullThrowsArgumentException()
         {
             Assert.That(() => m_configurator.Disable((object)null), Throws.TypeOf<ArgumentException>());
         }
 
-        // Enable on object not in configuration throws ArgumentException
+        /// <summary>
+        /// Enable on object not in configuration throws ArgumentException
+        /// </summary>
         [Test]
         public void EnableUnknownObjectThrowsArgumentException()
         {
@@ -104,7 +114,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(() => m_configurator.Enable(connection), Throws.TypeOf<ArgumentException>());
         }
 
-        // Disable on object not in configuration throws ArgumentException
+        /// <summary>
+        /// Disable on object not in configuration throws ArgumentException
+        /// </summary>
         [Test]
         public void DisableUnknownObjectThrowsArgumentException()
         {
@@ -112,7 +124,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(() => m_configurator.Disable(connection), Throws.TypeOf<ArgumentException>());
         }
 
-        // Enable by id delegates to Enable(object)
+        /// <summary>
+        /// Enable by id delegates to Enable(object)
+        /// </summary>
         [Test]
         public void EnableByIdWorksForDisabledConnection()
         {
@@ -125,7 +139,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(m_configurator.FindStateForObject(connection), Is.EqualTo(PubSubState.Operational));
         }
 
-        // Disable by id delegates to Disable(object)
+        /// <summary>
+        /// Disable by id delegates to Disable(object)
+        /// </summary>
         [Test]
         public void DisableByIdWorksForOperationalConnection()
         {
@@ -138,7 +154,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(m_configurator.FindStateForObject(connection), Is.EqualTo(PubSubState.Disabled));
         }
 
-        // Disable a parent propagates Paused to children
+        /// <summary>
+        /// Disable a parent propagates Paused to children
+        /// </summary>
         [Test]
         public void DisableConnectionPausesChildWriterGroup()
         {
@@ -155,7 +173,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(m_configurator.FindStateForObject(writerGroup), Is.EqualTo(PubSubState.Paused));
         }
 
-        // Re-enable parent restores Operational to paused children
+        /// <summary>
+        /// Re-enable parent restores Operational to paused children
+        /// </summary>
         [Test]
         public void EnableConnectionRestoresOperationalToChildWriterGroup()
         {
@@ -173,7 +193,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(m_configurator.FindStateForObject(writerGroup), Is.EqualTo(PubSubState.Operational));
         }
 
-        // Enable a child when parent is disabled results in Paused
+        /// <summary>
+        /// Enable a child when parent is disabled results in Paused
+        /// </summary>
         [Test]
         public void EnableChildWithDisabledParentSetsPaused()
         {
@@ -190,7 +212,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(m_configurator.FindStateForObject(writerGroup), Is.EqualTo(PubSubState.Paused));
         }
 
-        // DataSetWriter state propagation through WriterGroup disable/enable
+        /// <summary>
+        /// DataSetWriter state propagation through WriterGroup disable/enable
+        /// </summary>
         [Test]
         public void DisableWriterGroupPausesDataSetWriter()
         {
@@ -210,7 +234,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(m_configurator.FindStateForObject(dsWriter), Is.EqualTo(PubSubState.Paused));
         }
 
-        // ReaderGroup and DataSetReader state propagation
+        /// <summary>
+        /// ReaderGroup and DataSetReader state propagation
+        /// </summary>
         [Test]
         public void DisableConnectionPausesReaderGroupAndDataSetReader()
         {
@@ -232,7 +258,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(m_configurator.FindStateForObject(dsReader), Is.EqualTo(PubSubState.Paused));
         }
 
-        // FindStateForObject returns Error for unknown object
+        /// <summary>
+        /// FindStateForObject returns Error for unknown object
+        /// </summary>
         [Test]
         public void FindStateForObjectReturnsErrorForUnknownObject()
         {
@@ -241,7 +269,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(state, Is.EqualTo(PubSubState.Error));
         }
 
-        // FindStateForId returns Error for unknown id
+        /// <summary>
+        /// FindStateForId returns Error for unknown id
+        /// </summary>
         [Test]
         public void FindStateForIdReturnsErrorForUnknownId()
         {
@@ -249,7 +279,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(state, Is.EqualTo(PubSubState.Error));
         }
 
-        // FindObjectById returns null for unknown id
+        /// <summary>
+        /// FindObjectById returns null for unknown id
+        /// </summary>
         [Test]
         public void FindObjectByIdReturnsNullForUnknownId()
         {
@@ -257,7 +289,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.Null);
         }
 
-        // FindIdForObject returns InvalidId for unknown object
+        /// <summary>
+        /// FindIdForObject returns InvalidId for unknown object
+        /// </summary>
         [Test]
         public void FindIdForObjectReturnsInvalidIdForUnknownObject()
         {
@@ -265,7 +299,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(id, Is.EqualTo(UaPubSubConfigurator.InvalidId));
         }
 
-        // FindParentForObject returns null for root config
+        /// <summary>
+        /// FindParentForObject returns null for root config
+        /// </summary>
         [Test]
         public void FindParentForObjectReturnsNullForRootConfig()
         {
@@ -273,7 +309,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(parent, Is.Null);
         }
 
-        // PubSubStateChanged event fires on state changes
+        /// <summary>
+        /// PubSubStateChanged event fires on state changes
+        /// </summary>
         [Test]
         public void PubSubStateChangedEventFires()
         {
@@ -285,12 +323,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             m_configurator.Disable(connection);
 
-            Assert.That(stateChanges.Count, Is.GreaterThan(0));
+            Assert.That(stateChanges, Is.Not.Empty);
             PubSubStateChangedEventArgs last = stateChanges[^1];
             Assert.That(last.NewState, Is.EqualTo(PubSubState.Disabled));
         }
 
-        // Remove connection by unknown id returns BadNodeIdUnknown
+        /// <summary>
+        /// Remove connection by unknown id returns BadNodeIdUnknown
+        /// </summary>
         [Test]
         public void RemoveConnectionByUnknownIdReturnsBadNodeIdUnknown()
         {
@@ -298,7 +338,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
-        // Remove writer group by unknown id returns BadNodeIdUnknown
+        /// <summary>
+        /// Remove writer group by unknown id returns BadNodeIdUnknown
+        /// </summary>
         [Test]
         public void RemoveWriterGroupByUnknownIdReturnsBadNodeIdUnknown()
         {
@@ -306,7 +348,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
-        // Remove reader group by unknown id returns BadInvalidArgument
+        /// <summary>
+        /// Remove reader group by unknown id returns BadInvalidArgument
+        /// </summary>
         [Test]
         public void RemoveReaderGroupByUnknownIdReturnsBadInvalidArgument()
         {
@@ -314,7 +358,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
-        // Remove data set writer by unknown id returns BadNodeIdUnknown
+        /// <summary>
+        /// Remove data set writer by unknown id returns BadNodeIdUnknown
+        /// </summary>
         [Test]
         public void RemoveDataSetWriterByUnknownIdReturnsBadNodeIdUnknown()
         {
@@ -322,7 +368,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
-        // Remove data set reader by unknown id returns BadNodeIdUnknown
+        /// <summary>
+        /// Remove data set reader by unknown id returns BadNodeIdUnknown
+        /// </summary>
         [Test]
         public void RemoveDataSetReaderByUnknownIdReturnsBadNodeIdUnknown()
         {
@@ -330,7 +378,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
-        // Remove published data set by unknown id returns Good per source
+        /// <summary>
+        /// Remove published data set by unknown id returns Good per source
+        /// </summary>
         [Test]
         public void RemovePublishedDataSetByUnknownIdReturnsGood()
         {
@@ -338,7 +388,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(StatusCode.IsGood(result), Is.True);
         }
 
-        // Duplicate connection name returns BadBrowseNameDuplicated
+        /// <summary>
+        /// Duplicate connection name returns BadBrowseNameDuplicated
+        /// </summary>
         [Test]
         public void AddDuplicateConnectionNameReturnsBadBrowseNameDuplicated()
         {
@@ -350,7 +402,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
         }
 
-        // Duplicate writer group name returns BadBrowseNameDuplicated
+        /// <summary>
+        /// Duplicate writer group name returns BadBrowseNameDuplicated
+        /// </summary>
         [Test]
         public void AddDuplicateWriterGroupNameReturnsBadBrowseNameDuplicated()
         {
@@ -366,7 +420,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
         }
 
-        // Duplicate reader group name returns BadBrowseNameDuplicated
+        /// <summary>
+        /// Duplicate reader group name returns BadBrowseNameDuplicated
+        /// </summary>
         [Test]
         public void AddDuplicateReaderGroupNameReturnsBadBrowseNameDuplicated()
         {
@@ -382,7 +438,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
         }
 
-        // Duplicate DataSetWriter name returns BadBrowseNameDuplicated
+        /// <summary>
+        /// Duplicate DataSetWriter name returns BadBrowseNameDuplicated
+        /// </summary>
         [Test]
         public void AddDuplicateDataSetWriterNameReturnsBadBrowseNameDuplicated()
         {
@@ -402,7 +460,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
         }
 
-        // Duplicate DataSetReader name returns BadBrowseNameDuplicated
+        /// <summary>
+        /// Duplicate DataSetReader name returns BadBrowseNameDuplicated
+        /// </summary>
         [Test]
         public void AddDuplicateDataSetReaderNameReturnsBadBrowseNameDuplicated()
         {
@@ -422,7 +482,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
         }
 
-        // LoadConfiguration with replaceExisting cleans up existing connections
+        /// <summary>
+        /// LoadConfiguration with replaceExisting cleans up existing connections
+        /// </summary>
         [Test]
         public void LoadConfigurationReplaceExistingRemovesPreviousConnections()
         {
@@ -444,7 +506,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(m_configurator.PubSubConfiguration.Connections[0].Name, Is.EqualTo("NewConn"));
         }
 
-        // LoadConfiguration with empty connection name assigns default name
+        /// <summary>
+        /// LoadConfiguration with empty connection name assigns default name
+        /// </summary>
         [Test]
         public void LoadConfigurationAssignsDefaultConnectionName()
         {
@@ -461,7 +525,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Does.StartWith("Connection_"));
         }
 
-        // Adding WriterGroup with empty name to a connection assigns default name
+        /// <summary>
+        /// Adding WriterGroup with empty name to a connection assigns default name
+        /// </summary>
         [Test]
         public void AddConnectionWithEmptyNamedWriterGroupAssignsDefault()
         {
@@ -478,7 +544,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(conn.WriterGroups[0].Name, Does.StartWith("WriterGroup_"));
         }
 
-        // Adding ReaderGroup with empty name to a connection assigns default name
+        /// <summary>
+        /// Adding ReaderGroup with empty name to a connection assigns default name
+        /// </summary>
         [Test]
         public void AddConnectionWithEmptyNamedReaderGroupAssignsDefault()
         {
@@ -495,7 +563,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(conn.ReaderGroups[0].Name, Does.StartWith("ReaderGroup_"));
         }
 
-        // Adding a connection with existing child writers and readers
+        /// <summary>
+        /// Adding a connection with existing child writers and readers
+        /// </summary>
         [Test]
         public void AddConnectionWithChildWritersAndReaders()
         {
@@ -527,7 +597,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(m_configurator.FindStateForObject(dsReader), Is.EqualTo(PubSubState.Operational));
         }
 
-        // Duplicate published data set name returns BadBrowseNameDuplicated
+        /// <summary>
+        /// Duplicate published data set name returns BadBrowseNameDuplicated
+        /// </summary>
         [Test]
         public void AddDuplicatePublishedDataSetNameReturnsBadBrowseNameDuplicated()
         {
@@ -539,7 +611,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
         }
 
-        // Removing a PDS also removes associated DataSetWriters
+        /// <summary>
+        /// Removing a PDS also removes associated DataSetWriters
+        /// </summary>
         [Test]
         public void RemovePublishedDataSetRemovesAssociatedDataSetWriters()
         {
@@ -562,7 +636,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(wg.DataSetWriters.Count, Is.EqualTo(0));
         }
 
-        // Extension field CRUD on a published data set
+        /// <summary>
+        /// Extension field CRUD on a published data set
+        /// </summary>
         [Test]
         public void AddAndRemoveExtensionField()
         {
@@ -583,7 +659,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(StatusCode.IsGood(removeResult), Is.True);
         }
 
-        // Add extension field duplicate key returns BadNodeIdExists
+        /// <summary>
+        /// Add extension field duplicate key returns BadNodeIdExists
+        /// </summary>
         [Test]
         public void AddDuplicateExtensionFieldReturnsBadNodeIdExists()
         {
@@ -607,7 +685,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadNodeIdExists));
         }
 
-        // Extension field add on invalid PDS id returns BadNodeIdInvalid
+        /// <summary>
+        /// Extension field add on invalid PDS id returns BadNodeIdInvalid
+        /// </summary>
         [Test]
         public void AddExtensionFieldOnInvalidPdsIdReturnsBadNodeIdInvalid()
         {
@@ -620,7 +700,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
 
-        // Remove extension field on invalid PDS/field id returns BadNodeIdInvalid
+        /// <summary>
+        /// Remove extension field on invalid PDS/field id returns BadNodeIdInvalid
+        /// </summary>
         [Test]
         public void RemoveExtensionFieldOnInvalidIdsReturnsBadNodeIdInvalid()
         {
@@ -628,7 +710,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(result, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
 
-        // FindChildrenIdsForObject returns empty for leaf objects
+        /// <summary>
+        /// FindChildrenIdsForObject returns empty for leaf objects
+        /// </summary>
         [Test]
         public void FindChildrenIdsForLeafObjectReturnsEmpty()
         {
@@ -647,7 +731,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(children, Is.Empty);
         }
 
-        // Enables the root PubSubConfiguration
+        /// <summary>
+        /// Enables the root PubSubConfiguration
+        /// </summary>
         [Test]
         public void DisableAndEnableRootConfiguration()
         {
@@ -664,7 +750,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Is.EqualTo(PubSubState.Operational));
         }
 
-        // Adding connection that is already added throws
+        /// <summary>
+        /// Adding connection that is already added throws
+        /// </summary>
         [Test]
         public void AddSameConnectionInstanceTwiceThrows()
         {
@@ -673,7 +761,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(() => m_configurator.AddConnection(conn), Throws.TypeOf<ArgumentException>());
         }
 
-        // Adding WriterGroup to non-existent parent throws
+        /// <summary>
+        /// Adding WriterGroup to non-existent parent throws
+        /// </summary>
         [Test]
         public void AddWriterGroupToInvalidParentThrows()
         {
@@ -681,7 +771,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(() => m_configurator.AddWriterGroup(99999, wg), Throws.TypeOf<ArgumentException>());
         }
 
-        // Adding ReaderGroup to non-existent parent throws
+        /// <summary>
+        /// Adding ReaderGroup to non-existent parent throws
+        /// </summary>
         [Test]
         public void AddReaderGroupToInvalidParentThrows()
         {
@@ -689,7 +781,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(() => m_configurator.AddReaderGroup(99999, rg), Throws.TypeOf<ArgumentException>());
         }
 
-        // Adding DataSetWriter to non-existent parent throws
+        /// <summary>
+        /// Adding DataSetWriter to non-existent parent throws
+        /// </summary>
         [Test]
         public void AddDataSetWriterToInvalidParentThrows()
         {
@@ -697,7 +791,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(() => m_configurator.AddDataSetWriter(99999, dsw), Throws.TypeOf<ArgumentException>());
         }
 
-        // Adding DataSetReader to non-existent parent throws
+        /// <summary>
+        /// Adding DataSetReader to non-existent parent throws
+        /// </summary>
         [Test]
         public void AddDataSetReaderToInvalidParentThrows()
         {
@@ -705,7 +801,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(() => m_configurator.AddDataSetReader(99999, dsr), Throws.TypeOf<ArgumentException>());
         }
 
-        // Child with empty name DataSetWriter gets default name
+        /// <summary>
+        /// Child with empty name DataSetWriter gets default name
+        /// </summary>
         [Test]
         public void AddWriterGroupWithEmptyNamedDataSetWriterAssignsDefault()
         {
@@ -725,7 +823,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(wg.DataSetWriters[0].Name, Does.StartWith("DataSetWriter_"));
         }
 
-        // Child with empty name DataSetReader gets default name
+        /// <summary>
+        /// Child with empty name DataSetReader gets default name
+        /// </summary>
         [Test]
         public void AddReaderGroupWithEmptyNamedDataSetReaderAssignsDefault()
         {

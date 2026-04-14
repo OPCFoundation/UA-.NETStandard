@@ -48,7 +48,9 @@ namespace Opc.Ua.PubSub.Tests
             m_telemetry = NUnitTelemetryContext.Create();
         }
 
-        // RaiseRawDataReceivedEvent swallows subscriber exceptions
+        /// <summary>
+        /// RaiseRawDataReceivedEvent swallows subscriber exceptions
+        /// </summary>
         [Test]
         public void RawDataReceivedSwallowsSubscriberException()
         {
@@ -59,7 +61,9 @@ namespace Opc.Ua.PubSub.Tests
                 app.RaiseRawDataReceivedEvent(new RawDataReceivedEventArgs()));
         }
 
-        // RaiseDataReceivedEvent swallows subscriber exceptions
+        /// <summary>
+        /// RaiseDataReceivedEvent swallows subscriber exceptions
+        /// </summary>
         [Test]
         public void DataReceivedSwallowsSubscriberException()
         {
@@ -70,7 +74,9 @@ namespace Opc.Ua.PubSub.Tests
                 app.RaiseDataReceivedEvent(new SubscribedDataEventArgs()));
         }
 
-        // RaiseMetaDataReceivedEvent swallows subscriber exceptions
+        /// <summary>
+        /// RaiseMetaDataReceivedEvent swallows subscriber exceptions
+        /// </summary>
         [Test]
         public void MetaDataReceivedSwallowsSubscriberException()
         {
@@ -81,7 +87,9 @@ namespace Opc.Ua.PubSub.Tests
                 app.RaiseMetaDataReceivedEvent(new SubscribedDataEventArgs()));
         }
 
-        // RaiseDatasetWriterConfigurationReceivedEvent swallows subscriber exceptions
+        /// <summary>
+        /// RaiseDatasetWriterConfigurationReceivedEvent swallows subscriber exceptions
+        /// </summary>
         [Test]
         public void DataSetWriterConfigurationReceivedSwallowsSubscriberException()
         {
@@ -93,7 +101,9 @@ namespace Opc.Ua.PubSub.Tests
                     new DataSetWriterConfigurationEventArgs()));
         }
 
-        // RaisePublisherEndpointsReceivedEvent swallows subscriber exceptions
+        /// <summary>
+        /// RaisePublisherEndpointsReceivedEvent swallows subscriber exceptions
+        /// </summary>
         [Test]
         public void PublisherEndpointsReceivedSwallowsSubscriberException()
         {
@@ -104,7 +114,9 @@ namespace Opc.Ua.PubSub.Tests
                 app.RaisePublisherEndpointsReceivedEvent(new PublisherEndpointsEventArgs()));
         }
 
-        // RaiseConfigurationUpdatingEvent swallows subscriber exceptions
+        /// <summary>
+        /// RaiseConfigurationUpdatingEvent swallows subscriber exceptions
+        /// </summary>
         [Test]
         public void ConfigurationUpdatingSwallowsSubscriberException()
         {
@@ -115,7 +127,9 @@ namespace Opc.Ua.PubSub.Tests
                 app.RaiseConfigurationUpdatingEvent(new ConfigurationUpdatingEventArgs()));
         }
 
-        // Events fire with args when no exception
+        /// <summary>
+        /// Events fire with args when no exception
+        /// </summary>
         [Test]
         public void RawDataReceivedEventFiresSuccessfully()
         {
@@ -127,7 +141,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(fired, Is.True);
         }
 
-        // DataReceived event fires with args when no exception
+        /// <summary>
+        /// DataReceived event fires with args when no exception
+        /// </summary>
         [Test]
         public void DataReceivedEventFiresSuccessfully()
         {
@@ -139,7 +155,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(fired, Is.True);
         }
 
-        // MetaDataReceived event fires successfully
+        /// <summary>
+        /// MetaDataReceived event fires successfully
+        /// </summary>
         [Test]
         public void MetaDataReceivedEventFiresSuccessfully()
         {
@@ -151,7 +169,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(fired, Is.True);
         }
 
-        // ConfigurationUpdating event fires successfully
+        /// <summary>
+        /// ConfigurationUpdating event fires successfully
+        /// </summary>
         [Test]
         public void ConfigurationUpdatingEventFiresSuccessfully()
         {
@@ -163,7 +183,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(fired, Is.True);
         }
 
-        // PDS add triggers DataCollector registration
+        /// <summary>
+        /// PDS add triggers DataCollector registration
+        /// </summary>
         [Test]
         public void AddPublishedDataSetRegistersWithDataCollector()
         {
@@ -196,7 +218,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(found, Is.Not.Null);
         }
 
-        // PDS remove triggers DataCollector removal
+        /// <summary>
+        /// PDS remove triggers DataCollector removal
+        /// </summary>
         [Test]
         public void RemovePublishedDataSetUnregistersFromDataCollector()
         {
@@ -229,7 +253,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(found, Is.Null);
         }
 
-        // App creates with null configuration
+        /// <summary>
+        /// App creates with null configuration
+        /// </summary>
         [Test]
         public void CreateWithNullConfigurationSucceeds()
         {
@@ -241,7 +267,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(app.ApplicationId, Is.Not.Null.And.Not.Empty);
         }
 
-        // App create with explicit data store
+        /// <summary>
+        /// App create with explicit data store
+        /// </summary>
         [Test]
         public void CreateWithCustomDataStore()
         {
@@ -250,7 +278,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(app.DataStore, Is.SameAs(dataStore));
         }
 
-        // Dispose can be called multiple times safely
+        /// <summary>
+        /// Dispose can be called multiple times safely
+        /// </summary>
         [Test]
         public void DisposeCanBeCalledMultipleTimes()
         {
@@ -259,13 +289,15 @@ namespace Opc.Ua.PubSub.Tests
             Assert.DoesNotThrow(app.Dispose);
         }
 
-        // SupportedTransportProfiles contains expected values
+        /// <summary>
+        /// SupportedTransportProfiles contains expected values
+        /// </summary>
         [Test]
         public void SupportedTransportProfilesContainsExpectedValues()
         {
             string[] profiles = UaPubSubApplication.SupportedTransportProfiles;
             Assert.That(profiles, Is.Not.Null);
-            Assert.That(profiles.Length, Is.GreaterThanOrEqualTo(3));
+            Assert.That(profiles, Has.Length.GreaterThanOrEqualTo(3));
         }
     }
 }

@@ -78,9 +78,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             };
 
-            var encodedMsg = new PubSubEncoding.JsonNetworkMessage(null, metadata);
-            encodedMsg.PublisherId = "Publisher1";
-            encodedMsg.DataSetWriterId = 100;
+            var encodedMsg = new PubSubEncoding.JsonNetworkMessage(null, metadata)
+            {
+                PublisherId = "Publisher1",
+                DataSetWriterId = 100
+            };
 
             byte[] encoded = encodedMsg.Encode(m_context);
 
@@ -108,8 +110,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(networkMessage.PublisherId, Is.EqualTo("Pub42"));
             Assert.That(networkMessage.DataSetClassId, Is.EqualTo("abc-def"));
             Assert.That(
-                (networkMessage.NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0,
-                Is.True);
+                (int)networkMessage.NetworkMessageContentMask & (int)JsonNetworkMessageContentMask.DataSetClassId,
+                Is.Not.Zero);
         }
 
         [Test]
@@ -133,7 +135,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             networkMessage.Decode(m_context, bytes, null);
 
-            Assert.That(networkMessage.DataSetMessages.Count, Is.EqualTo(0));
+            Assert.That(networkMessage.DataSetMessages.Count, Is.Zero);
         }
 
         [Test]
@@ -148,7 +150,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Fields, Is.Not.Null);
-            Assert.That(result.Fields.Length, Is.EqualTo(1));
+            Assert.That(result.Fields, Has.Length.EqualTo(1));
             Assert.That(result.Fields[0].Value.WrappedValue, Is.Not.Null);
         }
 
@@ -168,7 +170,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("UInt64Field", BuiltInType.UInt64, (ulong)18000000000UL),
                 MakeField("FloatField", BuiltInType.Float, 1.5f),
                 MakeField("DoubleField", BuiltInType.Double, 2.718281828),
-                MakeField("StringField", BuiltInType.String, "test string"),
+                MakeField("StringField", BuiltInType.String, "test string")
             };
 
             DataSet result = EncodeDecodeRoundTrip(
@@ -178,7 +180,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 1);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields.Length, Is.EqualTo(12));
+            Assert.That(result.Fields, Has.Length.EqualTo(12));
         }
 
         [Test]
@@ -190,7 +192,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var fields = new Field[]
             {
                 MakeField("DateTimeField", BuiltInType.DateTime, dateTime),
-                MakeField("GuidField", BuiltInType.Guid, guid),
+                MakeField("GuidField", BuiltInType.Guid, guid)
             };
 
             DataSet result = EncodeDecodeRoundTrip(
@@ -200,7 +202,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 1);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields.Length, Is.EqualTo(2));
+            Assert.That(result.Fields, Has.Length.EqualTo(2));
         }
 
         [Test]
@@ -212,7 +214,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("ExpandedNodeIdField", BuiltInType.ExpandedNodeId, new ExpandedNodeId(5678, 0)),
                 MakeField("QualifiedNameField", BuiltInType.QualifiedName, new QualifiedName("TestName", 0)),
                 MakeField("LocalizedTextField", BuiltInType.LocalizedText, new LocalizedText("en", "Test")),
-                MakeField("StatusCodeField", BuiltInType.StatusCode, StatusCodes.BadTimeout),
+                MakeField("StatusCodeField", BuiltInType.StatusCode, StatusCodes.BadTimeout)
             };
 
             DataSet result = EncodeDecodeRoundTrip(
@@ -222,16 +224,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 1);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields.Length, Is.EqualTo(5));
+            Assert.That(result.Fields, Has.Length.EqualTo(5));
         }
 
         [Test]
         public void DecodeDataSetMessageRawDataByteStringField()
         {
-            var byteStr = new byte[] { 0x01, 0x02, 0x03, 0xFF };
+            byte[] byteStr = [0x01, 0x02, 0x03, 0xFF];
             var fields = new Field[]
             {
-                MakeField("ByteStringField", BuiltInType.ByteString, byteStr),
+                MakeField("ByteStringField", BuiltInType.ByteString, byteStr)
             };
 
             DataSet result = EncodeDecodeRoundTrip(
@@ -241,7 +243,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 1);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields.Length, Is.EqualTo(1));
+            Assert.That(result.Fields, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -279,7 +281,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 1);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields.Length, Is.EqualTo(1));
+            Assert.That(result.Fields, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -306,7 +308,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 1);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields.Length, Is.EqualTo(1));
+            Assert.That(result.Fields, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -314,7 +316,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             Field field1 = MakeField("ExistingField", BuiltInType.Int32, 100);
 
-            var encodedMsg = EncodeNetworkMessage(
+            byte[] encodedMsg = EncodeNetworkMessage(
                 [field1],
                 DataSetFieldContentMask.None,
                 JsonDataSetMessageContentMask.DataSetWriterId,
@@ -344,7 +346,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_context, encodedMsg, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.EqualTo(0).Or.GreaterThan(0));
+            Assert.That(decoded.DataSetMessages.Count, Is.Zero.Or.GreaterThan(0));
         }
 
         [Test]
@@ -359,7 +361,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 1);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields.Length, Is.EqualTo(1));
+            Assert.That(result.Fields, Has.Length.EqualTo(1));
         }
 
         [Test]
@@ -384,8 +386,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg.Status = StatusCodes.Good;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, [dsMsg]);
-            networkMessage.PublisherId = "Pub";
+                null, [dsMsg])
+            {
+                PublisherId = "Pub"
+            };
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.PublisherId |
@@ -411,7 +415,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_context, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(decoded.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
@@ -427,8 +431,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg.DataSetWriterId = 1;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, [dsMsg]);
-            networkMessage.PublisherId = "CorrectPublisher";
+                null, [dsMsg])
+            {
+                PublisherId = "CorrectPublisher"
+            };
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.PublisherId |
@@ -449,7 +455,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_context, encoded, [wrongReader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.EqualTo(0));
+            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
         }
 
         [Test]
@@ -465,8 +471,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg.DataSetWriterId = 1;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, [dsMsg]);
-            networkMessage.PublisherId = "AnyPublisher";
+                null, [dsMsg])
+            {
+                PublisherId = "AnyPublisher"
+            };
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.PublisherId |
@@ -487,7 +495,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_context, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(decoded.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
@@ -525,7 +533,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             decoded.Decode(m_context, encoded, [reader]);
 
             // SingleDataSetMessage does not apply WriterId filter per OPC UA spec
-            Assert.That(decoded.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(decoded.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
@@ -565,7 +573,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_context, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.GreaterThanOrEqualTo(1));
+            Assert.That(decoded.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
@@ -812,7 +820,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             const string json = /*lang=json,strict*/ "{\"V\": 2155085824}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             StatusCode val = decoder.ReadStatusCode("V");
-            Assert.That((uint)val.Code, Is.EqualTo((uint)2155085824));
+            Assert.That(val.Code, Is.EqualTo(2155085824u));
         }
 
         [Test]
@@ -821,7 +829,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             const string json = /*lang=json,strict*/ "{\"V\": {\"Code\": 2155085824}}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             StatusCode val = decoder.ReadStatusCode("V");
-            Assert.That((uint)val.Code, Is.EqualTo((uint)2155085824));
+            Assert.That(val.Code, Is.EqualTo(2155085824u));
         }
 
         [Test]
@@ -1053,8 +1061,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeArrayReadGuidArrayFromJson()
         {
-            var g1 = Guid.NewGuid().ToString();
-            var g2 = Guid.NewGuid().ToString();
+            string g1 = Guid.NewGuid().ToString();
+            string g2 = Guid.NewGuid().ToString();
             string json = "{\"V\": [\"" + g1 + "\", \"" + g2 + "\"]}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<Uuid> val = decoder.ReadGuidArray("V");
@@ -1171,7 +1179,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.Int32);
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Length, Is.EqualTo(3));
+            Assert.That(val, Has.Length.EqualTo(3));
         }
 
         [Test]
@@ -1181,7 +1189,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.Boolean);
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Length, Is.EqualTo(2));
+            Assert.That(val, Has.Length.EqualTo(2));
         }
 
         [Test]
@@ -1191,7 +1199,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.String);
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Length, Is.EqualTo(2));
+            Assert.That(val, Has.Length.EqualTo(2));
         }
 
         [Test]
@@ -1201,7 +1209,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.Double);
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Length, Is.EqualTo(2));
+            Assert.That(val, Has.Length.EqualTo(2));
         }
 
         [Test]
@@ -1211,7 +1219,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             Array val = decoder.ReadArray("V", ValueRanks.OneDimension, BuiltInType.Float);
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Length, Is.EqualTo(2));
+            Assert.That(val, Has.Length.EqualTo(2));
         }
 
         [Test]
@@ -1465,7 +1473,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             const string json = /*lang=json,strict*/ "{\"SwitchField\": 1}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             uint val = decoder.ReadSwitchField(null, out string fieldName);
-            Assert.That(val, Is.EqualTo(0));
+            Assert.That(val, Is.Zero);
         }
 
         [Test]
@@ -1484,7 +1492,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             const string json = /*lang=json,strict*/ "{\"Other\": 15}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
             uint val = decoder.ReadEncodingMask(null);
-            Assert.That(val, Is.EqualTo(0));
+            Assert.That(val, Is.Zero);
         }
 
         [Test]
@@ -1500,7 +1508,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeRawDataFieldWithArrayRoundTrip()
         {
-            var intArray = new int[] { 10, 20, 30 };
+            int[] intArray = [10, 20, 30];
             Field field = MakeField("IntArr", BuiltInType.Int32, intArray, ValueRanks.OneDimension);
 
             DataSet result = EncodeDecodeRoundTrip(
@@ -1510,7 +1518,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 1);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields.Length, Is.EqualTo(1));
+            Assert.That(result.Fields, Has.Length.EqualTo(1));
         }
 
         [Test]

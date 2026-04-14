@@ -39,7 +39,9 @@ namespace Opc.Ua.PubSub.Tests
     [Parallelizable]
     public class WriterGroupPublishStateTests
     {
-        // Tests HasMetaDataChanged returns false for null metadata
+        /// <summary>
+        /// Tests HasMetaDataChanged returns false for null metadata
+        /// </summary>
         [Test]
         public void HasMetaDataChangedReturnsFalseForNullMetadata()
         {
@@ -51,7 +53,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(result, Is.False);
         }
 
-        // Tests ExcludeUnchangedFields returns dataset on first call
+        /// <summary>
+        /// Tests ExcludeUnchangedFields returns dataset on first call
+        /// </summary>
         [Test]
         public void ExcludeUnchangedFieldsReturnsDataSetOnFirstCall()
         {
@@ -73,7 +77,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(result, Is.SameAs(dataset));
         }
 
-        // Tests ExcludeUnchangedFields returns null when no fields changed
+        /// <summary>
+        /// Tests ExcludeUnchangedFields returns null when no fields changed
+        /// </summary>
         [Test]
         public void ExcludeUnchangedFieldsReturnsNullWhenNoChange()
         {
@@ -105,7 +111,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(result, Is.Null);
         }
 
-        // Tests ExcludeUnchangedFields detects value change
+        /// <summary>
+        /// Tests ExcludeUnchangedFields detects value change
+        /// </summary>
         [Test]
         public void ExcludeUnchangedFieldsDetectsValueChange()
         {
@@ -139,7 +147,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(result.Fields[1], Is.Not.Null, "Changed field should be kept");
         }
 
-        // Tests ExcludeUnchangedFields detects status code change
+        /// <summary>
+        /// Tests ExcludeUnchangedFields detects status code change
+        /// </summary>
         [Test]
         public void ExcludeUnchangedFieldsDetectsStatusCodeChange()
         {
@@ -169,7 +179,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(result, Is.Not.Null);
         }
 
-        // Tests ExcludeUnchangedFields handles null field in second dataset
+        /// <summary>
+        /// Tests ExcludeUnchangedFields handles null field in second dataset
+        /// </summary>
         [Test]
         public void ExcludeUnchangedFieldsHandlesNullFieldInSecondDataSet()
         {
@@ -201,7 +213,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(result, Is.Not.Null);
         }
 
-        // Tests ExcludeUnchangedFields handles null field in first (last) dataset
+        /// <summary>
+        /// Tests ExcludeUnchangedFields handles null field in first (last) dataset
+        /// </summary>
         [Test]
         public void ExcludeUnchangedFieldsHandlesNullFieldInLastDataSet()
         {

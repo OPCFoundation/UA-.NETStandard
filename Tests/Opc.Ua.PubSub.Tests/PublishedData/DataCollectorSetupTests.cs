@@ -278,7 +278,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             DataSet result = collector.CollectData("DS1");
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields.Length, Is.EqualTo(1));
+            Assert.That(result.Fields, Has.Length.EqualTo(1));
             Assert.That(result.Fields[0].Value.WrappedValue.GetInt32(), Is.EqualTo(42));
         }
 

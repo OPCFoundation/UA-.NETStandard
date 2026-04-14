@@ -55,16 +55,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeRawDataScalarBoolean()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-1"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""BoolVal"": true
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-1",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "BoolVal": true
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -75,22 +77,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarSByte()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-sb"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""SByteVal"": -50
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-sb",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "SByteVal": -50
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -101,22 +105,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarByte()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-b"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""ByteVal"": 200
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-b",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "ByteVal": 200
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -127,22 +133,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarInt16()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-i16"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""Int16Val"": -1000
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-i16",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "Int16Val": -1000
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -153,22 +161,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarUInt16()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-u16"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""UInt16Val"": 60000
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-u16",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "UInt16Val": 60000
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -179,22 +189,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarInt32()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-i32"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""Int32Val"": -100000
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-i32",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "Int32Val": -100000
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -205,22 +217,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarUInt32()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-u32"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""UInt32Val"": 4000000000
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-u32",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "UInt32Val": 4000000000
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -231,22 +245,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarInt64()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-i64"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""Int64Val"": -999999999999
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-i64",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "Int64Val": -999999999999
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -257,22 +273,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarUInt64()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-u64"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""UInt64Val"": 999999999999
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-u64",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "UInt64Val": 999999999999
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -283,22 +301,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarFloat()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-f"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""FloatVal"": 3.14
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-f",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "FloatVal": 3.14
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -309,22 +329,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarDouble()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-d"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""DoubleVal"": 2.718281828
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-d",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "DoubleVal": 2.718281828
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -335,22 +357,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarString()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-s"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""StrVal"": ""hello""
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-s",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "StrVal": "hello"
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -361,22 +385,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarDateTime()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-dt"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""DateVal"": ""2024-01-15T10:30:00Z""
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-dt",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "DateVal": "2024-01-15T10:30:00Z"
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -387,23 +413,25 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarGuid()
         {
             var guid = Guid.NewGuid();
-            string json = $@"{{
-                ""MessageId"": ""msg-g"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{{
-                    ""Payload"": {{
-                        ""GuidVal"": ""{guid}""
-                    }}
-                }}]
-            }}";
+            string json = $$"""
+            {
+                "MessageId": "msg-g",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "GuidVal": "{{guid}}"
+                    }
+                }]
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -414,23 +442,25 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarByteString()
         {
             string base64 = Convert.ToBase64String([1, 2, 3, 4]);
-            string json = $@"{{
-                ""MessageId"": ""msg-bs"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{{
-                    ""Payload"": {{
-                        ""ByteStrVal"": ""{base64}""
-                    }}
-                }}]
-            }}";
+            string json = $$"""
+            {
+                "MessageId": "msg-bs",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "ByteStrVal": "{{base64}}"
+                    }
+                }]
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -441,22 +471,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarNodeId()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-nid"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""NodeIdVal"": ""i=1234""
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-nid",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "NodeIdVal": "i=1234"
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -467,22 +499,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarExpandedNodeId()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-enid"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""EnidVal"": ""i=5678""
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-enid",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "EnidVal": "i=5678"
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -493,22 +527,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarStatusCode()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-sc"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""StatusVal"": 0
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-sc",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "StatusVal": 0
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -519,22 +555,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarQualifiedName()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-qn"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""QnVal"": ""TestQN""
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-qn",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "QnVal": "TestQN"
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -545,22 +583,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarLocalizedText()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-lt"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""LtVal"": ""Hello World""
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-lt",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "LtVal": "Hello World"
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -571,22 +611,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataScalarEnumeration()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-enum"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""EnumVal"": 3
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-enum",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "EnumVal": 3
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -597,24 +639,26 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeDataSetMessageWithDataSetHeader()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-hdr"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""DataSetWriterId"": 5,
-                    ""SequenceNumber"": 100,
-                    ""Payload"": {
-                        ""Temp"": 22.5
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-hdr",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "DataSetWriterId": 5,
+                    "SequenceNumber": 100,
+                    "Payload": {
+                        "Temp": 22.5
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReaderWithHeader("P1", 5,
                 new FieldMetaData
@@ -625,23 +669,25 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeDataSetMessageFiltersByDataSetWriterId()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-filter"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""DataSetWriterId"": 5,
-                    ""Payload"": {
-                        ""Val"": 42
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-filter",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "DataSetWriterId": 5,
+                    "Payload": {
+                        "Val": 42
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReaderWithHeader("P1", 99,
                 new FieldMetaData
@@ -652,22 +698,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.EqualTo(0));
+            Assert.That(networkMessage.DataSetMessages.Count, Is.Zero);
         }
 
         [Test]
         public void DecodeDataSetWithMissingFieldReturnsNullVariant()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-miss"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""Field1"": 42
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-miss",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "Field1": 42
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -684,20 +732,22 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeMissingStatusCodeFieldReturnsGood()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-goodsc"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {}
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-goodsc",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {}
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -708,23 +758,25 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodePayloadWithExtraFieldsFilteredOut()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-extra"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""Known"": 42,
-                        ""Unknown"": 99
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-extra",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "Known": 42,
+                        "Unknown": 99
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -735,27 +787,29 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.EqualTo(0));
+            Assert.That(networkMessage.DataSetMessages.Count, Is.Zero);
         }
 
         [Test]
         public void DecodeDataValueEncodingWithStatusCodeAndTimestamps()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-dv"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""Temp"": {
-                            ""Value"": 25.5,
-                            ""StatusCode"": { ""Code"": 0 },
-                            ""SourceTimestamp"": ""2024-01-15T10:30:00Z"",
-                            ""ServerTimestamp"": ""2024-01-15T10:30:01Z""
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-dv",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "Temp": {
+                            "Value": 25.5,
+                            "StatusCode": { "Code": 0 },
+                            "SourceTimestamp": "2024-01-15T10:30:00Z",
+                            "ServerTimestamp": "2024-01-15T10:30:01Z"
                         }
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReaderDataValue("P1", 0,
                 new FieldMetaData
@@ -766,28 +820,30 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeDataValueEncodingWithPicoseconds()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-dv-pico"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""Val"": {
-                            ""Value"": 42,
-                            ""SourceTimestamp"": ""2024-01-15T10:30:00Z"",
-                            ""SourcePicoseconds"": 1234,
-                            ""ServerTimestamp"": ""2024-01-15T10:30:01Z"",
-                            ""ServerPicoseconds"": 5678
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-dv-pico",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "Val": {
+                            "Value": 42,
+                            "SourceTimestamp": "2024-01-15T10:30:00Z",
+                            "SourcePicoseconds": 1234,
+                            "ServerTimestamp": "2024-01-15T10:30:01Z",
+                            "ServerPicoseconds": 5678
                         }
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReaderDataValueWithPicos("P1", 0,
                 new FieldMetaData
@@ -798,24 +854,26 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeDataValueEncodingWithMissingValueForStatusCode()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-dv-novalue"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""StatusField"": {
-                            ""StatusCode"": { ""Code"": 0 }
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-dv-novalue",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "StatusField": {
+                            "StatusCode": { "Code": 0 }
                         }
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReaderDataValue("P1", 0,
                 new FieldMetaData
@@ -826,15 +884,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeNetworkMessageWithSingleDataSetNoHeader()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""Temperature"": 25.5
-            }";
+            const string json = /*lang=json,strict*/ """
+            {
+                "Temperature": 25.5
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReaderNoHeader("", 0,
                 new FieldMetaData
@@ -848,21 +908,23 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
             networkMessage.Decode(m_context, messageBytes, [reader]);
 
-            Assert.That(networkMessage, Is.Not.EqualTo(default(PubSubEncoding.JsonNetworkMessage)));
+            Assert.That(networkMessage, Is.Not.Default);
         }
 
         [Test]
         public void DecodeNetworkMessageWithMultipleMessages()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-multi"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [
-                    { ""Payload"": { ""F1"": 1 } },
-                    { ""Payload"": { ""F1"": 2 } }
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-multi",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [
+                    { "Payload": { "F1": 1 } },
+                    { "Payload": { "F1": 2 } }
                 ]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -873,22 +935,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThanOrEqualTo(1));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeNetworkMessageWithMultipleReadersMatchesByPublisherId()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-mr"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""PubA"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""Val"": 42
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-mr",
+                "MessageType": "ua-data",
+                "PublisherId": "PubA",
+                "Messages": [{
+                    "Payload": {
+                        "Val": 42
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType readerA = CreateDataSetReader("PubA", 0,
                 new FieldMetaData
@@ -910,22 +974,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
             networkMessage.Decode(m_context, messageBytes, [readerA, readerB]);
 
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThanOrEqualTo(1));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataArrayInt32()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-arr"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""IntArr"": [1, 2, 3]
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-arr",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "IntArr": [1, 2, 3]
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -936,22 +1002,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataArrayString()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-sarr"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""StrArr"": [""a"", ""b"", ""c""]
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-sarr",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "StrArr": ["a", "b", "c"]
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -962,22 +1030,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataArrayDouble()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-darr"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""DblArr"": [1.1, 2.2, 3.3]
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-darr",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "DblArr": [1.1, 2.2, 3.3]
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -988,22 +1058,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeRawDataArrayBoolean()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-barr"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""P1"",
-                ""Messages"": [{
-                    ""Payload"": {
-                        ""BoolArr"": [true, false, true]
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "msg-barr",
+                "MessageType": "ua-data",
+                "PublisherId": "P1",
+                "Messages": [{
+                    "Payload": {
+                        "BoolArr": [true, false, true]
                     }
                 }]
-            }";
+            }
+            """;
 
             DataSetReaderDataType reader = CreateDataSetReader("P1", 0,
                 new FieldMetaData
@@ -1014,37 +1086,39 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(networkMessage.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]
         public void DecodeMetaDataMessageProducesMetaData()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""meta-ext"",
-                ""MessageType"": ""ua-metadata"",
-                ""PublisherId"": ""MetaPub"",
-                ""DataSetWriterId"": 10,
-                ""MetaData"": {
-                    ""Name"": ""MetaDS"",
-                    ""Fields"": [
+            const string json = /*lang=json,strict*/ """
+            {
+                "MessageId": "meta-ext",
+                "MessageType": "ua-metadata",
+                "PublisherId": "MetaPub",
+                "DataSetWriterId": 10,
+                "MetaData": {
+                    "Name": "MetaDS",
+                    "Fields": [
                         {
-                            ""Name"": ""F1"",
-                            ""BuiltInType"": 6,
-                            ""ValueRank"": -1
+                            "Name": "F1",
+                            "BuiltInType": 6,
+                            "ValueRank": -1
                         },
                         {
-                            ""Name"": ""F2"",
-                            ""BuiltInType"": 12,
-                            ""ValueRank"": -1
+                            "Name": "F2",
+                            "BuiltInType": 12,
+                            "ValueRank": -1
                         }
                     ],
-                    ""ConfigurationVersion"": {
-                        ""MajorVersion"": 3,
-                        ""MinorVersion"": 1
+                    "ConfigurationVersion": {
+                        "MajorVersion": 3,
+                        "MinorVersion": 1
                     }
                 }
-            }";
+            }
+            """;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
@@ -1439,7 +1513,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             decoded.Decode(m_context, encoded, [reader]);
 
             Assert.That(decoded.PublisherId, Is.EqualTo("RTPub"));
-            Assert.That(decoded.DataSetMessages.Count, Is.GreaterThan(0));
+            Assert.That(decoded.DataSetMessages, Is.Not.Empty);
         }
 
         [Test]

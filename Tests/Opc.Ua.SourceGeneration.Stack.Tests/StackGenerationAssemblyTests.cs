@@ -83,8 +83,8 @@ namespace Opc.Ua.SourceGeneration.Tests
             GeneratorDriver driver = CSharpGeneratorDriver.Create(host);
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
-                out Compilation outputCompilation,
-                out ImmutableArray<Diagnostic> diagnostics);
+                out _,
+                out _);
 
             GeneratorDriverRunResult runResult = driver.GetRunResult();
             GeneratorRunResult generatorResult = runResult.Results[0];
@@ -108,8 +108,8 @@ namespace Opc.Ua.SourceGeneration.Tests
             GeneratorDriver driver = CSharpGeneratorDriver.Create(host);
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
-                out Compilation outputCompilation,
-                out ImmutableArray<Diagnostic> diagnostics);
+                out _,
+                out _);
 
             GeneratorDriverRunResult runResult = driver.GetRunResult();
             GeneratorRunResult generatorResult = runResult.Results[0];
@@ -160,8 +160,8 @@ namespace Opc.Ua.SourceGeneration.Tests
             GeneratorDriver driver = CSharpGeneratorDriver.Create(host);
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
-                out Compilation outputCompilation,
-                out ImmutableArray<Diagnostic> diagnostics);
+                out _,
+                out _);
 
             GeneratorDriverRunResult runResult = driver.GetRunResult();
             GeneratorRunResult generatorResult = runResult.Results[0];

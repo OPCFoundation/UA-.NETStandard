@@ -204,12 +204,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeWithoutHeaderOmitsMessageFields()
         {
-            var message = new PubSubEncoding.JsonDataSetMessage(CreateSingleFieldDataSet());
-            message.HasDataSetMessageHeader = false;
-            message.DataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId |
-                                                 JsonDataSetMessageContentMask.SequenceNumber;
-            message.DataSetWriterId = 99;
-            message.SequenceNumber = 5;
+            var message = new PubSubEncoding.JsonDataSetMessage(CreateSingleFieldDataSet())
+            {
+                HasDataSetMessageHeader = false,
+                DataSetMessageContentMask =
+                    JsonDataSetMessageContentMask.DataSetWriterId |
+                    JsonDataSetMessageContentMask.SequenceNumber,
+                DataSetWriterId = 99,
+                SequenceNumber = 5
+            };
             message.SetFieldContentMask(DataSetFieldContentMask.None);
 
             string json = EncodeMessage(message, PubSubJsonEncoding.Reversible);
@@ -340,32 +343,36 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeWithNullDataSetProducesEmptyPayload()
         {
-            var message = new PubSubEncoding.JsonDataSetMessage();
-            message.HasDataSetMessageHeader = false;
+            var message = new PubSubEncoding.JsonDataSetMessage
+            {
+                HasDataSetMessageHeader = false
+            };
             message.SetFieldContentMask(DataSetFieldContentMask.None);
 
             string json = EncodeMessage(message, PubSubJsonEncoding.Reversible);
             var root = JObject.Parse(json);
 
-            Assert.That(root.Count, Is.EqualTo(0), "Null DataSet should produce empty JSON object.");
+            Assert.That(root.Count, Is.Zero, "Null DataSet should produce empty JSON object.");
         }
 
         [Test]
         public void EncodeWithAllHeaderFieldsSet()
         {
-            var message = new PubSubEncoding.JsonDataSetMessage(CreateSingleFieldDataSet());
-            message.HasDataSetMessageHeader = true;
-            message.DataSetMessageContentMask =
-                JsonDataSetMessageContentMask.DataSetWriterId |
-                JsonDataSetMessageContentMask.SequenceNumber |
-                JsonDataSetMessageContentMask.MetaDataVersion |
-                JsonDataSetMessageContentMask.Timestamp |
-                JsonDataSetMessageContentMask.Status;
-            message.DataSetWriterId = 10;
-            message.SequenceNumber = 20;
-            message.MetaDataVersion = new ConfigurationVersionDataType { MajorVersion = 3, MinorVersion = 4 };
-            message.Timestamp = DateTime.UtcNow;
-            message.Status = StatusCodes.BadInvalidArgument;
+            var message = new PubSubEncoding.JsonDataSetMessage(CreateSingleFieldDataSet())
+            {
+                HasDataSetMessageHeader = true,
+                DataSetMessageContentMask =
+                    JsonDataSetMessageContentMask.DataSetWriterId |
+                    JsonDataSetMessageContentMask.SequenceNumber |
+                    JsonDataSetMessageContentMask.MetaDataVersion |
+                    JsonDataSetMessageContentMask.Timestamp |
+                    JsonDataSetMessageContentMask.Status,
+                DataSetWriterId = 10,
+                SequenceNumber = 20,
+                MetaDataVersion = new ConfigurationVersionDataType { MajorVersion = 3, MinorVersion = 4 },
+                Timestamp = DateTime.UtcNow,
+                Status = StatusCodes.BadInvalidArgument
+            };
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             string json = EncodeMessage(message, PubSubJsonEncoding.Reversible);
@@ -409,9 +416,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private static PubSubEncoding.JsonDataSetMessage CreateHeaderMessage(
             JsonDataSetMessageContentMask contentMask)
         {
-            var message = new PubSubEncoding.JsonDataSetMessage(CreateSingleFieldDataSet());
-            message.HasDataSetMessageHeader = true;
-            message.DataSetMessageContentMask = contentMask;
+            var message = new PubSubEncoding.JsonDataSetMessage(CreateSingleFieldDataSet())
+            {
+                HasDataSetMessageHeader = true,
+                DataSetMessageContentMask = contentMask
+            };
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
             return message;
         }

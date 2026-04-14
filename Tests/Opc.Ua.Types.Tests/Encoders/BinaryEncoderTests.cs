@@ -135,8 +135,10 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var mockFactory = new Mock<IEncodeableFactory>();
 
-            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
-            messageContext.MaxMessageSize = 0;
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object)
+            {
+                MaxMessageSize = 0
+            };
 
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(123, 0);
@@ -157,8 +159,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var mockFactory = new Mock<IEncodeableFactory>();
 
-            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
-            messageContext.MaxMessageSize = 10;
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object)
+            {
+                MaxMessageSize = 10
+            };
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(123, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
@@ -184,8 +188,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var mockFactory = new Mock<IEncodeableFactory>();
 
-            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
-            messageContext.MaxMessageSize = 0;
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object)
+            {
+                MaxMessageSize = 0
+            };
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(123, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
@@ -209,8 +215,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             var mockFactory = new Mock<IEncodeableFactory>();
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
-            messageContext.MaxMessageSize = -1;
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object)
+            {
+                MaxMessageSize = -1
+            };
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(123, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
@@ -234,8 +242,10 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var mockFactory = new Mock<IEncodeableFactory>();
 
-            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
-            messageContext.MaxMessageSize = 1000;
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object)
+            {
+                MaxMessageSize = 1000
+            };
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(123, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
@@ -254,9 +264,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             var mockFactory = new Mock<IEncodeableFactory>();
 
-            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
-            messageContext.NamespaceUris = namespaceTable;
-            messageContext.MaxMessageSize = 0;
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object)
+            {
+                NamespaceUris = namespaceTable,
+                MaxMessageSize = 0
+            };
 
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(456, 0);
@@ -281,9 +293,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             namespaceTable.Append("http://test.namespace.com");
             var mockFactory = new Mock<IEncodeableFactory>();
 
-            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
-            messageContext.NamespaceUris = namespaceTable;
-            messageContext.MaxMessageSize = 0;
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object)
+            {
+                NamespaceUris = namespaceTable,
+                MaxMessageSize = 0
+            };
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(789, 1);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
@@ -303,8 +317,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
 
             var mockFactory = new Mock<IEncodeableFactory>();
-            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
-            messageContext.MaxMessageSize = 50;
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object)
+            {
+                MaxMessageSize = 50
+            };
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(999, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);

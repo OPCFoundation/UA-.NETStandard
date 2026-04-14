@@ -45,7 +45,7 @@ namespace Opc.Ua.SourceGeneration.Tests
             CSharpCompilation compilation = CSharpCompilation.Create("TestAssembly")
                 .WithOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-            CompilationOptions options = CompilationOptions.From(compilation);
+            var options = CompilationOptions.From(compilation);
 
             Assert.That(options.AssemblyName, Is.EqualTo("TestAssembly"));
             Assert.That(options.OptimizationLevel, Is.EqualTo(OptimizationLevel.Debug));
@@ -60,7 +60,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                     OutputKind.DynamicallyLinkedLibrary,
                     optimizationLevel: OptimizationLevel.Release));
 
-            CompilationOptions options = CompilationOptions.From(compilation);
+            var options = CompilationOptions.From(compilation);
 
             Assert.That(options.AssemblyName, Is.EqualTo("ReleaseAssembly"));
             Assert.That(options.OptimizationLevel, Is.EqualTo(OptimizationLevel.Release));
@@ -109,7 +109,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                     OutputKind.DynamicallyLinkedLibrary,
                     optimizationLevel: level));
 
-            CompilationOptions options = CompilationOptions.From(compilation);
+            var options = CompilationOptions.From(compilation);
 
             Assert.That(options.OptimizationLevel, Is.EqualTo(level));
         }
@@ -124,7 +124,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                     OutputKind.DynamicallyLinkedLibrary,
                     platform: platform));
 
-            CompilationOptions options = CompilationOptions.From(compilation);
+            var options = CompilationOptions.From(compilation);
 
             Assert.That(options.Platform, Is.EqualTo(platform));
         }

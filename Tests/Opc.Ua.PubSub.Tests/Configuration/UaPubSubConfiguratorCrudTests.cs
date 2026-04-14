@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     [Parallelizable]
     public class UaPubSubConfiguratorCrudTests
     {
-        private static readonly string PublisherConfigurationFileName = Path.Combine(
+        private static readonly string s_publisherConfigurationFileName = Path.Combine(
             "Configuration",
             "PublisherConfiguration.xml");
 
@@ -49,11 +49,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             PubSubConfigurationDataType config = UaPubSubConfigurationHelper.LoadConfiguration(
-                PublisherConfigurationFileName, telemetry);
+                s_publisherConfigurationFileName, telemetry);
             return new UaPubSubConfigurator(telemetry);
         }
 
-        private UaPubSubConfigurator CreateConfiguratorWithConfig(PubSubConfigurationDataType config)
+        private static UaPubSubConfigurator CreateConfiguratorWithConfig(PubSubConfigurationDataType config)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var configurator = new UaPubSubConfigurator(telemetry);
@@ -154,7 +154,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 connectionAddedFired = true;
                 addedConnectionId = e.ConnectionId;
             };
-            configurator.ConnectionRemoved += (s, e) => { connectionRemovedFired = true; };
+            configurator.ConnectionRemoved += (s, e) => connectionRemovedFired = true;
 
             var connection = new PubSubConnectionDataType { Name = "MyConn" };
             StatusCode addResult = configurator.AddConnection(connection);
@@ -181,7 +181,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 addedFired = true;
                 dataSetId = e.PublishedDataSetId;
             };
-            configurator.PublishedDataSetRemoved += (s, e) => { removedFired = true; };
+            configurator.PublishedDataSetRemoved += (s, e) => removedFired = true;
 
             var dataSet = new PublishedDataSetDataType { Name = "DS1" };
             StatusCode addResult = configurator.AddPublishedDataSet(dataSet);
@@ -236,7 +236,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint dataSetId = 0;
-            configurator.PublishedDataSetAdded += (s, e) => { dataSetId = e.PublishedDataSetId; };
+            configurator.PublishedDataSetAdded += (s, e) => dataSetId = e.PublishedDataSetId;
 
             var dataSet = new PublishedDataSetDataType { Name = "DS1" };
             configurator.AddPublishedDataSet(dataSet);
@@ -259,7 +259,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(extensionAddedFired, Is.True);
 
             bool extensionRemovedFired = false;
-            configurator.ExtensionFieldRemoved += (s, e) => { extensionRemovedFired = true; };
+            configurator.ExtensionFieldRemoved += (s, e) => extensionRemovedFired = true;
 
             StatusCode removeResult = configurator.RemoveExtensionField(dataSetId, extensionFieldId);
             Assert.That(StatusCode.IsGood(removeResult), Is.True);
@@ -273,7 +273,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint dataSetId = 0;
-            configurator.PublishedDataSetAdded += (s, e) => { dataSetId = e.PublishedDataSetId; };
+            configurator.PublishedDataSetAdded += (s, e) => dataSetId = e.PublishedDataSetId;
 
             var dataSet = new PublishedDataSetDataType { Name = "DS1" };
             configurator.AddPublishedDataSet(dataSet);
@@ -362,7 +362,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
-            configurator.ConnectionAdded += (s, e) => { connectionId = e.ConnectionId; };
+            configurator.ConnectionAdded += (s, e) => connectionId = e.ConnectionId;
 
             var connection = new PubSubConnectionDataType { Name = "C1" };
             configurator.AddConnection(connection);
@@ -383,7 +383,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
-            configurator.ConnectionAdded += (s, e) => { connectionId = e.ConnectionId; };
+            configurator.ConnectionAdded += (s, e) => connectionId = e.ConnectionId;
 
             var connection = new PubSubConnectionDataType { Name = "C1" };
             configurator.AddConnection(connection);
@@ -404,11 +404,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
-            configurator.ConnectionAdded += (s, e) => { connectionId = e.ConnectionId; };
+            configurator.ConnectionAdded += (s, e) => connectionId = e.ConnectionId;
             uint writerGroupId = 0;
-            configurator.WriterGroupAdded += (s, e) => { writerGroupId = e.WriterGroupId; };
+            configurator.WriterGroupAdded += (s, e) => writerGroupId = e.WriterGroupId;
             bool removedFired = false;
-            configurator.WriterGroupRemoved += (s, e) => { removedFired = true; };
+            configurator.WriterGroupRemoved += (s, e) => removedFired = true;
 
             configurator.AddConnection(new PubSubConnectionDataType { Name = "C1" });
             configurator.AddWriterGroup(connectionId, new WriterGroupDataType { Name = "WG1" });
@@ -425,11 +425,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
-            configurator.ConnectionAdded += (s, e) => { connectionId = e.ConnectionId; };
+            configurator.ConnectionAdded += (s, e) => connectionId = e.ConnectionId;
             uint readerGroupId = 0;
-            configurator.ReaderGroupAdded += (s, e) => { readerGroupId = e.ReaderGroupId; };
+            configurator.ReaderGroupAdded += (s, e) => readerGroupId = e.ReaderGroupId;
             bool removedFired = false;
-            configurator.ReaderGroupRemoved += (s, e) => { removedFired = true; };
+            configurator.ReaderGroupRemoved += (s, e) => removedFired = true;
 
             configurator.AddConnection(new PubSubConnectionDataType { Name = "C1" });
             configurator.AddReaderGroup(connectionId, new ReaderGroupDataType { Name = "RG1" });
@@ -446,11 +446,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
-            configurator.ConnectionAdded += (s, e) => { connectionId = e.ConnectionId; };
+            configurator.ConnectionAdded += (s, e) => connectionId = e.ConnectionId;
             uint writerGroupId = 0;
-            configurator.WriterGroupAdded += (s, e) => { writerGroupId = e.WriterGroupId; };
+            configurator.WriterGroupAdded += (s, e) => writerGroupId = e.WriterGroupId;
             bool writerAddedFired = false;
-            configurator.DataSetWriterAdded += (s, e) => { writerAddedFired = true; };
+            configurator.DataSetWriterAdded += (s, e) => writerAddedFired = true;
 
             configurator.AddConnection(new PubSubConnectionDataType { Name = "C1" });
             configurator.AddWriterGroup(connectionId, new WriterGroupDataType { Name = "WG1" });
@@ -468,11 +468,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
-            configurator.ConnectionAdded += (s, e) => { connectionId = e.ConnectionId; };
+            configurator.ConnectionAdded += (s, e) => connectionId = e.ConnectionId;
             uint readerGroupId = 0;
-            configurator.ReaderGroupAdded += (s, e) => { readerGroupId = e.ReaderGroupId; };
+            configurator.ReaderGroupAdded += (s, e) => readerGroupId = e.ReaderGroupId;
             bool readerAddedFired = false;
-            configurator.DataSetReaderAdded += (s, e) => { readerAddedFired = true; };
+            configurator.DataSetReaderAdded += (s, e) => readerAddedFired = true;
 
             configurator.AddConnection(new PubSubConnectionDataType { Name = "C1" });
             configurator.AddReaderGroup(connectionId, new ReaderGroupDataType { Name = "RG1" });

@@ -211,7 +211,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void HttpsTransportListenerFactoryCreatesListener()
         {
             var factory = new HttpsTransportListenerFactory();
-            using var listener = factory.Create(m_telemetry);
+            using ITransportListener listener = factory.Create(m_telemetry);
             Assert.That(listener, Is.Not.Null);
             Assert.That(listener.UriScheme, Is.EqualTo("https"));
         }
@@ -229,7 +229,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void OpcHttpsTransportListenerFactoryCreatesListener()
         {
             var factory = new OpcHttpsTransportListenerFactory();
-            using var listener = factory.Create(m_telemetry);
+            using ITransportListener listener = factory.Create(m_telemetry);
             Assert.That(listener, Is.Not.Null);
             Assert.That(listener.UriScheme, Is.EqualTo("opc.https"));
         }
@@ -247,7 +247,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void FactoryCreatedListenerHasNullListenerId()
         {
             var factory = new HttpsTransportListenerFactory();
-            using var listener = factory.Create(m_telemetry);
+            using ITransportListener listener = factory.Create(m_telemetry);
             Assert.That(listener.ListenerId, Is.Null);
         }
 

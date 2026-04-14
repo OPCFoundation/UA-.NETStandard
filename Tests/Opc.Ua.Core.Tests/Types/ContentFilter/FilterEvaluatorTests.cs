@@ -49,7 +49,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         {
             var namespaceTable = new NamespaceTable();
             var typeTable = new TypeTable(namespaceTable);
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             m_filterContext = new FilterContext(namespaceTable, typeTable, telemetry);
             m_target = new MockFilterTarget();
         }
@@ -76,7 +76,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void EqualsWithMatchingIntegers()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(42), Variant.From(42));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(42), Variant.From(42));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -84,7 +84,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void EqualsWithNonMatchingIntegers()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(42), Variant.From(99));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(42), Variant.From(99));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -92,7 +92,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void EqualsWithMatchingStrings()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From("hello"), Variant.From("hello"));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From("hello"), Variant.From("hello"));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -100,7 +100,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void EqualsWithNonMatchingStrings()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From("hello"), Variant.From("world"));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From("hello"), Variant.From("world"));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -108,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void GreaterThanTrue()
         {
-            var filter = BuildBinaryFilter(FilterOperator.GreaterThan, Variant.From(10), Variant.From(5));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.GreaterThan, Variant.From(10), Variant.From(5));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -116,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void GreaterThanFalse()
         {
-            var filter = BuildBinaryFilter(FilterOperator.GreaterThan, Variant.From(3), Variant.From(5));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.GreaterThan, Variant.From(3), Variant.From(5));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void GreaterThanOrEqualTrue()
         {
-            var filter = BuildBinaryFilter(FilterOperator.GreaterThanOrEqual, Variant.From(5), Variant.From(5));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.GreaterThanOrEqual, Variant.From(5), Variant.From(5));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void GreaterThanOrEqualFalse()
         {
-            var filter = BuildBinaryFilter(FilterOperator.GreaterThanOrEqual, Variant.From(3), Variant.From(5));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.GreaterThanOrEqual, Variant.From(3), Variant.From(5));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -140,7 +140,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void LessThanTrue()
         {
-            var filter = BuildBinaryFilter(FilterOperator.LessThan, Variant.From(3), Variant.From(5));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.LessThan, Variant.From(3), Variant.From(5));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -148,7 +148,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void LessThanFalse()
         {
-            var filter = BuildBinaryFilter(FilterOperator.LessThan, Variant.From(10), Variant.From(5));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.LessThan, Variant.From(10), Variant.From(5));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -156,7 +156,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void LessThanOrEqualTrue()
         {
-            var filter = BuildBinaryFilter(FilterOperator.LessThanOrEqual, Variant.From(5), Variant.From(5));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.LessThanOrEqual, Variant.From(5), Variant.From(5));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -164,7 +164,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void LessThanOrEqualFalse()
         {
-            var filter = BuildBinaryFilter(FilterOperator.LessThanOrEqual, Variant.From(10), Variant.From(5));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.LessThanOrEqual, Variant.From(10), Variant.From(5));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -172,7 +172,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void IsNullWithNullVariantReturnsTrue()
         {
-            var filter = BuildUnaryFilter(FilterOperator.IsNull, Variant.Null);
+            Ua.ContentFilter filter = BuildUnaryFilter(FilterOperator.IsNull, Variant.Null);
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -180,7 +180,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void IsNullWithNonNullVariantReturnsFalse()
         {
-            var filter = BuildUnaryFilter(FilterOperator.IsNull, Variant.From(42));
+            Ua.ContentFilter filter = BuildUnaryFilter(FilterOperator.IsNull, Variant.From(42));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -188,7 +188,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void NotTrueReturnsFalse()
         {
-            var inner = BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(1));
+            ContentFilterElement inner = BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(1));
             var notElement = new ContentFilterElement
             {
                 FilterOperator = FilterOperator.Not
@@ -206,7 +206,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void NotFalseReturnsTrue()
         {
-            var inner = BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(2));
+            ContentFilterElement inner = BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(2));
             var notElement = new ContentFilterElement
             {
                 FilterOperator = FilterOperator.Not
@@ -224,8 +224,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void AndBothTrueReturnsTrue()
         {
-            var left = BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(1));
-            var right = BuildBinaryElement(FilterOperator.Equals, Variant.From(2), Variant.From(2));
+            ContentFilterElement left = BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(1));
+            ContentFilterElement right = BuildBinaryElement(FilterOperator.Equals, Variant.From(2), Variant.From(2));
             var andElement = new ContentFilterElement
             {
                 FilterOperator = FilterOperator.And
@@ -243,8 +243,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void AndOneFalseReturnsFalse()
         {
-            var left = BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(1));
-            var right = BuildBinaryElement(FilterOperator.Equals, Variant.From(2), Variant.From(3));
+            ContentFilterElement left = BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(1));
+            ContentFilterElement right = BuildBinaryElement(FilterOperator.Equals, Variant.From(2), Variant.From(3));
             var andElement = new ContentFilterElement
             {
                 FilterOperator = FilterOperator.And
@@ -262,8 +262,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void OrOneTrueReturnsTrue()
         {
-            var left = BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(2));
-            var right = BuildBinaryElement(FilterOperator.Equals, Variant.From(2), Variant.From(2));
+            ContentFilterElement left = BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(2));
+            ContentFilterElement right = BuildBinaryElement(FilterOperator.Equals, Variant.From(2), Variant.From(2));
             var orElement = new ContentFilterElement
             {
                 FilterOperator = FilterOperator.Or
@@ -281,8 +281,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void OrBothFalseReturnsFalse()
         {
-            var left = BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(2));
-            var right = BuildBinaryElement(FilterOperator.Equals, Variant.From(3), Variant.From(4));
+            ContentFilterElement left = BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(2));
+            ContentFilterElement right = BuildBinaryElement(FilterOperator.Equals, Variant.From(3), Variant.From(4));
             var orElement = new ContentFilterElement
             {
                 FilterOperator = FilterOperator.Or
@@ -300,7 +300,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void LikeWithMatchingPattern()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("Hello World"), Variant.From("Hello%"));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("Hello World"), Variant.From("Hello%"));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -308,7 +308,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void LikeWithNonMatchingPattern()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("Hello World"), Variant.From("Goodbye%"));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("Hello World"), Variant.From("Goodbye%"));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -316,7 +316,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void LikeWithUnderscoreWildcard()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("cat"), Variant.From("c_t"));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("cat"), Variant.From("c_t"));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -324,7 +324,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void LikeWithExactMatch()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("test"), Variant.From("test"));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("test"), Variant.From("test"));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -332,7 +332,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void CastIntToDouble()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Cast, Variant.From(42), Variant.From(NodeId.Parse("i=11")));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Cast, Variant.From(42), Variant.From(NodeId.Parse("i=11")));
             var evaluator = new FilterEvaluator(filter, m_filterContext, m_target);
             Assert.That(evaluator.Result, Is.True.Or.False);
         }
@@ -340,7 +340,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void BitwiseAndOperation()
         {
-            var filter = BuildBinaryFilter(FilterOperator.BitwiseAnd, Variant.From(0xFF), Variant.From(0x0F));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.BitwiseAnd, Variant.From(0xFF), Variant.From(0x0F));
             var evaluator = new FilterEvaluator(filter, m_filterContext, m_target);
             Assert.That(evaluator, Is.Not.Null);
         }
@@ -348,7 +348,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void BitwiseOrOperation()
         {
-            var filter = BuildBinaryFilter(FilterOperator.BitwiseOr, Variant.From(0xF0), Variant.From(0x0F));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.BitwiseOr, Variant.From(0xF0), Variant.From(0x0F));
             var evaluator = new FilterEvaluator(filter, m_filterContext, m_target);
             Assert.That(evaluator, Is.Not.Null);
         }
@@ -401,7 +401,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void EqualsWithDifferentNumericTypesReturnsFalse()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From((int)42), Variant.From((double)42.0));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From((int)42), Variant.From((double)42.0));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -409,7 +409,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void EqualsWithNullOperands()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Equals, Variant.Null, Variant.Null);
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.Null, Variant.Null);
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -417,7 +417,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void GreaterThanWithDoubles()
         {
-            var filter = BuildBinaryFilter(FilterOperator.GreaterThan, Variant.From(3.14), Variant.From(2.71));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.GreaterThan, Variant.From(3.14), Variant.From(2.71));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -425,7 +425,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void LessThanWithDoubles()
         {
-            var filter = BuildBinaryFilter(FilterOperator.LessThan, Variant.From(2.71), Variant.From(3.14));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.LessThan, Variant.From(2.71), Variant.From(3.14));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -433,7 +433,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void LikeWithBracketCharacterClass()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("cat"), Variant.From("[abc]at"));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("cat"), Variant.From("[abc]at"));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -441,7 +441,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void LikeWithNegatedCharacterClass()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("cat"), Variant.From("[!d]at"));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("cat"), Variant.From("[!d]at"));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -449,7 +449,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void EqualsWithBooleans()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(true), Variant.From(true));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(true), Variant.From(true));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -457,8 +457,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void EqualsWithDateTimes()
         {
-            var now = DateTime.UtcNow;
-            var filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(now), Variant.From(now));
+            DateTime now = DateTime.UtcNow;
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(now), Variant.From(now));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -466,7 +466,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void ContentFilterExtensionEvaluate()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(1), Variant.From(1));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(1), Variant.From(1));
             bool result = ContentFilterExtensions.Evaluate(filter, m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -474,7 +474,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void FilterEvaluatorConstructorAndResult()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(5), Variant.From(5));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(5), Variant.From(5));
             var evaluator = new FilterEvaluator(filter, m_filterContext, m_target);
             Assert.That(evaluator.Result, Is.True);
         }
@@ -483,7 +483,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         public void OfTypeWithTargetReturningFalse()
         {
             m_target.IsTypeOfResult = false;
-            var filter = BuildUnaryFilter(FilterOperator.OfType, Variant.From(new NodeId(1)));
+            Ua.ContentFilter filter = BuildUnaryFilter(FilterOperator.OfType, Variant.From(new NodeId(1)));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -492,7 +492,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         public void OfTypeWithTargetReturningTrue()
         {
             m_target.IsTypeOfResult = true;
-            var filter = BuildUnaryFilter(FilterOperator.OfType, Variant.From(new NodeId(1)));
+            Ua.ContentFilter filter = BuildUnaryFilter(FilterOperator.OfType, Variant.From(new NodeId(1)));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -575,7 +575,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void LikeWithPercentWildcard()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("foobar"), Variant.From("%bar"));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("foobar"), Variant.From("%bar"));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
@@ -583,14 +583,14 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void EqualsWithByteValues()
         {
-            var filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From((byte)0xFF), Variant.From((byte)0xFF));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From((byte)0xFF), Variant.From((byte)0xFF));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
 
         private static Ua.ContentFilter BuildBinaryFilter(FilterOperator op, Variant left, Variant right)
         {
-            var element = BuildBinaryElement(op, left, right);
+            ContentFilterElement element = BuildBinaryElement(op, left, right);
             var filter = new Ua.ContentFilter
             {
                 Elements = [element]

@@ -44,7 +44,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
     [Parallelizable]
     public class JsonDataSetMessageAdditionalTests
     {
-        // Encode DataValue with source and server picoseconds
+        /// <summary>
+        /// Encode DataValue with source and server picoseconds
+        /// </summary>
         [Test]
         public void EncodeDataValueWithAllPicosecondsFields()
         {
@@ -74,7 +76,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(fieldObj["ServerPicoseconds"], Is.Not.Null);
         }
 
-        // Encode StatusCode.Good field as null in RawData mode
+        /// <summary>
+        /// Encode StatusCode.Good field as null in RawData mode
+        /// </summary>
         [Test]
         public void EncodeGoodStatusCodeAsNullInRawDataMode()
         {
@@ -97,7 +101,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(json, Is.Not.Null);
         }
 
-        // Encode with bad StatusCode replaces value with status code in non-DataValue mode
+        /// <summary>
+        /// Encode with bad StatusCode replaces value with status code in non-DataValue mode
+        /// </summary>
         [Test]
         public void EncodeBadStatusCodeReplacesValueInVariantMode()
         {
@@ -115,7 +121,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(root["TestField"], Is.Not.Null);
         }
 
-        // Encode with bad StatusCode in RawData mode
+        /// <summary>
+        /// Encode with bad StatusCode in RawData mode
+        /// </summary>
         [Test]
         public void EncodeBadStatusCodeInRawDataMode()
         {
@@ -131,18 +139,22 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(json, Is.Not.Null);
         }
 
-        // Round-trip encode then decode using Variant field encoding
+        /// <summary>
+        /// Round-trip encode then decode using Variant field encoding
+        /// </summary>
         [Test]
         public void RoundTripVariantEncoding()
         {
             DataSet dataSet = CreateSimpleDataSet("TestField", BuiltInType.Int32, 42);
-            var encodeMsg = new PubSubEncoding.JsonDataSetMessage(dataSet);
-            encodeMsg.HasDataSetMessageHeader = true;
-            encodeMsg.DataSetMessageContentMask =
-                JsonDataSetMessageContentMask.DataSetWriterId |
-                JsonDataSetMessageContentMask.SequenceNumber;
-            encodeMsg.DataSetWriterId = 5;
-            encodeMsg.SequenceNumber = 10;
+            var encodeMsg = new PubSubEncoding.JsonDataSetMessage(dataSet)
+            {
+                HasDataSetMessageHeader = true,
+                DataSetMessageContentMask =
+                    JsonDataSetMessageContentMask.DataSetWriterId |
+                    JsonDataSetMessageContentMask.SequenceNumber,
+                DataSetWriterId = 5,
+                SequenceNumber = 10
+            };
             encodeMsg.SetFieldContentMask(DataSetFieldContentMask.None);
 
             string json = EncodeMessage(encodeMsg, PubSubJsonEncoding.Reversible);
@@ -150,11 +162,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var decoder = new PubSubJsonDecoder(json, ServiceMessageContext.Create(telemetry));
 
-            var decodeMsg = new PubSubEncoding.JsonDataSetMessage();
-            decodeMsg.HasDataSetMessageHeader = true;
-            decodeMsg.DataSetMessageContentMask =
-                JsonDataSetMessageContentMask.DataSetWriterId |
-                JsonDataSetMessageContentMask.SequenceNumber;
+            var decodeMsg = new PubSubEncoding.JsonDataSetMessage
+            {
+                HasDataSetMessageHeader = true,
+                DataSetMessageContentMask =
+                    JsonDataSetMessageContentMask.DataSetWriterId |
+                    JsonDataSetMessageContentMask.SequenceNumber
+            };
             decodeMsg.SetFieldContentMask(DataSetFieldContentMask.None);
 
             DataSetReaderDataType reader = CreateDataSetReader("TestField", BuiltInType.Int32);
@@ -167,13 +181,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(decodeMsg.SequenceNumber, Is.EqualTo(10u));
         }
 
-        // Decode with RawData field encoding
+        /// <summary>
+        /// Decode with RawData field encoding
+        /// </summary>
         [Test]
         public void RoundTripRawDataEncoding()
         {
             DataSet dataSet = CreateSimpleDataSet("TestField", BuiltInType.Int32, 42);
-            var encodeMsg = new PubSubEncoding.JsonDataSetMessage(dataSet);
-            encodeMsg.HasDataSetMessageHeader = false;
+            var encodeMsg = new PubSubEncoding.JsonDataSetMessage(dataSet)
+            {
+                HasDataSetMessageHeader = false
+            };
             encodeMsg.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             string json = EncodeMessage(encodeMsg, PubSubJsonEncoding.NonReversible);
@@ -181,8 +199,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var decoder = new PubSubJsonDecoder(json, ServiceMessageContext.Create(telemetry));
 
-            var decodeMsg = new PubSubEncoding.JsonDataSetMessage();
-            decodeMsg.HasDataSetMessageHeader = false;
+            var decodeMsg = new PubSubEncoding.JsonDataSetMessage
+            {
+                HasDataSetMessageHeader = false
+            };
             decodeMsg.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             DataSetReaderDataType reader = CreateDataSetReader("TestField", BuiltInType.Int32);
@@ -191,7 +211,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(decodeMsg.DataSet, Is.Not.Null, "DataSet should be decoded for RawData.");
         }
 
-        // Decode with DataValue field encoding including all sub-fields
+        /// <summary>
+        /// Decode with DataValue field encoding including all sub-fields
+        /// </summary>
         [Test]
         public void RoundTripDataValueEncoding()
         {
@@ -211,8 +233,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourcePicoSeconds |
                 DataSetFieldContentMask.ServerPicoSeconds;
 
-            var encodeMsg = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] });
-            encodeMsg.HasDataSetMessageHeader = false;
+            var encodeMsg = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] })
+            {
+                HasDataSetMessageHeader = false
+            };
             encodeMsg.SetFieldContentMask(mask);
 
             string json = EncodeMessage(encodeMsg, PubSubJsonEncoding.NonReversible);
@@ -220,8 +244,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var decoder = new PubSubJsonDecoder(json, ServiceMessageContext.Create(telemetry));
 
-            var decodeMsg = new PubSubEncoding.JsonDataSetMessage();
-            decodeMsg.HasDataSetMessageHeader = false;
+            var decodeMsg = new PubSubEncoding.JsonDataSetMessage
+            {
+                HasDataSetMessageHeader = false
+            };
             decodeMsg.SetFieldContentMask(mask);
 
             DataSetReaderDataType reader = CreateDataSetReader("TestField", BuiltInType.Int32);
@@ -230,28 +256,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(decodeMsg.DataSet, Is.Not.Null, "DataSet should be decoded for DataValue.");
         }
 
-        // Decode with header including all header fields
+        /// <summary>
+        /// Decode with header including all header fields
+        /// </summary>
         [Test]
         public void DecodeWithAllHeaderFields()
         {
             DataSet dataSet = CreateSimpleDataSet("F1", BuiltInType.String, "hello");
-            var encodeMsg = new PubSubEncoding.JsonDataSetMessage(dataSet);
-            encodeMsg.HasDataSetMessageHeader = true;
-            encodeMsg.DataSetMessageContentMask =
-                JsonDataSetMessageContentMask.DataSetWriterId |
-                JsonDataSetMessageContentMask.SequenceNumber |
-                JsonDataSetMessageContentMask.MetaDataVersion |
-                JsonDataSetMessageContentMask.Timestamp |
-                JsonDataSetMessageContentMask.Status;
-            encodeMsg.DataSetWriterId = 7;
-            encodeMsg.SequenceNumber = 99;
-            encodeMsg.MetaDataVersion = new ConfigurationVersionDataType
+            var encodeMsg = new PubSubEncoding.JsonDataSetMessage(dataSet)
             {
-                MajorVersion = 1,
-                MinorVersion = 2
+                HasDataSetMessageHeader = true,
+                DataSetMessageContentMask =
+                    JsonDataSetMessageContentMask.DataSetWriterId |
+                    JsonDataSetMessageContentMask.SequenceNumber |
+                    JsonDataSetMessageContentMask.MetaDataVersion |
+                    JsonDataSetMessageContentMask.Timestamp |
+                    JsonDataSetMessageContentMask.Status,
+                DataSetWriterId = 7,
+                SequenceNumber = 99,
+                MetaDataVersion = new ConfigurationVersionDataType
+                {
+                    MajorVersion = 1,
+                    MinorVersion = 2
+                },
+                Timestamp = new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc),
+                Status = StatusCodes.Good
             };
-            encodeMsg.Timestamp = new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
-            encodeMsg.Status = StatusCodes.Good;
             encodeMsg.SetFieldContentMask(DataSetFieldContentMask.None);
 
             string json = EncodeMessage(encodeMsg, PubSubJsonEncoding.Reversible);
@@ -259,9 +289,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var decoder = new PubSubJsonDecoder(json, ServiceMessageContext.Create(telemetry));
 
-            var decodeMsg = new PubSubEncoding.JsonDataSetMessage();
-            decodeMsg.HasDataSetMessageHeader = true;
-            decodeMsg.DataSetMessageContentMask = encodeMsg.DataSetMessageContentMask;
+            var decodeMsg = new PubSubEncoding.JsonDataSetMessage
+            {
+                HasDataSetMessageHeader = true,
+                DataSetMessageContentMask = encodeMsg.DataSetMessageContentMask
+            };
             decodeMsg.SetFieldContentMask(DataSetFieldContentMask.None);
 
             DataSetReaderDataType reader = CreateDataSetReader("F1", BuiltInType.String);
@@ -279,7 +311,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(decodeMsg.DataSet, Is.Not.Null);
         }
 
-        // Encode multiple fields with different data types
+        /// <summary>
+        /// Encode multiple fields with different data types
+        /// </summary>
         [Test]
         public void EncodeMultipleFieldTypes()
         {
@@ -303,7 +337,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(root["DoubleField"]?.Value<double>(), Is.EqualTo(3.14));
         }
 
-        // Encode EncodePayload without push structure (pushStructure=false)
+        /// <summary>
+        /// Encode EncodePayload without push structure (pushStructure=false)
+        /// </summary>
         [Test]
         public void EncodePayloadWithoutPushStructure()
         {
@@ -327,7 +363,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(root["F1"]?.Value<int>(), Is.EqualTo(7));
         }
 
-        // Decode StatusCode.Good omission in Variant mode
+        /// <summary>
+        /// Decode StatusCode.Good omission in Variant mode
+        /// </summary>
         [Test]
         public void DecodeStatusCodeGoodOmissionInVariantMode()
         {
@@ -335,8 +373,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var decoder = new PubSubJsonDecoder(json, ServiceMessageContext.Create(telemetry));
 
-            var decodeMsg = new PubSubEncoding.JsonDataSetMessage();
-            decodeMsg.HasDataSetMessageHeader = false;
+            var decodeMsg = new PubSubEncoding.JsonDataSetMessage
+            {
+                HasDataSetMessageHeader = false
+            };
             decodeMsg.SetFieldContentMask(DataSetFieldContentMask.None);
 
             DataSetReaderDataType reader = CreateDataSetReader("StatusField", BuiltInType.StatusCode);

@@ -369,7 +369,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IServiceMessageContext context = ServiceMessageContext.Create(m_telemetry);
             byte[] encoded = networkMessage.Encode(context);
             Assert.That(encoded, Is.Not.Null);
-            Assert.That(encoded.Length, Is.GreaterThan(0));
+            Assert.That(encoded, Is.Not.Empty);
 
             var decodedMessage = new UadpNetworkMessage(writerGroup, []);
             decodedMessage.SetNetworkMessageContentMask(contentMask);
@@ -386,13 +386,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeDecodeDiscoveryRequestRoundTrip()
         {
             var message = new UadpNetworkMessage(
-                UADPNetworkMessageDiscoveryType.DataSetMetaData);
-            message.PublisherId = Variant.From((ushort)50);
+                UADPNetworkMessageDiscoveryType.DataSetMetaData)
+            {
+                PublisherId = Variant.From((ushort)50)
+            };
 
             IServiceMessageContext context = ServiceMessageContext.Create(m_telemetry);
             byte[] encoded = message.Encode(context);
             Assert.That(encoded, Is.Not.Null);
-            Assert.That(encoded.Length, Is.GreaterThan(0));
+            Assert.That(encoded, Is.Not.Empty);
 
             var decoded = new UadpNetworkMessage(
                 UADPNetworkMessageDiscoveryType.DataSetMetaData);
@@ -416,14 +418,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             };
 
-            var message = new UadpNetworkMessage(writerGroup, metadata);
-            message.PublisherId = Variant.From((ushort)10);
-            message.DataSetWriterId = 1;
+            var message = new UadpNetworkMessage(writerGroup, metadata)
+            {
+                PublisherId = Variant.From((ushort)10),
+                DataSetWriterId = 1
+            };
 
             IServiceMessageContext context = ServiceMessageContext.Create(m_telemetry);
             byte[] encoded = message.Encode(context);
             Assert.That(encoded, Is.Not.Null);
-            Assert.That(encoded.Length, Is.GreaterThan(0));
+            Assert.That(encoded, Is.Not.Empty);
         }
 
         [Test]
@@ -431,13 +435,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             EndpointDescription[] endpoints = [new EndpointDescription { EndpointUrl = "opc.tcp://localhost:4840" }];
 
-            var message = new UadpNetworkMessage(endpoints, StatusCodes.Good);
-            message.PublisherId = Variant.From((ushort)20);
+            var message = new UadpNetworkMessage(endpoints, StatusCodes.Good)
+            {
+                PublisherId = Variant.From((ushort)20)
+            };
 
             IServiceMessageContext context = ServiceMessageContext.Create(m_telemetry);
             byte[] encoded = message.Encode(context);
             Assert.That(encoded, Is.Not.Null);
-            Assert.That(encoded.Length, Is.GreaterThan(0));
+            Assert.That(encoded, Is.Not.Empty);
         }
 
         [Test]
@@ -446,13 +452,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             WriterGroupDataType writerGroup = CreateWriterGroup(UadpNetworkMessageContentMask.PublisherId);
 
             var message = new UadpNetworkMessage(
-                SampleWriterIds, writerGroup, SampleStatusCodes);
-            message.PublisherId = Variant.From((ushort)30);
+                SampleWriterIds, writerGroup, SampleStatusCodes)
+            {
+                PublisherId = Variant.From((ushort)30)
+            };
 
             IServiceMessageContext context = ServiceMessageContext.Create(m_telemetry);
             byte[] encoded = message.Encode(context);
             Assert.That(encoded, Is.Not.Null);
-            Assert.That(encoded.Length, Is.GreaterThan(0));
+            Assert.That(encoded, Is.Not.Empty);
         }
 
         [Test]

@@ -31,6 +31,7 @@ using System;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua;
 
 namespace Opc.Ua.Core.Tests.Stack.Server
 {
@@ -62,7 +63,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             };
             var exception = new ServiceResultException(StatusCodes.BadNotFound, "Item not found");
 
-            var fault = EndpointBase.CreateFault(m_logger, request, exception);
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
 
             Assert.That(fault, Is.Not.Null);
             Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadNotFound));
@@ -82,7 +83,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             };
             var exception = new InvalidOperationException("Something went wrong");
 
-            var fault = EndpointBase.CreateFault(m_logger, request, exception);
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
 
             Assert.That(fault, Is.Not.Null);
             Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadUnexpectedError));
@@ -92,7 +93,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         public void CreateFaultWithNullRequest()
         {
             var exception = new ServiceResultException(StatusCodes.BadSessionClosed);
-            var fault = EndpointBase.CreateFault(m_logger, null, exception);
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, null, exception);
 
             Assert.That(fault, Is.Not.Null);
             Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadSessionClosed));
@@ -107,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             };
             var exception = new ServiceResultException(StatusCodes.BadUnexpectedError, "Unexpected");
 
-            var fault = EndpointBase.CreateFault(m_logger, request, exception);
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
 
             Assert.That(fault, Is.Not.Null);
             Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadUnexpectedError));
@@ -122,7 +123,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             };
             var exception = new ServiceResultException(StatusCodes.BadNoSubscription);
 
-            var fault = EndpointBase.CreateFault(m_logger, request, exception);
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
 
             Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadNoSubscription));
         }
@@ -136,7 +137,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             };
             var exception = new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
 
-            var fault = EndpointBase.CreateFault(m_logger, request, exception);
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
 
             Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
@@ -150,7 +151,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             };
             var exception = new ServiceResultException(StatusCodes.BadCertificateInvalid);
 
-            var fault = EndpointBase.CreateFault(m_logger, request, exception);
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
 
             Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadCertificateInvalid));
         }
@@ -164,7 +165,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             };
             var exception = new ServiceResultException(StatusCodes.BadServerHalted);
 
-            var fault = EndpointBase.CreateFault(m_logger, request, exception);
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
 
             Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadServerHalted));
         }
@@ -182,7 +183,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             };
             var exception = new ServiceResultException(StatusCodes.BadNotFound, "Not found");
 
-            var fault = EndpointBase.CreateFault(m_logger, request, exception);
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
 
             Assert.That(fault.ResponseHeader.ServiceDiagnostics, Is.Not.Null);
             Assert.That(fault.ResponseHeader.StringTable.IsNull, Is.False);
@@ -250,7 +251,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 new InvalidOperationException("Error 1"),
                 new ArgumentException("Error 2"));
 
-            var fault = EndpointBase.CreateFault(m_logger, request, exception);
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
 
             Assert.That(fault, Is.Not.Null);
             Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadUnexpectedError));
@@ -275,11 +276,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 RequestHeader = new RequestHeader { RequestHandle = 1 }
             };
             var exception = new ServiceResultException(StatusCodes.BadNotFound);
-            var before = DateTime.UtcNow;
+            DateTime before = DateTime.UtcNow;
 
-            var fault = EndpointBase.CreateFault(m_logger, request, exception);
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
 
-            var after = DateTime.UtcNow;
+            DateTime after = DateTime.UtcNow;
             Assert.That((DateTime)fault.ResponseHeader.Timestamp >= before, Is.True);
             Assert.That((DateTime)fault.ResponseHeader.Timestamp <= after, Is.True);
         }

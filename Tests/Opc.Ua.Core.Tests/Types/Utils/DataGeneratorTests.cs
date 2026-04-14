@@ -371,7 +371,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void GetRandomXmlElementProducesValue()
         {
-            var result = m_generator.GetRandomXmlElement();
+            XmlElement result = m_generator.GetRandomXmlElement();
             Assert.That(result, Is.Not.EqualTo(default(XmlElement)));
         }
 

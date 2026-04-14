@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var msg = new PubSubEncoding.JsonNetworkMessage(writerGroup, messages);
 
             Assert.That(msg.DataSetMessages, Is.Not.Null);
-            Assert.That(msg.DataSetMessages.Count, Is.EqualTo(0));
+            Assert.That(msg.DataSetMessages.Count, Is.Zero);
             Assert.That(msg.IsMetaDataMessage, Is.False);
             Assert.That(msg.DataSetMetaData, Is.Null);
         }
@@ -77,22 +77,26 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(msg.DataSetMetaData, Is.Not.Null);
             Assert.That(msg.DataSetMetaData.Name, Is.EqualTo("Meta1"));
             Assert.That(msg.DataSetMessages, Is.Not.Null);
-            Assert.That(msg.DataSetMessages.Count, Is.EqualTo(0));
+            Assert.That(msg.DataSetMessages.Count, Is.Zero);
         }
 
         [Test]
         public void WriterGroupIdPropertyRoundTrips()
         {
-            var msg = new PubSubEncoding.JsonNetworkMessage();
-            msg.WriterGroupId = 42;
+            var msg = new PubSubEncoding.JsonNetworkMessage
+            {
+                WriterGroupId = 42
+            };
             Assert.That(msg.WriterGroupId, Is.EqualTo(42));
         }
 
         [Test]
         public void DataSetWriterIdSetGetRoundTrips()
         {
-            var msg = new PubSubEncoding.JsonNetworkMessage();
-            msg.DataSetWriterId = 123;
+            var msg = new PubSubEncoding.JsonNetworkMessage
+            {
+                DataSetWriterId = 123
+            };
             Assert.That(msg.DataSetWriterId, Is.EqualTo(123));
         }
 
@@ -128,8 +132,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DataSetWriterIdSetToNullResetsToZero()
         {
-            var msg = new PubSubEncoding.JsonNetworkMessage();
-            msg.DataSetWriterId = 99;
+            var msg = new PubSubEncoding.JsonNetworkMessage
+            {
+                DataSetWriterId = 99
+            };
             msg.DataSetWriterId = null;
             Assert.That(msg.DataSetWriterId, Is.Null);
         }
@@ -187,14 +193,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var msg = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup, (List<PubSubEncoding.JsonDataSetMessage>)null);
             Assert.That(msg.DataSetMessages, Is.Not.Null);
-            Assert.That(msg.DataSetMessages.Count, Is.EqualTo(0));
+            Assert.That(msg.DataSetMessages.Count, Is.Zero);
         }
 
         [Test]
         public void WriterGroupIdDefaultIsZero()
         {
             var msg = new PubSubEncoding.JsonNetworkMessage();
-            Assert.That(msg.WriterGroupId, Is.EqualTo(0));
+            Assert.That(msg.WriterGroupId, Is.Zero);
         }
     }
 }

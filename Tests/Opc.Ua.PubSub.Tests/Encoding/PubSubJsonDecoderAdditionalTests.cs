@@ -55,18 +55,20 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeDataSetNetworkMessageWithHeader()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-1"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""TestPub"",
-                ""Messages"": [
+            const string json = /*lang=json,strict*/ """
+{
+                "MessageId": "msg-1",
+                "MessageType": "ua-data",
+                "PublisherId": "TestPub",
+                "Messages": [
                     {
-                        ""Payload"": {
-                            ""Temperature"": 22.5
+                        "Payload": {
+                            "Temperature": 22.5
                         }
                     }
                 ]
-            }";
+            }
+""";
 
             var reader = new DataSetReaderDataType
             {
@@ -104,20 +106,22 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeMetaDataNetworkMessage()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""meta-1"",
-                ""MessageType"": ""ua-metadata"",
-                ""PublisherId"": ""MetaPub"",
-                ""DataSetWriterId"": 10,
-                ""MetaData"": {
-                    ""Name"": ""TestMetaData"",
-                    ""Fields"": [],
-                    ""ConfigurationVersion"": {
-                        ""MajorVersion"": 1,
-                        ""MinorVersion"": 0
+            const string json = /*lang=json,strict*/ """
+{
+                "MessageId": "meta-1",
+                "MessageType": "ua-metadata",
+                "PublisherId": "MetaPub",
+                "DataSetWriterId": 10,
+                "MetaData": {
+                    "Name": "TestMetaData",
+                    "Fields": [],
+                    "ConfigurationVersion": {
+                        "MajorVersion": 1,
+                        "MinorVersion": 0
                     }
                 }
-            }";
+            }
+""";
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
@@ -131,11 +135,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeNetworkMessageWithNullReadersDoesNotThrow()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-2"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""Pub""
-            }";
+            const string json = /*lang=json,strict*/ """
+{
+                "MessageId": "msg-2",
+                "MessageType": "ua-data",
+                "PublisherId": "Pub"
+            }
+""";
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
@@ -147,10 +153,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeNetworkMessageWithEmptyReadersDoesNotThrow()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-3"",
-                ""MessageType"": ""ua-data""
-            }";
+            const string json = /*lang=json,strict*/ """
+{
+                "MessageId": "msg-3",
+                "MessageType": "ua-data"
+            }
+""";
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
@@ -163,10 +171,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeNetworkMessageWithInvalidMessageType()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-inv"",
-                ""MessageType"": ""ua-invalid""
-            }";
+            const string json = /*lang=json,strict*/ """
+{
+                "MessageId": "msg-inv",
+                "MessageType": "ua-invalid"
+            }
+""";
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
@@ -180,12 +190,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void DecodeNetworkMessageWithDataSetClassId()
         {
             var classId = Guid.NewGuid();
-            string json = $@"{{
-                ""MessageId"": ""msg-cls"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""Pub"",
-                ""DataSetClassId"": ""{classId}""
-            }}";
+            string json = $$"""
+{
+                "MessageId": "msg-cls",
+                "MessageType": "ua-data",
+                "PublisherId": "Pub",
+                "DataSetClassId": "{{classId}}"
+            }
+""";
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
@@ -302,7 +314,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             double result = decoder.ReadDouble("Missing");
-            Assert.That(result, Is.EqualTo(0.0));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -312,7 +324,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             float result = decoder.ReadFloat("Missing");
-            Assert.That(result, Is.EqualTo(0.0f));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -322,7 +334,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             byte result = decoder.ReadByte("Missing");
-            Assert.That(result, Is.EqualTo((byte)0));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -332,7 +344,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ushort result = decoder.ReadUInt16("Missing");
-            Assert.That(result, Is.EqualTo((ushort)0));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -342,7 +354,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ulong result = decoder.ReadUInt64("Missing");
-            Assert.That(result, Is.EqualTo((ulong)0));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -352,7 +364,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             long result = decoder.ReadInt64("Missing");
-            Assert.That(result, Is.EqualTo(0L));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -410,12 +422,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadMultiplePrimitivesFromSameJson()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""IntVal"": 10,
-                ""DoubleVal"": 3.14,
-                ""BoolVal"": true,
-                ""StrVal"": ""test""
-            }";
+            const string json = /*lang=json,strict*/ """
+{
+                "IntVal": 10,
+                "DoubleVal": 3.14,
+                "BoolVal": true,
+                "StrVal": "test"
+            }
+""";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             Assert.That(decoder.ReadInt32("IntVal"), Is.EqualTo(10));
@@ -528,18 +542,20 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeNetworkMessageWithNullPublisherIdReaderMatchesAll()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-np"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""AnyPub"",
-                ""Messages"": [
+            const string json = /*lang=json,strict*/ """
+{
+                "MessageId": "msg-np",
+                "MessageType": "ua-data",
+                "PublisherId": "AnyPub",
+                "Messages": [
                     {
-                        ""Payload"": {
-                            ""Value"": 42
+                        "Payload": {
+                            "Value": 42
                         }
                     }
                 ]
-            }";
+            }
+""";
 
             var reader = new DataSetReaderDataType
             {
@@ -576,18 +592,20 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeNetworkMessageWithMismatchedPublisherIdIgnoresReader()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""msg-mm"",
-                ""MessageType"": ""ua-data"",
-                ""PublisherId"": ""PubA"",
-                ""Messages"": [
+            const string json = /*lang=json,strict*/ """
+{
+                "MessageId": "msg-mm",
+                "MessageType": "ua-data",
+                "PublisherId": "PubA",
+                "Messages": [
                     {
-                        ""Payload"": {
-                            ""Value"": 42
+                        "Payload": {
+                            "Value": 42
                         }
                     }
                 ]
-            }";
+            }
+""";
 
             var reader = new DataSetReaderDataType
             {
@@ -618,32 +636,34 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
             networkMessage.Decode(m_context, messageBytes, [reader]);
 
-            Assert.That(networkMessage.DataSetMessages.Count, Is.EqualTo(0));
+            Assert.That(networkMessage.DataSetMessages.Count, Is.Zero);
         }
 
         [Test]
         public void DecodeMetaDataMessageWithDataSetWriterId()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""meta-dw"",
-                ""MessageType"": ""ua-metadata"",
-                ""PublisherId"": ""MetaPub"",
-                ""DataSetWriterId"": 25,
-                ""MetaData"": {
-                    ""Name"": ""MD1"",
-                    ""Fields"": [
+            const string json = /*lang=json,strict*/ """
+{
+                "MessageId": "meta-dw",
+                "MessageType": "ua-metadata",
+                "PublisherId": "MetaPub",
+                "DataSetWriterId": 25,
+                "MetaData": {
+                    "Name": "MD1",
+                    "Fields": [
                         {
-                            ""Name"": ""F1"",
-                            ""BuiltInType"": 6,
-                            ""ValueRank"": -1
+                            "Name": "F1",
+                            "BuiltInType": 6,
+                            "ValueRank": -1
                         }
                     ],
-                    ""ConfigurationVersion"": {
-                        ""MajorVersion"": 2,
-                        ""MinorVersion"": 1
+                    "ConfigurationVersion": {
+                        "MajorVersion": 2,
+                        "MinorVersion": 1
                     }
                 }
-            }";
+            }
+""";
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
@@ -656,19 +676,21 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeMetaDataMessageMissingDataSetWriterId()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""MessageId"": ""meta-no-dw"",
-                ""MessageType"": ""ua-metadata"",
-                ""PublisherId"": ""MetaPub"",
-                ""MetaData"": {
-                    ""Name"": ""MD2"",
-                    ""Fields"": [],
-                    ""ConfigurationVersion"": {
-                        ""MajorVersion"": 1,
-                        ""MinorVersion"": 0
+            const string json = /*lang=json,strict*/ """
+{
+                "MessageId": "meta-no-dw",
+                "MessageType": "ua-metadata",
+                "PublisherId": "MetaPub",
+                "MetaData": {
+                    "Name": "MD2",
+                    "Fields": [],
+                    "ConfigurationVersion": {
+                        "MajorVersion": 1,
+                        "MinorVersion": 0
                     }
                 }
-            }";
+            }
+""";
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
@@ -688,7 +710,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             int val = decoder.ReadInt32("NonExistent");
             decoder.Pop();
 
-            Assert.That(val, Is.EqualTo(0));
+            Assert.That(val, Is.Zero);
         }
 
         [Test]
@@ -719,12 +741,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadNestedArrayOfObjects()
         {
-            const string json = /*lang=json,strict*/ @"{
-                ""Groups"": [
-                    {""Id"": 1, ""Name"": ""First""},
-                    {""Id"": 2, ""Name"": ""Second""}
+            const string json = /*lang=json,strict*/ """
+{
+                "Groups": [
+                    {"Id": 1, "Name": "First"},
+                    {"Id": 2, "Name": "Second"}
                 ]
-            }";
+            }
+""";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             bool pushed = decoder.PushArray("Groups", 1);

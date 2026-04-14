@@ -47,7 +47,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             return new DataCollector(dataStore ?? new UaPubSubDataStore(), telemetry);
         }
 
-        // Validate returns true when DataSetMetaData is default-initialized
+        /// <summary>
+        /// Validate returns true when DataSetMetaData is default-initialized
+        /// </summary>
         [Test]
         public void ValidateReturnsTrueWhenDataSetIsDefaultInitialized()
         {
@@ -61,7 +63,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(result, Is.True);
         }
 
-        // Validate returns false when PublishedData count mismatches Fields count
+        /// <summary>
+        /// Validate returns false when PublishedData count mismatches Fields count
+        /// </summary>
         [Test]
         public void ValidateReturnsFalseWhenCountMismatch()
         {
@@ -88,7 +92,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(result, Is.False);
         }
 
-        // Validate throws on null publishedDataSet
+        /// <summary>
+        /// Validate throws on null publishedDataSet
+        /// </summary>
         [Test]
         public void ValidateThrowsOnNull()
         {
@@ -96,7 +102,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(() => collector.ValidatePublishedDataSet(null), Throws.TypeOf<ArgumentException>());
         }
 
-        // AddPublishedDataSet throws on null
+        /// <summary>
+        /// AddPublishedDataSet throws on null
+        /// </summary>
         [Test]
         public void AddPublishedDataSetThrowsOnNull()
         {
@@ -104,7 +112,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(() => collector.AddPublishedDataSet(null), Throws.TypeOf<ArgumentException>());
         }
 
-        // RemovePublishedDataSet throws on null
+        /// <summary>
+        /// RemovePublishedDataSet throws on null
+        /// </summary>
         [Test]
         public void RemovePublishedDataSetThrowsOnNull()
         {
@@ -112,7 +122,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(() => collector.RemovePublishedDataSet(null), Throws.TypeOf<ArgumentException>());
         }
 
-        // GetPublishedDataSet throws on null name
+        /// <summary>
+        /// GetPublishedDataSet throws on null name
+        /// </summary>
         [Test]
         public void GetPublishedDataSetThrowsOnNullName()
         {
@@ -120,7 +132,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(() => collector.GetPublishedDataSet(null), Throws.TypeOf<ArgumentException>());
         }
 
-        // GetPublishedDataSet returns null for unknown name
+        /// <summary>
+        /// GetPublishedDataSet returns null for unknown name
+        /// </summary>
         [Test]
         public void GetPublishedDataSetReturnsNullForUnknownName()
         {
@@ -129,7 +143,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(result, Is.Null);
         }
 
-        // CollectData returns null for unregistered dataset
+        /// <summary>
+        /// CollectData returns null for unregistered dataset
+        /// </summary>
         [Test]
         public void CollectDataReturnsNullForUnknownDataSet()
         {
@@ -138,7 +154,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(result, Is.Null);
         }
 
-        // CollectData returns null when DataSetSource is null (IsNull)
+        /// <summary>
+        /// CollectData returns null when DataSetSource is null (IsNull)
+        /// </summary>
         [Test]
         public void CollectDataReturnsNullWhenDataSetSourceIsNull()
         {
@@ -150,7 +168,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(result, Is.Null);
         }
 
-        // AddPublishedDataSet with mismatched counts logs error and does not add
+        /// <summary>
+        /// AddPublishedDataSet with mismatched counts logs error and does not add
+        /// </summary>
         [Test]
         public void AddInvalidPublishedDataSetDoesNotAdd()
         {
@@ -177,7 +197,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(found, Is.Null);
         }
 
-        // CollectData with extension field fallback
+        /// <summary>
+        /// CollectData with extension field fallback
+        /// </summary>
         [Test]
         public void CollectDataUsesExtensionFieldWhenDataValueIsNull()
         {
@@ -222,11 +244,13 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             DataSet result = collector.CollectData("ExtTest");
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields.Length, Is.EqualTo(1));
+            Assert.That(result.Fields, Has.Length.EqualTo(1));
             Assert.That(result.Fields[0].Value.WrappedValue.AsBoxedObject(), Is.EqualTo(99));
         }
 
-        // CollectData with no matching extension field produces Bad status
+        /// <summary>
+        /// CollectData with no matching extension field produces Bad status
+        /// </summary>
         [Test]
         public void CollectDataProducesBadWhenNoValueAndNoExtensionField()
         {
@@ -263,7 +287,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(result.Fields[0].Value.StatusCode, Is.EqualTo(StatusCodes.Bad));
         }
 
-        // CollectData with SubstituteValue on bad status from store
+        /// <summary>
+        /// CollectData with SubstituteValue on bad status from store
+        /// </summary>
         [Test]
         public void CollectDataUsesSubstituteValueOnBadStatus()
         {
@@ -310,7 +336,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 Is.EqualTo(StatusCodes.UncertainSubstituteValue));
         }
 
-        // CollectData with string truncation
+        /// <summary>
+        /// CollectData with string truncation
+        /// </summary>
         [Test]
         public void CollectDataTruncatesStringToMaxStringLength()
         {
@@ -355,10 +383,12 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             Assert.That(result, Is.Not.Null);
             string value = result.Fields[0].Value.WrappedValue.ToString();
-            Assert.That(value.Length, Is.EqualTo(5));
+            Assert.That(value, Has.Length.EqualTo(5));
         }
 
-        // CollectData with ByteString truncation
+        /// <summary>
+        /// CollectData with ByteString truncation
+        /// </summary>
         [Test]
         public void CollectDataTruncatesByteStringToMaxStringLength()
         {
@@ -406,7 +436,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(bs.Length, Is.EqualTo(3));
         }
 
-        // RemovePublishedDataSet removes correctly
+        /// <summary>
+        /// RemovePublishedDataSet removes correctly
+        /// </summary>
         [Test]
         public void RemovePublishedDataSetSucceeds()
         {

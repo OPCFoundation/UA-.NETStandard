@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void DisposeCertificateNullsCertificateProperty()
         {
             // Use a separate certificate to avoid disposing the shared one
-            using var cert = CertificateBuilder.Create("CN=DisposeTest")
+            using X509Certificate2 cert = CertificateBuilder.Create("CN=DisposeTest")
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(365)
                 .SetRSAKeySize(2048)

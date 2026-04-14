@@ -572,7 +572,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             {
                 EndpointUrl = "https://localhost:4840"
             });
-            var discoveryUrl = endpoint.GetDiscoveryUrl(new Uri("https://localhost:4840"));
+            Uri discoveryUrl = endpoint.GetDiscoveryUrl(new Uri("https://localhost:4840"));
             Assert.That(discoveryUrl, Is.Not.Null);
             Assert.That(discoveryUrl.ToString(), Does.Contain("discovery"));
         }
@@ -584,7 +584,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
-            var discoveryUrl = endpoint.GetDiscoveryUrl(new Uri("opc.tcp://localhost:4840"));
+            Uri discoveryUrl = endpoint.GetDiscoveryUrl(new Uri("opc.tcp://localhost:4840"));
             Assert.That(discoveryUrl, Is.Not.Null);
         }
 
@@ -601,7 +601,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     ]
                 }
             });
-            var discoveryUrl = endpoint.GetDiscoveryUrl(new Uri("opc.tcp://localhost:4840"));
+            Uri discoveryUrl = endpoint.GetDiscoveryUrl(new Uri("opc.tcp://localhost:4840"));
             Assert.That(discoveryUrl, Is.Not.Null);
         }
 
@@ -612,7 +612,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
-            var discoveryUrl = endpoint.GetDiscoveryUrl(null);
+            Uri discoveryUrl = endpoint.GetDiscoveryUrl(null);
             Assert.That(discoveryUrl, Is.Not.Null);
         }
 

@@ -515,10 +515,10 @@ namespace Opc.Ua.Core.Tests
         /// ValidateAsync throws for Server type when ServerConfiguration is null.
         public async Task ValidateAsyncThrowsForServerWithNoServerConfiguration()
         {
-            var config = CreateMinimalValidatableConfig();
+            ApplicationConfiguration config = CreateMinimalValidatableConfig();
             config.ApplicationType = ApplicationType.Server;
 
-            var ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await config.ValidateAsync(ApplicationType.Server).ConfigureAwait(false));
             Assert.That(ex, Is.Not.Null);
             await Task.CompletedTask.ConfigureAwait(false);
@@ -528,9 +528,9 @@ namespace Opc.Ua.Core.Tests
         /// ValidateAsync throws for Client type when ClientConfiguration is null.
         public async Task ValidateAsyncThrowsForClientWithNoClientConfiguration()
         {
-            var config = CreateMinimalValidatableConfig();
+            ApplicationConfiguration config = CreateMinimalValidatableConfig();
 
-            var ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await config.ValidateAsync(ApplicationType.Client).ConfigureAwait(false));
             Assert.That(ex, Is.Not.Null);
             await Task.CompletedTask.ConfigureAwait(false);
@@ -540,9 +540,9 @@ namespace Opc.Ua.Core.Tests
         /// ValidateAsync throws for DiscoveryServer type when DiscoveryServerConfiguration is null.
         public async Task ValidateAsyncThrowsForDiscoveryServerWithNoConfig()
         {
-            var config = CreateMinimalValidatableConfig();
+            ApplicationConfiguration config = CreateMinimalValidatableConfig();
 
-            var ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await config.ValidateAsync(ApplicationType.DiscoveryServer).ConfigureAwait(false));
             Assert.That(ex, Is.Not.Null);
             await Task.CompletedTask.ConfigureAwait(false);

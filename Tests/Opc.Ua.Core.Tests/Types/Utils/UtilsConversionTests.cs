@@ -29,7 +29,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Xml;
+using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
@@ -226,6 +229,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void IsValidLocaleIdWithInvalidLocale()
         {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.Ignore("Any locale id is valid on non-Windows platforms");
+            }
             Assert.That(Utils.IsValidLocaleId("xx-INVALID-ZZ"), Is.False);
         }
 
@@ -261,7 +268,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             };
             var defaultName = new LocalizedText("en", "Default");
 
-            var result = Utils.SelectLocalizedText(locales, names, defaultName);
+            LocalizedText result = Utils.SelectLocalizedText(locales, names, defaultName);
             Assert.That(result.Text, Is.EqualTo("Hallo"));
         }
 
@@ -276,7 +283,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             };
             var defaultName = new LocalizedText("en", "Default");
 
-            var result = Utils.SelectLocalizedText(locales, names, defaultName);
+            LocalizedText result = Utils.SelectLocalizedText(locales, names, defaultName);
             Assert.That(result.Text, Is.EqualTo("Hello"));
         }
 
@@ -291,7 +298,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             };
             var defaultName = new LocalizedText("en", "Default");
 
-            var result = Utils.SelectLocalizedText(locales, names, defaultName);
+            LocalizedText result = Utils.SelectLocalizedText(locales, names, defaultName);
             Assert.That(result.Text, Is.EqualTo("Default"));
         }
 
@@ -304,7 +311,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             };
             var defaultName = new LocalizedText("en", "Default");
 
-            var result = Utils.SelectLocalizedText(null, names, defaultName);
+            LocalizedText result = Utils.SelectLocalizedText(null, names, defaultName);
             Assert.That(result.Text, Is.EqualTo("Default"));
         }
 
@@ -314,7 +321,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var locales = new List<string> { "en-US" };
             var defaultName = new LocalizedText("en", "Default");
 
-            var result = Utils.SelectLocalizedText(locales, null, defaultName);
+            LocalizedText result = Utils.SelectLocalizedText(locales, null, defaultName);
             Assert.That(result.Text, Is.EqualTo("Default"));
         }
 
@@ -478,7 +485,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void GetDeadlineNormalTimeSpan()
         {
-            var deadline = Utils.GetDeadline(TimeSpan.FromMinutes(5));
+            DateTime deadline = Utils.GetDeadline(TimeSpan.FromMinutes(5));
             Assert.That(deadline, Is.GreaterThan(DateTime.UtcNow));
             Assert.That(deadline, Is.LessThan(DateTime.UtcNow.AddMinutes(6)));
         }
@@ -486,7 +493,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void GetDeadlineMaxTimeSpan()
         {
-            var deadline = Utils.GetDeadline(TimeSpan.MaxValue);
+            DateTime deadline = Utils.GetDeadline(TimeSpan.MaxValue);
             Assert.That(deadline, Is.EqualTo(DateTime.MaxValue));
         }
 
@@ -677,21 +684,21 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void ToOpcUaUniversalTimeConvertsLocal()
         {
             var localTime = new DateTime(2023, 6, 15, 12, 0, 0, DateTimeKind.Local);
-            var result = Utils.ToOpcUaUniversalTime(localTime);
+            DateTime result = Utils.ToOpcUaUniversalTime(localTime);
             Assert.That(result.Kind, Is.EqualTo(DateTimeKind.Utc));
         }
 
         [Test]
         public void ToOpcUaUniversalTimeWithMinValue()
         {
-            var result = Utils.ToOpcUaUniversalTime(DateTime.MinValue);
+            DateTime result = Utils.ToOpcUaUniversalTime(DateTime.MinValue);
             Assert.That(result, Is.EqualTo(DateTime.MinValue));
         }
 
         [Test]
         public void ParseUriValid()
         {
-            var uri = Utils.ParseUri("opc.tcp://localhost:4840");
+            Uri uri = Utils.ParseUri("opc.tcp://localhost:4840");
             Assert.That(uri, Is.Not.Null);
             Assert.That(uri.Host, Is.EqualTo("localhost"));
         }
@@ -699,21 +706,21 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ParseUriNull()
         {
-            var uri = Utils.ParseUri(null);
+            Uri uri = Utils.ParseUri(null);
             Assert.That(uri, Is.Null);
         }
 
         [Test]
         public void ParseUriInvalid()
         {
-            var uri = Utils.ParseUri("not a valid uri :::");
+            Uri uri = Utils.ParseUri("not a valid uri :::");
             Assert.That(uri, Is.Null);
         }
 
         [Test]
         public void ParseUriEmpty()
         {
-            var uri = Utils.ParseUri(string.Empty);
+            Uri uri = Utils.ParseUri(string.Empty);
             Assert.That(uri, Is.Null);
         }
 
@@ -787,7 +794,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void CreateHMACWithSHA1()
         {
-            using var hmac = Utils.CreateHMAC(HashAlgorithmName.SHA1, [1, 2, 3]);
+            using HMAC hmac = Utils.CreateHMAC(HashAlgorithmName.SHA1, [1, 2, 3]);
             Assert.That(hmac, Is.Not.Null);
             Assert.That(hmac, Is.InstanceOf<HMACSHA1>());
         }
@@ -795,7 +802,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void CreateHMACWithSHA256()
         {
-            using var hmac = Utils.CreateHMAC(HashAlgorithmName.SHA256, [1, 2, 3]);
+            using HMAC hmac = Utils.CreateHMAC(HashAlgorithmName.SHA256, [1, 2, 3]);
             Assert.That(hmac, Is.Not.Null);
             Assert.That(hmac, Is.InstanceOf<HMACSHA256>());
         }
@@ -837,14 +844,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void DefaultXmlReaderSettingsReturnsNonNull()
         {
-            var settings = Utils.DefaultXmlReaderSettings();
+            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
             Assert.That(settings, Is.Not.Null);
         }
 
         [Test]
         public void DefaultXmlWriterSettingsReturnsNonNull()
         {
-            var settings = Utils.DefaultXmlWriterSettings();
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             Assert.That(settings, Is.Not.Null);
         }
 
@@ -865,7 +872,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void IsPathRootedWithAbsolutePath()
         {
-            Assert.That(Utils.IsPathRooted("C:\\temp\\file.txt"), Is.True);
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.That(Utils.IsPathRooted("C:\\temp\\file.txt"), Is.True);
+            }
+            else
+            {
+                Assert.That(Utils.IsPathRooted("/temp/file.txt"), Is.True);
+            }
         }
 
         [Test]

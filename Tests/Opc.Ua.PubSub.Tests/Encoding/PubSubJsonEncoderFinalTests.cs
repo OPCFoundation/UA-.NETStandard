@@ -66,9 +66,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 0 }
             };
 
-            var networkMessage = new PubSubEncoding.JsonNetworkMessage(null, metadata);
-            networkMessage.PublisherId = "Publisher1";
-            networkMessage.DataSetWriterId = 100;
+            var networkMessage = new PubSubEncoding.JsonNetworkMessage(null, metadata)
+            {
+                PublisherId = "Publisher1",
+                DataSetWriterId = 100
+            };
 
             byte[] encoded = networkMessage.Encode(m_context);
             string json = System.Text.Encoding.UTF8.GetString(encoded);
@@ -89,8 +91,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Fields = []
             };
 
-            var networkMessage = new PubSubEncoding.JsonNetworkMessage(null, metadata);
-            networkMessage.PublisherId = "Pub1";
+            var networkMessage = new PubSubEncoding.JsonNetworkMessage(null, metadata)
+            {
+                PublisherId = "Pub1"
+            };
 
             byte[] encoded = networkMessage.Encode(m_context);
             string json = System.Text.Encoding.UTF8.GetString(encoded);
@@ -113,9 +117,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg.SequenceNumber = 5;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, [dsMsg]);
-            networkMessage.PublisherId = "TestPublisher";
-            networkMessage.ReplyTo = "mqtt://reply/topic";
+                null, [dsMsg])
+            {
+                PublisherId = "TestPublisher",
+                ReplyTo = "mqtt://reply/topic"
+            };
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.PublisherId |
@@ -162,8 +168,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg.DataSetWriterId = 1;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, [dsMsg]);
-            networkMessage.PublisherId = "Pub";
+                null, [dsMsg])
+            {
+                PublisherId = "Pub"
+            };
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.PublisherId |
@@ -196,8 +204,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dsMsg2.DataSetWriterId = 2;
 
             var networkMessage = new PubSubEncoding.JsonNetworkMessage(
-                null, [dsMsg1, dsMsg2]);
-            networkMessage.PublisherId = "Pub";
+                null, [dsMsg1, dsMsg2])
+            {
+                PublisherId = "Pub"
+            };
             networkMessage.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.PublisherId |
@@ -331,7 +341,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("DoubleField", BuiltInType.Double, 2.71828),
                 MakeField("StringField", BuiltInType.String, "hello world"),
                 MakeField("DateTimeField", BuiltInType.DateTime, new DateTime(2025, 6, 15, 12, 0, 0, DateTimeKind.Utc)),
-                MakeField("GuidField", BuiltInType.Guid, Uuid.NewUuid()),
+                MakeField("GuidField", BuiltInType.Guid, Uuid.NewUuid())
             };
 
             FieldMetaData[] fieldMetaData = Array.ConvertAll(fields.ToArray(), f => f.FieldMetaData);
@@ -374,7 +384,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("ExpandedNodeIdField", BuiltInType.ExpandedNodeId, expandedNodeId),
                 MakeField("QualifiedNameField", BuiltInType.QualifiedName, qualifiedName),
                 MakeField("LocalizedTextField", BuiltInType.LocalizedText, localizedText),
-                MakeField("StatusCodeField", BuiltInType.StatusCode, statusCode),
+                MakeField("StatusCodeField", BuiltInType.StatusCode, statusCode)
             };
 
             FieldMetaData[] fieldMetaData = Array.ConvertAll(fields.ToArray(), f => f.FieldMetaData);
@@ -562,7 +572,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeVariantFieldWithArrayValues()
         {
-            var intArray = new int[] { 1, 2, 3, 4, 5 };
+            int[] intArray = [1, 2, 3, 4, 5];
             Field field = MakeField("IntArray", BuiltInType.Int32, intArray, ValueRanks.OneDimension);
 
             PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
@@ -587,7 +597,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeRawDataFieldWithArrayValues()
         {
-            var doubleArray = new double[] { 1.1, 2.2, 3.3 };
+            double[] doubleArray = [1.1, 2.2, 3.3];
             Field field = MakeField("DoubleArray", BuiltInType.Double, doubleArray, ValueRanks.OneDimension);
 
             PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
@@ -610,13 +620,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeVariantFieldsWithByteStringAndExtensionObject()
         {
-            var byteString = new byte[] { 0x01, 0x02, 0x03, 0xFF };
+            byte[] byteString = [0x01, 0x02, 0x03, 0xFF];
             var extObj = new ExtensionObject(new Argument("TestArg", DataTypeIds.Int32, ValueRanks.Scalar, "desc"));
 
             var fields = new List<Field>
             {
                 MakeField("ByteStringField", BuiltInType.ByteString, byteString),
-                MakeField("ExtObjField", BuiltInType.ExtensionObject, extObj),
+                MakeField("ExtObjField", BuiltInType.ExtensionObject, extObj)
             };
 
             PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
@@ -728,7 +738,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeRawDataFieldWithStringArrayValues()
         {
-            var stringArray = new string[] { "alpha", "beta", "gamma" };
+            string[] stringArray = ["alpha", "beta", "gamma"];
             Field field = MakeField("StringArray", BuiltInType.String, stringArray, ValueRanks.OneDimension);
 
             PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
@@ -973,7 +983,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeRawDataWithByteStringField()
         {
-            var byteStr = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
+            byte[] byteStr = [0xDE, 0xAD, 0xBE, 0xEF];
             Field field = MakeField("RawBytes", BuiltInType.ByteString, byteStr);
 
             PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
@@ -1139,7 +1149,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var ltArray = new LocalizedText[]
             {
                 new("en", "Hello"),
-                new("de", "Hallo"),
+                new("de", "Hallo")
             };
             Field field = MakeField("LtArray", BuiltInType.LocalizedText, ltArray, ValueRanks.OneDimension);
 
@@ -1166,7 +1176,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var qnArray = new QualifiedName[]
             {
                 new("Name1", 0),
-                new("Name2", 1),
+                new("Name2", 1)
             };
             Field field = MakeField("QnArray", BuiltInType.QualifiedName, qnArray, ValueRanks.OneDimension);
 

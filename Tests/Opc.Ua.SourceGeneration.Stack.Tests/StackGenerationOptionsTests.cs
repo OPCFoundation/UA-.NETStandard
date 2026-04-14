@@ -43,7 +43,7 @@ namespace Opc.Ua.SourceGeneration.Tests
         {
             var provider = new AnalyzerOptionsProvider([]);
 
-            StackGenerationOptions options = StackGenerationOptions.FromProvider(provider);
+            var options = StackGenerationOptions.FromProvider(provider);
 
             Assert.That(options.Exclude, Is.Not.Null);
             Assert.That(options.Exclude, Is.Empty);
@@ -58,7 +58,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                 [key] = "TypeA;TypeB;TypeC"
             });
 
-            StackGenerationOptions options = StackGenerationOptions.FromProvider(provider);
+            var options = StackGenerationOptions.FromProvider(provider);
 
             Assert.That(options.Exclude, Has.Count.EqualTo(3));
             Assert.That(options.Exclude, Does.Contain("TypeA"));
@@ -75,7 +75,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                 [key] = "A,B,C"
             });
 
-            StackGenerationOptions options = StackGenerationOptions.FromProvider(provider);
+            var options = StackGenerationOptions.FromProvider(provider);
 
             Assert.That(options.Exclude, Has.Count.EqualTo(3));
         }
@@ -85,7 +85,7 @@ namespace Opc.Ua.SourceGeneration.Tests
         {
             var options1 = new StackGenerationOptions
             {
-                Exclude = new List<string> { "A", "B" }
+                Exclude = ["A", "B"]
             };
             var options2 = new StackGenerationOptions
             {

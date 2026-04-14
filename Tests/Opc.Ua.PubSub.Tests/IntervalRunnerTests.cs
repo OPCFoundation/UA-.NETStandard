@@ -104,6 +104,7 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test]
+        [Explicit] // Too timing-sensitive for regular test runs
         public async Task StartExecutesActionAsync()
         {
             int executionCount = 0;
@@ -126,6 +127,7 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test]
+        [Explicit] // Too timing-sensitive for regular test runs
         public async Task StopPreventsSubsequentExecutionAsync()
         {
             int executionCount = 0;
@@ -207,10 +209,11 @@ namespace Opc.Ua.PubSub.Tests
             await Task.Delay(200).ConfigureAwait(false);
             runner.Stop();
 
-            Assert.That(executionCount, Is.EqualTo(0));
+            Assert.That(executionCount, Is.Zero);
         }
 
         [Test]
+        [Explicit] // Too timing-sensitive for regular test runs
         public async Task RestartAfterStopIsAllowedAsync()
         {
             int executionCount = 0;

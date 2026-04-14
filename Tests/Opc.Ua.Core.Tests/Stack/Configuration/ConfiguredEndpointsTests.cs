@@ -105,8 +105,8 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             string path = Path.Combine(m_tempDir, "roundtrip_test.xml");
             var collection = new ConfiguredEndpointCollection(EndpointConfiguration.Create());
 
-            var endpoint1 = CreateEndpointDescription("opc.tcp://server1:4840", "urn:server1");
-            var endpoint2 = CreateEndpointDescription("opc.tcp://server2:4841", "urn:server2");
+            EndpointDescription endpoint1 = CreateEndpointDescription("opc.tcp://server1:4840", "urn:server1");
+            EndpointDescription endpoint2 = CreateEndpointDescription("opc.tcp://server2:4841", "urn:server2");
             collection.Add(endpoint1);
             collection.Add(endpoint2);
             collection.Save(path);

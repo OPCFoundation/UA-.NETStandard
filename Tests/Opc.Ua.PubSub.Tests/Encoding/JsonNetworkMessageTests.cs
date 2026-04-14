@@ -127,7 +127,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] encoded = msg.Encode(m_messageContext);
 
             Assert.That(encoded, Is.Not.Null);
-            Assert.That(encoded.Length, Is.GreaterThan(0));
+            Assert.That(encoded, Is.Not.Empty);
         }
 
         [Test]
@@ -141,7 +141,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var stream = new MemoryStream();
             msg.Encode(m_messageContext, stream);
 
-            Assert.That(stream.ToArray().Length, Is.GreaterThan(0));
+            Assert.That(stream.ToArray(), Is.Not.Empty);
         }
 
         [Test]
@@ -222,7 +222,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 byte[] encoded = msg.Encode(m_messageContext);
                 Assert.That(encoded, Is.Not.Null);
-                Assert.That(encoded.Length, Is.GreaterThan(0));
+                Assert.That(encoded, Is.Not.Empty);
             });
         }
 
@@ -250,7 +250,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] encoded = msg.Encode(m_messageContext);
             Assert.That(encoded, Is.Not.Null);
-            Assert.That(encoded.Length, Is.GreaterThan(0));
+            Assert.That(encoded, Is.Not.Empty);
         }
 
         [Test]
@@ -464,7 +464,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_messageContext, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.EqualTo(0));
+            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
         }
 
         [Test]
@@ -530,7 +530,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_messageContext, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.EqualTo(0));
+            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
         }
 
         [Test]
@@ -552,7 +552,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_messageContext, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.EqualTo(0));
+            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
         }
 
         [Test]
@@ -730,8 +730,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void MessageIdPropertyIsSettable()
         {
-            var msg = new PubSubEncoding.JsonNetworkMessage();
-            msg.MessageId = "custom-id";
+            var msg = new PubSubEncoding.JsonNetworkMessage
+            {
+                MessageId = "custom-id"
+            };
             Assert.That(msg.MessageId, Is.EqualTo("custom-id"));
         }
 

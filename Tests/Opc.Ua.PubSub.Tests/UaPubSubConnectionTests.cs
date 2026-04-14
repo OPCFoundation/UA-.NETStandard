@@ -163,7 +163,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             List<DataSetReaderDataType> readers = subscriberConnection.GetOperationalDataSetReaders();
             Assert.That(readers, Is.Not.Null);
-            Assert.That(readers.Count, Is.GreaterThan(0));
+            Assert.That(readers, Is.Not.Empty);
         }
 
         [Test]
@@ -234,7 +234,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Connections = [connectionConfig]
             };
 
-            using var app = UaPubSubApplication.Create(pubSubConfig, m_telemetry);
+            using UaPubSubApplication app = UaPubSubApplication.Create(pubSubConfig, m_telemetry);
             Assert.That(app.PubSubConnections.Count, Is.EqualTo(1));
 
             var connection = app.PubSubConnections[0] as UaPubSubConnection;

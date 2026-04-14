@@ -99,12 +99,12 @@ namespace Opc.Ua.SourceGeneration.Tests
             Assert.That(descriptor, Is.EqualTo(SourceGenerator.GenericWarning));
         }
 
-        [TestCase(Microsoft.Extensions.Logging.LogLevel.Information)]
-        [TestCase(Microsoft.Extensions.Logging.LogLevel.Debug)]
-        [TestCase(Microsoft.Extensions.Logging.LogLevel.Trace)]
-        [TestCase(Microsoft.Extensions.Logging.LogLevel.None)]
+        [TestCase(LogLevel.Information)]
+        [TestCase(LogLevel.Debug)]
+        [TestCase(LogLevel.Trace)]
+        [TestCase(LogLevel.None)]
         public void TryGetDiagnosticWithUnknownEventIdAndNonErrorLogLevelReturnsFalse(
-            Microsoft.Extensions.Logging.LogLevel logLevel)
+            LogLevel logLevel)
         {
             bool result = SourceGenerator.TryGetDiagnostic(
                 logLevel,

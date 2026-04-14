@@ -244,7 +244,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var stateChanges = new List<PubSubStateChangedEventArgs>();
             configurator.PubSubStateChanged += (sender, e) => stateChanges.Add(e);
             configurator.Disable(configurator.PubSubConfiguration);
-            Assert.That(stateChanges.Count, Is.GreaterThanOrEqualTo(1));
+            Assert.That(stateChanges, Is.Not.Empty);
             Assert.That(stateChanges[0].NewState, Is.EqualTo(PubSubState.Disabled));
         }
 

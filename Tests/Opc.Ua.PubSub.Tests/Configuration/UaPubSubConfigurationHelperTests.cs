@@ -65,7 +65,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     Directory.Delete(m_tempDir, true);
                 }
             }
-            catch { }
+            catch
+            {
+            }
         }
 
         [Test]
@@ -90,10 +92,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Name = "TestConnection",
                 Enabled = true,
                 PublisherId = new Variant("Publisher1"),
-                TransportProfileUri = Profiles.PubSubUdpUadpTransport
+                TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                Address = new ExtensionObject(
+                    new NetworkAddressUrlDataType { Url = "opc.udp://239.0.0.1:4840" })
             };
-            connection.Address = new ExtensionObject(
-                new NetworkAddressUrlDataType { Url = "opc.udp://239.0.0.1:4840" });
             config.Connections = config.Connections.AddItem(connection);
 
             string filePath = Path.Combine(m_tempDir, "conn_config.xml");
@@ -114,10 +116,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 Name = "WGConn",
                 Enabled = true,
-                PublisherId = new Variant((ushort)100)
+                PublisherId = new Variant((ushort)100),
+                Address = new ExtensionObject(
+                    new NetworkAddressUrlDataType { Url = "opc.udp://239.0.0.1:4840" })
             };
-            connection.Address = new ExtensionObject(
-                new NetworkAddressUrlDataType { Url = "opc.udp://239.0.0.1:4840" });
 
             var writerGroup = new WriterGroupDataType
             {
@@ -221,10 +223,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 Name = "SubConn",
                 Enabled = true,
-                PublisherId = new Variant("Sub1")
+                PublisherId = new Variant("Sub1"),
+                Address = new ExtensionObject(
+                    new NetworkAddressUrlDataType { Url = "opc.udp://239.0.0.1:4840" })
             };
-            connection.Address = new ExtensionObject(
-                new NetworkAddressUrlDataType { Url = "opc.udp://239.0.0.1:4840" });
 
             var readerGroup = new ReaderGroupDataType
             {
@@ -295,10 +297,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 Name = "DswConn",
                 Enabled = true,
-                PublisherId = new Variant("DswPub")
+                PublisherId = new Variant("DswPub"),
+                Address = new ExtensionObject(
+                    new NetworkAddressUrlDataType { Url = "opc.udp://239.0.0.1:4840" })
             };
-            connection.Address = new ExtensionObject(
-                new NetworkAddressUrlDataType { Url = "opc.udp://239.0.0.1:4840" });
 
             var writerGroup = new WriterGroupDataType
             {

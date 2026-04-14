@@ -136,7 +136,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var logger = telemetry.CreateLogger<MqttClientProtocolConfiguration>();
+            Microsoft.Extensions.Logging.ILogger<MqttClientProtocolConfiguration> logger = telemetry.CreateLogger<MqttClientProtocolConfiguration>();
 
             var original = new MqttClientProtocolConfiguration(
                 userName: userName,
@@ -154,7 +154,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void RoundTripViaKeyValuePairsPreservesProtocolVersion()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var logger = telemetry.CreateLogger<MqttClientProtocolConfiguration>();
+            Microsoft.Extensions.Logging.ILogger<MqttClientProtocolConfiguration> logger = telemetry.CreateLogger<MqttClientProtocolConfiguration>();
 
             var original = new MqttClientProtocolConfiguration(
                 version: EnumMqttProtocolVersion.V500);
@@ -169,7 +169,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void KeyValuePairConstructorWithUnknownProtocolDefaultsToV310()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var logger = telemetry.CreateLogger<MqttClientProtocolConfiguration>();
+            Microsoft.Extensions.Logging.ILogger<MqttClientProtocolConfiguration> logger = telemetry.CreateLogger<MqttClientProtocolConfiguration>();
 
             ArrayOf<KeyValuePair> kvps = [];
             kvps += new KeyValuePair
@@ -331,7 +331,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void KeyValuePairConstructorCreatesAllSubObjects()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var logger = telemetry.CreateLogger<MqttClientProtocolConfiguration>();
+            Microsoft.Extensions.Logging.ILogger<MqttClientProtocolConfiguration> logger = telemetry.CreateLogger<MqttClientProtocolConfiguration>();
 
             using var userName = new SecureString();
             foreach (char c in "admin")

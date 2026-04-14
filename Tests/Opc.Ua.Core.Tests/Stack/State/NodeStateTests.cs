@@ -532,7 +532,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void MethodStateConstructCreatesNewInstance()
         {
             var parent = new BaseObjectState(null);
-            var method = MethodState.Construct(parent);
+            NodeState method = MethodState.Construct(parent);
             Assert.That(method, Is.Not.Null);
             Assert.That(method.NodeClass, Is.EqualTo(NodeClass.Method));
         }

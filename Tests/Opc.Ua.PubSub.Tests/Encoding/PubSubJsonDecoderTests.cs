@@ -194,7 +194,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             int result = decoder.ReadInt32("Missing");
-            Assert.That(result, Is.EqualTo(0));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -230,7 +230,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             uint index = decoder.ReadSwitchField(null, out string fieldName);
-            Assert.That(index, Is.EqualTo(0));
+            Assert.That(index, Is.Zero);
         }
 
         [Test]
@@ -254,7 +254,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var switches = new List<string> { "Option1", "Option2" };
             uint index = decoder.ReadSwitchField(switches, out string fieldName);
 
-            Assert.That(index, Is.EqualTo(0));
+            Assert.That(index, Is.Zero);
         }
 
         [Test]
@@ -279,7 +279,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uint result = decoder.ReadEncodingMask(masks);
 
             Assert.That(result & 0x01, Is.EqualTo(1), "Field1 bit should be set");
-            Assert.That(result & 0x02, Is.EqualTo(0), "Field2 bit should not be set");
+            Assert.That(result & 0x02, Is.Zero, "Field2 bit should not be set");
             Assert.That(result & 0x04, Is.EqualTo(4), "Field3 bit should be set");
         }
 
@@ -290,7 +290,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             uint result = decoder.ReadEncodingMask(null);
-            Assert.That(result, Is.EqualTo(0));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -302,7 +302,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var masks = new List<string> { "Field1", "Field2" };
             uint result = decoder.ReadEncodingMask(masks);
 
-            Assert.That(result, Is.EqualTo(0));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -359,7 +359,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void ReadDateTimeReturnsValue()
         {
             const string isoDate = "2024-01-15T10:30:00Z";
-            string json = "{\"Timestamp\": \"" + isoDate + "\"}";
+            const string json = "{\"Timestamp\": \"" + isoDate + "\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             DateTimeUtc result = decoder.ReadDateTime("Timestamp");

@@ -138,9 +138,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var args = new DataSetDecodeErrorEventArgs(
                 DataSetDecodeErrorReason.NoError,
                 null,
-                null);
-
-            args.DecodeErrorReason = DataSetDecodeErrorReason.MetadataMajorVersion;
+                null)
+            {
+                DecodeErrorReason = DataSetDecodeErrorReason.MetadataMajorVersion
+            };
             Assert.That(
                 args.DecodeErrorReason,
                 Is.EqualTo(DataSetDecodeErrorReason.MetadataMajorVersion));

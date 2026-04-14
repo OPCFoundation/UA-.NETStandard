@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             uint result = ConfigurationVersionUtils.CalculateVersionTime(epoch);
 
-            Assert.That(result, Is.EqualTo(0));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]

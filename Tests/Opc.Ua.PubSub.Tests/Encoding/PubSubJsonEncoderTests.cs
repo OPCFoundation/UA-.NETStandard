@@ -530,7 +530,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeEmptyDataSetMessageProducesJson()
         {
             var message = new PubSubEncoding.JsonDataSetMessage(
-                new DataSet { Fields = Array.Empty<Field>() });
+                new DataSet { Fields = [] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.Reversible);

@@ -91,7 +91,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void CreateEndpointFromOpcTcpUrl()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             ConfiguredEndpoint ep = col.Create("opc.tcp://localhost:4840");
             Assert.That(ep, Is.Not.Null);
             Assert.That(ep.Description.EndpointUrl, Does.Contain("opc.tcp://localhost:4840"));
@@ -102,7 +102,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void CreateEndpointFromHttpsUrl()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             ConfiguredEndpoint ep = col.Create("https://localhost:4843");
             Assert.That(ep, Is.Not.Null);
             Assert.That(ep.Description.TransportProfileUri, Is.EqualTo(Profiles.HttpsBinaryTransport));
@@ -111,7 +111,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void CreateEndpointFromOpcWssUrl()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             ConfiguredEndpoint ep = col.Create("opc.wss://localhost:4844");
             Assert.That(ep, Is.Not.Null);
             Assert.That(ep.Description.TransportProfileUri, Is.EqualTo(Profiles.UaTcpTransport));
@@ -120,7 +120,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void CreateEndpointWithSecurityParameters()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             ConfiguredEndpoint ep = col.Create(
                 "opc.tcp://localhost:4840- [SignAndEncrypt:Basic256Sha256:Binary]");
             Assert.That(ep, Is.Not.Null);
@@ -131,7 +131,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void CreateEndpointWithInvalidSecurityModeFallsBackToNone()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             ConfiguredEndpoint ep = col.Create(
                 "opc.tcp://localhost:4840- [InvalidMode:Basic256Sha256:Binary]");
             Assert.That(ep.Description.SecurityMode, Is.EqualTo(MessageSecurityMode.None));
@@ -140,7 +140,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void CreateEndpointWithPartialParameters()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             ConfiguredEndpoint ep = col.Create(
                 "opc.tcp://localhost:4840- [Sign]");
             Assert.That(ep, Is.Not.Null);
@@ -150,7 +150,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void IndexOfReturnsCorrectIndex()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             ConfiguredEndpoint ep = col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             Assert.That(col.IndexOf(ep), Is.Zero);
         }
@@ -158,7 +158,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void IndexOfReturnsMinusOneForUnknown()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             var other = new ConfiguredEndpoint(null, CreateEndpoint("opc.tcp://other:4840"));
             Assert.That(col.IndexOf(other), Is.EqualTo(-1));
@@ -167,7 +167,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void ContainsReturnsTrueForExistingEndpoint()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             ConfiguredEndpoint ep = col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             Assert.That(col.Contains(ep), Is.True);
         }
@@ -175,7 +175,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void ContainsReturnsFalseForMissingEndpoint()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             var other = new ConfiguredEndpoint(null, CreateEndpoint("opc.tcp://other:4840"));
             Assert.That(col.Contains(other), Is.False);
         }
@@ -183,7 +183,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void InsertAtIndex()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             var ep2 = new ConfiguredEndpoint(null, CreateEndpoint("opc.tcp://server2:4840"));
             col.Insert(0, ep2);
@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void RemoveAtIndex()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             ConfiguredEndpoint ep = col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             Assert.That(col.Count, Is.EqualTo(1));
             col.RemoveAt(0);
@@ -203,7 +203,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void RemoveAtThrowsOnInvalidIndex()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             Assert.That(() => col.RemoveAt(-1), Throws.TypeOf<ArgumentOutOfRangeException>());
             Assert.That(() => col.RemoveAt(0), Throws.TypeOf<ArgumentOutOfRangeException>());
         }
@@ -211,7 +211,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void IndexerSetThrowsNotImplemented()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             Assert.That(
                 () => col[0] = new ConfiguredEndpoint(null, CreateEndpoint("opc.tcp://x:1")),
@@ -221,7 +221,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void ClearRemovesAllEndpoints()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             col.Add(CreateEndpoint("opc.tcp://server2:4840"));
             Assert.That(col.Count, Is.EqualTo(2));
@@ -232,7 +232,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void CopyToArray()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             col.Add(CreateEndpoint("opc.tcp://server2:4840"));
 
@@ -245,14 +245,14 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void IsReadOnlyReturnsFalse()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             Assert.That(col.IsReadOnly, Is.False);
         }
 
         [Test]
         public void GetEnumeratorIteratesAllEndpoints()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             col.Add(CreateEndpoint("opc.tcp://server2:4840"));
 
@@ -268,7 +268,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void AddEndpointDescriptionOnly()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             EndpointDescription desc = CreateEndpoint("opc.tcp://server1:4840");
             ConfiguredEndpoint ep = col.Add(desc);
             Assert.That(ep, Is.Not.Null);
@@ -278,7 +278,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void AddDuplicateEndpointDescriptionThrows()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             EndpointDescription desc = CreateEndpoint("opc.tcp://server1:4840");
             col.Add(desc);
             Assert.That(() => col.Add(desc), Throws.TypeOf<ArgumentException>());
@@ -287,7 +287,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void RemoveEndpoint()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             ConfiguredEndpoint ep = col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             Assert.That(col.Remove(ep), Is.True);
             Assert.That(col.Count, Is.Zero);
@@ -296,21 +296,21 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void RemoveNullThrows()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             Assert.That(() => col.Remove(null), Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
         public void AddNullConfiguredEndpointThrows()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             Assert.That(() => col.Add((ConfiguredEndpoint)null), Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
         public void RemoveServerByUri()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             EndpointDescription desc = CreateEndpoint("opc.tcp://server1:4840");
             col.Add(desc);
             col.RemoveServer("opc.tcp://server1:4840");
@@ -320,14 +320,14 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void RemoveServerNullThrows()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             Assert.That(() => col.RemoveServer(null), Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
         public void GetEndpointsReturnsMatchingEndpoints()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             col.Add(CreateEndpoint("opc.tcp://server2:4840"));
 
@@ -338,7 +338,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void GetEndpointsReturnsEmptyForUnknown()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             List<ConfiguredEndpoint> results = col.GetEndpoints("urn:unknown");
             Assert.That(results, Is.Empty);
         }
@@ -346,7 +346,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void GetServersReturnsUniqueServers()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             col.Add(CreateEndpoint("opc.tcp://server2:4840"));
 
@@ -357,7 +357,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void DiscoveryUrlsGetSet()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             ArrayOf<string> urls = ["opc.tcp://discovery:4840"];
             col.DiscoveryUrls = urls;
             Assert.That(col.DiscoveryUrls.Count, Is.EqualTo(1));
@@ -366,7 +366,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void DiscoveryUrlsNullSetsDefaults()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             col.DiscoveryUrls = default;
             Assert.That(col.DiscoveryUrls.IsNull, Is.False);
         }
@@ -374,14 +374,14 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void DefaultConfigurationIsNotNull()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             Assert.That(col.DefaultConfiguration, Is.Not.Null);
         }
 
         [Test]
         public void SetApplicationDescriptionNullServerThrows()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             Assert.That(
                 () => col.SetApplicationDescription("urn:test", null),
                 Throws.TypeOf<ArgumentNullException>());
@@ -390,7 +390,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void SetApplicationDescriptionEmptyUriThrows()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             var server = new ApplicationDescription
             {
                 ApplicationUri = string.Empty,
@@ -404,7 +404,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void SetApplicationDescriptionNoDiscoveryUrlsThrows()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             var server = new ApplicationDescription
             {
                 ApplicationUri = "urn:test:server"
@@ -417,7 +417,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void SetApplicationDescriptionCreatesPlaceholderForNewServer()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             var server = new ApplicationDescription
             {
                 ApplicationUri = "urn:test:newserver",
@@ -430,7 +430,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void SetApplicationDescriptionUpdatesExistingEndpoints()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             EndpointDescription desc = CreateEndpoint("opc.tcp://server1:4840");
             col.Add(desc);
 
@@ -448,7 +448,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void SetApplicationDescriptionWithHttpDiscoveryUrl()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             var server = new ApplicationDescription
             {
                 ApplicationUri = "urn:test:http",
@@ -461,7 +461,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void SaveAndLoadStreamRoundTrip()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
 
             using var stream = new MemoryStream();
@@ -476,7 +476,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void SaveAndLoadFileRoundTrip()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
 
             string filePath = Path.Combine(m_tempDir, "endpoints.xml");
@@ -513,7 +513,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void LoadWithOverrideConfiguration()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             col.Add(CreateEndpoint("opc.tcp://server1:4840"));
 
             string filePath = Path.Combine(m_tempDir, "endpoints_override.xml");
@@ -551,7 +551,7 @@ namespace Opc.Ua.Core.Tests
         [Test]
         public void AddEndpointWithConfiguration()
         {
-            var col = CreateCollection();
+            ConfiguredEndpointCollection col = CreateCollection();
             EndpointDescription desc = CreateEndpoint("opc.tcp://server1:4840");
             var endpointConfig = EndpointConfiguration.Create();
             endpointConfig.UseBinaryEncoding = false;

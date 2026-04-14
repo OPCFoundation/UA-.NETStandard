@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Tests
         public void CreateWithNullConfigReturnsApplication()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            using var app = UaPubSubApplication.Create(
+            using UaPubSubApplication app = UaPubSubApplication.Create(
                 (PubSubConfigurationDataType)null, telemetry);
             Assert.That(app, Is.Not.Null);
         }
@@ -76,9 +76,9 @@ namespace Opc.Ua.PubSub.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var config = new PubSubConfigurationDataType();
-            using var app = UaPubSubApplication.Create(config, telemetry);
+            using UaPubSubApplication app = UaPubSubApplication.Create(config, telemetry);
             Assert.That(app, Is.Not.Null);
-            Assert.That(app.PubSubConnections.Count, Is.EqualTo(0));
+            Assert.That(app.PubSubConnections.Count, Is.Zero);
         }
 
         [Test]

@@ -127,8 +127,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void SetNetworkMessageContentMaskUpdatesProperty()
         {
             var msg = new PubSubEncoding.JsonNetworkMessage();
-            const JsonNetworkMessageContentMask mask = JsonNetworkMessageContentMask.NetworkMessageHeader |
-                       JsonNetworkMessageContentMask.PublisherId;
+            const JsonNetworkMessageContentMask mask =
+                JsonNetworkMessageContentMask.NetworkMessageHeader |
+                JsonNetworkMessageContentMask.PublisherId;
             msg.SetNetworkMessageContentMask(mask);
             Assert.That(msg.NetworkMessageContentMask, Is.EqualTo(mask));
         }
@@ -170,7 +171,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] encoded = msg.Encode(m_messageContext);
             Assert.That(encoded, Is.Not.Null);
-            Assert.That(encoded.Length, Is.GreaterThan(0));
+            Assert.That(encoded, Is.Not.Empty);
         }
 
         [Test]
@@ -215,7 +216,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] encoded = msg.Encode(m_messageContext);
             Assert.That(encoded, Is.Not.Null);
-            Assert.That(encoded.Length, Is.GreaterThan(0));
+            Assert.That(encoded, Is.Not.Empty);
         }
 
         [Test]
@@ -228,7 +229,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] encoded = msg.Encode(m_messageContext);
             Assert.That(encoded, Is.Not.Null);
-            Assert.That(encoded.Length, Is.GreaterThan(0));
+            Assert.That(encoded, Is.Not.Empty);
         }
 
         [Test]
@@ -263,7 +264,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] encoded = msg.Encode(m_messageContext);
             Assert.That(encoded, Is.Not.Null);
-            Assert.That(encoded.Length, Is.GreaterThan(0));
+            Assert.That(encoded, Is.Not.Empty);
         }
 
         [Test]
@@ -391,7 +392,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 m_messageContext,
                 encoded,
                 [reader]);
-            Assert.That(decoded.DataSetMessages.Count, Is.EqualTo(0));
+            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
         }
     }
 }

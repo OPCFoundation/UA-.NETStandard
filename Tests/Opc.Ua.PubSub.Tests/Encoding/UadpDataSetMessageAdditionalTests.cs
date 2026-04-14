@@ -73,7 +73,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             message.SetFieldContentMask(DataSetFieldContentMask.None);
 
             int fieldType = ((byte)message.DataSetFlags1 & kFieldTypeBitMask) >> 1;
-            Assert.That(fieldType, Is.EqualTo(0), "Expected Variant (0)");
+            Assert.That(fieldType, Is.Zero, "Expected Variant (0)");
         }
 
         [Test]
@@ -426,11 +426,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
         private static DataSetReaderDataType CreateDataSetReader(DataSet dataSet)
         {
-            var metaData = new DataSetMetaDataType();
-            metaData.ConfigurationVersion = s_defaultMetaDataVersion;
-            metaData.Fields = dataSet.Fields
-                .Select(f => f.FieldMetaData)
-                .ToArray();
+            var metaData = new DataSetMetaDataType
+            {
+                ConfigurationVersion = s_defaultMetaDataVersion,
+                Fields = dataSet.Fields
+                    .Select(f => f.FieldMetaData)
+                    .ToArray()
+            };
 
             var reader = new DataSetReaderDataType
             {
