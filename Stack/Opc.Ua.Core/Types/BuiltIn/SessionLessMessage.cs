@@ -102,6 +102,9 @@ namespace Opc.Ua
 
                 envelope.Encode(encoder);
 
+                // flush buffered data to the stream before checking size.
+                encoder.Close();
+
                 // check that the max message size was not exceeded.
                 if (context.MaxMessageSize > 0 &&
                     context.MaxMessageSize < (int)(stream.Position - start))
@@ -112,8 +115,6 @@ namespace Opc.Ua
                         context.MaxMessageSize,
                         (int)(stream.Position - start));
                 }
-
-                encoder.Close();
             }
             finally
             {

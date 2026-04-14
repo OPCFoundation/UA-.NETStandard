@@ -1123,7 +1123,7 @@ namespace Opc.Ua
                                 CultureInfo.InvariantCulture);
                             value = new EnumValue(numericValue, xml[..index]);
                         }
-                        else if (int.TryParse(xml, out var numeric))
+                        else if (int.TryParse(xml, out int numeric))
                         {
                             value = (EnumValue)numeric;
                         }

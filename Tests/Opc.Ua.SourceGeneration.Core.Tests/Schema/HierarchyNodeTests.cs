@@ -705,31 +705,6 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests that ToString with different formatProvider cultures produces correct result.
-        /// </summary>
-        [TestCase("en-US")]
-        [TestCase("de-DE")]
-        [TestCase("ja-JP")]
-        public void ToString_WithDifferentCultures_ReturnsFormattedString(string cultureName)
-        {
-            // Arrange
-            var hierarchyNode = new HierarchyNode
-            {
-                RelativePath = "TestPath",
-                Instance = new ObjectDesign
-                {
-                    SymbolicId = new XmlQualifiedName("TestName", "http://test.com")
-                }
-            };
-
-            // Act
-            string result = hierarchyNode.ToString();
-
-            // Assert
-            Assert.That(result, Is.EqualTo("TestPath=TestName"));
-        }
-
-        /// <summary>
         /// Tests that ToString handles very long RelativePath values correctly.
         /// </summary>
         [Test]

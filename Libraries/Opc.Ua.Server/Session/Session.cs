@@ -404,8 +404,8 @@ namespace Opc.Ua.Server
             if ((requestHeader.ReturnDiagnostics & additionalInfoDiagnosticsMask) != 0)
             {
                 ArrayOf<NodeId> currentRoleIds = EffectiveIdentity?.GrantedRoleIds ?? default;
-                if ((currentRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin)) ||
-                    (currentRoleIds.Contains(ObjectIds.WellKnownRole_ConfigureAdmin)))
+                if (currentRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin) ||
+                    currentRoleIds.Contains(ObjectIds.WellKnownRole_ConfigureAdmin))
                 {
                     requestHeader.ReturnDiagnostics
                         |= (uint)DiagnosticsMasks.UserPermissionAdditionalInfo;

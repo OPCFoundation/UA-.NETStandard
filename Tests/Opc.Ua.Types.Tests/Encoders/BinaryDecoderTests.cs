@@ -411,9 +411,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableType type = encodeableType.Object;
             mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
                 .Returns(false);
-            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
-            messageContext.NamespaceUris = namespaceTable;
-            messageContext.MaxMessageSize = 0; // No limit by default
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object)
+            {
+                NamespaceUris = namespaceTable,
+                MaxMessageSize = 0 // No limit by default
+            };
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act & Assert
@@ -6402,9 +6404,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableType type = encodeableType.Object;
             mockFactory.Setup(f => f.TryGetEncodeableType(testTypeId, out type))
                 .Returns(true);
-            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
-            messageContext.NamespaceUris = namespaceTable;
-            messageContext.MaxMessageSize = 0; // No limit by default
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object)
+            {
+                NamespaceUris = namespaceTable,
+                MaxMessageSize = 0 // No limit by default
+            };
             return messageContext;
         }
 

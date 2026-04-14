@@ -399,7 +399,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             // Assert
-            Assert.That(exceptions.Count, Is.Zero, $"Exceptions occurred: {string.Join(", ", exceptions.Select(e => e.Message))}");
+            Assert.That(exceptions, Is.Empty, $"Exceptions occurred: {string.Join(", ", exceptions.Select(e => e.Message))}");
             Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(0));
         }
 

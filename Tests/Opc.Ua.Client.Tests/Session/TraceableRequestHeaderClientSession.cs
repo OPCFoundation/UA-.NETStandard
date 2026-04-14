@@ -92,8 +92,10 @@ namespace Opc.Ua.Client
 #endif
                 })
             };
-            traceData = new AdditionalParametersType();
-            traceData.Parameters = [spanContextParameter];
+            traceData = new AdditionalParametersType
+            {
+                Parameters = [spanContextParameter]
+            };
         }
 
         ///<inheritdoc/>

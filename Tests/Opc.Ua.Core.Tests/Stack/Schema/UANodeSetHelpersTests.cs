@@ -351,7 +351,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             var children = new List<BaseInstanceState>();
             parentObject.GetChildren(localContext, children);
 
-            Assert.That(children.Count, Is.Zero, "ParentObject should have 0 children by default (backward compatibility)");
+            Assert.That(children, Is.Empty, "ParentObject should have 0 children by default (backward compatibility)");
         }
     }
 }

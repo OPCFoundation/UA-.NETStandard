@@ -113,7 +113,7 @@ namespace Opc.Ua
                     return Unsafe.As<T, int>(ref value);
             }
 #else
-            return EnumToInt32((object)value, typeof(T));
+            return EnumToInt32(value, typeof(T));
 #endif
         }
 
@@ -125,21 +125,21 @@ namespace Opc.Ua
             switch (type.IsEnum ? Enum.GetUnderlyingType(type) : type)
             {
                 case Type t when t == typeof(byte):
-                    return unchecked((byte)(object)value);
+                    return unchecked((byte)value);
                 case Type t when t == typeof(sbyte):
-                    return unchecked((sbyte)(object)value);
+                    return unchecked((sbyte)value);
                 case Type t when t == typeof(short):
-                    return unchecked((short)(object)value);
+                    return unchecked((short)value);
                 case Type t when t == typeof(ushort):
-                    return unchecked((ushort)(object)value);
+                    return unchecked((ushort)value);
                 case Type t when t == typeof(int):
-                    return unchecked((int)(object)value);
+                    return unchecked((int)value);
                 case Type t when t == typeof(uint):
-                    return unchecked((int)(uint)(object)value);
+                    return unchecked((int)(uint)value);
                 case Type t when t == typeof(long):
-                    return unchecked((int)(long)(object)value);
+                    return unchecked((int)(long)value);
                 case Type t when t == typeof(ulong):
-                    return unchecked((int)(ulong)(object)value);
+                    return unchecked((int)(ulong)value);
             }
             return 0;
         }
@@ -304,7 +304,7 @@ namespace Opc.Ua
             {
                 return Enum.ToObject(type, (long)value);
             }
-            else if(underlyingType == typeof(ulong))
+            else if (underlyingType == typeof(ulong))
             {
                 return Enum.ToObject(type, (ulong)value);
             }

@@ -275,7 +275,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             parsed.AddLiteral(string.Empty);
 
             // Assert
-            Assert.That(parsed.Operations.Count, Is.Zero);
+            Assert.That(parsed.Operations, Is.Empty);
         }
 
         /// <summary>

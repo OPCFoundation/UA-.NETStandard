@@ -125,7 +125,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
-                .AddExtension<GlobalDiscoveryTestClientConfiguration>(null, clientConfig)
+                .AddExtension(null, clientConfig)
                 .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(519)
                 .CreateAsync()

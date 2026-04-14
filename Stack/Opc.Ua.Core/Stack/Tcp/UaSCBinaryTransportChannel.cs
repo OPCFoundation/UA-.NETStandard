@@ -294,12 +294,8 @@ namespace Opc.Ua.Bindings
             try
             {
                 // Get under lock
-                channel = m_channel;
-                if (channel == null)
-                {
-                    // Channel was closed
-                    throw BadNotConnected();
-                }
+                // Channel was closed
+                channel = m_channel ?? throw BadNotConnected();
             }
             finally
             {
@@ -445,12 +441,9 @@ namespace Opc.Ua.Bindings
             IMessageSocket? socket = null;
             if (connection != null)
             {
-                socket = connection.Handle as IMessageSocket;
-                if (socket == null)
-                {
-                    throw ServiceResultException.Unexpected(
+                socket = connection.Handle as IMessageSocket
+                    ?? throw ServiceResultException.Unexpected(
                         "Waiting Connection Handle is not of type IMessageSocket.");
-                }
             }
 
             var id = Guid.NewGuid().ToString();
