@@ -284,7 +284,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var encoder = new PubSubJsonEncoder(
-                new ServiceMessageContext(telemetry),
+                ServiceMessageContext.Create(telemetry),
                 encodingType);
             message.Encode(encoder);
             return encoder.CloseAndReturnText();

@@ -31,14 +31,15 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
@@ -1101,29 +1102,26 @@ namespace Quickstarts
         /// Outputs elapsed time information for perf testing and lists all
         /// types that were successfully added to the session encodeable type factory.
         /// </remarks>
-        public async Task<ComplexTypeSystem> LoadTypeSystemAsync(
-            ISession session,
-            CancellationToken ct = default)
+        public async Task LoadTypeSystemAsync(ComplexTypeSystem complexTypeSystem, CancellationToken ct = default)
         {
             m_logger.LogInformation("Load the server type system.");
 
             var stopWatch = new Stopwatch();
             stopWatch.Start();
 
-            var complexTypeSystem = new ComplexTypeSystem(session, m_telemetry);
             await complexTypeSystem.LoadAsync(throwOnError: true, ct: ct).ConfigureAwait(false);
 
             stopWatch.Stop();
 
             m_logger.LogInformation(
                 "Loaded {Count} types took {Duration}ms.",
-                complexTypeSystem.GetDefinedTypes().Length,
+                complexTypeSystem.GetDefinedTypes().Count,
                 stopWatch.ElapsedMilliseconds);
 
             if (m_verbose)
             {
                 m_logger.LogInformation("Custom types defined for this session:");
-                foreach (Type type in complexTypeSystem.GetDefinedTypes())
+                foreach (XmlQualifiedName type in complexTypeSystem.GetDefinedTypes())
                 {
                     m_logger.LogInformation("{Namespace}.{TypeName}", type.Namespace, type.Name);
                 }
@@ -1140,8 +1138,6 @@ namespace Quickstarts
                     }
                 }
             }
-
-            return complexTypeSystem;
         }
 
         /// <summary>
@@ -1368,26 +1364,16 @@ namespace Quickstarts
                 textbuffer = jsonEncoder.CloseAndReturnText();
             }
 
-            // prettify
-            using var stringWriter = new StringWriter();
-            try
+            using var doc = JsonDocument.Parse(textbuffer);
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions
             {
-                using var stringReader = new StringReader(textbuffer);
-                var jsonReader = new JsonTextReader(stringReader);
-                var jsonWriter = new JsonTextWriter(stringWriter)
-                {
-                    Formatting = Formatting.Indented,
-                    Culture = CultureInfo.InvariantCulture
-                };
-                jsonWriter.WriteToken(jsonReader);
-            }
-            catch (Exception ex)
+                Indented = true
+            }))
             {
-                stringWriter.WriteLine("Failed to format the JSON output: {0}", ex.Message);
-                stringWriter.WriteLine(textbuffer);
-                throw;
+                doc.WriteTo(writer);
             }
-            return stringWriter.ToString();
+            return Encoding.UTF8.GetString(stream.ToArray());
         }
 
         /// <summary>
@@ -1568,7 +1554,7 @@ namespace Quickstarts
             var browseDescriptionCollection = new List<BrowseDescription>();
             foreach (NodeId nodeId in nodeIdCollection)
             {
-                var browseDescription = (BrowseDescription)template.MemberwiseClone();
+                BrowseDescription browseDescription = CoreUtils.Clone(template);
                 browseDescription.NodeId = nodeId;
                 browseDescriptionCollection.Add(browseDescription);
             }
@@ -1581,6 +1567,10 @@ namespace Quickstarts
         /// <param name="session">The session to use for exporting.</param>
         /// <param name="nodes">The list of nodes to export.</param>
         /// <param name="filePath">The path where the NodeSet2 XML file will be saved.</param>
+        [RequiresUnreferencedCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
         public void ExportNodesToNodeSet2(ISession session, IList<INode> nodes, string filePath)
         {
             m_logger.LogInformation("Exporting {Count} nodes to {FilePath}...", nodes.Count, filePath);
@@ -1617,6 +1607,10 @@ namespace Quickstarts
         /// <returns>A dictionary mapping namespace URI to the file path of the exported NodeSet2 file.</returns>
         /// <exception cref="ArgumentNullException">Thrown when session, nodes, or outputDirectory is null.</exception>
         /// <exception cref="ArgumentException">Thrown when outputDirectory is empty or whitespace.</exception>
+        [RequiresUnreferencedCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
+        [RequiresDynamicCode(
+            "Uses XmlSerializer which requires unreferenced code.")]
         public async Task<IReadOnlyDictionary<string, string>> ExportNodesToNodeSet2PerNamespaceAsync(
             ISession session,
             IList<INode> nodes,

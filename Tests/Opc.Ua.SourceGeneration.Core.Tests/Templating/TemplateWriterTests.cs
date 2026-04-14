@@ -314,7 +314,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             // Assert
             string result = stringWriter.ToString();
-            Assert.That(result.Length, Is.EqualTo(largeCount + 3));
+            Assert.That(result, Has.Length.EqualTo(largeCount + 3));
             Assert.That(result, Does.EndWith("end"));
             Assert.That(result[..largeCount], Is.EqualTo(new string(' ', largeCount)));
         }
@@ -3268,7 +3268,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             string result = writer.ToString();
             Assert.That(result, Is.EqualTo(longText));
-            Assert.That(result.Length, Is.EqualTo(10000));
+            Assert.That(result, Has.Length.EqualTo(10000));
         }
 
         /// <summary>

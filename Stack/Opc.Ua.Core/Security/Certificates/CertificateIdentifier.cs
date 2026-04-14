@@ -976,36 +976,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A collection of CertificateIdentifier objects.
-    /// </summary>
-    public partial class CertificateIdentifierCollection : ICloneable
-    {
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Creates a new object that is a copy of the current instance.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
-        {
-            var collection = new CertificateIdentifierCollection();
-
-            for (int ii = 0; ii < Count; ii++)
-            {
-                collection.Add((CertificateIdentifier)CoreUtils.Clone(this[ii]));
-            }
-
-            return collection;
-        }
-    }
-
-    /// <summary>
     /// Wraps a collection of certificate identifiers and exposes it as a certificate store.
     /// </summary>
     public class CertificateIdentifierCollectionStore : ICertificateStore
@@ -1026,10 +996,10 @@ namespace Opc.Ua
         /// <param name="certificates"></param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public CertificateIdentifierCollectionStore(
-            CertificateIdentifierCollection certificates,
+            ArrayOf<CertificateIdentifier> certificates,
             ITelemetryContext telemetry)
         {
-            m_certificates = certificates;
+            m_certificates = new List<CertificateIdentifier>(certificates.ToArray() ?? []);
             m_telemetry = telemetry;
         }
 
@@ -1250,7 +1220,7 @@ namespace Opc.Ua
             return Task.CompletedTask;
         }
 
-        private readonly CertificateIdentifierCollection m_certificates;
+        private readonly List<CertificateIdentifier> m_certificates;
         private readonly ITelemetryContext m_telemetry;
     }
 

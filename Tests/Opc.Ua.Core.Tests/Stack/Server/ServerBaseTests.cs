@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -57,7 +58,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             DualBaseAddresses,
             DualBaseAddressesWithAlternateHost,
             DualBaseAdressesWithAlternatePort,
-            DualBaseAddressesWithAlternateHostAndPort
+            DualBaseAddressesWithAlternateHostAndPort,
+            MultipleIPsSamePort
         }
 
         public const int BaseAddressCount = 6;
@@ -76,7 +78,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             new object[] { TestConfigurations.DualBaseAddresses },
             new object[] { TestConfigurations.DualBaseAddressesWithAlternateHost },
             new object[] { TestConfigurations.DualBaseAdressesWithAlternatePort },
-            new object[] { TestConfigurations.DualBaseAddressesWithAlternateHostAndPort }
+            new object[] { TestConfigurations.DualBaseAddressesWithAlternateHostAndPort },
+            new object[] { TestConfigurations.MultipleIPsSamePort }
         ];
 
         public ServerBaseTests()
@@ -161,6 +164,21 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     configuration.ServerConfiguration.BaseAddresses.Count,
                     Is.EqualTo(BaseAddressCount));
             }
+            else if (m_testConfiguration == TestConfigurations.MultipleIPsSamePort)
+            {
+                // Multiple IP addresses configured on the same ports as the primary base addresses.
+                // This tests the scenario where a server listens on multiple network interfaces
+                // using the same port number (e.g. 192.168.1.100:62541 and localhost:62541).
+                configuration.ServerConfiguration.BaseAddresses +=
+                    "opc.https://192.168.1.100:62540/UA/SampleServer";
+                configuration.ServerConfiguration.BaseAddresses +=
+                    "opc.tcp://192.168.1.100:62541/UA/SampleServer";
+                configuration.ServerConfiguration.BaseAddresses +=
+                    "https://192.168.1.100:62542/UA/SampleServer";
+                Assert.That(
+                    configuration.ServerConfiguration.BaseAddresses.Count,
+                    Is.EqualTo(BaseAddressCount));
+            }
             else
             {
                 Assert.That(
@@ -213,25 +231,25 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             InitializeBaseAddresses(configuration);
 
             // add security policies.
-            configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy());
-            configuration.ServerConfiguration.SecurityPolicies.Add(
+            configuration.ServerConfiguration.SecurityPolicies =
+            [
+                new ServerSecurityPolicy(),
                 new ServerSecurityPolicy
                 {
                     SecurityMode = MessageSecurityMode.None,
                     SecurityPolicyUri = SecurityPolicies.None
-                });
-            configuration.ServerConfiguration.SecurityPolicies.Add(
+                },
                 new ServerSecurityPolicy
                 {
                     SecurityMode = MessageSecurityMode.Sign,
                     SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep
-                });
-            configuration.ServerConfiguration.SecurityPolicies.Add(
+                },
                 new ServerSecurityPolicy
                 {
                     SecurityMode = MessageSecurityMode.SignAndEncrypt,
                     SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss
-                });
+                }
+            ];
 
             // ensure at least one user token policy exists.
             var userTokenPolicyAnonymous = new UserTokenPolicy
@@ -531,6 +549,63 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 {
                     Assert.That(translatedEndpointUrl.Port % 10, Is.EqualTo(1));
                 }
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a server configured with multiple IP addresses on the same port
+        /// correctly filters and translates endpoints based on the IP address used by the client.
+        /// </summary>
+        [Test]
+        public void MultipleIPsSamePortTest()
+        {
+            if (m_testConfiguration != TestConfigurations.MultipleIPsSamePort)
+            {
+                Assert.Ignore("Not applicable for this configuration.");
+            }
+
+            // Verify that the base addresses include same-port entries for different IPs.
+            Assert.That(BaseAddresses.Count, Is.EqualTo(BaseAddressCount));
+
+            // Verify that opc.tcp has exactly 2 base addresses (localhost and 192.168.1.100)
+            // both on the same port - this is the core scenario under test.
+            List<BaseAddress> tcpAddresses = BaseAddresses
+                .Where(a => a.Url.Scheme == Utils.UriSchemeOpcTcp)
+                .ToList();
+            Assert.That(tcpAddresses.Count, Is.EqualTo(2),
+                "There should be 2 opc.tcp base addresses for the MultipleIPsSamePort configuration.");
+            Assert.That(tcpAddresses[0].Url.Port, Is.EqualTo(tcpAddresses[1].Url.Port),
+                "Both opc.tcp base addresses should use the same port number.");
+            Assert.That(tcpAddresses[0].Url.Host, Is.Not.EqualTo(tcpAddresses[1].Url.Host),
+                "The two opc.tcp base addresses should have different host names/IP addresses.");
+
+            // When a client connects using the specific IP address, FilterByEndpointUrl
+            // should return only the base addresses for that IP (one per scheme).
+            var ipClientUri = new Uri("opc.tcp://192.168.1.100:62541/UA/SampleServer");
+            IList<BaseAddress> filteredByIp = FilterByEndpointUrl(ipClientUri, BaseAddresses);
+
+            Assert.That(filteredByIp, Is.Not.Null);
+            Assert.That(filteredByIp, Is.Not.Empty);
+
+            foreach (BaseAddress addr in filteredByIp)
+            {
+                Assert.That(addr.Url.Host, Is.EqualTo("192.168.1.100"),
+                    "A client connecting via a specific IP should only receive endpoints for that IP.");
+            }
+
+            // Translate the endpoints for the IP-based client and verify the translated
+            // endpoint URLs use the client's IP address, not the server's hostname.
+            ArrayOf<EndpointDescription> translatedForIp = TranslateEndpointDescriptions(
+                ipClientUri, filteredByIp, m_endpoints, m_serverDescription);
+
+            Assert.That(translatedForIp.IsNull, Is.False);
+            Assert.That(translatedForIp.Count, Is.GreaterThan(0));
+
+            foreach (EndpointDescription ep in translatedForIp)
+            {
+                var epUri = new Uri(ep.EndpointUrl);
+                Assert.That(epUri.Host, Is.EqualTo("192.168.1.100"),
+                    "Translated endpoint URLs should use the IP address that the client connected with.");
             }
         }
     }

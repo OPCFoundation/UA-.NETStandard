@@ -345,11 +345,10 @@ namespace Opc.Ua
         /// <returns></returns>
         public static IServiceMessageContext AsMessageContext(this ISystemContext context)
         {
-            return new ServiceMessageContext(context.Telemetry)
+            return new ServiceMessageContext(context.Telemetry, context.EncodeableFactory)
             {
                 NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
+                ServerUris = context.ServerUris
             };
         }
     }

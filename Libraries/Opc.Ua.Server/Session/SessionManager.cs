@@ -427,6 +427,9 @@ namespace Opc.Ua.Server
             // clear failed authentication attempts on successful activation.
             ClearFailedAuthentication(clientKey);
 
+            // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
+            effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
+
             // activate session.
 
             bool contextChanged = session.Activate(
@@ -502,7 +505,7 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             SecureChannelContext secureChannelContext,
             RequestType requestType,
-            CancellationToken cancellationToken = default)
+            RequestLifetime requestLifetime)
         {
             if (requestHeader == null)
             {
@@ -516,7 +519,7 @@ namespace Opc.Ua.Server
                 // check for create session request.
                 if (requestType is RequestType.CreateSession or RequestType.ActivateSession)
                 {
-                    return new OperationContext(requestHeader, secureChannelContext, requestType);
+                    return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime);
                 }
 
                 // find session.
@@ -536,7 +539,7 @@ namespace Opc.Ua.Server
                             throw new ServiceResultException(args.Error);
                         }
 
-                        return new OperationContext(requestHeader, secureChannelContext, requestType, args.Identity);
+                        return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, args.Identity);
                     }
 
                     throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
@@ -549,13 +552,13 @@ namespace Opc.Ua.Server
                 session.ValidateDiagnosticInfo(requestHeader);
 
                 // return context.
-                return new OperationContext(requestHeader, secureChannelContext, requestType, session);
+                return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, session);
             }
             catch (ServiceResultException sre)
             {
                 if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
                 {
-                    await CloseSessionAsync(session.Id, cancellationToken).ConfigureAwait(false);
+                    await CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
                 }
                 throw;
             }
@@ -563,6 +566,42 @@ namespace Opc.Ua.Server
             {
                 throw ServiceResultException.Unexpected(e, e.Message);
             }
+        }
+
+        /// <summary>
+        /// Assigns mandatory roles to the effective identity based on the session's security context.
+        /// </summary>
+        /// <remarks>
+        /// Per OPC UA Part 3 §4.9, the <see cref="Role.TrustedApplication"/> role is always
+        /// assigned when a Session has been authenticated with a trusted ApplicationInstance
+        /// Certificate and uses at least a signed communication channel.
+        /// </remarks>
+        protected virtual IUserIdentity AddMandatoryRoles(
+            ISession session,
+            OperationContext context,
+            IUserIdentity effectiveIdentity)
+        {
+            // Assign TrustedApplication role per OPC UA Part 3 §4.9:
+            // The role is always assigned when the session was authenticated with a
+            // trusted ApplicationInstance certificate and uses at least a signed channel.
+            if (session.ClientCertificate != null &&
+                context.ChannelContext?.EndpointDescription?.SecurityMode >= MessageSecurityMode.Sign)
+            {
+                // When the identity is already a RoleBasedIdentity (e.g. GdsRoleBasedIdentity),
+                // delegate to WithAdditionalRoles so the concrete subtype and any extra state
+                // (e.g. ApplicationId) are preserved rather than losing the type by wrapping.
+                if (effectiveIdentity is RoleBasedIdentity rbi)
+                {
+                    return rbi.WithAdditionalRoles([Role.TrustedApplication], m_server.NamespaceUris);
+                }
+
+                return new RoleBasedIdentity(
+                    effectiveIdentity,
+                    [Role.TrustedApplication],
+                    m_server.NamespaceUris);
+            }
+
+            return effectiveIdentity;
         }
 
         /// <summary>

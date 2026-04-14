@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace Opc.Ua.Gds.Server.Database.Linq
 {
@@ -90,7 +90,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public string Path { get; set; }
         public string AuthorityId { get; set; }
-        public Guid TrustListId { get; }
+        public Guid TrustListId { get; set; }
     }
 
     [Serializable]
@@ -1031,20 +1031,20 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         [NonSerialized]
         internal DateTime QueryCounterResetTime = DateTime.UtcNow;
 
-        [JsonProperty]
+        [JsonInclude]
         internal ICollection<Application> Applications = new HashSet<Application>();
 
-        [JsonProperty]
+        [JsonInclude]
         internal ICollection<ApplicationName> ApplicationNames = [];
 
-        [JsonProperty]
+        [JsonInclude]
         internal ICollection<ServerEndpoint> ServerEndpoints = [];
 
-        [JsonProperty]
+        [JsonInclude]
         internal ICollection<CertificateRequest> CertificateRequests
             = new HashSet<CertificateRequest>();
 
-        [JsonProperty]
+        [JsonInclude]
         internal ICollection<CertificateStore> CertificateStores = new HashSet<CertificateStore>();
     }
 }

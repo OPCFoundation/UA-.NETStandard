@@ -787,7 +787,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(copy.ClassName, Is.EqualTo(longClassName));
-            Assert.That(copy.ClassName.Length, Is.EqualTo(10000));
+            Assert.That(copy.ClassName, Has.Length.EqualTo(10000));
         }
 
         /// <summary>

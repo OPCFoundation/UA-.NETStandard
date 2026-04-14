@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -94,19 +91,6 @@ namespace Opc.Ua
         /// The server certificate used to establsih the secure channel.
         /// </summary>
         public byte[] ServerChannelCertificate { get; }
-
-        /// <summary>
-        /// The active secure channel for the thread.
-        /// </summary>
-        /// <value>The current secure channel context.</value>
-        [Obsolete("Pass SecureChannelContext explicitly instead.")]
-        public static SecureChannelContext Current
-        {
-            get => s_dataslot.Value;
-            set => s_dataslot.Value = value;
-        }
-
-        private static readonly AsyncLocal<SecureChannelContext> s_dataslot = new();
     }
 
     /// <summary>

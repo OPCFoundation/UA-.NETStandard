@@ -288,6 +288,22 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// The lifetime of the request
+        /// </summary>
+        public RequestLifetime RequestLifetime
+        {
+            get
+            {
+                if (OperationContext is ISessionOperationContext session)
+                {
+                    return session.RequestLifetime;
+                }
+
+                return RequestLifetime.None;
+            }
+        }
+
         private NodeId m_sessionId;
         private ArrayOf<string> m_preferredLocales;
         private string m_auditEntryId;

@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using static Opc.Ua.LoggerUtils;
 
 namespace Opc.Ua.Types.Tests.Utils
 {
@@ -464,7 +463,7 @@ namespace Opc.Ua.Types.Tests.Utils
             ServiceResult result = NumericRange.Validate("1:3,4:6", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.SubRanges, Is.Not.Null);
-            Assert.That(range.SubRanges.Length, Is.EqualTo(2));
+            Assert.That(range.SubRanges, Has.Length.EqualTo(2));
             Assert.That(range.SubRanges[0].Begin, Is.EqualTo(1));
             Assert.That(range.SubRanges[0].End, Is.EqualTo(3));
             Assert.That(range.SubRanges[1].Begin, Is.EqualTo(4));
@@ -477,7 +476,7 @@ namespace Opc.Ua.Types.Tests.Utils
             ServiceResult result = NumericRange.Validate("0:1,2:3,4:5", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.SubRanges, Is.Not.Null);
-            Assert.That(range.SubRanges.Length, Is.EqualTo(3));
+            Assert.That(range.SubRanges, Has.Length.EqualTo(3));
         }
 
         [Test]
@@ -486,7 +485,7 @@ namespace Opc.Ua.Types.Tests.Utils
             ServiceResult result = NumericRange.Validate("1,2", out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range.SubRanges, Is.Not.Null);
-            Assert.That(range.SubRanges.Length, Is.EqualTo(2));
+            Assert.That(range.SubRanges, Has.Length.EqualTo(2));
             Assert.That(range.SubRanges[0].Begin, Is.EqualTo(1));
             Assert.That(range.SubRanges[0].End, Is.EqualTo(-1));
             Assert.That(range.SubRanges[1].Begin, Is.EqualTo(2));
@@ -571,13 +570,13 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var range = NumericRange.Parse("0:2,3:5");
             Assert.That(range.SubRanges, Is.Not.Null);
-            Assert.That(range.SubRanges.Length, Is.EqualTo(2));
+            Assert.That(range.SubRanges, Has.Length.EqualTo(2));
         }
 
         [Test]
         public void ApplyRangeReturnsGoodForEmptyRange()
         {
-            Variant value = Variant.From([1, 2, 3]);
+            var value = Variant.From([1, 2, 3]);
             NumericRange range = NumericRange.Null;
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -595,7 +594,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeSubsetsIntArray()
         {
-            Variant value = Variant.From([10, 20, 30, 40, 50]);
+            var value = Variant.From([10, 20, 30, 40, 50]);
             var range = new NumericRange(1, 3);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -605,7 +604,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeMatrixTest()
         {
-            Variant value = Variant.From(new int[,]
+            var value = Variant.From(new int[,]
             {
                 { 1, 2, 3 },
                 { 4, 5, 6 },
@@ -618,7 +617,7 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode statusCode = numericRange.ApplyRange(ref value);
             Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
 
-            var range = (int[,])value.GetInt32Matrix();
+            int[,] range = (int[,])value.GetInt32Matrix();
             Assert.That(range, Is.Not.Null, "Applied range null");
             Assert.That(range.Rank, Is.EqualTo(2));
             Assert.That(range[0, 0], Is.EqualTo(5));
@@ -935,7 +934,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeSubsetsSingleElement()
         {
-            Variant value = Variant.From([10, 20, 30, 40, 50]);
+            var value = Variant.From([10, 20, 30, 40, 50]);
             var range = new NumericRange(2);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -945,7 +944,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeReturnsNoDataWhenBeginBeyondLength()
         {
-            Variant value = Variant.From([1, 2, 3]);
+            var value = Variant.From([1, 2, 3]);
             var range = new NumericRange(10);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -968,7 +967,7 @@ namespace Opc.Ua.Types.Tests.Utils
             // https://reference.opcfoundation.org/Core/Part4/v104/docs/7.22
             // If any of the upper bounds of the indexes is out of range,
             // the Server shall return partial results.
-            Variant value = Variant.From([10, 20, 30]);
+            var value = Variant.From([10, 20, 30]);
             var range = new NumericRange(1, 100);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -981,7 +980,7 @@ namespace Opc.Ua.Types.Tests.Utils
             // https://reference.opcfoundation.org/Core/Part4/v104/docs/7.22
             // When reading a value and any of the lower bounds of the indexes
             // is out of range the Server shall return a Bad_IndexRangeNoData.
-            Variant value = Variant.From([10, 20, 30]);
+            var value = Variant.From([10, 20, 30]);
             var range = new NumericRange(3);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1008,7 +1007,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeSubsetsStringArray()
         {
-            Variant value = Variant.From(["a", "b", "c", "d", "e"]);
+            var value = Variant.From(["a", "b", "c", "d", "e"]);
             var range = new NumericRange(0, 2);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -1018,7 +1017,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeSubsetsDoubleArray()
         {
-            Variant value = Variant.From([1.1, 2.2, 3.3, 4.4]);
+            var value = Variant.From([1.1, 2.2, 3.3, 4.4]);
             var range = new NumericRange(2, 3);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -1036,7 +1035,7 @@ namespace Opc.Ua.Types.Tests.Utils
             // But the Begin setter won't let us set that easily through constructors.
             // The default struct value has m_begin = 0, m_end = 0.
             // We test the begin == -1 default path via a simple range starting at 0.
-            Variant value = Variant.From([10, 20, 30]);
+            var value = Variant.From([10, 20, 30]);
             var range = new NumericRange(0, 1);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -1046,7 +1045,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeEntireArray()
         {
-            Variant value = Variant.From([10, 20, 30]);
+            var value = Variant.From([10, 20, 30]);
             var range = new NumericRange(0, 2);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -1075,7 +1074,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeReturnsNoDataForNullDst()
         {
             Variant dst = default;
-            Variant src = Variant.From([1, 2]);
+            var src = Variant.From([1, 2]);
             var range = new NumericRange(0, 1);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1126,8 +1125,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeStringReturnsNoDataWhenEndOutOfBounds()
         {
             Variant dst = "Hi";
-            Variant src = "ab";
-            var range = new NumericRange(0, 1);
+            // Variant src = "ab";
+            // var range = new NumericRange(0, 1);
             // Count = 2, dst length = 2, m_end = 1, m_end >= dstString.Length? 1 >= 2? No
             // Actually m_begin=0 < 2, m_end=1, 1 >= 2? No → proceeds
             // Let me use a range that exceeds: m_end = 5 >= 2
@@ -1140,8 +1139,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void UpdateRangeUpdatesArraySubset()
         {
-            Variant dst = Variant.From([10, 20, 30, 40, 50]);
-            Variant src = Variant.From([99, 98, 97]);
+            var dst = Variant.From([10, 20, 30, 40, 50]);
+            var src = Variant.From([99, 98, 97]);
             var range = new NumericRange(1, 3);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -1151,8 +1150,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void UpdateRangeArrayReturnsNoDataForWrongSourceLength()
         {
-            Variant dst = Variant.From([10, 20, 30, 40, 50]);
-            Variant src = Variant.From([99, 98]); // length 2 != Count 3
+            var dst = Variant.From([10, 20, 30, 40, 50]);
+            var src = Variant.From([99, 98]); // length 2 != Count 3
             var range = new NumericRange(1, 3);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1161,8 +1160,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void UpdateRangeArrayReturnsNoDataWhenOutOfBounds()
         {
-            Variant dst = Variant.From([10, 20, 30]);
-            Variant src = Variant.From([99, 98, 97]);
+            var dst = Variant.From([10, 20, 30]);
+            var src = Variant.From([99, 98, 97]);
             var range = new NumericRange(5, 7);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1171,8 +1170,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void UpdateRangeArrayReturnsNoDataWhenEndOutOfBounds()
         {
-            Variant dst = Variant.From([10, 20, 30]);
-            Variant src = Variant.From([99, 98, 97]);
+            var dst = Variant.From([10, 20, 30]);
+            var src = Variant.From([99, 98, 97]);
             var range = new NumericRange(1, 3);
             // m_end = 3, dstArray.Length = 3: m_end >= dstArray.Length → 3 >= 3 → true
             StatusCode result = range.UpdateRange(ref dst, src);
@@ -1182,8 +1181,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void UpdateRangeReturnsNoDataForTypeMismatch()
         {
-            Variant dst = Variant.From([1, 2, 3, 4, 5]);
-            Variant src = Variant.From([1.0, 2.0, 3.0]);
+            var dst = Variant.From([1, 2, 3, 4, 5]);
+            var src = Variant.From([1.0, 2.0, 3.0]);
             var range = new NumericRange(1, 3);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1255,8 +1254,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeOneDimensionalArrayReturnsNoDataForHighValueRank()
         {
             // 2D array with no SubRanges → dstTypeInfo.ValueRank > 1 → BadIndexRangeInvalid
-            Variant dst = Variant.From(new int[,] { { 1, 2 }, { 3, 4 } });
-            Variant src = Variant.From(new int[,] { { 9, 8 }, { 7, 6 } });
+            var dst = Variant.From(new int[,] { { 1, 2 }, { 3, 4 } });
+            var src = Variant.From(new int[,] { { 9, 8 }, { 7, 6 } });
             var range = new NumericRange(0, 1);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1277,7 +1276,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ApplyMultiRangeSubsets1DArray()
         {
             // ApplyMultiRange with a 1D array and 1 SubRange
-            Variant value = Variant.From([10, 20, 30, 40, 50]);
+            var value = Variant.From([10, 20, 30, 40, 50]);
             var range = new NumericRange(1, 3, [new NumericRange(1, 3)]);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -1291,7 +1290,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyMultiRangeReturnsNoDataWhenSubRangeBeginExceedsArrayLength()
         {
-            Variant value = Variant.From([10, 20, 30]);
+            var value = Variant.From([10, 20, 30]);
             var range = new NumericRange(10, 20, [new NumericRange(10, 20)]);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1303,7 +1302,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // SubRanges has more dimensions than the array's ValueRank
             // For int[] (ValueRank=1) with 2 SubRanges, and type is not String/ByteString
-            Variant value = Variant.From([10, 20, 30]);
+            var value = Variant.From([10, 20, 30]);
             var range = new NumericRange(0, 1, [new NumericRange(0, 1), new NumericRange(0, 1)]);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1314,7 +1313,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ApplyMultiRangeWithStringArrayAndFinalRange()
         {
             // String array with extra SubRange dimension for substring extraction
-            Variant value = Variant.From(["Hello", "World", "Test!"]);
+            var value = Variant.From(["Hello", "World", "Test!"]);
             var range = new NumericRange(0, 1, [new NumericRange(0, 1), new NumericRange(1, 3)]);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -1326,7 +1325,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Create a Matrix with 2D data
             int[,] data = new int[,] { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 } };
-            Variant value = Variant.From(data);
+            var value = Variant.From(data);
 
             var range = new NumericRange(0, 1, [new NumericRange(0, 1), new NumericRange(0, 1)]);
             StatusCode result = range.ApplyRange(ref value);
@@ -1338,7 +1337,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Matrix dimensions don't match SubRanges length
             int[,] data = new int[,] { { 1, 2 }, { 3, 4 } };
-            Variant value = Variant.From(data);
+            var value = Variant.From(data);
             var range = new NumericRange(0, 1,
             [
                 new NumericRange(0, 1),
@@ -1353,7 +1352,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ApplyMultiRangeNoDataFoundReturnsNoData()
         {
             // Create an array where all extracted elements would be null
-            Variant value = Variant.From(new string[] { null, null, null });
+            var value = Variant.From(new string[] { null, null, null });
             var range = new NumericRange(0, 1, [new NumericRange(0, 1)]);
             StatusCode result = range.ApplyRange(ref value);
             // null elements are skipped
@@ -1364,7 +1363,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeWithListReturnsNoDataWhenBeginBeyondLength()
         {
-            Variant value = Variant.From([10, 20, 30]);
+            var value = Variant.From([10, 20, 30]);
             var range = new NumericRange(10);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1374,8 +1373,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeWithSubRanges1DArray()
         {
             // UpdateRange with SubRanges set on a 1D array
-            Variant dst = Variant.From([10, 20, 30, 40, 50]);
-            Variant src = Variant.From([99, 98, 97]);
+            var dst = Variant.From([10, 20, 30, 40, 50]);
+            var src = Variant.From([99, 98, 97]);
             var range = new NumericRange(1, 3, [new NumericRange(1, 3)]);
             StatusCode result = range.UpdateRange(ref dst, src);
             // This goes through the multi-dimensional UpdateRange path
@@ -1386,8 +1385,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeReturnsNoDataForValueRankMismatch()
         {
             // src has different value rank than dst
-            Variant dst = Variant.From([1, 2, 3, 4, 5]);
-            Variant src = Variant.From(new int[,] { { 1, 2 }, { 3, 4 } });
+            var dst = Variant.From([1, 2, 3, 4, 5]);
+            var src = Variant.From(new int[,] { { 1, 2 }, { 3, 4 } });
             var range = new NumericRange(0, 1);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1398,7 +1397,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // dst is a ByteString (will be treated as byte[] in array path)
             Variant dst = ByteString.From(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 });
-            Variant src = Variant.From(new byte[] { 0xAA, 0xBB });
+            var src = Variant.From(new byte[] { 0xAA, 0xBB });
             var range = new NumericRange(1, 2);
             StatusCode result = range.UpdateRange(ref dst, src);
             // This must work, byte string and byte array are same structure as per
@@ -1412,10 +1411,10 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Test UpdateRange with Matrix type
             int[,] dstData = new int[,] { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 } };
-            Variant dst = Variant.From(dstData);
+            var dst = Variant.From(dstData);
 
             int[,] srcData = new int[,] { { 90, 91 }, { 92, 93 } };
-            Variant src = Variant.From(srcData);
+            var src = Variant.From(srcData);
 
             var range = new NumericRange(0, 1, [new NumericRange(0, 1), new NumericRange(0, 1)]);
             StatusCode result = range.UpdateRange(ref dst, src);
@@ -1426,8 +1425,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeWithSubRangesReturnsNoDataWhenDimensionsMismatch()
         {
             // SubRanges has more dimensions than value rank, and type is not String/ByteString
-            Variant dst = Variant.From([1, 2, 3]);
-            Variant src = Variant.From([9, 8, 7]);
+            var dst = Variant.From([1, 2, 3]);
+            var src = Variant.From([9, 8, 7]);
             var range = new NumericRange(0, 1, [new NumericRange(0, 0), new NumericRange(0, 0)]);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeInvalid).Or.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1436,7 +1435,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void UpdateRangeWithByteStringAsSrcConverts()
         {
-            Variant dst = Variant.From(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 });
+            var dst = Variant.From(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 });
             Variant src = ByteString.From(new byte[] { 0xAA, 0xBB, 0xCC });
             var range = new NumericRange(1, 3);
             StatusCode result = range.UpdateRange(ref dst, src);
@@ -1450,7 +1449,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeSrcNotArrayOrMatrixReturnsNoData()
         {
             // src is not Array, ByteString, or Matrix with matching SubRanges
-            Variant dst = Variant.From([1, 2, 3]);
+            var dst = Variant.From([1, 2, 3]);
             Variant src = "not an array";
             var range = new NumericRange(0, 1);
             StatusCode result = range.UpdateRange(ref dst, src);
@@ -1462,8 +1461,8 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // dst is Matrix, src is regular array → tests the Matrix → toArray conversion path
             int[,] dstData = new int[,] { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 } };
-            Variant dst = Variant.From(dstData);
-            Variant src = Variant.From(new int[,] { { 90, 91 }, { 92, 93 } });
+            var dst = Variant.From(dstData);
+            var src = Variant.From(new int[,] { { 90, 91 }, { 92, 93 } });
 
             var range = new NumericRange(0, 1, [new NumericRange(0, 1), new NumericRange(0, 1)]);
             StatusCode result = range.UpdateRange(ref dst, src);
@@ -1474,8 +1473,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeStringArrayWithSubRanges()
         {
             // String array with SubRanges including finalRange for substring update
-            Variant dst = Variant.From(["Hello", "World"]);
-            Variant src = Variant.From(["xy", "ab"]);
+            var dst = Variant.From(["Hello", "World"]);
+            var src = Variant.From(["xy", "ab"]);
             var range = new NumericRange(0, 1, [new NumericRange(0, 1), new NumericRange(1, 2)]);
             StatusCode result = range.UpdateRange(ref dst, src);
             // Exercises the multi-dim string update path
@@ -1486,8 +1485,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeReturnsNoDataWhenDstOutOfBoundsMultiDim()
         {
             // SubRanges start index exceeds dst array dimensions
-            Variant dst = Variant.From([1, 2, 3]);
-            Variant src = Variant.From([9]);
+            var dst = Variant.From([1, 2, 3]);
+            var src = Variant.From([9]);
             var range = new NumericRange(10, 10, [new NumericRange(10, 10)]);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1497,8 +1496,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeByteStringArrayWithSubRanges()
         {
             // ByteString array with SubRanges including finalRange
-            Variant dst = Variant.From(new ByteString[] { [0x01, 0x02, 0x03], [0x04, 0x05, 0x06] });
-            Variant src = Variant.From(new ByteString[] { [0xAA], [0xBB] });
+            var dst = Variant.From(new ByteString[] { [0x01, 0x02, 0x03], [0x04, 0x05, 0x06] });
+            var src = Variant.From(new ByteString[] { [0xAA], [0xBB] });
             var range = new NumericRange(0, 1, [new NumericRange(0, 1)]);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.Good).Or.EqualTo(StatusCodes.BadIndexRangeInvalid));
@@ -1578,8 +1577,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeByteStringEndOutOfBounds()
         {
             Variant dst = ByteString.From(new byte[] { 0x01, 0x02, 0x03 });
-            Variant src = ByteString.From(new byte[] { 0xAA, 0xBB });
-            var range = new NumericRange(0, 1);
+            // Variant src = ByteString.From(new byte[] { 0xAA, 0xBB });
+            // var range = new NumericRange(0, 1);
             // m_end = 1, m_end > 0 && m_end >= 3? 1 >= 3? No → should proceed
             // Actually test with end that IS out of bounds
             var range2 = new NumericRange(1, 5);
@@ -1602,8 +1601,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void UpdateRangeArrayAtFirstPosition()
         {
-            Variant dst = Variant.From([10, 20, 30, 40, 50]);
-            Variant src = Variant.From([99]);
+            var dst = Variant.From([10, 20, 30, 40, 50]);
+            var src = Variant.From([99]);
             var range = new NumericRange(0);
             StatusCode result = range.UpdateRange(ref dst, src);
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
@@ -1622,8 +1621,8 @@ namespace Opc.Ua.Types.Tests.Utils
 
             // Update the center element
             var numericRange = NumericRange.Parse("1,1");
-            Variant dst = Variant.From(dstInt3x3Matrix);
-            Variant src = Variant.From(new int[,] { { 10 } });
+            var dst = Variant.From(dstInt3x3Matrix);
+            var src = Variant.From(new int[,] { { 10 } });
             StatusCode statusCode = numericRange.UpdateRange(ref dst, src);
 
             Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
@@ -1645,8 +1644,8 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Update the middle element "Test2" to "That2" by modifying "es" to "ha".
             var numericRange = NumericRange.Parse("1,1:2");
-            Variant dst = Variant.From(["Test1", "Test2", "Test3"]);
-            Variant src = Variant.From(["ha"]);
+            var dst = Variant.From(["Test1", "Test2", "Test3"]);
+            var src = Variant.From(["ha"]);
             StatusCode statusCode = numericRange.UpdateRange(ref dst, src);
             Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(dst.GetStringArray(), Is.EqualTo(["Test1", "That2", "Test3"]));
@@ -1657,7 +1656,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Update the middle element <0x55, 0x66, 0x77, 0x88> to <0x55, 0xDD, 0xEE, 0x88> by modifying 0x66 to 0xDD and 0x77 to 0xEE.
             var numericRange = NumericRange.Parse("1,1:2");
-            Variant dst = Variant.From(new ByteString[]
+            var dst = Variant.From(new ByteString[]
             {
                 ByteString.From(0x11, 0x22, 0x33, 0x44),
                 ByteString.From(0x55, 0x66, 0x77, 0x88),
@@ -1702,7 +1701,9 @@ namespace Opc.Ua.Types.Tests.Utils
 
             StatusCode statusCode = numericRange.UpdateRange(ref matrix, slice);
 
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(statusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(matrix.Dimensions, Is.EqualTo([3, 3]));
 
             // Verify the center element was updated and all others remain
@@ -1740,7 +1741,9 @@ namespace Opc.Ua.Types.Tests.Utils
 
             StatusCode statusCode = numericRange.UpdateRange(ref matrix, slice);
 
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(statusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(matrix.Dimensions, Is.EqualTo([3, 3]));
 
             int[,] expected = new int[,]
@@ -1772,7 +1775,9 @@ namespace Opc.Ua.Types.Tests.Utils
 
             StatusCode statusCode = numericRange.UpdateRange(ref matrix, slice);
 
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(statusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(matrix, Is.EqualTo(original));
         }
 
@@ -1789,7 +1794,9 @@ namespace Opc.Ua.Types.Tests.Utils
 
             StatusCode statusCode = numericRange.UpdateRange(ref matrix, slice);
 
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(statusCode, Is.EqualTo((StatusCode)StatusCodes.BadIndexRangeNoData));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         /// <summary>
@@ -1816,7 +1823,9 @@ namespace Opc.Ua.Types.Tests.Utils
 
             StatusCode statusCode = numericRange.UpdateRange(ref matrix, slice);
 
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(statusCode, Is.EqualTo((StatusCode)StatusCodes.BadIndexRangeNoData));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         /// <summary>
@@ -1839,7 +1848,9 @@ namespace Opc.Ua.Types.Tests.Utils
 
             StatusCode statusCode = numericRange.UpdateRange(ref matrix, slice);
 
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(statusCode, Is.EqualTo((StatusCode)StatusCodes.BadIndexRangeNoData));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         /// <summary>
@@ -1862,7 +1873,9 @@ namespace Opc.Ua.Types.Tests.Utils
             // Extract the sub-matrix
             MatrixOf<int> extracted = matrix;
             StatusCode sc1 = numericRange.ApplyRange(ref extracted);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(sc1, Is.EqualTo((StatusCode)StatusCodes.Good));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(extracted.Dimensions, Is.EqualTo([2, 2]));
             Assert.That(extracted.Span.ToArray(), Is.EqualTo([4, 5, 7, 8]));
 
@@ -1875,7 +1888,9 @@ namespace Opc.Ua.Types.Tests.Utils
 
             // Write back
             StatusCode sc2 = numericRange.UpdateRange(ref matrix, modified);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(sc2, Is.EqualTo((StatusCode)StatusCodes.Good));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             int[,] expected = new int[,]
             {
@@ -1912,7 +1927,9 @@ namespace Opc.Ua.Types.Tests.Utils
 
             StatusCode statusCode = numericRange.UpdateRange(ref matrix, slice);
 
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(statusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(matrix.Dimensions, Is.EqualTo([2, 2, 3]));
 
             int[,,] expected = new int[,,]
@@ -1979,7 +1996,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeEmptyArray()
         {
-            Variant value = Variant.From(Array.Empty<int>());
+            var value = Variant.From(Array.Empty<int>());
             var range = new NumericRange(0);
             StatusCode result = range.ApplyRange(ref value);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));

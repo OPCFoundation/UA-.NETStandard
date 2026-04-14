@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
@@ -144,11 +143,11 @@ namespace Opc.Ua.PubSub.Transport
 
         internal ArrayOf<KeyValuePair> KeyValuePairs { get; set; }
 
-        internal List<X509Certificate> X509Certificates
+        internal List<X509Certificate2> X509Certificates
         {
             get
             {
-                var values = new List<X509Certificate>();
+                var values = new List<X509Certificate2>();
                 if (m_caCertificate != null)
                 {
                     values.Add(m_caCertificate);
@@ -157,7 +156,6 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     values.Add(m_clientCertificate);
                 }
-
                 return values;
             }
         }

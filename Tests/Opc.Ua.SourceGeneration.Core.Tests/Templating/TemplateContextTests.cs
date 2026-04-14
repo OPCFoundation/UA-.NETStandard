@@ -228,7 +228,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             Assert.That(context.Out, Is.SameAs(writer));
             Assert.That(context.Token, Is.EqualTo(token));
-            Assert.That(context.Token.Length, Is.EqualTo(10000));
+            Assert.That(context.Token, Has.Length.EqualTo(10000));
             Assert.That(context.TemplateString, Is.SameAs(templateString));
             Assert.That(context.Index, Is.Zero);
         }

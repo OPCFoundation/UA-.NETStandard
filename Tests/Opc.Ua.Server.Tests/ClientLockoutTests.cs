@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Quickstarts.ReferenceServer;
@@ -80,7 +79,7 @@ namespace Opc.Ua.Server.Tests
                 default,
                 ServerFixtureUtils.DefaultSessionTimeout,
                 ServerFixtureUtils.DefaultMaxResponseMessageSize,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(createResponse.ResponseHeader);
             requestHeader.AuthenticationToken = createResponse.AuthenticationToken;
@@ -102,7 +101,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         new ExtensionObject(invalidToken),
                         null,
-                        CancellationToken.None).ConfigureAwait(false));
+                        RequestLifetime.None).ConfigureAwait(false));
 
                 Assert.That(exception, Is.Not.Null);
                 Assert.That(
@@ -117,7 +116,7 @@ namespace Opc.Ua.Server.Tests
                 secureChannelContext,
                 requestHeader,
                 true,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
         }
 
         [Test]
@@ -141,7 +140,7 @@ namespace Opc.Ua.Server.Tests
                 default,
                 ServerFixtureUtils.DefaultSessionTimeout,
                 ServerFixtureUtils.DefaultMaxResponseMessageSize,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(createResponse.ResponseHeader);
             requestHeader.AuthenticationToken = createResponse.AuthenticationToken;
@@ -172,7 +171,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         new ExtensionObject(invalidToken),
                         null,
-                        CancellationToken.None).ConfigureAwait(false);
+                        RequestLifetime.None).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
@@ -190,7 +189,7 @@ namespace Opc.Ua.Server.Tests
                 default,
                 ServerFixtureUtils.DefaultSessionTimeout,
                 ServerFixtureUtils.DefaultMaxResponseMessageSize,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(newCreateResponse.ResponseHeader);
             requestHeader.AuthenticationToken = newCreateResponse.AuthenticationToken;
@@ -203,7 +202,7 @@ namespace Opc.Ua.Server.Tests
                     [],
                     new ExtensionObject(validToken),
                     null,
-                    CancellationToken.None).ConfigureAwait(false));
+                    RequestLifetime.None).ConfigureAwait(false));
 
             Assert.That(lockoutException, Is.Not.Null);
             Assert.That(lockoutException.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -212,7 +211,7 @@ namespace Opc.Ua.Server.Tests
                 secureChannelContext,
                 requestHeader,
                 true,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
         }
 
         [Test]
@@ -236,7 +235,7 @@ namespace Opc.Ua.Server.Tests
                 default,
                 ServerFixtureUtils.DefaultSessionTimeout,
                 ServerFixtureUtils.DefaultMaxResponseMessageSize,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(createResponse.ResponseHeader);
             requestHeader.AuthenticationToken = createResponse.AuthenticationToken;
@@ -260,7 +259,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         new ExtensionObject(invalidToken),
                         null,
-                        CancellationToken.None).ConfigureAwait(false);
+                        RequestLifetime.None).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
@@ -275,7 +274,7 @@ namespace Opc.Ua.Server.Tests
                 [],
                 ExtensionObject.Null,
                 null,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(activateResponse.ResponseHeader);
 
@@ -291,7 +290,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         new ExtensionObject(invalidToken),
                         null,
-                        CancellationToken.None).ConfigureAwait(false);
+                        RequestLifetime.None).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
@@ -306,7 +305,7 @@ namespace Opc.Ua.Server.Tests
                 [],
                 ExtensionObject.Null,
                 null,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(activateResponse.ResponseHeader);
 
@@ -314,7 +313,7 @@ namespace Opc.Ua.Server.Tests
                 secureChannelContext,
                 requestHeader,
                 true,
-                CancellationToken.None).ConfigureAwait(false);
+                RequestLifetime.None).ConfigureAwait(false);
         }
 
         private static EndpointDescription FindTcpEndpoint(ArrayOf<EndpointDescription> endpoints)

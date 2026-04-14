@@ -30,8 +30,8 @@
 using System;
 using System.Collections.Generic;
 using BenchmarkDotNet.Attributes;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -369,7 +369,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context, new JsonDecoderOptions
             {
@@ -401,11 +401,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var jsonObj = JObject.Parse(data);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
             string expected = EncoderCommon.PrettifyAndValidateJson(
-                JsonConvert.SerializeObject(jsonObj, Formatting.None), true);
+                jsonObj.ToJsonString(), true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
 
             using var encoder = new JsonEncoder(context,
@@ -471,7 +471,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context, new JsonDecoderOptions
             {
@@ -516,11 +516,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var jsonObj = JObject.Parse(data);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
             string expected = EncoderCommon.PrettifyAndValidateJson(
-                JsonConvert.SerializeObject(jsonObj, Formatting.None), true);
+                jsonObj.ToJsonString(), true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
             context.ServerUris.Append("http://server-placeholder");
             Array.ForEach(ServerUris, x => context.ServerUris.Append(x));
@@ -601,7 +601,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context, new JsonDecoderOptions
             {
@@ -617,7 +617,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var context1 = new ServiceMessageContext(telemetry);
+            var context1 = ServiceMessageContext.Create(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -634,11 +634,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+            string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context2 = new ServiceMessageContext(telemetry);
+            var context2 = ServiceMessageContext.Create(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -689,19 +689,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
                 """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context);
             Variant v1 = decoder.ReadVariantValue("D0", TypeInfo.Create(BuiltInType.Int64, 3));
             MatrixOf<long> a1 = v1.GetInt64Matrix();
-            Assert.That(a1.Dimensions.Length, Is.EqualTo(2));
+            Assert.That(a1.Dimensions, Has.Length.EqualTo(2));
             Assert.That(a1.Count, Is.EqualTo(6));
             Assert.That(a1.Dimensions[0], Is.EqualTo(2));
             Assert.That(a1.Dimensions[1], Is.EqualTo(3));
 
             Variant v2 = decoder.ReadVariantValue("D1", TypeInfo.Create(BuiltInType.Int64, 3));
             MatrixOf<long> a2 = v2.GetInt64Matrix();
-            Assert.That(a2.Dimensions.Length, Is.EqualTo(3));
+            Assert.That(a2.Dimensions, Has.Length.EqualTo(3));
             Assert.That(a2.Count, Is.EqualTo(6));
             Assert.That(a2.Dimensions[0], Is.EqualTo(1));
             Assert.That(a2.Dimensions[1], Is.EqualTo(2));
@@ -725,11 +725,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+            string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var encoder = new JsonEncoder(context,
                 jsonEncoding == JsonEncodingType.Verbose ?
@@ -786,7 +786,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.Factory.AddEncodeableTypes(typeof(Gds.ApplicationRecordDataType).Assembly);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
@@ -844,11 +844,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+            string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -906,7 +906,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.Factory.AddEncodeableTypes(typeof(Gds.ApplicationRecordDataType).Assembly);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
@@ -965,11 +965,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+            string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 

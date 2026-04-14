@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -39,6 +41,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Configuration;
 
 namespace Quickstarts.ConsoleReferenceClient
@@ -52,7 +55,11 @@ namespace Quickstarts.ConsoleReferenceClient
         /// Main entry point.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
-        public static async Task Main(string[] args)
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "NodeSet2 export uses XmlSerializer with known OPC UA types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "NodeSet2 export uses XmlSerializer with known OPC UA types.")]
+        public static Task<int> Main(string[] args)
         {
             Console.WriteLine("OPC UA Console Reference Client");
 
@@ -66,448 +73,384 @@ namespace Quickstarts.ConsoleReferenceClient
             // The application name and config file names
             const string applicationName = "ConsoleReferenceClient";
             const string configSectionName = "Quickstarts.ReferenceClient";
-            string usage = $"Usage: dotnet {applicationName}.dll [OPTIONS]";
 
             // command line options
-            bool showHelp = false;
-            bool autoAccept = false;
-            string username = null;
-            byte[] userpassword = null;
-            string userCertificateThumbprint = null;
-            byte[] userCertificatePassword = null;
-            bool logConsole = false;
-            bool appLog = false;
-            bool fileLog = false;
-            bool renewCertificate = false;
-            bool loadTypes = false;
-            bool managedbrowseall = false;
-            bool browseall = false;
-            bool fetchall = false;
-            bool jsonvalues = false;
-            bool verbose = false;
-            bool subscribe = false;
-            bool noSecurity = false;
-            byte[] pfxPassword = null;
-            int timeout = Timeout.Infinite;
-            string logFile = null;
-            string reverseConnectUrlString = null;
-            bool leakChannels = false;
-            bool forever = false;
-            bool enableDurableSubscriptions = false;
-            bool exportNodes = false;
-
-            var options = new Mono.Options.OptionSet
+            var autoAcceptOption = new Option<bool>("--autoaccept", "-a")
             {
-                usage,
-                { "h|help", "show this message and exit", h => showHelp = h != null },
-                {
-                    "a|autoaccept",
-                    "auto accept certificates (for testing only)",
-                    a => autoAccept = a != null },
-                {
-                    "nsec|nosecurity",
-                    "select endpoint with security NONE, least secure if unavailable",
-                    s => noSecurity = s != null
-                },
-                {
-                    "un|username=",
-                    "the name of the user identity for the connection",
-                    u => username = u },
-                {
-                    "up|userpassword=",
-                    "the password of the user identity for the connection",
-                    u => userpassword = Encoding.UTF8.GetBytes(u) },
-                {
-                    "uc|usercertificate=",
-                    "the thumbprint of the user certificate for the user identity",
-                    u => userCertificateThumbprint = u
-                },
-                {
-                    "ucp|usercertificatepassword=",
-                    "the password of the user certificate for the user identity",
-                    u => userCertificatePassword = Encoding.UTF8.GetBytes(u)
-                },
-                { "c|console", "log to console", c => logConsole = c != null },
-                { "l|log", "log app output", c => appLog = c != null },
-                { "f|file", "log to file", f => fileLog = f != null },
-                {
-                    "p|password=",
-                    "optional password for private key",
-                    p => pfxPassword = Encoding.UTF8.GetBytes(p)
-                },
-                { "r|renew", "renew application certificate", r => renewCertificate = r != null },
-                {
-                    "t|timeout=",
-                    "timeout in seconds to exit application",
-                    (int t) => timeout = t * 1000 },
-                {
-                    "logfile=",
-                    "custom file name for log output",
-                    l =>
-                    {
-                        if (l != null)
-                        {
-                            logFile = l;
-                        }
-                    }
-                },
-                {
-                    "lt|loadtypes",
-                    "Load custom types",
-                    lt =>
-                    {
-                        if (lt != null)
-                        {
-                            loadTypes = true;
-                        }
-                    }
-                },
-                {
-                    "m|managedbrowseall",
-                    "Browse all references using the MangedBrowseAsync method",
-                    m =>
-                    {
-                        if (m != null)
-                        {
-                            managedbrowseall = true;
-                        }
-                    }
-                },
-                {
-                    "b|browseall",
-                    "Browse all references",
-                    b =>
-                    {
-                        if (b != null)
-                        {
-                            browseall = true;
-                        }
-                    }
-                },
-                {
-                    "e|export",
-                    "Export all fetched nodes into Nodeset2 xml per default",
-                    e =>
-                    {
-                        if (e != null)
-                        {
-                            exportNodes = true;
-                        }
-                    }
-                },
-                {
-                    "fa|fetchall",
-                    "Fetch all nodes",
-                    f =>
-                    {
-                        if (f != null)
-                        {
-                            fetchall = true;
-                        }
-                    }
-                },
-                {
-                    "j|json",
-                    "Output all Values as JSON",
-                    j =>
-                    {
-                        if (j != null)
-                        {
-                            jsonvalues = true;
-                        }
-                    }
-                },
-                {
-                    "v|verbose",
-                    "Verbose output",
-                    v =>
-                    {
-                        if (v != null)
-                        {
-                            verbose = true;
-                        }
-                    }
-                },
-                {
-                    "s|subscribe",
-                    "Subscribe",
-                    s =>
-                    {
-                        if (s != null)
-                        {
-                            subscribe = true;
-                        }
-                    }
-                },
-                {
-                    "rc|reverseconnect=",
-                    "Connect using the reverse connect endpoint. (e.g. rc=opc.tcp://localhost:65300)",
-                    url => reverseConnectUrlString = url
-                },
-                {
-                    "forever",
-                    "run inner connect/disconnect loop forever",
-                    f =>
-                    {
-                        if (f != null)
-                        {
-                            forever = true;
-                        }
-                    }
-                },
-                {
-                    "leakchannels",
-                    "Leave a channel leak open when disconnecting a session.",
-                    l =>
-                    {
-                        if (l != null)
-                        {
-                            leakChannels = true;
-                        }
-                    }
-                },
-                {
-                    "ds|durablesubscription",
-                    "SetDurableSubscription example",
-                    ds =>
-                    {
-                        if (ds != null)
-                        {
-                            enableDurableSubscriptions = true;
-                        }
-                    }
-                }
+                Description = "auto accept certificates (for testing only)"
+            };
+            var noSecurityOption = new Option<bool>("--nosecurity", "--nsec")
+            {
+                Description = "select endpoint with security NONE, least secure if unavailable"
+            };
+            var usernameOption = new Option<string>("--username", "--un")
+            {
+                Description = "the name of the user identity for the connection"
+            };
+            var userPasswordOption = new Option<string>("--userpassword", "--up")
+            {
+                Description = "the password of the user identity for the connection"
+            };
+            var userCertificateOption = new Option<string>("--usercertificate", "--uc")
+            {
+                Description = "the thumbprint of the user certificate for the user identity"
+            };
+            var userCertificatePasswordOption = new Option<string>("--usercertificatepassword", "--ucp")
+            {
+                Description = "the password of the user certificate for the user identity"
+            };
+            var consoleOption = new Option<bool>("--console", "-c") { Description = "log to console" };
+            var logOption = new Option<bool>("--log", "-l") { Description = "log app output" };
+            var fileOption = new Option<bool>("--file", "-f") { Description = "log to file" };
+            var passwordOption = new Option<string>("--password", "-p")
+            {
+                Description = "optional password for private key"
+            };
+            var renewOption = new Option<bool>("--renew", "-r")
+            {
+                Description = "renew application certificate"
+            };
+            var timeoutOption = new Option<int>("--timeout", "-t")
+            {
+                Description = "timeout in seconds to exit application",
+                DefaultValueFactory = _ => Timeout.Infinite
+            };
+            var logFileOption = new Option<string>("--logfile")
+            {
+                Description = "custom file name for log output"
+            };
+            var loadTypesOption = new Option<bool>("--loadtypes", "--lt")
+            {
+                Description = "Load custom types"
+            };
+            var managedBrowseAllOption = new Option<bool>("--managedbrowseall", "-m")
+            {
+                Description = "Browse all references using the MangedBrowseAsync method"
+            };
+            var browseAllOption = new Option<bool>("--browseall", "-b")
+            {
+                Description = "Browse all references"
+            };
+            var exportOption = new Option<bool>("--export", "-e")
+            {
+                Description = "Export all fetched nodes into Nodeset2 xml per default"
+            };
+            var fetchAllOption = new Option<bool>("--fetchall", "--fa")
+            {
+                Description = "Fetch all nodes"
+            };
+            var jsonOption = new Option<bool>("--json", "-j")
+            {
+                Description = "Output all Values as JSON"
+            };
+            var verboseOption = new Option<bool>("--verbose", "-v") { Description = "Verbose output" };
+            var subscribeOption = new Option<bool>("--subscribe", "-s") { Description = "Subscribe" };
+            var reverseConnectOption = new Option<string>("--reverseconnect", "--rc")
+            {
+                Description = "Connect using the reverse connect endpoint. (e.g. --rc opc.tcp://localhost:65300)"
+            };
+            var foreverOption = new Option<bool>("--forever")
+            {
+                Description = "run inner connect/disconnect loop forever"
+            };
+            var leakChannelsOption = new Option<bool>("--leakchannels")
+            {
+                Description = "Leave a channel leak open when disconnecting a session."
+            };
+            var durableSubscriptionOption = new Option<bool>("--durablesubscription", "--ds")
+            {
+                Description = "SetDurableSubscription example"
+            };
+            var serverUrlArgument = new Argument<string>("serverUrl")
+            {
+                Description = "The OPC UA server URL to connect to",
+                DefaultValueFactory = _ => "opc.tcp://localhost:62541/Quickstarts/ReferenceServer"
             };
 
-            ReverseConnectManager reverseConnectManager = null;
-            using var telemetry = new ConsoleTelemetry();
-            ILogger logger = LoggerUtils.Null.Logger;
-            try
+            var rootCommand = new RootCommand($"Usage: dotnet {applicationName}.dll [OPTIONS] [serverUrl]")
             {
-                // parse command line and set options
-                string extraArg = ConsoleUtils.ProcessCommandLine(
-                    args,
-                    options,
-                    ref showHelp,
-                    "REFCLIENT",
-                    false
-                );
+                autoAcceptOption,
+                noSecurityOption,
+                usernameOption,
+                userPasswordOption,
+                userCertificateOption,
+                userCertificatePasswordOption,
+                consoleOption,
+                logOption,
+                fileOption,
+                passwordOption,
+                renewOption,
+                timeoutOption,
+                logFileOption,
+                loadTypesOption,
+                managedBrowseAllOption,
+                browseAllOption,
+                exportOption,
+                fetchAllOption,
+                jsonOption,
+                verboseOption,
+                subscribeOption,
+                reverseConnectOption,
+                foreverOption,
+                leakChannelsOption,
+                durableSubscriptionOption,
+                serverUrlArgument
+            };
 
-                // connect Url?
-                var serverUrl = new Uri("opc.tcp://localhost:62541/Quickstarts/ReferenceServer");
-                if (!string.IsNullOrEmpty(extraArg))
+            rootCommand.SetAction(async (parseResult, cancellationToken) =>
+            {
+                bool autoAccept = parseResult.GetValue(autoAcceptOption);
+                bool noSecurity = parseResult.GetValue(noSecurityOption);
+                string username = parseResult.GetValue(usernameOption);
+                byte[] userpassword =
+                    parseResult.GetValue(userPasswordOption) is string upStr ?
+                        Encoding.UTF8.GetBytes(upStr) : null;
+                string userCertificateThumbprint =
+                    parseResult.GetValue(userCertificateOption);
+                byte[] userCertificatePassword =
+                    parseResult.GetValue(userCertificatePasswordOption) is string ucpStr ?
+                        Encoding.UTF8.GetBytes(ucpStr) : null;
+                bool logConsole = parseResult.GetValue(consoleOption);
+                bool appLog = parseResult.GetValue(logOption);
+                bool fileLog = parseResult.GetValue(fileOption);
+                byte[] pfxPassword =
+                    parseResult.GetValue(passwordOption) is string pfxStr ?
+                        Encoding.UTF8.GetBytes(pfxStr) : null;
+                bool renewCertificate = parseResult.GetValue(renewOption);
+                int timeout = parseResult.GetValue(timeoutOption);
+                if (timeout > 0)
                 {
-                    serverUrl = new Uri(extraArg);
+                    timeout *= 1000;
                 }
+                string logFile = parseResult.GetValue(logFileOption);
+                bool loadTypes = parseResult.GetValue(loadTypesOption);
+                bool managedbrowseall =
+                    parseResult.GetValue(managedBrowseAllOption);
+                bool browseall = parseResult.GetValue(browseAllOption);
+                bool exportNodes = parseResult.GetValue(exportOption);
+                bool fetchall = parseResult.GetValue(fetchAllOption);
+                bool jsonvalues = parseResult.GetValue(jsonOption);
+                bool verbose = parseResult.GetValue(verboseOption);
+                bool subscribe = parseResult.GetValue(subscribeOption);
+                string reverseConnectUrlString =
+                    parseResult.GetValue(reverseConnectOption);
+                bool forever = parseResult.GetValue(foreverOption);
+                bool leakChannels = parseResult.GetValue(leakChannelsOption);
+                bool enableDurableSubscriptions =
+                    parseResult.GetValue(durableSubscriptionOption);
+                var serverUrl = new Uri(parseResult.GetValue(serverUrlArgument));
 
-                // log console output to logger
-                if (logConsole && appLog)
+                ReverseConnectManager reverseConnectManager = null;
+                using var telemetry = new ConsoleTelemetry();
+                ILogger logger = LoggerUtils.Null.Logger;
+                try
                 {
-                    logger = telemetry.CreateLogger("Main");
-                }
-
-                // Define the UA Client application
-                ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-                var passwordProvider = new CertificatePasswordProvider(pfxPassword);
-                var application = new ApplicationInstance(telemetry)
-                {
-                    ApplicationName = applicationName,
-                    ApplicationType = ApplicationType.Client,
-                    ConfigSectionName = configSectionName,
-                    CertificatePasswordProvider = passwordProvider
-                };
-
-                // load the application configuration.
-                ApplicationConfiguration config = await application
-                    .LoadApplicationConfigurationAsync(silent: false)
-                    .ConfigureAwait(false);
-
-                // override logfile
-                if (logFile != null)
-                {
-                    string logFilePath = config.TraceConfiguration.OutputFilePath;
-                    string filename = Path.GetFileNameWithoutExtension(logFilePath);
-                    config.TraceConfiguration.OutputFilePath = logFilePath.Replace(
-                        filename,
-                        logFile,
-                        StringComparison.Ordinal
-                    );
-                    config.TraceConfiguration.DeleteOnLoad = true;
-#pragma warning disable CS0618 // Type or member is obsolete
-                    config.TraceConfiguration.ApplySettings();
-#pragma warning restore CS0618 // Type or member is obsolete
-                }
-
-                // setup the logging
-                telemetry.ConfigureLogging(
-                    config,
-                    applicationName,
-                    logConsole,
-                    fileLog,
-                    appLog,
-                    LogLevel.Information);
-
-                // delete old certificate
-                if (renewCertificate)
-                {
-                    await application.DeleteApplicationInstanceCertificateAsync()
-                        .ConfigureAwait(false);
-                }
-
-                // check the application certificate.
-                bool haveAppCertificate = await application
-                    .CheckApplicationInstanceCertificatesAsync(false)
-                    .ConfigureAwait(false);
-                if (!haveAppCertificate)
-                {
-                    throw new ErrorExitException(
-                        "Application instance certificate invalid!",
-                        ExitCode.ErrorCertificate
-                    );
-                }
-
-                if (reverseConnectUrlString != null)
-                {
-                    // start the reverse connection manager
-                    Console.WriteLine($"Create reverse connection endpoint at {reverseConnectUrlString}.");
-                    reverseConnectManager = new ReverseConnectManager(telemetry);
-                    reverseConnectManager.AddEndpoint(new Uri(reverseConnectUrlString));
-                    reverseConnectManager.StartService(config);
-                }
-
-                // wait for timeout or Ctrl-C
-                var quitCTS = new CancellationTokenSource();
-                CancellationToken ct = quitCTS.Token;
-                ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
-
-                var userIdentity = new UserIdentity();
-
-                // set user identity of type username/pw
-                if (!string.IsNullOrEmpty(username))
-                {
-                    if (userpassword == null)
+                    // log console output to logger
+                    if (logConsole && appLog)
                     {
-                        Console.WriteLine($"No password provided for user {username}, using empty password.");
+                        logger = telemetry.CreateLogger("Main");
                     }
 
-                    userIdentity = new UserIdentity(username, userpassword ?? ""u8);
-                    Console.WriteLine($"Connect with user identity for user {username}");
-                }
-
-                // set user identity of type certificate
-                if (!string.IsNullOrEmpty(userCertificateThumbprint))
-                {
-                    CertificateIdentifier userCertificateIdentifier
-                            = await FindUserCertificateIdentifierAsync(
-                                userCertificateThumbprint,
-                                application.ApplicationConfiguration.SecurityConfiguration
-                                    .TrustedUserCertificates,
-                                telemetry,
-                                ct
-                            )
-                            .ConfigureAwait(true);
-
-                    if (userCertificateIdentifier != null)
+                    // Define the UA Client application
+                    ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+                    var passwordProvider = new CertificatePasswordProvider(pfxPassword);
+                    var application = new ApplicationInstance(telemetry)
                     {
-                        userIdentity = UserIdentity.CreateAsync(
-                            userCertificateIdentifier,
-                            new CertificatePasswordProvider(userCertificatePassword),
-                            telemetry,
-                            ct
-                        ).GetAwaiter().GetResult();
-
-                        Console.WriteLine($"Connect with user certificate with Thumbprint {userCertificateThumbprint}");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Failed to load user certificate with Thumbprint {userCertificateThumbprint}");
-                    }
-                }
-
-                // connect to a server until application stops
-                bool quit = false;
-                DateTime start = DateTime.UtcNow;
-                int waitTime = int.MaxValue;
-                do
-                {
-                    if (timeout > 0)
-                    {
-                        waitTime = timeout - (int)DateTime.UtcNow.Subtract(start).TotalMilliseconds;
-                        if (waitTime <= 0)
-                        {
-                            if (!forever)
-                            {
-                                break;
-                            }
-
-                            waitTime = 0;
-                        }
-
-                        if (forever)
-                        {
-                            start = DateTime.UtcNow;
-                        }
-                    }
-
-                    // create the UA Client object and connect to configured server.
-                    using var uaClient = new UAClient(
-                        application.ApplicationConfiguration,
-                        reverseConnectManager,
-                        telemetry,
-                        null
-                    )
-                    {
-                        AutoAccept = autoAccept,
-                        SessionLifeTime = 60_000,
-                        UserIdentity = userIdentity
+                        ApplicationName = applicationName,
+                        ApplicationType = ApplicationType.Client,
+                        ConfigSectionName = configSectionName,
+                        CertificatePasswordProvider = passwordProvider
                     };
 
-                    if (enableDurableSubscriptions)
+                    // load the application configuration.
+                    ApplicationConfiguration config = await application
+                        .LoadApplicationConfigurationAsync(silent: false, ct: cancellationToken)
+                        .ConfigureAwait(false);
+
+                    // override logfile
+                    if (logFile != null)
                     {
-                        uaClient.ReconnectPeriodExponentialBackoff = 60000;
+                        string logFilePath = config.TraceConfiguration.OutputFilePath;
+                        string filename = Path.GetFileNameWithoutExtension(logFilePath);
+                        config.TraceConfiguration.OutputFilePath = logFilePath.Replace(
+                            filename,
+                            logFile,
+                            StringComparison.Ordinal
+                        );
+                        config.TraceConfiguration.DeleteOnLoad = true;
+#pragma warning disable CS0618 // Type or member is obsolete
+                        config.TraceConfiguration.ApplySettings();
+#pragma warning restore CS0618 // Type or member is obsolete
                     }
 
-                    bool connected = await uaClient
-                        .ConnectAsync(serverUrl.ToString(), !noSecurity, ct)
-                        .ConfigureAwait(false);
-                    if (connected)
-                    {
-                        Console.WriteLine("Connected! Ctrl-C to quit.");
+                    // setup the logging
+                    telemetry.ConfigureLogging(
+                        config,
+                        applicationName,
+                        logConsole,
+                        fileLog,
+                        appLog,
+                        LogLevel.Information);
 
-                        // enable subscription transfer
-                        uaClient.ReconnectPeriod = 1000;
-                        uaClient.ReconnectPeriodExponentialBackoff = 10000;
-                        uaClient.Session.MinPublishRequestCount = 3;
-                        uaClient.Session.TransferSubscriptionsOnReconnect = true;
-                        var samples = new ClientSamples(
-                            telemetry,
-                            null,
-                            quitEvent,
-                            verbose);
-                        if (loadTypes)
+                    // delete old certificate
+                    if (renewCertificate)
+                    {
+                        await application.DeleteApplicationInstanceCertificateAsync(ct: cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+
+                    // check the application certificate.
+                    bool haveAppCertificate = await application
+                        .CheckApplicationInstanceCertificatesAsync(false, ct: cancellationToken)
+                        .ConfigureAwait(false);
+                    if (!haveAppCertificate)
+                    {
+                        throw new ErrorExitException(
+                            "Application instance certificate invalid!",
+                            ExitCode.ErrorCertificate
+                        );
+                    }
+
+                    if (reverseConnectUrlString != null)
+                    {
+                        // start the reverse connection manager
+                        Console.WriteLine($"Create reverse connection endpoint at {reverseConnectUrlString}.");
+                        reverseConnectManager = new ReverseConnectManager(telemetry);
+                        reverseConnectManager.AddEndpoint(new Uri(reverseConnectUrlString));
+                        reverseConnectManager.StartService(config);
+                    }
+
+                    // wait for timeout or Ctrl-C
+                    var quitCTS = new CancellationTokenSource();
+                    CancellationToken ct = quitCTS.Token;
+                    ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+
+                    var userIdentity = new UserIdentity();
+
+                    // set user identity of type username/pw
+                    if (!string.IsNullOrEmpty(username))
+                    {
+                        if (userpassword == null)
                         {
-                            Opc.Ua.Client.ComplexTypes.ComplexTypeSystem complexTypeSystem
-                                = await samples
-                                .LoadTypeSystemAsync(uaClient.Session, ct)
-                                .ConfigureAwait(false);
+                            Console.WriteLine($"No password provided for user {username}, using empty password.");
                         }
 
-                        if (browseall || fetchall || jsonvalues || managedbrowseall)
+                        userIdentity = new UserIdentity(username, userpassword ?? ""u8);
+                        Console.WriteLine($"Connect with user identity for user {username}");
+                    }
+
+                    // set user identity of type certificate
+                    if (!string.IsNullOrEmpty(userCertificateThumbprint))
+                    {
+                        CertificateIdentifier userCertificateIdentifier
+                                = await FindUserCertificateIdentifierAsync(
+                                    userCertificateThumbprint,
+                                    application.ApplicationConfiguration.SecurityConfiguration
+                                        .TrustedUserCertificates,
+                                    telemetry,
+                                    ct
+                                )
+                                .ConfigureAwait(true);
+
+                        if (userCertificateIdentifier != null)
                         {
-                            List<NodeId> variableIds = null;
-                            List<NodeId> variableIdsManagedBrowse = null;
-                            ArrayOf<ReferenceDescription> referenceDescriptions = default;
-                            ArrayOf<ReferenceDescription> referenceDescriptionsFromManagedBrowse = default;
+                            userIdentity = UserIdentity.CreateAsync(
+                                userCertificateIdentifier,
+                                new CertificatePasswordProvider(userCertificatePassword),
+                                telemetry,
+                                ct
+                            ).GetAwaiter().GetResult();
 
-                            if (browseall)
+                            Console.WriteLine($"Connect with user certificate with Thumbprint {userCertificateThumbprint}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Failed to load user certificate with Thumbprint {userCertificateThumbprint}");
+                        }
+                    }
+
+                    // connect to a server until application stops
+                    bool quit = false;
+                    DateTime start = DateTime.UtcNow;
+                    int waitTime = int.MaxValue;
+                    do
+                    {
+                        if (timeout > 0)
+                        {
+                            waitTime = timeout - (int)DateTime.UtcNow.Subtract(start).TotalMilliseconds;
+                            if (waitTime <= 0)
                             {
-                                Console.WriteLine("Browse the full address space.");
-                                referenceDescriptions = await samples
-                                    .BrowseFullAddressSpaceAsync(uaClient, ObjectIds.RootFolder, ct: ct)
-                                    .ConfigureAwait(false);
-                                variableIds =
-                                [
-                                    .. referenceDescriptions
+                                if (!forever)
+                                {
+                                    break;
+                                }
+
+                                waitTime = 0;
+                            }
+
+                            if (forever)
+                            {
+                                start = DateTime.UtcNow;
+                            }
+                        }
+
+                        // create the UA Client object and connect to configured server.
+                        using var uaClient = new UAClient(
+                            application.ApplicationConfiguration,
+                            reverseConnectManager,
+                            telemetry,
+                            null
+                        )
+                        {
+                            AutoAccept = autoAccept,
+                            SessionLifeTime = 60_000,
+                            UserIdentity = userIdentity
+                        };
+
+                        if (enableDurableSubscriptions)
+                        {
+                            uaClient.ReconnectPeriodExponentialBackoff = 60000;
+                        }
+
+                        bool connected = await uaClient
+                            .ConnectAsync(serverUrl.ToString(), !noSecurity, ct)
+                            .ConfigureAwait(false);
+                        if (connected)
+                        {
+                            Console.WriteLine("Connected! Ctrl-C to quit.");
+
+                            // enable subscription transfer
+                            uaClient.ReconnectPeriod = 1000;
+                            uaClient.ReconnectPeriodExponentialBackoff = 10000;
+                            uaClient.Session.MinPublishRequestCount = 3;
+                            uaClient.Session.TransferSubscriptionsOnReconnect = true;
+                            var samples = new ClientSamples(
+                                telemetry,
+                                null,
+                                quitEvent,
+                                verbose);
+                            if (loadTypes)
+                            {
+                                var complexTypeSystem = new ComplexTypeSystem(uaClient.Session, telemetry);
+                                await samples.LoadTypeSystemAsync(complexTypeSystem, ct).ConfigureAwait(false);
+                            }
+
+                            if (browseall || fetchall || jsonvalues || managedbrowseall)
+                            {
+                                List<NodeId> variableIds = null;
+                                List<NodeId> variableIdsManagedBrowse = null;
+                                ArrayOf<ReferenceDescription> referenceDescriptions = default;
+                                ArrayOf<ReferenceDescription> referenceDescriptionsFromManagedBrowse = default;
+
+                                if (browseall)
+                                {
+                                    Console.WriteLine("Browse the full address space.");
+                                    referenceDescriptions = await samples
+                                        .BrowseFullAddressSpaceAsync(uaClient, ObjectIds.RootFolder, ct: ct)
+                                        .ConfigureAwait(false);
+                                    variableIds =
+                                    [
+                                        .. referenceDescriptions
                                         .Filter(r =>
                                             r.NodeClass == NodeClass.Variable &&
                                             r.TypeDefinition.NamespaceIndex != 0
@@ -515,21 +458,21 @@ namespace Quickstarts.ConsoleReferenceClient
                                         .ConvertAll(r => ExpandedNodeId.ToNodeId(
                                             r.NodeId,
                                             uaClient.Session.NamespaceUris))
-                                ];
-                            }
+                                    ];
+                                }
 
-                            if (managedbrowseall)
-                            {
-                                Console.WriteLine("ManagedBrowse the full address space.");
-                                referenceDescriptionsFromManagedBrowse = await samples
-                                    .ManagedBrowseFullAddressSpaceAsync(
-                                        uaClient,
-                                        ObjectIds.RootFolder,
-                                        ct: ct)
-                                    .ConfigureAwait(false);
-                                variableIdsManagedBrowse =
-                                [
-                                    .. referenceDescriptionsFromManagedBrowse
+                                if (managedbrowseall)
+                                {
+                                    Console.WriteLine("ManagedBrowse the full address space.");
+                                    referenceDescriptionsFromManagedBrowse = await samples
+                                        .ManagedBrowseFullAddressSpaceAsync(
+                                            uaClient,
+                                            ObjectIds.RootFolder,
+                                            ct: ct)
+                                        .ConfigureAwait(false);
+                                    variableIdsManagedBrowse =
+                                    [
+                                        .. referenceDescriptionsFromManagedBrowse
                                         .Filter(r =>
                                             r.NodeClass == NodeClass.Variable &&
                                             r.TypeDefinition.NamespaceIndex != 0
@@ -537,31 +480,31 @@ namespace Quickstarts.ConsoleReferenceClient
                                         .ConvertAll(r => ExpandedNodeId.ToNodeId(
                                             r.NodeId,
                                             uaClient.Session.NamespaceUris))
-                                ];
-                            }
+                                    ];
+                                }
 
-                            // treat managedBrowseall result like browseall results if the latter is missing
-                            if (!browseall && managedbrowseall)
-                            {
-                                referenceDescriptions = referenceDescriptionsFromManagedBrowse;
-                                browseall = managedbrowseall;
-                            }
+                                // treat managedBrowseall result like browseall results if the latter is missing
+                                if (!browseall && managedbrowseall)
+                                {
+                                    referenceDescriptions = referenceDescriptionsFromManagedBrowse;
+                                    browseall = managedbrowseall;
+                                }
 
-                            IList<INode> allNodes = null;
-                            if (fetchall)
-                            {
-                                allNodes = await samples
-                                    .FetchAllNodesNodeCacheAsync(
-                                        uaClient,
-                                        ObjectIds.RootFolder,
-                                        true,
-                                        true,
-                                        false,
-                                        ct: ct)
-                                    .ConfigureAwait(false);
-                                variableIds =
-                                [
-                                    .. allNodes
+                                IList<INode> allNodes = null;
+                                if (fetchall)
+                                {
+                                    allNodes = await samples
+                                        .FetchAllNodesNodeCacheAsync(
+                                            uaClient,
+                                            ObjectIds.RootFolder,
+                                            true,
+                                            true,
+                                            false,
+                                            ct: ct)
+                                        .ConfigureAwait(false);
+                                    variableIds =
+                                    [
+                                        .. allNodes
                                         .Where(r =>
                                             r.NodeClass == NodeClass.Variable &&
                                             r is VariableNode v &&
@@ -570,219 +513,225 @@ namespace Quickstarts.ConsoleReferenceClient
                                         .Select(r => ExpandedNodeId.ToNodeId(
                                             r.NodeId,
                                             uaClient.Session.NamespaceUris))
-                                ];
+                                    ];
 
-                                if (exportNodes)
+                                    if (exportNodes)
+                                    {
+                                        await samples
+                                            .ExportNodesToNodeSet2PerNamespaceAsync(uaClient.Session, allNodes, Environment.CurrentDirectory, cancellationToken)
+                                            .ConfigureAwait(false);
+                                    }
+                                }
+
+                                if (jsonvalues && variableIds != null)
                                 {
-                                    await samples
-                                        .ExportNodesToNodeSet2PerNamespaceAsync(uaClient.Session, allNodes, Environment.CurrentDirectory)
+                                    (
+                                        ArrayOf<DataValue> allValues,
+                                        ArrayOf<ServiceResult> results
+                                    ) = await samples
+                                        .ReadAllValuesAsync(uaClient, variableIds.ToArrayOf(), ct)
                                         .ConfigureAwait(false);
                                 }
-                            }
 
-                            if (jsonvalues && variableIds != null)
-                            {
-                                (
-                                    ArrayOf<DataValue> allValues,
-                                    ArrayOf<ServiceResult> results
-                                ) = await samples
-                                    .ReadAllValuesAsync(uaClient, variableIds.ToArrayOf(), ct)
-                                    .ConfigureAwait(false);
-                            }
-
-                            if (subscribe && (browseall || fetchall))
-                            {
-                                // subscribe to 1000 random variables
-                                const int maxVariables = 1000;
-                                var variables = new List<Node>();
-
-                                if (fetchall)
+                                if (subscribe && (browseall || fetchall))
                                 {
-                                    variables.AddRange(
-                                        allNodes
-                                            .Where(r =>
-                                                r.NodeClass == NodeClass.Variable &&
-                                                r.NodeId.NamespaceIndex > 1
-                                            )
-                                            .Cast<VariableNode>()
+                                    // subscribe to 1000 random variables
+                                    const int maxVariables = 1000;
+                                    var variables = new List<Node>();
+
+                                    if (fetchall)
+                                    {
+                                        variables.AddRange(
+                                            allNodes
+                                                .Where(r =>
+                                                    r.NodeClass == NodeClass.Variable &&
+                                                    r.NodeId.NamespaceIndex > 1
+                                                )
+                                                .Cast<VariableNode>()
+                                                .OrderBy(o => UnsecureRandom.Shared.Next())
+                                                .Take(maxVariables)
+                                        );
+                                    }
+                                    else if (browseall)
+                                    {
+                                        var variableReferences = referenceDescriptions
+                                            .ToList()
+                                            .Where(r => r.NodeClass == NodeClass.Variable &&
+                                                r.NodeId.NamespaceIndex > 1)
+                                            .Select(r => r.NodeId)
                                             .OrderBy(o => UnsecureRandom.Shared.Next())
                                             .Take(maxVariables)
-                                    );
-                                }
-                                else if (browseall)
-                                {
-                                    var variableReferences = referenceDescriptions
-                                        .ToList()
-                                        .Where(r => r.NodeClass == NodeClass.Variable &&
-                                            r.NodeId.NamespaceIndex > 1)
-                                        .Select(r => r.NodeId)
-                                        .OrderBy(o => UnsecureRandom.Shared.Next())
-                                        .Take(maxVariables)
-                                        .ToList();
-                                    variables.AddRange(
-                                        (await uaClient.Session.NodeCache.FindAsync(variableReferences, ct)
-                                            .ConfigureAwait(false))
-                                            .ToList()
-                                            .Cast<Node>()
-                                    );
-                                }
-
-                                await samples
-                                    .SubscribeAllValuesAsync(
-                                        uaClient,
-                                        variableIds: [.. variables],
-                                        samplingInterval: 100,
-                                        publishingInterval: 1000,
-                                        queueSize: 10,
-                                        lifetimeCount: 60,
-                                        keepAliveCount: 2,
-                                        ct: ct
-                                    )
-                                    .ConfigureAwait(false);
-
-                                // Wait for DataChange notifications from MonitoredItems
-                                Console.WriteLine($"Subscribed to {maxVariables} variables. Press Ctrl-C to exit.");
-
-                                // free unused memory
-                                uaClient.Session.NodeCache.Clear();
-
-                                waitTime = timeout -
-                                    (int)DateTime.UtcNow.Subtract(start).TotalMilliseconds;
-                                DateTime endTime =
-                                    waitTime > 0
-                                        ? DateTime.UtcNow.Add(TimeSpan.FromMilliseconds(waitTime))
-                                        : DateTime.MaxValue;
-                                List<Node>.Enumerator variableIterator = variables.GetEnumerator();
-                                while (!quit && endTime > DateTime.UtcNow)
-                                {
-                                    if (variableIterator.MoveNext())
-                                    {
-                                        try
-                                        {
-                                            DataValue value = await uaClient
-                                                .Session.ReadValueAsync(
-                                                    variableIterator.Current.NodeId, ct)
-                                                .ConfigureAwait(false);
-                                            Console.WriteLine($"Value of {variableIterator.Current.NodeId} is {value}");
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            Console.WriteLine($"Error reading value of {variableIterator.Current.NodeId}: {ex.Message}");
-                                        }
+                                            .ToList();
+                                        variables.AddRange(
+                                            (await uaClient.Session.NodeCache.FindAsync(variableReferences, ct)
+                                                .ConfigureAwait(false))
+                                                .ToList()
+                                                .Cast<Node>()
+                                        );
                                     }
-                                    else
+
+                                    await samples
+                                        .SubscribeAllValuesAsync(
+                                            uaClient,
+                                            variableIds: [.. variables],
+                                            samplingInterval: 100,
+                                            publishingInterval: 1000,
+                                            queueSize: 10,
+                                            lifetimeCount: 60,
+                                            keepAliveCount: 2,
+                                            ct: ct
+                                        )
+                                        .ConfigureAwait(false);
+
+                                    // Wait for DataChange notifications from MonitoredItems
+                                    Console.WriteLine($"Subscribed to {maxVariables} variables. Press Ctrl-C to exit.");
+
+                                    // free unused memory
+                                    uaClient.Session.NodeCache.Clear();
+
+                                    waitTime = timeout -
+                                        (int)DateTime.UtcNow.Subtract(start).TotalMilliseconds;
+                                    DateTime endTime =
+                                        waitTime > 0
+                                            ? DateTime.UtcNow.Add(TimeSpan.FromMilliseconds(waitTime))
+                                            : DateTime.MaxValue;
+                                    List<Node>.Enumerator variableIterator = variables.GetEnumerator();
+                                    while (!quit && endTime > DateTime.UtcNow)
                                     {
-                                        variableIterator = variables.GetEnumerator();
+                                        if (variableIterator.MoveNext())
+                                        {
+                                            try
+                                            {
+                                                DataValue value = await uaClient
+                                                    .Session.ReadValueAsync(
+                                                        variableIterator.Current.NodeId, ct)
+                                                    .ConfigureAwait(false);
+                                                Console.WriteLine($"Value of {variableIterator.Current.NodeId} is {value}");
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                Console.WriteLine($"Error reading value of {variableIterator.Current.NodeId}: {ex.Message}");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            variableIterator = variables.GetEnumerator();
+                                        }
+                                        quit = quitEvent.WaitOne(500);
                                     }
-                                    quit = quitEvent.WaitOne(500);
+                                }
+                                else
+                                {
+                                    quit = true;
                                 }
                             }
                             else
                             {
-                                quit = true;
-                            }
-                        }
-                        else
-                        {
-                            int quitTimeout = 65_000;
-                            if (enableDurableSubscriptions)
-                            {
-                                quitTimeout = 150_000;
-                                uaClient.ReconnectPeriod = 500_000;
-                            }
-
-                            NodeId sessionNodeId = uaClient.Session.SessionId;
-                            // Run tests for available methods on reference server.
-                            await samples.ReadNodesAsync(
-                                uaClient.Session,
-                                ct).ConfigureAwait(false);
-                            await samples.WriteNodesAsync(
-                                uaClient.Session,
-                                ct).ConfigureAwait(false);
-                            await samples.BrowseAsync(
-                                uaClient.Session,
-                                ct).ConfigureAwait(false);
-                            await samples.CallMethodAsync(
-                                uaClient.Session,
-                                ct).ConfigureAwait(false);
-                            await samples.EnableEventsAsync(
-                                uaClient.Session,
-                                (uint)quitTimeout,
-                                ct).ConfigureAwait(false);
-                            await samples.SubscribeToDataChangesAsync(
-                                uaClient.Session,
-                                60_000,
-                                enableDurableSubscriptions,
-                                ct).ConfigureAwait(false);
-
-                            Console.WriteLine("Waiting...");
-
-                            // Wait for some DataChange notifications from MonitoredItems
-                            int waitCounters = 0;
-                            const int checkForWaitTime = 1000;
-                            const int closeSessionTime = checkForWaitTime * 15;
-                            const int restartSessionTime = checkForWaitTime * 45;
-                            const bool stopNotQuit = false;
-                            int stopCount = 0;
-                            while (!quit && !stopNotQuit && waitCounters < quitTimeout)
-                            {
-                                quit = quitEvent.WaitOne(checkForWaitTime);
-                                waitCounters += checkForWaitTime;
+                                int quitTimeout = 65_000;
                                 if (enableDurableSubscriptions)
                                 {
-                                    if (waitCounters == closeSessionTime &&
-                                        uaClient.Session.SubscriptionCount == 1)
-                                    {
-                                        Console.WriteLine($"Closing Session (CurrentTime: {DateTime.Now:T})");
-                                        await uaClient.Session.CloseAsync(closeChannel: false, ct: ct)
-                                            .ConfigureAwait(false);
-                                    }
+                                    quitTimeout = 150_000;
+                                    uaClient.ReconnectPeriod = 500_000;
+                                }
 
-                                    if (waitCounters == restartSessionTime)
-                                    {
-                                        Console.WriteLine($"Restarting Session (CurrentTime: {DateTime.Now:T})");
-                                        await uaClient
-                                            .DurableSubscriptionTransferAsync(
-                                                serverUrl.ToString(),
-                                                useSecurity: !noSecurity,
-                                                ct
-                                            )
-                                            .ConfigureAwait(true);
-                                    }
+                                NodeId sessionNodeId = uaClient.Session.SessionId;
+                                // Run tests for available methods on reference server.
+                                await samples.ReadNodesAsync(
+                                    uaClient.Session,
+                                    ct).ConfigureAwait(false);
+                                await samples.WriteNodesAsync(
+                                    uaClient.Session,
+                                    ct).ConfigureAwait(false);
+                                await samples.BrowseAsync(
+                                    uaClient.Session,
+                                    ct).ConfigureAwait(false);
+                                await samples.CallMethodAsync(
+                                    uaClient.Session,
+                                    ct).ConfigureAwait(false);
+                                await samples.EnableEventsAsync(
+                                    uaClient.Session,
+                                    (uint)quitTimeout,
+                                    ct).ConfigureAwait(false);
+                                await samples.SubscribeToDataChangesAsync(
+                                    uaClient.Session,
+                                    60_000,
+                                    enableDurableSubscriptions,
+                                    ct).ConfigureAwait(false);
 
-                                    if (waitCounters is > closeSessionTime and < restartSessionTime)
+                                Console.WriteLine("Waiting...");
+
+                                // Wait for some DataChange notifications from MonitoredItems
+                                int waitCounters = 0;
+                                const int checkForWaitTime = 1000;
+                                const int closeSessionTime = checkForWaitTime * 15;
+                                const int restartSessionTime = checkForWaitTime * 45;
+                                const bool stopNotQuit = false;
+                                int stopCount = 0;
+                                while (!quit && !stopNotQuit && waitCounters < quitTimeout)
+                                {
+                                    quit = quitEvent.WaitOne(checkForWaitTime);
+                                    waitCounters += checkForWaitTime;
+                                    if (enableDurableSubscriptions)
                                     {
-                                        Console.WriteLine(
-                                            "No Communication Interval " +
-                                            stopCount.ToString(CultureInfo.InvariantCulture)
-                                        );
-                                        stopCount++;
+                                        if (waitCounters == closeSessionTime &&
+                                            uaClient.Session.SubscriptionCount == 1)
+                                        {
+                                            Console.WriteLine($"Closing Session (CurrentTime: {DateTime.Now:T})");
+                                            await uaClient.Session.CloseAsync(closeChannel: false, ct: ct)
+                                                .ConfigureAwait(false);
+                                        }
+
+                                        if (waitCounters == restartSessionTime)
+                                        {
+                                            Console.WriteLine($"Restarting Session (CurrentTime: {DateTime.Now:T})");
+                                            await uaClient
+                                                .DurableSubscriptionTransferAsync(
+                                                    serverUrl.ToString(),
+                                                    useSecurity: !noSecurity,
+                                                    ct
+                                                )
+                                                .ConfigureAwait(true);
+                                        }
+
+                                        if (waitCounters is > closeSessionTime and < restartSessionTime)
+                                        {
+                                            Console.WriteLine(
+                                                "No Communication Interval " +
+                                                stopCount.ToString(CultureInfo.InvariantCulture)
+                                            );
+                                            stopCount++;
+                                        }
                                     }
                                 }
                             }
+
+                            Console.WriteLine("Client disconnected.");
+
+                            await uaClient.DisconnectAsync(leakChannels, ct).ConfigureAwait(false);
                         }
+                        else
+                        {
+                            Console.WriteLine("Could not connect to server! Retry in 10 seconds or Ctrl-C to quit.");
+                            quit = quitEvent.WaitOne(Math.Min(10_000, waitTime));
+                        }
+                    } while (!quit);
 
-                        Console.WriteLine("Client disconnected.");
+                    Console.WriteLine("Client stopped.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"{ex.Message}");
+                }
+                finally
+                {
+                    Utils.SilentDispose(reverseConnectManager);
+                }
+            });
 
-                        await uaClient.DisconnectAsync(leakChannels, ct).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        Console.WriteLine("Could not connect to server! Retry in 10 seconds or Ctrl-C to quit.");
-                        quit = quitEvent.WaitOne(Math.Min(10_000, waitTime));
-                    }
-                } while (!quit);
-
-                Console.WriteLine("Client stopped.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"{ex.Message}");
-            }
-            finally
-            {
-                Utils.SilentDispose(reverseConnectManager);
-            }
+            args = ConsoleUtils.MergeEnvironmentArgs(args, "REFCLIENT", rootCommand);
+            ParseResult cmdParseResult = rootCommand.Parse(args);
+            return cmdParseResult
+                .InvokeAsync(new InvocationConfiguration(), CancellationToken.None);
         }
 
         /// <summary>

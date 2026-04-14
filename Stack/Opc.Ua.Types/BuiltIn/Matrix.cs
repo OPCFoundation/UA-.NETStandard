@@ -29,6 +29,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -39,12 +40,13 @@ namespace Opc.Ua
     /// <summary>
     /// Wraps a multi-dimensional array for use within a Variant.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class Matrix : ICloneable, IFormattable
     {
         /// <summary>
         /// Initializes the matrix with a multidimensional array.
         /// </summary>
+        [Obsolete("Use MatrixOf<T> instead of Matrix")]
         public Matrix(Array value, BuiltInType builtInType)
         {
             Elements = value ?? throw new ArgumentNullException(nameof(value));
@@ -55,13 +57,14 @@ namespace Opc.Ua
                 Dimensions[ii] = value.GetLength(ii);
             }
 
-            Elements = CoreUtils.FlattenArray(value);
+            Elements = FlattenArray(value);
             TypeInfo = new TypeInfo(builtInType, Dimensions.Length);
         }
 
         /// <summary>
         /// Initializes the matrix with a one dimensional array and a list of dimensions.
         /// </summary>
+        [Obsolete("Use MatrixOf<T> instead of Matrix")]
         public Matrix(Array elements, BuiltInType builtInType, params int[] dimensions)
         {
             Elements = elements ?? throw new ArgumentNullException(nameof(elements));
@@ -109,6 +112,8 @@ namespace Opc.Ua
         /// Returns the flattened array as a multi-dimensional array.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Array.CreateInstance is used with known OPC UA element types.")]
         public Array ToArray()
         {
             try
@@ -248,7 +253,9 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             return new Matrix(CoreUtils.Clone(Elements), TypeInfo.BuiltInType, CoreUtils.Clone(Dimensions));
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         /// <summary>
@@ -435,6 +442,50 @@ namespace Opc.Ua
             }
 
             return (valid, flatLength);
+        }
+
+        /// <summary>
+        /// Converts a multidimension array to a flat array.
+        /// </summary>
+        /// <remarks>
+        /// The higher rank dimensions are written first.
+        /// e.g. a array with dimensions [2,2,2] is written in this order:
+        /// [0,0,0], [0,0,1], [0,1,0], [0,1,1], [1,0,0], [1,0,1], [1,1,0], [1,1,1]
+        /// </remarks>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Array.CreateInstance is used with known OPC UA element types.")]
+        private static Array FlattenArray(Array array)
+        {
+            var flatArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
+
+            int[] indexes = new int[array.Rank];
+            int[] dimensions = new int[array.Rank];
+
+            for (int jj = array.Rank - 1; jj >= 0; jj--)
+            {
+                dimensions[jj] = array.GetLength(array.Rank - jj - 1);
+            }
+
+            for (int ii = 0; ii < array.Length; ii++)
+            {
+                indexes[array.Rank - 1] = ii % dimensions[0];
+
+                for (int jj = 1; jj < array.Rank; jj++)
+                {
+                    int multiplier = 1;
+
+                    for (int kk = 0; kk < jj; kk++)
+                    {
+                        multiplier *= dimensions[kk];
+                    }
+
+                    indexes[array.Rank - jj - 1] = ii / multiplier % dimensions[jj];
+                }
+
+                flatArray.SetValue(array.GetValue(indexes), ii);
+            }
+
+            return flatArray;
         }
     }
 }

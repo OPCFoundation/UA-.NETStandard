@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -46,20 +45,16 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with its default endpoint configuration.
         /// </summary>
-        public ConfiguredEndpointCollection(EndpointConfiguration configuration)
+        public ConfiguredEndpointCollection(EndpointConfiguration configuration) : this()
         {
-            Initialize();
-
             DefaultConfiguration = (EndpointConfiguration)configuration.Clone();
         }
 
         /// <summary>
         /// Initializes the object from an application configuration.
         /// </summary>
-        public ConfiguredEndpointCollection(ApplicationConfiguration configuration)
+        public ConfiguredEndpointCollection(ApplicationConfiguration configuration) : this()
         {
-            Initialize();
-
             DefaultConfiguration = EndpointConfiguration.Create(configuration);
 
             if (configuration.ClientConfiguration != null)
@@ -204,17 +199,16 @@ namespace Opc.Ua
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<ConfiguredEndpointCollection>();
-                using var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings());
-                var endpoints = serializer.ReadObject(reader) as ConfiguredEndpointCollection;
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
+                    ServiceMessageContext.CreateEmpty(telemetry);
+                var parser = new XmlParser(typeof(ConfiguredEndpointCollection), istrm, context);
+                var endpoints = new ConfiguredEndpointCollection();
+                endpoints.Decode(parser);
 
-                if (endpoints != null)
+                foreach (ConfiguredEndpoint endpoint in endpoints)
                 {
-                    foreach (ConfiguredEndpoint endpoint in endpoints)
-                    {
-                        endpoint.Description?.TransportProfileUri = Profiles.NormalizeUri(
-                                endpoint.Description.TransportProfileUri);
-                    }
+                    endpoint.Description?.TransportProfileUri = Profiles.NormalizeUri(
+                            endpoint.Description.TransportProfileUri);
                 }
 
                 return endpoints;
@@ -254,38 +248,12 @@ namespace Opc.Ua
         /// </summary>
         public void Save(Stream ostrm)
         {
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<ConfiguredEndpointCollection>();
+            IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
+                ServiceMessageContext.CreateEmpty(null);
             using var writer = XmlWriter.Create(ostrm, Utils.DefaultXmlWriterSettings());
-            serializer.WriteObject(writer, this);
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Returns a deep copy of the collection.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            var clone = new ConfiguredEndpointCollection
-            {
-                m_filepath = m_filepath,
-                m_knownHosts = [.. m_knownHosts],
-                DefaultConfiguration = (EndpointConfiguration)DefaultConfiguration.MemberwiseClone()
-            };
-
-            foreach (ConfiguredEndpoint endpoint in m_endpoints)
-            {
-                var clonedEndpoint = (ConfiguredEndpoint)endpoint.MemberwiseClone();
-                clonedEndpoint.Collection = clone;
-                clone.m_endpoints.Add(clonedEndpoint);
-            }
-
-            return clone;
+            var encoder = new XmlEncoder(typeof(ConfiguredEndpointCollection), writer, context);
+            Encode(encoder);
+            encoder.Close();
         }
 
         /// <summary>
@@ -379,16 +347,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Copies the elements of the <see cref="ICollection{T}"/> to an <see cref="Array"/>, starting at a particular <see cref="Array"/> index.
+        /// Copies the elements of the <see cref="ICollection{T}"/> to an
+        /// <see cref="Array"/>, starting at a particular <see cref="Array"/>
+        /// index.
         /// </summary>
-        /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the elements copied from <see cref="ICollection{T}"/>. The <see cref="Array"/> must have zero-based indexing.</param>
-        /// <param name="arrayIndex">The zero-based index in <paramref name="array"/> at which copying begins.</param>
+        /// <param name="array">The one-dimensional <see cref="Array"/> that is the
+        /// destination of the elements copied from <see cref="ICollection{T}"/>.
+        /// The <see cref="Array"/> must have zero-based indexing.</param>
+        /// <param name="arrayIndex">The zero-based index in <paramref name="array"/>
+        /// at which copying begins.</param>
         /// <exception cref="ArgumentNullException">
-        /// 	<paramref name="array"/> is null.</exception>
+        /// <paramref name="array"/> is null.</exception>
         /// <exception cref="ArgumentOutOfRangeException">
-        /// 	<paramref name="arrayIndex"/> is less than 0.</exception>
+        /// <paramref name="arrayIndex"/> is less than 0.</exception>
         /// <exception cref="ArgumentException">
-        /// 	<paramref name="array"/> is multidimensional.-or-<paramref name="arrayIndex"/> is equal to or greater than the length of <paramref name="array"/>.-or-The number of elements in the source <see cref="ICollection{T}"/> is greater than the available space from <paramref name="arrayIndex"/> to the end of the destination <paramref name="array"/>./>.</exception>
+        /// <paramref name="array"/> is multidimensional.-or-
+        /// <paramref name="arrayIndex"/> is equal to or greater than the length
+        /// of <paramref name="array"/>.-or-The number of elements in the source
+        /// <see cref="ICollection{T}"/> is greater than the available space from
+        /// <paramref name="arrayIndex"/> to the end of the destination
+        /// <paramref name="array"/>./>.
+        /// </exception>
         public void CopyTo(ConfiguredEndpoint[] array, int arrayIndex)
         {
             m_endpoints.CopyTo(array, arrayIndex);
@@ -397,20 +376,24 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the number of elements contained in the <see cref="ICollection{T}"/>.
         /// </summary>
-        /// <returns>The number of elements contained in the <see cref="ICollection{T}"/>.</returns>
+        /// <returns>The number of elements contained in the
+        /// <see cref="ICollection{T}"/>.</returns>
         public int Count => m_endpoints.Count;
 
         /// <summary>
-        /// Gets a value indicating whether the <see cref="ICollection{T}"/> is read-only.
+        /// Gets a value indicating whether the <see cref="ICollection{T}"/>
+        /// is read-only.
         /// </summary>
-        /// <returns>true if the <see cref="ICollection{T}"/> is read-only; otherwise, false.</returns>
+        /// <returns>true if the <see cref="ICollection{T}"/> is read-only;
+        /// otherwise, false.</returns>
         public bool IsReadOnly => false;
 
         /// <summary>
         /// Returns an enumerator that iterates through the collection.
         /// </summary>
         /// <returns>
-        /// A <see cref="IEnumerator{T}"/> that can be used to iterate through the collection.
+        /// A <see cref="IEnumerator{T}"/> that can be used to iterate
+        /// through the collection.
         /// </returns>
         public IEnumerator<ConfiguredEndpoint> GetEnumerator()
         {
@@ -459,7 +442,8 @@ namespace Opc.Ua
         /// <summary>
         /// Adds a previous created endpoint to the collection.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="endpoint"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         private void Insert(ConfiguredEndpoint endpoint, int index)
         {
@@ -498,7 +482,8 @@ namespace Opc.Ua
         /// <summary>
         /// Removes the configured endpoint.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="item"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="item"/> is <c>null</c>.</exception>
         public bool Remove(ConfiguredEndpoint item)
         {
             if (item == null)
@@ -512,7 +497,8 @@ namespace Opc.Ua
         /// <summary>
         /// Removes all endpoints for the specified server.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="serverUri"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="serverUri"/> is <c>null</c>.</exception>
         public void RemoveServer(string serverUri)
         {
             if (serverUri == null)
@@ -529,7 +515,8 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the server descrption for the endpoints.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="server"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="server"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         public void SetApplicationDescription(string serverUri, ApplicationDescription server)
         {
@@ -578,7 +565,7 @@ namespace Opc.Ua
                 if (endpointUrl != null)
                 {
                     ConfiguredEndpoint endpoint = Create(endpointUrl);
-                    endpoint.Description.Server = (ApplicationDescription)server.MemberwiseClone();
+                    endpoint.Description.Server = CoreUtils.Clone(server);
                     Add(endpoint);
                 }
             }
@@ -587,8 +574,7 @@ namespace Opc.Ua
             {
                 foreach (ConfiguredEndpoint endpointToUpdate in GetEndpoints(serverUri))
                 {
-                    endpointToUpdate.Description.Server = (ApplicationDescription)server
-                        .MemberwiseClone();
+                    endpointToUpdate.Description.Server = CoreUtils.Clone(server);
                 }
             }
         }
@@ -771,8 +757,6 @@ namespace Opc.Ua
         /// </summary>
         public EndpointConfiguration DefaultConfiguration { get; private set; }
 
-        private static readonly char[] s_separator = ['-', '[', ':', ']'];
-
         /// <summary>
         /// Throws exceptions if the endpoint is not valid.
         /// </summary>
@@ -799,6 +783,8 @@ namespace Opc.Ua
                 endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             }
         }
+
+        private static readonly char[] s_separator = ['-', '[', ':', ']'];
     }
 
     /// <summary>
@@ -810,6 +796,11 @@ namespace Opc.Ua
         /// A discovery suffix that may be appended to the discovery url of https endpoints.
         /// </summary>
         public static readonly string DiscoverySuffix = "/discovery";
+
+        internal void SetDescription(EndpointDescription description)
+        {
+            m_description = description ?? new EndpointDescription();
+        }
 
         /// <summary>
         /// Creates a configured endpoint from the server description.
@@ -905,22 +896,6 @@ namespace Opc.Ua
             Update(configuration);
         }
 
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Returns a deep copy of the endpoint.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            var clone = new ConfiguredEndpoint { Collection = Collection };
-            clone.Update(this);
-            return clone;
-        }
-
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -977,8 +952,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
-            m_description = (EndpointDescription)endpoint.Description.MemberwiseClone();
-            m_configuration = (EndpointConfiguration)endpoint.Configuration.MemberwiseClone();
+            m_description = CoreUtils.Clone(endpoint.Description);
+            m_configuration = CoreUtils.Clone(endpoint.Configuration);
 
             // normalize transport profile uri.
             if (m_description.TransportProfileUri != null)
@@ -993,7 +968,7 @@ namespace Opc.Ua
 
             if (endpoint.UserIdentity != null)
             {
-                UserIdentity = (UserIdentityToken)endpoint.UserIdentity.MemberwiseClone();
+                UserIdentity = CoreUtils.Clone(endpoint.UserIdentity);
             }
         }
 
@@ -1008,7 +983,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(description));
             }
 
-            m_description = (EndpointDescription)description.MemberwiseClone();
+            m_description = CoreUtils.Clone(description);
 
             // normalize transport profile uri.
             if (m_description.TransportProfileUri != null)
@@ -1038,7 +1013,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            m_configuration = (EndpointConfiguration)configuration.MemberwiseClone();
+            m_configuration = CoreUtils.Clone(configuration);
 
             BinaryEncodingSupport binaryEncodingSupport = m_description.EncodingSupport;
 
@@ -1279,30 +1254,6 @@ namespace Opc.Ua
 
             // return the first in the list.
             return Utils.ParseUri(discoveryUrls[0]);
-        }
-
-        /// <summary>
-        /// Parses the extension.
-        /// </summary>
-        /// <typeparam name="T">The type of extension.</typeparam>
-        /// <param name="elementName">Name of the element (null means use type name).</param>
-        /// <param name="telemetry">The telemetry context.</param>
-        /// <returns>The extension if found. Null otherwise.</returns>
-        public T ParseExtension<T>(XmlQualifiedName elementName, ITelemetryContext telemetry)
-        {
-            return Utils.ParseExtension<T>(m_extensions, elementName, telemetry);
-        }
-
-        /// <summary>
-        /// Updates the extension.
-        /// </summary>
-        /// <typeparam name="T">The type of extension.</typeparam>
-        /// <param name="elementName">Name of the element (null means use type name).</param>
-        /// <param name="value">The value.</param>
-        /// <param name="telemetry">The telemetry context.</param>
-        public void UpdateExtension<T>(XmlQualifiedName elementName, object value, ITelemetryContext telemetry)
-        {
-            Utils.UpdateExtension<T>(ref m_extensions, elementName, value, telemetry);
         }
 
         /// <summary>

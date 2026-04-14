@@ -950,8 +950,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 $$"""{"UaType":{{BuiltInType.UInt64:d}}, "Value":"123456789"}""",
                 null
             },
-            { BuiltInType.DataValue, new DataValue(), "{}", null },
-            { BuiltInType.DataValue, new DataValue(StatusCodes.Good), "{}", null },
+            {
+                BuiltInType.DataValue,
+                new DataValue(),
+                "{}",
+                null
+            },
+            {
+                BuiltInType.DataValue,
+                new DataValue(StatusCodes.Good),
+                "{}",
+                null
+            },
             {
                 BuiltInType.DataValue,
                 new DataValue(StatusCodes.BadNotWritable),
@@ -969,20 +979,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.Enumeration,
                 Variant.From(TestEnumType.Three),
-                TestEnumType.Three.ToString("d"),
                 """
-                "3"
+                3
+                """,
                 """
-                // TODO: $""" "{TestEnumType.Three}_{TestEnumType.Three:d}" """
+                "Three_3"
+                """
             },
             {
                 BuiltInType.Enumeration,
                 Variant.From(TestEnumType.Ten),
-                $"{TestEnumType.Ten:d}",
                 """
-                "10"
+                10
+                """,
                 """
-                // TODO: $""" "{nameof(TestEnumType.Ten)}_{TestEnumType.Ten:d}" """
+                "Ten_10"
+                """
             },
             {
                 BuiltInType.Enumeration,
@@ -990,17 +1002,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "11",
                 """
                 "11"
-                """ },
+                """
+            },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration(1),
+                Variant.From(new EnumValue(1)),
                 "1",
                 """
                 "1"
-                """ },
+                """
+            },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration((int)TestEnumType.Two),
+                Variant.From(EnumValue.From((int)TestEnumType.Two)),
                 TestEnumType.Two.ToString("d"),
                 $"""
                 "{TestEnumType.Two:d}"
@@ -1008,7 +1022,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration((int)TestEnumType.Hundred),
+                Variant.From(EnumValue.From((int)TestEnumType.Hundred)),
                 $"{TestEnumType.Hundred:d}",
                 $"""
                 "{TestEnumType.Hundred:d}"
@@ -1016,21 +1030,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration(22),
+                Variant.From(EnumValue.From(22)),
                 "22",
                 """
                 "22"
-                """ },
+                """
+            },
             // arrays
             {
                 BuiltInType.Enumeration,
                 Variant.From(s_testEnumArray),
                 "[1,2,100]",
-                """["1","2","100"]""" // TODO: """["One_1","Two_2","Hundred_100"]"""
+                """["One_1","Two_2","Hundred_100"]"""
             },
             {
                 BuiltInType.Enumeration,
-                Variant.FromEnumeration(s_testInt32Array),
+                Variant.From(EnumValue.From(s_testInt32Array)),
                 "[2,3,10]",
                 """["2","3","10"]"""
             },
@@ -1061,7 +1076,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // for validating benchmark tests
             m_telemetry = NUnitTelemetryContext.Create();
-            m_context = new ServiceMessageContext(m_telemetry);
+            m_context = Ua.ServiceMessageContext.Create(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
 
@@ -1085,10 +1100,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        private void GlobalSetup()
+        public void GlobalSetup()
         {
             m_telemetry = NUnitTelemetryContext.Create();
-            m_context = new ServiceMessageContext(m_telemetry);
+            m_context = Ua.ServiceMessageContext.Create(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
 
@@ -1096,7 +1111,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        private void GlobalCleanup()
+        public void GlobalCleanup()
         {
             m_context = null;
             m_memoryStream.Dispose();
@@ -1109,7 +1124,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void ConstructorDefault(JsonEncodingType encodingType)
         {
-            var context = new ServiceMessageContext(m_telemetry);
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using var jsonEncoder = new JsonEncoder(context,
                 encodingType == JsonEncodingType.Verbose ?
                 JsonEncoderOptions.Verbose :
@@ -1167,7 +1182,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         private void ConstructorStream(MemoryStream memoryStream)
         {
-            var context = new ServiceMessageContext(m_telemetry);
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using (var jsonEncoder = new JsonEncoder(memoryStream, context))
             {
                 TestEncoding(jsonEncoder);
@@ -1211,7 +1226,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorArraySegmentStreamSequence()
         {
-            var context = new ServiceMessageContext(m_telemetry);
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using var memoryStream = new ArraySegmentStream(BufferManager);
             using (var jsonEncoder = new JsonEncoder(memoryStream, context))
             {
@@ -1269,7 +1284,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorRecyclableMemoryStreamSequence()
         {
-            var context = new ServiceMessageContext(m_telemetry);
+            var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using var memoryStream = new RecyclableMemoryStream(RecyclableMemoryManager);
             using (var jsonEncoder = new JsonEncoder((Stream)memoryStream, context))
             {
@@ -1461,9 +1476,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Register in the context's Factory, make it a custom factory so the dynamic type can
             // look up its type information when instantiated during encoding/decoding
-            var dynamicContext = new ServiceMessageContext(m_telemetry)
+            var dynamicContext = new ServiceMessageContext(
+                m_telemetry,
+                new DynamicEncodeableFactory(Context.Factory))
             {
-                Factory = new DynamicEncodeableFactory(Context.Factory),
                 NamespaceUris = Context.NamespaceUris
             };
             (dynamicContext.Factory as DynamicEncodeableFactory)?.AddDynamicEncodeable(encodeable);
@@ -1842,7 +1858,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ServiceMessageContext()
         {
-            _ = new ServiceMessageContext(m_telemetry);
+            _ = Ua.ServiceMessageContext.Create(m_telemetry);
         }
 
         /// <summary>

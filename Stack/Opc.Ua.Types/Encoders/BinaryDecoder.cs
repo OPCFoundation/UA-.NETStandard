@@ -815,7 +815,13 @@ namespace Opc.Ua
             }
 
             // check for known type.
-            Type systemType = Context.Factory.GetSystemType(extension.TypeId);
+            if (!Context.Factory.TryGetEncodeableType(
+                extension.TypeId,
+                out IEncodeableType activator))
+            {
+                m_logger.LogDebug("Failed to retrieve activator for extension object.");
+                // Continue without registered type by reading the binary blob for later.
+            }
 
             // check for XML bodies.
             if (encoding == (byte)ExtensionObjectEncoding.Xml)
@@ -825,7 +831,7 @@ namespace Opc.Ua
                     ReadXmlElement(null));
 
                 // attempt to decode a known type.
-                if (systemType != null && !extension.IsNull)
+                if (activator != null && !extension.IsNull)
                 {
                     XmlElement element = extension.TryGetAsXml(out XmlElement xe) ? xe : default;
                     using var xmlDecoder = new XmlDecoder(element, Context);
@@ -847,7 +853,7 @@ namespace Opc.Ua
                     {
                         m_logger.LogError(
                             "Could not decode known type {Name} encoded as Xml. Error={Message}, Value={OuterXml}",
-                            systemType.FullName,
+                            activator.XmlName,
                             e.Message,
                             element.OuterXml);
                     }
@@ -865,9 +871,9 @@ namespace Opc.Ua
 
             // create instance of type.
             IEncodeable encodeable = null;
-            if (systemType != null && length >= -1)
+            if (activator != null && length >= -1)
             {
-                encodeable = Activator.CreateInstance(systemType) as IEncodeable;
+                encodeable = activator.CreateInstance();
             }
 
             // process known type.
@@ -928,7 +934,7 @@ namespace Opc.Ua
                                 StatusCodes.BadDecodingError,
                                 "{0}, failed to decode encodeable type '{1}', NodeId='{2}'.",
                                 errorMessage,
-                                systemType.Name,
+                                activator.XmlName,
                                 extension.TypeId);
                     }
                     else if (m_encodeablesRecovered == 0)
@@ -938,7 +944,7 @@ namespace Opc.Ua
                             exception,
                             "{Message}, failed to decode encodeable type '{Name}', NodeId='{NodeId}'. BinaryDecoder recovered.",
                             errorMessage,
-                            systemType.Name,
+                            activator.XmlName,
                             extension.TypeId);
                     }
 
@@ -1054,6 +1060,12 @@ namespace Opc.Ua
         public T ReadEnumerated<T>(string fieldName) where T : struct, Enum
         {
             return EnumHelper.Int32ToEnum<T>(SafeReadInt32());
+        }
+
+        /// <inheritdoc/>
+        public EnumValue ReadEnumerated(string fieldName)
+        {
+            return EnumValue.From(SafeReadInt32());
         }
 
         /// <inheritdoc/>
@@ -1651,6 +1663,26 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public ArrayOf<EnumValue> ReadEnumeratedArray(string fieldName)
+        {
+            int length = ReadArrayLength();
+
+            if (length == -1)
+            {
+                return default;
+            }
+
+            var values = new EnumValue[length];
+
+            for (int ii = 0; ii < length; ii++)
+            {
+                values[ii] = ReadEnumerated(null);
+            }
+
+            return values;
+        }
+
+        /// <inheritdoc/>
         public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
         {
             return ReadVariantValue(typeInfo, true);
@@ -1667,6 +1699,12 @@ namespace Opc.Ua
         public uint ReadEncodingMask(IList<string> masks)
         {
             return ReadUInt32("EncodingMask");
+        }
+
+        /// <inheritdoc/>
+        public bool HasField(string fieldName)
+        {
+            return true;
         }
 
         /// <summary>
@@ -1699,8 +1737,9 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         return Variant.From(SafeReadUInt16());
                     case BuiltInType.Int32:
-                    case BuiltInType.Enumeration:
                         return Variant.From(SafeReadInt32());
+                    case BuiltInType.Enumeration:
+                        return Variant.From(ReadEnumerated(null));
                     case BuiltInType.UInt32:
                         return Variant.From(SafeReadUInt32());
                     case BuiltInType.Int64:
@@ -1768,8 +1807,9 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         return Variant.From(ReadUInt16Array(null));
                     case BuiltInType.Int32:
-                    case BuiltInType.Enumeration:
                         return Variant.From(ReadInt32Array(null));
+                    case BuiltInType.Enumeration:
+                        return Variant.From(ReadEnumeratedArray(null));
                     case BuiltInType.UInt32:
                         return Variant.From(ReadUInt32Array(null));
                     case BuiltInType.Int64:
@@ -1848,8 +1888,9 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         return Variant.From(ReadUInt16Array(null).ToMatrix(ReadDims()));
                     case BuiltInType.Int32:
-                    case BuiltInType.Enumeration:
                         return Variant.From(ReadInt32Array(null).ToMatrix(ReadDims()));
+                    case BuiltInType.Enumeration:
+                        return Variant.From(ReadEnumeratedArray(null).ToMatrix(ReadDims()));
                     case BuiltInType.UInt32:
                         return Variant.From(ReadUInt32Array(null).ToMatrix(ReadDims()));
                     case BuiltInType.Int64:

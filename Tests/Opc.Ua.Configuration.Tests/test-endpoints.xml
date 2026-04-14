@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ConfiguredEndpointCollection
+  xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd">
+  <KnownHosts>
+    <ua:String>localhost</ua:String>
+  </KnownHosts>
+  <Endpoints>
+    <ConfiguredEndpoint>
+      <Endpoint>
+        <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>
+        <ua:SecurityMode>SignAndEncrypt_3</ua:SecurityMode>
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri>
+      </Endpoint>
+      <UpdateBeforeConnect>true</UpdateBeforeConnect>
+      <BinaryEncodingSupport>Optional</BinaryEncodingSupport>
+      <SelectedUserTokenPolicy>0</SelectedUserTokenPolicy>
+    </ConfiguredEndpoint>
+  </Endpoints>
+</ConfiguredEndpointCollection>

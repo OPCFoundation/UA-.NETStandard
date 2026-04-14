@@ -59,7 +59,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var typeNode = new BaseDataVariableTypeState();
-            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var serviceMessageContext = ServiceMessageContext.Create(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
@@ -99,7 +99,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             // Here this type node is used just as support for the instanceNode to refer to
             var typeNode = new BaseDataVariableTypeState();
-            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var serviceMessageContext = ServiceMessageContext.Create(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
@@ -135,7 +135,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             // Create a BaseDataVariableState with byte[] value
             var variableState = BaseDataVariableState<ArrayOf<byte>>.With<VariantBuilder>(null);
-            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var serviceMessageContext = ServiceMessageContext.Create(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
@@ -174,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             // Create a BaseDataVariableState for ByteString testing
             var variableState = BaseDataVariableState<ByteString>.With<VariantBuilder>(null);
-            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var serviceMessageContext = ServiceMessageContext.Create(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris

@@ -127,6 +127,7 @@ namespace Opc.Ua.Gds.Tests
                 .. m_server
                     .Config.ParseExtension<GlobalDiscoveryServerConfiguration>()
                     .CertificateGroups
+                    .ToList()
                     .Where(cg => cg.Id == "Default")
                     .SelectMany(cg => cg.CertificateTypes.ToList())
                     .Select(Ua.ObjectTypeIds.GetIdentifier)

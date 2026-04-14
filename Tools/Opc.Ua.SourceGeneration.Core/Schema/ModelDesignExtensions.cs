@@ -721,7 +721,43 @@ namespace Opc.Ua.Schema.Model
                 case BasicDataType.LocalizedText:
                 case BasicDataType.StatusCode:
                 case BasicDataType.Structure: // Extension object
+                case BasicDataType.Number:
+                case BasicDataType.Integer:
+                case BasicDataType.UInteger:
                 case BasicDataType.BaseDataType: // Variant
+                case BasicDataType.Enumeration when !dataType.IsOptionSet:
+                case BasicDataType.UserDefined when dataType.IsEnumeration:
+                case BasicDataType.ByteString:
+                case BasicDataType.XmlElement:
+                    return true;
+                case BasicDataType.String:
+                case BasicDataType.DiagnosticInfo:
+                case BasicDataType.DataValue:
+                case BasicDataType.UserDefined:
+                case BasicDataType.Enumeration:
+                    return false;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// If the type needs to be cloned
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static bool NeedsCloning(this DataTypeDesign dataType)
+        {
+            if (dataType is null)
+            {
+                throw new ArgumentNullException(nameof(dataType));
+            }
+            switch (dataType.BasicDataType)
+            {
+                case BasicDataType.DataValue:
+                case BasicDataType.Structure: // Extension object
+                case BasicDataType.BaseDataType: // Variant
+                case BasicDataType.UserDefined when !dataType.IsEnumeration:
+                case BasicDataType.Enumeration when dataType.IsOptionSet:
                     return true;
                 default:
                     return false;

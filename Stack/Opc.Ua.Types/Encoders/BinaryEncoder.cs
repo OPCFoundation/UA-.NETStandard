@@ -354,6 +354,9 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Binary;
 
         /// <inheritdoc/>
+        public bool CanOmitFields => false;
+
+        /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
 
         /// <inheritdoc/>
@@ -981,6 +984,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void WriteEnumerated(string fieldName, EnumValue value)
+        {
+            WriteInt32(null, value.Value);
+        }
+
+        /// <inheritdoc/>
         public void WriteBooleanArray(string fieldName, ArrayOf<bool> values)
         {
             // write length.
@@ -1475,6 +1484,22 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void WriteEnumeratedArray(string fieldName, ArrayOf<EnumValue> values)
+        {
+            // write length.
+            if (WriteArrayLength(values))
+            {
+                return;
+            }
+
+            // write contents.
+            for (int ii = 0; ii < values.Count; ii++)
+            {
+                WriteEnumerated(null, values[ii]);
+            }
+        }
+
+        /// <inheritdoc/>
         public void WriteVariantValue(string fieldName, Variant value)
         {
             WriteVariantValue(value, true);
@@ -1598,7 +1623,7 @@ namespace Opc.Ua
                         WriteDataValue(null, value.GetDataValue());
                         return;
                     case BuiltInType.Enumeration:
-                        WriteInt32(null, value.GetInt32());
+                        WriteEnumerated(null, value.GetEnumeration());
                         return;
                     case BuiltInType.Null:
                     case BuiltInType.Variant:
@@ -1698,7 +1723,7 @@ namespace Opc.Ua
                         WriteDataValueArray(null, value.GetDataValueArray());
                         break;
                     case BuiltInType.Enumeration:
-                        WriteInt32Array(null, value.GetInt32Array());
+                        WriteEnumeratedArray(null, value.GetEnumerationArray());
                         break;
                     case BuiltInType.Variant:
                         WriteVariantArray(null, value.GetVariantArray());
@@ -1765,11 +1790,17 @@ namespace Opc.Ua
                         break;
                     }
                     case BuiltInType.Int32:
-                    case BuiltInType.Enumeration:
                     {
                         MatrixOf<int> matrix = value.GetInt32Matrix();
                         WriteDimensions(matrix);
                         WriteInt32Array(null, matrix.ToArrayOf(out dim));
+                        break;
+                    }
+                    case BuiltInType.Enumeration:
+                    {
+                        MatrixOf<EnumValue> matrix = value.GetEnumerationMatrix();
+                        WriteDimensions(matrix);
+                        WriteEnumeratedArray(null, matrix.ToArrayOf(out dim));
                         break;
                     }
                     case BuiltInType.UInt32:

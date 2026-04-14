@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using System.CommandLine;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -43,7 +44,7 @@ namespace Quickstarts.ReferenceServer
     /// </summary>
     public static class Program
     {
-        public static async Task<int> Main(string[] args)
+        public static Task<int> Main(string[] args)
         {
             Console.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".NET Core");
 
@@ -61,183 +62,222 @@ namespace Quickstarts.ReferenceServer
                 : "Quickstarts.ReferenceServer";
 
             // command line options
-            bool showHelp = false;
-            bool autoAccept = false;
-            bool logConsole = false;
-            bool appLog = false;
-            bool fileLog = false;
-            bool renewCertificate = false;
-            bool shadowConfig = false;
-            bool samplingGroups = false;
-            bool cttMode = false;
-            bool provisioningMode = false;
-            char[] password = null;
-            int timeout = -1;
-            string reverseConnectUrlString = null;
-
-            string usage = Utils.IsRunningOnMono()
-                ? $"Usage: mono {applicationName}.exe [OPTIONS]"
-                : $"Usage: dotnet {applicationName}.dll [OPTIONS]";
-            var options = new Mono.Options.OptionSet
+            var autoAcceptOption = new Option<bool>("--autoaccept", "-a") { Description = "auto accept certificates (for testing only)" };
+            var consoleOption = new Option<bool>("--console", "-c") { Description = "log to console" };
+            var logOption = new Option<bool>("--log", "-l") { Description = "log app output" };
+            var fileOption = new Option<bool>("--file", "-f") { Description = "log to file" };
+            var passwordOption = new Option<string>("--password", "-p") { Description = "optional password for private key" };
+            var renewOption = new Option<bool>("--renew", "-r") { Description = "renew application certificate" };
+            var timeoutOption = new Option<int>("--timeout", "-t")
             {
-                usage,
-                { "h|help", "show this message and exit", h => showHelp = h != null },
-                { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
-                { "c|console", "log to console", c => logConsole = c != null },
-                { "l|log", "log app output", c => appLog = c != null },
-                { "f|file", "log to file", f => fileLog = f != null },
-                { "p|password=", "optional password for private key", p => password = p.ToCharArray() },
-                { "r|renew", "renew application certificate", r => renewCertificate = r != null },
-                { "t|timeout=", "timeout in seconds to exit application", (int t) => timeout = t * 1000 },
-                { "s|shadowconfig", "create configuration in pki root", s => shadowConfig = s != null },
-                {
-                    "sg|samplinggroups",
-                    "use the sampling group mechanism in the Reference Node Manager",
-                    sg => samplingGroups = sg != null
-                },
-                { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null },
-                {
-                    "provision",
-                    "start server in provisioning mode with limited namespace for certificate provisioning",
-                    p => provisioningMode = p != null
-                },
-                {
-                    "rc|reverseconnect=",
-                    "Connect to the specified client endpoint for reverse connect. (e.g. rc=opc.tcp://localhost:65300)",
-                    url => reverseConnectUrlString = url
-                }
+                Description = "timeout in seconds to exit application",
+                DefaultValueFactory = _ => -1
+            };
+            var shadowConfigOption = new Option<bool>("--shadowconfig", "-s") { Description = "create configuration in pki root" };
+            var samplingGroupsOption = new Option<bool>("--samplinggroups", "--sg")
+            {
+                Description = "use the sampling group mechanism in the Reference Node Manager"
+            };
+            var cttOption = new Option<bool>("--ctt") { Description = "CTT mode, use to preset alarms for CTT testing." };
+            var provisionOption = new Option<bool>("--provision")
+            {
+                Description = "start server in provisioning mode with limited namespace for certificate provisioning"
+            };
+            var reverseConnectOption = new Option<string>("--reverseconnect", "--rc")
+            {
+                Description = "Connect to the specified client endpoint for reverse connect. (e.g. --rc opc.tcp://localhost:65300)"
             };
 
-            using var telemetry = new ConsoleTelemetry();
-            ILogger logger = LoggerUtils.Null.Logger;
-            try
+            var rootCommand = new RootCommand(
+                Utils.IsRunningOnMono()
+                    ? $"Usage: mono {applicationName}.exe [OPTIONS]"
+                    : $"Usage: dotnet {applicationName}.dll [OPTIONS]")
             {
-                // parse command line and set options
-                ConsoleUtils.ProcessCommandLine(args, options, ref showHelp, "REFSERVER");
+                autoAcceptOption,
+                consoleOption,
+                logOption,
+                fileOption,
+                passwordOption,
+                renewOption,
+                timeoutOption,
+                shadowConfigOption,
+                samplingGroupsOption,
+                cttOption,
+                provisionOption,
+                reverseConnectOption
+            };
 
-                // log console output to logger
-                if (logConsole && appLog)
+            rootCommand.SetAction(async (parseResult, cancellationToken) =>
+            {
+                bool autoAccept = parseResult.GetValue(autoAcceptOption);
+                bool logConsole = parseResult.GetValue(consoleOption);
+                bool appLog = parseResult.GetValue(logOption);
+                bool fileLog = parseResult.GetValue(fileOption);
+                string passwordStr = parseResult.GetValue(passwordOption);
+                char[] password = passwordStr?.ToCharArray();
+                bool renewCertificate = parseResult.GetValue(renewOption);
+                int timeoutSec = parseResult.GetValue(timeoutOption);
+                int timeout = timeoutSec >= 0 ? timeoutSec * 1000 : -1;
+                bool shadowConfig = parseResult.GetValue(shadowConfigOption);
+                bool samplingGroups = parseResult.GetValue(samplingGroupsOption);
+                bool cttMode = parseResult.GetValue(cttOption);
+                bool provisioningMode = parseResult.GetValue(provisionOption);
+                string reverseConnectUrlString = parseResult.GetValue(reverseConnectOption);
+
+                using var telemetry = new ConsoleTelemetry();
+                ILogger logger = LoggerUtils.Null.Logger;
+                try
                 {
-                    logger = telemetry.CreateLogger("Main");
-                }
-                var sw = Stopwatch.StartNew();
+                    // log console output to logger
+                    if (logConsole && appLog)
+                    {
+                        logger = telemetry.CreateLogger("Main");
+                    }
+                    var sw = Stopwatch.StartNew();
 
-                // create the UA server
-                var server = new UAServer<ReferenceServer>(telemetry, t => new ReferenceServer(t))
-                {
-                    AutoAccept = autoAccept,
-                    Password = password
-                };
+                    // create the UA server
+                    var server = new UAServer<ReferenceServer>(telemetry, t => new ReferenceServer(t))
+                    {
+                        AutoAccept = autoAccept,
+                        Password = password
+                    };
 
-                // load the server configuration, validate certificates
-                Console.WriteLine($"Loading configuration from {configSectionName}.");
-                await server.LoadAsync(applicationName, configSectionName).ConfigureAwait(false);
+                    // load the server configuration, validate certificates
+                    Console.WriteLine($"Loading configuration from {configSectionName}.");
+                    await server.LoadAsync(applicationName, configSectionName).ConfigureAwait(false);
 
-                // use the shadow config to map the config to an externally accessible location
-                if (shadowConfig)
-                {
-                    Console.WriteLine("Using shadow configuration.");
-                    string shadowPath = Directory
-                        .GetParent(
-                            Path.GetDirectoryName(
-                                Utils.ReplaceSpecialFolderNames(server.Configuration.TraceConfiguration.OutputFilePath)
+                    // use the shadow config to map the config to an externally accessible location
+                    if (shadowConfig)
+                    {
+                        Console.WriteLine("Using shadow configuration.");
+                        string shadowPath = Directory
+                            .GetParent(
+                                Path.GetDirectoryName(
+                                    Utils.ReplaceSpecialFolderNames(server.Configuration.TraceConfiguration.OutputFilePath)
+                                )
                             )
-                        )
-                        .FullName;
-                    string shadowFilePath = Path.Combine(
-                        shadowPath,
-                        Path.GetFileName(server.Configuration.SourceFilePath)
-                    );
-                    if (!File.Exists(shadowFilePath))
-                    {
-                        Console.WriteLine("Create a copy of the config in the shadow location.");
-                        File.Copy(server.Configuration.SourceFilePath, shadowFilePath, true);
+                            .FullName;
+                        string shadowFilePath = Path.Combine(
+                            shadowPath,
+                            Path.GetFileName(server.Configuration.SourceFilePath)
+                        );
+                        if (!File.Exists(shadowFilePath))
+                        {
+                            Console.WriteLine("Create a copy of the config in the shadow location.");
+                            File.Copy(server.Configuration.SourceFilePath, shadowFilePath, true);
+                        }
+                        Console.WriteLine($"Reloading configuration from shadow location {shadowFilePath}.");
+                        await server
+                            .LoadAsync(applicationName, Path.Combine(shadowPath, configSectionName))
+                            .ConfigureAwait(false);
                     }
-                    Console.WriteLine($"Reloading configuration from shadow location {shadowFilePath}.");
-                    await server
-                        .LoadAsync(applicationName, Path.Combine(shadowPath, configSectionName))
-                        .ConfigureAwait(false);
-                }
 
-                // setup the logging
-                telemetry.ConfigureLogging(server.Configuration, applicationName, logConsole, fileLog, appLog, LogLevel.Information);
+                    // setup the logging
+                    telemetry.ConfigureLogging(server.Configuration, applicationName, logConsole, fileLog, appLog, LogLevel.Information);
 
-                // check or renew the certificate
-                Console.WriteLine("Check the certificate.");
-                await server.CheckCertificateAsync(renewCertificate).ConfigureAwait(false);
+                    // check or renew the certificate
+                    Console.WriteLine("Check the certificate.");
+                    await server.CheckCertificateAsync(renewCertificate).ConfigureAwait(false);
 
-                // Create and add the node managers
-                server.Create(Servers.Utils.NodeManagerFactories);
+                    // Create and add the node managers
+                    server.Create(Servers.Utils.NodeManagerFactories);
 
-                // enable provisioning mode if requested
-                if (provisioningMode)
-                {
-                    Console.WriteLine("Enabling provisioning mode.");
-                    Servers.Utils.EnableProvisioningMode(server.Server);
-                    // Auto-accept is required in provisioning mode
-                    if (!autoAccept)
+                    // enable provisioning mode if requested
+                    if (provisioningMode)
                     {
-                        Console.WriteLine("Auto-accept enabled for provisioning mode.");
-                        autoAccept = true;
-                        server.AutoAccept = autoAccept;
+                        Console.WriteLine("Enabling provisioning mode.");
+                        Servers.Utils.EnableProvisioningMode(server.Server);
+                        // Auto-accept is required in provisioning mode
+                        if (!autoAccept)
+                        {
+                            Console.WriteLine("Auto-accept enabled for provisioning mode.");
+                            autoAccept = true;
+                            server.AutoAccept = autoAccept;
+                        }
                     }
-                }
 
-                // enable the sampling groups if requested
-                if (samplingGroups)
-                {
-                    Servers.Utils.UseSamplingGroupsInReferenceNodeManager(server.Server);
-                }
-
-                // start the server
-                Console.WriteLine("Start the server.");
-                await server.StartAsync().ConfigureAwait(false);
-
-                // setup reverse connect if specified
-                if (!string.IsNullOrEmpty(reverseConnectUrlString))
-                {
-                    try
+                    // enable the sampling groups if requested
+                    if (samplingGroups)
                     {
-                        Console.WriteLine($"Adding reverse connection to {reverseConnectUrlString}.");
-                        var reverseConnectUrl = new Uri(reverseConnectUrlString);
-                        server.Server.AddReverseConnection(reverseConnectUrl);
+                        Servers.Utils.UseSamplingGroupsInReferenceNodeManager(server.Server);
                     }
-                    catch (UriFormatException ex)
+
+                    // start the server
+                    Console.WriteLine("Start the server.");
+                    await server.StartAsync(cancellationToken).ConfigureAwait(false);
+
+                    // setup reverse connect if specified
+                    if (!string.IsNullOrEmpty(reverseConnectUrlString))
                     {
-                        logger.LogError(ex, "Invalid reverse connect URL: {Url}", reverseConnectUrlString);
-                        throw new ErrorExitException(
-                            $"Invalid reverse connect URL: {reverseConnectUrlString}",
-                            ExitCode.ErrorInvalidCommandLine);
+                        try
+                        {
+                            Console.WriteLine($"Adding reverse connection to {reverseConnectUrlString}.");
+                            var reverseConnectUrl = new Uri(reverseConnectUrlString);
+                            server.Server.AddReverseConnection(reverseConnectUrl);
+                        }
+                        catch (UriFormatException ex)
+                        {
+                            logger.LogError(ex, "Invalid reverse connect URL: {Url}", reverseConnectUrlString);
+                            throw new ErrorExitException(
+                                $"Invalid reverse connect URL: {reverseConnectUrlString}",
+                                ExitCode.ErrorInvalidCommandLine);
+                        }
                     }
-                }
 
-                // Apply custom settings for CTT testing
-                if (cttMode)
+                    // Apply custom settings for CTT testing
+                    if (cttMode)
+                    {
+                        Console.WriteLine("Apply settings for CTT.");
+                        // start Alarms and other settings for CTT test
+                        await Servers.Utils.ApplyCTTModeAsync(Console.Out, server.Server)
+                            .ConfigureAwait(false);
+                    }
+
+                    Console.WriteLine($"Server started ({sw.ElapsedMilliseconds} ms). Press Ctrl-C to exit...");
+
+                    // wait for timeout or Ctrl-C (cancellationToken is cancelled on Ctrl-C by System.CommandLine)
+                    if (timeout >= 0)
+                    {
+                        using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        timeoutCts.CancelAfter(timeout);
+                        try
+                        {
+                            await Task.Delay(Timeout.Infinite, timeoutCts.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // expected — timeout or Ctrl-C
+                        }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // expected — Ctrl-C
+                        }
+                    }
+
+                    // stop server. May have to wait for clients to disconnect.
+                    Console.WriteLine("Server stopped. Waiting for exit...");
+                    await server.StopAsync(default).ConfigureAwait(false);
+
+                    return (int)ExitCode.Ok;
+                }
+                catch (ErrorExitException eee)
                 {
-                    Console.WriteLine("Apply settings for CTT.");
-                    // start Alarms and other settings for CTT test
-                    await Servers.Utils.ApplyCTTModeAsync(Console.Out, server.Server)
-                        .ConfigureAwait(false);
+                    Console.WriteLine($"The application exits with error: {eee.Message}");
+                    return (int)eee.ExitCode;
                 }
+            });
 
-                Console.WriteLine($"Server started ({sw.ElapsedMilliseconds} ms). Press Ctrl-C to exit...");
-
-                // wait for timeout or Ctrl-C
-                var quitCTS = new CancellationTokenSource();
-                ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
-                bool ctrlc = quitEvent.WaitOne(timeout);
-
-                // stop server. May have to wait for clients to disconnect.
-                Console.WriteLine("Server stopped. Waiting for exit...");
-                await server.StopAsync().ConfigureAwait(false);
-
-                return (int)ExitCode.Ok;
-            }
-            catch (ErrorExitException eee)
-            {
-                Console.WriteLine($"The application exits with error: {eee.Message}");
-                return (int)eee.ExitCode;
-            }
+            args = ConsoleUtils.MergeEnvironmentArgs(args, "REFSERVER", rootCommand);
+            ParseResult parseResult = rootCommand.Parse(args);
+            return parseResult
+                .InvokeAsync(new InvocationConfiguration(), CancellationToken.None);
         }
     }
 }

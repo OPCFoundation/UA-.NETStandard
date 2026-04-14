@@ -28,10 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 #if NET8_0_OR_GREATER
 using System.Runtime.CompilerServices;
 #endif
-using System.Globalization;
 
 namespace Opc.Ua
 {
@@ -113,7 +113,16 @@ namespace Opc.Ua
                     return Unsafe.As<T, int>(ref value);
             }
 #else
-            switch (typeof(T).GetEnumUnderlyingType())
+            return EnumToInt32((object)value, typeof(T));
+#endif
+        }
+
+        /// <summary>
+        /// Convert int to enum T
+        /// </summary>
+        public static int EnumToInt32(object value, Type type)
+        {
+            switch (type.IsEnum ? Enum.GetUnderlyingType(type) : type)
             {
                 case Type t when t == typeof(byte):
                     return unchecked((byte)(object)value);
@@ -133,7 +142,6 @@ namespace Opc.Ua
                     return unchecked((int)(ulong)(object)value);
             }
             return 0;
-#endif
         }
 
         /// <summary>
@@ -154,6 +162,48 @@ namespace Opc.Ua
             where T : struct, Enum
         {
             return values.ConvertAll(EnumToInt32);
+        }
+
+        /// <summary>
+        /// Convert int to enum T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static long EnumToInt64<T>(T value) where T : struct, Enum
+        {
+#if NET8_0_OR_GREATER
+            switch (Unsafe.SizeOf<T>())
+            {
+                case sizeof(byte):
+                    return Unsafe.As<T, byte>(ref value);
+                case sizeof(ushort):
+                    return Unsafe.As<T, ushort>(ref value);
+                case sizeof(uint):
+                    return Unsafe.As<T, uint>(ref value);
+                default:
+                    return Unsafe.As<T, long>(ref value);
+            }
+#else
+            switch (typeof(T).GetEnumUnderlyingType())
+            {
+                case Type t when t == typeof(byte):
+                    return unchecked((byte)(object)value);
+                case Type t when t == typeof(sbyte):
+                    return unchecked((sbyte)(object)value);
+                case Type t when t == typeof(short):
+                    return unchecked((short)(object)value);
+                case Type t when t == typeof(ushort):
+                    return unchecked((ushort)(object)value);
+                case Type t when t == typeof(int):
+                    return unchecked((int)(object)value);
+                case Type t when t == typeof(uint):
+                    return unchecked((uint)(object)value);
+                case Type t when t == typeof(long):
+                    return unchecked((long)(object)value);
+                case Type t when t == typeof(ulong):
+                    return unchecked((long)(ulong)(object)value);
+            }
+            return 0;
+#endif
         }
 
         /// <summary>
@@ -225,12 +275,52 @@ namespace Opc.Ua
             {
                 return null;
             }
-            return Enum.ToObject(type, value);
+            Type underlyingType = type.GetEnumUnderlyingType();
+            if (underlyingType == typeof(int))
+            {
+                return Enum.ToObject(type, value);
+            }
+            else if (underlyingType == typeof(uint))
+            {
+                return Enum.ToObject(type, (uint)value);
+            }
+            else if (underlyingType == typeof(byte))
+            {
+                return Enum.ToObject(type, (byte)value);
+            }
+            else if (underlyingType == typeof(sbyte))
+            {
+                return Enum.ToObject(type, (sbyte)value);
+            }
+            else if (underlyingType == typeof(short))
+            {
+                return Enum.ToObject(type, (short)value);
+            }
+            else if (underlyingType == typeof(ushort))
+            {
+                return Enum.ToObject(type, (ushort)value);
+            }
+            else if (underlyingType == typeof(long))
+            {
+                return Enum.ToObject(type, (long)value);
+            }
+            else if(underlyingType == typeof(ulong))
+            {
+                return Enum.ToObject(type, (ulong)value);
+            }
+            else
+            {
+                return Enum.ToObject(underlyingType, value);
+            }
         }
 
         /// <summary>
         /// Cast to enum array
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Array.CreateInstance is used with potentially unknown enum types.")]
+        [RequiresDynamicCode(
+            "Array.CreateInstance is used with potentially unknown enum types.")]
         public static Array Int32ArrayToEnumArray(ArrayOf<int> values, Type type)
         {
             if (values.IsNull)
@@ -253,6 +343,10 @@ namespace Opc.Ua
         /// <summary>
         /// Cast to enum matrix
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Array.CreateInstance is used with potentially unknown enum types.")]
+        [RequiresDynamicCode(
+            "Array.CreateInstance is used with potentially unknown enum types.")]
         public static Array Int32MatrixToEnumArray(MatrixOf<int> values, Type type)
         {
             if (values.IsNull)

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
@@ -40,7 +41,7 @@ namespace Opc.Ua
     /// <summary>
     /// The base class for all variable nodes.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public abstract class BaseVariableState : BaseInstanceState
     {
         /// <summary>
@@ -153,7 +154,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static object DecodeExtensionObject(
             ISystemContext context,
-            Type targetType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type targetType,
             ExtensionObject extension,
             bool throwOnError)
         {
@@ -226,14 +227,6 @@ namespace Opc.Ua
             }
 
             return null;
-        }
-
-        /// <inheritdoc/>
-        public override object Clone()
-        {
-            var clone = (BaseInstanceState)Activator.CreateInstance(GetType(), Parent);
-            CopyTo(clone);
-            return clone;
         }
 
         /// <inheritdoc/>
@@ -1894,46 +1887,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads the current value.
+        /// Copy the current value on write.
         /// </summary>
-        protected ServiceResult Read(object currentValue, ref object valueToRead)
-        {
-            lock (Lock)
-            {
-                if (ServiceResult.IsBad(Error))
-                {
-                    valueToRead = null;
-                    return Error;
-                }
-
-                if ((CopyPolicy & VariableCopyPolicy.CopyOnRead) != 0)
-                {
-                    valueToRead = CoreUtils.Clone(currentValue);
-                }
-                else
-                {
-                    valueToRead = currentValue;
-                }
-
-                return ServiceResult.Good;
-            }
-        }
-
-        /// <summary>
-        /// Writes the current value.
-        /// </summary>
-        protected object Write(object valueToWrite)
-        {
-            lock (Lock)
-            {
-                if ((CopyPolicy & VariableCopyPolicy.CopyOnWrite) != 0)
-                {
-                    return CoreUtils.Clone(valueToWrite);
-                }
-
-                return valueToWrite;
-            }
-        }
+        protected bool CopyOnWrite => (CopyPolicy & VariableCopyPolicy.CopyOnWrite) != 0;
 
         /// <summary>
         /// Sets the list of nodes which are updated when ClearChangeMasks is called.

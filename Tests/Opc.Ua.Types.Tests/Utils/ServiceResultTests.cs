@@ -165,10 +165,12 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithXmlQualifiedNameNullUsesNull()
         {
             var text = new LocalizedText("en", "error");
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(
                 StatusCodes.BadUnexpectedError,
                 (XmlQualifiedName?)null,
                 text);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             Assert.That(result.NamespaceUri, Is.Null);
         }
@@ -395,12 +397,16 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithInnerExceptionCollapseWhenNoNewInfo()
         {
             var innerException = new ServiceResultException(StatusCodes.BadDecodingError);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(
                 null,
                 StatusCodes.BadDecodingError,
                 LocalizedText.Null,
                 (string?)null,
                 (Exception)innerException);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadDecodingError.Code));
         }
@@ -409,12 +415,14 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithInnerExceptionDoesNotCollapseWhenNewInfoProvided()
         {
             var innerException = new ServiceResultException(StatusCodes.BadDecodingError);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(
                 "http://ns.org",
                 StatusCodes.BadUnexpectedError,
                 new LocalizedText("en", "new info"),
                 "extra",
                 (Exception)innerException);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
             Assert.That(result.NamespaceUri, Is.EqualTo("http://ns.org"));
@@ -503,7 +511,9 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithDiagnosticInfoNullLeavesDefaults()
         {
             var stringTable = new ArrayOf<string>(["unused"]);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, (DiagnosticInfo?)null, stringTable);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
             Assert.That(result.NamespaceUri, Is.Null);
@@ -1119,11 +1129,13 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void GetDefaultMessageWithNullExceptionThrows()
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(() => new ServiceResult(
                 (Exception)null!,
                 "http://ns.org",
                 StatusCodes.BadUnexpectedError),
                 Throws.Nothing);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]

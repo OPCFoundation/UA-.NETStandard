@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
+  <ApplicationName>Legacy Test</ApplicationName>
+  <ApplicationUri>urn:localhost:legacytest</ApplicationUri>
+  <ProductUri>http://test.org/legacy</ProductUri>
+  <ApplicationType>Server_0</ApplicationType>
+  <SecurityConfiguration>
+    <ApplicationCertificate>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/legacy</StorePath>
+      <SubjectName>CN=Legacy, O=Test</SubjectName>
+    </ApplicationCertificate>
+    <TrustedIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/issuers</StorePath>
+    </TrustedIssuerCertificates>
+    <TrustedPeerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/trusted</StorePath>
+    </TrustedPeerCertificates>
+    <NonceLength>32</NonceLength>
+    <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
+    <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
+    <SendCertificateChain>true</SendCertificateChain>
+    <AddAppCertToTrustedStore>true</AddAppCertToTrustedStore>
+  </SecurityConfiguration>
+</ApplicationConfiguration>

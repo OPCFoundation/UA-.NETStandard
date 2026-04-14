@@ -60,7 +60,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CompareToObjectWithUnrelatedType()
         {
             var qn = new QualifiedName("Test");
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             int result = qn.CompareTo((object)42);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(result, Is.EqualTo(-1));
         }
 
@@ -515,7 +517,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ExplicitOperatorFromString()
         {
-            QualifiedName qn = (QualifiedName)"Hello";
+            var qn = (QualifiedName)"Hello";
             Assert.That(qn.Name, Is.EqualTo("Hello"));
             Assert.That(qn.NamespaceIndex, Is.Zero);
         }
@@ -523,7 +525,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ExplicitOperatorFromNull()
         {
-            QualifiedName qn = (QualifiedName)(string)null;
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
+            var qn = (QualifiedName)(string)null;
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(qn.IsNull, Is.True);
         }
 

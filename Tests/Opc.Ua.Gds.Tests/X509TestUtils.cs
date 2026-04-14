@@ -72,13 +72,15 @@ namespace Opc.Ua.Gds.Tests
             // verify the public cert matches the private key
             Assert.That(X509Utils.VerifyKeyPair(newCert, newPrivateKeyCert, true), Is.True);
             Assert.That(X509Utils.VerifyKeyPair(newPrivateKeyCert, newPrivateKeyCert, true), Is.True);
-            var issuerCertIdCollection = new CertificateIdentifierCollection();
+            var issuerCertIdList = new List<CertificateIdentifier>();
             foreach (byte[] issuer in issuerCertificates)
             {
                 X509Certificate2 issuerCert = CertificateFactory.Create(issuer);
                 Assert.That(issuerCert, Is.Not.Null);
-                issuerCertIdCollection.Add(new CertificateIdentifier(issuerCert));
+                issuerCertIdList.Add(new CertificateIdentifier(issuerCert));
             }
+
+            var issuerCertIdCollection = issuerCertIdList.ToArrayOf();
 
             // verify cert with issuer chain
             var certValidator = new CertificateValidator(telemetry);
@@ -133,37 +135,35 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(keyUsage, Is.Not.Null);
             TestContext.Out.WriteLine($"KeyUsage: {keyUsage.Format(true)}");
             Assert.That(keyUsage.Critical, Is.True);
-            Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.CrlSign) == 0, Is.True);
-            Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.DecipherOnly) == 0, Is.True);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.CrlSign, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DecipherOnly, Is.Zero);
             Assert.That(
-                (keyUsage.KeyUsages &
-                    X509KeyUsageFlags.DigitalSignature) == X509KeyUsageFlags.DigitalSignature,
-                Is.True);
-            Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.EncipherOnly) == 0, Is.True);
-            Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.KeyCertSign) == 0, Is.True);
-            Assert.That((keyUsage.KeyUsages &
-                X509KeyUsageFlags.NonRepudiation) == X509KeyUsageFlags.NonRepudiation, Is.True);
+                keyUsage.KeyUsages & X509KeyUsageFlags.DigitalSignature,
+                Is.EqualTo(X509KeyUsageFlags.DigitalSignature));
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.EncipherOnly, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyCertSign, Is.Zero);
+            Assert.That(keyUsage.KeyUsages &
+                X509KeyUsageFlags.NonRepudiation, Is.EqualTo(X509KeyUsageFlags.NonRepudiation));
 
             //ECC
             if (X509PfxUtils.IsECDsaSignature(signedCert))
             {
-                Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.DataEncipherment) == 0, Is.True);
-                Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.KeyEncipherment) == 0, Is.True);
-                Assert.That((keyUsage.KeyUsages &
-                    X509KeyUsageFlags.KeyAgreement) == X509KeyUsageFlags.KeyAgreement, Is.True);
+                Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DataEncipherment, Is.Zero);
+                Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyEncipherment, Is.Zero);
+                Assert.That(
+                    keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement,
+                    Is.EqualTo(X509KeyUsageFlags.KeyAgreement));
             }
             //RSA
             else
             {
                 Assert.That(
-                    (keyUsage.KeyUsages &
-                        X509KeyUsageFlags.DataEncipherment) == X509KeyUsageFlags.DataEncipherment,
-                    Is.True);
+                    keyUsage.KeyUsages & X509KeyUsageFlags.DataEncipherment,
+                    Is.EqualTo(X509KeyUsageFlags.DataEncipherment));
                 Assert.That(
-                    (keyUsage.KeyUsages &
-                        X509KeyUsageFlags.KeyEncipherment) == X509KeyUsageFlags.KeyEncipherment,
-                    Is.True);
-                Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement) == 0, Is.True);
+                    keyUsage.KeyUsages & X509KeyUsageFlags.KeyEncipherment,
+                    Is.EqualTo(X509KeyUsageFlags.KeyEncipherment));
+                Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyAgreement, Is.Zero);
 
                 // enhanced key usage
                 X509EnhancedKeyUsageExtension enhancedKeyUsage =
@@ -202,10 +202,10 @@ namespace Opc.Ua.Gds.Tests
             {
                 Assert.That(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase), Is.True);
             }
-            Assert.That(subjectAlternateName.Uris.Count == 1, Is.True);
+            Assert.That(subjectAlternateName.Uris, Has.Count.EqualTo(1));
             IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(signedCert);
             string applicationUri = applicationUris.Count > 0 ? applicationUris[0] : null;
-            Assert.That(testApp.ApplicationRecord.ApplicationUri == applicationUri, Is.True);
+            Assert.That(testApp.ApplicationRecord.ApplicationUri, Is.EqualTo(applicationUri));
         }
     }
 }

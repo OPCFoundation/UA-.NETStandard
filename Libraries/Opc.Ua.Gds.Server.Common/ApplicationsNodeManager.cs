@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -138,8 +137,7 @@ namespace Opc.Ua.Gds.Server
                 m_logger.LogInformation("Database Initialized!");
             }
 
-            Server.MessageContext.Factory
-                .AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
+            Server.MessageContext.Factory.Builder.AddOpcUaGds().Commit();
         }
 
         /// <summary>

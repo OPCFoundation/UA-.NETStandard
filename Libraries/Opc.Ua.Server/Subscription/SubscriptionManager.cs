@@ -181,7 +181,6 @@ namespace Opc.Ua.Server
             }
         }
 
-
         /// <inheritdoc/>
         public IList<ISubscription> GetSubscriptions()
         {

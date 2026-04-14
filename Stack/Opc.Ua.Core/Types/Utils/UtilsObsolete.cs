@@ -28,15 +28,14 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
@@ -699,31 +698,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Looks for an extension with the specified type and uses the DataContractSerializer to serializes its replacement.
-        /// </summary>
-        /// <typeparam name="T">The type of extension.</typeparam>
-        [Obsolete("Use UpdateExtension with telemetry context.")]
-        public static void UpdateExtension<T>(
-            ref ArrayOf<XmlElement> extensions,
-            XmlQualifiedName elementName,
-            object value)
-        {
-            UpdateExtension<T>(ref extensions, elementName, value, null);
-        }
-
-        /// <summary>
-        /// Looks for an extension with the specified type and uses the DataContractSerializer to parse it.
-        /// </summary>
-        /// <typeparam name="T">The type of extension.</typeparam>
-        [Obsolete("Use ParseExtension with telemetry context.")]
-        public static T ParseExtension<T>(
-            ArrayOf<XmlElement> extensions,
-            XmlQualifiedName elementName)
-        {
-            return ParseExtension<T>(extensions, elementName, null);
-        }
-
-        /// <summary>
         /// Checks if the file path is a relative path and returns an absolute path relative to the EXE location.
         /// </summary>
         [Obsolete("Catch exceptions from GetAbsoluteFilePath and handle !throwOnError")]
@@ -812,6 +786,10 @@ namespace Opc.Ua
         /// Returns the public static field names for a class.
         /// </summary>
         [Obsolete("Unused and will be removed in future versions.")]
+        [RequiresUnreferencedCode(
+            "Uses reflection to access public fields.")]
+        [RequiresDynamicCode(
+            "Uses reflection to access public fields.")]
         public static string[] GetFieldNames(Type systemType)
         {
             FieldInfo[] fields = systemType.GetFields(BindingFlags.Public | BindingFlags.Static);
@@ -861,6 +839,10 @@ namespace Opc.Ua
         /// Returns the numeric constant associated with a name.
         /// </summary>
         [Obsolete("Unused and will be removed in future versions.")]
+        [RequiresUnreferencedCode(
+            "Uses reflection to access public fields.")]
+        [RequiresDynamicCode(
+            "Uses reflection to access public fields.")]
         public static uint GetIdentifier(string name, Type constants)
         {
             foreach (FieldInfo field in constants.GetFields(

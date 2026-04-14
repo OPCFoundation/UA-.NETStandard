@@ -51,7 +51,7 @@ namespace Opc.Ua.Types.Tests.State
         public void OneTimeSetUp()
         {
             m_telemetry = NUnitTelemetryContext.Create();
-            m_messageContext = new ServiceMessageContext(m_telemetry);
+            m_messageContext = ServiceMessageContext.CreateEmpty(m_telemetry);
             m_context = new SystemContext(m_telemetry)
             {
                 NamespaceUris = m_messageContext.NamespaceUris,
@@ -111,7 +111,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             BaseObjectState node = CreateObjectNode();
             node.Dispose();
-            Assert.DoesNotThrow(() => node.Dispose());
+            Assert.DoesNotThrow(node.Dispose);
         }
 
         [Test]
@@ -282,7 +282,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState node = CreateObjectNode();
             Assert.That(node.Extensions, Is.Null);
-            node.Extensions = Array.Empty<XmlElement>();
+            node.Extensions = [];
             Assert.That(node.Extensions, Is.Not.Null);
         }
 

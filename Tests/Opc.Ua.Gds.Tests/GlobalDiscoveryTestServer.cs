@@ -121,10 +121,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 GlobalDiscoveryServerConfiguration gdsConfig =
                     Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
-                foreach (CertificateGroupConfiguration group in additionalCertGroups)
-                {
-                    gdsConfig.CertificateGroups.Add(group);
-                }
+                gdsConfig.CertificateGroups = gdsConfig.CertificateGroups.AddItems(additionalCertGroups);
                 Config.UpdateExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig);
             }
 
@@ -297,7 +294,7 @@ namespace Opc.Ua.Gds.Tests
                 UsersDatabaseStorePath = Path.Combine(gdsRoot, "gdsusersdb.json")
             };
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,

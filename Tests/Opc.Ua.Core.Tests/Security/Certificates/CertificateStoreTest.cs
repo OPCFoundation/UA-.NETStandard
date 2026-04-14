@@ -260,7 +260,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 X509Certificate2Collection certificates = await store.EnumerateAsync()
                     .ConfigureAwait(false);
 
-                Assert.That(certificates.Count, Is.EqualTo(3));
+                Assert.That(certificates, Has.Count.EqualTo(3));
 
                 //Add private key for leaf cert to private folder
                 File.WriteAllBytes(
@@ -292,7 +292,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 certificates = await store.EnumerateAsync().ConfigureAwait(false);
 
-                Assert.That(certificates.Count, Is.EqualTo(2));
+                Assert.That(certificates, Has.Count.EqualTo(2));
                 Assert.IsEmpty(
                     certificates.Find(
                         X509FindType.FindByThumbprint,
@@ -345,7 +345,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 X509Certificate2Collection certificates = await store.EnumerateAsync()
                     .ConfigureAwait(false);
 
-                Assert.That(certificates.Count, Is.EqualTo(1));
+                Assert.That(certificates, Has.Count.EqualTo(1));
 
                 Assert.That(
                     certificates.Find(
@@ -452,7 +452,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //enumerate Crls
             X509CRLCollection crls = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
 
-            Assert.That(crls.Count, Is.EqualTo(1));
+            Assert.That(crls, Has.Count.EqualTo(1));
             Assert.That(crls[0].RawData, Is.EqualTo(crl.RawData));
             Assert.That(
                 crls[0].RevokedCertificates[0].SerialNumber,
@@ -494,9 +494,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             X509CRLCollection crls = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
 
-            Assert.That(crls.Count, Is.EqualTo(1));
+            Assert.That(crls, Has.Count.EqualTo(1));
 
-            Assert.That(crls[0].RevokedCertificates.Count, Is.EqualTo(2));
+            Assert.That(crls[0].RevokedCertificates, Has.Count.EqualTo(2));
             //Test Revocation after adding cert
             StatusCode statusCode2 = await x509Store
                 .IsRevokedAsync(GetTestCert(), GetTestCert2())
@@ -529,7 +529,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //enumerate Crls
             X509CRLCollection crls = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
 
-            Assert.That(crls.Count, Is.EqualTo(2));
+            Assert.That(crls, Has.Count.EqualTo(2));
             Assert.That(crls.SingleOrDefault(c => c.Issuer == crl.Issuer), Is.Not.Null);
         }
 
@@ -557,7 +557,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .ConfigureAwait(false);
 
             //check the right crl was deleted
-            Assert.That(crlsAfterFirstDelete.Count, Is.EqualTo(1));
+            Assert.That(crlsAfterFirstDelete, Has.Count.EqualTo(1));
             Assert.That(crlsAfterFirstDelete.FirstOrDefault(c => c == crl), Is.Null);
 
             //make shure IsRevoked can't find crl anymore
@@ -572,7 +572,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .ConfigureAwait(false);
 
             //make shure no crls remain in store
-            Assert.That(crlsAfterSecondDelete.Count, Is.Zero);
+            Assert.That(crlsAfterSecondDelete, Is.Empty);
         }
 
         /// <summary>

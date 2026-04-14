@@ -206,7 +206,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     Assert.That(memoryStream.Position, Is.EqualTo(length2 + length1));
                     byte[] result = memoryStream.ToArray();
                     Assert.That(result, Is.Not.Null);
-                    Assert.That(result.Length, Is.EqualTo(length2 + length1));
+                    Assert.That(result, Has.Length.EqualTo(length2 + length1));
                 }
                 else
                 {
@@ -242,7 +242,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 string result = Encoding.UTF8.GetString(stream.ToArray());
                 Assert.That(result, Is.Not.Null);
                 Assert.That(length2, Is.EqualTo(length1 * 2));
-                Assert.That(result.Length, Is.EqualTo(length2));
+                Assert.That(result, Has.Length.EqualTo(length2));
             }
         }
 

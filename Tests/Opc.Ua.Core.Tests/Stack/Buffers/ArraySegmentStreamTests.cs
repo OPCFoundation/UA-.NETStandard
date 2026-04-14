@@ -116,7 +116,7 @@ namespace Opc.Ua.Types.Buffers.Tests
 #endif
 
             byte[] array = stream.ToArray();
-            Assert.That(array.Length, Is.EqualTo(3));
+            Assert.That(array, Has.Length.EqualTo(3));
             Assert.That(array[0], Is.EqualTo(0xaa));
             Assert.That(array[1], Is.EqualTo(0x55));
             Assert.That(array[2], Is.EqualTo(0x55));
@@ -251,7 +251,7 @@ namespace Opc.Ua.Types.Buffers.Tests
             buffer = sequence.ToArray();
 
             // Assert sequence properties
-            Assert.That(buffer.Length, Is.EqualTo(length));
+            Assert.That(buffer, Has.Length.EqualTo(length));
             Assert.That(sequence.Length, Is.EqualTo(length));
 
             for (int i = 0; i < buffer.Length; i++)

@@ -91,30 +91,30 @@ namespace Opc.Ua.Security.Certificates
             if (securityPolicyUri == SecurityPolicies.None)
             {
                 // return the default certificate for None
-                return m_securityConfiguration.ApplicationCertificates.FirstOrDefault().Certificate;
+                return m_securityConfiguration.ApplicationCertificates.ToArray().FirstOrDefault().Certificate;
             }
             foreach (NodeId certType in Ua.CertificateIdentifier
                 .MapSecurityPolicyToCertificateTypes(securityPolicyUri))
             {
                 Ua.CertificateIdentifier instanceCertificate =
-                    m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id =>
+                    m_securityConfiguration.ApplicationCertificates.ToArray().FirstOrDefault(id =>
                         id.CertificateType == certType);
                 if (instanceCertificate == null &&
                     certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                 {
                     instanceCertificate = m_securityConfiguration.ApplicationCertificates
-                        .FirstOrDefault(id => id.CertificateType.IsNull);
+                        .ToArray().FirstOrDefault(id => id.CertificateType.IsNull);
                 }
                 if (instanceCertificate == null &&
                     certType == ObjectTypeIds.ApplicationCertificateType)
                 {
                     instanceCertificate = m_securityConfiguration.ApplicationCertificates
-                        .FirstOrDefault();
+                        .ToArray().FirstOrDefault();
                 }
                 if (instanceCertificate == null && certType == ObjectTypeIds.HttpsCertificateType)
                 {
                     instanceCertificate = m_securityConfiguration.ApplicationCertificates
-                        .FirstOrDefault();
+                        .ToArray().FirstOrDefault();
                 }
                 if (instanceCertificate != null)
                 {

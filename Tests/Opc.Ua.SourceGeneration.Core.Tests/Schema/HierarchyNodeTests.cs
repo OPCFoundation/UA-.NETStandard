@@ -249,7 +249,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(longPath));
-            Assert.That(result.Length, Is.EqualTo(10000));
+            Assert.That(result, Has.Length.EqualTo(10000));
         }
 
         /// <summary>
@@ -482,7 +482,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(longPath));
-            Assert.That(result.Length, Is.EqualTo(10000));
+            Assert.That(result, Has.Length.EqualTo(10000));
         }
 
         /// <summary>
@@ -1084,7 +1084,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo($"{relativePath}={symbolicIdName}"));
-            Assert.That(result.Length, Is.EqualTo(20001)); // 10000 + 1 ('=') + 10000
+            Assert.That(result, Has.Length.EqualTo(20001)); // 10000 + 1 ('=') + 10000
         }
 
         /// <summary>

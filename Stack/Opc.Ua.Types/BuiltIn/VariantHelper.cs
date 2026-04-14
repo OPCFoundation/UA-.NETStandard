@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Opc.Ua.Types;
 #if NET8_0_OR_GREATER
@@ -435,6 +436,8 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <exception cref="ServiceResultException"></exception>
+        [RequiresDynamicCode("Uses reflection to cast types where not all may be available.")]
+        [RequiresUnreferencedCode("Uses reflection to cast types where not all may be available.")]
         public static Variant CastFromWithReflectionFallback<T>(T value)
         {
             if (!TryCastFromWithReflectionFallback(value, out Variant variant))
@@ -454,6 +457,8 @@ namespace Opc.Ua
         /// <param name="value"></param>
         /// <param name="variant"></param>
         /// <returns></returns>
+        [RequiresDynamicCode("Uses reflection to cast types where not all may be available.")]
+        [RequiresUnreferencedCode("Uses reflection to cast types where not all may be available.")]
         public static bool TryCastFromWithReflectionFallback<T>(
             T value,
             out Variant variant)
@@ -503,7 +508,7 @@ namespace Opc.Ua
                     variant = default;
                     return false;
                 case Enum o:
-                    variant = Variant.FromEnumeration(o, typeof(T));
+                    variant = Variant.From(EnumValue.From(o, typeof(T)));
                     break;
                 case Variant o:
                     variant = o;
@@ -527,6 +532,9 @@ namespace Opc.Ua
                     variant = Variant.From(o);
                     break;
                 case int o:
+                    variant = Variant.From(o);
+                    break;
+                case EnumValue o:
                     variant = Variant.From(o);
                     break;
                 case ulong o:
@@ -599,6 +607,9 @@ namespace Opc.Ua
                     variant = Variant.From(o);
                     break;
                 case ArrayOf<int> o:
+                    variant = Variant.From(o);
+                    break;
+                case ArrayOf<EnumValue> o:
                     variant = Variant.From(o);
                     break;
                 case ArrayOf<uint> o:
@@ -676,6 +687,9 @@ namespace Opc.Ua
                 case MatrixOf<int> o:
                     variant = Variant.From(o);
                     break;
+                case MatrixOf<EnumValue> o:
+                    variant = Variant.From(o);
+                    break;
                 case MatrixOf<uint> o:
                     variant = Variant.From(o);
                     break;
@@ -734,7 +748,7 @@ namespace Opc.Ua
                     variant = Variant.From(o);
                     break;
                 case Enum[] o:
-                    variant = FromEnumerations(o);
+                    variant = FromEnums(o);
                     break;
                 case bool[] o:
                     variant = Variant.From(o.ToArrayOf());
@@ -755,6 +769,9 @@ namespace Opc.Ua
                     variant = Variant.From(o.ToArrayOf());
                     break;
                 case int[] o when o.GetType() == typeof(int[]):
+                    variant = Variant.From(o.ToArrayOf());
+                    break;
+                case EnumValue[] o:
                     variant = Variant.From(o.ToArrayOf());
                     break;
                 case ulong[] o when o.GetType() == typeof(ulong[]):
@@ -818,7 +835,7 @@ namespace Opc.Ua
                     variant = FromObjects(o);
                     break;
                 case IEnumerable<Enum> o:
-                    variant = FromEnumerations(o);
+                    variant = FromEnums(o);
                     break;
                 case IEnumerable<bool> o:
                     variant = Variant.From(o.ToArrayOf());
@@ -839,6 +856,9 @@ namespace Opc.Ua
                     variant = Variant.From(o.ToArrayOf());
                     break;
                 case IEnumerable<int> o when CheckType<int>(o):
+                    variant = Variant.From(o.ToArrayOf());
+                    break;
+                case IEnumerable<EnumValue> o:
                     variant = Variant.From(o.ToArrayOf());
                     break;
                 case IEnumerable<ulong> o when CheckType<ulong>(o):
@@ -1016,6 +1036,8 @@ namespace Opc.Ua
         /// Use reflection to cast
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        [RequiresDynamicCode("Uses reflection to cast types where not all may be available.")]
+        [RequiresUnreferencedCode("Uses reflection to cast types where not all may be available.")]
         private static bool TryCastFromWithReflection<T>(T value, out Variant variant)
         {
             // Convert from ArrayOf<T> where T : IEncodeable or T : Enum
@@ -1029,8 +1051,8 @@ namespace Opc.Ua
                 {
                     MethodInfo variantFrom = typeof(VariantHelper).GetMethod(
                         isEncodeable ?
-                            nameof(FromStructure) :
-                            nameof(FromEnumeration),
+                            nameof(FromArrayOfEncodeable) :
+                            nameof(FromArrayOfEnumerated),
                         BindingFlags.Static | BindingFlags.NonPublic);
                     variant = (Variant)variantFrom.MakeGenericMethod(genericArg)
                         .Invoke(null, [value]);
@@ -1098,23 +1120,23 @@ namespace Opc.Ua
             return Variant.Collapse(variants.ToArrayOf());
         }
 
-        private static Variant FromEnumerations(IEnumerable<Enum> values)
+        private static Variant FromEnums(IEnumerable<Enum> values)
         {
             var variants = new List<Variant>();
             foreach (Enum value in values)
             {
-                variants.Add(Variant.FromEnumeration(value, value.GetType()));
+                variants.Add(Variant.From(EnumValue.From(value, value.GetType())));
             }
             return Variant.Collapse(variants.ToArrayOf());
         }
 
-        private static Variant FromStructure<T>(ArrayOf<T> values)
+        private static Variant FromArrayOfEncodeable<T>(ArrayOf<T> values)
             where T : IEncodeable
         {
             return Variant.FromStructure(values);
         }
 
-        private static Variant FromEnumeration<T>(ArrayOf<T> values)
+        private static Variant FromArrayOfEnumerated<T>(ArrayOf<T> values)
             where T : struct, Enum
         {
             return Variant.From(values);

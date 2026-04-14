@@ -581,6 +581,9 @@ namespace Opc.Ua.PubSub.Encoding
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
+        public bool CanOmitFields => true;
+
+        /// <inheritdoc/>
         public bool UseReversibleEncoding => EncodingToUse != PubSubJsonEncoding.NonReversible;
 
         /// <summary>
@@ -1948,17 +1951,33 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Writes an enumerated Int32 value to the stream.
+        /// Writes an enumerated EnumValue value to the stream.
         /// </summary>
-        public void WriteEnumerated(string fieldName, int numeric)
+        public void WriteEnumerated(string fieldName, EnumValue value)
         {
-            bool writeNumber
-                = EncodingToUse is PubSubJsonEncoding.Reversible or PubSubJsonEncoding.Compact;
+            int numeric = value.Value;
             string numericString = numeric.ToString(CultureInfo.InvariantCulture);
-            WriteSimpleField(
-                fieldName,
-                numericString,
-                writeNumber ? EscapeOptions.None : EscapeOptions.Quotes);
+
+            if (EncodingToUse is PubSubJsonEncoding.Reversible or PubSubJsonEncoding.Compact)
+            {
+                WriteSimpleField(fieldName, numericString);
+            }
+            else
+            {
+                string valueString = value.Symbol;
+
+                if (string.IsNullOrEmpty(valueString) || valueString == numericString)
+                {
+                    WriteSimpleField(fieldName, numericString, EscapeOptions.Quotes);
+                }
+                else
+                {
+                    WriteSimpleField(
+                        fieldName,
+                        Utils.Format("{0}_{1}", valueString, numeric),
+                        EscapeOptions.Quotes);
+                }
+            }
         }
 
         /// <summary>
@@ -2686,7 +2705,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 foreach (int value in values)
                 {
-                    WriteEnumerated(null, value);
+                    WriteEnumerated(null, new EnumValue(value));
                 }
             }
 
@@ -2997,6 +3016,32 @@ namespace Opc.Ua.PubSub.Encoding
         public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values) where T : struct, Enum
         {
             WriteEnumeratedArray(fieldName, values.ToArray(), typeof(T));
+        }
+
+        /// <inheritdoc/>
+        public void WriteEnumeratedArray(string fieldName, ArrayOf<EnumValue> values)
+        {
+            if (values.IsEmpty)
+            {
+                WriteSimpleFieldNull(fieldName);
+                return;
+            }
+
+            PushArray(fieldName);
+
+            // check the length.
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+            }
+
+            // encode each element in the array.
+            foreach (EnumValue value in values)
+            {
+                WriteEnumerated(null, value);
+            }
+
+            PopArray();
         }
 
         /// <inheritdoc/>

@@ -39,7 +39,7 @@ namespace Opc.Ua
     /// <summary>
     /// A class that combines the status code and diagnostic info structures.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class ServiceResult
     {
         /// <summary>

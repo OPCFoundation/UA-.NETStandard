@@ -137,6 +137,9 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
+        public bool CanOmitFields => true;
+
+        /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
 
         /// <inheritdoc/>
@@ -433,6 +436,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void WriteEnumerated(string fieldName, EnumValue value)
+        {
+            m_writer.WritePropertyName(fieldName);
+            WriteEnumerated(value);
+        }
+
+        /// <inheritdoc/>
         public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values)
              where T : struct, Enum
         {
@@ -442,6 +452,14 @@ namespace Opc.Ua
             }
         }
 
+        /// <inheritdoc/>
+        public void WriteEnumeratedArray(string fieldName, ArrayOf<EnumValue> values)
+        {
+            if (WriteArrayProperty(fieldName, values))
+            {
+                WriteEnumeratedArray(values);
+            }
+        }
         /// <inheritdoc/>
         public void WriteExpandedNodeId(string fieldName, ExpandedNodeId value)
         {
@@ -1234,15 +1252,21 @@ namespace Opc.Ua
         /// <summary>
         /// Write enumeration as integer
         /// </summary>
-        private void WriteEnumerated(int value)
+        private void WriteEnumerated(EnumValue value)
         {
-            int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            int numeric = value.Value;
             if (m_options.EnumerationAsNumber)
             {
                 m_writer.WriteNumberValue(numeric);
                 return;
             }
-            m_writer.WriteStringValue(CoreUtils.Format("{0}", numeric));
+            string? symbol = value.Symbol;
+            if (string.IsNullOrEmpty(symbol))
+            {
+                m_writer.WriteStringValue(CoreUtils.Format("{0}", numeric));
+                return;
+            }
+            m_writer.WriteStringValue(CoreUtils.Format("{0}_{1}", symbol, numeric));
         }
 
         /// <summary>
@@ -1262,7 +1286,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write enumeration values as integers
         /// </summary>
-        private void WriteEnumeratedArray(ArrayOf<int> values)
+        private void WriteEnumeratedArray(ArrayOf<EnumValue> values)
         {
             StartArray(values.Count);
             for (int i = 0; i < values.Count; i++)
@@ -1868,7 +1892,7 @@ namespace Opc.Ua
                         m_writer.WriteNumberValue(value.GetUInt16());
                         return;
                     case BuiltInType.Enumeration when writeRawValue:
-                        WriteEnumerated(value.GetInt32());
+                        WriteEnumerated(value.GetEnumeration());
                         break;
                     // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4
                     case BuiltInType.Enumeration:
@@ -1961,7 +1985,7 @@ namespace Opc.Ua
                         WriteUInt16Array(value.GetUInt16Array());
                         break;
                     case BuiltInType.Enumeration when writeRawValue:
-                        WriteEnumeratedArray(value.GetInt32Array());
+                        WriteEnumeratedArray(value.GetEnumerationArray());
                         break;
                     case BuiltInType.Enumeration:
                     case BuiltInType.Int32:
@@ -2063,7 +2087,7 @@ namespace Opc.Ua
                         WriteUInt16Array(value.GetUInt16Matrix().ToArrayOf(out dim));
                         break;
                     case BuiltInType.Enumeration when writeRawValue:
-                        WriteEnumeratedArray(value.GetInt32Matrix().ToArrayOf(out dim));
+                        WriteEnumeratedArray(value.GetEnumerationMatrix().ToArrayOf(out dim));
                         break;
                     case BuiltInType.Enumeration:
                     case BuiltInType.Int32:

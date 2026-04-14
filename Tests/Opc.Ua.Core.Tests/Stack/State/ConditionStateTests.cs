@@ -49,7 +49,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         protected void OneTimeSetUp()
         {
             m_telemetry = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(m_telemetry);
+            var messageContext = ServiceMessageContext.Create(m_telemetry);
             // Add OPC UA namespace
             messageContext.NamespaceUris.GetIndexOrAppend(Namespaces.OpcUa);
             m_context = new SystemContext(m_telemetry)

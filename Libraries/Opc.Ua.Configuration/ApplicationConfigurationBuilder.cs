@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -163,7 +165,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
-            CertificateIdentifierCollection certIdList,
+            ArrayOf<CertificateIdentifier> certIdList,
             string pkiRoot = null,
             string rejectedRoot = null)
         {
@@ -426,10 +428,11 @@ namespace Opc.Ua.Configuration
         {
             if (addPolicy)
             {
-                ServerSecurityPolicyCollection policies = ApplicationConfiguration
+                var policies = ApplicationConfiguration
                     .ServerConfiguration
-                    .SecurityPolicies;
+                    .SecurityPolicies.ToList();
                 InternalAddPolicy(policies, MessageSecurityMode.None, SecurityPolicies.None);
+                ApplicationConfiguration.ServerConfiguration.SecurityPolicies = policies.ToArrayOf();
             }
             return this;
         }
@@ -486,10 +489,12 @@ namespace Opc.Ua.Configuration
                 throw new ArgumentException("Use AddUnsecurePolicyNone to add no security policy.");
             }
 
+            var policies = ApplicationConfiguration.ServerConfiguration.SecurityPolicies.ToList();
             InternalAddPolicy(
-                ApplicationConfiguration.ServerConfiguration.SecurityPolicies,
+                policies,
                 securityMode,
                 securityPolicy);
+            ApplicationConfiguration.ServerConfiguration.SecurityPolicies = policies.ToArrayOf();
             return this;
         }
 
@@ -517,7 +522,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificates(
-            CertificateIdentifierCollection certIdList)
+            ArrayOf<CertificateIdentifier> certIdList)
         {
             ApplicationConfiguration.SecurityConfiguration.ApplicationCertificates = certIdList;
             return this;
@@ -870,7 +875,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetAvailableSamplingRates(
-            SamplingRateGroupCollection availableSampleRates)
+            ArrayOf<SamplingRateGroup> availableSampleRates)
         {
             ApplicationConfiguration.ServerConfiguration.AvailableSamplingRates
                 = availableSampleRates;
@@ -1100,11 +1105,23 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        [Experimental("UA_NETStandard_1")]
         public IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
-            object value)
+            T value,
+            Action<IEncoder, T> encoderFunc)
         {
-            ApplicationConfiguration.UpdateExtension<T>(elementName, value);
+            ApplicationConfiguration.UpdateExtension(elementName, value, encoderFunc);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderExtension AddExtension<T>(
+            XmlQualifiedName elementName,
+            T value)
+            where T : IEncodeable
+        {
+            ApplicationConfiguration.UpdateExtension(elementName, value);
             return this;
         }
 
@@ -1151,12 +1168,12 @@ namespace Opc.Ua.Configuration
         /// <param name="storeType">The cert store type: ex: "Directory"</param>
         /// <param name="storePath">The PKI root.</param>
         /// <returns>The application certificates.</returns>
-        public static CertificateIdentifierCollection CreateDefaultApplicationCertificates(
+        public static ArrayOf<CertificateIdentifier> CreateDefaultApplicationCertificates(
             string subjectName,
             string storeType = null,
             string storePath = null)
         {
-            var certificateIdentifiers = new CertificateIdentifierCollection
+            var certificateIdentifiers = new List<CertificateIdentifier>
             {
                 new CertificateIdentifier
                 {
@@ -1203,7 +1220,7 @@ namespace Opc.Ua.Configuration
                         }
                     ]);
             }
-            return certificateIdentifiers;
+            return certificateIdentifiers.ToArrayOf();
         }
 
         /// <summary>
@@ -1359,19 +1376,23 @@ namespace Opc.Ua.Configuration
             bool policyNone = false)
         {
             // create list of supported policies
-            System.Collections.Generic.List<string> defaultPolicyUris = [.. SecurityPolicies
+            List<string> defaultPolicyUris = [.. SecurityPolicies
                 .GetDefaultUris()];
             if (deprecated)
             {
                 defaultPolicyUris.AddRange(SecurityPolicies.GetDefaultDeprecatedUris());
             }
 
+#if NET5_0_OR_GREATER
+            foreach (MessageSecurityMode securityMode in Enum.GetValues<MessageSecurityMode>())
+#else
             foreach (MessageSecurityMode securityMode in typeof(MessageSecurityMode)
                 .GetEnumValues())
+#endif
             {
-                ServerSecurityPolicyCollection policies = ApplicationConfiguration
+                var policies = ApplicationConfiguration
                     .ServerConfiguration
-                    .SecurityPolicies;
+                    .SecurityPolicies.ToList();
                 if (policyNone && securityMode == MessageSecurityMode.None)
                 {
                     InternalAddPolicy(policies, MessageSecurityMode.None, SecurityPolicies.None);
@@ -1384,6 +1405,7 @@ namespace Opc.Ua.Configuration
                         InternalAddPolicy(policies, securityMode, policyUri);
                     }
                 }
+                ApplicationConfiguration.ServerConfiguration.SecurityPolicies = policies.ToArrayOf();
             }
         }
 
@@ -1398,13 +1420,14 @@ namespace Opc.Ua.Configuration
                 ? MessageSecurityMode.Sign
                 : MessageSecurityMode.SignAndEncrypt;
             {
-                ServerSecurityPolicyCollection policies = ApplicationConfiguration
+                var policies = ApplicationConfiguration
                     .ServerConfiguration
-                    .SecurityPolicies;
+                    .SecurityPolicies.ToList();
                 foreach (string policyUri in defaultPolicyUris)
                 {
                     InternalAddPolicy(policies, securityMode, policyUri);
                 }
+                ApplicationConfiguration.ServerConfiguration.SecurityPolicies = policies.ToArrayOf();
             }
         }
 
@@ -1427,12 +1450,12 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Add security policy if it doesn't exist yet.
         /// </summary>
-        /// <param name="policies">The collection to which the policies are added.</param>
+        /// <param name="policies">The list to which the policies are added.</param>
         /// <param name="securityMode">The message security mode.</param>
         /// <param name="policyUri">The security policy Uri.</param>
         /// <exception cref="ArgumentException"><paramref name="securityMode"/></exception>
         private static bool InternalAddPolicy(
-            ServerSecurityPolicyCollection policies,
+            List<ServerSecurityPolicy> policies,
             MessageSecurityMode securityMode,
             string policyUri)
         {

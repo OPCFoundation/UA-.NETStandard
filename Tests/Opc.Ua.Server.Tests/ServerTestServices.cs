@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.Tests
                 view,
                 requestedMaxReferencesPerNode,
                 nodesToBrowse,
-                ct);
+                new RequestLifetime(ct));
         }
 
         public ValueTask<BrowseNextResponse> BrowseNextAsync(
@@ -177,7 +177,7 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 releaseContinuationPoints,
                 continuationPoints,
-                ct);
+                new RequestLifetime(ct));
         }
 
         public ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
@@ -199,7 +199,7 @@ namespace Opc.Ua.Server.Tests
                 maxNotificationsPerPublish,
                 publishingEnabled,
                 priority,
-                ct);
+                new RequestLifetime(ct));
         }
 
         public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server.Tests
                 subscriptionId,
                 timestampsToReturn,
                 itemsToCreate,
-                ct);
+                new RequestLifetime(ct));
         }
 
         public ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
@@ -237,7 +237,7 @@ namespace Opc.Ua.Server.Tests
                 requestedMaxKeepAliveCount,
                 maxNotificationsPerPublish,
                 priority,
-                ct);
+                new RequestLifetime(ct));
         }
 
         public ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
@@ -253,7 +253,7 @@ namespace Opc.Ua.Server.Tests
                 subscriptionId,
                 timestampsToReturn,
                 itemsToModify,
-                ct);
+                new RequestLifetime(ct));
         }
 
         public ValueTask<PublishResponse> PublishAsync(
@@ -265,7 +265,7 @@ namespace Opc.Ua.Server.Tests
                 SecureChannelContext,
                 requestHeader,
                 subscriptionAcknowledgements,
-                ct);
+                new RequestLifetime(ct));
         }
 
         public ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
@@ -279,7 +279,7 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 publishingEnabled,
                 subscriptionIds,
-                ct);
+                new RequestLifetime(ct));
         }
 
         public ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
@@ -296,7 +296,7 @@ namespace Opc.Ua.Server.Tests
                     subscriptionId,
                     monitoringMode,
                     monitoredItemIds,
-                    ct);
+                    new RequestLifetime(ct));
         }
 
         public ValueTask<RepublishResponse> RepublishAsync(
@@ -310,7 +310,7 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 subscriptionId,
                 retransmitSequenceNumber,
-                ct);
+                new RequestLifetime(ct));
         }
 
         public ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
@@ -322,7 +322,7 @@ namespace Opc.Ua.Server.Tests
                 SecureChannelContext,
                 requestHeader,
                 subscriptionIds,
-                ct);
+                new RequestLifetime(ct));
         }
 
         public ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
@@ -336,7 +336,7 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 subscriptionIds,
                 sendInitialValues,
-                ct);
+                new RequestLifetime(ct));
         }
 
         public ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
@@ -348,7 +348,7 @@ namespace Opc.Ua.Server.Tests
                 SecureChannelContext,
                 requestHeader,
                 browsePaths,
-                ct);
+                new RequestLifetime(ct));
         }
     }
 }

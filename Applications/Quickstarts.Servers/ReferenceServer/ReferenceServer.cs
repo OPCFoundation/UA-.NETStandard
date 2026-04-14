@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -134,7 +133,7 @@ namespace Quickstarts.ReferenceServer
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
-                return new Servers.DurableMonitoredItemQueueFactory(server.Telemetry);
+                return new Servers.DurableMonitoredItemQueueFactory(server.Telemetry, server.MessageContext);
             }
             return new MonitoredItemQueueFactory(server.Telemetry);
         }

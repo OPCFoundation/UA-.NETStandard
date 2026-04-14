@@ -27,17 +27,17 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Types;
-using Opc.Ua.Export;
+using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
-using System;
-using System.Linq;
-using System.IO;
-using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Export;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.Schema.Model
 {
@@ -987,10 +987,10 @@ namespace Opc.Ua.Schema.Model
             if (input != null)
             {
                 XmlDecoder decoder = CreateDecoder(input, sourceNodeSetUri);
-                object value = decoder.ReadVariantValue(null, default).AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                Variant value = decoder.ReadVariantValue(null, default);
                 decoder.Close();
 
-                foreach (Argument argument in (IList<Argument>)ExtensionObject.ToArray(value, typeof(Argument)))
+                foreach (Argument argument in value.GetStructureArray<Argument>())
                 {
                     DataTypeDesign dataType = FindNode<DataTypeDesign>(argument.DataType) ??
                         throw new InvalidDataException(
@@ -1983,11 +1983,9 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext(m_telemetry)
-            {
-                NamespaceUris = m_settings.NamespaceUris,
-                ServerUris = m_serverUris
-            };
+            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(m_telemetry);
+            messageContext.NamespaceUris = m_settings.NamespaceUris;
+            messageContext.ServerUris = m_serverUris;
 
             var decoder = new XmlDecoder((XmlElement)source, messageContext);
 
@@ -2057,6 +2055,39 @@ namespace Opc.Ua.Schema.Model
             }
 
             return AccessLevel.None;
+        }
+
+        /// <summary>
+        /// Access level extended type (subset) to support above conversion to
+        /// model level AccessLevel enumeration values.
+        /// </summary>
+        [Flags]
+        private enum AccessLevelExType : uint
+        {
+            /// <summary>
+            /// No extensions
+            /// </summary>
+            None = 0,
+
+            /// <summary>
+            /// Current read
+            /// </summary>
+            CurrentRead = 1,
+
+            /// <summary>
+            /// Current write
+            /// </summary>
+            CurrentWrite = 2,
+
+            /// <summary>
+            /// History read
+            /// </summary>
+            HistoryRead = 4,
+
+            /// <summary>
+            /// History write
+            /// </summary>
+            HistoryWrite = 8
         }
 
         private static ValueRank ImportValueRank(int input)

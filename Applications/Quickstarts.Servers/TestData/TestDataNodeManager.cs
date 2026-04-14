@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -68,11 +67,7 @@ namespace TestData
             // update the namespaces.
             NamespaceUris = namespaceUris;
 
-            Server.Factory.AddEncodeableTypes(
-                typeof(TestDataNodeManager)
-                    .Assembly.GetExportedTypes()
-                    .Where(t => t.FullName
-                        .StartsWith(typeof(TestDataNodeManager).Namespace, StringComparison.Ordinal)));
+            Server.Factory.Builder.AddTestData().Commit();
 
             // get the configuration for the node manager.
             m_configuration =

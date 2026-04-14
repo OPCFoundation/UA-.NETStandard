@@ -91,48 +91,13 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
         /// Test that the default constructor creates a new factory.
         /// </summary>
         [Test]
-        public void DefaultConstructorCreatesNewFactory()
+        public void StaticCreateMethodCreatesNewFactory()
         {
             // Arrange & Act
-            var context = new ServiceMessageContext(null);
+            var context = ServiceMessageContext.Create(null);
 
             // Assert
             Assert.That(context.Factory, Is.Not.Null);
-        }
-
-        /// <summary>
-        /// Test that setting the Factory property works correctly.
-        /// </summary>
-        [Test]
-        public void SettingFactoryPropertyWorks()
-        {
-            // Arrange
-            var context = new ServiceMessageContext(null);
-            IEncodeableFactory customFactory = EncodeableFactory.Create();
-
-            // Act
-            context.Factory = customFactory;
-
-            // Assert
-            Assert.That(context.Factory, Is.SameAs(customFactory));
-        }
-
-        /// <summary>
-        /// Test that setting the Factory property to null creates a new factory.
-        /// </summary>
-        [Test]
-        public void SettingFactoryPropertyToNullCreatesNewFactory()
-        {
-            // Arrange
-            var context = new ServiceMessageContext(null);
-            IEncodeableFactory originalFactory = context.Factory;
-
-            // Act
-            context.Factory = null;
-
-            // Assert
-            Assert.That(context.Factory, Is.Not.Null);
-            Assert.That(context.Factory, Is.Not.SameAs(originalFactory));
         }
     }
 }

@@ -36,13 +36,9 @@ using System.Text;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
 using Microsoft.IO;
-using Newtonsoft.Json;
-using NUnit.Framework;
-
-#if NET6_0_OR_GREATER
 using System.Text.Encodings.Web;
 using System.Text.Json;
-#endif
+using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -223,16 +219,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
-        /// Using NewtonSoft, which first converts to string.
+        /// Using System.Text.Json, which first converts to string.
         /// </summary>
         [Benchmark]
-        public void EscapeStringNewtonSoft()
+        public void EscapeStringStj()
         {
             m_memoryStream.Position = 0;
             int repeats = InnerLoops;
             while (repeats-- > 0)
             {
-                EscapeStringNewtonSoft(s_testString);
+                EscapeStringStj(s_testString);
             }
             m_streamWriter.Flush();
         }
@@ -333,17 +329,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] resultSpanDict = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanDict));
 
-            m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
-            m_streamWriter = new StreamWriter(
-                m_memoryStream,
-                new UTF8Encoding(false),
-                m_streamSize,
-                false);
-            EscapeStringNewtonSoft(s_testString);
-            m_streamWriter.Flush();
-            byte[] resultNewtonSoft = m_memoryStream.ToArray();
-            TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultNewtonSoft));
-
 #if NET6_0_OR_GREATER
             m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
             EscapeStringSystemTextJson(s_testString);
@@ -360,7 +345,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.That(Utils.IsEqual(resultLegacy, resultSpanCharsInlineConst), Is.True);
             Assert.That(Utils.IsEqual(resultLegacy, resultSpanIndex), Is.True);
             Assert.That(Utils.IsEqual(resultLegacy, resultSpanDict), Is.True);
-            Assert.That(Utils.IsEqual(resultLegacy, resultNewtonSoft), Is.True);
         }
 
         [OneTimeSetUp]
@@ -778,11 +762,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
-        private void EscapeStringNewtonSoft(string value)
+        private void EscapeStringStj(string value)
         {
-            string newtonSoftConvertedText = JsonConvert.ToString(value);
-            newtonSoftConvertedText = newtonSoftConvertedText[1..^1];
-            m_streamWriter.Write(newtonSoftConvertedText);
+            string serialized = JsonSerializer.Serialize(value);
+            // Remove surrounding quotes added by JsonSerializer.Serialize
+            string escaped = serialized[1..^1];
+            m_streamWriter.Write(escaped);
         }
 
 #if NET6_0_OR_GREATER

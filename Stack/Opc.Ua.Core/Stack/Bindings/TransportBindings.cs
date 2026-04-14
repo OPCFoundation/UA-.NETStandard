@@ -39,15 +39,11 @@ namespace Opc.Ua.Bindings
         static TransportBindings()
         {
             Channels = new TransportChannelBindings(
-                [
-                    typeof(TcpTransportChannelFactory),
-                    typeof(HttpsTransportChannelFactory),
-                    typeof(OpcHttpsTransportChannelFactory)
-                ]);
+                new TcpTransportChannelFactory(),
+                new HttpsTransportChannelFactory(),
+                new OpcHttpsTransportChannelFactory());
             Listeners = new TransportListenerBindings(
-                [
-                    typeof(TcpTransportListenerFactory)
-                ]);
+                new TcpTransportListenerFactory());
         }
 
         /// <summary>
@@ -96,11 +92,19 @@ namespace Opc.Ua.Bindings
         ITransportChannelBindings
     {
         /// <summary>
-        /// Initialize the transport listener.
+        /// Initialize the transport channel bindings with types (reflection-based).
         /// </summary>
         /// <param name="defaultBindings">List of known default bindings.</param>
         public TransportChannelBindings(params Type[] defaultBindings)
             : base(defaultBindings)
+        {
+        }
+
+        /// <summary>
+        /// Initialize the transport channel bindings with instances (AOT-safe).
+        /// </summary>
+        public TransportChannelBindings(params ITransportChannelFactory[] instances)
+            : base(instances)
         {
         }
 
@@ -123,11 +127,19 @@ namespace Opc.Ua.Bindings
         ITransportListenerBindings
     {
         /// <summary>
-        /// Initialize the transport listener.
+        /// Initialize the transport listener bindings with types (reflection-based).
         /// </summary>
         /// <param name="defaultBindings">List of known default bindings.</param>
         public TransportListenerBindings(params Type[] defaultBindings)
             : base(defaultBindings)
+        {
+        }
+
+        /// <summary>
+        /// Initialize the transport listener bindings with instances (AOT-safe).
+        /// </summary>
+        public TransportListenerBindings(params ITransportListenerFactory[] instances)
+            : base(instances)
         {
         }
 
