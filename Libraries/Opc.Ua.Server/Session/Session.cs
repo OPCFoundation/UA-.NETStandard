@@ -571,7 +571,6 @@ namespace Opc.Ua.Server
 
                 TraceState("VALIDATED");
             }
-
         }
 
         /// <summary>

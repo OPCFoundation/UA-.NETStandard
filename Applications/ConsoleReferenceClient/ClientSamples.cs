@@ -859,7 +859,7 @@ namespace Quickstarts
             result.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             m_logger.LogInformation(
-                "ManagedBrowseFullAddressSpace found {Count} references on server in {Duration} ms.",
+                "ManagedBrowseFullAddressSpace found {Count} references on server in {Duration}ms.",
                 result.Count,
                 stopWatch.ElapsedMilliseconds);
 
@@ -1076,7 +1076,7 @@ namespace Quickstarts
             result.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             m_logger.LogInformation(
-                "BrowseFullAddressSpace found {Count} references on server in {Duration} ms.",
+                "BrowseFullAddressSpace found {Count} references on server in {Duration}ms.",
                 referenceDescriptions.Count,
                 stopWatch.ElapsedMilliseconds);
 

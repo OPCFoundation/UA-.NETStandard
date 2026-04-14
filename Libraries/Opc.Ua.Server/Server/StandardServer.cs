@@ -2195,107 +2195,108 @@ namespace Opc.Ua.Server
             if (m_registrationEndpoints != null)
             {
                 foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
+                {
+                    RegistrationClient client = null;
+                    int i = 0;
+
+                    while (i++ < 2)
                     {
-                        RegistrationClient client = null;
-                        int i = 0;
-
-                        while (i++ < 2)
+                        try
                         {
-                            try
+                            // update from the server.
+                            bool updateRequired = true;
+
+                            lock (m_registrationLock)
                             {
-                                // update from the server.
-                                bool updateRequired = true;
-                                lock (m_registrationLock)
-                                {
-                                    updateRequired = endpoint.UpdateBeforeConnect;
-                                }
+                                updateRequired = endpoint.UpdateBeforeConnect;
+                            }
 
-                                if (updateRequired)
-                                {
-                                    await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
-                                }
+                            if (updateRequired)
+                            {
+                                await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
+                            }
 
-                                lock (m_registrationLock)
-                                {
-                                    endpoint.UpdateBeforeConnect = false;
-                                }
+                            lock (m_registrationLock)
+                            {
+                                endpoint.UpdateBeforeConnect = false;
+                            }
 
-                                var requestHeader = new RequestHeader
+                            var requestHeader = new RequestHeader
+                            {
+                                Timestamp = DateTime.UtcNow
+                            };
+
+                            // create the client.
+                            X509Certificate2 instanceCertificate =
+                                InstanceCertificateTypesProvider.GetInstanceCertificate(
+                                    endpoint.Description?.SecurityPolicyUri ??
+                                    SecurityPolicies.None);
+                            client = await RegistrationClient.CreateAsync(
+                                configuration,
+                                endpoint.Description,
+                                endpoint.Configuration,
+                                instanceCertificate,
+                                ct: ct).ConfigureAwait(false);
+
+                            client.OperationTimeout = 10000;
+
+                            // register the server.
+                            if (m_useRegisterServer2)
+                            {
+                                var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
                                 {
-                                    Timestamp = DateTime.UtcNow
+                                    ServerCapabilities = configuration.ServerConfiguration
+                                        .ServerCapabilities,
+                                    MdnsServerName = Utils.GetHostName()
                                 };
-
-                                // create the client.
-                                X509Certificate2 instanceCertificate =
-                                    InstanceCertificateTypesProvider.GetInstanceCertificate(
-                                        endpoint.Description?.SecurityPolicyUri ??
-                                        SecurityPolicies.None);
-                                client = await RegistrationClient.CreateAsync(
-                                    configuration,
-                                    endpoint.Description,
-                                    endpoint.Configuration,
-                                    instanceCertificate,
-                                    ct: ct).ConfigureAwait(false);
-
-                                client.OperationTimeout = 10000;
-
-                                // register the server.
-                                if (m_useRegisterServer2)
-                                {
-                                    var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
-                                    {
-                                        ServerCapabilities = configuration.ServerConfiguration
-                                            .ServerCapabilities,
-                                        MdnsServerName = Utils.GetHostName()
-                                    };
-                                    var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
-                                    ArrayOf<ExtensionObject> discoveryConfiguration = [extensionObject];
-                                    await client.RegisterServer2Async(
-                                        requestHeader,
-                                        m_registrationInfo,
-                                        discoveryConfiguration,
-                                        ct).ConfigureAwait(false);
-                                }
-                                else
-                                {
-                                    await client.RegisterServerAsync(
-                                        requestHeader,
-                                        m_registrationInfo,
-                                        ct)
-                                        .ConfigureAwait(false);
-                                }
-
-                                m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
-                                return true;
+                                var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
+                                ArrayOf<ExtensionObject> discoveryConfiguration = [extensionObject];
+                                await client.RegisterServer2Async(
+                                    requestHeader,
+                                    m_registrationInfo,
+                                    discoveryConfiguration,
+                                    ct).ConfigureAwait(false);
                             }
-                            catch (Exception e)
+                            else
                             {
-                                m_logger.LogWarning(
-                                    "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}",
-                                    m_useRegisterServer2 ? "2" : string.Empty,
-                                    endpoint.EndpointUrl,
-                                    e.Message);
-                                m_useRegisterServer2 = !m_useRegisterServer2;
+                                await client.RegisterServerAsync(
+                                    requestHeader,
+                                    m_registrationInfo,
+                                    ct)
+                                    .ConfigureAwait(false);
                             }
-                            finally
+
+                            m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
+                            return true;
+                        }
+                        catch (Exception e)
+                        {
+                            m_logger.LogWarning(
+                                "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}",
+                                m_useRegisterServer2 ? "2" : string.Empty,
+                                endpoint.EndpointUrl,
+                                e.Message);
+                            m_useRegisterServer2 = !m_useRegisterServer2;
+                        }
+                        finally
+                        {
+                            if (client != null)
                             {
-                                if (client != null)
+                                try
                                 {
-                                    try
-                                    {
-                                        await client.CloseAsync(ct).ConfigureAwait(false);
-                                        client = null;
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        m_logger.LogWarning(
-                                            "Could not cleanly close connection with LDS. Exception={ErrorMessage}",
-                                            e.Message);
-                                    }
+                                    await client.CloseAsync(ct).ConfigureAwait(false);
+                                    client = null;
+                                }
+                                catch (Exception e)
+                                {
+                                    m_logger.LogWarning(
+                                        "Could not cleanly close connection with LDS. Exception={ErrorMessage}",
+                                        e.Message);
                                 }
                             }
                         }
                     }
+                }
                 // retry to start with RegisterServer2 if both failed
                 m_useRegisterServer2 = true;
             }

@@ -232,9 +232,9 @@ namespace Opc.Ua.Client
             encoder.WriteDateTime(null, config.Timestamp);
             encoder.WriteNodeId(null, config.SessionId);
             encoder.WriteNodeId(null, config.AuthenticationToken);
-            encoder.WriteByteString(null, config.ServerNonce?.Data);
+            encoder.WriteByteString(null, config.ServerNonce);
             encoder.WriteString(null, config.UserIdentityTokenPolicy);
-            encoder.WriteByteString(null, config.ServerEccEphemeralKey?.Data);
+            encoder.WriteByteString(null, config.ServerEccEphemeralKey);
 
             // Subscriptions
             int subCount = config.Subscriptions?.Count ?? 0;
@@ -300,9 +300,9 @@ namespace Opc.Ua.Client
                 Timestamp = timestamp,
                 SessionId = sessionId,
                 AuthenticationToken = authenticationToken,
-                ServerNonce = serverNonce,
+                ServerNonce = serverNonce?.Data,
                 UserIdentityTokenPolicy = userIdentityTokenPolicy,
-                ServerEccEphemeralKey = serverEccEphemeralKey,
+                ServerEccEphemeralKey = serverEccEphemeralKey?.Data,
                 Subscriptions = subscriptions
             };
         }

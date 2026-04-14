@@ -211,7 +211,7 @@ namespace Opc.Ua
         public object Clone()
         {
             return new X509IdentityTokenHandler(
-                (X509IdentityToken)Utils.Clone(m_token),
+                CoreUtils.Clone(m_token),
                 m_certificate);
         }
 

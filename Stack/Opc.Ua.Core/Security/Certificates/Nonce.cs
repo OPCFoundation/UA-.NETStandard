@@ -271,7 +271,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new Nonce object for the specified security policy URI and nonce data.
+        /// Creates a nonce for the specified security policy URI and nonce data.
+        /// </summary>
+        public static Nonce CreateNonce(string securityPolicyUri, byte[] nonceData)
+        {
+            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            return CreateNonce(info, nonceData);
+        }
+
+        /// <summary>
+        /// Creates a new Nonce object for the specified security policy and nonce data.
         /// </summary>
         public static Nonce CreateNonce(SecurityPolicyInfo securityPolicy, byte[] nonceData)
         {
@@ -543,7 +552,7 @@ namespace Opc.Ua
         private BigInteger m_publicKey;
         private int m_nonceLength;
 
-        // ffdhe2048 prime from RFC 7919 (hex, without whitespace).  
+        // ffdhe2048 prime from RFC 7919 (hex, without whitespace).
         // (RFC 7919 Appendix A.3 — use this canonical modulus in production.)
         const string FFDHE2048_HEX = @"
             FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1

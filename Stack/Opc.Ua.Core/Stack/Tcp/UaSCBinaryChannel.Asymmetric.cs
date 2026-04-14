@@ -203,8 +203,8 @@ namespace Opc.Ua.Bindings
                         m_localNonce = Nonce.CreateNonce(SecurityPolicy);
                         return m_localNonce.Data;
                     }
-                    // Basic128Rsa15 is the only RSA based security policy that allows nonces 
-                    // with a length less than 32 bytes for compatibility reasons. 
+                    // Basic128Rsa15 is the only RSA based security policy that allows nonces
+                    // with a length less than 32 bytes for compatibility reasons.
                     bool enforceMinimumLength = !SecurityPolicy.Uri.Equals(
                         SecurityPolicies.Basic128Rsa15,
                         StringComparison.Ordinal);
@@ -744,7 +744,7 @@ namespace Opc.Ua.Bindings
 
                     if (oscRequestSignature != null && SecurityPolicy.SecureChannelEnhancements)
                     {
-                        // copy osc request signature if provided before verifying.
+                        // copy OpenSecureChannel request signature if provided before verifying.
                         dataToSign = new ArraySegment<byte>(
                             buffer,
                             0,
@@ -1150,7 +1150,7 @@ namespace Opc.Ua.Bindings
 
             if (oscRequestSignature != null && SecurityPolicy.SecureChannelEnhancements)
             {
-                // copy osc request signature if provided before verifying.
+                // copy OpenSecureChannel request signature if provided before verifying.
                 dataToVerify = new ArraySegment<byte>(
                     plainText.Array,
                     plainText.Offset,

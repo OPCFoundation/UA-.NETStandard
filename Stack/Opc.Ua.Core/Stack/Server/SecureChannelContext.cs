@@ -47,8 +47,8 @@ namespace Opc.Ua
             string secureChannelId,
             EndpointDescription endpointDescription,
             RequestEncoding messageEncoding,
-            byte[] clientChannelCertificate,
-            byte[] serverChannelCertificate,
+            byte[] clientChannelCertificate = null,
+            byte[] serverChannelCertificate = null,
             byte[] channelThumbprint = null)
         {
             SecureChannelId = secureChannelId;

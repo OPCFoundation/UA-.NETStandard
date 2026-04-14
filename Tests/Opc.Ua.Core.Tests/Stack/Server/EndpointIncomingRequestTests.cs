@@ -207,7 +207,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
             var expectedResponse = new ReadResponse();
-            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (request, context, lifetime) => new ValueTask<IServiceResponse>(expectedResponse));
+            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest),
+                (request, context, lifetime) => new ValueTask<IServiceResponse>(expectedResponse));
 
             object incoming = endpoint.CreateIncomingRequest(req, ctx);
             ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
@@ -228,7 +229,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var req = new ReadRequest { RequestHeader = new RequestHeader() };
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
-            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (request, context, lifetime) => throw new OperationCanceledException());
+            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest),
+                (request, context, lifetime) => throw new OperationCanceledException());
 
             object incoming = endpoint.CreateIncomingRequest(req, ctx);
             ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
@@ -276,7 +278,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var req = new ReadRequest { RequestHeader = new RequestHeader() };
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
 
-            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (request, context, lifetime) => throw new InvalidOperationException("Error"));
+            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest),
+                (request, context, lifetime) => throw new InvalidOperationException("Error"));
 
             object incoming = endpoint.CreateIncomingRequest(req, ctx);
             ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
