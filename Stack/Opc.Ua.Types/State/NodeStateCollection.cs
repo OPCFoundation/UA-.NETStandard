@@ -179,8 +179,6 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
         /// </summary>
-        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version = null, DateTime? lastModified = null)
         {
             var nodeSet = new Export.UANodeSet
@@ -261,8 +259,6 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
         /// </summary>
-        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
         public void SaveAsNodeSet2(
             ISystemContext context,
             Stream ostrm,
