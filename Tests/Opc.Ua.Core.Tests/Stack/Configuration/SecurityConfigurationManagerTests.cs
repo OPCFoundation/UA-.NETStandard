@@ -40,7 +40,9 @@ using SecurityNs = Opc.Ua.Security;
 namespace Opc.Ua.Core.Tests.Stack.Configuration
 {
     [TestFixture]
-    [Category("SecurityConfigurationManager")]
+    [Category("Configuration")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class SecurityConfigurationManagerTests
     {

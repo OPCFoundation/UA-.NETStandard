@@ -32,9 +32,13 @@ using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Transport
 {
     [TestFixture]
+    [Category("Transport")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class UaPubSubConnectionTests
     {
         private static readonly string s_publisherConfigPath = Path.Combine(

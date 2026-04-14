@@ -37,6 +37,8 @@ namespace Opc.Ua.Core.Tests
 {
     [TestFixture]
     [Category("ApplicationConfigurationEncoding")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class ApplicationConfigurationEncodingTests
     {

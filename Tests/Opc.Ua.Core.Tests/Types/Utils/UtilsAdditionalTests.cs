@@ -37,7 +37,9 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
     [TestFixture]
-    [Category("UtilsAdditionalCoverage")]
+    [Category("Utils")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class UtilsAdditionalTests
     {

@@ -32,9 +32,12 @@ using NUnit.Framework;
 
 using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Encoding
 {
-    [TestFixture(Description = "Tests for DataSetDecodeErrorEventArgs")]
+    [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class DataSetDecodeErrorEventArgsTests
     {

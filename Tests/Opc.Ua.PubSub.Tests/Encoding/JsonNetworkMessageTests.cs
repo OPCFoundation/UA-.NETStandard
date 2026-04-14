@@ -38,7 +38,11 @@ using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
-    [TestFixture(Description = "Tests for JsonNetworkMessage encode/decode paths")]
+    [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class JsonNetworkMessageTests
     {
         private ServiceMessageContext m_messageContext;

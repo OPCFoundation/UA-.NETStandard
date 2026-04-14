@@ -33,9 +33,13 @@ using Opc.Ua.Tests;
 
 using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Encoding
 {
-    [TestFixture(Description = "Tests for UaNetworkMessage base class properties and events")]
+    [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class UaNetworkMessageTests
     {
         private ServiceMessageContext m_messageContext;

@@ -37,6 +37,8 @@ namespace Opc.Ua.Gds.Tests
 {
     [TestFixture]
     [Category("GDS")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class GdsClientCommonAdditionalAdminCredentialsTests
     {

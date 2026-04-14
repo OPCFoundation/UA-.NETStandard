@@ -38,7 +38,9 @@ using NUnit.Framework;
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
     [TestFixture]
-    [Category("UtilsFormatting")]
+    [Category("Utils")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class UtilsFormattingTests
     {

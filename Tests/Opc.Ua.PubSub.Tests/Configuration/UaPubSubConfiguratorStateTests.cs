@@ -35,11 +35,10 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
-    /// <summary>
-    /// Tests for UaPubSubConfigurator state management, enable/disable,
-    /// load configuration, and various CRUD edge cases.
-    /// </summary>
-    [TestFixture(Description = "State management tests for UaPubSubConfigurator")]
+    [TestFixture]
+    [Category("Configuration")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class UaPubSubConfiguratorStateTests
     {

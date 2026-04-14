@@ -369,13 +369,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(clone, Is.Not.Null);
             Assert.That(clone.Parent, Is.SameAs(parent));
         }
-    }
 
-    [TestFixture]
-    [Category("NodeStateCoverage")]
-    [Parallelizable]
-    public class NodeStateAdditionalTests
-    {
         [Test]
         public void BaseObjectStateConstructorSetsNodeClass()
         {

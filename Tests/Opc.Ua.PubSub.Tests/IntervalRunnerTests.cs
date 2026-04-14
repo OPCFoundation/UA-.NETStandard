@@ -35,7 +35,10 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests
 {
-    [TestFixture(Description = "Tests for IntervalRunner start/stop/dispose and interval clamping")]
+    [TestFixture]
+    [Category("IntervalRunner")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public class IntervalRunnerTests
     {
         private ITelemetryContext m_telemetry;

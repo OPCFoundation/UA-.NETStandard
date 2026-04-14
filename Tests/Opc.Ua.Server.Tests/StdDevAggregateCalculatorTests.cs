@@ -34,11 +34,8 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
-    /// <summary>
-    /// Additional tests for StdDev aggregate calculator beyond what AggregateCalculatorTests covers.
-    /// </summary>
     [TestFixture]
-    [Category("StdDevAggregateCalculator")]
+    [Category("Aggregators")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]

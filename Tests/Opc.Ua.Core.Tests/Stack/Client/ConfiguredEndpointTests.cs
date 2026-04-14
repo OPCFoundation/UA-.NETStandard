@@ -254,15 +254,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 [collection, endpointUrl, securityMode, securityPolicyUri]
             );
         }
-    }
 
-    [TestFixture]
-    [Category("Client")]
-    [SetCulture("en-us")]
-    [SetUICulture("en-us")]
-    [Parallelizable]
-    public class ConfiguredEndpointAdditionalTests
-    {
         [Test]
         public void DefaultConstructorCreatesValidInstance()
         {

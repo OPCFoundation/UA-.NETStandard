@@ -36,6 +36,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
     [TestFixture]
     [Category("DataGenerator")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class RandomSourceTests
     {
         [Test]

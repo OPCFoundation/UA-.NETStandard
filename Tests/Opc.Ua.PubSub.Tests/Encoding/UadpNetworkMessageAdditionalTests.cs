@@ -39,6 +39,10 @@ using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
     [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class UadpNetworkMessageAdditionalTests
     {
         private const UadpNetworkMessageContentMask AllContentMask =

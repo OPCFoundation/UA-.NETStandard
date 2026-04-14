@@ -36,7 +36,9 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Core.Tests
 {
     [TestFixture]
-    [Category("ConfiguredEndpointCollectionAdditional")]
+    [Category("Configuration")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class ConfiguredEndpointCollectionAdditionalTests
     {

@@ -33,7 +33,7 @@ using NUnit.Framework;
 namespace Opc.Ua.SourceGeneration.Tests
 {
     [TestFixture]
-    [Category("SourceGeneration")]
+    [Category("SourceGenerator")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     public class StackGenerationOptionsTests

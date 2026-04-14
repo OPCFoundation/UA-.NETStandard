@@ -34,7 +34,10 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
-    [TestFixture(Description = "Tests for MqttClientProtocolConfiguration, MqttTlsOptions, MqttTlsCertificates")]
+    [TestFixture]
+    [Category("Transport")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class MqttClientProtocolConfigurationTests
     {

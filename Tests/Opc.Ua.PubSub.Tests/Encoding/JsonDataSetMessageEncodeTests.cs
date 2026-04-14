@@ -37,12 +37,10 @@ using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
-    /// <summary>
-    /// Coverage tests for <see cref="PubSubEncoding.JsonDataSetMessage"/>.
-    /// Exercises constructors, SetFieldContentMask logic, header encoding,
-    /// and payload encoding with various field content masks.
-    /// </summary>
     [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class JsonDataSetMessageEncodeTests
     {

@@ -34,7 +34,11 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests
 {
-    [TestFixture(Description = "Coverage tests for UaPubSubApplication class")]
+    [TestFixture]
+    [Category("PubSub")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class UaPubSubApplicationTests
     {
         private static readonly string s_publisherConfigPath =

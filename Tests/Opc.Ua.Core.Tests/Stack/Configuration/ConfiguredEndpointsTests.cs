@@ -35,7 +35,10 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Core.Tests.Stack.Configuration
 {
     [TestFixture]
-    [Category("ConfiguredEndpoints")]
+    [Category("Configuration")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class ConfiguredEndpointsTests
     {
         private ITelemetryContext m_telemetry;

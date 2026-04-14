@@ -38,6 +38,10 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
     [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class UadpDataSetMessageAdditionalTests
     {
         private const byte kFieldTypeBitMask = 0x06;

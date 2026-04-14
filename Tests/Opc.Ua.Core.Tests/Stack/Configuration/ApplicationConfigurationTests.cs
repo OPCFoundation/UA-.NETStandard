@@ -35,6 +35,8 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Core.Tests
 {
     [TestFixture]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public class ApplicationConfigurationTests
     {
         private ITelemetryContext m_telemetry;

@@ -722,7 +722,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> serverUris = decoder.ReadStringArray(null);
             context.NamespaceUris = new NamespaceTable(nsUris.Memory.ToArray());
             context.ServerUris = new StringTable(serverUris.Memory.ToArray());
-            var options = new BrowserOptions();
+            BrowserOptions options = new BrowserOptions();
             options.Decode(decoder);
             return new Browser(telemetry, options);
         }

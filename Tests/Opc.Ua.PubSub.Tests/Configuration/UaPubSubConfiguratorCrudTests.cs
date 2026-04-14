@@ -34,7 +34,10 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
-    [TestFixture(Description = "CRUD coverage tests for UaPubSubConfigurator")]
+    [TestFixture]
+    [Category("Configuration")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class UaPubSubConfiguratorCrudTests
     {

@@ -38,7 +38,10 @@ using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
-    [TestFixture(Description = "Extended coverage tests for PubSubJsonEncoder and JsonNetworkMessage encoding")]
+    [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class PubSubJsonEncoderExtendedTests
     {

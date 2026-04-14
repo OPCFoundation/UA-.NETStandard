@@ -38,7 +38,9 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Core.Tests.Stack.Configuration
 {
     [TestFixture]
-    [Category("SecurityConfigManagerAdditional")]
+    [Category("Configuration")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class SecurityConfigManagerAdditionalTests
     {

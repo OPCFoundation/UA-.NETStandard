@@ -35,7 +35,9 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Core.Tests
 {
     [TestFixture]
-    [Category("SessionLessMessage")]
+    [Category("SessionLess")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class SessionLessMessageTests
     {

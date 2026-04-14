@@ -33,6 +33,9 @@ using Opc.Ua.PubSub.PublishedData;
 namespace Opc.Ua.PubSub.Tests
 {
     [TestFixture]
+    [Category("Configuration")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class WriterGroupPublishStateTests
     {

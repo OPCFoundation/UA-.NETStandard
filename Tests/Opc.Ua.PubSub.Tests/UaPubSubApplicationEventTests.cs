@@ -33,11 +33,10 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests
 {
-    /// <summary>
-    /// Tests for UaPubSubApplication event handlers including exception swallowing,
-    /// connection/PDS add/remove handlers, and lifecycle events.
-    /// </summary>
-    [TestFixture(Description = "Event handler coverage tests for UaPubSubApplication")]
+    [TestFixture]
+    [Category("PubSub")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class UaPubSubApplicationEventTests
     {

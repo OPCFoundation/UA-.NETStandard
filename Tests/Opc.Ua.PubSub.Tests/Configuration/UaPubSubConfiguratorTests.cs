@@ -36,7 +36,10 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
-    [TestFixture(Description = "Coverage tests for UaPubSubConfigurator lookup and state methods")]
+    [TestFixture]
+    [Category("Configuration")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class UaPubSubConfiguratorAdditionalTests
     {

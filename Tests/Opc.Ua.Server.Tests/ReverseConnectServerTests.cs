@@ -35,7 +35,7 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Server.Tests
 {
     [TestFixture]
-    [Category("ReverseConnectServer")]
+    [Category("ReverseConnect")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]

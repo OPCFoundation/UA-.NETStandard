@@ -35,7 +35,9 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Core.Tests.Stack.Client
 {
     [TestFixture]
-    [Category("ConfiguredEndpointCollectionCoverage")]
+    [Category("Configuration")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class ConfiguredEndpointCollectionTests
     {

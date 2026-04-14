@@ -36,7 +36,11 @@ using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
-    [TestFixture(Description = "Coverage tests for JsonNetworkMessage encode/decode")]
+    [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class MqttJsonNetworkMessageAdditionalTests
     {
         private ServiceMessageContext m_messageContext;

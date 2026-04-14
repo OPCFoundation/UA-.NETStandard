@@ -34,11 +34,10 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.PublishedData
 {
-    /// <summary>
-    /// Additional coverage tests for DataCollector focusing on
-    /// CollectData edge cases, validation, and extension fields.
-    /// </summary>
-    [TestFixture(Description = "Additional coverage tests for DataCollector")]
+    [TestFixture]
+    [Category("DataCollector")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class DataCollectorAdditionalTests
     {

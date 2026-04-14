@@ -32,7 +32,11 @@ using NUnit.Framework;
 
 namespace Opc.Ua.PubSub.Tests
 {
-    [TestFixture(Description = "Coverage tests for UaPubSubDataStore class")]
+    [TestFixture]
+    [Category("Configuration")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class UaPubSubDataStoreTests
     {
         [Test]

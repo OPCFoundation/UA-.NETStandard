@@ -34,7 +34,7 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Server.Tests
 {
     [TestFixture]
-    [Category("StartEndAggregateCalculator")]
+    [Category("Aggregators")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]

@@ -41,7 +41,9 @@ using SecurityNs = Opc.Ua.Security;
 namespace Opc.Ua.Core.Tests.Schema
 {
     [TestFixture]
-    [Category("SecuredApplication")]
+    [Category("Configuration")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class SecuredApplicationTests
     {

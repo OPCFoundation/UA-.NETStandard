@@ -32,9 +32,13 @@ using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Transport
 {
-    [TestFixture(Description = "Additional coverage tests for UaPubSubConnection")]
+    [TestFixture]
+    [Category("Transport")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class UaPubSubConnectionAdditionalTests
     {
         private static readonly string s_publisherConfigPath = Path.Combine(

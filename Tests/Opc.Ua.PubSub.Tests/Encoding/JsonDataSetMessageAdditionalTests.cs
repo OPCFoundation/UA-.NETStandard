@@ -37,12 +37,10 @@ using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
-    /// <summary>
-    /// Additional coverage tests for JsonDataSetMessage focusing on
-    /// decode paths, DataValue field encoding with all timestamps/picoseconds,
-    /// and StatusCode-Good omission handling.
-    /// </summary>
     [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class JsonDataSetMessageAdditionalTests
     {

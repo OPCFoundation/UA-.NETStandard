@@ -34,6 +34,10 @@ using Opc.Ua.PubSub.Configuration;
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
     [TestFixture]
+    [Category("Configuration")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class ConfigurationVersionUtilsTests
     {
         [Test]

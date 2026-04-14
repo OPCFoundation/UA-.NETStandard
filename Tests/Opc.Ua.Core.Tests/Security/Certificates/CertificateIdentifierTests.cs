@@ -38,6 +38,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     [TestFixture]
     [Category("CertificateIdentifier")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class CertificateIdentifierTests
     {

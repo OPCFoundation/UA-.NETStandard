@@ -36,7 +36,7 @@ namespace Opc.Ua.Client.Tests
 {
     [TestFixture]
     [Category("Client")]
-    [Category("SessionStateEncoder")]
+    [Category("Session")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     public sealed class SessionStateEncoderTests
