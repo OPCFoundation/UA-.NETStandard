@@ -9,8 +9,8 @@
           <!-- [Assembly-Filter]Type-Filter -->
           <Include></Include>
           <!-- [Assembly-Filter]Type-Filter -->
-          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute</ExcludeByAttribute>
-          <ExcludeByFile>**/Generated/*.cs,**/Model/*.cs</ExcludeByFile>
+          <ExcludeByAttribute>ObsoleteAttribute,GeneratedCodeAttribute</ExcludeByAttribute>
+          <ExcludeByFile></ExcludeByFile>
           <!-- Globbing filter -->
           <IncludeDirectory></IncludeDirectory>
           <SingleHit>false</SingleHit>
