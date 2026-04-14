@@ -55,10 +55,12 @@ namespace Opc.Ua.Aot.Tests
 
             // Start server
             ServerFixture = new AotServerFixture<ReferenceServer>(
-                t => new ReferenceServer(t), Telemetry);
-            ServerFixture.AutoAccept = true;
-            ServerFixture.SecurityNone = true;
-            ServerFixture.AllNodeManagers = true;
+                t => new ReferenceServer(t), Telemetry)
+            {
+                AutoAccept = true,
+                SecurityNone = true,
+                AllNodeManagers = true
+            };
             await ServerFixture.LoadConfigurationAsync(
                 Path.Combine(Directory.GetCurrentDirectory(), "pki")).ConfigureAwait(false);
             await ServerFixture.StartAsync().ConfigureAwait(false);

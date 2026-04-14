@@ -188,7 +188,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastToUuidReturnsUuid()
         {
-            var uuid = new Uuid(Guid.NewGuid());
+            var uuid = Uuid.NewUuid();
             var v = Variant.From(uuid);
             bool result = v.TryCastTo(out Uuid value);
             Assert.That(result, Is.True);
@@ -454,7 +454,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastToArrayOfUuidReturnsArrayOfUuid()
         {
-            var uuid = new Uuid(Guid.NewGuid());
+            var uuid = Uuid.NewUuid();
             ArrayOf<Uuid> arr = new[] { uuid }.ToArrayOf();
             var v = Variant.From(arr);
             bool result = v.TryCastTo(out ArrayOf<Uuid> value);
@@ -697,7 +697,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastToMatrixOfGuidReturnsMatrix()
         {
-            var uuid = new Uuid(Guid.NewGuid());
+            var uuid = Uuid.NewUuid();
             MatrixOf<Uuid> matrix = new Uuid[,] { { uuid, uuid }, { uuid, uuid } }.ToMatrixOf();
             var v = Variant.From(matrix);
             bool result = v.TryCastTo(out MatrixOf<Guid> value);
@@ -708,7 +708,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastToMatrixOfUuidReturnsMatrix()
         {
-            var uuid = new Uuid(Guid.NewGuid());
+            var uuid = Uuid.NewUuid();
             MatrixOf<Uuid> matrix = new Uuid[,] { { uuid, uuid }, { uuid, uuid } }.ToMatrixOf();
             var v = Variant.From(matrix);
             bool result = v.TryCastTo(out MatrixOf<Uuid> value);
@@ -949,7 +949,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastToUuidArrayReturnsUuidArray()
         {
-            var uuid = new Uuid(Guid.NewGuid());
+            var uuid = Uuid.NewUuid();
             var v = Variant.From(new[] { uuid }.ToArrayOf());
             bool result = v.TryCastTo(out Uuid[] value);
             Assert.That(result, Is.True);
@@ -1372,7 +1372,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromMatrixOfUuidReturnsVariant()
         {
-            var uuid = new Uuid(Guid.NewGuid());
+            var uuid = Uuid.NewUuid();
             MatrixOf<Uuid> matrix = new Uuid[,] { { uuid, uuid }, { uuid, uuid } }.ToMatrixOf();
 
             bool result = VariantHelper.TryCastFrom(matrix, out _);
@@ -1927,7 +1927,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryCastFromMatrixGuidReturnsVariant()
         {
-            var uuid = new Uuid(Guid.NewGuid());
+            var uuid = Uuid.NewUuid();
             var matrix = new Matrix(new Uuid[] { uuid, uuid, uuid, uuid }, BuiltInType.Guid, 2, 2);
 
             bool result = VariantHelper.TryCastFrom(matrix, out _);

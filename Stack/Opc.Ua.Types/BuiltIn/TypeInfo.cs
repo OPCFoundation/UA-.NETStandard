@@ -1154,7 +1154,7 @@ namespace Opc.Ua
                 }
             }
 
-            return factory.TryGetType(datatypeId, out IType type) ? type: default;
+            return factory.TryGetType(datatypeId, out IType type) ? type : default;
         }
 
         /// <summary>
@@ -1226,8 +1226,8 @@ namespace Opc.Ua
                 case BuiltInType.Enumeration:
                     return new SystemType<int>(builtInType);
                 case BuiltInType.Null:
+                    // for backcompat. -- should be: return null;
                     return new SystemType<Variant>(builtInType);
-                    // Above for backcompat. -- should be: return null;
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {builtInType}");

@@ -1175,22 +1175,19 @@ namespace Opc.Ua.Configuration
         {
             var certificateIdentifiers = new List<CertificateIdentifier>
             {
-                new CertificateIdentifier
-                {
+                new() {
                     StoreType = storeType,
                     StorePath = storePath,
                     SubjectName = subjectName,
                     CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
                 },
-                new CertificateIdentifier
-                {
+                new() {
                     StoreType = storeType,
                     StorePath = storePath,
                     SubjectName = subjectName,
                     CertificateType = ObjectTypeIds.EccNistP256ApplicationCertificateType
                 },
-                new CertificateIdentifier
-                {
+                new() {
                     StoreType = storeType,
                     StorePath = storePath,
                     SubjectName = subjectName,

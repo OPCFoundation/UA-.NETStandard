@@ -1454,7 +1454,7 @@ namespace Opc.Ua
 
             var document = new XmlDocument();
 
-            if (!EqualityComparer<T>.Default.Equals(value, default(T)))
+            if (!EqualityComparer<T>.Default.Equals(value, default))
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
@@ -1480,7 +1480,7 @@ namespace Opc.Ua
                         element.LocalName == elementName.Name &&
                         element.NamespaceURI == elementName.Namespace)
                     {
-                        if (EqualityComparer<T>.Default.Equals(value, default(T)))
+                        if (EqualityComparer<T>.Default.Equals(value, default))
                         {
                             xmlElements.RemoveAt(ii);
                             extensions = xmlElements.ToArrayOf();
@@ -1494,7 +1494,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!EqualityComparer<T>.Default.Equals(value, default(T)))
+            if (!EqualityComparer<T>.Default.Equals(value, default))
             {
                 xmlElements.Add(XmlElement.From(document.DocumentElement));
                 extensions = xmlElements.ToArrayOf();
@@ -1521,10 +1521,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            if (elementName is null)
-            {
-                elementName = GetEncodeableXmlName(typeof(T));
-            }
+            elementName ??= GetEncodeableXmlName(typeof(T));
 
             using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
 
@@ -1543,7 +1540,7 @@ namespace Opc.Ua
                 // namespace directly from the XML document element, which
                 // matches the namespace used in the config file.
                 using var parser = new XmlParser(
-                    (Type)null, element.OuterXml, AmbientMessageContext.CurrentContext);
+                    null, element.OuterXml, AmbientMessageContext.CurrentContext);
                 var result = new T();
                 result.Decode(parser);
                 return result;
@@ -1567,10 +1564,7 @@ namespace Opc.Ua
             ITelemetryContext telemetry)
             where T : IEncodeable
         {
-            if (elementName is null)
-            {
-                elementName = GetEncodeableXmlName(typeof(T));
-            }
+            elementName ??= GetEncodeableXmlName(typeof(T));
 
             var document = new XmlDocument();
 

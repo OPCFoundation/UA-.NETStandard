@@ -330,15 +330,7 @@ namespace Opc.Ua.Gds.Client
                 AdminCredentials = null;
             }
 
-            if (endpoint == null)
-            {
-                endpoint = m_endpoint;
-
-                if (endpoint == null)
-                {
-                    throw new ArgumentNullException(nameof(endpoint));
-                }
-            }
+            endpoint ??= m_endpoint ?? throw new ArgumentNullException(nameof(endpoint));
 
             const int maxAttempts = 5;
             for (int attempt = 0; ; attempt++)
@@ -527,7 +519,7 @@ namespace Opc.Ua.Gds.Client
                             )
                             .ConfigureAwait(false);
 
-                        ByteString bytes = (ByteString)outputArguments[0];
+                        var bytes = (ByteString)outputArguments[0];
 
                         // Validate total size before reading
                         totalBytesRead += bytes.Length;

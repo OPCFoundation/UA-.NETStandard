@@ -296,11 +296,18 @@ namespace Opc.Ua.Security
         /// <param name="namespaceUri">The namespace URI.</param>
         private static System.Xml.XmlElement Find(XmlNode parent, string localName, string namespaceUri)
         {
+            if (parent is System.Xml.XmlElement parentElement &&
+                parent.LocalName == localName &&
+                parent.NamespaceURI == namespaceUri)
+            {
+                return parentElement;
+            }
+
             for (XmlNode ii = parent.FirstChild; ii != null; ii = ii.NextSibling)
             {
                 if (ii is System.Xml.XmlElement xml &&
-                    ii.LocalName == "SecuredApplication" &&
-                    ii.NamespaceURI == Namespaces.OpcUaSecurity)
+                    ii.LocalName == localName &&
+                    ii.NamespaceURI == namespaceUri)
                 {
                     return xml;
                 }
@@ -546,7 +553,9 @@ namespace Opc.Ua.Security
             IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
                 ServiceMessageContext.CreateEmpty(m_telemetry);
             using var memoryStream = new MemoryStream();
-            using var writer = XmlWriter.Create(memoryStream, Utils.DefaultXmlWriterSettings());
+            var writerSettings = Utils.DefaultXmlWriterSettings();
+            writerSettings.Encoding = new UTF8Encoding(false);
+            using var writer = XmlWriter.Create(memoryStream, writerSettings);
             var encoder = new XmlEncoder(
                 new XmlQualifiedName(systemType.Name, namespaceUri),
                 writer,

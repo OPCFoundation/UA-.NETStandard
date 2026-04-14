@@ -97,19 +97,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets an object used to synchronize access to the properties dictionary.
+        /// Gets an object used to synchronize access to the properties
+        /// dictionary.
         /// </summary>
-        /// <value>
-        /// The object used to synchronize access to the properties dictionary.
-        /// </value>
         public object PropertiesLock => m_properties;
 
         /// <summary>
-        /// Gets a dictionary used to save state associated with the application.
+        /// Gets a dictionary used to save state associated with the
+        /// application.
         /// </summary>
-        /// <value>
-        /// The dictionary used to save state associated with the application.
-        /// </value>
         public IDictionary<string, object> Properties => m_properties;
 
         /// <summary>
@@ -121,35 +117,30 @@ namespace Opc.Ua
         /// <summary>
         /// A descriptive name for the application (not necessarily unique).
         /// </summary>
-        /// <value>The name of the application.</value>
         [DataTypeField(Order = 0, IsRequired = true)]
         public string ApplicationName { get; set; }
 
         /// <summary>
         /// A unique identifier for the application instance.
         /// </summary>
-        /// <value>The application URI.</value>
         [DataTypeField(Order = 1, IsRequired = true)]
         public string ApplicationUri { get; set; }
 
         /// <summary>
         /// A unique identifier for the product.
         /// </summary>
-        /// <value>The product URI.</value>
         [DataTypeField(Order = 2)]
         public string ProductUri { get; set; }
 
         /// <summary>
         /// The type of application.
         /// </summary>
-        /// <value>The type of the application.</value>
         [DataTypeField(Order = 3, IsRequired = true)]
         public ApplicationType ApplicationType { get; set; }
 
         /// <summary>
         /// The security configuration for the application.
         /// </summary>
-        /// <value>The security configuration.</value>
         [DataTypeField(Order = 4, StructureHandling = StructureHandling.Inline)]
         public SecurityConfiguration SecurityConfiguration
         {
@@ -160,7 +151,6 @@ namespace Opc.Ua
         /// <summary>
         /// The transport configuration for the application.
         /// </summary>
-        /// <value>The transport configurations.</value>
         [DataTypeField(Order = 5, StructureHandling = StructureHandling.Inline)]
         public ArrayOf<TransportConfiguration> TransportConfigurations
         {
@@ -171,35 +161,30 @@ namespace Opc.Ua
         /// <summary>
         /// The quotas that are used at the transport layer.
         /// </summary>
-        /// <value>The transport quotas.</value>
         [DataTypeField(Order = 6, StructureHandling = StructureHandling.Inline)]
         public TransportQuotas TransportQuotas { get; set; }
 
         /// <summary>
         /// Additional configuration for server applications.
         /// </summary>
-        /// <value>The server configuration.</value>
         [DataTypeField(Order = 7, StructureHandling = StructureHandling.Inline)]
         public ServerConfiguration ServerConfiguration { get; set; }
 
         /// <summary>
         /// Additional configuration for client applications.
         /// </summary>
-        /// <value>The client configuration.</value>
         [DataTypeField(Order = 8, StructureHandling = StructureHandling.Inline)]
         public ClientConfiguration ClientConfiguration { get; set; }
 
         /// <summary>
         /// Additional configuration of the discovery server.
         /// </summary>
-        /// <value>The discovery server configuration.</value>
         [DataTypeField(Order = 9, StructureHandling = StructureHandling.Inline)]
         public DiscoveryServerConfiguration DiscoveryServerConfiguration { get; set; }
 
         /// <summary>
         /// A bucket to store additional application specific configuration data.
         /// </summary>
-        /// <value>The extensions.</value>
         [DataTypeField(Order = 10)]
         public ArrayOf<XmlElement> Extensions
         {
@@ -210,23 +195,21 @@ namespace Opc.Ua
         /// <summary>
         /// Configuration of the trace and information about log file
         /// </summary>
-        /// <value>The trace configuration.</value>
         [DataTypeField(Order = 11, StructureHandling = StructureHandling.Inline)]
         public TraceConfiguration TraceConfiguration { get; set; }
 
         /// <summary>
         /// Disabling / enabling high resolution clock
         /// </summary>
-        /// <value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value>
         [DataTypeField(Order = 12)]
         public bool DisableHiResClock { get; set; }
 
-        private ITelemetryContext m_telemetry;
-        private ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
         private SecurityConfiguration m_securityConfiguration;
         private ArrayOf<TransportConfiguration> m_transportConfigurations;
         private ArrayOf<XmlElement> m_extensions;
-        private List<object> m_extensionObjects;
+        private readonly List<object> m_extensionObjects;
         private readonly Dictionary<string, object> m_properties;
     }
 
@@ -259,54 +242,51 @@ namespace Opc.Ua
         /// <summary>
         /// The default timeout to use when sending requests (in milliseconds).
         /// </summary>
-        /// <value>The operation timeout.</value>
         [DataTypeField(Order = 0)]
         public int OperationTimeout { get; set; }
 
         /// <summary>
         /// The maximum length of string encoded in a message body.
         /// </summary>
-        /// <value>The max length of the string.</value>
         [DataTypeField(Order = 1)]
         public int MaxStringLength { get; set; }
 
         /// <summary>
         /// The maximum length of a byte string encoded in a message body.
         /// </summary>
-        /// <value>The max length of the byte string.</value>
         [DataTypeField(Order = 2)]
         public int MaxByteStringLength { get; set; }
 
         /// <summary>
         /// The maximum length of an array encoded in a message body.
         /// </summary>
-        /// <value>The max length of the array.</value>
         [DataTypeField(Order = 3)]
         public int MaxArrayLength { get; set; }
 
         /// <summary>
         /// The maximum length of a message body.
         /// </summary>
-        /// <value>The max size of the message.</value>
         [DataTypeField(Order = 4)]
         public int MaxMessageSize { get; set; }
 
         /// <summary>
-        /// The maximum size of the buffer to use when sending messages.
+        /// The maximum size of the buffer to use when sending
+        /// messages.
         /// </summary>
-        /// <value>The max size of the buffer.</value>
         [DataTypeField(Order = 5)]
         public int MaxBufferSize { get; set; }
 
         /// <summary>
-        /// The maximum nesting level accepted while encoding or decoding objects.
+        /// The maximum nesting level accepted while encoding
+        /// or decoding objects.
         /// </summary>
         [DataTypeField(Order = 6)]
         public int MaxEncodingNestingLevels { get; set; }
 
         /// <summary>
-        /// The number of times the decoder can recover from a decoder error
-        /// of an IEncodeable before throwing a decoder error.
+        /// The number of times the decoder can recover from a
+        /// decoder error of an IEncodeable before throwing a
+        /// decoder error.
         /// </summary>
         [DataTypeField(Order = 7)]
         public int MaxDecoderRecoveries { get; set; }
@@ -314,14 +294,12 @@ namespace Opc.Ua
         /// <summary>
         /// The lifetime of a secure channel (in milliseconds).
         /// </summary>
-        /// <value>The channel lifetime.</value>
         [DataTypeField(Order = 8)]
         public int ChannelLifetime { get; set; }
 
         /// <summary>
         /// The lifetime of a security token (in milliseconds).
         /// </summary>
-        /// <value>The security token lifetime.</value>
         [DataTypeField(Order = 9)]
         public int SecurityTokenLifetime { get; set; }
     }
@@ -333,25 +311,15 @@ namespace Opc.Ua
     public partial class TraceConfiguration
     {
         /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public TraceConfiguration()
-        {
-            OutputFilePath = null;
-            DeleteOnLoad = false;
-        }
-
-        /// <summary>
         /// The output file used to log the trace information.
         /// </summary>
-        /// <value>The output file path.</value>
         [DataTypeField(Order = 0)]
         public string OutputFilePath { get; set; }
 
         /// <summary>
-        /// Whether the existing log file should be deleted when the application configuration is loaded.
+        /// Whether the existing log file should be deleted when the
+        /// application configuration is loaded.
         /// </summary>
-        /// <value><c>true</c> if existing log file should be deleted when the application configuration is loaded; otherwise, <c>false</c>.</value>
         [DataTypeField(Order = 1)]
         public bool DeleteOnLoad { get; set; }
 
@@ -370,7 +338,6 @@ namespace Opc.Ua
         /// - Output messages related to a call to an external system - ExternalSystem = 0x100;
         /// - Output messages related to security. - Security = 0x200;
         /// </summary>
-        /// <value>The trace masks.</value>
         [DataTypeField(Order = 2)]
         public int TraceMasks { get; set; }
     }
@@ -392,10 +359,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The default constructor.
+        /// Create TransportConfiguration with scheme and type
         /// </summary>
-        /// <param name="urlScheme">The URL scheme.</param>
-        /// <param name="type">The type.</param>
         public TransportConfiguration(string urlScheme, Type type)
         {
             UriScheme = urlScheme;
@@ -405,15 +370,11 @@ namespace Opc.Ua
         /// <summary>
         /// The URL prefix used by the application (http, opc.tcp, net.tpc, etc.).
         /// </summary>
-        /// <value>The URI scheme.</value>
         [DataTypeField(IsRequired = true, Order = 0)]
         public string UriScheme { get; set; }
 
         /// <summary>
         /// The name of the class that defines the binding for the transport.
-        /// </summary>
-        /// <value>The name of the type.</value>
-        /// <remarks>
         /// <para>
         /// This can be any instance of the System.ServiceModel.Channels.Binding class
         /// that implements these constructors:
@@ -423,7 +384,7 @@ namespace Opc.Ua
         /// XxxBinding(IList{EndpointDescription} descriptions, EndpointConfiguration configuration)
         /// XxxBinding(EndpointConfiguration configuration)
         /// </para>
-        /// </remarks>
+        /// </summary>
         [DataTypeField(IsRequired = true, Order = 1)]
         public string TypeName { get; set; }
     }
@@ -468,16 +429,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Specifies whether the messages are signed and encrypted or simply signed
+        /// Specifies whether the messages are signed and encrypted
+        /// or simply signed
         /// </summary>
-        /// <value>The security mode.</value>
         [DataTypeField(Order = 0)]
         public MessageSecurityMode SecurityMode { get; set; }
 
         /// <summary>
         /// The security policy to use.
         /// </summary>
-        /// <value>The security policy URI.</value>
         [DataTypeField(Order = 1)]
         public string SecurityPolicyUri { get; set; }
     }
@@ -501,13 +461,11 @@ namespace Opc.Ua
 
         /// <summary>
         /// The application instance certificate.
-        /// Kept for backward compatibility with configuration files which only support RSA certificates.
-        /// </summary>
-        /// <value>The application certificate.</value>
-        /// <remarks>
+        /// Kept for backward compatibility with configuration files which only
+        /// support RSA certificates.
         /// This certificate must contain the application uri.
         /// For servers, URLs for each supported protocol must also be present.
-        /// </remarks>
+        /// </summary>
         public CertificateIdentifier ApplicationCertificate
         {
             get
@@ -668,18 +626,13 @@ namespace Opc.Ua
         /// <summary>
         /// The length of nonce in the CreateSession service.
         /// </summary>
-        /// <value>
-        /// The length of nonce in the CreateSession service.
-        /// </value>
         [DataTypeField(Order = 4)]
         public int NonceLength { get; set; } = 32;
 
         /// <summary>
-        /// A store where invalid certificates can be placed for later review by the administrator.
+        /// A store where invalid certificates can be placed for later review
+        /// by the administrator.
         /// </summary>
-        /// <value>
-        /// A store where invalid certificates can be placed for later review by the administrator.
-        /// </value>
         [DataTypeField(Order = 5, StructureHandling = StructureHandling.Inline)]
         public CertificateStoreIdentifier RejectedCertificateStore { get; set; }
 
@@ -689,82 +642,84 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// This value can be set by applications.
-        /// The number of certificates to keep in the rejected store before it is updated.
+        /// The number of certificates to keep in the rejected store before
+        /// it is updated.
         /// <see langword="0"/> to keep all rejected certificates.
         /// A negative number to keep no history.
+        /// Default is 5.
         /// </remarks>
         [DataTypeField(Order = 6)]
         public int MaxRejectedCertificates { get; set; } = 5;
 
         /// <summary>
-        /// Gets or sets a value indicating whether untrusted certificates should be automatically accepted.
+        /// Gets or sets a value indicating whether untrusted certificates
+        /// should be automatically accepted.
         /// </summary>
         /// <remarks>
-        /// This flag can be set to by servers that allow anonymous clients or use user credentials for authentication.
-        /// It can be set by clients that connect to URLs specified in configuration rather than with user entry.
+        /// This flag can be set to by servers that allow anonymous clients
+        /// or use user credentials for authentication.
+        /// It can be set by clients that connect to URLs specified in
+        /// configuration rather than with user entry.
         /// </remarks>
         [DataTypeField(Order = 7)]
         public bool AutoAcceptUntrustedCertificates { get; set; }
 
         /// <summary>
-        /// Gets or sets a directory which contains files representing users roles.
+        /// Gets or sets a directory which contains files representing
+        /// users roles.
         /// </summary>
         [DataTypeField(Order = 8)]
         public string UserRoleDirectory { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether SHA-1 signed certificates are accepted.
+        /// This flag can be set to false by servers that accept SHA-1
+        /// signed certificates.
         /// </summary>
-        /// <remarks>
-        /// This flag can be set to false by servers that accept SHA-1 signed certificates.
-        /// </remarks>
         [DataTypeField(Order = 9)]
         public bool RejectSHA1SignedCertificates { get; set; } = true;
 
         /// <summary>
-        /// Gets or sets a value indicating whether certificates with unavailable revocation lists are not accepted.
+        /// Gets or sets a value indicating whether certificates with
+        /// unavailable revocation lists are not accepted.
+        /// This flag can be set to true by servers that must have a
+        /// revocation list for each CA (even if empty).
         /// </summary>
-        /// <remarks>
-        /// This flag can be set to true by servers that must have a revocation list for each CA (even if empty).
-        /// </remarks>
         [DataTypeField(Order = 10)]
         public bool RejectUnknownRevocationStatus { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating which minimum certificate key strength is accepted.
+        /// Gets or sets a value indicating which minimum certificate
+        /// key strength is accepted.
         /// The value is ignored for certificates with a ECDSA signature.
+        /// This value can be set to 1024, 2048 or 4096 for servers
         /// </summary>
-        /// <remarks>
-        /// This value can be set to 1024, 2048 or 4096 by servers
-        /// </remarks>
         [DataTypeField(Order = 11)]
         public ushort MinimumCertificateKeySize { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether the Validator skips the full chain validation
-        /// for already validated or accepted certificates.
+        /// Gets or sets a value indicating whether the Validator skips
+        /// the full chain validation for already validated or accepted
+        /// certificates.
+        /// This flag can be set to true for applications.
         /// </summary>
-        /// <remarks>
-        /// This flag can be set to true by applications.
-        /// </remarks>
         [DataTypeField(Order = 12)]
         public bool UseValidatedCertificates { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether the application cert should be copied to the trusted store.
+        /// Gets or sets a value indicating whether the application cert
+        /// should be copied to the trusted store.
+        /// It is useful for client/server applications running on the
+        /// same host and sharing the cert store to autotrust.
         /// </summary>
-        /// <remarks>
-        /// It is useful for client/server applications running on the same host  and sharing the cert store to autotrust.
-        /// </remarks>
         [DataTypeField(Order = 13)]
         public bool AddAppCertToTrustedStore { get; set; } = true;
 
         /// <summary>
-        /// Gets or sets a value indicating whether the application should send the complete certificate chain.
+        /// Gets or sets a value indicating whether the application
+        /// should send the complete certificate chain.
+        /// If set to true the complete certificate chain will be sent
+        /// for CA signed certificates.
         /// </summary>
-        /// <remarks>
-        /// If set to true the complete certificate chain will be sent for CA signed certificates.
-        /// </remarks>
         [DataTypeField(Order = 14)]
         public bool SendCertificateChain { get; set; } = true;
 
@@ -809,13 +764,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets a value indicating whether the server nonce validation errors should be suppressed.
-        /// </summary>
-        /// <remarks>
-        /// Allows client interoperability with legacy servers which do not comply with the specification for nonce usage.
+        /// Gets or sets a value indicating whether the server nonce
+        /// validation errors should be suppressed.
+        /// Allows client interoperability with legacy servers which
+        /// do not comply with the specification for nonce usage.
         /// If set to true the server nonce validation errors are suppressed.
-        /// Please set this flag to true only in close and secured networks since it can cause security vulnerabilities.
-        /// </remarks>
+        /// Please set this flag to true only in close and secured
+        /// networks since it can cause security vulnerabilities.
+        /// </summary>
         [DataTypeField(Order = 19)]
         public bool SuppressNonceValidationErrors { get; set; }
 

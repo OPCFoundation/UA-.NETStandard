@@ -4069,7 +4069,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var writer = XmlWriter.Create(stringWriter);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
-            Uuid[] guidValues = [new Uuid(Guid.NewGuid()), new Uuid(Guid.NewGuid())];
+            Uuid[] guidValues = [Uuid.NewUuid(), Uuid.NewUuid()];
             var values = ArrayOf.Wrapped(guidValues);
 
             // Act
@@ -4097,7 +4097,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var writer = XmlWriter.Create(stringWriter);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
-            Uuid[] guidValues = [new Uuid(Guid.NewGuid()), new Uuid(Guid.NewGuid()), new Uuid(Guid.NewGuid())];
+            Uuid[] guidValues = [Uuid.NewUuid(), Uuid.NewUuid(), Uuid.NewUuid()];
             var values = ArrayOf.Wrapped(guidValues);
 
             // Act & Assert

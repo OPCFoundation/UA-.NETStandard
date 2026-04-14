@@ -544,7 +544,7 @@ namespace TestApp.Incremental
             int count = 0;
             int index = 0;
             while ((index = text.IndexOf(
-                pattern, index, System.StringComparison.Ordinal)) != -1)
+                pattern, index, StringComparison.Ordinal)) != -1)
             {
                 count++;
                 index += pattern.Length;

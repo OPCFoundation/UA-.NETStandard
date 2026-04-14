@@ -59,7 +59,7 @@ namespace Opc.Ua.Sample
             m_source = source;
             Id = id;
             AttributeId = attributeId;
-            m_indexRange = indexRange;
+            IndexRange = indexRange;
             DataEncoding = dataEncoding;
             m_timestampsToReturn = timestampsToReturn;
             m_diagnosticsMasks = diagnosticsMasks;
@@ -99,7 +99,7 @@ namespace Opc.Ua.Sample
             m_monitoredItemQueueFactory = monitoredItemQueueFactory;
             Id = id;
             AttributeId = attributeId;
-            m_indexRange = indexRange;
+            IndexRange = indexRange;
             DataEncoding = dataEncoding;
             m_timestampsToReturn = timestampsToReturn;
             m_diagnosticsMasks = diagnosticsMasks;
@@ -147,7 +147,7 @@ namespace Opc.Ua.Sample
             m_monitoredItemQueueFactory = monitoredItemQueueFactory;
             Id = storedMonitoredItem.Id;
             AttributeId = storedMonitoredItem.AttributeId;
-            m_indexRange = storedMonitoredItem.ParsedIndexRange;
+            IndexRange = storedMonitoredItem.ParsedIndexRange;
             DataEncoding = storedMonitoredItem.Encoding;
             m_timestampsToReturn = storedMonitoredItem.TimestampsToReturn;
             m_diagnosticsMasks = storedMonitoredItem.DiagnosticsMasks;
@@ -205,7 +205,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// Gets the index range used to selected a subset of the value.
         /// </summary>
-        public NumericRange IndexRange => m_indexRange;
+        public NumericRange IndexRange { get; }
 
         /// <summary>
         /// Gets the data encoding to use when returning the value.
@@ -608,7 +608,7 @@ namespace Opc.Ua.Sample
                 OriginalFilter = DataChangeFilter,
                 Range = m_range,
                 TimestampsToReturn = m_timestampsToReturn,
-                ParsedIndexRange = m_indexRange
+                ParsedIndexRange = IndexRange
             };
         }
 
@@ -901,7 +901,6 @@ namespace Opc.Ua.Sample
         private readonly MonitoredNode m_source;
         private DataValue m_lastValue;
         private ServiceResult m_lastError;
-        private readonly NumericRange m_indexRange;
         private TimestampsToReturn m_timestampsToReturn;
         private DiagnosticsMasks m_diagnosticsMasks;
         private double m_samplingInterval;
