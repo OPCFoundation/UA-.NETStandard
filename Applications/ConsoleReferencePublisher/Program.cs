@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
 using System.CommandLine;
+using System.Threading;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Configuration;
@@ -118,12 +118,12 @@ namespace Quickstarts.ConsoleReferencePublisher
                         }
                     }
 
-                // Create the UA Publisher application using configuration file
-                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
-                {
-                    // Start values simulator
-                    var valuesSimulator = new PublishedValuesWrites(uaPubSubApplication, telemetry);
-                    valuesSimulator.Start();
+                    // Create the UA Publisher application using configuration file
+                    using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
+                    {
+                        // Start values simulator
+                        var valuesSimulator = new PublishedValuesWrites(uaPubSubApplication, telemetry);
+                        valuesSimulator.Start();
 
                         // Start the publisher
                         uaPubSubApplication.Start();

@@ -27,9 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Gds.Client;
 
@@ -40,192 +39,180 @@ namespace Opc.Ua.Gds.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class GdsClientCommonAdditionalAdminCredentialsTests
+    public class RegisteredApplicationTests
     {
-        [Test]
-        public void ConstructorCreatesInstance()
-        {
-            var args = new AdminCredentialsRequiredEventArgs();
-            Assert.That(args, Is.Not.Null);
-        }
-
-        [Test]
-        public void InheritsFromEventArgs()
-        {
-            var args = new AdminCredentialsRequiredEventArgs();
-            Assert.That(args, Is.InstanceOf<EventArgs>());
-        }
-
-        [Test]
-        public void CredentialsDefaultsToNull()
-        {
-            var args = new AdminCredentialsRequiredEventArgs();
-            Assert.That(args.Credentials, Is.Null);
-        }
-
-        [Test]
-        public void CredentialsRoundTrip()
-        {
-            var args = new AdminCredentialsRequiredEventArgs();
-            using var identity = new UserIdentity();
-            args.Credentials = identity;
-            Assert.That(args.Credentials, Is.SameAs(identity));
-        }
-
-        [Test]
-        public void CacheCredentialsDefaultsToFalse()
-        {
-            var args = new AdminCredentialsRequiredEventArgs();
-            Assert.That(args.CacheCredentials, Is.False);
-        }
-
-        [Test]
-        public void CacheCredentialsRoundTrip()
-        {
-            var args = new AdminCredentialsRequiredEventArgs();
-            args.CacheCredentials = true;
-            Assert.That(args.CacheCredentials, Is.True);
-        }
-    }
-
-    [TestFixture]
-    [Category("GDS")]
-    [Parallelizable]
-    public class GdsClientCommonAdditionalConfigurationTests
-    {
-        [Test]
-        public void ConstructorCreatesInstance()
-        {
-            var config = new GlobalDiscoveryClientConfiguration();
-            Assert.That(config, Is.Not.Null);
-        }
-
-        [Test]
-        public void GlobalDiscoveryServerUrlDefaultsToNull()
-        {
-            var config = new GlobalDiscoveryClientConfiguration();
-            Assert.That(config.GlobalDiscoveryServerUrl, Is.Null);
-        }
-
-        [Test]
-        public void GlobalDiscoveryServerUrlRoundTrip()
-        {
-            var config = new GlobalDiscoveryClientConfiguration
-            {
-                GlobalDiscoveryServerUrl = "opc.tcp://gds.example.com:4840"
-            };
-            Assert.That(config.GlobalDiscoveryServerUrl, Is.EqualTo("opc.tcp://gds.example.com:4840"));
-        }
-
-        [Test]
-        public void ExternalEditorDefaultsToNull()
-        {
-            var config = new GlobalDiscoveryClientConfiguration();
-            Assert.That(config.ExternalEditor, Is.Null);
-        }
-
-        [Test]
-        public void ExternalEditorRoundTrip()
-        {
-            var config = new GlobalDiscoveryClientConfiguration
-            {
-                ExternalEditor = "notepad.exe"
-            };
-            Assert.That(config.ExternalEditor, Is.EqualTo("notepad.exe"));
-        }
-    }
-
-    [TestFixture]
-    [Category("GDS")]
-    [Parallelizable]
-    public class GdsClientCommonAdditionalLocalDiscoveryTests
-    {
-        private static readonly string[] s_frenchGermanLocales = ["fr-FR", "de-DE"];
-        [Test]
-        public void ConstructorSetsApplicationConfiguration()
-        {
-            var appConfig = new ApplicationConfiguration();
-            var client = new LocalDiscoveryServerClient(appConfig);
-            Assert.That(client.ApplicationConfiguration, Is.SameAs(appConfig));
-        }
-
-        [Test]
-        public void ConstructorSetsDefaultDiagnosticsMasksToNone()
-        {
-            var appConfig = new ApplicationConfiguration();
-            var client = new LocalDiscoveryServerClient(appConfig);
-            Assert.That(client.DiagnosticsMasks, Is.EqualTo(DiagnosticsMasks.None));
-        }
-
-        [Test]
-        public void ConstructorWithCustomDiagnosticsMasks()
-        {
-            var appConfig = new ApplicationConfiguration();
-            var client = new LocalDiscoveryServerClient(appConfig, DiagnosticsMasks.All);
-            Assert.That(client.DiagnosticsMasks, Is.EqualTo(DiagnosticsMasks.All));
-        }
-
-        [Test]
-        public void ConstructorCreatesMessageContext()
-        {
-            var appConfig = new ApplicationConfiguration();
-            var client = new LocalDiscoveryServerClient(appConfig);
-            Assert.That(client.MessageContext, Is.Not.Null);
-        }
-
-        [Test]
-        public void ConstructorSetsPreferredLocalesIncludingEnUs()
-        {
-            var appConfig = new ApplicationConfiguration();
-            var client = new LocalDiscoveryServerClient(appConfig);
-            Assert.That(client.PreferredLocales.IsEmpty, Is.False);
-            Assert.That(client.PreferredLocales.ToList(), Does.Contain("en-US"));
-        }
-
-        [Test]
-        public void PreferredLocalesContainsCurrentCulture()
-        {
-            var appConfig = new ApplicationConfiguration();
-            var client = new LocalDiscoveryServerClient(appConfig);
-            string currentUiCulture = System.Globalization.CultureInfo.CurrentUICulture.Name;
-            Assert.That(client.PreferredLocales.ToList(), Does.Contain(currentUiCulture));
-        }
-
-        [Test]
-        public void DefaultOperationTimeoutDefaultsToZero()
-        {
-            var appConfig = new ApplicationConfiguration();
-            var client = new LocalDiscoveryServerClient(appConfig);
-            Assert.That(client.DefaultOperationTimeout, Is.EqualTo(0));
-        }
-
-        [Test]
-        public void DefaultOperationTimeoutRoundTrip()
-        {
-            var appConfig = new ApplicationConfiguration();
-            var client = new LocalDiscoveryServerClient(appConfig);
-            client.DefaultOperationTimeout = 30000;
-            Assert.That(client.DefaultOperationTimeout, Is.EqualTo(30000));
-        }
-
-        [Test]
-        public void PreferredLocalesCanBeReplaced()
-        {
-            var appConfig = new ApplicationConfiguration();
-            var client = new LocalDiscoveryServerClient(appConfig);
-            var newLocales = new ArrayOf<string>(s_frenchGermanLocales);
-            client.PreferredLocales = newLocales;
-            Assert.That(client.PreferredLocales.ToList(), Does.Contain("fr-FR"));
-            Assert.That(client.PreferredLocales.ToList(), Does.Contain("de-DE"));
-        }
-    }
-
-    [TestFixture]
-    [Category("GDS")]
-    [Parallelizable]
-    public class GdsClientCommonAdditionalRegisteredAppTests
-    {
+        private static readonly string[] s_pfxPemFormats = ["PFX", "PEM"];
         private static readonly string[] s_pemOnlyFormats = ["PEM"];
+
+        [Test]
+        public void GetHttpsDomainNameReturnsHostFromDiscoveryUrl()
+        {
+            var app = new RegisteredApplication
+            {
+                DiscoveryUrl = ["opc.tcp://myserver.example.com:4840"]
+            };
+            string result = app.GetHttpsDomainName();
+            Assert.That(result, Is.EqualTo("myserver.example.com"));
+        }
+
+        [Test]
+        public void GetHttpsDomainNameReplacesLocalhostWithHostName()
+        {
+            var app = new RegisteredApplication
+            {
+                DiscoveryUrl = ["opc.tcp://localhost:4840"]
+            };
+            string result = app.GetHttpsDomainName();
+            Assert.That(result, Is.EqualTo(Utils.GetHostName()));
+        }
+
+        [Test]
+        public void GetHttpsDomainNameReturnsNullWhenNoDiscoveryUrls()
+        {
+            var app = new RegisteredApplication();
+            string result = app.GetHttpsDomainName();
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public void GetHttpsDomainNameSkipsInvalidUrls()
+        {
+            var app = new RegisteredApplication
+            {
+                DiscoveryUrl = ["not a url", "opc.tcp://valid.example.com:4840"]
+            };
+            string result = app.GetHttpsDomainName();
+            Assert.That(result, Is.EqualTo("valid.example.com"));
+        }
+
+        [Test]
+        public void GetPrivateKeyFormatReturnsPfxByDefault()
+        {
+            var app = new RegisteredApplication
+            {
+                RegistrationType = RegistrationType.ClientPull
+            };
+            string result = app.GetPrivateKeyFormat();
+            Assert.That(result, Is.EqualTo("PFX"));
+        }
+
+        [Test]
+        public void GetPrivateKeyFormatReturnsPemWhenPathEndsPem()
+        {
+            var app = new RegisteredApplication
+            {
+                RegistrationType = RegistrationType.ClientPull,
+                CertificatePrivateKeyPath = "/certs/key.PEM"
+            };
+            string result = app.GetPrivateKeyFormat();
+            Assert.That(result, Is.EqualTo("PEM"));
+        }
+
+        [Test]
+        public void GetPrivateKeyFormatServerPushReturnsPemWhenNoPfxSupport()
+        {
+            var app = new RegisteredApplication
+            {
+                RegistrationType = RegistrationType.ServerPush
+            };
+            string result = app.GetPrivateKeyFormat(null);
+            Assert.That(result, Is.EqualTo("PEM"));
+        }
+
+        [Test]
+        public void GetPrivateKeyFormatServerPushReturnsPfxWhenPfxSupported()
+        {
+            var app = new RegisteredApplication
+            {
+                RegistrationType = RegistrationType.ServerPush
+            };
+            string result = app.GetPrivateKeyFormat(s_pfxPemFormats);
+            Assert.That(result, Is.EqualTo("PFX"));
+        }
+
+        [Test]
+        public void GetDomainNamesReturnsParsedDomains()
+        {
+            var app = new RegisteredApplication
+            {
+                Domains = "host1.com, host2.com, host3.com"
+            };
+            List<string> result = app.GetDomainNames(null);
+            Assert.That(result, Has.Count.EqualTo(3));
+            Assert.That(result, Does.Contain("host1.com"));
+            Assert.That(result, Does.Contain("host2.com"));
+            Assert.That(result, Does.Contain("host3.com"));
+        }
+
+        [Test]
+        public void GetDomainNamesFromDiscoveryUrls()
+        {
+            var app = new RegisteredApplication
+            {
+                DiscoveryUrl = [
+                    "opc.tcp://server1.example.com:4840",
+                    "opc.tcp://server2.example.com:4840"
+                ]
+            };
+            List<string> result = app.GetDomainNames(null);
+            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(result, Does.Contain("server1.example.com"));
+            Assert.That(result, Does.Contain("server2.example.com"));
+        }
+
+        [Test]
+        public void GetDomainNamesDeduplicatesUrls()
+        {
+            var app = new RegisteredApplication
+            {
+                DiscoveryUrl = [
+                    "opc.tcp://server.example.com:4840",
+                    "opc.tcp://server.example.com:4841"
+                ]
+            };
+            List<string> result = app.GetDomainNames(null);
+            Assert.That(result, Has.Count.EqualTo(1));
+            Assert.That(result[0], Is.EqualTo("server.example.com"));
+        }
+
+        [Test]
+        public void GetDomainNamesFallsBackToHostName()
+        {
+            var app = new RegisteredApplication();
+            List<string> result = app.GetDomainNames(null);
+            Assert.That(result, Has.Count.EqualTo(1));
+            Assert.That(result[0], Is.EqualTo(Utils.GetHostName()));
+        }
+
+        private static readonly string[] s_testHostDomains = ["testhost.example.com"];
+
+        [Test]
+        public void GetDomainNamesFromCertificate()
+        {
+            using X509Certificate2 cert = CertificateFactory.CreateCertificate(
+                "urn:test:app",
+                "TestApp",
+                "CN=TestApp,DC=testdomain,DC=com",
+                new ArrayOf<string>(s_testHostDomains))
+                .CreateForRSA();
+
+            var app = new RegisteredApplication();
+            List<string> result = app.GetDomainNames(cert);
+            Assert.That(result, Is.Not.Empty);
+        }
+
+        [Test]
+        public void GetDomainNamesEmptyDomainsStringFallsThrough()
+        {
+            var app = new RegisteredApplication
+            {
+                Domains = "  ,  ,  ",
+                DiscoveryUrl = ["opc.tcp://fallback.example.com:4840"]
+            };
+            List<string> result = app.GetDomainNames(null);
+            Assert.That(result, Does.Contain("fallback.example.com"));
+        }
+
         [Test]
         public void ApplicationIdDefaultsToNull()
         {
@@ -260,7 +247,7 @@ namespace Opc.Ua.Gds.Tests
             var app = new RegisteredApplication
             {
                 RegistrationType = RegistrationType.ClientPull,
-                CertificatePrivateKeyPath = ""
+                CertificatePrivateKeyPath = string.Empty
             };
             string result = app.GetPrivateKeyFormat();
             Assert.That(result, Is.EqualTo("PFX"));
@@ -283,7 +270,7 @@ namespace Opc.Ua.Gds.Tests
         {
             var app = new RegisteredApplication
             {
-                DiscoveryUrl = new[] { "opc.tcp://localhost:4840" }
+                DiscoveryUrl = ["opc.tcp://localhost:4840"]
             };
             List<string> result = app.GetDomainNames(null);
             Assert.That(result, Has.Count.EqualTo(1));
@@ -295,7 +282,7 @@ namespace Opc.Ua.Gds.Tests
         {
             var app = new RegisteredApplication
             {
-                DiscoveryUrl = new[] { "not-a-url", "also not valid" }
+                DiscoveryUrl = ["not-a-url", "also not valid"]
             };
             List<string> result = app.GetDomainNames(null);
             Assert.That(result, Has.Count.EqualTo(1));
@@ -307,7 +294,7 @@ namespace Opc.Ua.Gds.Tests
         {
             var app = new RegisteredApplication
             {
-                DiscoveryUrl = Array.Empty<string>()
+                DiscoveryUrl = []
             };
             string result = app.GetHttpsDomainName();
             Assert.That(result, Is.Null);
@@ -336,8 +323,8 @@ namespace Opc.Ua.Gds.Tests
                 CertificateRequestId = "req-123",
                 Domains = "host1.com,host2.com",
                 RegistrationType = RegistrationType.ServerPull,
-                ServerCapability = new[] { "DA", "HD" },
-                DiscoveryUrl = new[] { "opc.tcp://server:4840" }
+                ServerCapability = ["DA", "HD"],
+                DiscoveryUrl = ["opc.tcp://server:4840"]
             };
 
             Assert.That(app.ApplicationUri, Is.EqualTo("urn:test:app"));
@@ -367,60 +354,17 @@ namespace Opc.Ua.Gds.Tests
         {
             var app = new RegisteredApplication
             {
-                DiscoveryUrl = new[] {
+                DiscoveryUrl = [
                     "not-valid",
                     "opc.tcp://server1.example.com:4840",
                     "also-not-valid",
                     "opc.tcp://server2.example.com:4841"
-                }
+                ]
             };
             List<string> result = app.GetDomainNames(null);
             Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result, Does.Contain("server1.example.com"));
             Assert.That(result, Does.Contain("server2.example.com"));
-        }
-    }
-
-    [TestFixture]
-    [Category("GDS")]
-    [Parallelizable]
-    public class GdsClientCommonAdditionalCertificateWrapperTests
-    {
-        private static readonly string[] s_localhostDomains = ["localhost"];
-        [Test]
-        public void CertificatePropertyDefaultsToNull()
-        {
-            var wrapper = new CertificateWrapper();
-            Assert.That(wrapper.Certificate, Is.Null);
-        }
-
-        [Test]
-        public void CertificatePropertyRoundTrip()
-        {
-            using var cert = CertificateFactory.CreateCertificate(
-                "urn:test:roundtrip",
-                "RoundTrip",
-                "CN=RoundTrip",
-                new ArrayOf<string>(s_localhostDomains))
-                .CreateForRSA();
-
-            var wrapper = new CertificateWrapper { Certificate = cert };
-            Assert.That(wrapper.Certificate, Is.SameAs(cert));
-        }
-
-        [Test]
-        public void ToStringWithNullFormatReturnsSubjectName()
-        {
-            using var cert = CertificateFactory.CreateCertificate(
-                "urn:test:tostring",
-                "ToStringTest",
-                "CN=ToStringTest",
-                new ArrayOf<string>(s_localhostDomains))
-                .CreateForRSA();
-
-            var wrapper = new CertificateWrapper { Certificate = cert };
-            string result = wrapper.ToString(null, null);
-            Assert.That(result, Is.EqualTo(cert.Subject));
         }
     }
 }

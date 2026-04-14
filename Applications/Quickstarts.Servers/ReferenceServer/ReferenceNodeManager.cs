@@ -4895,12 +4895,12 @@ namespace Quickstarts.ReferenceServer
             // quickly exclude nodes that are not in the namespace.
             if (!IsNodeIdInNamespace(nodeId))
             {
-                return default(ValueTask<NodeHandle>);
+                return default;
             }
 
             if (!PredefinedNodes.TryGetValue(nodeId, out NodeState node))
             {
-                return default(ValueTask<NodeHandle>);
+                return default;
             }
 
             return new ValueTask<NodeHandle>(new NodeHandle

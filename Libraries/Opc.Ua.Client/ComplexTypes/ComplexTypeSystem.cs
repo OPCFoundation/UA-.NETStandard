@@ -379,7 +379,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public IReadOnlyList<XmlQualifiedName> GetDefinedTypes()
         {
-            return m_complexTypeBuilderFactory.GetTypes().Select(c => c.XmlName).ToList();
+            return [.. m_complexTypeBuilderFactory.GetTypes().Select(c => c.XmlName)];
         }
 
         /// <summary>
@@ -1527,6 +1527,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// types at the end of the list, so they can be added to the factory in order.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         private static void SplitAndSortDictionary(
             DataDictionary dictionary,
             List<Schema.Binary.TypeDescription> structureList,

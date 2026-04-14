@@ -41,18 +41,18 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class SessionExtensionsTests
     {
-        private Mock<ISession> _session = null!;
+        private Mock<ISession> m_session;
 
         [SetUp]
         public void SetUp()
         {
-            _session = new Mock<ISession>(MockBehavior.Strict);
+            m_session = new Mock<ISession>(MockBehavior.Strict);
         }
 
         [TearDown]
         public void TearDown()
         {
-            _session.Verify();
+            m_session.Verify();
         }
 
         [Test]
@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Tests
 
             // The 3-param extension chains through the 5-param and 6-param extensions
             // ultimately calling the 7-param ISession.OpenAsync
-            _session
+            m_session
                 .Setup(s => s.OpenAsync(
                     "TestSession",
                     0u,
@@ -74,9 +74,9 @@ namespace Opc.Ua.Client.Tests
                 .Returns(Task.CompletedTask)
                 .Verifiable();
 
-            await _session.Object.OpenAsync("TestSession", identity).ConfigureAwait(false);
+            await m_session.Object.OpenAsync("TestSession", identity).ConfigureAwait(false);
 
-            _session.Verify(s => s.OpenAsync(
+            m_session.Verify(s => s.OpenAsync(
                 "TestSession",
                 0u,
                 identity,
@@ -92,7 +92,7 @@ namespace Opc.Ua.Client.Tests
             var identity = new UserIdentity();
             ArrayOf<string> locales = ["en", "de"];
 
-            _session
+            m_session
                 .Setup(s => s.OpenAsync(
                     "TestSession",
                     60000u,
@@ -104,9 +104,9 @@ namespace Opc.Ua.Client.Tests
                 .Returns(Task.CompletedTask)
                 .Verifiable();
 
-            await _session.Object.OpenAsync("TestSession", 60000u, identity, locales).ConfigureAwait(false);
+            await m_session.Object.OpenAsync("TestSession", 60000u, identity, locales).ConfigureAwait(false);
 
-            _session.Verify(s => s.OpenAsync(
+            m_session.Verify(s => s.OpenAsync(
                 "TestSession",
                 60000u,
                 identity,
@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.Tests
             var identity = new UserIdentity();
             ArrayOf<string> locales = ["en"];
 
-            _session
+            m_session
                 .Setup(s => s.OpenAsync(
                     "TestSession",
                     30000u,
@@ -134,9 +134,9 @@ namespace Opc.Ua.Client.Tests
                 .Returns(Task.CompletedTask)
                 .Verifiable();
 
-            await _session.Object.OpenAsync("TestSession", 30000u, identity, locales, false).ConfigureAwait(false);
+            await m_session.Object.OpenAsync("TestSession", 30000u, identity, locales, false).ConfigureAwait(false);
 
-            _session.Verify(s => s.OpenAsync(
+            m_session.Verify(s => s.OpenAsync(
                 "TestSession",
                 30000u,
                 identity,
@@ -149,14 +149,14 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task ReconnectAsyncWithNoArgsForwardsCorrectlyAsync()
         {
-            _session
+            m_session
                 .Setup(s => s.ReconnectAsync(null, null, It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask)
                 .Verifiable();
 
-            await _session.Object.ReconnectAsync().ConfigureAwait(false);
+            await m_session.Object.ReconnectAsync().ConfigureAwait(false);
 
-            _session.Verify(s => s.ReconnectAsync(
+            m_session.Verify(s => s.ReconnectAsync(
                 null, null, It.IsAny<CancellationToken>()), Times.Once);
         }
 
@@ -165,14 +165,14 @@ namespace Opc.Ua.Client.Tests
         {
             var connection = new Mock<ITransportWaitingConnection>();
 
-            _session
+            m_session
                 .Setup(s => s.ReconnectAsync(connection.Object, null, It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask)
                 .Verifiable();
 
-            await _session.Object.ReconnectAsync(connection.Object).ConfigureAwait(false);
+            await m_session.Object.ReconnectAsync(connection.Object).ConfigureAwait(false);
 
-            _session.Verify(s => s.ReconnectAsync(
+            m_session.Verify(s => s.ReconnectAsync(
                 connection.Object, null, It.IsAny<CancellationToken>()), Times.Once);
         }
 
@@ -181,30 +181,30 @@ namespace Opc.Ua.Client.Tests
         {
             var channel = new Mock<ITransportChannel>();
 
-            _session
+            m_session
                 .Setup(s => s.ReconnectAsync(null, channel.Object, It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask)
                 .Verifiable();
 
-            await _session.Object.ReconnectAsync(channel.Object).ConfigureAwait(false);
+            await m_session.Object.ReconnectAsync(channel.Object).ConfigureAwait(false);
 
-            _session.Verify(s => s.ReconnectAsync(
+            m_session.Verify(s => s.ReconnectAsync(
                 null, channel.Object, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]
         public async Task CloseAsyncWithCloseChannelForwardsCorrectlyAsync()
         {
-            _session
+            m_session
                 .SetupGet(s => s.KeepAliveInterval)
                 .Returns(5000);
 
-            _session
+            m_session
                 .Setup(s => s.CloseAsync(5000, true, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(StatusCodes.Good)
                 .Verifiable();
 
-            StatusCode result = await _session.Object.CloseAsync(true).ConfigureAwait(false);
+            StatusCode result = await m_session.Object.CloseAsync(true).ConfigureAwait(false);
 
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
         }
@@ -212,16 +212,16 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task CloseAsyncWithCloseChannelFalseForwardsCorrectlyAsync()
         {
-            _session
+            m_session
                 .SetupGet(s => s.KeepAliveInterval)
                 .Returns(10000);
 
-            _session
+            m_session
                 .Setup(s => s.CloseAsync(10000, false, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(StatusCodes.Good)
                 .Verifiable();
 
-            StatusCode result = await _session.Object.CloseAsync(false).ConfigureAwait(false);
+            StatusCode result = await m_session.Object.CloseAsync(false).ConfigureAwait(false);
 
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
         }
@@ -229,12 +229,12 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task CloseAsyncWithTimeoutForwardsCorrectlyAsync()
         {
-            _session
+            m_session
                 .Setup(s => s.CloseAsync(3000, true, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(StatusCodes.Good)
                 .Verifiable();
 
-            StatusCode result = await _session.Object.CloseAsync(3000).ConfigureAwait(false);
+            StatusCode result = await m_session.Object.CloseAsync(3000).ConfigureAwait(false);
 
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
         }
@@ -242,38 +242,38 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void SaveWithSubscriptionsForwardsToStreamSave()
         {
-            var subscriptions = System.Array.Empty<Subscription>();
-            _session
+            Subscription[] subscriptions = [];
+            m_session
                 .SetupGet(s => s.Subscriptions)
                 .Returns(subscriptions);
 
             // The Save(filePath) extension calls Save(filePath, session.Subscriptions, null)
             // which creates a FileStream. We test that it reads Subscriptions.
-            Assert.That(_session.Object.Subscriptions, Is.SameAs(subscriptions));
+            Assert.That(m_session.Object.Subscriptions, Is.SameAs(subscriptions));
         }
 
         [Test]
         public void ReadByteStringInChunksAsyncThrowsWhenMaxByteStringLengthTooSmall()
         {
             var capabilities = new ServerCapabilities { MaxByteStringLength = 0 };
-            _session
+            m_session
                 .SetupGet(s => s.ServerCapabilities)
                 .Returns(capabilities);
 
             Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await _session.Object.ReadByteStringInChunksAsync(new NodeId(1)).ConfigureAwait(false));
+                await m_session.Object.ReadByteStringInChunksAsync(new NodeId(1)).ConfigureAwait(false));
         }
 
         [Test]
         public void ReadByteStringInChunksAsyncThrowsWhenMaxByteStringLengthIsOne()
         {
             var capabilities = new ServerCapabilities { MaxByteStringLength = 1 };
-            _session
+            m_session
                 .SetupGet(s => s.ServerCapabilities)
                 .Returns(capabilities);
 
             Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await _session.Object.ReadByteStringInChunksAsync(new NodeId(1)).ConfigureAwait(false));
+                await m_session.Object.ReadByteStringInChunksAsync(new NodeId(1)).ConfigureAwait(false));
         }
     }
 }

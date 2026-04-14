@@ -62,6 +62,7 @@ namespace Opc.Ua.Configuration
             }
             GC.SuppressFinalize(this);
         }
+
         /// <summary>
         /// Obsolete constructor
         /// </summary>

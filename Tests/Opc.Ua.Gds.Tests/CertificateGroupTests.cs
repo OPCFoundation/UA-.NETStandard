@@ -84,7 +84,7 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2Collection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
-            Assert.That(certs.Count == 1, Is.True);
+            Assert.That(certs, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -130,7 +130,7 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2Collection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
-            Assert.That(certs.Count >= 1, Is.True);
+            Assert.That(certs, Is.Not.Empty);
             X509Certificate2 signedCert = CertificateBuilder.Create("CN=signedCert")
                .SetIssuer(authCert)
                .CreateForRSA();
@@ -175,7 +175,7 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(certificate, Is.Not.Null);
                 crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
                 Assert.That(crls, Is.Not.Null);
-                Assert.That(crls.Count, Is.EqualTo(1));
+                Assert.That(crls, Has.Count.EqualTo(1));
                 X509CRL crl2 = await CertificateGroup
                     .LoadCrlCreateEmptyIfNonExistantAsync(certificate, certificateStoreIdentifier, telemetry)
                     .ConfigureAwait(false);
@@ -213,7 +213,7 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2 ca = CertificateBuilder.Create("CN=TestCA").SetCAConstraint().CreateForRSA();
             X509CRL crl = await CertificateGroup.CreateEmptyCrlAsync(ca).ConfigureAwait(false);
             Assert.That(crl, Is.Not.Null);
-            Assert.That(crl.RevokedCertificates.Count, Is.Zero);
+            Assert.That(crl.RevokedCertificates, Is.Empty);
         }
 
         [Test]
@@ -259,7 +259,7 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2Collection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
-            Assert.That(certs.Count >= 1, Is.True);
+            Assert.That(certs, Is.Not.Empty);
             X509Certificate2 signedCACert = CertificateBuilder.Create("CN=signedCert")
                 .SetCAConstraint()
                 .SetIssuer(authCert)
@@ -313,7 +313,7 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2Collection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
-            Assert.That(certs.Count >= 1, Is.True);
+            Assert.That(certs, Is.Not.Empty);
             X509Certificate2 signedCACert = CertificateBuilder.Create("CN=signedCert")
                 .SetCAConstraint()
                 .SetIssuer(authCert)
@@ -362,10 +362,10 @@ namespace Opc.Ua.Gds.Tests
                 X509Certificate2Collection certs = await trustedStore
                     .FindByThumbprintAsync(certificate.Thumbprint)
                     .ConfigureAwait(false);
-                Assert.That(certs.Count == 1, Is.True);
+                Assert.That(certs, Has.Count.EqualTo(1));
                 X509CRLCollection crls = await trustedStore.EnumerateCRLsAsync(certificate)
                     .ConfigureAwait(false);
-                Assert.That(crls.Count, Is.EqualTo(1));
+                Assert.That(crls, Has.Count.EqualTo(1));
             }
 
             X509Certificate2 certificateUpdated = await certificateGroup
@@ -382,11 +382,11 @@ namespace Opc.Ua.Gds.Tests
                 X509Certificate2Collection certs = await trustedStore
                     .FindByThumbprintAsync(certificate.Thumbprint)
                     .ConfigureAwait(false);
-                Assert.That(certs.Count == 1, Is.True);
+                Assert.That(certs, Has.Count.EqualTo(1));
                 X509CRLCollection crls = await trustedStore
                     .EnumerateCRLsAsync(certificateUpdated)
                     .ConfigureAwait(false);
-                Assert.That(crls.Count, Is.EqualTo(1));
+                Assert.That(crls, Has.Count.EqualTo(1));
             }
         }
 

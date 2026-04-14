@@ -278,7 +278,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
                 ApplicationType = Opc.Ua.ApplicationType.Server,
                 SecurityConfiguration = new SecurityConfiguration
                 {
-                    ApplicationCertificate = new Opc.Ua.CertificateIdentifier
+                    ApplicationCertificate = new CertificateIdentifier
                     {
                         StoreType = CertificateStoreType.Directory,
                         StorePath = "%LocalApplicationData%/OPC/certs",
@@ -294,7 +294,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
                         StoreType = CertificateStoreType.Directory,
                         StorePath = "%LocalApplicationData%/OPC/issuers"
                     },
-                    RejectedCertificateStore = new Opc.Ua.CertificateStoreIdentifier
+                    RejectedCertificateStore = new CertificateStoreIdentifier
                     {
                         StoreType = CertificateStoreType.Directory,
                         StorePath = "%LocalApplicationData%/OPC/rejected"

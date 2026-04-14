@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var source = new RandomSource(42);
             int result = source.NextInt32(0);
-            Assert.That(result, Is.EqualTo(0));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -105,7 +105,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             for (int i = 0; i < bytes.Length; i++)
             {
                 if (bytes[i] != 0)
-                { hasNonZero = true; break; }
+                {
+                    hasNonZero = true;
+                    break;
+                }
             }
             Assert.That(hasNonZero, Is.True);
         }
@@ -118,7 +121,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             source.NextBytes(bytes, 5, 5);
             for (int i = 0; i < 5; i++)
             {
-                Assert.That(bytes[i], Is.EqualTo(0));
+                Assert.That(bytes[i], Is.Zero);
             }
         }
 
@@ -165,7 +168,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void NextBytesWithEmptyArrayDoesNotThrow()
         {
             var source = new RandomSource(42);
-            byte[] bytes = Array.Empty<byte>();
+            byte[] bytes = [];
             Assert.That(() => source.NextBytes(bytes, 0, 0), Throws.Nothing);
         }
     }
@@ -183,8 +186,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             m_telemetry = NUnitTelemetryContext.Create();
             m_generator = new DataGenerator(new RandomSource(42), m_telemetry);
-            m_boundaryGenerator = new DataGenerator(new RandomSource(99), m_telemetry);
-            m_boundaryGenerator.BoundaryValueFrequency = 100;
+            m_boundaryGenerator = new DataGenerator(new RandomSource(99), m_telemetry)
+            {
+                BoundaryValueFrequency = 100
+            };
         }
 
         [Test]
@@ -212,16 +217,18 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void PropertiesAreSettable()
         {
-            var generator = new DataGenerator(new RandomSource(1), m_telemetry);
-            generator.MaxArrayLength = 50;
-            generator.MaxStringLength = 50;
-            generator.MaxXmlAttributeCount = 5;
-            generator.MaxXmlElementCount = 5;
-            generator.BoundaryValueFrequency = 50;
-            generator.MinDateTimeValue = new DateTimeUtc(2000, 1, 1, 0, 0, 0);
-            generator.MaxDateTimeValue = new DateTimeUtc(2050, 1, 1, 0, 0, 0);
-            generator.NamespaceUris = new NamespaceTable();
-            generator.ServerUris = new StringTable();
+            var generator = new DataGenerator(new RandomSource(1), m_telemetry)
+            {
+                MaxArrayLength = 50,
+                MaxStringLength = 50,
+                MaxXmlAttributeCount = 5,
+                MaxXmlElementCount = 5,
+                BoundaryValueFrequency = 50,
+                MinDateTimeValue = new DateTimeUtc(2000, 1, 1, 0, 0, 0),
+                MaxDateTimeValue = new DateTimeUtc(2050, 1, 1, 0, 0, 0),
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable()
+            };
 
             Assert.That(generator.MaxArrayLength, Is.EqualTo(50));
             Assert.That(generator.MaxStringLength, Is.EqualTo(50));
@@ -312,7 +319,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             string result = m_generator.GetRandomString();
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
+            Assert.That(result, Is.Not.Empty);
         }
 
         [Test]
@@ -320,7 +327,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             string result = m_generator.GetRandomString("en-US");
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
+            Assert.That(result, Is.Not.Empty);
         }
 
         [Test]
@@ -328,7 +335,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             string result = m_generator.GetRandomString("xx-XX");
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
+            Assert.That(result, Is.Not.Empty);
         }
 
         [Test]
@@ -336,7 +343,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             string result = m_generator.GetRandomSymbol();
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
+            Assert.That(result, Is.Not.Empty);
         }
 
         [Test]
@@ -344,14 +351,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             string result = m_generator.GetRandomSymbol("en-US");
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
+            Assert.That(result, Is.Not.Empty);
         }
 
         [Test]
         public void GetRandomDateTimeProducesValue()
         {
             DateTimeUtc result = m_generator.GetRandomDateTime();
-            Assert.That(result, Is.Not.EqualTo(default(DateTimeUtc)));
+            Assert.That(result, Is.Not.Default);
         }
 
         [Test]
@@ -372,35 +379,35 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void GetRandomXmlElementProducesValue()
         {
             XmlElement result = m_generator.GetRandomXmlElement();
-            Assert.That(result, Is.Not.EqualTo(default(XmlElement)));
+            Assert.That(result, Is.Not.Default);
         }
 
         [Test]
         public void GetRandomNodeIdProducesValue()
         {
             NodeId result = m_generator.GetRandomNodeId();
-            Assert.That(result, Is.Not.EqualTo(default(NodeId)));
+            Assert.That(result, Is.Not.Default);
         }
 
         [Test]
         public void GetRandomExpandedNodeIdProducesValue()
         {
             ExpandedNodeId result = m_generator.GetRandomExpandedNodeId();
-            Assert.That(result, Is.Not.EqualTo(default(ExpandedNodeId)));
+            Assert.That(result, Is.Not.Default);
         }
 
         [Test]
         public void GetRandomQualifiedNameProducesValue()
         {
             QualifiedName result = m_generator.GetRandomQualifiedName();
-            Assert.That(result, Is.Not.EqualTo(default(QualifiedName)));
+            Assert.That(result, Is.Not.Default);
         }
 
         [Test]
         public void GetRandomLocalizedTextProducesValue()
         {
             LocalizedText result = m_generator.GetRandomLocalizedText();
-            Assert.That(result, Is.Not.EqualTo(default(LocalizedText)));
+            Assert.That(result, Is.Not.Default);
         }
 
         [Test]
@@ -414,7 +421,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void GetRandomExtensionObjectProducesValue()
         {
             ExtensionObject result = m_generator.GetRandomExtensionObject();
-            Assert.That(result, Is.Not.EqualTo(default(ExtensionObject)));
+            Assert.That(result, Is.Not.Default);
         }
 
         [Test]
@@ -813,7 +820,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void BoundaryValuesForByteStringProducesValue()
         {
             ByteString result = m_boundaryGenerator.GetRandomByteString(true);
-            Assert.That(result, Is.Not.EqualTo(default(ByteString)).Or.EqualTo(default(ByteString)));
+            Assert.That(result, Is.Not.Default.Or.Default);
         }
 
         [Test]
@@ -890,8 +897,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void GeneratorWithSmallMaxStringLengthProducesShortStrings()
         {
-            var generator = new DataGenerator(new RandomSource(42), m_telemetry);
-            generator.MaxStringLength = 5;
+            var generator = new DataGenerator(new RandomSource(42), m_telemetry)
+            {
+                MaxStringLength = 5
+            };
             string result = generator.GetRandomString();
             Assert.That(result, Is.Not.Null);
         }
@@ -899,8 +908,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void GeneratorWithSmallMaxArrayLengthProducesShortArrays()
         {
-            var generator = new DataGenerator(new RandomSource(42), m_telemetry);
-            generator.MaxArrayLength = 3;
+            var generator = new DataGenerator(new RandomSource(42), m_telemetry)
+            {
+                MaxArrayLength = 3
+            };
             Variant result = generator.GetRandomVariant(BuiltInType.Int32, true);
             Assert.That(result, Is.Not.EqualTo(Variant.Null));
         }

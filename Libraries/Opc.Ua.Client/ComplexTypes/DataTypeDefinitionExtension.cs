@@ -263,9 +263,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
 
-            var enumDefinition = new EnumDefinition();
-            enumDefinition.Fields = enumFields;
-            return enumDefinition;
+            return new EnumDefinition
+            {
+                Fields = enumFields
+            };
         }
 
         /// <summary>
@@ -308,9 +309,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 enumFields.Add(enumTypeField);
             }
 
-            var enumDefinition = new EnumDefinition();
-            enumDefinition.Fields = enumFields;
-            return enumDefinition;
+            return new EnumDefinition
+            {
+                Fields = enumFields
+            };
         }
 
         /// <summary>
@@ -348,9 +350,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 enumFields.Add(enumTypeField);
             }
 
-            var enumDefinition = new EnumDefinition();
-            enumDefinition.Fields = enumFields;
-            return enumDefinition;
+            return new EnumDefinition
+            {
+                Fields = enumFields
+            };
         }
 
         /// <summary>
@@ -381,14 +384,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     case "ExtensionObject":
                         return DataTypeIds.Structure;
                     default:
-                        System.Reflection.FieldInfo? internalField = typeof(DataTypeIds).GetField(
-                            typeName.Name);
-                        if (internalField == null)
+                        if (!DataTypes.TryGetIdentifier(typeName.Name, out uint id))
                         {
-                            // The type was not found in the internal type factory.
-                            return NodeId.Null;
+                            return default;
                         }
-                        return (NodeId)internalField.GetValue(typeName.Name)!;
+                        return new NodeId(id);
                 }
             }
             if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))

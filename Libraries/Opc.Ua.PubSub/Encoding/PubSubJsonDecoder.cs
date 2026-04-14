@@ -1487,16 +1487,12 @@ namespace Opc.Ua.PubSub.Encoding
 
                     if (inlineValues)
                     {
-                        encodeable = Activator.CreateInstance(systemType) as IEncodeable;
-
-                        if (encodeable == null)
-                        {
-                            throw new ServiceResultException(
+                        encodeable = Activator.CreateInstance(systemType) as IEncodeable
+                            ?? throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,
                                 Utils.Format(
                                     "Type does not support IEncodeable interface: '{0}'",
                                     systemType.FullName));
-                        }
 
                         encodeable.Decode(this);
                     }

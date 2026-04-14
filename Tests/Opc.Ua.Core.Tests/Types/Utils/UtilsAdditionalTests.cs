@@ -243,7 +243,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToInt32ToUInt32RoundTrip()
         {
-            uint original = 3000000000u;
+            const uint original = 3000000000u;
             int signed = Utils.ToInt32(original);
             uint roundTripped = Utils.ToUInt32(signed);
             Assert.That(roundTripped, Is.EqualTo(original));

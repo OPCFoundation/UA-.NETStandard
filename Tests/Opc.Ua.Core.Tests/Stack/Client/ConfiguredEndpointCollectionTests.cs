@@ -165,7 +165,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void RemoveServerRemovesAllMatchingEndpoints()
         {
             var collection = new ConfiguredEndpointCollection();
-            string serverUri = "urn:server1:opcua";
+            const string serverUri = "urn:server1:opcua";
 
             var desc1 = new EndpointDescription
             {
@@ -255,7 +255,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void SetApplicationDescriptionUpdatesExistingEndpoints()
         {
             var collection = new ConfiguredEndpointCollection();
-            string serverUri = "urn:myserver:opcua";
+            const string serverUri = "urn:myserver:opcua";
 
             var desc = new EndpointDescription
             {

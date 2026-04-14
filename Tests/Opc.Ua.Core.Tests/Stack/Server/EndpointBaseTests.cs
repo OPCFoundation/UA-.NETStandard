@@ -31,7 +31,6 @@ using System;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Opc.Ua;
 
 namespace Opc.Ua.Core.Tests.Stack.Server
 {
@@ -212,7 +211,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var parameters = new AdditionalParametersType
             {
                 Parameters = [
-                    new Opc.Ua.KeyValuePair
+                    new KeyValuePair
                     {
                         Key = new QualifiedName("SomeOtherKey"),
                         Value = Variant.From(42)
@@ -229,7 +228,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var parameters = new AdditionalParametersType
             {
                 Parameters = [
-                    new Opc.Ua.KeyValuePair
+                    new KeyValuePair
                     {
                         Key = new QualifiedName("SpanContext"),
                         Value = Variant.From("not a span context")

@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToHexStringEmptyArrayReturnsEmpty()
         {
-            string result = Utils.ToHexString(Array.Empty<byte>());
+            string result = Utils.ToHexString([]);
             Assert.That(result, Is.Empty);
         }
 
@@ -200,7 +200,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var list1 = new List<int> { 1, 2, 3 };
             var list2 = new List<int> { 1, 2, 3 };
-            Assert.That(Utils.IsEqual<int>(list1, list2), Is.True);
+            Assert.That(Utils.IsEqual(list1, list2), Is.True);
         }
 
         [Test]
@@ -208,7 +208,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var list1 = new List<int> { 1, 2, 3 };
             var list2 = new List<int> { 1, 2, 4 };
-            Assert.That(Utils.IsEqual<int>(list1, list2), Is.False);
+            Assert.That(Utils.IsEqual(list1, list2), Is.False);
         }
 
         [Test]
@@ -216,7 +216,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var list1 = new List<int> { 1, 2 };
             var list2 = new List<int> { 1, 2, 3 };
-            Assert.That(Utils.IsEqual<int>(list1, list2), Is.False);
+            Assert.That(Utils.IsEqual(list1, list2), Is.False);
         }
 
         [Test]
@@ -224,7 +224,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             Assert.That(
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-                Utils.IsEqual<int>((IEnumerable<int>)null, (IEnumerable<int>)null),
+                Utils.IsEqual((IEnumerable<int>)null, (IEnumerable<int>)null),
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
                 Is.True);
         }
@@ -234,7 +234,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             Assert.That(
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-                Utils.IsEqual<int>(new List<int> { 1 }, (IEnumerable<int>)null),
+                Utils.IsEqual(new List<int> { 1 }, (IEnumerable<int>)null),
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
                 Is.False);
         }
@@ -293,7 +293,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void AppendEmptyArraysReturnsEmpty()
         {
             byte[] result = Utils.Append(
-                Array.Empty<byte>(), Array.Empty<byte>());
+                [], []);
             Assert.That(result, Has.Length.EqualTo(0));
         }
 

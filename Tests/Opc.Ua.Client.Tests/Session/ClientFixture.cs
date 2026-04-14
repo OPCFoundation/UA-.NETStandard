@@ -322,14 +322,7 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint,
             IUserIdentity userIdentity = null)
         {
-            if (endpoint == null)
-            {
-                endpoint = Endpoint;
-                if (endpoint == null)
-                {
-                    throw new ArgumentNullException(nameof(endpoint));
-                }
-            }
+            endpoint ??= Endpoint ?? throw new ArgumentNullException(nameof(endpoint));
 
             ISession session = await SessionFactory
                 .CreateAsync(

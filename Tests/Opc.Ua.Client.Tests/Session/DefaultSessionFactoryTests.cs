@@ -284,7 +284,7 @@ namespace Opc.Ua.Client.Tests
             var factory = new DefaultSessionFactory(_telemetry);
             var mockSession = new Mock<ISession>();
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(mockSession.Object).ConfigureAwait(false));
 
             Assert.That(ex!.ParamName, Is.EqualTo("sessionTemplate"));
@@ -297,7 +297,7 @@ namespace Opc.Ua.Client.Tests
             var mockSession = new Mock<ISession>();
             var mockConnection = new Mock<ITransportWaitingConnection>();
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(mockSession.Object, mockConnection.Object).ConfigureAwait(false));
 
             Assert.That(ex!.ParamName, Is.EqualTo("sessionTemplate"));
@@ -310,7 +310,7 @@ namespace Opc.Ua.Client.Tests
             var mockSession = new Mock<ISession>();
             var mockChannel = new Mock<ITransportChannel>();
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(mockSession.Object, mockChannel.Object).ConfigureAwait(false));
 
             Assert.That(ex!.ParamName, Is.EqualTo("sessionTemplate"));

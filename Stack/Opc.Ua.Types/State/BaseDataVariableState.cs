@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// A typed base class for all data variable nodes.
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class BaseDataVariableState : BaseVariableState
     {
         /// <summary>
@@ -219,7 +219,7 @@ namespace Opc.Ua
     /// A typed base class for all data variable nodes.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public abstract class BaseDataVariableState<T> : BaseDataVariableState
     {
         /// <summary>

@@ -71,7 +71,7 @@ namespace Opc.Ua.Gds.Tests
                 NamespaceUris = m_namespaceTable
             };
 
-            var ex = Assert.Throws<ServiceResultException>(() =>
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
                     AuthorizationHelper.DiscoveryAdmin));
@@ -134,7 +134,7 @@ namespace Opc.Ua.Gds.Tests
                 NamespaceUris = m_namespaceTable
             };
 
-            var ex = Assert.Throws<ServiceResultException>(() =>
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
                     AuthorizationHelper.DiscoveryAdminOrSelfAdmin,
@@ -157,7 +157,7 @@ namespace Opc.Ua.Gds.Tests
                 NamespaceUris = m_namespaceTable
             };
 
-            var ex = Assert.Throws<ServiceResultException>(() =>
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
                     AuthorizationHelper.DiscoveryAdminOrSelfAdmin,
@@ -176,7 +176,7 @@ namespace Opc.Ua.Gds.Tests
                 NamespaceUris = m_namespaceTable
             };
 
-            var ex = Assert.Throws<ServiceResultException>(() =>
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
                     AuthorizationHelper.CertificateAuthorityAdmin));
@@ -239,7 +239,7 @@ namespace Opc.Ua.Gds.Tests
                 NamespaceUris = m_namespaceTable
             };
 
-            var ex = Assert.Throws<ServiceResultException>(() =>
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthenticatedSecureChannel(context));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -330,7 +330,7 @@ namespace Opc.Ua.Gds.Tests
                 NamespaceUris = m_namespaceTable
             };
 
-            var ex = Assert.Throws<ServiceResultException>(() =>
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
                     AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin,

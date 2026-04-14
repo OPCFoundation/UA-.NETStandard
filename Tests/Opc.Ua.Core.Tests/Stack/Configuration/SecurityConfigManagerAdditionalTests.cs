@@ -310,7 +310,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
         [Test]
         public void ReadConfigurationWithDiscoveryServerConfig()
         {
-            string xml =
+            const string xml =
 @"<?xml version=""1.0"" encoding=""utf-8""?>
 <ApplicationConfiguration xmlns=""http://opcfoundation.org/UA/SDK/Configuration.xsd""
     xmlns:ua=""http://opcfoundation.org/UA/2008/02/Types.xsd"">

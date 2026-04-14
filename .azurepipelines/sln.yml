@@ -8,6 +8,7 @@ parameters:
 jobs:
 - job: buildallsln${{ parameters.jobnamesuffix }}
   displayName: Build Solutions ${{ parameters.jobnamesuffix }}
+  timeoutInMinutes: 90
   pool:
     vmImage: ${{ parameters.poolImage }}
   steps:

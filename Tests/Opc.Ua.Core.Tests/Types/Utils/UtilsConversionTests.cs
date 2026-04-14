@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Xml;
-using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
@@ -49,7 +48,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToHexStringWithEmptyArray()
         {
-            string result = Utils.ToHexString(Array.Empty<byte>());
+            string result = Utils.ToHexString([]);
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 
@@ -141,7 +140,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToUInt32RoundTrip()
         {
-            uint original = 0x80000001;
+            const uint original = 0x80000001u;
             int signed = Utils.ToInt32(original);
             uint roundTripped = Utils.ToUInt32(signed);
             Assert.That(roundTripped, Is.EqualTo(original));
@@ -187,6 +186,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             uint id = 5;
             uint oldValue = Utils.SetIdentifierToAtLeast(ref id, 10);
             Assert.That(id, Is.EqualTo(10u));
+            Assert.That(oldValue, Is.EqualTo(5u));
         }
 
         [Test]
@@ -195,6 +195,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             uint id = 20;
             uint oldValue = Utils.SetIdentifierToAtLeast(ref id, 10);
             Assert.That(id, Is.EqualTo(20u));
+            Assert.That(oldValue, Is.EqualTo(20u));
         }
 
         [Test]
@@ -647,7 +648,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void IsEqualReadOnlySpanBothEmpty()
         {
+#pragma warning disable IDE0301 // Simplify collection initialization
             Assert.That(Utils.IsEqual(ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty), Is.True);
+#pragma warning restore IDE0301 // Simplify collection initialization
         }
 
         [Test]
@@ -752,7 +755,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             byte[] data = [0x05, 0x06, 0x07, 0x08];
             byte[] result = Utils.PSHA1(secret, "test", data, 0, 32);
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(32));
+            Assert.That(result, Has.Length.EqualTo(32));
         }
 
         [Test]
@@ -762,7 +765,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             byte[] data = [0x05, 0x06, 0x07, 0x08];
             byte[] result = Utils.PSHA256(secret, "test", data, 0, 32);
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(32));
+            Assert.That(result, Has.Length.EqualTo(32));
         }
 
         [Test]
@@ -902,18 +905,21 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             byte[] data = [5, 6, 7, 8];
             byte[] result = Utils.PSHA(hmac, "test", data, 0, 64);
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(64));
+            Assert.That(result, Has.Length.EqualTo(64));
         }
 
         [Test]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms", Justification = "Testing existing API")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Security",
+            "CA5350:Do Not Use Weak Cryptographic Algorithms",
+            Justification = "Testing existing API")]
         public void PSHA1WithHmacOverload()
         {
             using var hmac = new HMACSHA1([1, 2, 3, 4]);
             byte[] data = [5, 6, 7, 8];
             byte[] result = Utils.PSHA1(hmac, "test", data, 0, 32);
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(32));
+            Assert.That(result, Has.Length.EqualTo(32));
         }
 
         [Test]
@@ -923,7 +929,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             byte[] data = [5, 6, 7, 8];
             byte[] result = Utils.PSHA256(hmac, "test", data, 0, 32);
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(32));
+            Assert.That(result, Has.Length.EqualTo(32));
         }
 
         [Test]
@@ -931,7 +937,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var list1 = new List<int> { 1, 2, 3 };
             var list2 = new List<int> { 1, 2, 3 };
-            Assert.That(Utils.IsEqual<int>(list1, list2), Is.True);
+            Assert.That(Utils.IsEqual(list1, list2), Is.True);
         }
 
         [Test]
@@ -939,7 +945,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var list1 = new List<int> { 1, 2, 3 };
             var list2 = new List<int> { 1, 2, 4 };
-            Assert.That(Utils.IsEqual<int>(list1, list2), Is.False);
+            Assert.That(Utils.IsEqual(list1, list2), Is.False);
         }
     }
 }

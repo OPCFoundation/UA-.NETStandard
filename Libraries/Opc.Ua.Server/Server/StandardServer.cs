@@ -649,15 +649,17 @@ namespace Opc.Ua.Server
 
             if (key != null)
             {
-                response = new AdditionalParametersType();
-                response.Parameters =
-                [
-                    new KeyValuePair
-                    {
-                        Key = QualifiedName.From("ECDHKey"),
-                        Value = new ExtensionObject(key)
-                    }
-                ];
+                response = new AdditionalParametersType
+                {
+                    Parameters =
+                    [
+                        new KeyValuePair
+                        {
+                            Key = QualifiedName.From("ECDHKey"),
+                            Value = new ExtensionObject(key)
+                        }
+                    ]
+                };
             }
 
             return response;

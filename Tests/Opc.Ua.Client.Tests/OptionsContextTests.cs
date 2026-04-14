@@ -124,7 +124,7 @@ namespace Opc.Ua.Client.Tests
                 BrowseDirection = BrowseDirection.Forward
             };
 
-            var modified = original with { MaxReferencesReturned = 200 };
+            BrowserOptions modified = original with { MaxReferencesReturned = 200 };
 
             Assert.That(modified.MaxReferencesReturned, Is.EqualTo(200u));
             Assert.That(modified.BrowseDirection, Is.EqualTo(BrowseDirection.Forward));
@@ -218,7 +218,7 @@ namespace Opc.Ua.Client.Tests
                 PublishingInterval = 100
             };
 
-            var modified = original with { PublishingInterval = 200 };
+            SubscriptionOptions modified = original with { PublishingInterval = 200 };
 
             Assert.That(modified.DisplayName, Is.EqualTo("Original"));
             Assert.That(modified.PublishingInterval, Is.EqualTo(200));
@@ -301,7 +301,7 @@ namespace Opc.Ua.Client.Tests
                 SamplingInterval = 100
             };
 
-            var modified = original with { SamplingInterval = 500 };
+            MonitoredItemOptions modified = original with { SamplingInterval = 500 };
 
             Assert.That(modified.DisplayName, Is.EqualTo("Orig"));
             Assert.That(modified.SamplingInterval, Is.EqualTo(500));
