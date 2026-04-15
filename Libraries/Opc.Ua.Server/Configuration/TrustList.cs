@@ -290,6 +290,7 @@ namespace Opc.Ua.Server
                     {
                         // to avoid deadlocks, last open always wins
                         m_sessionId = default;
+                        m_strm?.Dispose();
                         m_strm = null;
                         m_node.OpenCount.Value = 0;
                     }
@@ -510,6 +511,7 @@ namespace Opc.Ua.Server
                 }
 
                 m_sessionId = default;
+                m_strm?.Dispose();
                 m_strm = null;
                 m_node.OpenCount.Value = 0;
             }
@@ -665,6 +667,7 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     m_sessionId = default;
+                    m_strm?.Dispose();
                     m_strm = null;
                     m_node.LastUpdateTime.Value = DateTime.UtcNow;
                     m_node.OpenCount.Value = 0;

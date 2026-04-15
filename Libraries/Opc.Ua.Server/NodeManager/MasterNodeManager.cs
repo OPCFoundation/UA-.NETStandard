@@ -202,14 +202,14 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_namespaceManagersSemaphoreSlim);
+                m_namespaceManagersSemaphoreSlim.Dispose();
 
                 m_startupShutdownSemaphoreSlim.Wait();
 
                 List<IAsyncNodeManager> nodeManagers = [.. m_nodeManagers];
                 m_nodeManagers.Clear();
 
-                Utils.SilentDispose(m_startupShutdownSemaphoreSlim);
+                m_startupShutdownSemaphoreSlim.Dispose();
 
                 foreach (IAsyncNodeManager nodeManager in nodeManagers)
                 {
@@ -1577,52 +1577,62 @@ namespace Opc.Ua.Server
             }
 
             // create a continuation point.
-            var cp = new ContinuationPoint
+            ContinuationPoint tempCp = null;
+            try
             {
-                Manager = nodeManager,
-                View = view,
-                NodeToBrowse = handle,
-                MaxResultsToReturn = maxReferencesPerNode,
-                BrowseDirection = nodeToBrowse.BrowseDirection,
-                ReferenceTypeId = nodeToBrowse.ReferenceTypeId,
-                IncludeSubtypes = nodeToBrowse.IncludeSubtypes,
-                NodeClassMask = nodeToBrowse.NodeClassMask,
-                ResultMask = (BrowseResultMask)nodeToBrowse.ResultMask,
-                Index = 0,
-                Data = null
-            };
+                tempCp = new ContinuationPoint
+                {
+                    Manager = nodeManager,
+                    View = view,
+                    NodeToBrowse = handle,
+                    MaxResultsToReturn = maxReferencesPerNode,
+                    BrowseDirection = nodeToBrowse.BrowseDirection,
+                    ReferenceTypeId = nodeToBrowse.ReferenceTypeId,
+                    IncludeSubtypes = nodeToBrowse.IncludeSubtypes,
+                    NodeClassMask = nodeToBrowse.NodeClassMask,
+                    ResultMask = (BrowseResultMask)nodeToBrowse.ResultMask,
+                    Index = 0,
+                    Data = null
+                };
+                var cp = tempCp;
 
-            // check if reference type left unspecified.
-            if (cp.ReferenceTypeId.IsNull)
-            {
-                cp.ReferenceTypeId = ReferenceTypeIds.References;
-                cp.IncludeSubtypes = true;
+                // check if reference type left unspecified.
+                if (cp.ReferenceTypeId.IsNull)
+                {
+                    cp.ReferenceTypeId = ReferenceTypeIds.References;
+                    cp.IncludeSubtypes = true;
+                }
+
+                // loop until browse is complete or max results.
+                ArrayOf<ReferenceDescription> references = result.References;
+
+                ServiceResult error;
+
+                (error, cp, references) = await FetchReferencesAsync(
+                   context,
+                   assignContinuationPoint,
+                   cp,
+                   references,
+                   cancellationToken)
+                   .ConfigureAwait(false);
+                tempCp = null; // ownership transferred to FetchReferencesAsync
+
+                result.References = references;
+
+                // save continuation point.
+                if (cp != null)
+                {
+                    result.StatusCode = StatusCodes.Good;
+                    result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
+                }
+
+                // all is good.
+                return error;
             }
-
-            // loop until browse is complete or max results.
-            ArrayOf<ReferenceDescription> references = result.References;
-
-            ServiceResult error;
-
-            (error, cp, references) = await FetchReferencesAsync(
-               context,
-               assignContinuationPoint,
-               cp,
-               references,
-               cancellationToken)
-               .ConfigureAwait(false);
-
-            result.References = references;
-
-            // save continuation point.
-            if (cp != null)
+            finally
             {
-                result.StatusCode = StatusCodes.Good;
-                result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
+                tempCp?.Dispose();
             }
-
-            // all is good.
-            return error;
         }
 
         /// <summary>

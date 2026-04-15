@@ -409,22 +409,28 @@ namespace Opc.Ua.Client
             session.ReturnDiagnostics = returnDiagnostics;
 
             // create the session.
+            UserIdentity tempIdentity = identity == null ? new UserIdentity() : null;
             try
             {
                 await session
                     .OpenAsync(
                         sessionName,
                         sessionTimeout,
-                        identity ?? new UserIdentity(),
+                        identity ?? tempIdentity,
                         preferredLocales,
                         checkDomain,
                         ct)
                     .ConfigureAwait(false);
+                tempIdentity = null; // ownership transferred to session
             }
             catch (Exception)
             {
                 session.Dispose();
                 throw;
+            }
+            finally
+            {
+                tempIdentity?.Dispose();
             }
 
             return session;

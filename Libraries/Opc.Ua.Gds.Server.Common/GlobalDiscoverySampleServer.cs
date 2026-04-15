@@ -234,10 +234,20 @@ namespace Opc.Ua.Gds.Server
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
-                args.Identity = new GdsRoleBasedIdentity(
-                    new UserIdentity(userNameToken),
-                    roles,
-                    ServerInternal.MessageContext.NamespaceUris);
+                UserIdentity tempIdentity = null;
+                try
+                {
+                    tempIdentity = new UserIdentity(userNameToken);
+                    args.Identity = new GdsRoleBasedIdentity(
+                        tempIdentity,
+                        roles,
+                        ServerInternal.MessageContext.NamespaceUris);
+                    tempIdentity = null; // ownership transferred to GdsRoleBasedIdentity
+                }
+                finally
+                {
+                    tempIdentity?.Dispose();
+                }
                 return;
             }
 
@@ -393,11 +403,21 @@ namespace Opc.Ua.Gds.Server
             m_logger.LogInformation(
                 "Application {ApplicationUri} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
                 applicationUri);
-            args.Identity = new GdsRoleBasedIdentity(
-                new UserIdentity(),
-                [GdsRole.ApplicationSelfAdmin],
-                applicationId,
-                ServerInternal.MessageContext.NamespaceUris);
+            UserIdentity tempIdentity = null;
+            try
+            {
+                tempIdentity = new UserIdentity();
+                args.Identity = new GdsRoleBasedIdentity(
+                    tempIdentity,
+                    [GdsRole.ApplicationSelfAdmin],
+                    applicationId,
+                    ServerInternal.MessageContext.NamespaceUris);
+                tempIdentity = null; // ownership transferred to GdsRoleBasedIdentity
+            }
+            finally
+            {
+                tempIdentity?.Dispose();
+            }
         }
 
         private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];

@@ -98,6 +98,8 @@ namespace Opc.Ua.Server
                 }
 
                 m_shutdownEvent.Set();
+                m_shutdownEvent.Dispose();
+                m_semaphoreSlim.Dispose();
             }
         }
 
@@ -167,6 +169,7 @@ namespace Opc.Ua.Server
             double revisedSessionTimeout = requestedSessionTimeout;
 
             ISession session;
+            Nonce tempNonce = null;
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -221,8 +224,9 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-                Nonce serverNonceObject = Nonce.CreateNonce(
+                tempNonce = Nonce.CreateNonce(
                     context.ChannelContext.EndpointDescription.SecurityPolicyUri);
+                Nonce serverNonceObject = tempNonce;
 
                 // assign client name.
                 if (string.IsNullOrEmpty(sessionName))
@@ -247,6 +251,7 @@ namespace Opc.Ua.Server
                     maxResponseMessageSize,
                     m_maxRequestAge,
                     m_maxBrowseContinuationPoints);
+                tempNonce = null; // ownership transferred to session
 
                 // get the session id.
                 sessionId = session.Id;
@@ -260,6 +265,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                tempNonce?.Dispose();
                 m_semaphoreSlim.Release();
             }
 
@@ -358,6 +364,8 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException)
             {
+                serverNonceObject?.Dispose();
+                serverNonceObject = null;
                 RecordFailedAuthentication(clientKey);
                 throw;
             }
@@ -368,86 +376,101 @@ namespace Opc.Ua.Server
             IUserIdentity identity = null;
             IUserIdentity effectiveIdentity = null;
             ServiceResult error = null;
+            UserIdentity tempIdentity = null;
 
             try
             {
-                // check if the application has a callback which validates the identity tokens.
-                lock (m_eventLock)
+                try
                 {
-                    if (m_ImpersonateUser != null)
+                    // check if the application has a callback which validates the identity tokens.
+                    lock (m_eventLock)
                     {
-                        var args = new ImpersonateEventArgs(
-                            newIdentity,
-                            userTokenPolicy,
-                            context.ChannelContext.EndpointDescription);
-                        m_ImpersonateUser(session, args);
+                        if (m_ImpersonateUser != null)
+                        {
+                            var args = new ImpersonateEventArgs(
+                                newIdentity,
+                                userTokenPolicy,
+                                context.ChannelContext.EndpointDescription);
+                            m_ImpersonateUser(session, args);
 
-                        if (ServiceResult.IsBad(args.IdentityValidationError))
-                        {
-                            error = args.IdentityValidationError;
-                        }
-                        else
-                        {
-                            identity = args.Identity;
-                            effectiveIdentity = args.EffectiveIdentity;
+                            if (ServiceResult.IsBad(args.IdentityValidationError))
+                            {
+                                error = args.IdentityValidationError;
+                            }
+                            else
+                            {
+                                identity = args.Identity;
+                                effectiveIdentity = args.EffectiveIdentity;
+                            }
                         }
                     }
+
+                    // parse the token manually if the identity is not provided.
+                    if (identity == null)
+                    {
+                        tempIdentity = newIdentity != null
+                            ? new UserIdentity(newIdentity)
+                            : new UserIdentity();
+                        identity = tempIdentity;
+                    }
+
+                    // use the identity as the effectiveIdentity if not provided.
+                    effectiveIdentity ??= identity;
                 }
-
-                // parse the token manually if the identity is not provided.
-                identity ??= newIdentity != null
-                    ? new UserIdentity(newIdentity)
-                    : new UserIdentity();
-
-                // use the identity as the effectiveIdentity if not provided.
-                effectiveIdentity ??= identity;
-            }
-            catch (Exception e)
-            {
-                RecordFailedAuthentication(clientKey);
-
-                if (e is not ServiceResultException)
+                catch (Exception e)
                 {
-                    throw ServiceResultException.Create(
-                    StatusCodes.BadIdentityTokenInvalid,
-                    e,
-                    "Could not validate user identity token: {0}",
-                    newIdentity);
+                    RecordFailedAuthentication(clientKey);
+
+                    if (e is not ServiceResultException)
+                    {
+                        throw ServiceResultException.Create(
+                        StatusCodes.BadIdentityTokenInvalid,
+                        e,
+                        "Could not validate user identity token: {0}",
+                        newIdentity);
+                    }
+                    throw;
                 }
-                throw;
-            }
 
-            // check for validation error.
-            if (ServiceResult.IsBad(error))
+                // check for validation error.
+                if (ServiceResult.IsBad(error))
+                {
+                    RecordFailedAuthentication(clientKey);
+                    throw new ServiceResultException(error);
+                }
+
+                // clear failed authentication attempts on successful activation.
+                ClearFailedAuthentication(clientKey);
+
+                // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
+                effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
+
+                // activate session.
+
+                bool contextChanged = session.Activate(
+                    context,
+                    newIdentity,
+                    identity,
+                    effectiveIdentity,
+                    localeIds,
+                    serverNonceObject);
+                serverNonceObject = null; // ownership transferred to session
+                tempIdentity = null; // ownership transferred to session
+
+                // raise session related event.
+                if (contextChanged)
+                {
+                    RaiseSessionEvent(session, SessionEventReason.Activated);
+                }
+
+                // indicates that the identity context for the session has changed.
+                return (contextChanged, serverNonce);
+            }
+            finally
             {
-                RecordFailedAuthentication(clientKey);
-                throw new ServiceResultException(error);
+                serverNonceObject?.Dispose();
+                tempIdentity?.Dispose();
             }
-
-            // clear failed authentication attempts on successful activation.
-            ClearFailedAuthentication(clientKey);
-
-            // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
-            effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
-
-            // activate session.
-
-            bool contextChanged = session.Activate(
-                context,
-                newIdentity,
-                identity,
-                effectiveIdentity,
-                localeIds,
-                serverNonceObject);
-
-            // raise session related event.
-            if (contextChanged)
-            {
-                RaiseSessionEvent(session, SessionEventReason.Activated);
-            }
-
-            // indicates that the identity context for the session has changed.
-            return (contextChanged, serverNonce);
         }
 
         /// <summary>
@@ -477,16 +500,23 @@ namespace Opc.Ua.Server
             // close the session if removed.
             if (session != null)
             {
-                // raise session related event.
-                RaiseSessionEvent(session, SessionEventReason.Closing);
-
-                // close the session.
-                await session.CloseAsync(cancellationToken).ConfigureAwait(false);
-
-                // update diagnostics.
-                lock (m_server.DiagnosticsWriteLock)
+                try
                 {
-                    m_server.ServerDiagnostics.CurrentSessionCount--;
+                    // raise session related event.
+                    RaiseSessionEvent(session, SessionEventReason.Closing);
+
+                    // close the session.
+                    await session.CloseAsync(cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    session.Dispose();
+
+                    // update diagnostics.
+                    lock (m_server.DiagnosticsWriteLock)
+                    {
+                        m_server.ServerDiagnostics.CurrentSessionCount--;
+                    }
                 }
             }
         }

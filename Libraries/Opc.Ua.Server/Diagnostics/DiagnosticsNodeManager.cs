@@ -95,7 +95,7 @@ namespace Opc.Ua.Server
                 m_modifyAddressSpaceSemaphoreSlim.Wait(10);
                 try
                 {
-                    Utils.SilentDispose(m_diagnosticsScanTimer);
+                    m_diagnosticsScanTimer?.Dispose();
                     m_diagnosticsScanTimer = null;
 
                     Utils.SilentDispose(m_samplingTimer);
@@ -107,6 +107,9 @@ namespace Opc.Ua.Server
                 }
 
                 m_modifyAddressSpaceSemaphoreSlim.Dispose();
+
+                m_historyCapabilities?.Dispose();
+                m_historyCapabilities = null;
             }
 
             base.Dispose(disposing);
@@ -789,9 +792,11 @@ namespace Opc.Ua.Server
             NodeId nodeId = default;
 
             await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            SessionDiagnosticsObjectState tempSessionNode = null;
             try
             {
-                var sessionNode = new SessionDiagnosticsObjectState(null);
+                tempSessionNode = new SessionDiagnosticsObjectState(null);
+                var sessionNode = tempSessionNode;
 
                 // create a new instance and assign ids.
                 nodeId = await CreateNodeAsync(
@@ -801,6 +806,7 @@ namespace Opc.Ua.Server
                     QualifiedName.From(diagnostics.SessionName),
                     sessionNode,
                     cancellationToken).ConfigureAwait(false);
+                tempSessionNode = null; // ownership transferred to address space
 
                 diagnostics.SessionId = nodeId;
                 securityDiagnostics.SessionId = nodeId;
@@ -879,6 +885,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                tempSessionNode?.Dispose();
                 m_modifyAddressSpaceSemaphoreSlim.Release();
             }
 
@@ -929,6 +936,7 @@ namespace Opc.Ua.Server
             NodeId nodeId = default;
 
             await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            SubscriptionDiagnosticsState tempDiagnosticsNode = null;
             try
             {
                 // check if diagnostics have been enabled.
@@ -937,7 +945,8 @@ namespace Opc.Ua.Server
                     return default;
                 }
 
-                var diagnosticsNode = new SubscriptionDiagnosticsState(null);
+                tempDiagnosticsNode = new SubscriptionDiagnosticsState(null);
+                var diagnosticsNode = tempDiagnosticsNode;
 
                 // create a new instance and assign ids.
                 nodeId = await CreateNodeAsync(
@@ -948,6 +957,7 @@ namespace Opc.Ua.Server
                         diagnostics.SubscriptionId.ToString(CultureInfo.InvariantCulture)),
                     diagnosticsNode,
                     cancellationToken).ConfigureAwait(false);
+                tempDiagnosticsNode = null; // ownership transferred to address space
 
                 // add reference to subscription array.
                 diagnosticsNode.AddReference(
@@ -1010,6 +1020,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                tempDiagnosticsNode?.Dispose();
                 m_modifyAddressSpaceSemaphoreSlim.Release();
             }
 
@@ -1048,6 +1059,7 @@ namespace Opc.Ua.Server
         public async ValueTask<HistoryServerCapabilitiesState> GetDefaultHistoryCapabilitiesAsync(CancellationToken cancellationToken = default)
         {
             await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            HistoryServerCapabilitiesState tempCapabilitiesNode = null;
             try
             {
                 if (m_historyCapabilities != null)
@@ -1063,7 +1075,8 @@ namespace Opc.Ua.Server
                 if (historyServerCapabilitiesNode == null)
                 {
                     // create new node if not found.
-                    historyServerCapabilitiesNode = new HistoryServerCapabilitiesState(null);
+                    tempCapabilitiesNode = new HistoryServerCapabilitiesState(null);
+                    historyServerCapabilitiesNode = tempCapabilitiesNode;
 
                     NodeId nodeId = await CreateNodeAsync(
                         SystemContext,
@@ -1072,6 +1085,7 @@ namespace Opc.Ua.Server
                         QualifiedName.From(BrowseNames.HistoryServerCapabilities),
                         historyServerCapabilitiesNode,
                         cancellationToken).ConfigureAwait(false);
+                    tempCapabilitiesNode = null; // ownership transferred to address space
 
                     historyServerCapabilitiesNode.AccessHistoryDataCapability.Value = false;
                     historyServerCapabilitiesNode.AccessHistoryEventsCapability.Value = false;
@@ -1111,6 +1125,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                tempCapabilitiesNode?.Dispose();
                 m_modifyAddressSpaceSemaphoreSlim.Release();
             }
         }
@@ -1176,9 +1191,10 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            FolderState tempState = null;
             try
             {
-                var state = new FolderState(null)
+                tempState = new FolderState(null)
                 {
                     SymbolicName = aggregateName,
                     ReferenceTypeId = ReferenceTypeIds.HasComponent,
@@ -1186,6 +1202,7 @@ namespace Opc.Ua.Server
                     NodeId = aggregateId,
                     BrowseName = new QualifiedName(aggregateName, aggregateId.NamespaceIndex)
                 };
+                var state = tempState;
                 state.DisplayName = LocalizedText.From(state.BrowseName.Name);
                 state.WriteMask = AttributeWriteMask.None;
                 state.UserWriteMask = AttributeWriteMask.None;
@@ -1213,9 +1230,11 @@ namespace Opc.Ua.Server
                 }
 
                 await AddPredefinedNodeAsync(SystemContext, state, cancellationToken).ConfigureAwait(false);
+                tempState = null; // ownership transferred to address space
             }
             finally
             {
+                tempState?.Dispose();
                 m_modifyAddressSpaceSemaphoreSlim.Release();
             }
         }
@@ -1227,9 +1246,10 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            FolderState tempState = null;
             try
             {
-                var state = new FolderState(null)
+                tempState = new FolderState(null)
                 {
                     SymbolicName = modellingRuleName,
                     ReferenceTypeId = ReferenceTypeIds.HasComponent,
@@ -1237,6 +1257,7 @@ namespace Opc.Ua.Server
                     NodeId = modellingRuleId,
                     BrowseName = new QualifiedName(modellingRuleName, modellingRuleId.NamespaceIndex)
                 };
+                var state = tempState;
                 state.DisplayName = LocalizedText.From(state.BrowseName.Name);
                 state.WriteMask = AttributeWriteMask.None;
                 state.UserWriteMask = AttributeWriteMask.None;
@@ -1252,9 +1273,11 @@ namespace Opc.Ua.Server
                 }
 
                 await AddPredefinedNodeAsync(SystemContext, state, cancellationToken).ConfigureAwait(false);
+                tempState = null; // ownership transferred to address space
             }
             finally
             {
+                tempState?.Dispose();
                 m_modifyAddressSpaceSemaphoreSlim.Release();
             }
         }

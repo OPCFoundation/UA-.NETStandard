@@ -192,7 +192,7 @@ namespace Opc.Ua.Server
             {
                 lock (Lock)
                 {
-                    Utils.SilentDispose(m_monitoredItemManager);
+                    m_monitoredItemManager?.Dispose();
                     foreach (NodeState node in PredefinedNodes.Values)
                     {
                         Utils.SilentDispose(node);
@@ -3605,34 +3605,42 @@ namespace Opc.Ua.Server
                 bool success = false;
                 IMonitoredItem monitoredItem = null;
 
-                lock (Lock)
+                try
                 {
-                    // validate node.
-                    NodeState source = ValidateNode(systemContext, handle, operationCache);
+                    lock (Lock)
+                    {
+                        // validate node.
+                        NodeState source = ValidateNode(systemContext, handle, operationCache);
 
-                    if (source == null)
+                        if (source == null)
+                        {
+                            continue;
+                        }
+
+                        IStoredMonitoredItem itemToCreate = itemsToRestore[handle.Index];
+
+                        // create monitored item.
+                        success = RestoreMonitoredItem(
+                            systemContext,
+                            handle,
+                            itemToCreate,
+                            savedOwnerIdentity,
+                            out monitoredItem);
+                    }
+
+                    if (!success)
                     {
                         continue;
                     }
 
-                    IStoredMonitoredItem itemToCreate = itemsToRestore[handle.Index];
-
-                    // create monitored item.
-                    success = RestoreMonitoredItem(
-                        systemContext,
-                        handle,
-                        itemToCreate,
-                        savedOwnerIdentity,
-                        out monitoredItem);
+                    // save the monitored item.
+                    monitoredItems[handle.Index] = monitoredItem;
+                    monitoredItem = null; // ownership transferred
                 }
-
-                if (!success)
+                finally
                 {
-                    continue;
+                    (monitoredItem as IDisposable)?.Dispose();
                 }
-
-                // save the monitored item.
-                monitoredItems[handle.Index] = monitoredItem;
             }
 
             lock (Lock)
@@ -3758,44 +3766,52 @@ namespace Opc.Ua.Server
                 MonitoringFilterResult filterResult = null;
                 IMonitoredItem monitoredItem = null;
 
-                lock (Lock)
+                try
                 {
-                    // validate node.
-                    NodeState source = ValidateNode(systemContext, handle, operationCache);
+                    lock (Lock)
+                    {
+                        // validate node.
+                        NodeState source = ValidateNode(systemContext, handle, operationCache);
 
-                    if (source == null)
+                        if (source == null)
+                        {
+                            continue;
+                        }
+
+                        MonitoredItemCreateRequest itemToCreate = itemsToCreate[handle.Index];
+
+                        // create monitored item.
+                        errors[handle.Index] = CreateMonitoredItem(
+                            systemContext,
+                            handle,
+                            subscriptionId,
+                            publishingInterval,
+                            context.DiagnosticsMask,
+                            timestampsToReturn,
+                            itemToCreate,
+                            createDurable,
+                            monitoredItemIdFactory,
+                            out filterResult,
+                            out monitoredItem);
+                    }
+
+                    // save any filter error details.
+                    filterErrors[handle.Index] = filterResult;
+
+                    if (ServiceResult.IsBad(errors[handle.Index]))
                     {
                         continue;
                     }
 
-                    MonitoredItemCreateRequest itemToCreate = itemsToCreate[handle.Index];
-
-                    // create monitored item.
-                    errors[handle.Index] = CreateMonitoredItem(
-                        systemContext,
-                        handle,
-                        subscriptionId,
-                        publishingInterval,
-                        context.DiagnosticsMask,
-                        timestampsToReturn,
-                        itemToCreate,
-                        createDurable,
-                        monitoredItemIdFactory,
-                        out filterResult,
-                        out monitoredItem);
+                    // save the monitored item.
+                    monitoredItems[handle.Index] = monitoredItem;
+                    createdItems.Add(monitoredItem);
+                    monitoredItem = null; // ownership transferred
                 }
-
-                // save any filter error details.
-                filterErrors[handle.Index] = filterResult;
-
-                if (ServiceResult.IsBad(errors[handle.Index]))
+                finally
                 {
-                    continue;
+                    (monitoredItem as IDisposable)?.Dispose();
                 }
-
-                // save the monitored item.
-                monitoredItems[handle.Index] = monitoredItem;
-                createdItems.Add(monitoredItem);
             }
 
             lock (Lock)

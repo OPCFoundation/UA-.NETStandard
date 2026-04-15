@@ -1246,7 +1246,7 @@ namespace Opc.Ua.Server
                     if (m_eventQueueHandler.Overflow)
                     {
                         // construct event.
-                        var e = new EventQueueOverflowEventState(null);
+                        using var e = new EventQueueOverflowEventState(null);
 
                         var message = new TranslationInfo(
                             "EventQueueOverflowEventState",
@@ -2192,8 +2192,8 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_dataChangeQueueHandler);
-                Utils.SilentDispose(m_eventQueueHandler);
+                m_dataChangeQueueHandler?.Dispose();
+                m_eventQueueHandler?.Dispose();
             }
         }
 
