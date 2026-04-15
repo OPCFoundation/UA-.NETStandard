@@ -55,6 +55,97 @@ namespace Opc.Ua.Export
         }
 
         /// <summary>
+        /// Gets a cached <see cref="XmlSerializer"/> instance for
+        /// <see cref="UANodeSet"/>. The serializer is lazily created and
+        /// reused for all subsequent calls.
+        /// </summary>
+        /// <remarks>
+        /// The suppression is safe because <see cref="UANodeSet"/> and all
+        /// reachable types in the object graph are annotated with
+        /// <see cref="XmlRootAttribute"/>, <see cref="XmlTypeAttribute"/>,
+        /// <see cref="XmlIncludeAttribute"/>, and element/attribute
+        /// mapping attributes. The NativeAOT linker preserves these types
+        /// through the static attribute references.
+        /// </remarks>
+        internal static XmlSerializer Serializer => s_serializer.Value;
+
+        [UnconditionalSuppressMessage("AOT",
+            "IL3050:RequiresDynamicCode",
+            Justification = "UANodeSet and all reachable types are fully " +
+                "annotated with XML serialization attributes.")]
+        [UnconditionalSuppressMessage("Trimming",
+            "IL2026:RequiresUnreferencedCode",
+            Justification = "UANodeSet and all reachable types are fully " +
+                "annotated with XML serialization attributes.")]
+#if NET5_0_OR_GREATER
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UANodeSet))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(ModelTableEntry))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NodeIdAlias))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UANode))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAInstance))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAObject))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAVariable))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAMethod))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAView))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAObjectType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAVariableType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAReferenceType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UADataType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(DataTypeDefinition))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(DataTypeField))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(Reference))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LocalizedText))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(RolePermission))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAMethodArgument))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(TranslationType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(StructureTranslationType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NodeSetStatus))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NodeToDelete))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(ReferenceChange))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UANodeSetChanges))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UANodeSetChangesStatus))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(ReleaseStatus))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(DataTypePurpose))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(System.Xml.XmlElement))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(System.Xml.XmlDocument))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(System.Xml.XmlNode))]
+#endif
+        private static XmlSerializer CreateSerializer()
+        {
+            return new XmlSerializer(typeof(UANodeSet));
+        }
+
+        private static readonly Lazy<XmlSerializer> s_serializer =
+            new Lazy<XmlSerializer>(CreateSerializer);
+
+#if NET5_0_OR_GREATER
+        /// <summary>
+        /// Serializes a <see cref="UANodeSet"/> to an <see cref="XmlWriter"/>
+        /// using the pre-generated serializer code. This avoids the
+        /// reflection-based fallback which fails under NativeAOT.
+        /// </summary>
+        private static void SerializePreGen(XmlWriter writer, UANodeSet nodeSet)
+        {
+            var serWriter = new UANodeSetXmlSerializerWriter(writer);
+            serWriter.Write26_UANodeSet(nodeSet);
+        }
+
+        /// <summary>
+        /// Exposes the protected <see cref="XmlSerializationWriter.Writer"/>
+        /// property for direct use outside <see cref="XmlSerializer"/>.
+        /// </summary>
+        private sealed class UANodeSetXmlSerializerWriter
+            : Microsoft.Xml.Serialization.GeneratedAssembly.XmlSerializationWriterUANodeSet
+        {
+            public UANodeSetXmlSerializerWriter(XmlWriter w)
+            {
+                Writer = w;
+            }
+        }
+#endif
+
+        /// <summary>
         /// Validate the nodeset against the schema.
         /// </summary>
         /// <param name="istrm"></param>
@@ -120,22 +211,33 @@ namespace Opc.Ua.Export
         /// </summary>
         /// <param name="istrm">The input stream.</param>
         /// <returns>The set of nodes</returns>
-        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
+        [UnconditionalSuppressMessage("AOT",
+            "IL3050:RequiresDynamicCode",
+            Justification = "UANodeSet and all reachable types are fully " +
+                "annotated with XML serialization attributes.")]
+        [UnconditionalSuppressMessage("Trimming",
+            "IL2026:RequiresUnreferencedCode",
+            Justification = "UANodeSet and all reachable types are fully " +
+                "annotated with XML serialization attributes.")]
         public static UANodeSet Read(Stream istrm)
         {
             using var reader = new StreamReader(istrm);
             using var xmlReader = XmlReader.Create(reader, CoreUtils.DefaultXmlReaderSettings());
-            var serializer = new XmlSerializer(typeof(UANodeSet));
-            return serializer.Deserialize(xmlReader) as UANodeSet;
+            return Serializer.Deserialize(xmlReader) as UANodeSet;
         }
 
         /// <summary>
         /// Write a nodeset to a stream.
         /// </summary>
         /// <param name="istrm">The input stream.</param>
-        [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
-        [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
+        [UnconditionalSuppressMessage("AOT",
+            "IL3050:RequiresDynamicCode",
+            Justification = "UANodeSet and all reachable types are fully " +
+                "annotated with XML serialization attributes.")]
+        [UnconditionalSuppressMessage("Trimming",
+            "IL2026:RequiresUnreferencedCode",
+            Justification = "UANodeSet and all reachable types are fully " +
+                "annotated with XML serialization attributes.")]
         public void Write(Stream istrm)
         {
             XmlWriterSettings setting = CoreUtils.DefaultXmlWriterSettings();
@@ -143,8 +245,11 @@ namespace Opc.Ua.Export
 
             try
             {
-                var serializer = new XmlSerializer(typeof(UANodeSet));
-                serializer.Serialize(writer, this, null);
+#if NET5_0_OR_GREATER
+                SerializePreGen(writer, this);
+#else
+                Serializer.Serialize(writer, this, null);
+#endif
             }
             finally
             {

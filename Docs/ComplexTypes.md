@@ -164,6 +164,189 @@ if (StatusCode.IsGood(response.Results[0]))
 }
 ```
 
+## Approaches for Working with Custom Types
+
+There are three ways to work with custom data types from an OPC UA server. The right approach depends on your use case.
+
+### Approach 1: Hand-Written IEncodeable + EncodeableFactory Registration
+
+If you have already implemented (or generated) a class that implements `IEncodeable`, you can register it with the session's `EncodeableFactory`. The stack will then automatically decode incoming `ExtensionObject` values into instances of your type.
+
+#### Step 1 – Implement IEncodeable
+
+```csharp
+// Required namespaces:
+// using Opc.Ua;
+// using System.Runtime.Serialization;
+
+[DataContract(Namespace = "http://www.siemens.com/simatic-s7-opcua")]
+public class UDT_SemVer : IEncodeable, IJsonEncodeable
+{
+    public UDT_SemVer() { Initialize(); }
+
+    [OnDeserializing]
+    private void Initialize(StreamingContext context = default) { }
+
+    [DataMember(Name = "Major", IsRequired = true, Order = 1)]
+    public byte Major { get; set; }
+
+    [DataMember(Name = "Minor", IsRequired = true, Order = 2)]
+    public byte Minor { get; set; }
+
+    [DataMember(Name = "Patch", IsRequired = true, Order = 3)]
+    public byte Patch { get; set; }
+
+    // TypeId must match the DataType NodeId on the server.
+    // The "DT_" prefix is a Siemens S7 OPC UA convention for data type nodes;
+    // the quoted name is the Siemens-specific identifier format.
+    public ExpandedNodeId TypeId =>
+        new ExpandedNodeId(
+            "nsu=http://www.siemens.com/simatic-s7-opcua;s=DT_\"UDT_SemVer\"");
+
+    // BinaryEncodingId must match the Binary Encoding NodeId on the server.
+    // The "TE_" prefix is the Siemens S7 OPC UA convention for type encoding nodes.
+    public ExpandedNodeId BinaryEncodingId =>
+        new ExpandedNodeId(
+            "nsu=http://www.siemens.com/simatic-s7-opcua;s=TE_\"UDT_SemVer\"");
+
+    public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
+
+    // Return Null if the server does not expose a JSON encoding NodeId for this type.
+    // If the server provides a JSON encoding node, set this to match it.
+    public ExpandedNodeId JsonEncodingId => ExpandedNodeId.Null;
+
+    public void Encode(IEncoder encoder)
+    {
+        encoder.WriteByte("Major", Major);
+        encoder.WriteByte("Minor", Minor);
+        encoder.WriteByte("Patch", Patch);
+    }
+
+    public void Decode(IDecoder decoder)
+    {
+        Major = decoder.ReadByte("Major");
+        Minor = decoder.ReadByte("Minor");
+        Patch = decoder.ReadByte("Patch");
+    }
+
+    public bool IsEqual(IEncodeable encodeable) =>
+        encodeable is UDT_SemVer other &&
+        Major == other.Major && Minor == other.Minor && Patch == other.Patch;
+
+    public void EncodeJson(IJsonEncoder encoder)
+    {
+        encoder.WriteByte("Major", Major);
+        encoder.WriteByte("Minor", Minor);
+        encoder.WriteByte("Patch", Patch);
+    }
+
+    public void DecodeJson(IJsonDecoder decoder)
+    {
+        Major = decoder.ReadByte("Major");
+        Minor = decoder.ReadByte("Minor");
+        Patch = decoder.ReadByte("Patch");
+    }
+
+    public object Clone() => MemberwiseClone();
+}
+```
+
+> **Important**: `BinaryEncodingId` must match the **Binary Encoding** NodeId
+> returned by the server (visible in the OPC UA address space as the
+> `DataTypeEncodingType` child node named `"Default Binary"`). This is what the
+> decoder uses to look up the registered type.
+
+#### Step 2 – Register the Type Before Reading
+
+Register the type with the session's factory **before** reading any values that use it. The simplest way is to add the `Type` directly:
+
+```csharp
+// Create and connect the session
+var session = await Session.Create(...);
+
+// Register the custom type with the session's encodeable factory
+session.Factory.Builder
+    .AddEncodeableType(typeof(UDT_SemVer))
+    .Commit();
+
+// Now read – the stack decodes the ExtensionObject automatically
+DataValue result = await session.ReadValueAsync(
+    "ns=3;s=\"H35dispenser\".\"ID\".\"ElectricalVersion\"");
+
+if (result.WrappedValue.TryGet(out ExtensionObject extObject) &&
+    extObject.Body is UDT_SemVer semVer)
+{
+    Console.WriteLine($"Major={semVer.Major} Minor={semVer.Minor} Patch={semVer.Patch}");
+}
+```
+
+You can also register all types from an entire assembly at once:
+
+```csharp
+session.Factory.Builder
+    .AddEncodeableTypes(typeof(UDT_SemVer).Assembly)
+    .Commit();
+```
+
+Or register multiple types individually in a single builder chain:
+
+```csharp
+session.Factory.Builder
+    .AddEncodeableType(typeof(UDT_SemVer))
+    .AddEncodeableType(typeof(UDT_AnotherType))
+    .Commit();
+```
+
+> **Note**: `ComplexTypeSystem.LoadAsync()` is **not** required when using this
+> approach. If you call `LoadAsync()` after registering your own types, the
+> ComplexTypeSystem will skip types that are already registered in the factory.
+
+### Approach 2: Source-Generated IEncodeable (Recommended for New Code)
+
+Starting with version 1.6, you can annotate a POCO class with `[DataType]` and
+optional `[DataTypeField]` attributes and the OPC UA source generator will
+automatically generate the `IEncodeable` implementation for you. This eliminates
+the need to hand-write `Encode`, `Decode`, `IsEqual`, and `Clone` methods.
+
+See [Source-Generated Data Types](SourceGeneratedDataTypes.md) for full details.
+
+```csharp
+using Opc.Ua;
+
+[DataType(Namespace = "http://www.siemens.com/simatic-s7-opcua",
+          BinaryEncodingId = "s=TE_\"UDT_SemVer\"")]
+public partial class UDT_SemVer
+{
+    [DataTypeField(Order = 1)]
+    public byte Major { get; set; }
+
+    [DataTypeField(Order = 2)]
+    public byte Minor { get; set; }
+
+    [DataTypeField(Order = 3)]
+    public byte Patch { get; set; }
+}
+```
+
+After adding the source generator NuGet package, the generated registration
+extension method can be used:
+
+```csharp
+session.Factory.Builder
+    .AddMyNamespaceDataTypes()
+    .Commit();
+```
+
+### Approach 3: Runtime IStructure (No Pre-defined Types Required)
+
+If you do not know the type structure at compile time, or prefer not to create
+.NET types for every server type, use `ComplexTypeSystem` to load the type
+definitions at runtime and access fields via the `IStructure` interface. This
+requires no hand-written types.
+
+See the [Basic Usage](#basic-usage) and [Advanced Usage](#advanced-usage)
+sections below for examples.
+
 ## Advanced Usage
 
 ### Loading Specific Types
@@ -542,9 +725,15 @@ await complexTypeSystem.LoadAsync();
 
 **Solutions**:
 
-- Ensure `LoadAsync()` was called before reading the value
-- Verify the type is actually loaded: `complexTypeSystem.GetDefinedTypes()`
-- Check if the server's type definition is complete and valid
+- If using `ComplexTypeSystem`: ensure `LoadAsync()` was called before reading the value,
+  verify the type is actually loaded with `complexTypeSystem.GetDefinedTypes()`,
+  and check if the server's type definition is complete and valid.
+- If using a hand-written `IEncodeable` (Approach 1): ensure the type is registered with
+  `session.Factory.Builder.AddEncodeableType(typeof(YourType)).Commit()` **before** reading.
+  The `BinaryEncodingId` on your type must exactly match the Binary Encoding NodeId reported
+  by the server — use a generic OPC UA client (e.g. UA Expert) to inspect the correct NodeId.
+- If using source-generated types (Approach 2): ensure the generated `Add...DataTypes()`
+  extension method is called on `session.Factory.Builder` before reading.
 
 ### Performance Issues
 
@@ -662,6 +851,7 @@ TypeInfo TypeInfo { get; }                // Type info of the field
 
 ## See Also
 
+- [Source-Generated Data Types](SourceGeneratedDataTypes.md) - Auto-generate IEncodeable implementations from annotated POCO classes
 - [Platform Build Documentation](PlatformBuild.md) - Information about building and versioning
 - [Observability Documentation](Observability.md) - Information about logging and telemetry
 - [Console Reference Client](../Applications/ConsoleReferenceClient/README.md) - Example client implementation
