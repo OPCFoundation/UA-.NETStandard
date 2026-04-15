@@ -565,14 +565,14 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
 
             // Verify that the base addresses include same-port entries for different IPs.
-            Assert.That(BaseAddresses.Count, Is.EqualTo(BaseAddressCount));
+            Assert.That(BaseAddresses, Has.Count.EqualTo(BaseAddressCount));
 
             // Verify that opc.tcp has exactly 2 base addresses (localhost and 192.168.1.100)
             // both on the same port - this is the core scenario under test.
             List<BaseAddress> tcpAddresses = BaseAddresses
                 .Where(a => a.Url.Scheme == Utils.UriSchemeOpcTcp)
                 .ToList();
-            Assert.That(tcpAddresses.Count, Is.EqualTo(2),
+            Assert.That(tcpAddresses, Has.Count.EqualTo(2),
                 "There should be 2 opc.tcp base addresses for the MultipleIPsSamePort configuration.");
             Assert.That(tcpAddresses[0].Url.Port, Is.EqualTo(tcpAddresses[1].Url.Port),
                 "Both opc.tcp base addresses should use the same port number.");
@@ -607,6 +607,260 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 Assert.That(epUri.Host, Is.EqualTo("192.168.1.100"),
                     "Translated endpoint URLs should use the IP address that the client connected with.");
             }
+        }
+
+        [Test]
+        public void RequireEncryptionNullDescriptionReturnsFalse()
+        {
+            bool result = ServerBase.RequireEncryption(null);
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void RequireEncryptionNonePolicyReturnsFalse()
+        {
+            var desc = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy
+                    {
+                        TokenType = UserTokenType.Anonymous,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    }
+                ]
+            };
+            bool result = ServerBase.RequireEncryption(desc);
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void RequireEncryptionBasic256Sha256ReturnsTrue()
+        {
+            var desc = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+            };
+            bool result = ServerBase.RequireEncryption(desc);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void RequireEncryptionAes128ReturnsTrue()
+        {
+            var desc = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep
+            };
+            bool result = ServerBase.RequireEncryption(desc);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void RequireEncryptionAes256ReturnsTrue()
+        {
+            var desc = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss
+            };
+            bool result = ServerBase.RequireEncryption(desc);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void RequireEncryptionNonePolicyWithSecuredTokenReturnsTrue()
+        {
+            var desc = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy
+                    {
+                        TokenType = UserTokenType.UserName,
+                        SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                    }
+                ]
+            };
+            bool result = ServerBase.RequireEncryption(desc);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void RequireEncryptionNonePolicyWithMultipleTokens()
+        {
+            // One anonymous (None) and one username with encryption
+            var desc = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy
+                    {
+                        TokenType = UserTokenType.Anonymous,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    },
+                    new UserTokenPolicy
+                    {
+                        TokenType = UserTokenType.UserName,
+                        SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss
+                    }
+                ]
+            };
+            bool result = ServerBase.RequireEncryption(desc);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void RequireEncryptionNonePolicyAllTokensNone()
+        {
+            var desc = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy
+                    {
+                        TokenType = UserTokenType.Anonymous,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    }
+                ]
+            };
+            bool result = ServerBase.RequireEncryption(desc);
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void RequireEncryptionEmptyUserTokens()
+        {
+            var desc = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens = []
+            };
+            bool result = ServerBase.RequireEncryption(desc);
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void EndpointDescriptionSecurityLevelDefaults()
+        {
+            var desc = new EndpointDescription();
+            Assert.That(desc.SecurityLevel, Is.Zero);
+        }
+
+        [Test]
+        public void EndpointDescriptionSecurityModeDefault()
+        {
+            var desc = new EndpointDescription();
+            Assert.That(
+                desc.SecurityMode,
+                Is.EqualTo(MessageSecurityMode.Invalid));
+        }
+
+        [Test]
+        public void UserTokenPolicyDefaultValues()
+        {
+            var policy = new UserTokenPolicy();
+            Assert.That(policy.PolicyId, Is.Null);
+            Assert.That(
+                policy.TokenType,
+                Is.EqualTo(UserTokenType.Anonymous));
+        }
+
+        [Test]
+        public void UserTokenPolicyWithTokenType()
+        {
+            var policy = new UserTokenPolicy(UserTokenType.Certificate);
+            Assert.That(policy.TokenType, Is.EqualTo(UserTokenType.Certificate));
+        }
+
+        [Test]
+        public void RequireEncryptionEccNistP256ReturnsTrue()
+        {
+            var desc = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.ECC_nistP256
+            };
+            bool result = ServerBase.RequireEncryption(desc);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void RequireEncryptionEccBrainpoolReturnsTrue()
+        {
+            var desc = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.ECC_brainpoolP256r1
+            };
+            bool result = ServerBase.RequireEncryption(desc);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void RequireEncryptionNonePolicyX509TokenWithPolicy()
+        {
+            var desc = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy
+                    {
+                        TokenType = UserTokenType.Certificate,
+                        SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep
+                    }
+                ]
+            };
+            bool result = ServerBase.RequireEncryption(desc);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void EndpointDescriptionServerCertificateDefault()
+        {
+            var desc = new EndpointDescription();
+            Assert.That(desc.ServerCertificate.IsEmpty, Is.True);
+        }
+
+        [Test]
+        public void EndpointDescriptionEndpointUrlCanBeSet()
+        {
+            var desc = new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://localhost:4840"
+            };
+            Assert.That(desc.EndpointUrl, Is.EqualTo("opc.tcp://localhost:4840"));
+        }
+
+        [Test]
+        public void EndpointDescriptionTransportProfileUriCanBeSet()
+        {
+            var desc = new EndpointDescription
+            {
+                TransportProfileUri = Profiles.UaTcpTransport
+            };
+            Assert.That(desc.TransportProfileUri, Is.EqualTo(Profiles.UaTcpTransport));
+        }
+
+        [Test]
+        public void RequireEncryptionNonePolicyIssuedTokenWithPolicy()
+        {
+            var desc = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy
+                    {
+                        TokenType = UserTokenType.IssuedToken,
+                        SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                    }
+                ]
+            };
+            bool result = ServerBase.RequireEncryption(desc);
+            Assert.That(result, Is.True);
         }
     }
 }

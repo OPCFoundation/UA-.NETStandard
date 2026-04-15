@@ -398,14 +398,12 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var innerException = new ServiceResultException(StatusCodes.BadDecodingError);
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(
                 null,
                 StatusCodes.BadDecodingError,
                 LocalizedText.Null,
                 (string?)null,
                 (Exception)innerException);
-#pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadDecodingError.Code));

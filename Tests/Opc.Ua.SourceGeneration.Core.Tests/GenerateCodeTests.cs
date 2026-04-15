@@ -231,7 +231,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             return generatedText;
         }
 
-        private void AddPredefinedNodeLoader(Dictionary<string, string> generated)
+        private static void AddPredefinedNodeLoader(Dictionary<string, string> generated)
         {
             generated.Add("Test.cs",
                 """

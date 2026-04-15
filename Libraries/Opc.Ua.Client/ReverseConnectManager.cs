@@ -840,6 +840,7 @@ namespace Opc.Ua.Client
 
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
         private Type? m_configType;
+
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;

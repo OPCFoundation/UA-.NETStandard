@@ -3877,7 +3877,7 @@ namespace Opc.Ua.Server
                 rolePermissions = nodeMetadata.DefaultRolePermissions;
             }
 
-            if ((userRolePermissions.IsEmpty) && (rolePermissions.IsEmpty))
+            if (userRolePermissions.IsEmpty && rolePermissions.IsEmpty)
             {
                 // there is no restriction from role permissions
                 return StatusCodes.Good;

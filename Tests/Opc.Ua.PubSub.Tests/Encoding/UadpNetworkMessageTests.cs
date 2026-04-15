@@ -145,7 +145,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Variant.From((ulong)10),
             Variant.From((sbyte)10),
             Variant.From((short)10),
-            Variant.From((int)10),
+            Variant.From(10),
             Variant.From((long)10),
             Variant.From("abc"),
             Variant.From("Test$!#$%^&*87"),

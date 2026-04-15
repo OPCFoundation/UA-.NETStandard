@@ -4798,15 +4798,17 @@ namespace Opc.Ua.Client
 
             if (EccUtils.IsEccPolicy(userTokenSecurityPolicyUri))
             {
-                var parameters = new AdditionalParametersType();
-                parameters.Parameters =
-                [
-                    new KeyValuePair
-                    {
-                        Key = QualifiedName.From("ECDHPolicyUri"),
-                        Value = userTokenSecurityPolicyUri
-                    }
-                ];
+                var parameters = new AdditionalParametersType
+                {
+                    Parameters =
+                    [
+                        new KeyValuePair
+                        {
+                            Key = QualifiedName.From("ECDHPolicyUri"),
+                            Value = userTokenSecurityPolicyUri
+                        }
+                    ]
+                };
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
             }
 

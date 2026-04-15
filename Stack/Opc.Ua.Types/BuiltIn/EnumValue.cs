@@ -262,7 +262,7 @@ namespace Opc.Ua
             {
                 return default;
             }
-            var value = values.GetValue(0);
+            object? value = values.GetValue(0);
             if (value == null)
             {
                 return default;

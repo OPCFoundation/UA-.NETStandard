@@ -175,7 +175,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 n => n.BrowseName == BrowseNames.NamespaceUri);
 
             // read all schema definitions
-            var referenceExpandedNodeIds = references
+            ArrayOf<NodeId> referenceExpandedNodeIds = references
                 .ConvertAll(r => ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris))
                 .Filter(n => n.NamespaceIndex != 0);
 

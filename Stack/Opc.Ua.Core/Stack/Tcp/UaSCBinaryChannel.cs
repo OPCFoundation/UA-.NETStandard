@@ -126,13 +126,9 @@ namespace Opc.Ua.Bindings
             X509Certificate2Collection serverCertificateChain = null;
             if (serverCertificateTypesProvider != null && securityMode != MessageSecurityMode.None)
             {
-                serverCertificate = serverCertificateTypesProvider.GetInstanceCertificate(
-                    securityPolicyUri);
-
-                if (serverCertificate == null)
-                {
-                    throw new ArgumentNullException(nameof(serverCertificate));
-                }
+                serverCertificate =
+                    serverCertificateTypesProvider.GetInstanceCertificate(securityPolicyUri)
+                    ?? throw new ArgumentNullException(nameof(serverCertificate));
 
                 if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
                 {
