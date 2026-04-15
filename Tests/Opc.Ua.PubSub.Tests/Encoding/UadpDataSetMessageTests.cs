@@ -410,7 +410,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IServiceMessageContext messageContextEncode = ServiceMessageContext.Create(m_telemetry);
             byte[] bytes;
-            var memoryStream = new MemoryStream();
+            using var memoryStream = new MemoryStream();
             using (var encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
             {
                 uadpDataSetMessage.Encode(encoder);
@@ -677,7 +677,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IServiceMessageContext messageContextEncode = ServiceMessageContext.Create(m_telemetry);
             byte[] bytes;
-            var memoryStream = new MemoryStream();
+            using var memoryStream = new MemoryStream();
             using (var encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
             {
                 uadpDataSetMessage.Encode(encoder);

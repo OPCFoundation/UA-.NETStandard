@@ -68,14 +68,14 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var mqttConfiguration = new MqttClientProtocolConfiguration(
                 version: EnumMqttProtocolVersion.V500, mqttTlsOptions: mqttTlsOptions);
 
-            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
             var pubSubConnectionDataType = new PubSubConnectionDataType
             {
                 Address = new ExtensionObject(new NetworkAddressUrlDataType { Url = "mqtts://localhost:8883" }),
                 ConnectionProperties = mqttConfiguration.ConnectionProperties
             };
 
-            var pubSubConnection = new MqttPubSubConnection(uaPubSubApplication, pubSubConnectionDataType, MessageMapping.Json, telemetry);
+            using var pubSubConnection = new MqttPubSubConnection(uaPubSubApplication, pubSubConnectionDataType, MessageMapping.Json, telemetry);
             MqttClientOptions mqttClientOptions = pubSubConnection.PublisherMqttClientOptions;
             MqttClientTlsOptions channelTlsOptions = mqttClientOptions.ChannelOptions.TlsOptions;
 
@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             publisherApplication.OnValidateBrokerCertificate = certificateDirectory.ValidateBrokerCertificate;
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
@@ -237,7 +237,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 "The MQTT subscriber connection properties are not valid.");
 
             // Create subscriber application for multiple datasets
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
+            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             subscriberApplication.OnValidateBrokerCertificate = certificateDirectory.ValidateBrokerCertificate;
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication should not be null");
             Assert.That(

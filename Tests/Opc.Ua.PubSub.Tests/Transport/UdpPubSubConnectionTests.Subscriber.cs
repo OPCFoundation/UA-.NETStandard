@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     localhost.Address.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -105,7 +105,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     localhost.Address.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -181,7 +181,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     localhost.Address.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -212,7 +212,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     broadcastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -291,7 +291,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -319,7 +319,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -403,7 +403,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -435,7 +435,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -478,7 +478,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 .PubSubConnections[0]
                 .PubSubConnectionConfiguration
                 .WriterGroups[0];
-            var networkMessage = new UadpNetworkMessage(
+            using var networkMessage = new UadpNetworkMessage(
                 writerConfig,
                 metaData,
                 m_messageContext.Telemetry.CreateLogger<UdpPubSubConnectionTests>())
@@ -549,7 +549,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -581,7 +581,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -667,7 +667,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -696,7 +696,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -774,7 +774,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -802,7 +802,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -878,7 +878,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -906,7 +906,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");

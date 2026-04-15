@@ -1265,7 +1265,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonNetworkMessageContentMask.NetworkMessageHeader |
                 JsonNetworkMessageContentMask.SingleDataSetMessage);
 
-            var stream = new MemoryStream();
+            using var stream = new MemoryStream();
             Assert.DoesNotThrow(() => networkMessage.Encode(m_context, stream));
         }
 

@@ -613,7 +613,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Prepare an empty configuration for testing the interaction between UaPubSubApplication
             // and UaPubSubConfigurator
-            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
@@ -636,7 +636,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Prepare an empty configuration for testing the interaction between UaPubSubApplication
             // and UaPubSubConfigurator
-            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int initialCount = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
@@ -654,7 +654,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Create an UaPubSubApplication with an empty configuration
-            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
@@ -698,7 +698,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Create an UaPubSubApplication with an empty configuration
-            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
@@ -747,7 +747,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Create an UaPubSubApplication with an empty configuration
-            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
@@ -815,7 +815,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Create an UaPubSubApplication with an empty configuration
-            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_pubConfigurationLoaded.Connections)
@@ -895,7 +895,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
+            using UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int targetIdx = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration
                 .PublishedDataSets
@@ -925,7 +925,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
+            using UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int initialNrPublishedDs = uaPubSubApplication
                 .UaPubSubConfigurator
@@ -959,7 +959,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
+            using UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
@@ -982,7 +982,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Prepare an empty configuration for testing the interaction between UaPubSubApplication
             // and UaPubSubConfigurator
-            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int initialCount = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
@@ -1006,7 +1006,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
+            using UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
@@ -1056,7 +1056,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
+            using UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
@@ -1102,7 +1102,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Create UaPubSubConfigurator with empty configuration
-            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
@@ -1168,7 +1168,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Create UaPubSubConfigurator with empty configuration
-            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)

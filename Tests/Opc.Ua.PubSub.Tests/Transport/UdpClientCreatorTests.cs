@@ -176,7 +176,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_publisherConfigurationFileName,
                 checkCurrentDirectory: true,
                 createAlways: false);
-            var publisherApplication = UaPubSubApplication.Create(configurationFile, telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(configurationFile, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "m_publisherApplication should not be null");
 
             // Get the publisher configuration

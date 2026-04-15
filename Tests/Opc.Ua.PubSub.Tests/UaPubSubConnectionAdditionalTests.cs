@@ -203,7 +203,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 checkCurrentDirectory: true,
                 createAlways: false);
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var app = UaPubSubApplication.Create(configFile, telemetry);
+            using var app = UaPubSubApplication.Create(configFile, telemetry);
             app.Dispose();
             Assert.DoesNotThrow(app.Dispose);
         }

@@ -917,7 +917,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.Create(m_telemetry));
 
-            var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
+            using var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
                 ServiceMessageContext.Create(m_telemetry),
                 bytes,
@@ -934,7 +934,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.Create(m_telemetry));
 
-            var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
+            using var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
                 ServiceMessageContext.Create(m_telemetry),
                 bytes,
