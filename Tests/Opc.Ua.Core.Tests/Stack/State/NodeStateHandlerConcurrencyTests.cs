@@ -432,7 +432,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var testNodeState = new AnalogUnitRangeState(null);
+            using var testNodeState = new AnalogUnitRangeState(null);
             var serviceMessageContext = ServiceMessageContext.Create(telemetry);
 
             var systemContext = new SystemContext(telemetry)
@@ -464,7 +464,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var testNodeState = new BaseDataVariableTypeState();
+            using var testNodeState = new BaseDataVariableTypeState();
             var serviceMessageContext = ServiceMessageContext.Create(telemetry);
 
             var systemContext = new SystemContext(telemetry)
@@ -496,7 +496,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var testNodeState = new BaseObjectState(null);
+            using var testNodeState = new BaseObjectState(null);
             var serviceMessageContext = ServiceMessageContext.Create(telemetry);
 
             var systemContext = new SystemContext(telemetry)
@@ -528,7 +528,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var testNodeState = new MethodState(null);
+            using var testNodeState = new MethodState(null);
             var serviceMessageContext = ServiceMessageContext.Create(telemetry);
 
             var systemContext = new SystemContext(telemetry)
@@ -560,7 +560,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var testNodeState = new ReferenceTypeState();
+            using var testNodeState = new ReferenceTypeState();
             var serviceMessageContext = ServiceMessageContext.Create(telemetry);
 
             var systemContext = new SystemContext(telemetry)
@@ -592,7 +592,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var testNodeState = new ViewState();
+            using var testNodeState = new ViewState();
             var serviceMessageContext = ServiceMessageContext.Create(telemetry);
 
             var systemContext = new SystemContext(telemetry)

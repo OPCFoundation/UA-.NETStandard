@@ -413,7 +413,7 @@ namespace Opc.Ua.Core.Tests.Schema
             using var ms = new MemoryStream();
             using (var writer = XmlWriter.Create(ms, Utils.DefaultXmlWriterSettings()))
             {
-                var encoder = new XmlEncoder(
+                using var encoder = new XmlEncoder(
                     typeof(SecuredApplication), writer, ctx);
                 SecuredApplicationEncoding.EncodeContents(encoder, app);
                 encoder.Close();
@@ -461,7 +461,7 @@ namespace Opc.Ua.Core.Tests.Schema
             using var ms = new MemoryStream();
             using (var writer = XmlWriter.Create(ms, Utils.DefaultXmlWriterSettings()))
             {
-                var encoder = new XmlEncoder(
+                using var encoder = new XmlEncoder(
                     typeof(SecuredApplication), writer, ctx);
                 SecuredApplicationEncoding.EncodeContents(encoder, app);
                 encoder.Close();

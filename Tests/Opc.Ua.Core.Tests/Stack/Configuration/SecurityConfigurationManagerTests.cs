@@ -256,7 +256,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             };
             using (var writer = XmlWriter.Create(ms, settings))
             {
-                var encoder = new XmlEncoder(
+                using var encoder = new XmlEncoder(
                     typeof(SecuredApplication), writer, ctx);
                 SecuredApplicationEncoding.EncodeContents(encoder, app);
                 encoder.Close();
@@ -321,7 +321,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             };
             using (var writer = XmlWriter.Create(ms, settings))
             {
-                var encoder = new XmlEncoder(
+                using var encoder = new XmlEncoder(
                     typeof(ApplicationConfiguration), writer, ctx);
                 config.Encode(encoder);
                 encoder.Close();
