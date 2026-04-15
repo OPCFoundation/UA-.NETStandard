@@ -377,17 +377,22 @@ namespace Opc.Ua.Security
                     result = 2;
                     break;
                 case SecurityPolicies.Basic256:
-                    logger.LogWarning("Deprecated Security Policy Basic256 requested - Not recommended.");
+                    logger.LogWarning(
+                        "Deprecated Security Policy Basic256 requested - Not recommended.");
                     result = 4;
                     break;
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
-                    logger.LogWarning("Deprecated Security Policy {PolicyUri} requested - Use ECC_nistP[256/384]_AES.", policyUri);
+                    logger.LogWarning(
+                        "Deprecated Security Policy {PolicyUri} requested - Use ECC_nistP[256/384]_AES.",
+                        policyUri);
                     result = 4;
                     break;
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                    logger.LogWarning("Deprecated Security Policy {PolicyUri} requested - Use ECC_brainpoolP[256/384]r1_AES.", policyUri);
+                    logger.LogWarning(
+                        "Deprecated Security Policy {PolicyUri} requested - Use ECC_brainpoolP[256/384]r1_AES.",
+                        policyUri);
                     result = 4;
                     break;
                 case SecurityPolicies.Basic256Sha256:

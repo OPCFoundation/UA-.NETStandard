@@ -39,15 +39,6 @@ namespace Opc.Ua.Server
     internal static class SessionSecurityPolicyHelper
     {
         /// <summary>
-        /// Decodes additional request parameters from an additional header.
-        /// </summary>
-        public static AdditionalParametersType DecodeAdditionalParameters(
-            ExtensionObject additionalHeader)
-        {
-            return ExtensionObject.ToEncodeable(additionalHeader) as AdditionalParametersType;
-        }
-
-        /// <summary>
         /// Creates the signature returned by CreateSession.
         /// </summary>
         public static SignatureData CreateServerSignature(

@@ -608,10 +608,11 @@ namespace Opc.Ua.Server
             ISession session,
             ExtensionObject additionalHeader)
         {
-            AdditionalParametersType parameters = SessionSecurityPolicyHelper
-                .DecodeAdditionalParameters(additionalHeader);
-
-            return CreateSessionProcessAdditionalParameters(session, parameters);
+            if (additionalHeader.TryGetEncodeable(out AdditionalParametersType parameters))
+            {
+                parameters = CreateSessionProcessAdditionalParameters(session, parameters);
+            }
+            return parameters;
         }
 
         /// <summary>
@@ -640,10 +641,11 @@ namespace Opc.Ua.Server
             ISession session,
             ExtensionObject additionalHeader)
         {
-            AdditionalParametersType parameters = SessionSecurityPolicyHelper
-                .DecodeAdditionalParameters(additionalHeader);
-
-            return ActivateSessionProcessAdditionalParameters(session, parameters);
+            if (additionalHeader.TryGetEncodeable(out AdditionalParametersType parameters))
+            {
+                parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
+            }
+            return parameters;
         }
 
         /// <summary>
