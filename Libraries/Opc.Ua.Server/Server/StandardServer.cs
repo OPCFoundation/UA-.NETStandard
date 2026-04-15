@@ -658,8 +658,7 @@ namespace Opc.Ua.Server
         {
             return SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
                 session,
-                parameters,
-                m_logger);
+                parameters);
         }
 
         /// <inheritdoc/>

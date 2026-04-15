@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 
@@ -85,54 +86,54 @@ namespace Opc.Ua.Server
             AdditionalParametersType parameters,
             ILogger logger)
         {
-            AdditionalParametersType response = null;
-
-            if (parameters != null)
+            if (parameters == null)
             {
-                response = new AdditionalParametersType();
-
-                foreach (KeyValuePair ii in parameters.Parameters)
-                {
-                    if (ii.Key == AdditionalParameterNames.ECDHPolicyUri)
-                    {
-                        string policyUri = ii.Value.ToString();
-                        logger.LogWarning("Received request for new EphmeralKey using {SecurityPolicyUri}.", policyUri);
-
-                        SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(policyUri);
-
-                        if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
-                        {
-                            session.SetUserTokenSecurityPolicy(policyUri);
-                            EphemeralKeyType key = session.GetNewEphemeralKey();
-                            response.Parameters =
-                            [
-                                new KeyValuePair
-                                {
-                                    Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
-                                    Value = new ExtensionObject(key)
-                                }
-                            ];
-
-                            logger.LogWarning("Returning new EphemeralKey: {PublicKey} bytes.", key.PublicKey.Length);
-                        }
-                        else
-                        {
-                            response.Parameters =
-                            [
-                                new KeyValuePair
-                                {
-                                    Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
-                                    Value = StatusCodes.BadSecurityPolicyRejected
-                                }
-                            ];
-
-                            logger.LogWarning("Rejecting request for new EphemeralKey using {SecurityPolicyUri}.", policyUri);
-                        }
-                    }
-                }
+                return null;
             }
 
-            return response;
+            var responseParameters = new List<KeyValuePair>();
+            foreach (KeyValuePair parameter in parameters.Parameters)
+            {
+                if (parameter.Key != AdditionalParameterNames.ECDHPolicyUri ||
+                    !parameter.Value.TryGet(out string policyUri))
+                {
+                    responseParameters.Add(parameter);
+                    continue;
+                }
+
+                logger.LogDebug(
+                    "Received request for new EphmeralKey using {SecurityPolicyUri}.",
+                    policyUri);
+
+                SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(policyUri);
+
+                if (securityPolicy != null &&
+                    securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+                {
+                    session.SetUserTokenSecurityPolicy(policyUri);
+                    EphemeralKeyType key = session.GetNewEphemeralKey();
+                    responseParameters.Add(new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
+                        Value = new ExtensionObject(key)
+                    });
+                    continue;
+                }
+
+                logger.LogWarning(
+                    "Rejecting request for new EphemeralKey using {SecurityPolicyUri}.",
+                    policyUri);
+
+                responseParameters.Add(new KeyValuePair
+                {
+                    Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
+                    Value = StatusCodes.BadSecurityPolicyRejected
+                });
+            }
+            return new AdditionalParametersType
+            {
+                Parameters = responseParameters
+            };
         }
 
         /// <summary>
@@ -140,28 +141,23 @@ namespace Opc.Ua.Server
         /// </summary>
         public static AdditionalParametersType ProcessActivateSessionAdditionalParameters(
             ISession session,
-            AdditionalParametersType parameters,
-            ILogger logger)
+            AdditionalParametersType parameters)
         {
-            AdditionalParametersType response = null;
             EphemeralKeyType key = session.GetNewEphemeralKey();
 
-            if (key != null)
+            if (key == null)
             {
-                response = new AdditionalParametersType();
-                response.Parameters =
-                [
-                    new KeyValuePair
-                    {
-                        Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
-                        Value = new ExtensionObject(key)
-                    }
-                ];
-
-                logger.LogWarning("Returning new EphemeralKey: {PublicKey} bytes.", key.PublicKey.Length);
+                return parameters;
             }
 
-            return response;
+            return new AdditionalParametersType
+            {
+                Parameters = parameters.Parameters.AddItem(new KeyValuePair
+                {
+                    Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
+                    Value = new ExtensionObject(key)
+                })
+            };
         }
     }
 }
