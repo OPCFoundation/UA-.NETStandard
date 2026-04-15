@@ -118,9 +118,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         [Test]
-        public void FromHexStringNullThrowsArgumentNull()
+        public void FromHexStringNullReturnsNull()
         {
-            Assert.Throws<ArgumentNullException>(() => Utils.FromHexString(null));
+            Assert.That(Utils.FromHexString(null), Is.Null);
         }
 
         [Test]
