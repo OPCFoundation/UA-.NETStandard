@@ -309,7 +309,7 @@ namespace Quickstarts
         {
             var endpointConfiguration = EndpointConfiguration.Create(application);
 
-            DiscoveryClient client = await DiscoveryClient.CreateAsync(
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
                 application,
                 new Uri(discoveryUrl),
                 endpointConfiguration,
