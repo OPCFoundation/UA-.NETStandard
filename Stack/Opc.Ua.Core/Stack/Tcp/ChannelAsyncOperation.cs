@@ -249,7 +249,6 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     Task<bool> awaitableTask = m_tcs.Task;
-#if NET6_0_OR_GREATER
                     if (timeout != int.MaxValue)
                     {
                         awaitableTask = m_tcs.Task
@@ -259,33 +258,9 @@ namespace Opc.Ua.Bindings
                     {
                         awaitableTask = m_tcs.Task.WaitAsync(ct);
                     }
-#else
-                    if (timeout != int.MaxValue || ct != default)
+                    if (!await awaitableTask.ConfigureAwait(false))
                     {
-                        using var delayCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                        Task completedTask = await Task.WhenAny(m_tcs.Task, Task.Delay(timeout, delayCts.Token))
-                            .ConfigureAwait(false);
-                        if (m_tcs.Task == completedTask)
-                        {
-                            if (!m_tcs.Task.Result)
-                            {
-                                badRequestInterrupted = true;
-                            }
-                            delayCts.Cancel();
-                        }
-                        else
-                        {
-                            m_tcs.TrySetCanceled(ct);
-                            badRequestInterrupted = true;
-                        }
-                    }
-                    else
-#endif
-                    {
-                        if (!await awaitableTask.ConfigureAwait(false))
-                        {
-                            badRequestInterrupted = true;
-                        }
+                        badRequestInterrupted = true;
                     }
                 }
                 catch (TimeoutException)
