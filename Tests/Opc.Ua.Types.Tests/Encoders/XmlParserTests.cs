@@ -230,7 +230,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = "<Root></Root>";
-            var decoder = new XmlParser(xml, messageContext);
+            using var decoder = new XmlParser(xml, messageContext);
 
             // Act & Assert
             Assert.DoesNotThrow(decoder.Dispose);

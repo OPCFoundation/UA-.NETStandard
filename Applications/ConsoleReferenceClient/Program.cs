@@ -724,7 +724,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 }
                 finally
                 {
-                    Utils.SilentDispose(reverseConnectManager);
+                    reverseConnectManager?.Dispose();
                 }
             });
 

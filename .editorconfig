@@ -384,6 +384,17 @@ dotnet_diagnostic.CA1511.severity                                             = 
 dotnet_diagnostic.CA1512.severity                                             = none
 dotnet_diagnostic.CA1513.severity                                             = none
 
+# CA2213: Disposable fields should be disposed
+dotnet_diagnostic.CA2213.severity                                             = error
+# CA2000: Dispose objects before losing scope
+dotnet_diagnostic.CA2000.severity                                             = error
+# CA1001: Types that own disposable fields should be disposable
+dotnet_diagnostic.CA1001.severity                                             = warning
+# CA1849: Call async methods when in an async method
+dotnet_diagnostic.CA1849.severity                                             = suggestion
+# CA2225: Operator overloads have named alternates
+dotnet_diagnostic.CA2225.severity                                             = suggestion
+
 #
 # https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/language-rules
 #
@@ -409,6 +420,8 @@ dotnet_diagnostic.IDE1005.severity                                            = 
 dotnet_diagnostic.IDE0046.severity                                            = silent
 # IDE0130: Namespace does not match folder structure
 dotnet_diagnostic.IDE0130.severity                                            = none
+# IDE0032: Use auto property
+dotnet_diagnostic.IDE0032.severity                                            = suggestion
 
 #
 # Introduced in .net 10 as part of all analysis configuration
@@ -433,23 +446,8 @@ dotnet_diagnostic.CA1716.severity                                             = 
 # CA1724: The type conflicts in whole or in part with a namespace name
 dotnet_diagnostic.CA1724.severity                                             = none
 
-# TODO Fix as P1:
-
-# CA2213: Disposable fields should be disposed
-dotnet_diagnostic.CA2213.severity = none
-# CA2000: Dispose objects before losing scope
-dotnet_diagnostic.CA2000.severity = none
-# CA1001: Types that own disposable fields should be disposable
-dotnet_diagnostic.CA1001.severity = none
-# IDE0032: Use auto property
-dotnet_diagnostic.IDE0032.severity = none
-# CA1849: Call async methods when in an async method
-dotnet_diagnostic.CA1849.severity = none
-
 # TODO: Fix as P2:
 
-# CA2225: Operator overloads have named alternates
-dotnet_diagnostic.CA2225.severity = none
 # CA1848: Use the LoggerMessage delegates
 dotnet_diagnostic.CA1848.severity = none
 # CA1873: Avoid potentially expensive logging

@@ -114,7 +114,7 @@ namespace Opc.Ua.Client.Tests
             var valueChanges = new ConcurrentDictionary<NodeId, int>();
             var monitoredItems = new ConcurrentDictionary<uint, MonitoredItem>();
             var clientHandles = new ConcurrentDictionary<uint, NodeId>();
-            var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
+            using var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
 
             try
             {
@@ -144,44 +144,52 @@ namespace Opc.Ua.Client.Tests
                                 PublishingInterval = publishingInterval
                             };
 
-                            foreach (NodeId nodeId in nodeIds.Keys)
+                            try
                             {
-                                var item = new MonitoredItem(subscription.DefaultItem)
+                                foreach (NodeId nodeId in nodeIds.Keys)
                                 {
-                                    StartNodeId = nodeId,
-                                    AttributeId = Attributes.Value,
-                                    MonitoringMode = MonitoringMode.Reporting,
-                                    SamplingInterval = 0
-                                };
-                                valueChanges.TryAdd(nodeId, 0);
-                                clientHandles.TryAdd(item.ClientHandle, nodeId);
-
-                                monitoredItems.TryAdd(item.ClientHandle, item);
-                                subscription.AddItem(item);
-                            }
-
-                            subscription.FastDataChangeCallback = (sub, item, value) =>
-                            {
-                                foreach (MonitoredItemNotification dv in item.MonitoredItems)
-                                {
-                                    if (!StatusCode.IsGood(dv.DiagnosticInfo.InnerStatusCode))
+                                    var item = new MonitoredItem(subscription.DefaultItem)
                                     {
-                                        Assert.Fail(
-                                            "Monitored item reported bad status code: " +
-                                            dv.DiagnosticInfo.InnerStatusCode +
-                                            dv.DiagnosticInfo.LocalizedText);
-                                    }
+                                        StartNodeId = nodeId,
+                                        AttributeId = Attributes.Value,
+                                        MonitoringMode = MonitoringMode.Reporting,
+                                        SamplingInterval = 0
+                                    };
+                                    valueChanges.TryAdd(nodeId, 0);
+                                    clientHandles.TryAdd(item.ClientHandle, nodeId);
 
-                                    valueChanges.AddOrUpdate(
-                                        clientHandles[dv.ClientHandle],
-                                        1,
-                                        (key, count) => count + 1);
+                                    monitoredItems.TryAdd(item.ClientHandle, item);
+                                    subscription.AddItem(item);
                                 }
-                            };
 
-                            session.AddSubscription(subscription);
-                            await subscription.CreateAsync().ConfigureAwait(false);
-                            subscriptions.Add(subscription);
+                                subscription.FastDataChangeCallback = (sub, item, value) =>
+                                {
+                                    foreach (MonitoredItemNotification dv in item.MonitoredItems)
+                                    {
+                                        if (!StatusCode.IsGood(dv.DiagnosticInfo.InnerStatusCode))
+                                        {
+                                            Assert.Fail(
+                                                "Monitored item reported bad status code: " +
+                                                dv.DiagnosticInfo.InnerStatusCode +
+                                                dv.DiagnosticInfo.LocalizedText);
+                                        }
+
+                                        valueChanges.AddOrUpdate(
+                                            clientHandles[dv.ClientHandle],
+                                            1,
+                                            (key, count) => count + 1);
+                                    }
+                                };
+
+                                session.AddSubscription(subscription);
+                                await subscription.CreateAsync().ConfigureAwait(false);
+                                subscriptions.Add(subscription);
+                            }
+                            catch
+                            {
+                                subscription.Dispose();
+                                throw;
+                            }
                         }
                     }, connectCts.Token));
                 }
@@ -193,7 +201,7 @@ namespace Opc.Ua.Client.Tests
 
                 // Writer task
                 short writeCount = 0;
-                var writerCts = new CancellationTokenSource();
+                using var writerCts = new CancellationTokenSource();
                 var writerTask = Task.Run(async () =>
                 {
                     while (!writerCts.IsCancellationRequested)
@@ -553,56 +561,64 @@ namespace Opc.Ua.Client.Tests
                                 PublishingInterval = publishingInterval
                             };
 
-                            // Build an event filter for the base event type.
-                            var eventFilter = new EventFilter();
-                            eventFilter.AddSelectClause(
-                                ObjectTypeIds.BaseEventType,
-                                QualifiedName.From(BrowseNames.EventId));
-                            eventFilter.AddSelectClause(
-                                ObjectTypeIds.BaseEventType,
-                                QualifiedName.From(BrowseNames.EventType));
-                            eventFilter.AddSelectClause(
-                                ObjectTypeIds.BaseEventType,
-                                QualifiedName.From(BrowseNames.SourceNode));
-                            eventFilter.AddSelectClause(
-                                ObjectTypeIds.BaseEventType,
-                                QualifiedName.From(BrowseNames.SourceName));
-                            eventFilter.AddSelectClause(
-                                ObjectTypeIds.BaseEventType,
-                                QualifiedName.From(BrowseNames.Time));
-                            eventFilter.AddSelectClause(
-                                ObjectTypeIds.BaseEventType,
-                                QualifiedName.From(BrowseNames.Message));
-                            eventFilter.AddSelectClause(
-                                ObjectTypeIds.BaseEventType,
-                                QualifiedName.From(BrowseNames.Severity));
-
-                            // Monitor the Server node for events.
-                            var monitoredItem = new MonitoredItem(subscription.DefaultItem)
+                            try
                             {
-                                StartNodeId = ObjectIds.Server,
-                                AttributeId = Attributes.EventNotifier,
-                                MonitoringMode = MonitoringMode.Reporting,
-                                Filter = eventFilter,
-                                QueueSize = 10000
-                            };
+                                // Build an event filter for the base event type.
+                                var eventFilter = new EventFilter();
+                                eventFilter.AddSelectClause(
+                                    ObjectTypeIds.BaseEventType,
+                                    QualifiedName.From(BrowseNames.EventId));
+                                eventFilter.AddSelectClause(
+                                    ObjectTypeIds.BaseEventType,
+                                    QualifiedName.From(BrowseNames.EventType));
+                                eventFilter.AddSelectClause(
+                                    ObjectTypeIds.BaseEventType,
+                                    QualifiedName.From(BrowseNames.SourceNode));
+                                eventFilter.AddSelectClause(
+                                    ObjectTypeIds.BaseEventType,
+                                    QualifiedName.From(BrowseNames.SourceName));
+                                eventFilter.AddSelectClause(
+                                    ObjectTypeIds.BaseEventType,
+                                    QualifiedName.From(BrowseNames.Time));
+                                eventFilter.AddSelectClause(
+                                    ObjectTypeIds.BaseEventType,
+                                    QualifiedName.From(BrowseNames.Message));
+                                eventFilter.AddSelectClause(
+                                    ObjectTypeIds.BaseEventType,
+                                    QualifiedName.From(BrowseNames.Severity));
 
-                            subscription.FastEventCallback = (sub, notification, _) =>
-                            {
-                                Interlocked.Add(ref eventsReceived, notification.Events.Count);
-                                foreach (EventFieldList fieldList in notification.Events)
+                                // Monitor the Server node for events.
+                                var monitoredItem = new MonitoredItem(subscription.DefaultItem)
                                 {
-                                    if (fieldList.EventFields.Count > 4 && fieldList.EventFields[4].TryGet(out DateTimeUtc eventTime))
-                                    {
-                                        TimeSpan delay = DateTime.UtcNow - ((DateTime)eventTime).ToUniversalTime();
-                                        Interlocked.Add(ref totalDelayTicks, delay.Ticks);
-                                    }
-                                }
-                            };
+                                    StartNodeId = ObjectIds.Server,
+                                    AttributeId = Attributes.EventNotifier,
+                                    MonitoringMode = MonitoringMode.Reporting,
+                                    Filter = eventFilter,
+                                    QueueSize = 10000
+                                };
 
-                            subscription.AddItem(monitoredItem);
-                            session.AddSubscription(subscription);
-                            await subscription.CreateAsync().ConfigureAwait(false);
+                                subscription.FastEventCallback = (sub, notification, _) =>
+                                {
+                                    Interlocked.Add(ref eventsReceived, notification.Events.Count);
+                                    foreach (EventFieldList fieldList in notification.Events)
+                                    {
+                                        if (fieldList.EventFields.Count > 4 && fieldList.EventFields[4].TryGet(out DateTimeUtc eventTime))
+                                        {
+                                            TimeSpan delay = DateTime.UtcNow - ((DateTime)eventTime).ToUniversalTime();
+                                            Interlocked.Add(ref totalDelayTicks, delay.Ticks);
+                                        }
+                                    }
+                                };
+
+                                subscription.AddItem(monitoredItem);
+                                session.AddSubscription(subscription);
+                                await subscription.CreateAsync().ConfigureAwait(false);
+                            }
+                            catch
+                            {
+                                subscription.Dispose();
+                                throw;
+                            }
                         }
                     }));
                 }
@@ -624,7 +640,7 @@ namespace Opc.Ua.Client.Tests
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 while (!testCts.IsCancellationRequested)
                 {
-                    var e = new BaseEventState(null);
+                    using var e = new BaseEventState(null);
                     e.Initialize(
                         serverContext,
                         serverInternal.ServerObject,

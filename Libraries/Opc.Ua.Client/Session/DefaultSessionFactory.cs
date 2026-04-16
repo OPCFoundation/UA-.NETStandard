@@ -409,14 +409,14 @@ namespace Opc.Ua.Client
             session.ReturnDiagnostics = returnDiagnostics;
 
             // create the session.
-            UserIdentity tempIdentity = identity == null ? new UserIdentity() : null;
+            UserIdentity? tempIdentity = identity == null ? new UserIdentity() : null;
             try
             {
                 await session
                     .OpenAsync(
                         sessionName,
                         sessionTimeout,
-                        identity ?? tempIdentity,
+                        identity ?? tempIdentity!,
                         preferredLocales,
                         checkDomain,
                         ct)

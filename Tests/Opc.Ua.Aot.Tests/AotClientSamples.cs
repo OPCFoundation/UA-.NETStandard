@@ -130,7 +130,7 @@ public static class AotClientSamples
     /// </summary>
     public static async Task BrowseAsync(ISession session)
     {
-        var browser = new Browser(session)
+        using var browser = new Browser(session)
         {
             BrowseDirection = BrowseDirection.Forward,
             NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable,

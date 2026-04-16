@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             WriterGroupDataType writerGroup = CreateWriterGroup(UadpNetworkMessageContentMask.PublisherId);
             var messages = new List<UadpDataSetMessage>();
 
-            using var message = new UadpNetworkMessage(writerGroup, messages);
+            var message = new UadpNetworkMessage(writerGroup, messages);
 
             Assert.That(message.UADPNetworkMessageType,
                 Is.EqualTo(UADPNetworkMessageType.DataSetMessage));
@@ -87,7 +87,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ConstructorDiscoveryRequestSetsType()
         {
-            using var message = new UadpNetworkMessage(
+            var message = new UadpNetworkMessage(
                 UADPNetworkMessageDiscoveryType.DataSetMetaData);
 
             Assert.That(message.UADPNetworkMessageType,
@@ -102,7 +102,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             WriterGroupDataType writerGroup = CreateWriterGroup(UadpNetworkMessageContentMask.PublisherId);
             var metadata = new DataSetMetaDataType { Name = "TestMeta" };
 
-            using var message = new UadpNetworkMessage(writerGroup, metadata);
+            var message = new UadpNetworkMessage(writerGroup, metadata);
 
             Assert.That(message.UADPNetworkMessageType,
                 Is.EqualTo(UADPNetworkMessageType.DiscoveryResponse));
@@ -115,7 +115,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             EndpointDescription[] endpoints = [new EndpointDescription()];
 
-            using var message = new UadpNetworkMessage(endpoints, StatusCodes.Good);
+            var message = new UadpNetworkMessage(endpoints, StatusCodes.Good);
 
             Assert.That(message.UADPNetworkMessageType,
                 Is.EqualTo(UADPNetworkMessageType.DiscoveryResponse));
@@ -128,7 +128,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             WriterGroupDataType writerGroup = CreateWriterGroup(UadpNetworkMessageContentMask.PublisherId);
 
-            using var message = new UadpNetworkMessage(
+            var message = new UadpNetworkMessage(
                 SampleWriterIds, writerGroup, SampleStatusCodes);
 
             Assert.That(message.UADPNetworkMessageType,
@@ -358,7 +358,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpDataSetMessage dataSetMessage = CreateSimpleDataSetMessage();
             var messages = new List<UadpDataSetMessage> { dataSetMessage };
 
-            using var networkMessage = new UadpNetworkMessage(writerGroup, messages);
+            var networkMessage = new UadpNetworkMessage(writerGroup, messages);
             networkMessage.SetNetworkMessageContentMask(contentMask);
             networkMessage.PublisherId = Variant.From((ushort)100);
             networkMessage.WriterGroupId = 1;
@@ -371,7 +371,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(encoded, Is.Not.Null);
             Assert.That(encoded, Is.Not.Empty);
 
-            using var decodedMessage = new UadpNetworkMessage(writerGroup, []);
+            var decodedMessage = new UadpNetworkMessage(writerGroup, []);
             decodedMessage.SetNetworkMessageContentMask(contentMask);
 
             List<DataSetReaderDataType> readers = CreateMatchingReaders(dataSetMessage);
@@ -385,7 +385,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeDecodeDiscoveryRequestRoundTrip()
         {
-            using var message = new UadpNetworkMessage(
+            var message = new UadpNetworkMessage(
                 UADPNetworkMessageDiscoveryType.DataSetMetaData)
             {
                 PublisherId = Variant.From((ushort)50)
@@ -396,7 +396,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(encoded, Is.Not.Null);
             Assert.That(encoded, Is.Not.Empty);
 
-            using var decoded = new UadpNetworkMessage(
+            var decoded = new UadpNetworkMessage(
                 UADPNetworkMessageDiscoveryType.DataSetMetaData);
             decoded.Decode(context, encoded, null);
 
@@ -418,7 +418,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             };
 
-            using var message = new UadpNetworkMessage(writerGroup, metadata)
+            var message = new UadpNetworkMessage(writerGroup, metadata)
             {
                 PublisherId = Variant.From((ushort)10),
                 DataSetWriterId = 1
@@ -435,7 +435,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             EndpointDescription[] endpoints = [new EndpointDescription { EndpointUrl = "opc.tcp://localhost:4840" }];
 
-            using var message = new UadpNetworkMessage(endpoints, StatusCodes.Good)
+            var message = new UadpNetworkMessage(endpoints, StatusCodes.Good)
             {
                 PublisherId = Variant.From((ushort)20)
             };
@@ -451,7 +451,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             WriterGroupDataType writerGroup = CreateWriterGroup(UadpNetworkMessageContentMask.PublisherId);
 
-            using var message = new UadpNetworkMessage(
+            var message = new UadpNetworkMessage(
                 SampleWriterIds, writerGroup, SampleStatusCodes)
             {
                 PublisherId = Variant.From((ushort)30)
@@ -474,7 +474,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpDataSetMessage dataSetMessage = CreateSimpleDataSetMessage();
             var messages = new List<UadpDataSetMessage> { dataSetMessage };
 
-            using var networkMessage = new UadpNetworkMessage(writerGroup, messages);
+            var networkMessage = new UadpNetworkMessage(writerGroup, messages);
             networkMessage.SetNetworkMessageContentMask(contentMask);
             networkMessage.PublisherId = Variant.From((byte)1);
             networkMessage.WriterGroupId = 1;
@@ -500,14 +500,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpDataSetMessage dataSetMessage = CreateSimpleDataSetMessage();
             var messages = new List<UadpDataSetMessage> { dataSetMessage };
 
-            using var networkMessage = new UadpNetworkMessage(writerGroup, messages);
+            var networkMessage = new UadpNetworkMessage(writerGroup, messages);
             networkMessage.SetNetworkMessageContentMask(contentMask);
             networkMessage.PublisherId = Variant.From((byte)1);
 
             IServiceMessageContext context = ServiceMessageContext.Create(m_telemetry);
             byte[] encoded = networkMessage.Encode(context);
 
-            using var decoded = new UadpNetworkMessage(writerGroup, []);
+            var decoded = new UadpNetworkMessage(writerGroup, []);
             decoded.SetNetworkMessageContentMask(contentMask);
             decoded.Decode(context, encoded, null);
 
@@ -532,7 +532,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpNetworkMessageContentMask contentMask)
         {
             WriterGroupDataType writerGroup = CreateWriterGroup(contentMask);
-            using var message = new UadpNetworkMessage(writerGroup, []);
+            var message = new UadpNetworkMessage(writerGroup, []);
             message.SetNetworkMessageContentMask(contentMask);
             return message;
         }

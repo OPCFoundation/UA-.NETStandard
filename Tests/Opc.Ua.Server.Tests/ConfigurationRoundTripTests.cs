@@ -175,7 +175,7 @@ namespace Opc.Ua.Server.Tests
             settings.Encoding = new UTF8Encoding(false);
             using (var writer = XmlWriter.Create(stream, settings))
             {
-                var encoder = new XmlEncoder(
+                using var encoder = new XmlEncoder(
                     typeof(MemoryBufferConfiguration), writer, ctx);
                 config.Encode(encoder);
                 encoder.Close();
@@ -234,7 +234,7 @@ namespace Opc.Ua.Server.Tests
             settings.Encoding = new UTF8Encoding(false);
             using (var writer = XmlWriter.Create(stream, settings))
             {
-                var encoder = new XmlEncoder(
+                using var encoder = new XmlEncoder(
                     typeof(TestDataNodeManagerConfiguration), writer, ctx);
                 config.Encode(encoder);
                 encoder.Close();

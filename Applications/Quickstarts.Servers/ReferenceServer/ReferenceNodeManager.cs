@@ -74,9 +74,8 @@ namespace Quickstarts.ReferenceServer
         {
             if (disposing)
             {
-                // TBD
-
-                Utils.SilentDispose(m_simulationTimer);
+                m_semaphore?.Dispose();
+                m_simulationTimer?.Dispose();
                 m_simulationTimer = null;
             }
             base.Dispose(disposing);
@@ -176,6 +175,7 @@ namespace Quickstarts.ReferenceServer
                     externalReferences[ObjectIds.ObjectsFolder] = references = [];
                 }
 
+#pragma warning disable CA2000 // Ownership of created nodes is transferred to parent via AddChild
                 FolderState root = CreateFolder(null, "CTT", "CTT");
                 root.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
                 references.Add(
@@ -3719,13 +3719,14 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 await AddPredefinedNodeAsync(SystemContext, root, cancellationToken).ConfigureAwait(false);
+#pragma warning restore CA2000
 
                 if (m_simulationEnabled)
                 {
                     // reset random generator and generate boundary values
                     ResetRandomGenerator(100, 1);
 
-                    Utils.SilentDispose(m_simulationTimer);
+                    m_simulationTimer?.Dispose();
                     m_simulationTimer = new Timer(DoSimulation, null, m_simulationInterval, m_simulationInterval);
                 }
             }
@@ -3790,7 +3791,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private FolderState CreateFolder(NodeState parent, string path, string name)
         {
-            var folder = new FolderState(parent)
+            FolderState folder = new FolderState(parent)
             {
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
@@ -3803,7 +3804,15 @@ namespace Quickstarts.ReferenceServer
                 EventNotifier = EventNotifiers.None
             };
 
-            parent?.AddChild(folder);
+            try
+            {
+                parent?.AddChild(folder);
+            }
+            catch
+            {
+                folder.Dispose();
+                throw;
+            }
 
             return folder;
         }
@@ -3824,15 +3833,23 @@ namespace Quickstarts.ReferenceServer
                 BuiltInType.Double,
                 ValueRanks.Scalar);
 
-            if (peers != null)
+            try
             {
-                foreach (NodeState peer in peers)
+                if (peers != null)
                 {
-                    peer.AddReference(ReferenceTypeIds.HasCause, false, variable.NodeId);
-                    variable.AddReference(ReferenceTypeIds.HasCause, true, peer.NodeId);
-                    peer.AddReference(ReferenceTypeIds.HasEffect, true, variable.NodeId);
-                    variable.AddReference(ReferenceTypeIds.HasEffect, false, peer.NodeId);
+                    foreach (NodeState peer in peers)
+                    {
+                        peer.AddReference(ReferenceTypeIds.HasCause, false, variable.NodeId);
+                        variable.AddReference(ReferenceTypeIds.HasCause, true, peer.NodeId);
+                        peer.AddReference(ReferenceTypeIds.HasEffect, true, variable.NodeId);
+                        variable.AddReference(ReferenceTypeIds.HasEffect, false, peer.NodeId);
+                    }
                 }
+            }
+            catch
+            {
+                variable.Dispose();
+                throw;
             }
 
             return variable;
@@ -3848,44 +3865,52 @@ namespace Quickstarts.ReferenceServer
             BuiltInType dataType,
             int valueRank)
         {
-            var variable = new DataItemState(parent);
-            variable.ValuePrecision = PropertyState<double>.With<VariantBuilder>(variable);
-            variable.Definition = PropertyState<string>.With<VariantBuilder>(variable);
-
-            variable.Create(SystemContext, default, variable.BrowseName, default, true);
-
-            variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
-            variable.NodeId = new NodeId(path, NamespaceIndex);
-            variable.BrowseName = new QualifiedName(path, NamespaceIndex);
-            variable.DisplayName = new LocalizedText("en", name);
-            variable.WriteMask = AttributeWriteMask.None;
-            variable.UserWriteMask = AttributeWriteMask.None;
-            variable.DataType = (NodeId)(uint)dataType;
-            variable.ValueRank = valueRank;
-            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Historizing = false;
-            variable.Value = TypeInfo.GetDefaultVariantValue((NodeId)(uint)dataType, valueRank, Server.TypeTree);
-            variable.StatusCode = StatusCodes.Good;
-
-            if (valueRank == ValueRanks.OneDimension)
+            DataItemState variable = new DataItemState(parent);
+            try
             {
-                variable.ArrayDimensions = [0];
+                variable.ValuePrecision = PropertyState<double>.With<VariantBuilder>(variable);
+                variable.Definition = PropertyState<string>.With<VariantBuilder>(variable);
+
+                variable.Create(SystemContext, default, variable.BrowseName, default, true);
+
+                variable.SymbolicName = name;
+                variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+                variable.NodeId = new NodeId(path, NamespaceIndex);
+                variable.BrowseName = new QualifiedName(path, NamespaceIndex);
+                variable.DisplayName = new LocalizedText("en", name);
+                variable.WriteMask = AttributeWriteMask.None;
+                variable.UserWriteMask = AttributeWriteMask.None;
+                variable.DataType = (NodeId)(uint)dataType;
+                variable.ValueRank = valueRank;
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Historizing = false;
+                variable.Value = TypeInfo.GetDefaultVariantValue((NodeId)(uint)dataType, valueRank, Server.TypeTree);
+                variable.StatusCode = StatusCodes.Good;
+
+                if (valueRank == ValueRanks.OneDimension)
+                {
+                    variable.ArrayDimensions = [0];
+                }
+                else if (valueRank == ValueRanks.TwoDimensions)
+                {
+                    variable.ArrayDimensions = [0, 0];
+                }
+
+                variable.ValuePrecision.Value = 2;
+                variable.ValuePrecision.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.ValuePrecision.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Definition.Value = string.Empty;
+                variable.Definition.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Definition.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+                parent?.AddChild(variable);
             }
-            else if (valueRank == ValueRanks.TwoDimensions)
+            catch
             {
-                variable.ArrayDimensions = [0, 0];
+                variable.Dispose();
+                throw;
             }
-
-            variable.ValuePrecision.Value = 2;
-            variable.ValuePrecision.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.ValuePrecision.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Definition.Value = string.Empty;
-            variable.Definition.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Definition.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-
-            parent?.AddChild(variable);
 
             return variable;
         }
@@ -3949,86 +3974,94 @@ namespace Quickstarts.ReferenceServer
             Variant initialValues,
             Range customRange)
         {
-            var variable = new AnalogItemState(parent)
+            AnalogItemState variable = new AnalogItemState(parent)
             {
                 BrowseName = new QualifiedName(path, NamespaceIndex)
             };
-            variable.EngineeringUnits = PropertyState<EUInformation>.With<StructureBuilder<EUInformation>>(variable);
-            variable.InstrumentRange = PropertyState<Range>.With<StructureBuilder<Range>>(variable);
-
-            variable.Create(
-                SystemContext,
-                new NodeId(path, NamespaceIndex),
-                variable.BrowseName,
-                default,
-                true);
-
-            variable.NodeId = new NodeId(path, NamespaceIndex);
-            variable.SymbolicName = name;
-            variable.DisplayName = new LocalizedText("en", name);
-            variable.WriteMask = AttributeWriteMask.None;
-            variable.UserWriteMask = AttributeWriteMask.None;
-            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
-            variable.DataType = dataType;
-            variable.ValueRank = valueRank;
-            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Historizing = false;
-
-            if (valueRank == ValueRanks.OneDimension)
+            try
             {
-                variable.ArrayDimensions = [0];
+                variable.EngineeringUnits = PropertyState<EUInformation>.With<StructureBuilder<EUInformation>>(variable);
+                variable.InstrumentRange = PropertyState<Range>.With<StructureBuilder<Range>>(variable);
+
+                variable.Create(
+                    SystemContext,
+                    new NodeId(path, NamespaceIndex),
+                    variable.BrowseName,
+                    default,
+                    true);
+
+                variable.NodeId = new NodeId(path, NamespaceIndex);
+                variable.SymbolicName = name;
+                variable.DisplayName = new LocalizedText("en", name);
+                variable.WriteMask = AttributeWriteMask.None;
+                variable.UserWriteMask = AttributeWriteMask.None;
+                variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+                variable.DataType = dataType;
+                variable.ValueRank = valueRank;
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Historizing = false;
+
+                if (valueRank == ValueRanks.OneDimension)
+                {
+                    variable.ArrayDimensions = [0];
+                }
+                else if (valueRank == ValueRanks.TwoDimensions)
+                {
+                    variable.ArrayDimensions = [0, 0];
+                }
+
+                BuiltInType builtInType = TypeInfo.GetBuiltInType(dataType, Server.TypeTree);
+
+                if (!TypeInfo.IsNumericType(builtInType))
+                {
+                    throw new ArgumentException("AnalogItem must have a numeric DataType.", nameof(dataType));
+                }
+
+                // Simulate a mV Voltmeter
+                Range newRange = GetAnalogRange(builtInType);
+                // Using anything but 120,-10 fails a few tests
+                newRange.High = Math.Min(newRange.High, 120);
+                newRange.Low = Math.Max(newRange.Low, -10);
+                variable.InstrumentRange.Value = newRange;
+
+                variable.EURange.Value = customRange ?? new Range(100, 0);
+
+                variable.Value = initialValues;
+                if (variable.Value.IsNull)
+                {
+                    variable.Value = TypeInfo.GetDefaultVariantValue(dataType, valueRank, Server.TypeTree);
+                }
+
+                variable.StatusCode = StatusCodes.Good;
+                // The latest UNECE version (Rev 11, published in 2015) is available here:
+                // http://www.opcfoundation.org/UA/EngineeringUnits/UNECE/rec20_latest_08052015.zip
+                variable.EngineeringUnits.Value = new EUInformation(
+                    "mV",
+                    "millivolt",
+                    "http://www.opcfoundation.org/UA/units/un/cefact")
+                {
+                    // The mapping of the UNECE codes to OPC UA(EUInformation.unitId) is available here:
+                    // http://www.opcfoundation.org/UA/EngineeringUnits/UNECE/UNECE_to_OPCUA.csv
+                    UnitId = 12890 // "2Z"
+                };
+                variable.OnWriteValue = OnWriteAnalog;
+                variable.EURange.OnWriteValue = OnWriteAnalogRange;
+                variable.EURange.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.EURange.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.EngineeringUnits.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.EngineeringUnits.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.InstrumentRange.OnWriteValue = OnWriteAnalogRange;
+                variable.InstrumentRange.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.InstrumentRange.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+                parent?.AddChild(variable);
             }
-            else if (valueRank == ValueRanks.TwoDimensions)
+            catch
             {
-                variable.ArrayDimensions = [0, 0];
+                variable.Dispose();
+                throw;
             }
-
-            BuiltInType builtInType = TypeInfo.GetBuiltInType(dataType, Server.TypeTree);
-
-            if (!TypeInfo.IsNumericType(builtInType))
-            {
-                throw new ArgumentException("AnalogItem must have a numeric DataType.", nameof(dataType));
-            }
-
-            // Simulate a mV Voltmeter
-            Range newRange = GetAnalogRange(builtInType);
-            // Using anything but 120,-10 fails a few tests
-            newRange.High = Math.Min(newRange.High, 120);
-            newRange.Low = Math.Max(newRange.Low, -10);
-            variable.InstrumentRange.Value = newRange;
-
-            variable.EURange.Value = customRange ?? new Range(100, 0);
-
-            variable.Value = initialValues;
-            if (variable.Value.IsNull)
-            {
-                variable.Value = TypeInfo.GetDefaultVariantValue(dataType, valueRank, Server.TypeTree);
-            }
-
-            variable.StatusCode = StatusCodes.Good;
-            // The latest UNECE version (Rev 11, published in 2015) is available here:
-            // http://www.opcfoundation.org/UA/EngineeringUnits/UNECE/rec20_latest_08052015.zip
-            variable.EngineeringUnits.Value = new EUInformation(
-                "mV",
-                "millivolt",
-                "http://www.opcfoundation.org/UA/units/un/cefact")
-            {
-                // The mapping of the UNECE codes to OPC UA(EUInformation.unitId) is available here:
-                // http://www.opcfoundation.org/UA/EngineeringUnits/UNECE/UNECE_to_OPCUA.csv
-                UnitId = 12890 // "2Z"
-            };
-            variable.OnWriteValue = OnWriteAnalog;
-            variable.EURange.OnWriteValue = OnWriteAnalogRange;
-            variable.EURange.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.EURange.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.EngineeringUnits.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.EngineeringUnits.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.InstrumentRange.OnWriteValue = OnWriteAnalogRange;
-            variable.InstrumentRange.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.InstrumentRange.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-
-            parent?.AddChild(variable);
 
             return variable;
         }
@@ -4043,7 +4076,7 @@ namespace Quickstarts.ReferenceServer
             string trueState,
             string falseState)
         {
-            var variable = new TwoStateDiscreteState(parent)
+            TwoStateDiscreteState variable = new TwoStateDiscreteState(parent)
             {
                 NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
@@ -4052,27 +4085,35 @@ namespace Quickstarts.ReferenceServer
                 UserWriteMask = AttributeWriteMask.None
             };
 
-            variable.Create(SystemContext, default, variable.BrowseName, default, true);
+            try
+            {
+                variable.Create(SystemContext, default, variable.BrowseName, default, true);
 
-            variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
-            variable.DataType = DataTypeIds.Boolean;
-            variable.ValueRank = ValueRanks.Scalar;
-            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Historizing = false;
-            variable.Value = (bool)GetNewValue(variable);
-            variable.StatusCode = StatusCodes.Good;
+                variable.SymbolicName = name;
+                variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+                variable.DataType = DataTypeIds.Boolean;
+                variable.ValueRank = ValueRanks.Scalar;
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Historizing = false;
+                variable.Value = (bool)GetNewValue(variable);
+                variable.StatusCode = StatusCodes.Good;
 
-            variable.TrueState.Value = LocalizedText.From(trueState);
-            variable.TrueState.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.TrueState.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.TrueState.Value = LocalizedText.From(trueState);
+                variable.TrueState.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.TrueState.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
-            variable.FalseState.Value = LocalizedText.From(falseState);
-            variable.FalseState.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.FalseState.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.FalseState.Value = LocalizedText.From(falseState);
+                variable.FalseState.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.FalseState.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
-            parent?.AddChild(variable);
+                parent?.AddChild(variable);
+            }
+            catch
+            {
+                variable.Dispose();
+                throw;
+            }
 
             return variable;
         }
@@ -4086,7 +4127,7 @@ namespace Quickstarts.ReferenceServer
             string name,
             params string[] values)
         {
-            var variable = new MultiStateDiscreteState(parent)
+            MultiStateDiscreteState variable = new MultiStateDiscreteState(parent)
             {
                 NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
@@ -4095,31 +4136,39 @@ namespace Quickstarts.ReferenceServer
                 UserWriteMask = AttributeWriteMask.None
             };
 
-            variable.Create(SystemContext, default, variable.BrowseName, default, true);
-
-            variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
-            variable.DataType = DataTypeIds.UInt32;
-            variable.ValueRank = ValueRanks.Scalar;
-            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Historizing = false;
-            variable.Value = (uint)0;
-            variable.StatusCode = StatusCodes.Good;
-            variable.OnWriteValue = OnWriteDiscrete;
-
-            var strings = new LocalizedText[values.Length];
-
-            for (int ii = 0; ii < strings.Length; ii++)
+            try
             {
-                strings[ii] = LocalizedText.From(values[ii]);
+                variable.Create(SystemContext, default, variable.BrowseName, default, true);
+
+                variable.SymbolicName = name;
+                variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+                variable.DataType = DataTypeIds.UInt32;
+                variable.ValueRank = ValueRanks.Scalar;
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Historizing = false;
+                variable.Value = (uint)0;
+                variable.StatusCode = StatusCodes.Good;
+                variable.OnWriteValue = OnWriteDiscrete;
+
+                var strings = new LocalizedText[values.Length];
+
+                for (int ii = 0; ii < strings.Length; ii++)
+                {
+                    strings[ii] = LocalizedText.From(values[ii]);
+                }
+
+                variable.EnumStrings.Value = strings;
+                variable.EnumStrings.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.EnumStrings.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+                parent?.AddChild(variable);
             }
-
-            variable.EnumStrings.Value = strings;
-            variable.EnumStrings.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.EnumStrings.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-
-            parent?.AddChild(variable);
+            catch
+            {
+                variable.Dispose();
+                throw;
+            }
 
             return variable;
         }
@@ -4146,7 +4195,7 @@ namespace Quickstarts.ReferenceServer
             NodeId nodeId,
             ArrayOf<string> enumNames)
         {
-            var variable = new MultiStateValueDiscreteState(parent)
+            MultiStateValueDiscreteState variable = new MultiStateValueDiscreteState(parent)
             {
                 NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
@@ -4155,47 +4204,55 @@ namespace Quickstarts.ReferenceServer
                 UserWriteMask = AttributeWriteMask.None
             };
 
-            variable.Create(SystemContext, default, variable.BrowseName, default, true);
-
-            variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
-            variable.DataType = nodeId.IsNull ? DataTypeIds.UInt32 : nodeId;
-            variable.ValueRank = ValueRanks.Scalar;
-            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Historizing = false;
-            variable.Value = (uint)0;
-            variable.StatusCode = StatusCodes.Good;
-            variable.OnWriteValue = OnWriteValueDiscrete;
-
-            // there are two enumerations for this type:
-            // EnumStrings = the string representations for enumerated values
-            // ValueAsText = the actual enumerated value
-
-            // set the enumerated strings
-            var strings = new LocalizedText[enumNames.Count];
-            for (int ii = 0; ii < strings.Length; ii++)
+            try
             {
-                strings[ii] = LocalizedText.From(enumNames[ii]);
-            }
+                variable.Create(SystemContext, default, variable.BrowseName, default, true);
 
-            // set the enumerated values
-            var values = new EnumValueType[enumNames.Count];
-            for (int ii = 0; ii < values.Length; ii++)
-            {
-                values[ii] = new EnumValueType
+                variable.SymbolicName = name;
+                variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+                variable.DataType = nodeId.IsNull ? DataTypeIds.UInt32 : nodeId;
+                variable.ValueRank = ValueRanks.Scalar;
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Historizing = false;
+                variable.Value = (uint)0;
+                variable.StatusCode = StatusCodes.Good;
+                variable.OnWriteValue = OnWriteValueDiscrete;
+
+                // there are two enumerations for this type:
+                // EnumStrings = the string representations for enumerated values
+                // ValueAsText = the actual enumerated value
+
+                // set the enumerated strings
+                var strings = new LocalizedText[enumNames.Count];
+                for (int ii = 0; ii < strings.Length; ii++)
                 {
-                    Value = ii,
-                    Description = strings[ii],
-                    DisplayName = strings[ii]
-                };
-            }
-            variable.EnumValues.Value = values;
-            variable.EnumValues.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.EnumValues.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.ValueAsText.Value = variable.EnumValues.Value[0].DisplayName;
+                    strings[ii] = LocalizedText.From(enumNames[ii]);
+                }
 
-            parent?.AddChild(variable);
+                // set the enumerated values
+                var values = new EnumValueType[enumNames.Count];
+                for (int ii = 0; ii < values.Length; ii++)
+                {
+                    values[ii] = new EnumValueType
+                    {
+                        Value = ii,
+                        Description = strings[ii],
+                        DisplayName = strings[ii]
+                    };
+                }
+                variable.EnumValues.Value = values;
+                variable.EnumValues.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.EnumValues.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.ValueAsText.Value = variable.EnumValues.Value[0].DisplayName;
+
+                parent?.AddChild(variable);
+            }
+            catch
+            {
+                variable.Dispose();
+                throw;
+            }
 
             return variable;
         }
@@ -4407,7 +4464,7 @@ namespace Quickstarts.ReferenceServer
             NodeId dataType,
             int valueRank)
         {
-            var variable = new BaseDataVariableState(parent)
+            BaseDataVariableState variable = new BaseDataVariableState(parent)
             {
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
@@ -4423,20 +4480,29 @@ namespace Quickstarts.ReferenceServer
                 UserAccessLevel = AccessLevels.CurrentReadOrWrite,
                 Historizing = false
             };
-            variable.Value = GetNewValue(variable);
-            variable.StatusCode = StatusCodes.Good;
-            variable.Description = LocalizedText.From("Default Description");
 
-            if (valueRank == ValueRanks.OneDimension)
+            try
             {
-                variable.ArrayDimensions = [0];
-            }
-            else if (valueRank == ValueRanks.TwoDimensions)
-            {
-                variable.ArrayDimensions = [0, 0];
-            }
+                variable.Value = GetNewValue(variable);
+                variable.StatusCode = StatusCodes.Good;
+                variable.Description = LocalizedText.From("Default Description");
 
-            parent?.AddChild(variable);
+                if (valueRank == ValueRanks.OneDimension)
+                {
+                    variable.ArrayDimensions = [0];
+                }
+                else if (valueRank == ValueRanks.TwoDimensions)
+                {
+                    variable.ArrayDimensions = [0, 0];
+                }
+
+                parent?.AddChild(variable);
+            }
+            catch
+            {
+                variable.Dispose();
+                throw;
+            }
 
             return variable;
         }
@@ -4461,7 +4527,9 @@ namespace Quickstarts.ReferenceServer
             ushort numVariables)
         {
             // first, create a new Parent folder for this data-type
+#pragma warning disable CA2000 // Ownership transferred to parent via AddChild
             FolderState newParentFolder = CreateFolder(parent, path, name);
+#pragma warning restore CA2000
 
             var itemsCreated = new List<BaseDataVariableState>();
             // now to create the remaining NUMBERED items
@@ -4542,7 +4610,9 @@ namespace Quickstarts.ReferenceServer
             uint numVariables)
         {
             // first, create a new Parent folder for this data-type
+#pragma warning disable CA2000 // Ownership transferred to parent via AddChild
             FolderState newParentFolder = CreateFolder(parent, path, name);
+#pragma warning restore CA2000
 
             var itemsCreated = new List<BaseDataVariableState>();
             // now to create the remaining NUMBERED items
@@ -4610,7 +4680,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private MethodState CreateMethod(FolderState parent, string path, string name)
         {
-            var method = new MethodState(parent)
+            MethodState method = new MethodState(parent)
             {
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
@@ -4623,7 +4693,15 @@ namespace Quickstarts.ReferenceServer
                 UserExecutable = true
             };
 
-            parent?.AddChild(method);
+            try
+            {
+                parent?.AddChild(method);
+            }
+            catch
+            {
+                method.Dispose();
+                throw;
+            }
 
             return method;
         }

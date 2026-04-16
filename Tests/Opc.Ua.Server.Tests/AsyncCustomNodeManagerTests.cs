@@ -59,6 +59,7 @@ namespace Opc.Ua.Server.Tests
         private readonly bool m_useSamplingGroups;
         private static readonly ArrayOf<double> s_value = [10.0, 200.0, 30.0];
         private static readonly ArrayOf<double> s_expected = [10.0, 20.0, 30.0];
+        private MonitoredItemQueueFactory m_monitoredItemQueueFactory;
 
         public enum AsyncCustomNodeManagerType
         {
@@ -97,7 +98,8 @@ namespace Opc.Ua.Server.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             m_mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
 
-            m_mockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(new MonitoredItemQueueFactory(mockTelemetry.Object));
+            m_monitoredItemQueueFactory = new MonitoredItemQueueFactory(mockTelemetry.Object);
+            m_mockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(m_monitoredItemQueueFactory);
 
             // Setup DefaultSystemContext
             m_serverSystemContext = new ServerSystemContext(m_mockServer.Object);
@@ -111,6 +113,12 @@ namespace Opc.Ua.Server.Tests
                     MaxDurableNotificationQueueSize = 200
                 }
             };
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            m_monitoredItemQueueFactory?.Dispose();
         }
 
         [Test]
@@ -136,7 +144,7 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 100; i++)
             {
-                var node = new BaseObjectState(null);
+                using var node = new BaseObjectState(null);
                 NodeId nodeId = manager.New(context, node);
 
                 Assert.That(nodeId.IsNull, Is.False);
@@ -152,7 +160,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var baseObject = new BaseObjectState(null);
+            using var baseObject = new BaseObjectState(null);
             baseObject.CreateAsPredefinedNode(context);
             baseObject.NodeId = new NodeId("FindNode", nsIdx);
             baseObject.BrowseName = new QualifiedName("FindNode", nsIdx);
@@ -175,7 +183,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var baseObject = new BaseObjectState(null);
+            using var baseObject = new BaseObjectState(null);
             baseObject.CreateAsPredefinedNode(context);
             baseObject.NodeId = new NodeId("MyObject", nsIdx);
             baseObject.BrowseName = new QualifiedName("MyObject", nsIdx);
@@ -199,7 +207,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var baseObject = new BaseObjectState(null);
+            using var baseObject = new BaseObjectState(null);
             baseObject.CreateAsPredefinedNode(context);
             baseObject.NodeId = new NodeId("MyObject", nsIdx);
             baseObject.BrowseName = new QualifiedName("MyObject", nsIdx);
@@ -223,7 +231,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var folder = new FolderState(null);
+            using var folder = new FolderState(null);
             folder.CreateAsPredefinedNode(manager.SystemContext);
             folder.NodeId = new NodeId("Folder", nsIdx);
             folder.BrowseName = new QualifiedName("Folder", nsIdx);
@@ -243,7 +251,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var node = new BaseObjectState(null);
+            using var node = new BaseObjectState(null);
             node.CreateAsPredefinedNode(context);
             node.NodeId = new NodeId("Disposable", nsIdx);
             node.BrowseName = new QualifiedName("Disposable", nsIdx);
@@ -262,7 +270,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var baseObject = new BaseObjectState(null);
+            using var baseObject = new BaseObjectState(null);
             baseObject.CreateAsPredefinedNode(context);
             baseObject.NodeId = new NodeId("MyObject", nsIdx);
             baseObject.BrowseName = new QualifiedName("MyObject", nsIdx);
@@ -291,7 +299,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var variable = new BaseDataVariableState(null);
+            using var variable = new BaseDataVariableState(null);
             variable.CreateAsPredefinedNode(context);
 
             variable.NodeId = new NodeId("MetaVar", nsIdx);
@@ -325,7 +333,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null);
+            using var variable = new BaseDataVariableState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("MyVar", nsIdx);
             variable.BrowseName = new QualifiedName("MyVar", nsIdx);
@@ -379,13 +387,13 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var parent = new BaseObjectState(null);
+            using var parent = new BaseObjectState(null);
             parent.CreateAsPredefinedNode(context);
             parent.NodeId = new NodeId("TranslateParent", nsIdx);
             parent.BrowseName = new QualifiedName("TranslateParent", nsIdx);
             await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
 
-            var child = new BaseObjectState(null);
+            using var child = new BaseObjectState(null);
             child.CreateAsPredefinedNode(context);
             child.NodeId = new NodeId("TranslateChild", nsIdx);
             child.BrowseName = new QualifiedName("TranslateChild", nsIdx);
@@ -420,20 +428,20 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var parent = new BaseObjectState(null);
+            using var parent = new BaseObjectState(null);
             parent.CreateAsPredefinedNode(context);
             parent.NodeId = new NodeId("Parent", nsIdx);
             parent.BrowseName = new QualifiedName("Parent", nsIdx);
             await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
 
-            var child = new BaseObjectState(null);
+            using var child = new BaseObjectState(null);
             child.CreateAsPredefinedNode(context);
             child.NodeId = new NodeId("Child", nsIdx);
             child.BrowseName = new QualifiedName("Child", nsIdx);
             await manager.AddNodeAsync(context, parent.NodeId, child).ConfigureAwait(false);
 
             object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
-            var continuationPoint = new ContinuationPoint
+            using var continuationPoint = new ContinuationPoint
             {
                 NodeToBrowse = handle,
                 Manager = manager,
@@ -462,7 +470,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null);
+            using var variable = new BaseDataVariableState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("MyVar", nsIdx);
             variable.BrowseName = new QualifiedName("MyVar", nsIdx);
@@ -513,7 +521,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var variable = new AnalogItemState(null);
+            using var variable = new AnalogItemState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("AnalogScalarVar", nsIdx);
             variable.BrowseName = new QualifiedName("AnalogScalarVar", nsIdx);
@@ -555,7 +563,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var variable = new AnalogItemState(null);
+            using var variable = new AnalogItemState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("AnalogArrayVar", nsIdx);
             variable.BrowseName = new QualifiedName("AnalogArrayVar", nsIdx);
@@ -597,7 +605,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null);
+            using var variable = new BaseDataVariableState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("MyVarQueue", nsIdx);
             variable.BrowseName = new QualifiedName("MyVarQueue", nsIdx);
@@ -692,7 +700,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new AnalogItemState(null);
+            using var variable = new AnalogItemState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("MyVarQueue", nsIdx);
             variable.BrowseName = new QualifiedName("MyVarQueue", nsIdx);
@@ -794,7 +802,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var baseObject = new BaseObjectState(null);
+            using var baseObject = new BaseObjectState(null);
             baseObject.CreateAsPredefinedNode(context);
             baseObject.NodeId = new NodeId("MyObject", nsIdx);
             baseObject.BrowseName = new QualifiedName("MyObject", nsIdx);
@@ -833,13 +841,13 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var source = new BaseObjectState(null);
+            using var source = new BaseObjectState(null);
             source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("Source", nsIdx);
             source.BrowseName = new QualifiedName("Source", nsIdx);
             await manager.AddNodeAsync(context, default, source).ConfigureAwait(false);
 
-            var target = new BaseObjectState(null);
+            using var target = new BaseObjectState(null);
             target.CreateAsPredefinedNode(context);
             target.NodeId = new NodeId("Target", nsIdx);
             target.BrowseName = new QualifiedName("Target", nsIdx);
@@ -868,7 +876,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null);
+            using var variable = new BaseDataVariableState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("MyVar", nsIdx);
             variable.BrowseName = new QualifiedName("MyVar", nsIdx);
@@ -926,7 +934,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null);
+            using var variable = new BaseDataVariableState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("MyVar", nsIdx);
             variable.BrowseName = new QualifiedName("MyVar", nsIdx);
@@ -995,7 +1003,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null);
+            using var variable = new BaseDataVariableState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("MyVar", nsIdx);
             variable.BrowseName = new QualifiedName("MyVar", nsIdx);
@@ -1055,7 +1063,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null);
+            using var variable = new BaseDataVariableState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("MyVar", nsIdx);
             variable.BrowseName = new QualifiedName("MyVar", nsIdx);
@@ -1115,7 +1123,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var parent = new BaseObjectState(null);
+            using var parent = new BaseObjectState(null);
             parent.CreateAsPredefinedNode(context);
             parent.NodeId = new NodeId("CallParent", nsIdx);
             parent.BrowseName = new QualifiedName("CallParent", nsIdx);
@@ -1194,7 +1202,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null);
+            using var variable = new BaseDataVariableState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("HistVar", nsIdx);
             variable.BrowseName = new QualifiedName("HistVar", nsIdx);
@@ -1240,7 +1248,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null);
+            using var variable = new BaseDataVariableState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("HistUpdateVar", nsIdx);
             variable.BrowseName = new QualifiedName("HistUpdateVar", nsIdx);
@@ -1286,7 +1294,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ConditionRefreshAsync_ReturnsGoodWhenMonitoringServerAsync()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
-            var monitoredItem = new TestEventMonitoredItem
+            using var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = ObjectIds.Server,
                 Id = 1,
@@ -1308,7 +1316,7 @@ namespace Opc.Ua.Server.Tests
         public async Task SubscribeToEventsAsync_ReturnsBadNodeIdInvalidForUnknownSourceAsync()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
-            var monitoredItem = new TestEventMonitoredItem { NodeId = ObjectIds.Server };
+            using var monitoredItem = new TestEventMonitoredItem { NodeId = ObjectIds.Server };
             var context = new OperationContext(new RequestHeader(), null, RequestType.CreateSubscription, RequestLifetime.None);
 
             ServiceResult result = await manager.SubscribeToEventsAsync(context, new object(), 1, monitoredItem, false).ConfigureAwait(false);
@@ -1324,7 +1332,7 @@ namespace Opc.Ua.Server.Tests
         public async Task SubscribeToAllEventsAsync_ReturnsGoodWhenNoRootNotifiersAsync()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
-            var monitoredItem = new TestEventMonitoredItem { NodeId = ObjectIds.Server };
+            using var monitoredItem = new TestEventMonitoredItem { NodeId = ObjectIds.Server };
             var context = new OperationContext(new RequestHeader(), null, RequestType.CreateSubscription, RequestLifetime.None);
 
             ServiceResult result = await manager.SubscribeToAllEventsAsync(context, 1, monitoredItem, false).ConfigureAwait(false);
@@ -1344,7 +1352,7 @@ namespace Opc.Ua.Server.Tests
 
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null);
+            using var variable = new BaseDataVariableState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("RestoreVar", nsIdx);
             variable.BrowseName = new QualifiedName("RestoreVar", nsIdx);
@@ -1382,7 +1390,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null);
+            using var variable = new BaseDataVariableState(null);
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("TransferVar", nsIdx);
             variable.BrowseName = new QualifiedName("TransferVar", nsIdx);
@@ -1391,7 +1399,7 @@ namespace Opc.Ua.Server.Tests
 
             await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
 
-            var monitoredItem = new TestEventMonitoredItem
+            using var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = variable.NodeId,
                 ManagerHandle = new NodeHandle(variable.NodeId, variable),
@@ -1410,7 +1418,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(monitoredItem.ResendDataRequested, Is.True);
 
             var syncManager = (INodeManager3)manager.SyncNodeManager;
-            var secondItem = new TestEventMonitoredItem
+            using var secondItem = new TestEventMonitoredItem
             {
                 NodeId = variable.NodeId,
                 ManagerHandle = new NodeHandle(variable.NodeId, variable),
@@ -1458,7 +1466,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var node = new BaseObjectState(null);
+            using var node = new BaseObjectState(null);
             node.CreateAsPredefinedNode(context);
             node.NodeId = new NodeId("PermissionNode", nsIdx);
             node.BrowseName = new QualifiedName("PermissionNode", nsIdx);
@@ -1520,13 +1528,13 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateEventRolePermissionsAsync_ReturnsGoodWhenEventInformationMissingAsync()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
-            var monitoredItem = new TestEventMonitoredItem
+            using var monitoredItem = new TestEventMonitoredItem
             {
                 EffectiveIdentity = Mock.Of<IUserIdentity>(),
                 Session = Mock.Of<ISession>(s => s.Identity == Mock.Of<IUserIdentity>() && s.PreferredLocales == Array.Empty<string>())
             };
 
-            var eventState = new BaseEventState(null)
+            using var eventState = new BaseEventState(null)
             {
                 EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(null)
                 {
@@ -1548,7 +1556,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var notifier = new BaseObjectState(null);
+            using var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
             notifier.NodeId = new NodeId("Notifier", nsIdx);
             notifier.BrowseName = new QualifiedName("Notifier", nsIdx);
@@ -1564,7 +1572,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var notifier = new BaseObjectState(null);
+            using var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
             notifier.NodeId = new NodeId("Notifier", nsIdx);
             notifier.BrowseName = new QualifiedName("Notifier", nsIdx);
@@ -1579,7 +1587,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var notifier = new BaseObjectState(null);
+            using var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
             notifier.NodeId = new NodeId("Notifier", nsIdx);
             notifier.BrowseName = new QualifiedName("Notifier", nsIdx);
@@ -1597,7 +1605,7 @@ namespace Opc.Ua.Server.Tests
             // The Server object itself must not get the HasNotifier→Server reference
             // to prevent infinite recursion in event reporting.
             using TestableAsyncCustomNodeManager manager = CreateManager();
-            var serverNode = new BaseObjectState(null)
+            using var serverNode = new BaseObjectState(null)
             {
                 NodeId = ObjectIds.Server,
                 BrowseName = new QualifiedName("Server")
@@ -1617,7 +1625,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var notifier = new BaseObjectState(null);
+            using var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
             notifier.NodeId = new NodeId("Notifier", nsIdx);
             notifier.BrowseName = new QualifiedName("Notifier", nsIdx);
@@ -1642,7 +1650,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var notifier = new BaseObjectState(null);
+            using var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
             notifier.NodeId = new NodeId("Notifier", nsIdx);
             notifier.BrowseName = new QualifiedName("Notifier", nsIdx);
@@ -1660,7 +1668,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var notifier = new BaseObjectState(null);
+            using var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
             notifier.NodeId = new NodeId("Notifier", nsIdx);
             notifier.BrowseName = new QualifiedName("Notifier", nsIdx);
@@ -1678,7 +1686,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var notifier = new BaseObjectState(null);
+            using var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
             notifier.NodeId = new NodeId("Notifier", nsIdx);
             notifier.BrowseName = new QualifiedName("Notifier", nsIdx);
@@ -1700,7 +1708,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var notifier = new BaseObjectState(null);
+            using var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
             notifier.NodeId = new NodeId("NeverAdded", nsIdx);
             notifier.BrowseName = new QualifiedName("NeverAdded", nsIdx);
@@ -1721,7 +1729,7 @@ namespace Opc.Ua.Server.Tests
 
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var node = new BaseObjectState(null)
+            using var node = new BaseObjectState(null)
             {
                 NodeId = new NodeId("EventSource", nsIdx)
             };
@@ -1748,7 +1756,7 @@ namespace Opc.Ua.Server.Tests
 
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var notifier = new BaseObjectState(null);
+            using var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
             notifier.NodeId = new NodeId("Notifier", nsIdx);
             notifier.BrowseName = new QualifiedName("Notifier", nsIdx);
@@ -1768,7 +1776,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var eventSource = new BaseObjectState(null);
+            using var eventSource = new BaseObjectState(null);
             eventSource.CreateAsPredefinedNode(context);
             eventSource.NodeId = new NodeId("EventSource", nsIdx);
             eventSource.BrowseName = new QualifiedName("EventSource", nsIdx);
@@ -1776,7 +1784,7 @@ namespace Opc.Ua.Server.Tests
             await manager.AddNodeAsync(context, default, eventSource).ConfigureAwait(false);
 
             object handle = await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false);
-            var monitoredItem = new TestEventMonitoredItem
+            using var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = eventSource.NodeId,
                 Id = 42,
@@ -1806,7 +1814,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var eventSource = new BaseObjectState(null);
+            using var eventSource = new BaseObjectState(null);
             eventSource.CreateAsPredefinedNode(context);
             eventSource.NodeId = new NodeId("EventSource", nsIdx);
             eventSource.BrowseName = new QualifiedName("EventSource", nsIdx);
@@ -1814,7 +1822,7 @@ namespace Opc.Ua.Server.Tests
             await manager.AddNodeAsync(context, default, eventSource).ConfigureAwait(false);
 
             object handle = await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false);
-            var monitoredItem = new TestEventMonitoredItem
+            using var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = eventSource.NodeId,
                 Id = 43,
@@ -1843,7 +1851,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var nonEventSource = new BaseObjectState(null);
+            using var nonEventSource = new BaseObjectState(null);
             nonEventSource.CreateAsPredefinedNode(context);
             nonEventSource.NodeId = new NodeId("NonEvent", nsIdx);
             nonEventSource.BrowseName = new QualifiedName("NonEvent", nsIdx);
@@ -1851,7 +1859,7 @@ namespace Opc.Ua.Server.Tests
             await manager.AddNodeAsync(context, default, nonEventSource).ConfigureAwait(false);
 
             object handle = await manager.GetManagerHandleAsync(nonEventSource.NodeId).ConfigureAwait(false);
-            var monitoredItem = new TestEventMonitoredItem { NodeId = nonEventSource.NodeId, Id = 77 };
+            using var monitoredItem = new TestEventMonitoredItem { NodeId = nonEventSource.NodeId, Id = 77 };
 
             ServiceResult result = await manager.SubscribeToEventsAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.CreateSubscription, RequestLifetime.None),
@@ -1870,7 +1878,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var notifier = new BaseObjectState(null);
+            using var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(context);
             notifier.NodeId = new NodeId("AreaNotifier", nsIdx);
             notifier.BrowseName = new QualifiedName("AreaNotifier", nsIdx);
@@ -1879,7 +1887,7 @@ namespace Opc.Ua.Server.Tests
             await manager.AddRootNotifierPublicAsync(notifier).ConfigureAwait(false);
 
             object handle = await manager.GetManagerHandleAsync(notifier.NodeId).ConfigureAwait(false);
-            var monitoredItem = new TestEventMonitoredItem
+            using var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = notifier.NodeId,
                 Id = 55,
@@ -1905,7 +1913,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var eventSource = new BaseObjectState(null);
+            using var eventSource = new BaseObjectState(null);
             eventSource.CreateAsPredefinedNode(context);
             eventSource.NodeId = new NodeId("ConditionSource", nsIdx);
             eventSource.BrowseName = new QualifiedName("ConditionSource", nsIdx);
@@ -1913,7 +1921,7 @@ namespace Opc.Ua.Server.Tests
             await manager.AddNodeAsync(context, default, eventSource).ConfigureAwait(false);
 
             object handle = await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false);
-            var monitoredItem = new TestEventMonitoredItem
+            using var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = eventSource.NodeId,
                 Id = 88,
@@ -1941,7 +1949,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
 
-            var externalItem = new TestEventMonitoredItem
+            using var externalItem = new TestEventMonitoredItem
             {
                 NodeId = ObjectIds.RootFolder, // not in this manager's namespace
                 Id = 999,
@@ -1965,7 +1973,7 @@ namespace Opc.Ua.Server.Tests
 
             // A node with an inverse HasNotifier reference to an external (namespace 0) node
             // indicates it is notified by an external area — making it a root notifier.
-            var area = new BaseObjectState(null);
+            using var area = new BaseObjectState(null);
             area.CreateAsPredefinedNode(context);
             area.NodeId = new NodeId("Area", nsIdx);
             area.BrowseName = new QualifiedName("Area", nsIdx);
@@ -1987,7 +1995,7 @@ namespace Opc.Ua.Server.Tests
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             // A forward HasNotifier reference (IsInverse = false) must NOT create a root notifier
-            var area = new BaseObjectState(null);
+            using var area = new BaseObjectState(null);
             area.CreateAsPredefinedNode(context);
             area.NodeId = new NodeId("Area", nsIdx);
             area.BrowseName = new QualifiedName("Area", nsIdx);
@@ -2008,7 +2016,7 @@ namespace Opc.Ua.Server.Tests
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             // A node with no manually-added references should not generate any external references
-            var source = new BaseObjectState(null);
+            using var source = new BaseObjectState(null);
             source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("SourceNoRefs", nsIdx);
             source.BrowseName = new QualifiedName("SourceNoRefs", nsIdx);
@@ -2027,7 +2035,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var source = new BaseObjectState(null);
+            using var source = new BaseObjectState(null);
             source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("Source", nsIdx);
             source.BrowseName = new QualifiedName("Source", nsIdx);
@@ -2047,7 +2055,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var source = new BaseObjectState(null);
+            using var source = new BaseObjectState(null);
             source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("Source", nsIdx);
             source.BrowseName = new QualifiedName("Source", nsIdx);
@@ -2072,7 +2080,7 @@ namespace Opc.Ua.Server.Tests
             // AddEncoding requires the data type to be registered in the TypeTree first
             m_mockServer.Object.TypeTree.AddSubtype(encodingTargetId, NodeId.Null);
 
-            var source = new BaseObjectState(null);
+            using var source = new BaseObjectState(null);
             source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("DataTypeEncoding", nsIdx);
             source.BrowseName = new QualifiedName("DataTypeEncoding", nsIdx);
@@ -2098,12 +2106,12 @@ namespace Opc.Ua.Server.Tests
 
             // Use AddPredefinedNodePublicAsync to bypass AssignNodeIds, which would
             // reassign NodeIds and break the PredefinedNodes lookup for the reference target.
-            var source = new BaseObjectState(null);
+            using var source = new BaseObjectState(null);
             source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("Source", nsIdx);
             source.BrowseName = new QualifiedName("Source", nsIdx);
 
-            var target = new BaseObjectState(null);
+            using var target = new BaseObjectState(null);
             target.CreateAsPredefinedNode(context);
             target.NodeId = new NodeId("Target", nsIdx);
             target.BrowseName = new QualifiedName("Target", nsIdx);
@@ -2129,12 +2137,12 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var source = new BaseObjectState(null);
+            using var source = new BaseObjectState(null);
             source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("Source", nsIdx);
             source.BrowseName = new QualifiedName("Source", nsIdx);
 
-            var target = new BaseObjectState(null);
+            using var target = new BaseObjectState(null);
             target.CreateAsPredefinedNode(context);
             target.NodeId = new NodeId("Target", nsIdx);
             target.BrowseName = new QualifiedName("Target", nsIdx);
@@ -2163,7 +2171,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var source = new BaseObjectState(null);
+            using var source = new BaseObjectState(null);
             source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("Source", nsIdx);
             source.BrowseName = new QualifiedName("Source", nsIdx);
@@ -2186,7 +2194,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var source = new BaseObjectState(null);
+            using var source = new BaseObjectState(null);
             source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("Source", nsIdx);
             source.BrowseName = new QualifiedName("Source", nsIdx);
@@ -2213,12 +2221,12 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var source1 = new BaseObjectState(null);
+            using var source1 = new BaseObjectState(null);
             source1.CreateAsPredefinedNode(context);
             source1.NodeId = new NodeId("Source1", nsIdx);
             source1.BrowseName = new QualifiedName("Source1", nsIdx);
 
-            var source2 = new BaseObjectState(null);
+            using var source2 = new BaseObjectState(null);
             source2.CreateAsPredefinedNode(context);
             source2.NodeId = new NodeId("Source2", nsIdx);
             source2.BrowseName = new QualifiedName("Source2", nsIdx);
@@ -2408,7 +2416,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var node = new BaseObjectState(null) { NodeId = new NodeId("H", nsIdx) };
+            using var node = new BaseObjectState(null) { NodeId = new NodeId("H", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
 
             NodeHandle result = manager.IsHandleInNamespacePublic(handle);
@@ -2420,7 +2428,7 @@ namespace Opc.Ua.Server.Tests
         public void IsHandleInNamespaceReturnsNullForUnmanagedNamespace()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
-            var node = new BaseObjectState(null) { NodeId = new NodeId("H", 0) };
+            using var node = new BaseObjectState(null) { NodeId = new NodeId("H", 0) };
             var handle = new NodeHandle(node.NodeId, node);
 
             Assert.That(manager.IsHandleInNamespacePublic(handle), Is.Null);
@@ -2450,7 +2458,8 @@ namespace Opc.Ua.Server.Tests
             manager.SetNamespacesPublic(newNs);
             ushort newIdx = manager.NamespaceIndexes[0];
 
-            NodeId generated = manager.New(manager.SystemContext, new BaseObjectState(null));
+            using var tempNode = new BaseObjectState(null);
+            NodeId generated = manager.New(manager.SystemContext, tempNode);
 
             Assert.That(generated.NamespaceIndex, Is.EqualTo(newIdx));
         }
@@ -2459,7 +2468,7 @@ namespace Opc.Ua.Server.Tests
         public void AddNodeToComponentCacheNullHandleReturnsNodeUnchanged()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
-            var node = new BaseObjectState(null) { NodeId = new NodeId("N", manager.NamespaceIndexes[0]) };
+            using var node = new BaseObjectState(null) { NodeId = new NodeId("N", manager.NamespaceIndexes[0]) };
 
             NodeState result = manager.AddNodeToComponentCachePublic(manager.SystemContext, null, node);
 
@@ -2471,7 +2480,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var node = new BaseObjectState(null) { NodeId = new NodeId("CacheNode", nsIdx) };
+            using var node = new BaseObjectState(null) { NodeId = new NodeId("CacheNode", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
 
             NodeState result = manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, node);
@@ -2487,7 +2496,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var node = new BaseObjectState(null) { NodeId = new NodeId("CacheNode2", nsIdx) };
+            using var node = new BaseObjectState(null) { NodeId = new NodeId("CacheNode2", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
 
             manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, node);
@@ -2512,8 +2521,8 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var nodeA = new BaseObjectState(null) { NodeId = new NodeId("A", nsIdx) };
-            var nodeB = new BaseObjectState(null) { NodeId = new NodeId("B", nsIdx) };
+            using var nodeA = new BaseObjectState(null) { NodeId = new NodeId("A", nsIdx) };
+            using var nodeB = new BaseObjectState(null) { NodeId = new NodeId("B", nsIdx) };
             var handleA = new NodeHandle(nodeA.NodeId, nodeA);
             var handleB = new NodeHandle(nodeB.NodeId, nodeB);
 
@@ -2573,7 +2582,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var node = new BaseObjectState(null) { NodeId = new NodeId("NotCached", nsIdx) };
+            using var node = new BaseObjectState(null) { NodeId = new NodeId("NotCached", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
 
             NodeState result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
@@ -2587,7 +2596,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var knownNode = new BaseObjectState(null) { NodeId = new NodeId("Known", nsIdx) };
+            using var knownNode = new BaseObjectState(null) { NodeId = new NodeId("Known", nsIdx) };
             var knownHandle = new NodeHandle(knownNode.NodeId, knownNode);
             manager.AddNodeToComponentCachePublic(manager.SystemContext, knownHandle, knownNode);
 
@@ -2644,7 +2653,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var node = new BaseObjectState(null) { NodeId = new NodeId("Evict", nsIdx) };
+            using var node = new BaseObjectState(null) { NodeId = new NodeId("Evict", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
 
             manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, node);
@@ -2660,7 +2669,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var node = new BaseObjectState(null) { NodeId = new NodeId("Shared", nsIdx) };
+            using var node = new BaseObjectState(null) { NodeId = new NodeId("Shared", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
 
             manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, node);
@@ -2735,9 +2744,10 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
 
+            using var varState = new BaseDataVariableState(null);
             AsyncCustomNodeManager.ValidateMonitoringFilterResult result = await manager.ValidateMonitoringFilterPublicAsync(
                 manager.SystemContext,
-                new NodeHandle(new NodeId("N", manager.NamespaceIndexes[0]), new BaseDataVariableState(null)),
+                new NodeHandle(new NodeId("N", manager.NamespaceIndexes[0]), varState),
                 Attributes.Value,
                 100,
                 10,
@@ -2753,7 +2763,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
+            using var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
             var handle = new NodeHandle(variable.NodeId, variable);
 
             AsyncCustomNodeManager.ValidateMonitoringFilterResult result = await manager.ValidateMonitoringFilterPublicAsync(
@@ -2773,7 +2783,8 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            using var varState = new BaseDataVariableState(null);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = ObjectIds.Server,
@@ -2799,8 +2810,9 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var unsupportedAggregateId = new NodeId("UnsupportedAggregate", nsIdx);
-            CreateAndSetupAggregateManager();
-            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            using var aggregateManager = CreateAndSetupAggregateManager();
+            using var varState = new BaseDataVariableState(null);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = unsupportedAggregateId,
@@ -2826,8 +2838,9 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
-            CreateAndSetupAggregateManager(supportedAggregateId);
-            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            using var aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId);
+            using var varState = new BaseDataVariableState(null);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = supportedAggregateId,
@@ -2856,8 +2869,9 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
-            CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval: 50);
-            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            using var aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval: 50);
+            using var varState = new BaseDataVariableState(null);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = supportedAggregateId,
@@ -2886,8 +2900,9 @@ namespace Opc.Ua.Server.Tests
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
             const double minimumProcessingInterval = 500;
-            CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval);
-            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            using var aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval);
+            using var varState = new BaseDataVariableState(null);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = supportedAggregateId,
@@ -2915,8 +2930,9 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
-            CreateAndSetupAggregateManager(supportedAggregateId);
-            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            using var aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId);
+            using var varState = new BaseDataVariableState(null);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = supportedAggregateId,
@@ -2943,7 +2959,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
+            using var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
             var handle = new NodeHandle(variable.NodeId, variable);
             var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Absolute, DeadbandValue = 1.0 });
 
@@ -2964,7 +2980,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var objNode = new BaseObjectState(null) { NodeId = new NodeId("Obj", nsIdx) };
+            using var objNode = new BaseObjectState(null) { NodeId = new NodeId("Obj", nsIdx) };
             var handle = new NodeHandle(objNode.NodeId, objNode);
             var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Absolute, DeadbandValue = 1.0 });
 
@@ -2986,7 +3002,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
+            using var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
             var handle = new NodeHandle(variable.NodeId, variable);
             var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.None });
 
@@ -3007,7 +3023,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.String };
+            using var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.String };
             var handle = new NodeHandle(variable.NodeId, variable);
             var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Absolute, DeadbandValue = 5.0 });
 
@@ -3029,7 +3045,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Double };
+            using var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Double };
             var handle = new NodeHandle(variable.NodeId, variable);
             var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Absolute, DeadbandValue = 5.0 });
 
@@ -3053,7 +3069,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Double };
+            using var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Double };
             var handle = new NodeHandle(variable.NodeId, variable);
             var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Percent, DeadbandValue = 10.0 });
 
@@ -3076,7 +3092,7 @@ namespace Opc.Ua.Server.Tests
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var variable = new BaseDataVariableState(null)
+            using var variable = new BaseDataVariableState(null)
             {
                 NodeId = new NodeId("V", nsIdx),
                 BrowseName = new QualifiedName("V", nsIdx),
@@ -3244,7 +3260,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            var objectNode = new BaseObjectState(null);
+            using var objectNode = new BaseObjectState(null);
             objectNode.CreateAsPredefinedNode(context);
             objectNode.NodeId = new NodeId("PlainObject", nsIdx);
             objectNode.BrowseName = new QualifiedName("PlainObject", nsIdx);
@@ -3267,7 +3283,7 @@ namespace Opc.Ua.Server.Tests
             const int operationsPerWorker = 100;
 
             // Build the address space: a folder containing nodeCount read/write variable nodes
-            var folder = new FolderState(null);
+            using var folder = new FolderState(null);
             folder.CreateAsPredefinedNode(context);
             folder.NodeId = new NodeId("ChaosFolder", nsIdx);
             folder.BrowseName = new QualifiedName("ChaosFolder", nsIdx);
@@ -3339,7 +3355,7 @@ namespace Opc.Ua.Server.Tests
                                 object browseHandle = await manager.GetManagerHandleAsync(folder.NodeId).ConfigureAwait(false);
                                 if (browseHandle != null)
                                 {
-                                    var cp = new ContinuationPoint
+                                    using var cp = new ContinuationPoint
                                     {
                                         NodeToBrowse = browseHandle,
                                         Manager = manager,

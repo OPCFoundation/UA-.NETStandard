@@ -121,14 +121,14 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                Utils.SilentDispose(ResourceManager);
-                Utils.SilentDispose(RequestManager);
-                Utils.SilentDispose(AggregateManager);
-                Utils.SilentDispose(ModellingRulesManager);
-                Utils.SilentDispose(NodeManager);
-                Utils.SilentDispose(SessionManager);
-                Utils.SilentDispose(SubscriptionManager);
-                Utils.SilentDispose(MonitoredItemQueueFactory);
+                ResourceManager?.Dispose();
+                RequestManager?.Dispose();
+                AggregateManager?.Dispose();
+                ModellingRulesManager?.Dispose();
+                (NodeManager as IDisposable)?.Dispose();
+                SessionManager?.Dispose();
+                SubscriptionManager?.Dispose();
+                MonitoredItemQueueFactory?.Dispose();
             }
         }
 

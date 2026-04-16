@@ -290,7 +290,7 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_token);
+                m_token?.Dispose();
             }
         }
 

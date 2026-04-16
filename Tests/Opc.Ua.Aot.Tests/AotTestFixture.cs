@@ -122,7 +122,7 @@ namespace Opc.Ua.Aot.Tests
                 null, endpointDescription,
                 EndpointConfiguration.Create(m_clientConfiguration));
 
-            var sessionFactory = new DefaultSessionFactory(Telemetry);
+            using var sessionFactory = new DefaultSessionFactory(Telemetry);
             Session = await sessionFactory.CreateAsync(
                 m_clientConfiguration,
                 configuredEndpoint,
@@ -148,7 +148,7 @@ namespace Opc.Ua.Aot.Tests
                 null, endpointDescription,
                 EndpointConfiguration.Create(m_clientConfiguration));
 
-            var sessionFactory = new DefaultSessionFactory(Telemetry);
+            using var sessionFactory = new DefaultSessionFactory(Telemetry);
             return await sessionFactory.CreateAsync(
                 m_clientConfiguration,
                 configuredEndpoint,

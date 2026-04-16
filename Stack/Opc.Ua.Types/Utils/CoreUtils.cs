@@ -30,7 +30,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
@@ -51,42 +50,6 @@ namespace Opc.Ua
     /// </summary>
     public static class CoreUtils
     {
-        /// <summary>
-        /// Suppresses any exceptions while disposing the object.
-        /// </summary>
-        /// <remarks>
-        /// Writes errors to trace output in DEBUG builds.
-        /// </remarks>
-        public static void SilentDispose(IDisposable disposable)
-        {
-            try
-            {
-                disposable?.Dispose();
-            }
-#if DEBUG
-            catch (Exception e)
-            {
-                Debug.WriteLine("Error {0} disposing object: {1}", e, disposable.GetType().Name);
-            }
-#else
-            catch
-            {
-            }
-#endif
-        }
-
-        /// <summary>
-        /// Suppresses any exceptions while disposing the object.
-        /// </summary>
-        /// <remarks>
-        /// Writes errors to trace output in DEBUG builds.
-        /// </remarks>
-        public static void SilentDispose(object objectToDispose)
-        {
-            var disposable = objectToDispose as IDisposable;
-            SilentDispose(disposable);
-        }
-
         /// <summary>
         /// The earliest time that can be represented on with UA date/time values.
         /// </summary>

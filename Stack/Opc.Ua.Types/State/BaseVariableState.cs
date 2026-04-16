@@ -214,7 +214,7 @@ namespace Opc.Ua
                 }
                 finally
                 {
-                    CoreUtils.SilentDispose(decoder);
+                    decoder?.Dispose();
                 }
             }
 

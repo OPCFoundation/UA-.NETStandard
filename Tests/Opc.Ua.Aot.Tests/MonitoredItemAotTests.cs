@@ -40,7 +40,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task CreateMonitoredItemWithFilterAsync()
         {
-            var subscription = new Subscription(fixture.Session.DefaultSubscription)
+            using var subscription = new Subscription(fixture.Session.DefaultSubscription)
             {
                 DisplayName = "AotFilterItem",
                 PublishingEnabled = true,
@@ -84,7 +84,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task ModifyMonitoredItemAsync()
         {
-            var subscription = new Subscription(fixture.Session.DefaultSubscription)
+            using var subscription = new Subscription(fixture.Session.DefaultSubscription)
             {
                 DisplayName = "AotModifyItem",
                 PublishingEnabled = true,
@@ -125,7 +125,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task SetMonitoringModeAsync()
         {
-            var subscription = new Subscription(fixture.Session.DefaultSubscription)
+            using var subscription = new Subscription(fixture.Session.DefaultSubscription)
             {
                 DisplayName = "AotMonitoringMode",
                 PublishingEnabled = true,

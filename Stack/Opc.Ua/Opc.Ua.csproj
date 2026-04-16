@@ -17,10 +17,6 @@
     <ProjectReference Include="..\Opc.Ua.Types\Opc.Ua.Types.csproj" />
   </ItemGroup>
   <!-- Stack source generation -->
-  <PropertyGroup>
-    <!-- Do not run analyzers to speed up build since most of this assembly is generated -->
-    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
-  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.csproj">
 	  <OutputItemType>Analyzer</OutputItemType>

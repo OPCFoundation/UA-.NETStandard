@@ -132,6 +132,7 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
+                    using var identity = new UserIdentity("invaliduser", System.Text.Encoding.UTF8.GetBytes("wrongpassword"));
                     using ISession session = await m_clientFixture.SessionFactory.CreateAsync(
                         m_clientFixture.Config,
                         configuredEndpoint,
@@ -139,7 +140,7 @@ namespace Opc.Ua.Client.Tests
                         false,
                         $"LockoutTestSession_{attempt}",
                         60000,
-                        new UserIdentity("invaliduser", System.Text.Encoding.UTF8.GetBytes("wrongpassword")),
+                        identity,
                         default).ConfigureAwait(false);
 
                     Assert.Fail("Session creation should have failed with invalid credentials");
@@ -185,6 +186,7 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
+                    using var identity = new UserIdentity("resetuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword"));
                     using ISession session = await m_clientFixture.SessionFactory.CreateAsync(
                         m_clientFixture.Config,
                         configuredEndpoint,
@@ -192,7 +194,7 @@ namespace Opc.Ua.Client.Tests
                         false,
                         $"ResetTestSession_{attempt}",
                         60000,
-                        new UserIdentity("resetuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword")),
+                        identity,
                         default).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
@@ -200,6 +202,7 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
+            using (var successIdentity = new UserIdentity())
             using (ISession successSession = await m_clientFixture.SessionFactory.CreateAsync(
                 m_clientFixture.Config,
                 configuredEndpoint,
@@ -207,7 +210,7 @@ namespace Opc.Ua.Client.Tests
                 false,
                 "ResetTestSession_Success",
                 60000,
-                new UserIdentity(),
+                successIdentity,
                 default).ConfigureAwait(false))
             {
                 Assert.That(successSession, Is.Not.Null);
@@ -218,6 +221,7 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
+                    using var identity = new UserIdentity("resetuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword"));
                     using ISession session = await m_clientFixture.SessionFactory.CreateAsync(
                         m_clientFixture.Config,
                         configuredEndpoint,
@@ -225,7 +229,7 @@ namespace Opc.Ua.Client.Tests
                         false,
                         $"PostResetTestSession_{attempt}",
                         60000,
-                        new UserIdentity("resetuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword")),
+                        identity,
                         default).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
@@ -233,6 +237,7 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
+            using (var successIdentity = new UserIdentity())
             using (ISession successSession = await m_clientFixture.SessionFactory.CreateAsync(
                 m_clientFixture.Config,
                 configuredEndpoint,
@@ -240,7 +245,7 @@ namespace Opc.Ua.Client.Tests
                 false,
                 "ResetTestSession_Success2",
                 60000,
-                new UserIdentity(),
+                successIdentity,
                 default).ConfigureAwait(false))
             {
                 Assert.That(successSession, Is.Not.Null);
@@ -261,6 +266,7 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
+                    using var identity = new UserIdentity("anonlockoutuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword"));
                     using ISession session = await m_clientFixture.SessionFactory.CreateAsync(
                         m_clientFixture.Config,
                         configuredEndpoint,
@@ -268,7 +274,7 @@ namespace Opc.Ua.Client.Tests
                         false,
                         $"AnonLockoutTestSession_{attempt}",
                         60000,
-                        new UserIdentity("anonlockoutuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword")),
+                        identity,
                         default).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)

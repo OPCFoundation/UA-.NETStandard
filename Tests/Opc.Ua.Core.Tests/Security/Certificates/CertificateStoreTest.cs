@@ -99,7 +99,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     }
                 }
             }
-            Utils.SilentDispose(m_testCertificate);
+            m_testCertificate?.Dispose();
         }
 
         /// <summary>

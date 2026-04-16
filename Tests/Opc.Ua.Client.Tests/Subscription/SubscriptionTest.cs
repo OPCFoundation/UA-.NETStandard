@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Tests
         [Order(100)]
         public async Task AddSubscriptionAsync()
         {
-            var subscription = new TestableSubscription(Telemetry);
+            using var defaultItemSource = new TestableSubscription(Telemetry);
 
             // check keepAlive
             int keepAlive = 0;
@@ -109,7 +109,7 @@ namespace Opc.Ua.Client.Tests
             // add current time
             var list = new List<MonitoredItem>
             {
-                new TestableMonitoredItem(subscription.DefaultItem)
+                new TestableMonitoredItem(defaultItemSource.DefaultItem)
                 {
                     DisplayName = "ServerStatusCurrentTime",
                     StartNodeId = VariableIds.Server_ServerStatus_CurrentTime
@@ -129,7 +129,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 });
 
-            subscription = new TestableSubscription(Session.DefaultSubscription);
+            using var subscription = new TestableSubscription(Session.DefaultSubscription);
 
             TestContext.Out.WriteLine("MaxMessageCount: {0}", subscription.MaxMessageCount);
             TestContext.Out.WriteLine(
@@ -305,7 +305,7 @@ namespace Opc.Ua.Client.Tests
         {
             var subscriptionList = new List<Subscription>();
             var subscriptionIds = new List<uint>();
-            var sequenceBroken = new AutoResetEvent(false);
+            using var sequenceBroken = new AutoResetEvent(false);
             long numOfNotifications = 0L;
             const int testWaitTime = 10000;
             const int monitoredItemsPerSubscription = 500;
@@ -516,7 +516,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FastKeepAliveCallbackAsync()
         {
             // add current time
-            var subscription = new TestableSubscription(Session.DefaultSubscription)
+            using var subscription = new TestableSubscription(Session.DefaultSubscription)
             {
                 KeepAliveCount = 1,
                 PublishingInterval = 250
@@ -637,7 +637,7 @@ namespace Opc.Ua.Client.Tests
         public async Task SetTriggeringTrackingAsync()
         {
             // Create a subscription
-            var subscription = new Subscription(Session.DefaultSubscription)
+            using var subscription = new Subscription(Session.DefaultSubscription)
             {
                 PublishingEnabled = true,
                 PublishingInterval = 1000,
@@ -735,7 +735,7 @@ namespace Opc.Ua.Client.Tests
         [Order(1100)]
         public async Task ConcurrentCreateItemsNoDuplicatesAsync()
         {
-            var subscription = new TestableSubscription(Session.DefaultSubscription);
+            using var subscription = new TestableSubscription(Session.DefaultSubscription);
             Session.AddSubscription(subscription);
             await subscription.CreateAsync().ConfigureAwait(false);
 

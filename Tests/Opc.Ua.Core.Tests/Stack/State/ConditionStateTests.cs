@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -61,7 +62,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
-            Utils.SilentDispose(m_context);
+            (m_context as IDisposable)?.Dispose();
         }
 
         /// <summary>

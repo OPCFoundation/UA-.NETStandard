@@ -129,8 +129,8 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var originalSession = SessionMock.Create();
-            var originalSubscription = new TestableSubscription(telemetry);
+            using var originalSession = SessionMock.Create();
+            using var originalSubscription = new TestableSubscription(telemetry);
 
             var monitoredItems = new List<MonitoredItem>
             {
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.Tests
             originalSession.Save(stream, [originalSubscription]);
             stream.Position = 0;
 
-            var loadedSession = SessionMock.Create();
+            using var loadedSession = SessionMock.Create();
             loadedSession.Load(stream);
             Assert.That(loadedSession.Subscriptions.Count(), Is.EqualTo(1));
             Assert.That(loadedSession.Subscriptions.First().MonitoredItems.Count(), Is.EqualTo(monitoredItems.Count));

@@ -67,7 +67,7 @@ namespace Opc.Ua
                 element = element.NextSibling;
             }
 
-            var parser = new XmlParser(
+            using var parser = new XmlParser(
                 typeof(ConfigurationLocation),
                 element.OuterXml,
                 ServiceMessageContext.CreateEmpty(null));
@@ -328,7 +328,7 @@ namespace Opc.Ua
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
                     ServiceMessageContext.CreateEmpty(telemetry);
-                var parser = new XmlParser(typeof(ApplicationConfiguration), stream, context);
+                using var parser = new XmlParser(typeof(ApplicationConfiguration), stream, context);
                 ApplicationConfiguration configuration;
                 if (systemType == typeof(ApplicationConfiguration))
                 {
@@ -520,7 +520,7 @@ namespace Opc.Ua
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
                     ServiceMessageContext.CreateEmpty(telemetry);
-                var parser = new XmlParser(typeof(ApplicationConfiguration), stream, ctx);
+                using var parser = new XmlParser(typeof(ApplicationConfiguration), stream, ctx);
                 if (systemType == typeof(ApplicationConfiguration))
                 {
                     configuration = new ApplicationConfiguration(telemetry);
@@ -598,7 +598,7 @@ namespace Opc.Ua
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);
-            var encoder = new XmlEncoder(typeof(ApplicationConfiguration), writer, context);
+            using var encoder = new XmlEncoder(typeof(ApplicationConfiguration), writer, context);
             this.Encode(encoder);
             encoder.Close();
         }

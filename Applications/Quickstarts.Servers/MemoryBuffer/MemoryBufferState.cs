@@ -106,7 +106,7 @@ namespace MemoryBuffer
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_scanTimer);
+                m_scanTimer?.Dispose();
                 m_scanTimer = null;
             }
             base.Dispose(disposing);
@@ -495,7 +495,7 @@ namespace MemoryBuffer
             if (m_monitoringTable == null)
             {
                 m_monitoringTable = new MemoryBufferMonitoredItem[elementCount][];
-                Utils.SilentDispose(m_scanTimer);
+                m_scanTimer?.Dispose();
                 m_scanTimer = new Timer(DoScan, null, 100, 100);
             }
 

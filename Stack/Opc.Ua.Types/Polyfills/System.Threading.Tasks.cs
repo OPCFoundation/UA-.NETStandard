@@ -72,7 +72,7 @@ namespace System.Threading.Tasks
             Task task,
             CancellationToken cancellationToken)
         {
-            var cancelTaskSource =
+            using var cancelTaskSource =
                 new CancellationTokenTaskSource<object>(cancellationToken);
             await (await Task.WhenAny(task, cancelTaskSource.Task).ConfigureAwait(false))
                 .ConfigureAwait(false);

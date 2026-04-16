@@ -276,6 +276,11 @@ namespace Opc.Ua.Server
                         metadataState.DefaultUserRolePermissions?.StateChanged -= OnNamespaceDefaultPermissionsChanged;
                     }
                 }
+
+                // m_serverConfigurationNode is owned by the address space, not by this manager
+#pragma warning disable CA2213
+                m_serverConfigurationNode = null;
+#pragma warning restore CA2213
             }
 
             base.Dispose(disposing);

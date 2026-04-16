@@ -48,7 +48,7 @@ namespace Opc.Ua.Aot.Tests
             eventFilter.AddSelectClause(
                 ObjectTypeIds.BaseEventType, QualifiedName.From("Message"));
 
-            var subscription = new Subscription(fixture.Session.DefaultSubscription)
+            using var subscription = new Subscription(fixture.Session.DefaultSubscription)
             {
                 DisplayName = "AotServerEvents",
                 PublishingEnabled = true,
@@ -97,7 +97,7 @@ namespace Opc.Ua.Aot.Tests
 
             await Assert.That(eventFilter.SelectClauses.Count).IsEqualTo(5);
 
-            var subscription = new Subscription(fixture.Session.DefaultSubscription)
+            using var subscription = new Subscription(fixture.Session.DefaultSubscription)
             {
                 DisplayName = "AotEventFilter",
                 PublishingEnabled = true,

@@ -84,7 +84,7 @@ namespace Opc.Ua
             {
                 CloseChannelAsync(default).GetAwaiter().GetResult();
 
-                Utils.SilentDispose(m_meter);
+                m_meter?.Dispose();
                 m_instruments.Clear();
 
                 Disposed = true;

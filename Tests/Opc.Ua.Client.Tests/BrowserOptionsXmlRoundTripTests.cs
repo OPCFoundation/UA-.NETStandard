@@ -178,7 +178,7 @@ namespace Opc.Ua.Client.Tests
             settings.Encoding = new UTF8Encoding(false);
             using (var writer = XmlWriter.Create(stream, settings))
             {
-                var encoder = new XmlEncoder(
+                using var encoder = new XmlEncoder(
                     typeof(BrowserOptions), writer, ctx);
                 options.Encode(encoder);
                 encoder.Close();

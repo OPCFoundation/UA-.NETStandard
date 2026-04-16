@@ -188,111 +188,121 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            // no app name
-            var applicationInstance = new ApplicationInstance(telemetry);
-            Assert.That(applicationInstance, Is.Not.Null);
-
             ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     SubjectName,
                     CertificateStoreType.Directory,
                     m_pkiRoot);
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await applicationInstance
+            // no app name
+            await using (var applicationInstance = new ApplicationInstance(telemetry))
+            {
+                Assert.That(applicationInstance, Is.Not.Null);
+
+                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await applicationInstance
+                        .Build(ApplicationUri, ProductUri)
+                        .AsServer([EndpointUrl])
+                        .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
+                        .CreateAsync()
+                        .ConfigureAwait(false));
+            }
+
+            // discoveryserver can not be combined with client/server
+            await using (var applicationInstance = new ApplicationInstance(telemetry)
+            {
+                ApplicationName = ApplicationName,
+                ApplicationType = ApplicationType.DiscoveryServer
+            })
+            {
+                Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await applicationInstance
+                        .Build(ApplicationUri, ProductUri)
+                        .AsClient()
+                        .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
+                        .CreateAsync()
+                        .ConfigureAwait(false));
+                Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await applicationInstance
+                        .Build(ApplicationUri, ProductUri)
+                        .AsServer([EndpointUrl])
+                        .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
+                        .CreateAsync()
+                        .ConfigureAwait(false));
+            }
+
+            // server overrides client settings
+            await using (var applicationInstance = new ApplicationInstance(telemetry)
+            {
+                ApplicationName = ApplicationName,
+                ApplicationType = ApplicationType.Client
+            })
+            {
+                ApplicationConfiguration config = await applicationInstance
                     .Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                     .CreateAsync()
-                    .ConfigureAwait(false));
-            // discoveryserver can not be combined with client/server
-            applicationInstance = new ApplicationInstance(telemetry)
+                    .ConfigureAwait(false);
+                Assert.That(applicationInstance.ApplicationType, Is.EqualTo(ApplicationType.Server));
+            }
+
+            // client overrides server setting
+            await using (var applicationInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
-                ApplicationType = ApplicationType.DiscoveryServer
-            };
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+                ApplicationType = ApplicationType.Server
+            })
+            {
                 await applicationInstance
                     .Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                     .CreateAsync()
-                    .ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await applicationInstance
-                    .Build(ApplicationUri, ProductUri)
-                    .AsServer([EndpointUrl])
-                    .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                    .CreateAsync()
-                    .ConfigureAwait(false));
-            // server overrides client settings
-            applicationInstance = new ApplicationInstance(telemetry)
-            {
-                ApplicationName = ApplicationName,
-                ApplicationType = ApplicationType.Client
-            };
-
-            ApplicationConfiguration config = await applicationInstance
-                .Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                .CreateAsync()
-                .ConfigureAwait(false);
-            Assert.That(applicationInstance.ApplicationType, Is.EqualTo(ApplicationType.Server));
-
-            // client overrides server setting
-            applicationInstance = new ApplicationInstance(telemetry)
-            {
-                ApplicationName = ApplicationName,
-                ApplicationType = ApplicationType.Server
-            };
-
-            await applicationInstance
-                .Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                .CreateAsync()
-                .ConfigureAwait(false);
-            Assert.That(applicationInstance.ApplicationType, Is.EqualTo(ApplicationType.Client));
+                    .ConfigureAwait(false);
+                Assert.That(applicationInstance.ApplicationType, Is.EqualTo(ApplicationType.Client));
+            }
 
             // invalid sec policy testing
-            applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            // invalid use, use AddUnsecurePolicyNone instead
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await applicationInstance
-                    .Build(ApplicationUri, ProductUri)
-                    .AsServer([EndpointUrl])
-                    .AddPolicy(MessageSecurityMode.None, SecurityPolicies.None)
-                    .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                    .CreateAsync()
-                    .ConfigureAwait(false));
-            // invalid mix sign / none
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await applicationInstance
-                    .Build(ApplicationUri, ProductUri)
-                    .AsServer([EndpointUrl])
-                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.None)
-                    .AddSecurityConfiguration(applicationCerts)
-                    .CreateAsync()
-                    .ConfigureAwait(false));
-            // invalid policy
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await applicationInstance
-                    .Build(ApplicationUri, ProductUri)
-                    .AsServer([EndpointUrl])
-                    .AddPolicy(MessageSecurityMode.Sign, "123")
-                    .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                    .CreateAsync()
-                    .ConfigureAwait(false));
-            // invalid user token policy
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await applicationInstance
-                    .Build(ApplicationUri, ProductUri)
-                    .AsServer([EndpointUrl])
-                    .AddUserTokenPolicy(null)
-                    .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
-                    .CreateAsync()
-                    .ConfigureAwait(false));
+            await using (var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName })
+            {
+                // invalid use, use AddUnsecurePolicyNone instead
+                Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await applicationInstance
+                        .Build(ApplicationUri, ProductUri)
+                        .AsServer([EndpointUrl])
+                        .AddPolicy(MessageSecurityMode.None, SecurityPolicies.None)
+                        .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
+                        .CreateAsync()
+                        .ConfigureAwait(false));
+                // invalid mix sign / none
+                Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await applicationInstance
+                        .Build(ApplicationUri, ProductUri)
+                        .AsServer([EndpointUrl])
+                        .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.None)
+                        .AddSecurityConfiguration(applicationCerts)
+                        .CreateAsync()
+                        .ConfigureAwait(false));
+                // invalid policy
+                Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await applicationInstance
+                        .Build(ApplicationUri, ProductUri)
+                        .AsServer([EndpointUrl])
+                        .AddPolicy(MessageSecurityMode.Sign, "123")
+                        .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
+                        .CreateAsync()
+                        .ConfigureAwait(false));
+                // invalid user token policy
+                Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                    await applicationInstance
+                        .Build(ApplicationUri, ProductUri)
+                        .AsServer([EndpointUrl])
+                        .AddUserTokenPolicy(null)
+                        .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
+                        .CreateAsync()
+                        .ConfigureAwait(false));
+            }
         }
 
         [Test]

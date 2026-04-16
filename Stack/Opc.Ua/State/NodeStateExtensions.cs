@@ -126,16 +126,20 @@ namespace Opc.Ua
                     // create a placeholder for unknown children.
                     if (child == null)
                     {
-                        if (field.AttributeId == Attributes.Value)
-                        {
-                            child = new BaseDataVariableState(parent);
-                        }
-                        else
-                        {
-                            child = new BaseObjectState(parent);
-                        }
+                        BaseInstanceState newChild = field.AttributeId == Attributes.Value
+                            ? new BaseDataVariableState(parent)
+                            : new BaseObjectState(parent);
 
-                        parent.AddChild(child);
+                        try
+                        {
+                            parent.AddChild(newChild);
+                            child = newChild;
+                            newChild = null;
+                        }
+                        finally
+                        {
+                            newChild?.Dispose();
+                        }
                     }
 
                     // ensure the browse name is set.

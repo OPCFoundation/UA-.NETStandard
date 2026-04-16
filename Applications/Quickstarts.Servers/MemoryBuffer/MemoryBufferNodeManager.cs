@@ -111,24 +111,33 @@ namespace MemoryBuffer
                         MemoryBufferInstance instance = m_configuration.Buffers[ii];
 
                         // create a new buffer.
-                        var bufferNode = new MemoryBufferState(SystemContext, instance);
+                        MemoryBufferState bufferNode = null;
+                        try
+                        {
+                            bufferNode = new MemoryBufferState(SystemContext, instance);
 
-                        // assign node ids.
-                        bufferNode.Create(
-                            SystemContext,
-                            new NodeId(bufferNode.SymbolicName, namespaceIndex),
-                            new QualifiedName(bufferNode.SymbolicName, namespaceIndex),
-                            default,
-                            true);
+                            // assign node ids.
+                            bufferNode.Create(
+                                SystemContext,
+                                new NodeId(bufferNode.SymbolicName, namespaceIndex),
+                                new QualifiedName(bufferNode.SymbolicName, namespaceIndex),
+                                default,
+                                true);
 
-                        bufferNode.CreateBuffer(instance.DataType, instance.TagCount);
-                        bufferNode.InitializeMonitoring(Server, this);
+                            bufferNode.CreateBuffer(instance.DataType, instance.TagCount);
+                            bufferNode.InitializeMonitoring(Server, this);
 
-                        // save the buffers for easy look up later.
-                        m_buffers[bufferNode.SymbolicName] = bufferNode;
+                            // link to root.
+                            root.AddChild(bufferNode);
 
-                        // link to root.
-                        root.AddChild(bufferNode);
+                            // save the buffers for easy look up later.
+                            m_buffers[bufferNode.SymbolicName] = bufferNode;
+                            bufferNode = null;
+                        }
+                        finally
+                        {
+                            bufferNode?.Dispose();
+                        }
                     }
                 }
             }
@@ -518,7 +527,7 @@ namespace MemoryBuffer
                     StatusCode = StatusCodes.Good
                 };
 
-                var tag = new MemoryTagState(buffer, datachangeItem.Offset);
+                using var tag = new MemoryTagState(buffer, datachangeItem.Offset);
 
                 ServiceResult error = tag.ReadAttribute(
                     context,

@@ -26,7 +26,7 @@ namespace Opc.Ua.Server.Tests
             const int numTasks = 10;
             const int idsPerTask = 1000;
             var tasks = new Task[numTasks];
-            var startEvent = new ManualResetEventSlim(false);
+            using var startEvent = new ManualResetEventSlim(false);
 
             // Act
             for (int i = 0; i < numTasks; i++)
@@ -65,7 +65,7 @@ namespace Opc.Ua.Server.Tests
             const int numTasks = 10;
             const int idsPerTask = 1000;
             var tasks = new Task[numTasks];
-            var startEvent = new ManualResetEventSlim(false);
+            using var startEvent = new ManualResetEventSlim(false);
 
             // Act
             for (int i = 0; i < numTasks; i++)
@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests
             const int idsPerTask = 1000;
             const int numResetTasks = 3;
             var tasks = new Task[numIdTasks + numResetTasks];
-            var startEvent = new ManualResetEventSlim(false);
+            using var startEvent = new ManualResetEventSlim(false);
 
             // Act
             // Create tasks that will get IDs
@@ -213,7 +213,7 @@ namespace Opc.Ua.Server.Tests
                 const int numTasks = 10;
                 const int idsPerTask = idsToGenerate / numTasks;
                 var tasks = new Task[numTasks];
-                var startEvent = new ManualResetEventSlim(false);
+                using var startEvent = new ManualResetEventSlim(false);
 
                 // Act
                 for (int i = 0; i < numTasks; i++)

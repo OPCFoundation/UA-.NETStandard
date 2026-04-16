@@ -199,7 +199,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (NodeState node in PredefinedNodes.Values)
                     {
-                        Utils.SilentDispose(node);
+                        node?.Dispose();
                     }
 
                     PredefinedNodes.Clear();
@@ -929,7 +929,7 @@ namespace Opc.Ua.Server
 
             foreach (NodeState node in nodes)
             {
-                Utils.SilentDispose(node);
+                node?.Dispose();
             }
             return default;
         }

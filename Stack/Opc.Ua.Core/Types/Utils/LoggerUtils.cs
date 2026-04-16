@@ -105,9 +105,14 @@ namespace Opc.Ua
         internal class TraceLoggerTelemetry : TelemetryContextBase
         {
             public TraceLoggerTelemetry()
-                : base(Microsoft.Extensions.Logging.LoggerFactory.Create(
-                    builder => builder.AddProvider(LoggerProvider)))
+                : base(CreateLoggerFactory())
             {
+            }
+
+            private static ILoggerFactory CreateLoggerFactory()
+            {
+                return Microsoft.Extensions.Logging.LoggerFactory.Create(
+                    builder => builder.AddProvider(LoggerProvider));
             }
         }
 

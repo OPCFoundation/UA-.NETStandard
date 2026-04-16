@@ -81,7 +81,7 @@ namespace Opc.Ua
                     for (int ii = 0; ii < TransportListeners.Count; ii++)
                     {
                         TransportListeners[ii].ConnectionStatusChanged -= OnConnectionStatusChanged;
-                        Utils.SilentDispose(TransportListeners[ii]);
+                        TransportListeners[ii]?.Dispose();
                     }
 
                     TransportListeners.Clear();
@@ -92,7 +92,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < ServiceHosts.Count; ii++)
                     {
-                        Utils.SilentDispose(ServiceHosts[ii]);
+                        ServiceHosts[ii]?.Dispose();
                     }
 
                     ServiceHosts.Clear();
@@ -103,7 +103,7 @@ namespace Opc.Ua
                     UserTokenPolicys.Clear();
                 }
 
-                Utils.SilentDispose(m_requestQueue);
+                m_requestQueue?.Dispose();
             }
         }
 
@@ -511,7 +511,7 @@ namespace Opc.Ua
                 maxQueuedRequestCount = 100;
             }
 
-            Utils.SilentDispose(m_requestQueue);
+            m_requestQueue?.Dispose();
             m_requestQueue = new RequestQueue(
                 this,
                 minRequestThreadCount,
@@ -553,7 +553,7 @@ namespace Opc.Ua
                             listeners[ii].GetType().FullName);
                     }
 
-                    Utils.SilentDispose(listeners[ii]);
+                    listeners[ii]?.Dispose();
                 }
 
                 listeners.Clear();

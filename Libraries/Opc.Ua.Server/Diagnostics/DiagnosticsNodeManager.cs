@@ -98,7 +98,7 @@ namespace Opc.Ua.Server
                     m_diagnosticsScanTimer?.Dispose();
                     m_diagnosticsScanTimer = null;
 
-                    Utils.SilentDispose(m_samplingTimer);
+                    m_samplingTimer?.Dispose();
                     m_samplingTimer = null;
                 }
                 finally

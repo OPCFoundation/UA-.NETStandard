@@ -125,11 +125,12 @@ namespace Opc.Ua.Bindings
             {
                 OnTokenActivated = null;
 
-                Utils.SilentDispose(m_handshakeTimer);
+                m_handshakeTimer?.Dispose();
                 m_handshakeTimer = null;
-                Utils.SilentDispose(m_requestedToken);
+                m_requestedToken?.Dispose();
                 m_requestedToken = null;
                 m_requests?.Clear();
+                m_handshakeOperation?.Dispose();
                 m_handshakeOperation = null;
             }
 
@@ -996,7 +997,7 @@ namespace Opc.Ua.Bindings
                     State = TcpChannelState.Closed;
 
                     // Discard the current handshake timer
-                    Utils.SilentDispose(m_handshakeTimer);
+                    m_handshakeTimer?.Dispose();
                     m_handshakeTimer = null;
 
                     // dispose of the tokens.
@@ -1201,8 +1202,9 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
+            using var responseStream = new ArraySegmentStream(chunksToProcess);
             IServiceResponse response = BinaryDecoder.DecodeMessage<IServiceResponse>(
-                new ArraySegmentStream(chunksToProcess),
+                responseStream,
                 Quotas.MessageContext);
             if (response == null)
             {
@@ -1263,7 +1265,7 @@ namespace Opc.Ua.Bindings
 
                 // clear the handshake state.
                 m_handshakeOperation = null;
-                Utils.SilentDispose(m_requestedToken);
+                m_requestedToken?.Dispose();
                 m_requestedToken = null;
                 m_reconnecting = false;
 
@@ -1326,13 +1328,13 @@ namespace Opc.Ua.Bindings
                 // halt any scheduled tasks.
                 if (m_handshakeTimer != null)
                 {
-                    Utils.SilentDispose(m_handshakeTimer);
+                    m_handshakeTimer?.Dispose();
                     m_handshakeTimer = null;
                 }
 
                 // clear the handshake state.
                 m_handshakeOperation = null;
-                Utils.SilentDispose(m_requestedToken);
+                m_requestedToken?.Dispose();
                 m_requestedToken = null;
                 m_reconnecting = true;
 
@@ -1382,7 +1384,7 @@ namespace Opc.Ua.Bindings
             // cancel any outstanding renew operations.
             if (m_handshakeTimer != null)
             {
-                Utils.SilentDispose(m_handshakeTimer);
+                m_handshakeTimer?.Dispose();
                 m_handshakeTimer = null;
             }
 

@@ -89,7 +89,7 @@ namespace Opc.Ua.Bindings
             // compute the keys for the token.
             ComputeKeys(token);
 
-            Utils.SilentDispose(PreviousToken);
+            PreviousToken?.Dispose();
             PreviousToken = CurrentToken;
             CurrentToken = token;
             RenewedToken = null;
@@ -110,7 +110,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SetRenewedToken(ChannelToken token)
         {
-            Utils.SilentDispose(RenewedToken);
+            RenewedToken?.Dispose();
             RenewedToken = token;
             m_logger.LogInformation(
                 "ChannelId {Id}: Renewed Token #{TokenId} set. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
@@ -126,11 +126,11 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void DiscardTokens()
         {
-            Utils.SilentDispose(PreviousToken);
+            PreviousToken?.Dispose();
             PreviousToken = null;
-            Utils.SilentDispose(CurrentToken);
+            CurrentToken?.Dispose();
             CurrentToken = null;
-            Utils.SilentDispose(RenewedToken);
+            RenewedToken?.Dispose();
             RenewedToken = null;
 
             OnTokenActivated?.Invoke(null, null);
@@ -502,7 +502,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // write the body to stream.
-                var ostrm = new ArraySegmentStream(
+                using var ostrm = new ArraySegmentStream(
                     BufferManager,
                     SendBufferSize,
                     headerSize,

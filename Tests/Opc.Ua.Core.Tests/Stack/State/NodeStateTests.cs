@@ -69,7 +69,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
-            Utils.SilentDispose(Context);
+            (Context as IDisposable)?.Dispose();
         }
 
         /// <summary>

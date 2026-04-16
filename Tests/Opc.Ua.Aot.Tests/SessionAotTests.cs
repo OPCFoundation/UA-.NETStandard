@@ -48,7 +48,7 @@ namespace Opc.Ua.Aot.Tests
             await Task.Delay(500).ConfigureAwait(false);
 
             var reconnected = new TaskCompletionSource<bool>();
-            var handler = new SessionReconnectHandler(fixture.Telemetry);
+            using var handler = new SessionReconnectHandler(fixture.Telemetry);
 
             handler.BeginReconnect(session, 1000, (_, _) =>
             {

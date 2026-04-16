@@ -180,7 +180,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            // TODOL Utils.SilentDispose(m_certificate);
+            m_certificate?.Dispose();
             m_certificate = null;
         }
 

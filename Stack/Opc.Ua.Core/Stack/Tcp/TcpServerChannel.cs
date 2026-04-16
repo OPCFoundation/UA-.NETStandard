@@ -657,9 +657,10 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
+                using var openRequestStream = new ArraySegmentStream(chunksToProcess);
                 request =
                     BinaryDecoder.DecodeMessage<OpenSecureChannelRequest>(
-                        new ArraySegmentStream(chunksToProcess),
+                        openRequestStream,
                         Quotas.MessageContext) ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadStructureMissing,
@@ -826,7 +827,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                Utils.SilentDispose(token);
+                token?.Dispose();
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelRequest");
             }
         }
@@ -959,9 +960,10 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
+                using var closeRequestStream = new ArraySegmentStream(chunksToProcess);
                 CloseSecureChannelRequest request =
                     BinaryDecoder.DecodeMessage<CloseSecureChannelRequest>(
-                        new ArraySegmentStream(chunksToProcess),
+                        closeRequestStream,
                         Quotas.MessageContext);
                 if (request == null)
                 {
@@ -1148,8 +1150,9 @@ namespace Opc.Ua.Bindings
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 // decode the request.
+                using var serviceRequestStream = new ArraySegmentStream(chunksToProcess);
                 IServiceRequest request = BinaryDecoder.DecodeMessage<IServiceRequest>(
-                    new ArraySegmentStream(chunksToProcess),
+                    serviceRequestStream,
                     Quotas.MessageContext);
                 if (request == null)
                 {

@@ -607,9 +607,10 @@ namespace Opc.Ua.Bindings
 
             BufferManager.LockBuffer(m_receiveBuffer);
 
-            var args = new SocketAsyncEventArgs();
+            SocketAsyncEventArgs? args = null;
             try
             {
+                args = new SocketAsyncEventArgs();
                 m_readState = ReadState.Receive;
                 args.SetBuffer(
                     m_receiveBuffer,
@@ -629,21 +630,24 @@ namespace Opc.Ua.Bindings
                     m_readState = ReadState.ReadComplete;
                     m_readComplete(null, args);
                 }
+                args = null; // ownership transferred
             }
             catch (ServiceResultException)
             {
-                args?.Dispose();
                 BufferManager.UnlockBuffer(m_receiveBuffer);
                 throw;
             }
             catch (Exception ex)
             {
-                args?.Dispose();
                 BufferManager.UnlockBuffer(m_receiveBuffer);
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpInternalError,
                     ex,
                     "BeginReceive failed.");
+            }
+            finally
+            {
+                args?.Dispose();
             }
         }
 

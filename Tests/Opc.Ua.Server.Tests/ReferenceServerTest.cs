@@ -700,7 +700,7 @@ namespace Opc.Ua.Server.Tests
             // Generate event directly on the server
             IServerInternal serverInternal = m_server.CurrentInstance;
             ISystemContext serverContext = serverInternal.DefaultSystemContext;
-            var e = new BaseEventState(null);
+            using var e = new BaseEventState(null);
             const string eventMessage = "Integration Test Event";
             e.Initialize(
                 serverContext,

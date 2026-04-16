@@ -876,7 +876,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var templateWriter = new TemplateWriter(stringWriter, leaveOpen: true);
+            using var templateWriter = new TemplateWriter(stringWriter, leaveOpen: true);
 
             // Act
             templateWriter.Dispose();
@@ -897,7 +897,9 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             var mockWriter = new Mock<TextWriter>();
             mockWriter.Protected().Setup("Dispose", ItExpr.IsAny<bool>()).Verifiable(Times.Once);
             mockWriter.Setup(w => w.Write(It.IsAny<string>())).Verifiable(Times.Never);
+#pragma warning disable CA2000 // Test explicitly manages disposal
             var templateWriter = new TemplateWriter(mockWriter.Object, leaveOpen: false);
+#pragma warning restore CA2000
 
             // Act
             templateWriter.Dispose();
@@ -916,7 +918,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var templateWriter = new TemplateWriter(stringWriter, leaveOpen: true);
+            using var templateWriter = new TemplateWriter(stringWriter, leaveOpen: true);
             templateWriter.WriteLine();
 
             // Act
@@ -937,7 +939,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var templateWriter = new TemplateWriter(stringWriter, leaveOpen: true);
+            using var templateWriter = new TemplateWriter(stringWriter, leaveOpen: true);
             templateWriter.WriteLine();
             templateWriter.WriteLine();
 
@@ -959,7 +961,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var templateWriter = new TemplateWriter(stringWriter, leaveOpen: true);
+            using var templateWriter = new TemplateWriter(stringWriter, leaveOpen: true);
             templateWriter.WriteLine("Line1");
             templateWriter.WriteLine("Line2");
             templateWriter.WriteLine("Line3");
@@ -984,7 +986,9 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             var mockWriter = new Mock<TextWriter>();
             mockWriter.Protected().Setup("Dispose", ItExpr.IsAny<bool>()).Verifiable(Times.Once);
             mockWriter.Setup(w => w.Write(Environment.NewLine)).Verifiable(Times.Once);
+#pragma warning disable CA2000 // Test explicitly manages disposal
             var templateWriter = new TemplateWriter(mockWriter.Object, leaveOpen: false);
+#pragma warning restore CA2000
             templateWriter.WriteLine();
 
             // Act
@@ -1003,7 +1007,9 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             var mockWriter = new Mock<TextWriter>();
             mockWriter.Protected().Setup("Dispose", ItExpr.IsAny<bool>()).Verifiable(Times.Exactly(2));
+#pragma warning disable CA2000 // Test explicitly manages disposal
             var templateWriter = new TemplateWriter(mockWriter.Object, leaveOpen: false);
+#pragma warning restore CA2000
 
             // Act
             templateWriter.Dispose();
@@ -1024,7 +1030,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var templateWriter = new TemplateWriter(stringWriter, leaveOpen: true);
+            using var templateWriter = new TemplateWriter(stringWriter, leaveOpen: true);
             const int newLineCount = 100;
             for (int i = 0; i < newLineCount; i++)
             {
@@ -1050,7 +1056,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             var mockWriter = new Mock<TextWriter>();
             mockWriter.Protected().Setup("Dispose", ItExpr.IsAny<bool>()).Verifiable(Times.Never);
-            var templateWriter = new TemplateWriter(mockWriter.Object);
+            using var templateWriter = new TemplateWriter(mockWriter.Object);
 
             // Act
             templateWriter.Dispose();

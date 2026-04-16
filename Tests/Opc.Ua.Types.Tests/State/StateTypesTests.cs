@@ -68,7 +68,7 @@ namespace Opc.Ua.Types.Tests.State
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
-            CoreUtils.SilentDispose(Context);
+            (Context as IDisposable)?.Dispose();
         }
 
         /// <summary>

@@ -192,6 +192,18 @@ namespace Opc.Ua.Server
             return base.OnServerStoppingAsync(cancellationToken);
         }
 
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_reverseConnectTimer?.Dispose();
+                m_reverseConnectTimer = null;
+            }
+
+            base.Dispose(disposing);
+        }
+
         /// <summary>
         /// Add a reverse connection url.
         /// </summary>
@@ -421,7 +433,7 @@ namespace Opc.Ua.Server
             {
                 if (m_reverseConnectTimer != null)
                 {
-                    Utils.SilentDispose(m_reverseConnectTimer);
+                    m_reverseConnectTimer?.Dispose();
                     m_reverseConnectTimer = null;
                 }
             }

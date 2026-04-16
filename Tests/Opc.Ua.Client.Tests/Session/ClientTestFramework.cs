@@ -362,7 +362,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 await Task.Delay(100).ConfigureAwait(false);
             }
-            Utils.SilentDispose(ClientFixture);
+            ClientFixture?.Dispose();
 
             // Clean up pki
             try

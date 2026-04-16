@@ -157,7 +157,7 @@ namespace Opc.Ua.Fuzzing
                 }
                 finally
                 {
-                    Utils.SilentDispose(reader);
+                    reader?.Dispose();
                 }
             }
             catch (ServiceResultException sre)

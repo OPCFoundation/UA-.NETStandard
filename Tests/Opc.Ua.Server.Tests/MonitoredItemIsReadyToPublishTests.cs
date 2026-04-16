@@ -79,10 +79,10 @@ namespace Opc.Ua.Server.Tests
             mockCalculator.Setup(c => c.HasEndTimePassed(It.IsAny<DateTimeUtc>())).Returns(true);
 
             // Setup Aggregate Manager with a custom factory
-            ServerMockWrapper serverMockWrapper = CreateServerMock(telemetry);
+            using ServerMockWrapper serverMockWrapper = CreateServerMock(telemetry);
             Mock<IServerInternal> serverMock = serverMockWrapper.Mock;
 
-            var aggregateManager = new AggregateManager(serverMock.Object);
+            using var aggregateManager = new AggregateManager(serverMock.Object);
             serverMock.Setup(s => s.AggregateManager).Returns(aggregateManager);
 
             var aggId = new NodeId(1234);
@@ -145,9 +145,15 @@ namespace Opc.Ua.Server.Tests
 
         // Helpers
 
-        private sealed class ServerMockWrapper
+        private sealed class ServerMockWrapper : IDisposable
         {
             public Mock<IServerInternal> Mock { get; set; }
+            public MonitoredItemQueueFactory QueueFactory { get; set; }
+
+            public void Dispose()
+            {
+                QueueFactory?.Dispose();
+            }
         }
 
         private static ServerMockWrapper CreateServerMock(ITelemetryContext telemetry)
@@ -157,15 +163,16 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
             serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
 
+            var queueFactory = new MonitoredItemQueueFactory(telemetry);
             serverMock.Setup(s => s.MonitoredItemQueueFactory)
-                .Returns(new MonitoredItemQueueFactory(telemetry));
+                .Returns(queueFactory);
 
             serverMock.Setup(s => s.SubscriptionStore).Returns(new Mock<ISubscriptionStore>().Object);
 
             var diagMock = new Mock<IDiagnosticsNodeManager>();
             serverMock.Setup(s => s.DiagnosticsNodeManager).Returns(diagMock.Object);
 
-            return new ServerMockWrapper { Mock = serverMock };
+            return new ServerMockWrapper { Mock = serverMock, QueueFactory = queueFactory };
         }
 
         private static MonitoredItem CreateMonitoredItem(

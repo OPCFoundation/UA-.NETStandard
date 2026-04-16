@@ -893,7 +893,10 @@ namespace Opc.Ua.Sample
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            //only durable queues need to be disposed
+            if (disposing)
+            {
+                m_queue?.Dispose();
+            }
         }
 
         private readonly Lock m_lock = new();

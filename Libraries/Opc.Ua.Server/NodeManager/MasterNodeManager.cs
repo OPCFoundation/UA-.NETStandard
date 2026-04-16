@@ -200,8 +200,10 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !m_disposed)
             {
+                m_disposed = true;
+
                 m_namespaceManagersSemaphoreSlim.Dispose();
 
                 m_startupShutdownSemaphoreSlim.Wait();
@@ -213,7 +215,7 @@ namespace Opc.Ua.Server
 
                 foreach (IAsyncNodeManager nodeManager in nodeManagers)
                 {
-                    Utils.SilentDispose(nodeManager);
+                    (nodeManager as IDisposable)?.Dispose();
                 }
             }
         }
@@ -4000,6 +4002,7 @@ namespace Opc.Ua.Server
         private readonly MonitoredItemIdFactory m_monitoredItemIdFactory = new();
         private readonly uint m_maxContinuationPointsPerBrowse;
         private readonly SemaphoreSlim m_namespaceManagersSemaphoreSlim = new(1, 1);
+        private bool m_disposed;
     }
 
     /// <summary>

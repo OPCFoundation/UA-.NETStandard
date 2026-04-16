@@ -194,7 +194,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicyUri = SecurityPolicies.None
             });
 
-            var identity = new UserIdentity();
+            using var identity = new UserIdentity();
             var mockSession = new Mock<ISession>();
 
             factory

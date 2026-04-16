@@ -378,7 +378,7 @@ namespace Opc.Ua.Client
             {
                 StopKeepAliveTimerAsync().AsTask().GetAwaiter().GetResult();
 
-                Utils.SilentDispose(m_defaultSubscription);
+                m_defaultSubscription?.Dispose();
                 m_nodeCache?.Dispose();
 
                 List<Subscription>? subscriptions;
@@ -390,7 +390,7 @@ namespace Opc.Ua.Client
 
                 foreach (Subscription subscription in subscriptions)
                 {
-                    Utils.SilentDispose(subscription);
+                    subscription?.Dispose();
                 }
                 subscriptions.Clear();
 
@@ -653,7 +653,7 @@ namespace Opc.Ua.Client
             });
             set
             {
-                Utils.SilentDispose(m_defaultSubscription);
+                m_defaultSubscription?.Dispose();
                 m_defaultSubscription = value;
             }
         }
@@ -2039,7 +2039,7 @@ namespace Opc.Ua.Client
             try
             {
                 session.RecreateRenewUserIdentity();
-                UserIdentity tempIdentity = session.Identity == null ? new UserIdentity() : null;
+                UserIdentity? tempIdentity = session.Identity == null ? new UserIdentity() : null;
                 try
                 {
                     // open the session.
@@ -2047,7 +2047,7 @@ namespace Opc.Ua.Client
                         .OpenAsync(
                             SessionName,
                             (uint)SessionTimeout,
-                            session.Identity ?? tempIdentity,
+                            session.Identity ?? tempIdentity!,
                             PreferredLocales,
                             m_checkDomain,
                             ct)
@@ -2104,7 +2104,7 @@ namespace Opc.Ua.Client
             try
             {
                 session.RecreateRenewUserIdentity();
-                UserIdentity tempIdentity = session.Identity == null ? new UserIdentity() : null;
+                UserIdentity? tempIdentity = session.Identity == null ? new UserIdentity() : null;
                 try
                 {
                     // open the session.
@@ -2112,7 +2112,7 @@ namespace Opc.Ua.Client
                         .OpenAsync(
                             SessionName,
                             (uint)SessionTimeout,
-                            session.Identity ?? tempIdentity,
+                            session.Identity ?? tempIdentity!,
                             PreferredLocales,
                             CheckDomain,
                             ct)
@@ -3757,7 +3757,7 @@ namespace Opc.Ua.Client
             if (m_RenewUserIdentity != null)
             {
                 IUserIdentity renewed = m_RenewUserIdentity(this, m_identity);
-                UserIdentity tempIdentity = null;
+                UserIdentity? tempIdentity = null;
                 try
                 {
                     if (renewed != null)

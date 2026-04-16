@@ -184,7 +184,7 @@ namespace Opc.Ua.Server
                 {
                     for (int ii = 0; ii < browseCPs.Count; ii++)
                     {
-                        Utils.SilentDispose(browseCPs[ii]);
+                        browseCPs[ii]?.Dispose();
                     }
                 }
 
@@ -200,9 +200,12 @@ namespace Opc.Ua.Server
                 {
                     for (int ii = 0; ii < historyCPs.Count; ii++)
                     {
-                        Utils.SilentDispose(historyCPs[ii].Value);
+                        (historyCPs[ii].Value as IDisposable)?.Dispose();
                     }
                 }
+
+                m_eccUserTokenNonce?.Dispose();
+                m_eccUserTokenNonce = null;
 
                 IdentityToken?.Dispose();
                 IdentityToken = null;
@@ -649,7 +652,7 @@ namespace Opc.Ua.Server
                 {
                     ContinuationPoint cp = m_browseContinuationPoints[0];
                     m_browseContinuationPoints.RemoveAt(0);
-                    Utils.SilentDispose(cp);
+                    cp?.Dispose();
                 }
 
                 // add to end of list.
@@ -719,7 +722,7 @@ namespace Opc.Ua.Server
                 {
                     HistoryContinuationPoint oldCP = m_historyContinuationPoints[0];
                     m_historyContinuationPoints.RemoveAt(0);
-                    Utils.SilentDispose(oldCP.Value);
+                    (oldCP.Value as IDisposable)?.Dispose();
                 }
 
                 // create the cp.

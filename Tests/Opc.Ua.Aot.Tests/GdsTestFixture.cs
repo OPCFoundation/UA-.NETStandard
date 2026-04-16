@@ -230,6 +230,12 @@ namespace Opc.Ua.Aot.Tests
                 await server.StopAsync().ConfigureAwait(false);
             }
 
+            if (m_serverApplication != null)
+            {
+                await m_serverApplication.DisposeAsync().ConfigureAwait(false);
+                m_serverApplication = null;
+            }
+
             CleanDirectory(m_pkiRoot);
             CleanDirectory(m_gdsRoot);
         }

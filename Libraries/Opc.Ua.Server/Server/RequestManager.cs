@@ -79,7 +79,7 @@ namespace Opc.Ua.Server
                     operation.RequestLifetime.TryCancel(StatusCodes.BadSessionClosed);
                 }
 
-                Utils.SilentDispose(m_requestTimer);
+                m_requestTimer?.Dispose();
                 m_requestTimer = null;
             }
         }

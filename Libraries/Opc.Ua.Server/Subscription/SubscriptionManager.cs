@@ -125,12 +125,12 @@ namespace Opc.Ua.Server
 
                 foreach (SessionPublishQueue publishQueue in publishQueues)
                 {
-                    Utils.SilentDispose(publishQueue);
+                    publishQueue?.Dispose();
                 }
 
                 foreach (ISubscription subscription in subscriptions)
                 {
-                    Utils.SilentDispose(subscription);
+                    subscription?.Dispose();
                 }
 
                 m_shutdownEvent.Dispose();

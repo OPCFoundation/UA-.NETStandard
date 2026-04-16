@@ -76,7 +76,7 @@ namespace Opc.Ua.Bindings
             {
                 lock (m_lock)
                 {
-                    Utils.SilentDispose(m_timer);
+                    m_timer?.Dispose();
                     m_timer = null;
 
                     if (m_event != null)

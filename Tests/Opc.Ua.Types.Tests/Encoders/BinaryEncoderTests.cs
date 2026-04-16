@@ -54,7 +54,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Assert
             Assert.That(encoder, Is.Not.Null);
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
@@ -68,7 +68,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteBoolean("TestField", true);
             encoder.WriteInt32("TestInt", 42);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -84,7 +84,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Assert
             Assert.That(encoder.Context, Is.SameAs(messageContext));
             Assert.That(encoder.Position, Is.Zero);
@@ -97,7 +97,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteInt32("TestInt", 12345);
             int position = encoder.Position;
             // Assert
@@ -144,7 +144,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var binaryEncodingId = new ExpandedNodeId(123, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.EncodeMessage(mockMessage.Object, binaryEncodingId);
             // Assert
@@ -174,7 +174,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                     enc.WriteInt32(null, i);
                 }
             });
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
@@ -203,7 +203,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                     enc.WriteInt32(null, i);
                 }
             });
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
             Assert.That(encoder.Position, Is.GreaterThan(0));
@@ -229,7 +229,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                     enc.WriteInt32(null, i);
                 }
             });
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
         }
@@ -250,7 +250,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var binaryEncodingId = new ExpandedNodeId(123, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
         }
@@ -274,7 +274,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var binaryEncodingId = new ExpandedNodeId(456, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.EncodeMessage(mockMessage.Object, binaryEncodingId);
             byte[] buffer = encoder.CloseAndReturnBuffer();
@@ -302,7 +302,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var binaryEncodingId = new ExpandedNodeId(789, 1);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.EncodeMessage(mockMessage.Object, binaryEncodingId);
             // Assert
@@ -331,7 +331,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                     enc.WriteInt32(null, i);
                 }
             });
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
@@ -353,7 +353,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var binaryEncodingId = new ExpandedNodeId(111, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
         }
@@ -378,7 +378,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                     enc.WriteInt32(null, i);
                 }
             });
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object, binaryEncodingId));
         }
@@ -392,7 +392,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDouble("field", value);
             byte[] buffer = encoder.CloseAndReturnBuffer();
@@ -411,7 +411,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const double value = double.NaN;
             // Act
             encoder.WriteDouble("field", value);
@@ -431,7 +431,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const double value = double.PositiveInfinity;
             // Act
             encoder.WriteDouble("field", value);
@@ -451,7 +451,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const double value = double.NegativeInfinity;
             // Act
             encoder.WriteDouble("field", value);
@@ -471,7 +471,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             double[] values =
             [
                 1.0,
@@ -507,7 +507,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDouble("field", value);
             byte[] buffer = encoder.CloseAndReturnBuffer();
@@ -529,7 +529,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDouble("field", value);
             byte[] buffer = encoder.CloseAndReturnBuffer();
@@ -551,7 +551,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDouble("field", value);
             byte[] buffer = encoder.CloseAndReturnBuffer();
@@ -571,7 +571,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDiagnosticInfo("test", null);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -588,7 +588,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo();
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
@@ -606,7 +606,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 100
@@ -627,7 +627,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 100,
@@ -653,7 +653,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var innerDiagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 500
@@ -679,7 +679,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 100
@@ -699,7 +699,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 100
@@ -719,7 +719,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 100
@@ -739,7 +739,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 NamespaceUri = 200
@@ -760,7 +760,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 Locale = 300
@@ -781,7 +781,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 LocalizedText = 400
@@ -802,7 +802,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 AdditionalInfo = "Test Info"
@@ -823,7 +823,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 InnerStatusCode = StatusCodes.BadUnexpectedError
@@ -844,7 +844,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 AdditionalInfo = string.Empty
@@ -865,7 +865,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = -1,
@@ -887,7 +887,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 0
@@ -906,7 +906,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<ushort> emptyArray = [];
             // Act
             encoder.WriteUInt16Array("TestField", emptyArray);
@@ -922,7 +922,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             IServiceMessageContext context = CreateContext(maxArrayLength: 5);
-            var encoder = new BinaryEncoder(context);
+            using var encoder = new BinaryEncoder(context);
             ushort[] values = new ushort[10]; // Array larger than maxArrayLength
             var array = new ArrayOf<ushort>(values);
             // Act & Assert
@@ -935,7 +935,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<ExtensionObject> emptyArray = [];
             // Act
             encoder.WriteExtensionObjectArray("TestField", emptyArray);
@@ -951,7 +951,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
-            var encoder = new BinaryEncoder(context);
+            using var encoder = new BinaryEncoder(context);
             var nullArray = default(ArrayOf<XmlElement>);
             // Act
             encoder.WriteXmlElementArray("TestField", nullArray);
@@ -967,7 +967,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
-            var encoder = new BinaryEncoder(context);
+            using var encoder = new BinaryEncoder(context);
             ArrayOf<XmlElement> emptyArray = [];
             // Act
             encoder.WriteXmlElementArray("TestField", emptyArray);
@@ -983,7 +983,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
-            var encoder = new BinaryEncoder(context);
+            using var encoder = new BinaryEncoder(context);
             XmlElement emptyXmlElement = XmlElement.Empty;
             var array = new ArrayOf<XmlElement>([emptyXmlElement]);
             // Act
@@ -1002,7 +1002,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             string result = encoder.CloseAndReturnText();
             // Assert
@@ -1016,7 +1016,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteBoolean("BoolField", true);
             encoder.WriteByte("ByteField", 255);
             encoder.WriteInt16("Int16Field", short.MaxValue);
@@ -1041,7 +1041,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Stream stream = customStream;
             // Use a wrapper stream to ensure it's not detected as MemoryStream
             using var bufferedStream = new BufferedStream(stream);
-            var encoder = new BinaryEncoder(bufferedStream, messageContext, leaveOpen: true);
+            using var encoder = new BinaryEncoder(bufferedStream, messageContext, leaveOpen: true);
             encoder.WriteInt32("TestField", 42);
             // Act
             string result = encoder.CloseAndReturnText();
@@ -1056,7 +1056,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const uint value = uint.MinValue;
             // Act
             encoder.WriteUInt32("testField", value);
@@ -1077,7 +1077,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const uint value = uint.MaxValue;
             // Act
             encoder.WriteUInt32("testField", value);
@@ -1097,7 +1097,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const uint value = 12345u;
             // Act
             encoder.WriteUInt32(null, value);
@@ -1117,7 +1117,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const uint value = 99999u;
             // Act
             encoder.WriteUInt32(string.Empty, value);
@@ -1137,7 +1137,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const uint value = 555u;
             // Act
             encoder.WriteUInt32("   ", value);
@@ -1157,7 +1157,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const uint value1 = 1u;
             const uint value2 = 256u;
             const uint value3 = 65536u;
@@ -1192,7 +1192,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const uint value = 777u;
             string longFieldName = new('a', 10000);
             // Act
@@ -1213,7 +1213,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const uint value = 888u;
             const string specialFieldName = "field\0name\t\r\n!@#$%^&*()";
             // Act
@@ -1235,7 +1235,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             XmlElement emptyXmlElement = XmlElement.Empty;
             // Act
             encoder.WriteXmlElement("testField", emptyXmlElement);
@@ -1253,7 +1253,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const string xmlString = "<test>value</test>";
             var xmlElement = XmlElement.From(xmlString);
             // Act
@@ -1277,7 +1277,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const string xmlString = "<root><child>data</child></root>";
             var xmlElement = XmlElement.From(xmlString);
             // Act
@@ -1300,7 +1300,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const string xmlString = "<element/>";
             var xmlElement = XmlElement.From(xmlString);
             // Act
@@ -1323,7 +1323,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const string xmlString = "<root attr=\"value\"><child1>text1</child1><child2>text2</child2></root>";
             var xmlElement = XmlElement.From(xmlString);
             // Act
@@ -1346,7 +1346,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const string xmlString = "<data>&lt;&gt;&amp;&quot;&#39;</data>";
             var xmlElement = XmlElement.From(xmlString);
             // Act
@@ -1369,7 +1369,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             int position = encoder.Close();
             // Assert
@@ -1383,7 +1383,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteByte(null, 42);
             // Act
             int position = encoder.Close();
@@ -1397,7 +1397,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteBoolean(null, true); // 1 byte
             encoder.WriteInt32(null, 12345); // 4 bytes
             encoder.WriteInt64(null, 123456789L); // 8 bytes
@@ -1416,7 +1416,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             byte[] buffer = new byte[1024];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
+            using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             encoder.WriteInt32(null, 100);
             encoder.WriteInt32(null, 200);
             // Act
@@ -1432,7 +1432,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
+            using var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
             encoder.WriteUInt32(null, 12345U);
             encoder.WriteUInt64(null, 67890UL);
             // Act
@@ -1448,7 +1448,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
+            using var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
             // Write a large amount of data
             byte[] largeData = new byte[100000];
             encoder.WriteRawBytes(largeData, 0, largeData.Length);
@@ -1471,7 +1471,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             mockStream.Setup(s => s.CanWrite).Returns(true);
             mockStream.Setup(s => s.CanRead).Returns(false);
             mockStream.Setup(s => s.CanSeek).Returns(true);
-            var encoder = new BinaryEncoder(mockStream.Object, messageContext, leaveOpen: false);
+            using var encoder = new BinaryEncoder(mockStream.Object, messageContext, leaveOpen: false);
             // Act
             int position = encoder.Close();
             // Assert
@@ -1487,7 +1487,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             byte[] buffer = [];
-            var encoder = new BinaryEncoder(buffer, 0, 0, messageContext);
+            using var encoder = new BinaryEncoder(buffer, 0, 0, messageContext);
             // Act
             int position = encoder.Close();
             // Assert
@@ -1502,7 +1502,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             byte[] buffer = new byte[1024];
             const int offset = 100;
-            var encoder = new BinaryEncoder(buffer, offset, buffer.Length - offset, messageContext);
+            using var encoder = new BinaryEncoder(buffer, offset, buffer.Length - offset, messageContext);
             encoder.WriteInt32(null, 42);
             // Act
             int position = encoder.Close();
@@ -1516,7 +1516,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteBoolean(null, false);
             // Act
             int position = encoder.Close();
@@ -1531,7 +1531,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: true);
+            using var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: true);
             encoder.WriteInt32(null, 12345);
             // Act
             int position = encoder.Close();
@@ -1547,7 +1547,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("TestField", sbyte.MinValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -1564,7 +1564,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("TestField", sbyte.MaxValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -1581,7 +1581,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("TestField", 0);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -1605,7 +1605,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("TestField", value);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -1622,7 +1622,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte(null, 42);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -1639,7 +1639,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte(string.Empty, -42);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -1656,7 +1656,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             sbyte[] values =
             [
                 sbyte.MinValue,
@@ -1685,7 +1685,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("   ", 10);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -1702,7 +1702,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var testGuid = new Guid("12345678-1234-1234-1234-123456789abc");
             var testUuid = new Uuid(testGuid);
             byte[] expectedBytes = testGuid.ToByteArray();
@@ -1722,7 +1722,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             Uuid emptyUuid = Uuid.Empty;
             byte[] expectedBytes = Guid.Empty.ToByteArray();
             // Act
@@ -1744,7 +1744,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var testGuid = new Guid(guidString);
             var testUuid = new Uuid(testGuid);
             byte[] expectedBytes = testGuid.ToByteArray();
@@ -1764,7 +1764,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var guid1 = new Guid("11111111-1111-1111-1111-111111111111");
             var guid2 = new Guid("22222222-2222-2222-2222-222222222222");
             var uuid1 = new Uuid(guid1);
@@ -1793,7 +1793,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var testGuid = new Guid("99999999-9999-9999-9999-999999999999");
             var testUuid = new Uuid(testGuid);
             byte[] expectedBytes = testGuid.ToByteArray();
@@ -1814,7 +1814,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var testGuid = new Guid("abcdef01-2345-6789-abcd-ef0123456789");
             var testUuid = new Uuid(testGuid);
             byte[] expectedBytes = testGuid.ToByteArray();
@@ -1836,7 +1836,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             byte[] buffer = new byte[16];
-            var encoder = new BinaryEncoder(buffer, 0, 16, messageContext);
+            using var encoder = new BinaryEncoder(buffer, 0, 16, messageContext);
             var testGuid = new Guid("fedcba98-7654-3210-fedc-ba9876543210");
             var testUuid = new Uuid(testGuid);
             byte[] expectedBytes = testGuid.ToByteArray();
@@ -1856,7 +1856,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nullArray = default(ArrayOf<int>);
             // Act
             encoder.WriteInt32Array("testField", nullArray);
@@ -1875,7 +1875,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var emptyArray = ArrayOf.Empty<int>();
             // Act
             encoder.WriteInt32Array("testField", emptyArray);
@@ -1894,7 +1894,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var singleElementArray = ArrayOf.Wrapped(42);
             // Act
             encoder.WriteInt32Array("testField", singleElementArray);
@@ -1915,7 +1915,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var multipleElementArray = ArrayOf.Wrapped(1, 2, 3, 4, 5);
             // Act
             encoder.WriteInt32Array("testField", multipleElementArray);
@@ -1939,7 +1939,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var boundaryArray = ArrayOf.Wrapped(int.MinValue, 0, int.MaxValue);
             // Act
             encoder.WriteInt32Array("testField", boundaryArray);
@@ -1961,7 +1961,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var negativeArray = ArrayOf.Wrapped(-100, -200, -300);
             // Act
             encoder.WriteInt32Array("testField", negativeArray);
@@ -1981,7 +1981,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var largeArray = ArrayOf.Wrapped(1, 2, 3, 4, 5);
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteInt32Array("testField", largeArray));
@@ -1996,7 +1996,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var zeroArray = ArrayOf.Wrapped(0, 0, 0);
             // Act
             encoder.WriteInt32Array("testField", zeroArray);
@@ -2018,13 +2018,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateContext(0);
 
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var nullArray = default(ArrayOf<StatusCode>);
             // Act
             encoder.WriteStatusCodeArray("TestField", nullArray);
             // Assert
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(-1));
         }
@@ -2036,13 +2036,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateContext(0);
 
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var emptyArray = ArrayOf.Create(Array.Empty<StatusCode>());
             // Act
             encoder.WriteStatusCodeArray("TestField", emptyArray);
             // Assert
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             Assert.That(length, Is.Zero);
             Assert.That(stream.Position, Is.EqualTo(stream.Length));
@@ -2054,14 +2054,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var statusCode = new StatusCode(0x80000000);
             var array = ArrayOf.Create([statusCode]);
             // Act
             encoder.WriteStatusCodeArray("TestField", array);
             // Assert
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             uint value = reader.ReadUInt32();
             Assert.That(length, Is.EqualTo(1));
@@ -2074,7 +2074,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             StatusCode[] statusCodes =
             [
                 new StatusCode(0x00000000),
@@ -2087,7 +2087,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteStatusCodeArray("TestField", array);
             // Assert
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(4));
             for (int i = 0; i < statusCodes.Length; i++)
@@ -2103,7 +2103,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             StatusCode[] statusCodes =
             [
                 new StatusCode(0x00000000),
@@ -2122,7 +2122,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             StatusCode[] statusCodes =
             [
                 new StatusCode(0),
@@ -2136,7 +2136,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteStatusCodeArray("TestField", array);
             // Assert
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(5));
             for (int i = 0; i < statusCodes.Length; i++)
@@ -2152,7 +2152,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var statusCodes = new StatusCode[100];
             for (int i = 0; i < 100; i++)
             {
@@ -2164,7 +2164,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteStatusCodeArray("TestField", array);
             // Assert
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(100));
         }
@@ -2175,13 +2175,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var array = ArrayOf.Create([new StatusCode(42)]);
             // Act
             encoder.WriteStatusCodeArray("SomeFieldName", array);
             // Assert
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             uint code = reader.ReadUInt32();
             Assert.That(length, Is.EqualTo(1));
@@ -2195,7 +2195,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const uint encodingMask = 0;
             // Act
             encoder.WriteEncodingMask(encodingMask);
@@ -2216,7 +2216,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const uint encodingMask = uint.MaxValue;
             // Act
             encoder.WriteEncodingMask(encodingMask);
@@ -2280,7 +2280,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ExtensionObject extensionObject = ExtensionObject.Null;
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
@@ -2289,7 +2289,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
             // Verify that null NodeId and None encoding were written
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             NodeId nodeId = decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
             Assert.That(nodeId, Is.EqualTo(NodeId.Null));
@@ -2305,7 +2305,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(123, 0);
             var extensionObject = new ExtensionObject(typeId);
             // Act
@@ -2315,7 +2315,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
             // Verify that null NodeId and None encoding were written
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             NodeId nodeId = decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
             Assert.That(nodeId, Is.EqualTo(new NodeId(123, 0)));
@@ -2331,7 +2331,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(123, 0);
             var extensionObject = new ExtensionObject(typeId, (ByteString)default);
             // Act
@@ -2339,7 +2339,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(123, 0)));
@@ -2355,7 +2355,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(456, 0);
             byte[] bodyBytes =
             [
@@ -2371,7 +2371,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
             ByteString decodedBytes = decoder.ReadByteString(null);
@@ -2389,7 +2389,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(789, 0);
             byte[] bodyBytes = [];
             var extensionObject = new ExtensionObject(typeId, new ByteString(bodyBytes));
@@ -2398,7 +2398,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
             ByteString decodedBytes = decoder.ReadByteString(null);
@@ -2415,7 +2415,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(456, 0);
             var xmlElement = XmlElement.From("<root><child>Test</child></root>");
             var extensionObject = new ExtensionObject(typeId, xmlElement);
@@ -2424,7 +2424,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
             XmlElement decodedXmlElement = decoder.ReadXmlElement(null);
@@ -2442,7 +2442,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var mockEncodeable = new Mock<IEncodeable>();
             var typeId = new ExpandedNodeId(111, 0);
             var binaryEncodingId = new ExpandedNodeId(222, 0);
@@ -2455,7 +2455,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
             int length = decoder.ReadInt32(null);
@@ -2476,7 +2476,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
             var nonSeekableStream = new NonSeekableMemoryStream();
-            var encoder = new BinaryEncoder(nonSeekableStream, messageContext, true);
+            using var encoder = new BinaryEncoder(nonSeekableStream, messageContext, true);
             var mockEncodeable = new Mock<IEncodeable>();
             var typeId = new ExpandedNodeId(333, 0);
             var binaryEncodingId = new ExpandedNodeId(444, 0);
@@ -2490,7 +2490,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.Close();
             // Assert
             nonSeekableStream.ResetAndMakeSeekable();
-            var decoder = new BinaryDecoder(nonSeekableStream, messageContext, true);
+            using var decoder = new BinaryDecoder(nonSeekableStream, messageContext, true);
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
             ByteString bytes = decoder.ReadByteString(null);
@@ -2508,7 +2508,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var mockEncodeable = new Mock<IEncodeable>();
             var typeId = new ExpandedNodeId(555, 0);
             var binaryEncodingId = new ExpandedNodeId(666, 0);
@@ -2523,7 +2523,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(666, 0)));
         }
@@ -2537,7 +2537,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var mockEncodeable = new Mock<IEncodeable>();
             const string unknownNamespace = "http://unknown.namespace.com";
             var typeId = new ExpandedNodeId(888, unknownNamespace);
@@ -2562,7 +2562,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(123, 0);
             // Creating an extension object with string body (Json encoding)
             var extensionObject = new ExtensionObject(typeId, /*lang=json,strict*/ """{ "test": "value" }""");
@@ -2584,7 +2584,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(1000, 0);
             byte[] bodyBytes = new byte[10000];
             for (int i = 0; i < bodyBytes.Length; i++)
@@ -2598,7 +2598,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             decoder.ReadNodeId(null);
             decoder.ReadByte(null);
             ByteString decodedBytes = decoder.ReadByteString(null);
@@ -2615,7 +2615,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             namespaceTable.Append(Namespaces.OpcUa);
             namespaceTable.Append("http://custom.namespace.com");
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(1234, 1);
             var extensionObject = new ExtensionObject(typeId, ByteString.From([0, 1, 2]));
             // Act
@@ -2623,7 +2623,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(1234, 1)));
         }
@@ -2634,7 +2634,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(1234, 5, "http://someurinotknowntous", 5);
             var extensionObject = new ExtensionObject(typeId, ByteString.From([1, 2]));
             // Act
@@ -2642,7 +2642,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             Assert.That(decodedNodeId, Is.EqualTo(NodeId.Null));
         }
@@ -2656,7 +2656,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ExtensionObject extensionObject = ExtensionObject.Null;
             // Act
             encoder.WriteExtensionObject(null, extensionObject);
@@ -2675,7 +2675,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var mockEncodeable = new Mock<IEncodeable>();
             var typeId = new ExpandedNodeId(2000, 0);
             var binaryEncodingId = new ExpandedNodeId(2001, 0);
@@ -2693,7 +2693,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
             int length = decoder.ReadInt32(null);
@@ -2713,7 +2713,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var largeArray = new ArrayOf<double>(new double[10]);
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDoubleArray("test", largeArray));
@@ -2726,7 +2726,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<double> emptyArray = [];
             // Act
             encoder.WriteDoubleArray("TestField", emptyArray);
@@ -2744,7 +2744,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateContext(0);
 
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             ArrayOf<LocalizedText> emptyArray = [];
             // Act
             encoder.WriteLocalizedTextArray("test", emptyArray);
@@ -2766,7 +2766,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxStringLength = 0
             };
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var localizedText = new LocalizedText("en-US", "Test");
             var array = ArrayOf.Create([localizedText]);
             // Act
@@ -2789,7 +2789,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxStringLength = 0
             };
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var localizedText1 = new LocalizedText("en-US", "Test1");
             var localizedText2 = new LocalizedText("de-DE", "Test2");
             var localizedText3 = new LocalizedText("fr-FR", "Test3");
@@ -2810,7 +2810,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             ServiceMessageContext messageContext = CreateContext(2);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var localizedText1 = new LocalizedText("en-US", "Test1");
             var localizedText2 = new LocalizedText("de-DE", "Test2");
             var localizedText3 = new LocalizedText("fr-FR", "Test3");
@@ -2826,7 +2826,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var array = ArrayOf.Create([LocalizedText.Null, LocalizedText.Null]);
             // Act
             encoder.WriteLocalizedTextArray("test", array);
@@ -2851,7 +2851,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxStringLength = 0
             };
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var localizedText = new LocalizedText("en-US", "Test");
             var array = ArrayOf.Create([localizedText, LocalizedText.Null, localizedText]);
             // Act
@@ -2874,7 +2874,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxStringLength = 0
             };
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var localizedText = new LocalizedText(null, "Test");
             var array = ArrayOf.Create([localizedText]);
             // Act
@@ -2893,7 +2893,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateContext(3);
             messageContext.MaxStringLength = 0;
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var localizedText1 = new LocalizedText("en-US", "Test1");
             var localizedText2 = new LocalizedText("de-DE", "Test2");
             var localizedText3 = new LocalizedText("fr-FR", "Test3");
@@ -2918,7 +2918,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxStringLength = 0
             };
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             string longLocale = new('a', 1000);
             string longText = new('b', 1000);
             var localizedText = new LocalizedText(longLocale, longText);
@@ -2938,7 +2938,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
@@ -2953,7 +2953,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteInt32(null, 12345);
             encoder.WriteBoolean(null, true);
             // Act
@@ -2971,7 +2971,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             byte[] buffer = new byte[1024];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
+            using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             // Act
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
@@ -2986,7 +2986,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             byte[] buffer = new byte[1024];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
+            using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             encoder.WriteString(null, "test");
             encoder.WriteUInt64(null, 9876543210UL);
             // Act
@@ -3007,7 +3007,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             try
             {
                 using var fileStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write);
-                var encoder = new BinaryEncoder(fileStream, messageContext, leaveOpen: true);
+                using var encoder = new BinaryEncoder(fileStream, messageContext, leaveOpen: true);
                 encoder.WriteInt32(null, 42);
                 // Act
                 byte[] result = encoder.CloseAndReturnBuffer();
@@ -3031,7 +3031,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             using var memoryStream = new MemoryStream();
             using var bufferedStream = new BufferedStream(memoryStream);
-            var encoder = new BinaryEncoder(bufferedStream, messageContext, leaveOpen: true);
+            using var encoder = new BinaryEncoder(bufferedStream, messageContext, leaveOpen: true);
             // Act
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
@@ -3044,7 +3044,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteInt32(null, 100);
             // Act
             byte[] result1 = encoder.CloseAndReturnBuffer();
@@ -3062,7 +3062,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             const int bufferSize = 100;
             byte[] buffer = new byte[bufferSize];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
+            using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             // Write data close to buffer limit
             for (int i = 0; i < 20; i++)
             {
@@ -3085,7 +3085,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = new byte[1024];
             const int offset = 100;
             const int count = 500;
-            var encoder = new BinaryEncoder(buffer, offset, count, messageContext);
+            using var encoder = new BinaryEncoder(buffer, offset, count, messageContext);
             encoder.WriteInt16(null, short.MaxValue);
             // Act
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -3100,7 +3100,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const int testValue = 0x12345678;
             encoder.WriteInt32(null, testValue);
             // Act
@@ -3118,7 +3118,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.SaveStringTable(null);
             byte[] buffer = encoder.CloseAndReturnBuffer();
@@ -3135,7 +3135,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var stringTable = new StringTable();
             // Act
             encoder.SaveStringTable(stringTable);
@@ -3153,7 +3153,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var stringTable = new StringTable(["FirstString"]);
             // Act
             encoder.SaveStringTable(stringTable);
@@ -3171,7 +3171,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var stringTable = new StringTable(["FirstString", "SecondString"]);
             // Act
             encoder.SaveStringTable(stringTable);
@@ -3196,7 +3196,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             string[] strings =
             [
                 "First",
@@ -3230,7 +3230,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             string[] strings =
             [
                 "First",
@@ -3263,7 +3263,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             string[] strings =
             [
                 "First",
@@ -3298,7 +3298,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             string longString = new('X', 10000);
             string[] strings =
             [
@@ -3328,7 +3328,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const ulong value = ulong.MinValue;
             // Act
             encoder.WriteUInt64("TestField", value);
@@ -3345,7 +3345,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const ulong value = ulong.MaxValue;
             // Act
             encoder.WriteUInt64("TestField", value);
@@ -3362,7 +3362,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const ulong value1 = 1ul;
             const ulong value2 = 256ul;
             const ulong value3 = ulong.MaxValue;
@@ -3398,7 +3398,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteUInt64("TestField", value);
             byte[] buffer = encoder.CloseAndReturnBuffer();
@@ -3427,7 +3427,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ExpandedNodeId nullExpandedNodeId = ExpandedNodeId.Null;
             // Act
             encoder.WriteExpandedNodeId("TestField", nullExpandedNodeId);
@@ -3446,7 +3446,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(100u, 0);
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
@@ -3468,7 +3468,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(50u);
             var expandedNodeId = new ExpandedNodeId(nodeId, "http://test.namespace.uri");
             // Act
@@ -3488,7 +3488,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(25u);
             var expandedNodeId = new ExpandedNodeId(nodeId, null, 1u);
             // Act
@@ -3508,7 +3508,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(75u);
             var expandedNodeId = new ExpandedNodeId(nodeId, "http://test.namespace", 2u);
             // Act
@@ -3528,7 +3528,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(30u);
             var expandedNodeId = new ExpandedNodeId(nodeId, null, 0u);
             // Act
@@ -3548,7 +3548,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(40u);
             var expandedNodeId = new ExpandedNodeId(nodeId, null);
             // Act
@@ -3568,7 +3568,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(45u);
             var expandedNodeId = new ExpandedNodeId(nodeId, string.Empty);
             // Act
@@ -3597,7 +3597,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             contextNamespaceUris.Append("http://namespace2.com");
             encoderNamespaceUris.Append("http://namespace2.com");
             encoderNamespaceUris.Append("http://namespace1.com");
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.SetMappingTables(encoderNamespaceUris, null);
             var nodeId = new NodeId(100u, 1); // namespace index 1 in encoder space
             var expandedNodeId = new ExpandedNodeId(nodeId);
@@ -3625,7 +3625,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             contextServerUris.Append("urn:server2");
             encoderServerUris.Append("urn:server2");
             encoderServerUris.Append("urn:server1");
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.SetMappingTables(null, encoderServerUris);
             var nodeId = new NodeId(50u);
             var expandedNodeId = new ExpandedNodeId(nodeId, null, 0u);
@@ -3646,7 +3646,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId("StringIdentifier", 0);
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
@@ -3666,7 +3666,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid, 0);
             var expandedNodeId = new ExpandedNodeId(nodeId);
@@ -3687,7 +3687,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid.ToByteString(), 0);
             var expandedNodeId = new ExpandedNodeId(nodeId);
@@ -3708,7 +3708,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(10u);
             var expandedNodeId = new ExpandedNodeId(nodeId, null, uint.MaxValue);
             // Act
@@ -3728,7 +3728,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(200u, 255);
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
@@ -3746,7 +3746,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(byte.MaxValue, 0);
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
@@ -3766,7 +3766,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(ushort.MaxValue, 100);
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
@@ -3785,7 +3785,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(ushort.MaxValue + 1, 100);
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
@@ -4012,7 +4012,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             contextNamespaceUris.Append("http://namespace2.com");
             encoderNamespaceUris.Append("http://namespace2.com");
             encoderNamespaceUris.Append("http://namespace1.com");
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.SetMappingTables(encoderNamespaceUris, null);
             var nodeId = new NodeId(100u, 1); // namespace index 1 in encoder space
             // Act
@@ -4206,7 +4206,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             // Act
-            var encoder = new BinaryEncoder(stream, messageContext, true);
+            using var encoder = new BinaryEncoder(stream, messageContext, true);
             // Assert
             Assert.That(encoder, Is.Not.Null);
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
@@ -4221,7 +4221,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             // Act
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             // Assert
             Assert.That(encoder, Is.Not.Null);
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
@@ -4236,7 +4236,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             // Act
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             encoder.WriteBoolean("test", true);
             int position = encoder.Position;
             // Assert
@@ -4254,7 +4254,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             // Act
-            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen);
+            using var encoder = new BinaryEncoder(stream, messageContext, leaveOpen);
             // Assert
             Assert.That(encoder, Is.Not.Null);
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
@@ -4267,7 +4267,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteBoolean("testField", true);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4284,7 +4284,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteBoolean("testField", false);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4301,7 +4301,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteBoolean("field1", true);
             encoder.WriteBoolean("field2", false);
@@ -4325,7 +4325,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteBoolean("field", value);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4342,7 +4342,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDateTime("test", DateTimeUtc.MaxValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4360,7 +4360,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDateTime("test", DateTime.MinValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4378,7 +4378,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var timeBase = new DateTime(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             // Act
             encoder.WriteDateTime("test", timeBase);
@@ -4397,7 +4397,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var beforeTimeBase = new DateTime(1600, 12, 31, 23, 59, 59, DateTimeKind.Utc);
             // Act
             encoder.WriteDateTime("test", beforeTimeBase);
@@ -4416,7 +4416,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var testDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
             DateTime timeBase = CoreUtils.TimeBase;
             long expectedTicks = testDate.Ticks - timeBase.Ticks;
@@ -4437,7 +4437,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var localDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Local);
             DateTime utcDate = localDate.ToUniversalTime();
             DateTime timeBase = CoreUtils.TimeBase;
@@ -4459,7 +4459,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var unspecifiedDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Unspecified);
             DateTime utcDate = unspecifiedDate.ToUniversalTime();
             DateTime timeBase = CoreUtils.TimeBase;
@@ -4481,7 +4481,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var utcDate = new DateTime(2024, 6, 15, 10, 30, 45, DateTimeKind.Utc);
             DateTime timeBase = CoreUtils.TimeBase;
             long expectedTicks = utcDate.Ticks - timeBase.Ticks;
@@ -4502,7 +4502,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var justAfterTimeBase = new DateTime(1601, 1, 1, 0, 0, 1, DateTimeKind.Utc);
             DateTime timeBase = CoreUtils.TimeBase;
             long expectedTicks = justAfterTimeBase.Ticks - timeBase.Ticks;
@@ -4528,7 +4528,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var testDate = new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
             DateTime timeBase = CoreUtils.TimeBase;
             long expectedTicks = testDate.Ticks - timeBase.Ticks;
@@ -4904,7 +4904,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nullArray = default(ArrayOf<long>);
             // Act
             encoder.WriteInt64Array("TestField", nullArray);
@@ -4921,7 +4921,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<long> emptyArray = [];
             // Act
             encoder.WriteInt64Array("TestField", emptyArray);
@@ -4938,7 +4938,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var singleElementArray = ArrayOf.Create([12345L]);
             // Act
             encoder.WriteInt64Array("TestField", singleElementArray);
@@ -4956,7 +4956,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var multipleElementsArray = ArrayOf.Create([100L, 200L, 300L]);
             // Act
             encoder.WriteInt64Array("TestField", multipleElementsArray);
@@ -4976,7 +4976,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var boundaryArray = ArrayOf.Create([long.MinValue, long.MaxValue, 0L, -1L, 1L]);
             // Act
             encoder.WriteInt64Array("TestField", boundaryArray);
@@ -4997,7 +4997,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var largeArray = ArrayOf.Create([1L, 2L, 3L, 4L, 5L]);
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteInt64Array("TestField", largeArray));
@@ -5010,7 +5010,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(3);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Create([10L, 20L, 30L]);
             // Act
             encoder.WriteInt64Array("TestField", array);
@@ -5030,7 +5030,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var negativeArray = ArrayOf.Create([-100L, -999999L, -1L]);
             // Act
             encoder.WriteInt64Array("TestField", negativeArray);
@@ -5049,7 +5049,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var zeroArray = ArrayOf.Create([0L]);
             // Act
             encoder.WriteInt64Array("TestField", zeroArray);
@@ -5066,7 +5066,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
-            var encoder = new BinaryEncoder(context);
+            using var encoder = new BinaryEncoder(context);
             var nullArray = default(ArrayOf<QualifiedName>);
             // Act
             encoder.WriteQualifiedNameArray("test", nullArray);
@@ -5083,7 +5083,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
-            var encoder = new BinaryEncoder(context);
+            using var encoder = new BinaryEncoder(context);
             ArrayOf<QualifiedName> emptyArray = [];
             // Act
             encoder.WriteQualifiedNameArray("test", emptyArray);
@@ -5100,7 +5100,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
-            var encoder = new BinaryEncoder(context);
+            using var encoder = new BinaryEncoder(context);
             var qualifiedName = new QualifiedName("TestName", 1);
             var array = ArrayOf.Wrapped(qualifiedName);
             // Act
@@ -5118,7 +5118,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
-            var encoder = new BinaryEncoder(context);
+            using var encoder = new BinaryEncoder(context);
             var qn1 = new QualifiedName("Name1", 0);
             var qn2 = new QualifiedName("Name2", 1);
             var qn3 = new QualifiedName("Name3", 2);
@@ -5138,7 +5138,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var qn1 = new QualifiedName("Name1", 0);
             var qn2 = new QualifiedName("Name2", 1);
             var qn3 = new QualifiedName("Name3", 2);
@@ -5154,7 +5154,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
-            var encoder = new BinaryEncoder(context);
+            using var encoder = new BinaryEncoder(context);
             var qn1 = new QualifiedName(string.Empty, 0);
             var qn2 = new QualifiedName(string.Empty, 1);
             var array = ArrayOf.Wrapped(qn1, qn2);
@@ -5172,7 +5172,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
-            var encoder = new BinaryEncoder(context);
+            using var encoder = new BinaryEncoder(context);
             var qn1 = new QualifiedName("Name", 0);
             var qn2 = new QualifiedName("Name", 1);
             var qn3 = new QualifiedName("Name", ushort.MaxValue);
@@ -5191,7 +5191,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
-            var encoder = new BinaryEncoder(context);
+            using var encoder = new BinaryEncoder(context);
             var qn1 = new QualifiedName("Name\u0000WithNull", 0);
             var qn2 = new QualifiedName("Name\nWithNewline", 1);
             var qn3 = new QualifiedName("Name\u00FFWithExtended", 2);
@@ -5210,7 +5210,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
-            var encoder = new BinaryEncoder(context);
+            using var encoder = new BinaryEncoder(context);
             string longName = new('A', 10000);
             var qn = new QualifiedName(longName, 0);
             var array = ArrayOf.Wrapped(qn);
@@ -5345,7 +5345,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             long[] testValues =
             [
                 long.MinValue,
@@ -5363,7 +5363,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(encoder.Position, Is.EqualTo(testValues.Length * 8), "Position should be 40 bytes (5 longs * 8 bytes)");
             byte[] buffer = encoder.CloseAndReturnBuffer();
-            var reader = new BinaryReader(new MemoryStream(buffer));
+            using var reader = new BinaryReader(new MemoryStream(buffer));
             for (int i = 0; i < testValues.Length; i++)
             {
                 long readValue = reader.ReadInt64();
@@ -5378,7 +5378,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const long testValue = 0x0102030405060708L; // Known value for byte verification
             // Act
             encoder.WriteInt64("Test", testValue);
@@ -5403,14 +5403,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: true);
+            using var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: true);
             const long testValue = 42L;
             // Act
             encoder.WriteInt64("TestField", testValue);
             encoder.Close();
             // Assert
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             long readValue = reader.ReadInt64();
             Assert.That(readValue, Is.EqualTo(testValue), "Read value should match written value");
         }
@@ -5423,12 +5423,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             byte[] buffer = new byte[1024];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
+            using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             const long testValue = -12345L;
             // Act
             encoder.WriteInt64("Field", testValue);
             // Assert
-            var reader = new BinaryReader(new MemoryStream(buffer));
+            using var reader = new BinaryReader(new MemoryStream(buffer));
             long readValue = reader.ReadInt64();
             Assert.That(readValue, Is.EqualTo(testValue), "Read value should match written value");
         }
@@ -5438,7 +5438,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nullArray = default(ArrayOf<sbyte>);
             // Act
             encoder.WriteSByteArray("test", nullArray);
@@ -5454,7 +5454,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var emptyArray = ArrayOf.Empty<sbyte>();
             // Act
             encoder.WriteSByteArray("test", emptyArray);
@@ -5471,7 +5471,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<sbyte> singleElement = new sbyte[]
             {
                 42
@@ -5498,7 +5498,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<sbyte> arrayOf = values.ToArrayOf();
             // Act
             encoder.WriteSByteArray("test", arrayOf);
@@ -5518,7 +5518,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(5);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<sbyte> largeArray = new sbyte[10].ToArrayOf();
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteSByteArray("test", largeArray));
@@ -5531,7 +5531,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(10);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<sbyte> boundaryArray = new sbyte[10].ToArrayOf();
             // Act
             encoder.WriteSByteArray("test", boundaryArray);
@@ -5548,7 +5548,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<sbyte> array = new sbyte[]
             {
                 1,
@@ -5569,7 +5569,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             sbyte[] largeArray = new sbyte[1000];
             for (int i = 0; i < 1000; i++)
             {
@@ -5596,7 +5596,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<Uuid> nullArray = default;
             // Act
             encoder.WriteGuidArray("testField", nullArray);
@@ -5614,7 +5614,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<Uuid> emptyArray = [];
             // Act
             encoder.WriteGuidArray("testField", emptyArray);
@@ -5632,7 +5632,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var testGuid = Uuid.NewUuid();
             var singleArray = ArrayOf.Wrapped(testGuid);
             // Act
@@ -5655,7 +5655,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var guid1 = Uuid.NewUuid();
             var guid2 = Uuid.NewUuid();
             var guid3 = Uuid.NewUuid();
@@ -5687,7 +5687,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var guid1 = Uuid.NewUuid();
             var guid2 = Uuid.NewUuid();
             var guid3 = Uuid.NewUuid();
@@ -5704,7 +5704,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             Uuid emptyGuid = Uuid.Empty;
             var emptyGuidArray = ArrayOf.Wrapped(emptyGuid, emptyGuid);
             // Act
@@ -5730,7 +5730,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(3);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var guid1 = Uuid.NewUuid();
             var guid2 = Uuid.NewUuid();
             var guid3 = Uuid.NewUuid();
@@ -5753,13 +5753,13 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var testGuid = new Uuid(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
             var testArray = ArrayOf.Wrapped(testGuid);
-            var encoder1 = new BinaryEncoder(messageContext);
+            using var encoder1 = new BinaryEncoder(messageContext);
             encoder1.WriteGuidArray("field1", testArray);
             byte[] result1 = encoder1.CloseAndReturnBuffer();
-            var encoder2 = new BinaryEncoder(messageContext);
+            using var encoder2 = new BinaryEncoder(messageContext);
             encoder2.WriteGuidArray("field2", testArray);
             byte[] result2 = encoder2.CloseAndReturnBuffer();
-            var encoder3 = new BinaryEncoder(messageContext);
+            using var encoder3 = new BinaryEncoder(messageContext);
             encoder3.WriteGuidArray(null, testArray);
             byte[] result3 = encoder3.CloseAndReturnBuffer();
             // Assert
@@ -5773,7 +5773,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var guids = new Uuid[100];
             for (int i = 0; i < 100; i++)
             {
@@ -5797,7 +5797,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() => encoder.WriteRawBytes(null, 0, 0));
         }
@@ -5809,7 +5809,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             byte[] buffer =
             [
                 1,
@@ -5826,7 +5826,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             byte[] buffer =
             [
                 1,
@@ -5843,7 +5843,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             byte[] buffer =
             [
                 1,
@@ -5868,7 +5868,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             byte[] buffer =
             [
                 1,
@@ -5892,7 +5892,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             byte[] buffer =
             [
                 1,
@@ -5916,7 +5916,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             byte[] buffer =
             [
                 1,
@@ -5940,7 +5940,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             EncodingType result = encoder.EncodingType;
             // Assert
@@ -5954,7 +5954,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             byte[] buffer = new byte[1024];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
+            using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             // Act
             EncodingType result = encoder.EncodingType;
             // Assert
@@ -5968,7 +5968,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
+            using var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
             // Act
             EncodingType result = encoder.EncodingType;
             // Assert
@@ -5981,7 +5981,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             EncodingType result1 = encoder.EncodingType;
             EncodingType result2 = encoder.EncodingType;
@@ -6000,7 +6000,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             EncodingType result = encoder.EncodingType;
             // Assert
@@ -6014,7 +6014,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const ushort value = ushort.MinValue;
             // Act
             encoder.WriteUInt16("TestField", value);
@@ -6032,7 +6032,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const ushort value = ushort.MaxValue;
             // Act
             encoder.WriteUInt16("TestField", value);
@@ -6056,7 +6056,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteUInt16("TestField", value);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -6072,7 +6072,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const ushort value = 12345;
             // Act
             encoder.WriteUInt16(null, value);
@@ -6090,7 +6090,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const ushort value = 9876;
             // Act
             encoder.WriteUInt16(string.Empty, value);
@@ -6108,7 +6108,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteUInt16("Field1", 1);
             encoder.WriteUInt16("Field2", 256);
@@ -6135,7 +6135,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             byte[] buffer = new byte[10];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
+            using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             const ushort value = 4660; // 0x1234
             // Act
             encoder.WriteUInt16("TestField", value);
@@ -6158,7 +6158,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxByteStringLength = int.MaxValue,
                 MaxMessageSize = int.MaxValue
             };
-            var encoder = new BinaryEncoder(stream, context, false);
+            using var encoder = new BinaryEncoder(stream, context, false);
             string largeString = new('A', 1024 * 10); // 10 KB
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -6172,7 +6172,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             var stream = new MemoryStream();
             ServiceMessageContext context = CreateContext(0);
-            var encoder = new BinaryEncoder(stream, context, false);
+            using var encoder = new BinaryEncoder(stream, context, false);
             // Act
             encoder.WriteString(null, string.Empty);
             byte[] result = stream.ToArray();
@@ -6189,7 +6189,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             var stream = new MemoryStream();
             ServiceMessageContext context = CreateContext(0);
-            var encoder = new BinaryEncoder(stream, context, false);
+            using var encoder = new BinaryEncoder(stream, context, false);
             // Act
             encoder.WriteString(null, null);
             byte[] result = stream.ToArray();
@@ -6205,7 +6205,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<string> emptyArray = [];
             // Act
             encoder.WriteStringArray("TestField", emptyArray);
@@ -6221,7 +6221,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped("test", "test", "test");
             // Act & Assert
             ServiceResultException exception = Assert.Throws<ServiceResultException>(
@@ -6240,7 +6240,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxByteStringLength = 0
             };
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             ReadOnlySpan<byte> emptySpan = [];
             // Act
             encoder.WriteByteString(null, emptySpan);
@@ -6264,7 +6264,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxByteStringLength = 0
             };
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             byte[] testData = new byte[arraySize];
             for (int i = 0; i < arraySize; i++)
             {
@@ -6295,7 +6295,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxByteStringLength = maxLength
             };
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             byte[] testData = new byte[maxLength];
             for (int i = 0; i < maxLength; i++)
             {
@@ -6325,7 +6325,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxByteStringLength = 1024,
                 MaxMessageSize = int.MaxValue
             };
-            var encoder = new BinaryEncoder(stream, context, false);
+            using var encoder = new BinaryEncoder(stream, context, false);
             byte[] data = new byte[1024 * 10]; // 10 KB
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -6344,7 +6344,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxByteStringLength = maxLength
             };
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             byte[] testData = new byte[maxLength - 1];
             var span = new ReadOnlySpan<byte>(testData);
             // Act
@@ -6366,7 +6366,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxByteStringLength = 0
             };
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             byte[] testData = new byte[10000];
             var span = new ReadOnlySpan<byte>(testData);
             // Act
@@ -6388,7 +6388,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxByteStringLength = 0
             };
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             byte[] testData = "B"u8.ToArray();
             var span = new ReadOnlySpan<byte>(testData);
             // Act
@@ -6411,7 +6411,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxByteStringLength = -1
             };
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             byte[] testData = new byte[1000];
             var span = new ReadOnlySpan<byte>(testData);
             // Act
@@ -6430,7 +6430,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteEnumerated("fieldName", TestUInt32Enum.Max);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -6448,7 +6448,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const TestInt32Enum undefinedValue = (TestInt32Enum)999;
             // Act
             encoder.WriteEnumerated("fieldName", undefinedValue);
@@ -6467,8 +6467,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder1 = new BinaryEncoder(messageContext);
-            var encoder2 = new BinaryEncoder(messageContext);
+            using var encoder1 = new BinaryEncoder(messageContext);
+            using var encoder2 = new BinaryEncoder(messageContext);
             // Act
             encoder1.WriteEnumerated("fieldName", TestInt32Enum.One);
             encoder2.WriteEnumerated(null, TestInt32Enum.One);
@@ -6484,7 +6484,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<float> nullArray = default;
             // Act
             encoder.WriteFloatArray("TestField", nullArray);
@@ -6501,7 +6501,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<float> emptyArray = [];
             // Act
             encoder.WriteFloatArray("TestField", emptyArray);
@@ -6518,7 +6518,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(1.5f);
             // Act
             encoder.WriteFloatArray("TestField", array);
@@ -6536,7 +6536,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(1.5f, -2.5f, 3.75f);
             // Act
             encoder.WriteFloatArray("TestField", array);
@@ -6556,7 +6556,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(float.NaN);
             // Act
             encoder.WriteFloatArray("TestField", array);
@@ -6573,7 +6573,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(float.PositiveInfinity);
             // Act
             encoder.WriteFloatArray("TestField", array);
@@ -6590,7 +6590,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(float.NegativeInfinity);
             // Act
             encoder.WriteFloatArray("TestField", array);
@@ -6607,7 +6607,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(float.MinValue);
             // Act
             encoder.WriteFloatArray("TestField", array);
@@ -6624,7 +6624,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(float.MaxValue);
             // Act
             encoder.WriteFloatArray("TestField", array);
@@ -6641,7 +6641,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(0.0f);
             // Act
             encoder.WriteFloatArray("TestField", array);
@@ -6658,7 +6658,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(-0.0f);
             // Act
             encoder.WriteFloatArray("TestField", array);
@@ -6675,7 +6675,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(1.0f, 2.0f, 3.0f);
             // Act & Assert
             ServiceResultException exception = Assert.Throws<ServiceResultException>(
@@ -6689,7 +6689,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             float[] testData = new float[100];
             for (int i = 0; i < 100; i++)
             {
@@ -6715,7 +6715,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(float.NaN, float.PositiveInfinity, float.NegativeInfinity, 0.0f, 1.5f, -2.5f);
             // Act
             encoder.WriteFloatArray("TestField", array);
@@ -6737,7 +6737,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(5);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(1.0f, 2.0f, 3.0f, 4.0f, 5.0f);
             // Act
             encoder.WriteFloatArray("TestField", array);
@@ -6753,7 +6753,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nullArray = default(ArrayOf<DataValue>);
             // Act
             encoder.WriteDataValueArray(null, nullArray);
@@ -6769,7 +6769,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var emptyArray = new ArrayOf<DataValue>([]);
             // Act
             encoder.WriteDataValueArray(null, emptyArray);
@@ -6785,7 +6785,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var dataValue = new DataValue(Variant.From(42));
             var array = new ArrayOf<DataValue>([dataValue]);
             // Act
@@ -6802,7 +6802,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var dataValue1 = new DataValue(Variant.From(42));
             var dataValue2 = new DataValue(Variant.From(100));
             var dataValue3 = new DataValue(Variant.From(200));
@@ -6821,7 +6821,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var dataValue1 = new DataValue(Variant.From(1));
             var dataValue2 = new DataValue(Variant.From(2));
             var dataValue3 = new DataValue(Variant.From(3));
@@ -6837,7 +6837,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = new ArrayOf<DataValue>([null, new DataValue(Variant.From(42)), null]);
             // Act
             encoder.WriteDataValueArray("TestField", array);
@@ -6853,8 +6853,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder1 = new BinaryEncoder(messageContext);
-            var encoder2 = new BinaryEncoder(messageContext);
+            using var encoder1 = new BinaryEncoder(messageContext);
+            using var encoder2 = new BinaryEncoder(messageContext);
             var dataValue = new DataValue(Variant.From(42));
             var array = new ArrayOf<DataValue>([dataValue]);
             // Act
@@ -6873,7 +6873,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var dataValue1 = new DataValue(Variant.From(42))
             {
                 StatusCode = StatusCodes.Good,
@@ -6904,7 +6904,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(buffer, start, count, messageContext);
+            using var encoder = new BinaryEncoder(buffer, start, count, messageContext);
             // Assert
             Assert.That(encoder, Is.Not.Null);
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
@@ -6920,7 +6920,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(buffer, start, count, messageContext);
+            using var encoder = new BinaryEncoder(buffer, start, count, messageContext);
             // Assert
             Assert.That(encoder, Is.Not.Null);
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
@@ -6988,7 +6988,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(buffer, start, count, messageContext);
+            using var encoder = new BinaryEncoder(buffer, start, count, messageContext);
             // Assert
             Assert.That(encoder, Is.Not.Null);
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
@@ -7004,7 +7004,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(buffer, start, count, messageContext);
+            using var encoder = new BinaryEncoder(buffer, start, count, messageContext);
             // Assert
             Assert.That(encoder, Is.Not.Null);
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
@@ -7072,7 +7072,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(buffer, start, count, messageContext);
+            using var encoder = new BinaryEncoder(buffer, start, count, messageContext);
             // Assert
             Assert.That(encoder, Is.Not.Null);
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
@@ -7092,7 +7092,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteInt16("TestField", value);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -7109,7 +7109,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const short value1 = 100;
             const short value2 = -200;
             const short value3 = 0;
@@ -7138,12 +7138,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             var stream = new MemoryStream();
             IServiceMessageContext context = CreateContext(0);
-            var encoder = new BinaryEncoder(stream, context, false);
+            using var encoder = new BinaryEncoder(stream, context, false);
             ReadOnlySequence<byte> emptySequence = ReadOnlySequence<byte>.Empty;
             // Act
             encoder.WriteByteString(null, emptySequence);
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int result = reader.ReadInt32();
             // Assert
             Assert.That(result, Is.EqualTo(-1));
@@ -7156,7 +7156,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             var stream = new MemoryStream();
             IServiceMessageContext context = CreateContext(0);
-            var encoder = new BinaryEncoder(stream, context, false);
+            using var encoder = new BinaryEncoder(stream, context, false);
             byte[] data =
             [
                 1,
@@ -7169,7 +7169,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder.WriteByteString(null, sequence);
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             byte[] readData = reader.ReadBytes(length);
             // Assert
@@ -7183,7 +7183,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             var stream = new MemoryStream();
             IServiceMessageContext context = CreateContext(10);
-            var encoder = new BinaryEncoder(stream, context, false);
+            using var encoder = new BinaryEncoder(stream, context, false);
             byte[] data =
             [
                 1,
@@ -7196,7 +7196,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder.WriteByteString(null, sequence);
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             byte[] readData = reader.ReadBytes(length);
             // Assert
@@ -7210,7 +7210,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             var stream = new MemoryStream();
             IServiceMessageContext context = CreateContext(5);
-            var encoder = new BinaryEncoder(stream, context, false);
+            using var encoder = new BinaryEncoder(stream, context, false);
             byte[] data =
             [
                 1,
@@ -7223,7 +7223,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder.WriteByteString(null, sequence);
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             byte[] readData = reader.ReadBytes(length);
             // Assert
@@ -7241,7 +7241,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxByteStringLength = 3
             };
-            var encoder = new BinaryEncoder(stream, context, false);
+            using var encoder = new BinaryEncoder(stream, context, false);
             byte[] data =
             [
                 1,
@@ -7263,7 +7263,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             var stream = new MemoryStream();
             IServiceMessageContext context = CreateContext(0);
-            var encoder = new BinaryEncoder(stream, context, false);
+            using var encoder = new BinaryEncoder(stream, context, false);
             byte[] data = new byte[1024 * 10]; // 10 KB
             for (int i = 0; i < data.Length; i++)
             {
@@ -7274,7 +7274,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder.WriteByteString(null, sequence);
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             byte[] readData = reader.ReadBytes(length);
             // Assert
@@ -7295,7 +7295,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxByteStringLength = 1024,
                 MaxMessageSize = int.MaxValue
             };
-            var encoder = new BinaryEncoder(stream, context, false);
+            using var encoder = new BinaryEncoder(stream, context, false);
             byte[] data = new byte[1024 * 10]; // 10 KB
             var sequence = new ReadOnlySequence<byte>(data);
             // Act & Assert
@@ -7310,13 +7310,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             var stream = new MemoryStream();
             IServiceMessageContext context = CreateContext(0);
-            var encoder = new BinaryEncoder(stream, context, false);
+            using var encoder = new BinaryEncoder(stream, context, false);
             byte[] data = "*"u8.ToArray();
             var sequence = new ReadOnlySequence<byte>(data);
             // Act
             encoder.WriteByteString(null, sequence);
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             byte[] readData = reader.ReadBytes(length);
             // Assert
@@ -7329,7 +7329,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<bool> nullArray = default(bool[]);
             // Act
             encoder.WriteBooleanArray("test", nullArray);
@@ -7345,7 +7345,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<bool> emptyArray = Array.Empty<bool>();
             // Act
             encoder.WriteBooleanArray("test", emptyArray);
@@ -7362,7 +7362,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<bool> array = new bool[]
             {
                 value
@@ -7382,7 +7382,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<bool> array = new bool[]
             {
                 true,
@@ -7408,7 +7408,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<bool> array = new bool[]
             {
                 true,
@@ -7432,7 +7432,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<bool> array = new bool[]
             {
                 false,
@@ -7456,7 +7456,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(5);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<bool> largeArray = new bool[10];
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteBooleanArray("test", largeArray));
@@ -7469,7 +7469,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             bool[] boolArray = new bool[100];
             for (int i = 0; i < 100; i++)
             {
@@ -7495,7 +7495,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(5);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<bool> array = new bool[]
             {
                 true,
@@ -7518,8 +7518,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder1 = new BinaryEncoder(messageContext);
-            var encoder2 = new BinaryEncoder(messageContext);
+            using var encoder1 = new BinaryEncoder(messageContext);
+            using var encoder2 = new BinaryEncoder(messageContext);
             ArrayOf<bool> array = new bool[]
             {
                 true,
@@ -7539,7 +7539,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<DateTimeUtc> nullArray = default;
             // Act
             encoder.WriteDateTimeArray("TestField", nullArray);
@@ -7555,7 +7555,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<DateTimeUtc> emptyArray = [];
             // Act
             encoder.WriteDateTimeArray("TestField", emptyArray);
@@ -7571,7 +7571,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var testDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
             var singleElementArray = new ArrayOf<DateTimeUtc>([testDate]);
             // Act
@@ -7588,7 +7588,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             DateTimeUtc[] dates =
             [
                 new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc),
@@ -7610,7 +7610,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = new ArrayOf<DateTimeUtc>([DateTime.MinValue]);
             // Act
             encoder.WriteDateTimeArray("TestField", array);
@@ -7626,7 +7626,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = new ArrayOf<DateTimeUtc>([DateTime.MaxValue]);
             // Act
             encoder.WriteDateTimeArray("TestField", array);
@@ -7642,7 +7642,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             DateTimeUtc[] dates =
             [
                 DateTime.UtcNow,
@@ -7662,7 +7662,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<DateTimeUtc> array =
             [
                 DateTimeUtc.MinValue,
@@ -7685,7 +7685,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var testDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
             var array = new ArrayOf<DateTimeUtc>([testDate]);
             // Act
@@ -7702,7 +7702,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nullArray = default(ArrayOf<Variant>);
             // Act
             encoder.WriteVariantArray("TestField", nullArray);
@@ -7721,7 +7721,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<Variant> emptyArray = [];
             // Act
             encoder.WriteVariantArray("TestField", emptyArray);
@@ -7745,7 +7745,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxArrayLength = 0,
                 MaxMessageSize = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var variant = Variant.From(42);
             var array = new ArrayOf<Variant>([variant]);
             // Act
@@ -7770,7 +7770,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxArrayLength = 0,
                 MaxMessageSize = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<Variant> array =
             [
                 Variant.From(42),
@@ -7798,7 +7798,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxArrayLength = 0,
                 MaxMessageSize = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<Variant> array = [Variant.From(123)];
             // Act
             encoder.WriteVariantArray(null, array);
@@ -7816,7 +7816,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<Variant> array =
             [
                 Variant.From(1),
@@ -7840,7 +7840,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxArrayLength = 0,
                 MaxMessageSize = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<Variant> array =
             [
                 Variant.From((byte)1),
@@ -7871,7 +7871,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxArrayLength = 0,
                 MaxMessageSize = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<Variant> array =
             [
                 Variant.From(42),
@@ -7895,7 +7895,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(3);
             messageContext.MaxMessageSize = 0;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<Variant> array =
             [
                 Variant.From(1),
@@ -7953,7 +7953,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert - Multiple dispose calls should not throw
             Assert.That(encoder.Dispose, Throws.Nothing);
             Assert.That(encoder.Dispose, Throws.Nothing);
@@ -8002,7 +8002,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert - Should dispose cleanly without any writes
             Assert.That(encoder.Dispose, Throws.Nothing);
         }
@@ -8031,7 +8031,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
@@ -8043,7 +8043,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() =>
             {
@@ -8060,8 +8060,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder1 = new BinaryEncoder(messageContext);
-            var encoder2 = new BinaryEncoder(messageContext);
+            using var encoder1 = new BinaryEncoder(messageContext);
+            using var encoder2 = new BinaryEncoder(messageContext);
             // Act
             encoder1.WriteInt32(null, 42);
             byte[] output1 = encoder1.CloseAndReturnBuffer();
@@ -8081,7 +8081,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() =>
             {
@@ -8097,7 +8097,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() =>
             {
@@ -8115,7 +8115,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
@@ -8129,7 +8129,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxStringLength = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var qualifiedName = new QualifiedName("TestName", 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
@@ -8151,7 +8151,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxStringLength = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var qualifiedName = new QualifiedName("Name", namespaceIndex);
             // Act
             encoder.WriteQualifiedName("fieldName", qualifiedName);
@@ -8179,7 +8179,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             targetNamespaces.Append("http://example.com/namespace2");
             targetNamespaces.Append("http://example.com/namespace1");
             messageContext.NamespaceUris = targetNamespaces;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.SetMappingTables(sourceNamespaces, null);
             var qualifiedName = new QualifiedName("TestName", 1);
             // Act
@@ -8205,7 +8205,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var targetNamespaces = new NamespaceTable();
             targetNamespaces.Append("http://example.com/namespace1");
             messageContext.NamespaceUris = targetNamespaces;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.SetMappingTables(sourceNamespaces, null);
             var qualifiedName = new QualifiedName("TestName", 100);
             // Act
@@ -8226,7 +8226,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxStringLength = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var qualifiedName = new QualifiedName(null, 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
@@ -8245,7 +8245,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxStringLength = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var qualifiedName = new QualifiedName(string.Empty, 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
@@ -8269,7 +8269,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxStringLength = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var qualifiedName = new QualifiedName(name, 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
@@ -8288,7 +8288,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxStringLength = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var qn1 = new QualifiedName("Name1", 0);
             var qn2 = new QualifiedName("Name2", 1);
             var qn3 = new QualifiedName("Name3", 2);
@@ -8311,7 +8311,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxStringLength = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var qualifiedName = new QualifiedName("TestName", 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
@@ -8331,7 +8331,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxStringLength = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             string longName = new('A', 10000);
             var qualifiedName = new QualifiedName(longName, 0);
             // Act
@@ -8353,7 +8353,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxStringLength = 0
             };
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var qualifiedName = new QualifiedName(name, 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
@@ -8377,7 +8377,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var targetNamespaces = new NamespaceTable();
             targetNamespaces.Append("http://example.com/namespace1");
             messageContext.NamespaceUris = targetNamespaces;
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.SetMappingTables(sourceNamespaces, null);
             var qualifiedName = new QualifiedName("TestName", 2);
             // Act
@@ -8395,7 +8395,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var nullArray = default(ArrayOf<uint>);
             // Act
             encoder.WriteUInt32Array("test", nullArray);
@@ -8413,7 +8413,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var emptyArray = ArrayOf.Create<uint>([]);
             // Act
             encoder.WriteUInt32Array("test", emptyArray);
@@ -8431,7 +8431,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var singleElementArray = ArrayOf.Create<uint>([42]);
             // Act
             encoder.WriteUInt32Array("test", singleElementArray);
@@ -8451,7 +8451,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             uint[] values =
             [
                 1u,
@@ -8482,7 +8482,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Create([uint.MinValue]);
             // Act
             encoder.WriteUInt32Array("test", array);
@@ -8502,7 +8502,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Create([uint.MaxValue]);
             // Act
             encoder.WriteUInt32Array("test", array);
@@ -8522,7 +8522,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             uint[] values =
             [
                 0u,
@@ -8555,7 +8555,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Create([123u]);
             // Act
             encoder.WriteUInt32Array(null, array);
@@ -8573,7 +8573,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<ExpandedNodeId> nullArray = default;
             // Act
             encoder.WriteExpandedNodeIdArray("TestField", nullArray);
@@ -8590,7 +8590,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var emptyArray = ArrayOf.Empty<ExpandedNodeId>();
             // Act
             encoder.WriteExpandedNodeIdArray("TestField", emptyArray);
@@ -8608,7 +8608,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             int initialPosition = encoder.Position;
             // Act
             encoder.WriteSwitchField(100u, out _);
@@ -8624,7 +8624,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() =>
             {
@@ -8650,7 +8650,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             var status = new StatusCode(statusCode);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteStatusCode("TestField", status);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -8671,7 +8671,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var statusCode1 = new StatusCode(0u);
             var statusCode2 = new StatusCode(0x80000000u);
             var statusCode3 = new StatusCode(uint.MaxValue);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteStatusCode("Field1", statusCode1);
             encoder.WriteStatusCode("Field2", statusCode2);
@@ -8696,7 +8696,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             var statusCode = new StatusCode(0x12345678u);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteStatusCode("Test", statusCode);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -8718,7 +8718,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             var statusCode = default(StatusCode);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteStatusCode("Field", statusCode);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -8898,7 +8898,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<ByteString> nullArray = default;
             // Act
             encoder.WriteByteStringArray("TestField", nullArray);
@@ -8916,7 +8916,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<ByteString> emptyArray = [];
             // Act
             encoder.WriteByteStringArray("TestField", emptyArray);
@@ -8934,7 +8934,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             byte[] testData =
             [
                 0x01,
@@ -8963,7 +8963,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var byteString1 = new ByteString(new byte[] { 0x01, 0x02 });
             var byteString2 = new ByteString(new byte[] { 0x03, 0x04, 0x05 });
             var array = new ArrayOf<ByteString>([byteString1, byteString2]);
@@ -8993,7 +8993,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ByteString emptyByteString = ByteString.Empty;
             var array = new ArrayOf<ByteString>([emptyByteString]);
             // Act
@@ -9013,7 +9013,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var byteString1 = new ByteString(new byte[] { 0xAA, 0xBB });
             ByteString emptyByteString = ByteString.Empty;
             var byteString2 = new ByteString(new byte[] { 0xCC });
@@ -9045,7 +9045,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             byte[] largeData = new byte[1000];
             for (int i = 0; i < largeData.Length; i++)
             {
@@ -9072,7 +9072,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var byteString = new ByteString(new byte[] { 0xFF });
             var array = new ArrayOf<ByteString>([byteString]);
             // Act
@@ -9217,7 +9217,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteByte("TestField", value);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -9237,7 +9237,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteByte("TestField", value);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -9254,7 +9254,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const byte testValue = 42;
             // Act
             encoder.WriteByte(null, testValue);
@@ -9272,7 +9272,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             byte[] testValues =
             [
                 0,
@@ -9304,7 +9304,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             const byte testValue = 100;
             // Act
             encoder.WriteByte(string.Empty, testValue);
@@ -9323,7 +9323,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             const byte testValue = 99;
             // Act
             encoder.WriteByte("TestField", testValue);
@@ -9343,7 +9343,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             byte[] buffer = new byte[10];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
+            using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             const byte testValue = 200;
             // Act
             encoder.WriteByte("TestField", testValue);
@@ -9359,7 +9359,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            using var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
             var nullArray = default(ArrayOf<ulong>);
             // Act
             encoder.WriteUInt64Array("test", nullArray);
@@ -9377,7 +9377,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            using var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
             ArrayOf<ulong> emptyArray = [];
             // Act
             encoder.WriteUInt64Array("test", emptyArray);
@@ -9395,7 +9395,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            using var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
             var singleElementArray = new ArrayOf<ulong>([12345UL]);
             // Act
             encoder.WriteUInt64Array("test", singleElementArray);
@@ -9414,7 +9414,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            using var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
             ulong[] values =
             [
                 0UL,
@@ -9442,7 +9442,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContext(maxArrayLength: 2);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            using var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
             var largeArray = new ArrayOf<ulong>([1UL, 2UL, 3UL]);
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteUInt64Array("test", largeArray));
@@ -9455,7 +9455,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContext(maxArrayLength: 1000);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            using var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
             ulong[] values = new ulong[100];
             for (int i = 0; i < 100; i++)
             {
@@ -9482,7 +9482,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            using var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
             var array = new ArrayOf<ulong>([999UL]);
             // Act
             encoder.WriteUInt64Array(null, array);
@@ -9501,7 +9501,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContext(maxArrayLength: 0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            using var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
             var largeArray = new ArrayOf<ulong>([1UL, 2UL, 3UL, 4UL, 5UL]);
             // Act
             encoder.WriteUInt64Array("test", largeArray);
@@ -9518,12 +9518,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, true);
+            using var encoder = new BinaryEncoder(stream, messageContext, true);
             ArrayOf<DiagnosticInfo> emptyArray = [];
             // Act
             encoder.WriteDiagnosticInfoArray("testField", emptyArray);
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             // Assert
             Assert.That(length, Is.Zero);
@@ -9536,7 +9536,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, true);
+            using var encoder = new BinaryEncoder(stream, messageContext, true);
             var diagnosticInfo = new DiagnosticInfo
             {
                 AdditionalInfo = "Test"
@@ -9548,7 +9548,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder.WriteDiagnosticInfoArray("testField", array);
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             // Assert
             Assert.That(length, Is.EqualTo(1));
@@ -9561,7 +9561,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, true);
+            using var encoder = new BinaryEncoder(stream, messageContext, true);
             var diagnosticInfo1 = new DiagnosticInfo
             {
                 AdditionalInfo = "Test1"
@@ -9583,7 +9583,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder.WriteDiagnosticInfoArray("testField", array);
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             // Assert
             Assert.That(length, Is.EqualTo(3));
@@ -9596,7 +9596,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, true);
+            using var encoder = new BinaryEncoder(stream, messageContext, true);
             var diagnosticInfo1 = new DiagnosticInfo
             {
                 AdditionalInfo = "Test1"
@@ -9628,7 +9628,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateContext(2);
             messageContext.MaxEncodingNestingLevels = 4;
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, true);
+            using var encoder = new BinaryEncoder(stream, messageContext, true);
             var diagnosticInfo = new DiagnosticInfo
             {
                 AdditionalInfo = "Level0",
@@ -9666,8 +9666,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateContext(2);
             var stream1 = new MemoryStream();
             var stream2 = new MemoryStream();
-            var encoder1 = new BinaryEncoder(stream1, messageContext, true);
-            var encoder2 = new BinaryEncoder(stream2, messageContext, true);
+            using var encoder1 = new BinaryEncoder(stream1, messageContext, true);
+            using var encoder2 = new BinaryEncoder(stream2, messageContext, true);
             var diagnosticInfo = new DiagnosticInfo
             {
                 AdditionalInfo = "Level0",
@@ -9728,7 +9728,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(3);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, true);
+            using var encoder = new BinaryEncoder(stream, messageContext, true);
             var diagnosticInfo1 = new DiagnosticInfo
             {
                 AdditionalInfo = "Test1"
@@ -9750,7 +9750,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder.WriteDiagnosticInfoArray("testField", array);
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             // Assert
             Assert.That(length, Is.EqualTo(3));
@@ -9763,9 +9763,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var stream1 = new MemoryStream();
-            var encoder1 = new BinaryEncoder(stream1, messageContext, true);
+            using var encoder1 = new BinaryEncoder(stream1, messageContext, true);
             var stream2 = new MemoryStream();
-            var encoder2 = new BinaryEncoder(stream2, messageContext, true);
+            using var encoder2 = new BinaryEncoder(stream2, messageContext, true);
             var diagnosticInfo = new DiagnosticInfo
             {
                 AdditionalInfo = "Test"
@@ -9787,7 +9787,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, messageContext, true);
+            using var encoder = new BinaryEncoder(stream, messageContext, true);
             ArrayOf<DiagnosticInfo> array = new DiagnosticInfo[]
             {
                 null,
@@ -9798,7 +9798,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder.WriteDiagnosticInfoArray("testField", array);
             stream.Position = 0;
-            var reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             int length = reader.ReadInt32();
             // Assert
             Assert.That(length, Is.EqualTo(2));
@@ -9811,7 +9811,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var value = new TestEncodeable(42);
             // Act
             encoder.WriteEncodeable("Test", value);
@@ -9827,7 +9827,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             messageContext.Factory.Builder.AddEncodeableType(new TestEncodeableType()).Commit();
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteEncodeable<TestEncodeable>("Test", null);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -9841,7 +9841,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             // Act
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => encoder.WriteEncodeable<TestEncodeable>("Test", null, new ExpandedNodeId("unk", 0)));
@@ -9854,13 +9854,13 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             var value = new TestEncodeable(42);
 
             encoder.WriteEncodeableAsExtensionObject("Test", value);
             byte[] result = encoder.CloseAndReturnBuffer();
 
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
             (NodeId, byte, int, int) actual = (
                 decoder.ReadNodeId(null),
                 decoder.ReadByte(null),
@@ -9879,13 +9879,13 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void WriteEncodeableArrayAsExtensionObjectsWritesEncodedBodies()
         {
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<TestEncodeable> values = [new TestEncodeable(1), new TestEncodeable(2)];
 
             encoder.WriteEncodeableArrayAsExtensionObjects("Test", values);
             byte[] result = encoder.CloseAndReturnBuffer();
 
-            var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result, messageContext);
 
             Assert.That(decoder.ReadInt32(null), Is.EqualTo(2));
             Assert.That(decoder.ReadNodeId(null), Is.EqualTo(new NodeId(2, 0)));
@@ -9903,7 +9903,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<TestEncodeable> values = default;
             // Act
             encoder.WriteEncodeableArray(null, values);
@@ -9917,7 +9917,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<TestEncodeable> values = [];
             // Act
             encoder.WriteEncodeableArray(null, values);
@@ -9931,7 +9931,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<TestEncodeable> values = [new TestEncodeable(42)];
             // Act
             encoder.WriteEncodeableArray(null, values);
@@ -9945,7 +9945,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<TestEncodeable> values = [new TestEncodeable(42)];
             // Act
             encoder.WriteEncodeableArray(null, values);
@@ -9959,7 +9959,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<TestEncodeable> values = [new TestEncodeable(1), new TestEncodeable(2)];
             // Act
             encoder.WriteEncodeableArray(null, values);
@@ -9973,7 +9973,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(1);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<TestEncodeable> values = [new TestEncodeable(1), new TestEncodeable(2)];
             // Act
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -9988,7 +9988,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteByte(null, 0x01);
             // Act
             encoder.Position = 0;
@@ -10002,7 +10002,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteByte(null, 0x01);
             encoder.Position = 0;
             // Act
@@ -10435,7 +10435,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
+            using var encoder = new BinaryEncoder(messageContext);
             if (!raw)
             {
                 encoder.WriteVariant(null, variant);

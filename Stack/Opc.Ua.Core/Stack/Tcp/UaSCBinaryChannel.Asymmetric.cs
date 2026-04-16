@@ -750,7 +750,7 @@ namespace Opc.Ua.Bindings
                     // reset the encoder to write the plaintext for the next chunk into the same buffer.
                     if (bytesToWrite > 0)
                     {
-                        Utils.SilentDispose(encoder);
+                        encoder?.Dispose();
                         // ostrm is disposed by the encoder.
                         var ostrm = new MemoryStream(buffer, 0, SendBufferSize);
                         ostrm.Seek(header.Count, SeekOrigin.Current);
@@ -768,7 +768,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                Utils.SilentDispose(encoder);
+                encoder?.Dispose();
 
                 BufferManager.ReturnBuffer(buffer, "WriteAsymmetricMessage");
 

@@ -452,7 +452,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var writer = new JsonEncoder(messageContext);
+            using var writer = new JsonEncoder(messageContext);
             writer.WriteDiagnosticInfo(JsonProperties.Value, new DiagnosticInfo
             {
                 InnerDiagnosticInfo = new DiagnosticInfo
@@ -1718,7 +1718,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var writer = new XmlEncoder(messageContext);
+            using var writer = new XmlEncoder(messageContext);
             writer.PushNamespace(Namespaces.OpcUaXsd);
             writer.WriteEncodeable(nameof(Argument), expected);
             writer.PopNamespace();
@@ -1787,7 +1787,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var writer = new BinaryEncoder(messageContext);
+            using var writer = new BinaryEncoder(messageContext);
             writer.WriteEncodeable(null, expected);
             string buffer = writer.CloseAndReturnText();
             using JsonDecoder reader = NewDecoder(Body($$"""{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": "{{buffer}}"}"""));
@@ -2297,7 +2297,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (var encoder = new JsonEncoder(buffers, messageContext, JsonEncoderOptions.Compact))
             {

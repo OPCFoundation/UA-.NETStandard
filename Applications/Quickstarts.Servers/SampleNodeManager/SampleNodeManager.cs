@@ -78,12 +78,12 @@ namespace Opc.Ua.Sample
             {
                 lock (Lock)
                 {
-                    Utils.SilentDispose(m_samplingTimer);
+                    m_samplingTimer?.Dispose();
                     m_samplingTimer = null;
 
                     foreach (NodeState node in PredefinedNodes.Values)
                     {
-                        Utils.SilentDispose(node);
+                        node?.Dispose();
                     }
                 }
             }
@@ -2225,6 +2225,7 @@ namespace Opc.Ua.Sample
 
                     if (ServiceResult.IsBad(errors[ii]))
                     {
+                        monitoredItem?.Dispose();
                         continue;
                     }
 
@@ -2269,6 +2270,7 @@ namespace Opc.Ua.Sample
 
                     if (ServiceResult.IsBad(errors[operation.Index]))
                     {
+                        monitoredItem?.Dispose();
                         continue;
                     }
 
@@ -2351,6 +2353,7 @@ namespace Opc.Ua.Sample
 
                     if (!success)
                     {
+                        monitoredItem?.Dispose();
                         continue;
                     }
 
@@ -2385,6 +2388,7 @@ namespace Opc.Ua.Sample
 
                     if (!success)
                     {
+                        monitoredItem?.Dispose();
                         continue;
                     }
 

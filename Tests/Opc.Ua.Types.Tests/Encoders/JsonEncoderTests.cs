@@ -53,7 +53,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 #pragma warning disable CS0618 // Type or member is obsolete
             var badVariant = new Variant(new DiagnosticInfo(), TypeInfo.Scalars.DiagnosticInfo);
 #pragma warning restore CS0618 // Type or member is obsolete
-            var buffer = new PooledBufferWriter();
+            using var buffer = new PooledBufferWriter();
             using var writer = new JsonEncoder(buffer, messageContext);
             try
             {
@@ -76,7 +76,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 default,
                 TypeInfo.Arrays.DiagnosticInfo,
                 new[] { new DiagnosticInfo() }.ToArrayOf());
-            var buffer = new PooledBufferWriter();
+            using var buffer = new PooledBufferWriter();
             using var writer = new JsonEncoder(buffer, messageContext);
             try
             {
@@ -98,7 +98,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxArrayLength = 4
             };
-            var buffer = new PooledBufferWriter();
+            using var buffer = new PooledBufferWriter();
             using var writer = new JsonEncoder(buffer, messageContext);
             try
             {
@@ -121,7 +121,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxByteStringLength = 4
             };
-            var buffer = new PooledBufferWriter();
+            using var buffer = new PooledBufferWriter();
             using var writer = new JsonEncoder(buffer, messageContext);
 
             try
@@ -145,7 +145,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxArrayLength = 4
             };
-            var buffer = new PooledBufferWriter();
+            using var buffer = new PooledBufferWriter();
             using var writer = new JsonEncoder(buffer, messageContext);
 
             try
@@ -169,7 +169,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxEncodingNestingLevels = 1
             };
-            var buffer = new PooledBufferWriter();
+            using var buffer = new PooledBufferWriter();
             using var writer = new JsonEncoder(buffer, messageContext);
 
             try
@@ -201,14 +201,14 @@ namespace Opc.Ua.Types.Tests.Encoders
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
             var expected = (DateTime)DateTime.UtcNow;
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (var writer = new JsonEncoder(buffers, messageContext))
             {
                 writer.WriteDateTime(JsonProperties.Value, expected);
             }
 
-            var reader = new JsonDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            using var reader = new JsonDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
             var result = (DateTime)reader.ReadDateTime(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
@@ -222,7 +222,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxStringLength = 4
             };
-            var buffer = new PooledBufferWriter();
+            using var buffer = new PooledBufferWriter();
             using var writer = new JsonEncoder(buffer, messageContext);
 
             try
@@ -245,7 +245,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxEncodingNestingLevels = 1
             };
-            var buffer = new PooledBufferWriter();
+            using var buffer = new PooledBufferWriter();
             using var writer = new JsonEncoder(buffer, messageContext);
 
             try
@@ -268,7 +268,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 MaxEncodingNestingLevels = 1
             };
-            var buffer = new PooledBufferWriter();
+            using var buffer = new PooledBufferWriter();
             var variant = new Variant(new DataValue(new Variant(new DataValue(new Variant(1)))));
             using var writer = new JsonEncoder(buffer, messageContext);
 

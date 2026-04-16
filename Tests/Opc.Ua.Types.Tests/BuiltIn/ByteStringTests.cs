@@ -569,7 +569,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Arrange
             byte[] values = [1, 2, 3];
             var byteString = new ByteString(values);
-            var bufferWriter = new ArrayPoolBufferWriter<byte>();
+            using var bufferWriter = new ArrayPoolBufferWriter<byte>();
 
             // Act
             byteString.CopyTo(in bufferWriter);
@@ -583,7 +583,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Arrange
             ByteString byteString = ByteString.Empty;
-            var bufferWriter = new ArrayPoolBufferWriter<byte>();
+            using var bufferWriter = new ArrayPoolBufferWriter<byte>();
 
             // Act
             byteString.CopyTo(in bufferWriter);
@@ -598,7 +598,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Arrange
             byte[] values = [1, 2, 3];
             var byteString = new ByteString(values);
-            var bufferWriter = new ArrayPoolBufferWriter<byte>();
+            using var bufferWriter = new ArrayPoolBufferWriter<byte>();
 
             // Act
             byteString.FormatAsBase64(in bufferWriter);
@@ -613,7 +613,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Arrange
             ByteString byteString = ByteString.Empty;
-            var bufferWriter = new ArrayPoolBufferWriter<byte>();
+            using var bufferWriter = new ArrayPoolBufferWriter<byte>();
 
             // Act
             byteString.FormatAsBase64(in bufferWriter);

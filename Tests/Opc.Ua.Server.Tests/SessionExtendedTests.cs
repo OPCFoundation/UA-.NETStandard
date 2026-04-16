@@ -180,7 +180,7 @@ namespace Opc.Ua.Server.Tests
             (_, _, ISession session) =
                 await CreateAndActivateAsync("SaveRestoreContinuation").ConfigureAwait(false);
 
-            var continuationPoint = new ContinuationPoint
+            using var continuationPoint = new ContinuationPoint
             {
                 Id = Guid.NewGuid()
             };
@@ -225,7 +225,7 @@ namespace Opc.Ua.Server.Tests
             (_, _, ISession session) =
                 await CreateAndActivateAsync("RestoreRemovesContinuation").ConfigureAwait(false);
 
-            var cp = new ContinuationPoint { Id = Guid.NewGuid() };
+            using var cp = new ContinuationPoint { Id = Guid.NewGuid() };
             session.SaveContinuationPoint(cp);
             byte[] idBytes = cp.Id.ToByteArray();
 

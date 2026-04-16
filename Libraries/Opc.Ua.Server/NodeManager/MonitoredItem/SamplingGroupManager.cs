@@ -98,12 +98,12 @@ namespace Opc.Ua.Server
 
                 foreach (SamplingGroup samplingGroup in samplingGroups)
                 {
-                    Utils.SilentDispose(samplingGroup);
+                    samplingGroup?.Dispose();
                 }
 
                 foreach (ISampledDataChangeMonitoredItem monitoredItem in monitoredItems)
                 {
-                    Utils.SilentDispose(monitoredItem);
+                    monitoredItem?.Dispose();
                 }
             }
         }
@@ -119,7 +119,7 @@ namespace Opc.Ua.Server
                 foreach (SamplingGroup samplingGroup in m_samplingGroups)
                 {
                     samplingGroup.Shutdown();
-                    Utils.SilentDispose(samplingGroup);
+                    samplingGroup?.Dispose();
                 }
 
                 m_samplingGroups.Clear();
@@ -504,7 +504,7 @@ namespace Opc.Ua.Server
                 foreach (SamplingGroup samplingGroup in unusedGroups)
                 {
                     m_samplingGroups.Remove(samplingGroup);
-                    Utils.SilentDispose(samplingGroup);
+                    samplingGroup?.Dispose();
                 }
             }
         }

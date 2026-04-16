@@ -1920,7 +1920,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.Create(telemetry));
 
             ILogger logger = telemetry.CreateLogger<MqttUadpNetworkMessageTests>();
-            using var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
+            var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(ServiceMessageContext.Create(telemetry), bytes, null);
 
             Assert.That(
@@ -1953,7 +1953,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.Create(telemetry));
 
-            using var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
+            var uaNetworkMessageDecoded = new UadpNetworkMessage(logger);
             uaNetworkMessageDecoded.Decode(
                 ServiceMessageContext.Create(telemetry),
                 bytes,

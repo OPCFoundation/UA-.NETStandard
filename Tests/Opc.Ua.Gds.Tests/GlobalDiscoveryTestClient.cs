@@ -66,6 +66,11 @@ namespace Opc.Ua.Gds.Tests
         public void Dispose()
         {
             GDSClient?.Dispose();
+            if (m_application != null)
+            {
+                m_application.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                m_application = null;
+            }
         }
 
         public async Task LoadClientConfigurationAsync(int port = -1, bool clean = true)
@@ -286,7 +291,7 @@ namespace Opc.Ua.Gds.Tests
             GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate
                 = new CertificateIdentifier(
                 certWithPrivateKey);
-            ICertificateStore store = GDSClient.Configuration.SecurityConfiguration
+            using ICertificateStore store = GDSClient.Configuration.SecurityConfiguration
                 .ApplicationCertificate
                 .OpenStore(m_telemetry);
             await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);

@@ -336,7 +336,7 @@ namespace Opc.Ua.Server.Tests
         public async Task StopAsync()
         {
             // Cancel any in-progress startup (e.g., address space creation)
-            Utils.SilentDispose(m_startupCts);
+            m_startupCts?.Dispose();
             m_startupCts = null;
 
             if (Server != null)

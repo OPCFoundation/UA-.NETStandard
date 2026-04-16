@@ -53,10 +53,10 @@ namespace Opc.Ua.Bindings
             {
                 if (disposing)
                 {
-                    Utils.SilentDispose(ClientHmac);
-                    Utils.SilentDispose(ServerHmac);
-                    Utils.SilentDispose(ClientEncryptor);
-                    Utils.SilentDispose(ServerEncryptor);
+                    ClientHmac?.Dispose();
+                    ServerHmac?.Dispose();
+                    ClientEncryptor?.Dispose();
+                    ServerEncryptor?.Dispose();
                 }
                 ClientHmac = null;
                 ServerHmac = null;

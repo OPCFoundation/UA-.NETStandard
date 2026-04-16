@@ -94,7 +94,7 @@ namespace Opc.Ua.Server
 
                 foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
                 {
-                    Utils.SilentDispose(sessionKeyValue.Value);
+                    sessionKeyValue.Value?.Dispose();
                 }
 
                 m_shutdownEvent.Set();
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server
 
             foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
             {
-                Utils.SilentDispose(sessionKeyValue.Value);
+                sessionKeyValue.Value?.Dispose();
             }
         }
 

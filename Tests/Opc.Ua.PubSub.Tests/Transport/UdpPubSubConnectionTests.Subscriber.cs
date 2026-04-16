@@ -478,7 +478,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 .PubSubConnections[0]
                 .PubSubConnectionConfiguration
                 .WriterGroups[0];
-            using var networkMessage = new UadpNetworkMessage(
+            var networkMessage = new UadpNetworkMessage(
                 writerConfig,
                 metaData,
                 m_messageContext.Telemetry.CreateLogger<UdpPubSubConnectionTests>())

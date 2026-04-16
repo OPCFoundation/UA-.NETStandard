@@ -133,12 +133,13 @@ namespace Opc.Ua.Client.Tests
                 try
                 {
                     ClientFixture.SessionTimeout = 10000;
+                    using var userIdentity = new UserIdentity("sysadmin", "demo"u8);
                     Session = await ClientFixture
                         .ConnectAsync(
                             ServerUrl,
                             SecurityPolicies.Basic256Sha256,
                             default,
-                            new UserIdentity("sysadmin", "demo"u8))
+                            userIdentity)
                         .ConfigureAwait(false);
                     Session.DeleteSubscriptionsOnClose = false;
                 }
@@ -182,7 +183,7 @@ namespace Opc.Ua.Client.Tests
             uint expectedHours,
             uint expectedLifetime)
         {
-            var subscription = new TestableSubscription(Session.DefaultSubscription)
+            using var subscription = new TestableSubscription(Session.DefaultSubscription)
             {
                 KeepAliveCount = keepAliveCount,
                 LifetimeCount = lifetimeCount,
@@ -237,7 +238,7 @@ namespace Opc.Ua.Client.Tests
             uint expectedModifiedQueueSize,
             bool useEventMI)
         {
-            TestableSubscription subscription = await CreateDurableSubscriptionAsync()
+            using TestableSubscription subscription = await CreateDurableSubscriptionAsync()
                 .ConfigureAwait(false);
 
             MonitoredItem mi;
@@ -286,7 +287,7 @@ namespace Opc.Ua.Client.Tests
         [Order(160)]
         public async Task SetSubscriptionDurableFailsWhenMIExistsAsync()
         {
-            var subscription = new TestableSubscription(Session.DefaultSubscription)
+            using var subscription = new TestableSubscription(Session.DefaultSubscription)
             {
                 KeepAliveCount = 100u,
                 LifetimeCount = 100u,
@@ -325,7 +326,7 @@ namespace Opc.Ua.Client.Tests
         [Order(180)]
         public async Task SetSubscriptionDurableFailsWhenSubscriptionDoesNotExistAsync()
         {
-            var subscription = new TestableSubscription(Session.DefaultSubscription)
+            using var subscription = new TestableSubscription(Session.DefaultSubscription)
             {
                 KeepAliveCount = 100u,
                 LifetimeCount = 100u,
@@ -386,7 +387,7 @@ namespace Opc.Ua.Client.Tests
             const uint expectedHours = 1;
             const uint expectedLifetime = 36000;
 
-            var subscription = new TestableSubscription(Session.DefaultSubscription)
+            using var subscription = new TestableSubscription(Session.DefaultSubscription)
             {
                 KeepAliveCount = keepAliveCount,
                 LifetimeCount = lifetimeCount,
@@ -489,12 +490,13 @@ namespace Opc.Ua.Client.Tests
 
             DateTimeUtc restartTime = DateTimeUtc.Now;
 #if !DEBUG_CONNECT_FAILED
+            using var transferUserIdentity = new UserIdentity("sysadmin", "demo"u8);
             ISession transferSession = await ClientFixture
                 .ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256,
                     default,
-                    new UserIdentity("sysadmin", "demo"u8))
+                    transferUserIdentity)
                 .ConfigureAwait(false);
 #else // TODO: Remove once failure is understood.
             ISession transferSession;
@@ -502,12 +504,13 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
+                    using var retryUserIdentity = new UserIdentity("sysadmin", "demo"u8);
                     transferSession = await ClientFixture
                         .ConnectAsync(
                             ServerUrl,
                             SecurityPolicies.Basic256Sha256,
                             null,
-                            new UserIdentity("sysadmin", "demo"u8))
+                            retryUserIdentity)
                         .ConfigureAwait(false);
                     if (i != 0)
                     {
