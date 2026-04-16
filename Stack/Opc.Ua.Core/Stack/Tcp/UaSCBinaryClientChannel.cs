@@ -40,6 +40,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -56,9 +57,9 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             IMessageSocketFactory socketFactory,
             ChannelQuotas quotas,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
-            X509Certificate2 serverCertificate,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
+            Certificate serverCertificate,
             EndpointDescription endpoint,
             ITelemetryContext telemetry)
             : base(
@@ -621,7 +622,7 @@ namespace Opc.Ua.Bindings
             // parse the security header.
             uint channelId;
 
-            X509Certificate2 serverCertificate;
+            Certificate serverCertificate;
 
             uint requestId;
 

@@ -50,7 +50,7 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            X509Certificate2 serverCertificate,
+            Certificate serverCertificate,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
@@ -101,7 +101,7 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             ChannelQuotas quotas,
             CertificateTypesProvider serverCertificateTypesProvider,
-            X509Certificate2 serverCertificate,
+            Certificate serverCertificate,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
@@ -123,7 +123,7 @@ namespace Opc.Ua.Bindings
                 securityPolicyUri = SecurityPolicies.None;
             }
 
-            X509Certificate2Collection serverCertificateChain = null;
+            CertificateCollection serverCertificateChain = null;
             if (serverCertificateTypesProvider != null && securityMode != MessageSecurityMode.None)
             {
                 serverCertificate =

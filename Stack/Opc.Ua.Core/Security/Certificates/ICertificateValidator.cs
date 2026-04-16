@@ -27,9 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -41,11 +41,11 @@ namespace Opc.Ua
         /// <summary>
         /// Validates a certificate.
         /// </summary>
-        Task ValidateAsync(X509Certificate2 certificate, CancellationToken ct);
+        Task ValidateAsync(Certificate certificate, CancellationToken ct);
 
         /// <summary>
         /// Validates a certificate chain.
         /// </summary>
-        Task ValidateAsync(X509Certificate2Collection certificateChain, CancellationToken ct);
+        Task ValidateAsync(CertificateCollection certificateChain, CancellationToken ct);
     }
 }

@@ -30,7 +30,6 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 
 namespace Opc.Ua.Security.Certificates.Tests
@@ -82,7 +81,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             string[] domainNames = ["localhost", "127.0.0.1"];
 
             // Create a certificate to generate CSR from
-            using X509Certificate2 certificate = CertificateBuilder.Create(subject)
+            using Certificate certificate = CertificateBuilder.Create(subject)
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(TimeSpan.FromDays(30))
                 .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames))
@@ -120,7 +119,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             string[] domainNames = ["localhost", "127.0.0.1"];
 
             // Create a certificate to generate CSR from
-            using X509Certificate2 certificate = CertificateBuilder.Create(subject)
+            using Certificate certificate = CertificateBuilder.Create(subject)
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(TimeSpan.FromDays(30))
                 .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames))
@@ -183,7 +182,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             string[] domainNames = ["localhost"];
 
             // Create a certificate to generate CSR from
-            using X509Certificate2 certificate = CertificateBuilder.Create(subject)
+            using Certificate certificate = CertificateBuilder.Create(subject)
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(TimeSpan.FromDays(30))
                 .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames))
@@ -215,7 +214,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             string[] domainNames = ["localhost", "testhost.local", "192.168.1.1"];
 
             // Create a certificate to generate CSR from
-            using X509Certificate2 certificate = CertificateBuilder.Create(subject)
+            using Certificate certificate = CertificateBuilder.Create(subject)
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(TimeSpan.FromDays(30))
                 .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames))
@@ -248,7 +247,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             const string subject = "CN=Test Minimal Attributes CSR, O=OPC Foundation";
 
             // Create a simple certificate without explicit SAN
-            using X509Certificate2 certificate = CertificateBuilder.Create(subject)
+            using Certificate certificate = CertificateBuilder.Create(subject)
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(TimeSpan.FromDays(30))
                 .CreateForRSA();
@@ -276,7 +275,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             const string subject = "CN=Test Info CSR, O=OPC Foundation";
 
-            using X509Certificate2 certificate = CertificateBuilder.Create(subject)
+            using Certificate certificate = CertificateBuilder.Create(subject)
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(TimeSpan.FromDays(30))
                 .CreateForRSA();
@@ -305,7 +304,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 string subject = $"CN=Test CSR {i}, O=OPC Foundation";
                 string applicationUri = $"urn:localhost:opcfoundation.org:TestCsr{i}";
 
-                using X509Certificate2 certificate = CertificateBuilder.Create(subject)
+                using Certificate certificate = CertificateBuilder.Create(subject)
                     .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                     .SetLifeTime(TimeSpan.FromDays(30))
                     .AddExtension(new X509SubjectAltNameExtension(applicationUri, s_domainNames))
@@ -330,7 +329,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             const string subject = "CN=TestSubject, O=TestOrg, C=US, ST=TestState, L=TestCity";
 
-            using X509Certificate2 certificate = CertificateBuilder.Create(subject)
+            using Certificate certificate = CertificateBuilder.Create(subject)
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(TimeSpan.FromDays(30))
                 .CreateForRSA();

@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -734,7 +735,7 @@ namespace Opc.Ua.Gds.Client
         /// Add certificate.
         /// </summary>
         [Obsolete("Use AddCertificateAsync instead.")]
-        public void AddCertificate(X509Certificate2 certificate, bool isTrustedCertificate)
+        public void AddCertificate(Certificate certificate, bool isTrustedCertificate)
         {
             AddCertificateAsync(certificate, isTrustedCertificate).GetAwaiter().GetResult();
         }
@@ -742,7 +743,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Add certificate.
         /// </summary>
-        public async Task AddCertificateAsync(X509Certificate2 certificate, bool isTrustedCertificate, CancellationToken ct = default)
+        public async Task AddCertificateAsync(Certificate certificate, bool isTrustedCertificate, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
@@ -1029,7 +1030,7 @@ namespace Opc.Ua.Gds.Client
         /// Reads the rejected  list.
         /// </summary>
         [Obsolete("Use GetRejectedListAsync instead.")]
-        public X509Certificate2Collection GetRejectedList()
+        public CertificateCollection GetRejectedList()
         {
             return GetRejectedListAsync().GetAwaiter().GetResult();
         }
@@ -1037,7 +1038,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Reads the rejected  list.
         /// </summary>
-        public async Task<X509Certificate2Collection> GetRejectedListAsync(CancellationToken ct = default)
+        public async Task<CertificateCollection> GetRejectedListAsync(CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
@@ -1054,7 +1055,7 @@ namespace Opc.Ua.Gds.Client
                     ct).ConfigureAwait(false);
 
                 var rawCertificates = (ArrayOf<ByteString>)outputArguments[0];
-                var collection = new X509Certificate2Collection();
+                var collection = new CertificateCollection();
                 foreach (ByteString rawCertificate in rawCertificates)
                 {
                     collection.Add(CertificateFactory.Create(rawCertificate));

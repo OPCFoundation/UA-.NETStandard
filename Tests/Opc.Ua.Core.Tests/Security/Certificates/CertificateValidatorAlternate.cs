@@ -71,8 +71,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         private readonly string m_altSubject;
-        private X509Certificate2 m_rootCert;
-        private X509Certificate2 m_rootAltCert;
+        private Certificate m_rootCert;
+        private Certificate m_rootAltCert;
         private X509CRL m_rootCrl;
         private TemporaryCertValidator m_validator;
         private CertificateValidator m_certValidator;
@@ -188,7 +188,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task CertificateWithoutKeyIDAsync()
         {
             // a valid app cert
-            using X509Certificate2 appCert = CertificateFactory
+            using Certificate appCert = CertificateFactory
                 .CreateCertificate("CN=AppCert")
                 .SetIssuer(m_rootCert)
                 .CreateForRSA();
@@ -225,7 +225,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             certBuilder.AddExtension(authorityKeyIdentifier);
 
             // a valid app cert
-            using X509Certificate2 appCert = certBuilder.SetIssuer(m_rootCert).CreateForRSA();
+            using Certificate appCert = certBuilder.SetIssuer(m_rootCert).CreateForRSA();
             m_certValidator.RejectUnknownRevocationStatus = false;
             if (!subjectKeyIdentifier && !serialNumber)
             {
@@ -255,7 +255,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             TestContext.Out.WriteLine("Extension: {0}", extension.Format(true));
 
             // create app cert from alternate root
-            using X509Certificate2 altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
+            using Certificate altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
             Assert.That(altAppCert, Is.Not.Null);
 
             m_certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
@@ -297,7 +297,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             TestContext.Out.WriteLine("Extension: {0}", extension.Format(true));
 
             // create the certificate from the alternate root
-            using X509Certificate2 altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
+            using Certificate altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
             Assert.That(altAppCert, Is.Not.Null);
 
             // should not pass!
@@ -324,24 +324,24 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var rsa = RSA.Create();
             var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
 
-            using X509Certificate2 rootCert = CertificateFactory
+            using Certificate rootCert = CertificateFactory
                 .CreateCertificate(rootSubject)
                 .SetCAConstraint()
                 .SetRSAPublicKey(rsa)
                 .CreateForRSA(generator);
-            using X509Certificate2 subCACert = CertificateFactory
+            using Certificate subCACert = CertificateFactory
                 .CreateCertificate(subCASubject)
                 .SetCAConstraint()
                 .SetIssuer(rootCert)
                 .CreateForRSA(generator);
-            using X509Certificate2 rootReverseCert = CertificateFactory
+            using Certificate rootReverseCert = CertificateFactory
                 .CreateCertificate(rootSubject)
                 .SetCAConstraint()
                 .SetSerialNumber(rootCert.GetSerialNumber())
                 .SetIssuer(subCACert)
                 .SetRSAPublicKey(rsa)
                 .CreateForRSA();
-            using X509Certificate2 leafCert = CertificateFactory
+            using Certificate leafCert = CertificateFactory
                 .CreateCertificate(leafSubject)
                 .SetIssuer(subCACert)
                 .CreateForRSA();
@@ -355,7 +355,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             // validate using server/client chain sent over the wire
-            var collection = new X509Certificate2Collection {
+            var collection = new CertificateCollection {
                 leafCert,
                 subCACert,
                 rootReverseCert };

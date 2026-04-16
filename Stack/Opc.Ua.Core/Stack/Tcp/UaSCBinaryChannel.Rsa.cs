@@ -33,6 +33,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -47,7 +48,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private static byte[] Rsa_Sign(
             ArraySegment<byte> dataToSign,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             HashAlgorithmName algorithm,
             RSASignaturePadding padding)
         {
@@ -74,7 +75,7 @@ namespace Opc.Ua.Bindings
         private bool Rsa_Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             HashAlgorithmName algorithm,
             RSASignaturePadding padding)
         {
@@ -101,7 +102,7 @@ namespace Opc.Ua.Bindings
                     dataToVerify.Offset + 4);
                 string actualSignature = Utils.ToHexString(signature);
                 m_logger.LogError("Could not validate signature.");
-                m_logger.LogError("Certificate: {Certificate}", signingCertificate.AsLogSafeString());
+                m_logger.LogError("Certificate: {Certificate}", signingCertificate.X509.AsLogSafeString());
                 m_logger.LogError(
                     "MessageType ={MessageType}, Length ={Length}, ActualSignature={ActualSignature}",
                     messageType,
@@ -119,7 +120,7 @@ namespace Opc.Ua.Bindings
         private ArraySegment<byte> Rsa_Encrypt(
             ArraySegment<byte> dataToEncrypt,
             ArraySegment<byte> headerToCopy,
-            X509Certificate2 encryptingCertificate,
+            Certificate encryptingCertificate,
             RsaUtils.Padding padding)
         {
             // get the encrypting key.
@@ -182,7 +183,7 @@ namespace Opc.Ua.Bindings
         private ArraySegment<byte> Rsa_Decrypt(
             ArraySegment<byte> dataToDecrypt,
             ArraySegment<byte> headerToCopy,
-            X509Certificate2 encryptingCertificate,
+            Certificate encryptingCertificate,
             RsaUtils.Padding padding)
         {
             // get the encrypting key.

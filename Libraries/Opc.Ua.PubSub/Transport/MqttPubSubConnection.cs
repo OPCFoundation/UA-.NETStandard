@@ -36,6 +36,7 @@ using MQTTnet;
 using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.Security.Certificates;
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
 using Microsoft.Extensions.Logging;
 
@@ -812,8 +813,10 @@ namespace Opc.Ua.PubSub.Transport
                 var x509Certificate2s = new List<X509Certificate2>();
                 if (mqttTlsOptions?.Certificates != null)
                 {
-                    x509Certificate2s.AddRange(mqttTlsOptions?.Certificates
-                        .X509Certificates);
+                    foreach (Certificate cert in mqttTlsOptions.Certificates.X509Certificates)
+                    {
+                        x509Certificate2s.Add(cert.X509);
+                    }
                 }
 
                 MqttClientOptionsBuilder mqttClientOptionsBuilder
@@ -928,7 +931,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="context">The context of the validation</param>
         private bool ValidateBrokerCertificate(MqttClientCertificateValidationEventArgs context)
         {
-            X509Certificate2 brokerCertificate = CertificateFactory.Create(
+            Certificate brokerCertificate = CertificateFactory.Create(
                 context.Certificate.GetRawCertData());
 
             try

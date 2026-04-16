@@ -165,7 +165,7 @@ namespace Opc.Ua
             string globalChannelId,
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             // raise an audit open secure channel event.
@@ -181,7 +181,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual void ReportAuditCertificateEvent(
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             // raise the audit certificate
@@ -629,7 +629,7 @@ namespace Opc.Ua
         {
             if (!checkRequireEncryption || RequireEncryption(description))
             {
-                X509Certificate2 serverCertificate = certificateTypesProvider
+                Certificate serverCertificate = certificateTypesProvider
                     .GetInstanceCertificate(
                         description.SecurityPolicyUri);
                 // check if complete chain should be sent.
@@ -780,7 +780,7 @@ namespace Opc.Ua
                 {
                     CertificateIdentifier certificateIdentifier = applicationCertificates[i];
                     // preload chain
-                    X509Certificate2 certificate = await certificateIdentifier.FindAsync(false)
+                    Certificate certificate = await certificateIdentifier.FindAsync(false)
                         .ConfigureAwait(false);
                     await InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate)
                         .ConfigureAwait(false);
@@ -1431,7 +1431,7 @@ namespace Opc.Ua
             }
 
             // load the instance certificate.
-            X509Certificate2 defaultInstanceCertificate = null;
+            Certificate defaultInstanceCertificate = null;
             InstanceCertificateTypesProvider = new CertificateTypesProvider(
                 configuration,
                 m_telemetry);
@@ -1445,7 +1445,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                X509Certificate2 instanceCertificate =
+                Certificate instanceCertificate =
                     InstanceCertificateTypesProvider.GetInstanceCertificate(
                         securityPolicy.SecurityPolicyUri)
                     ?? throw ServiceResultException.ConfigurationError(
@@ -1469,7 +1469,7 @@ namespace Opc.Ua
             // assign a unique identifier if none specified.
             if (string.IsNullOrEmpty(configuration.ApplicationUri))
             {
-                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider
+                Certificate instanceCertificate = InstanceCertificateTypesProvider
                     .GetInstanceCertificate(
                         configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
 

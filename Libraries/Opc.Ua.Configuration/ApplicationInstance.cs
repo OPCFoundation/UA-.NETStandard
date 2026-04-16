@@ -38,6 +38,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Configuration
 {
@@ -381,7 +382,7 @@ namespace Opc.Ua.Configuration
                 .ConfigureAwait(false);
 
             // load the certificate
-            X509Certificate2 certificate = await id.FindAsync(
+            Certificate certificate = await id.FindAsync(
                 true,
                 configuration.ApplicationUri,
                 m_telemetry,
@@ -391,7 +392,7 @@ namespace Opc.Ua.Configuration
             // check that it is ok.
             if (certificate != null)
             {
-                m_logger.LogInformation("Check certificate: {Certificate}", certificate.AsLogSafeString());
+                m_logger.LogInformation("Check certificate: {Certificate}", certificate.X509.AsLogSafeString());
                 bool certificateValid = await CheckApplicationInstanceCertificateAsync(
                         configuration,
                         id,
@@ -503,7 +504,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public async Task AddOwnCertificateToTrustedStoreAsync(
-            X509Certificate2 certificate,
+            Certificate certificate,
             CancellationToken ct)
         {
             await AddToTrustedStoreAsync(ApplicationConfiguration, certificate, ct).ConfigureAwait(
@@ -612,7 +613,7 @@ namespace Opc.Ua.Configuration
         private async Task<bool> CheckApplicationInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             CertificateIdentifier id,
-            X509Certificate2 certificate,
+            Certificate certificate,
             bool silent,
             ushort minimumKeySize,
             CancellationToken ct)
@@ -645,7 +646,7 @@ namespace Opc.Ua.Configuration
 
             m_logger.LogInformation(
                 "Check application instance certificate {Certificate}.",
-                certificate.AsLogSafeString());
+                certificate.X509.AsLogSafeString());
 
             try
             {
@@ -730,7 +731,7 @@ namespace Opc.Ua.Configuration
 
             m_logger.LogInformation(
                 "Certificate {Certificate} validated for ApplicationUri: {ApplicationUri}",
-                certificate.AsLogSafeString(),
+                certificate.X509.AsLogSafeString(),
                 configuration.ApplicationUri);
 
             // update configuration.
@@ -744,7 +745,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         private async Task<bool> CheckDomainsInCertificateAsync(
             ApplicationConfiguration configuration,
-            X509Certificate2 certificate,
+            Certificate certificate,
             bool silent,
             CancellationToken ct)
         {
@@ -839,7 +840,7 @@ namespace Opc.Ua.Configuration
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The new certificate</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private async Task<X509Certificate2> CreateApplicationInstanceCertificateAsync(
+        private async Task<Certificate> CreateApplicationInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             CertificateIdentifier id,
             ushort minimumKeySize,
@@ -887,7 +888,7 @@ namespace Opc.Ua.Configuration
 
                 m_logger.LogInformation(
                     "Certificate {Certificate} created for RSA with key size {KeySize} bits.",
-                    id.Certificate.AsLogSafeString(),
+                    id.Certificate.X509.AsLogSafeString(),
                     keySize);
             }
             else
@@ -900,7 +901,7 @@ namespace Opc.Ua.Configuration
 
                 m_logger.LogInformation(
                     "Certificate {Certificate} created for {Curve}.",
-                    id.Certificate.AsLogSafeString(),
+                    id.Certificate.X509.AsLogSafeString(),
                     curve.Value.Oid.FriendlyName);
             }
 
@@ -937,7 +938,7 @@ namespace Opc.Ua.Configuration
 
             m_logger.LogInformation(
                 "Certificate {Certificate} created for {ApplicationUri}.",
-                id.Certificate.AsLogSafeString(),
+                id.Certificate.X509.AsLogSafeString(),
                 configuration.ApplicationUri);
 
             // do not dispose temp cert, or X509Store certs become unusable
@@ -962,14 +963,14 @@ namespace Opc.Ua.Configuration
             }
 
             // delete certificate and private key.
-            X509Certificate2 certificate = await id.FindAsync(configuration.ApplicationUri, m_telemetry, ct)
+            Certificate certificate = await id.FindAsync(configuration.ApplicationUri, m_telemetry, ct)
                 .ConfigureAwait(false);
             if (certificate != null)
             {
                 m_logger.LogInformation(
                     Utils.TraceMasks.Security,
                     "Deleting application instance certificate {Certificate} and private key.",
-                    certificate.AsLogSafeString());
+                    certificate.X509.AsLogSafeString());
             }
 
             // delete trusted peer certificate.
@@ -1021,7 +1022,7 @@ namespace Opc.Ua.Configuration
                     m_logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Application certificate {Certificate} and private key deleted.",
-                        certificate.AsLogSafeString());
+                        certificate.X509.AsLogSafeString());
                 }
             }
 
@@ -1038,7 +1039,7 @@ namespace Opc.Ua.Configuration
         /// <exception cref="ArgumentNullException"><paramref name="certificate"/> is <c>null</c>.</exception>
         private async Task AddToTrustedStoreAsync(
             ApplicationConfiguration configuration,
-            X509Certificate2 certificate,
+            Certificate certificate,
             CancellationToken ct)
         {
             if (certificate == null)
@@ -1076,7 +1077,7 @@ namespace Opc.Ua.Configuration
                 try
                 {
                     // check if it already exists.
-                    X509Certificate2Collection existingCertificates = await store
+                    CertificateCollection existingCertificates = await store
                         .FindByThumbprintAsync(certificate.Thumbprint, ct)
                         .ConfigureAwait(false);
 
@@ -1087,13 +1088,13 @@ namespace Opc.Ua.Configuration
 
                     m_logger.LogInformation(
                         "Adding application certificate {Certificate} to trusted peer store.",
-                        certificate.AsLogSafeString());
+                        certificate.X509.AsLogSafeString());
 
                     List<string> subjectName = X509Utils.ParseDistinguishedName(
                         certificate.Subject);
 
                     // check for old certificate.
-                    X509Certificate2Collection certificates = await store.EnumerateAsync(ct)
+                    CertificateCollection certificates = await store.EnumerateAsync(ct)
                         .ConfigureAwait(false);
 
                     for (int ii = 0; ii < certificates.Count; ii++)
@@ -1128,7 +1129,7 @@ namespace Opc.Ua.Configuration
                             {
                                 m_logger.LogInformation(
                                     "Delete Certificate {Certificate} from trusted store.",
-                                    certificate.AsLogSafeString());
+                                    certificate.X509.AsLogSafeString());
                                 await store.DeleteAsync(certificates[ii].Thumbprint, ct)
                                     .ConfigureAwait(false);
                                 break;
@@ -1137,7 +1138,7 @@ namespace Opc.Ua.Configuration
                     }
 
                     // add new certificate.
-                    using X509Certificate2 publicKey = CertificateFactory.Create(certificate.RawData);
+                    using Certificate publicKey = CertificateFactory.Create(certificate.RawData);
                     await store.AddAsync(publicKey, ct: ct).ConfigureAwait(false);
 
                     m_logger.LogInformation("Added application certificate to trusted peer store.");

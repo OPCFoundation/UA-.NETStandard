@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -42,7 +42,7 @@ namespace Opc.Ua.Gds.Tests
     public class CertificateWrapperTests
     {
         private static readonly string[] s_localhostDomains = ["localhost"];
-        private X509Certificate2 m_testCertificate;
+        private Certificate m_testCertificate;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -267,7 +267,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void CertificatePropertyRoundTrip()
         {
-            using X509Certificate2 cert = CertificateFactory.CreateCertificate(
+            using Certificate cert = CertificateFactory.CreateCertificate(
                 "urn:test:roundtrip",
                 "RoundTrip",
                 "CN=RoundTrip",
@@ -281,7 +281,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ToStringWithNullFormatReturnsSubjectName()
         {
-            using X509Certificate2 cert = CertificateFactory.CreateCertificate(
+            using Certificate cert = CertificateFactory.CreateCertificate(
                 "urn:test:tostring",
                 "ToStringTest",
                 "CN=ToStringTest",

@@ -28,10 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -340,7 +340,7 @@ namespace Opc.Ua
             endpointConfiguration ??= EndpointConfiguration.Create();
 
             // check if application configuration contains instance certificate.
-            X509Certificate2 clientCertificate = null;
+            Certificate clientCertificate = null;
 
             ServiceMessageContext messageContext = applicationConfiguration.CreateMessageContext();
             try
@@ -434,7 +434,7 @@ namespace Opc.Ua
             endpointConfiguration ??= EndpointConfiguration.Create();
 
             // check if application configuration contains instance certificate.
-            X509Certificate2 clientCertificate = null;
+            Certificate clientCertificate = null;
 
             ITransportChannel channel = await CreateChannelAsync(
                 null,
@@ -577,7 +577,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null,
+            Certificate clientCertificate = null,
             CancellationToken ct = default)
         {
             // create a default description.
@@ -609,7 +609,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null,
+            Certificate clientCertificate = null,
             CancellationToken ct = default)
         {
             // create a default description.
@@ -642,7 +642,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null,
+            Certificate clientCertificate = null,
             CancellationToken ct = default)
         {
             // create a default description.

@@ -31,8 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
@@ -298,7 +298,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static EncryptedData Encrypt(
-            X509Certificate2 certificate,
+            Certificate certificate,
             string securityPolicyUri,
             ReadOnlySpan<byte> plainText,
             ILogger logger)
@@ -372,7 +372,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static byte[] Decrypt(
-            X509Certificate2 certificate,
+            Certificate certificate,
             string securityPolicyUri,
             EncryptedData dataToDecrypt,
             ILogger logger)
@@ -452,7 +452,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static SignatureData Sign(
-            X509Certificate2 certificate,
+            Certificate certificate,
             string securityPolicyUri,
             byte[] dataToSign)
         {
@@ -534,7 +534,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static bool Verify(
-            X509Certificate2 certificate,
+            Certificate certificate,
             string securityPolicyUri,
             byte[] dataToVerify,
             SignatureData signature)

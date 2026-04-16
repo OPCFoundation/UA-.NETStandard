@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -80,7 +81,7 @@ namespace Opc.Ua.Gds.Client
             return privateKeyFormat;
         }
 
-        public List<string> GetDomainNames(X509Certificate2 certificate)
+        public List<string> GetDomainNames(Certificate certificate)
         {
             var domainNames = new List<string>();
 

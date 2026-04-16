@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -189,7 +189,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void GetDomainNamesFromCertificate()
         {
-            using X509Certificate2 cert = CertificateFactory.CreateCertificate(
+            using Certificate cert = CertificateFactory.CreateCertificate(
                 "urn:test:app",
                 "TestApp",
                 "CN=TestApp,DC=testdomain,DC=com",

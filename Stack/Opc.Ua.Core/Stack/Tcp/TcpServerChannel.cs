@@ -233,7 +233,7 @@ namespace Opc.Ua.Bindings
             IMessageSocket socket,
             uint requestId,
             uint sequenceNumber,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
@@ -558,7 +558,7 @@ namespace Opc.Ua.Bindings
 
             // parse the security header.
             uint channelId = 0;
-            X509Certificate2 clientCertificate = null;
+            Certificate clientCertificate = null;
             uint requestId = 0;
             uint sequenceNumber = 0;
 

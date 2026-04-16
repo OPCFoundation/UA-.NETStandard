@@ -113,10 +113,11 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Is.True,
                 "PEM file should contain a private key.");
 
-            X509Certificate2 newCert = null;
+            Certificate newCert = null;
             try
             {
-                newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(leaf, file);
+                newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                    Certificate.FromRawData(leaf.RawData), file);
 
                 Assert.That(newCert, Is.Not.Null, "New certificate with private key should not be null.");
                 Assert.That(newCert.HasPrivateKey, Is.True, "New certificate should have a private key.");

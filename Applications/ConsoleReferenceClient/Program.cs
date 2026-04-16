@@ -43,6 +43,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 namespace Quickstarts.ConsoleReferenceClient
 {
@@ -750,7 +751,7 @@ namespace Quickstarts.ConsoleReferenceClient
         {
             CertificateIdentifier userCertificateIdentifier = null;
 
-            X509Certificate2Collection userCertificatesWithMatchingThumbprint =
+            CertificateCollection userCertificatesWithMatchingThumbprint =
                 await trustedUserCertificates.GetCertificatesAsync(telemetry, ct).ConfigureAwait(false);
             // get user certificate with matching thumbprint
             userCertificatesWithMatchingThumbprint =

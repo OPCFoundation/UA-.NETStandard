@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The application instance certificate associated with the client.
         /// </summary>
-        X509Certificate2 ClientCertificate { get; }
+        Certificate ClientCertificate { get; }
 
         /// <summary>
         /// The last time the session was contacted by the client.

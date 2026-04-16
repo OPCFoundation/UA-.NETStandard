@@ -172,7 +172,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(certOK, Is.True);
 
             CertificateIdentifier certId = config.SecurityConfiguration.ApplicationCertificates[0];
-            X509Certificate2 certificate = await certId
+            Certificate certificate = await certId
                 .FindAsync(
                     true,
                     config.ApplicationUri,
@@ -603,8 +603,8 @@ namespace Opc.Ua.Configuration.Tests
                 .ApplicationCertificate;
             Assert.That(applicationCertificate.Certificate, Is.Null);
 
-            X509Certificate2 publicKey = null;
-            using (X509Certificate2 testCert = CreateInvalidCert(certType))
+            Certificate publicKey = null;
+            using (Certificate testCert = CreateInvalidCert(certType))
             {
                 Assert.That(testCert, Is.Not.Null);
                 Assert.That(testCert.HasPrivateKey, Is.True);
@@ -701,10 +701,10 @@ namespace Opc.Ua.Configuration.Tests
                 .ApplicationCertificate;
             Assert.That(applicationCertificate.Certificate, Is.Null);
 
-            X509Certificate2Collection testCerts = CreateInvalidCertChain(certType);
+            CertificateCollection testCerts = CreateInvalidCertChain(certType);
             if (certType != InvalidCertType.NoIssuer)
             {
-                using X509Certificate2 issuerCert = testCerts[1];
+                using Certificate issuerCert = testCerts[1];
                 Assert.That(issuerCert, Is.Not.Null);
                 Assert.That(issuerCert.HasPrivateKey, Is.False);
                 await issuerCert.AddToStoreAsync(
@@ -722,8 +722,8 @@ namespace Opc.Ua.Configuration.Tests
                     telemetry).ConfigureAwait(false);
             }
 
-            X509Certificate2 publicKey = null;
-            using (X509Certificate2 testCert = testCerts[0])
+            Certificate publicKey = null;
+            using (Certificate testCert = testCerts[0])
             {
                 Assert.That(testCert, Is.Not.Null);
                 Assert.That(testCert.HasPrivateKey, Is.True);
@@ -780,7 +780,7 @@ namespace Opc.Ua.Configuration.Tests
             DateTime notBefore = DateTime.Today.AddDays(-30);
             DateTime notAfter = DateTime.Today.AddDays(30);
 
-            using X509Certificate2 cert = CertificateFactory
+            using Certificate cert = CertificateFactory
                 .CreateCertificate(SubjectName)
                 .SetNotBefore(notBefore)
                 .SetNotAfter(notAfter)
@@ -792,7 +792,7 @@ namespace Opc.Ua.Configuration.Tests
                 .ConfigureAwait(false);
             ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates
                 .OpenStore(telemetry);
-            X509Certificate2Collection storedCertificates = await store
+            CertificateCollection storedCertificates = await store
                 .FindByThumbprintAsync(cert.Thumbprint)
                 .ConfigureAwait(false);
 
@@ -965,14 +965,14 @@ namespace Opc.Ua.Configuration.Tests
             const string uri1 = "urn:localhost:opcfoundation.org:App1";
             const string uri2 = "urn:localhost:opcfoundation.org:App2";
 
-            X509Certificate2 cert1 = CertificateFactory
+            Certificate cert1 = CertificateFactory
                 .CreateCertificate(uri1, ApplicationName, SubjectName, [Utils.GetHostName()])
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddYears(1))
                 .CreateForRSA();
 
             const string subjectName2 = "CN=UA Configuration Test 2, O=OPC Foundation, C=US, S=Arizona";
-            X509Certificate2 cert2 = CertificateFactory
+            Certificate cert2 = CertificateFactory
                 .CreateCertificate(uri2, ApplicationName, subjectName2, [Utils.GetHostName()])
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddYears(1))
@@ -1040,14 +1040,14 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(applicationInstance, Is.Not.Null);
 
             // Create two certificates with the same ApplicationUri
-            X509Certificate2 cert1 = CertificateFactory
+            Certificate cert1 = CertificateFactory
                 .CreateCertificate(ApplicationUri, ApplicationName, SubjectName, [Utils.GetHostName()])
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddYears(1))
                 .CreateForRSA();
 
             const string subjectName2 = "CN=UA Configuration Test RSA, O=OPC Foundation, C=US, S=Arizona";
-            X509Certificate2 cert2 = CertificateFactory
+            Certificate cert2 = CertificateFactory
                 .CreateCertificate(ApplicationUri, ApplicationName, subjectName2, [Utils.GetHostName()])
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddYears(1))
@@ -1125,7 +1125,7 @@ namespace Opc.Ua.Configuration.Tests
             const string uri2 = ApplicationUri; // This matches
             const string uri3 = "https://localhost:8080/OpcUaApp";
 
-            X509Certificate2 cert = CreateCertificateWithMultipleUris(
+            Certificate cert = CreateCertificateWithMultipleUris(
                 [uri1, uri2, uri3],
                 SubjectName,
                 [Utils.GetHostName()],
@@ -1166,7 +1166,7 @@ namespace Opc.Ua.Configuration.Tests
 
             // Verify the certificate has multiple URIs
             // Load the certificate to check its URIs
-            X509Certificate2 loadedCert = await certId.FindAsync(false, null, telemetry).ConfigureAwait(false);
+            Certificate loadedCert = await certId.FindAsync(false, null, telemetry).ConfigureAwait(false);
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(loadedCert);
             Assert.That(uris.Count, Is.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
@@ -1198,7 +1198,7 @@ namespace Opc.Ua.Configuration.Tests
             const string uri2 = "urn:localhost:opcfoundation.org:App2";
             const string uri3 = "https://localhost:8080/OpcUaApp";
 
-            X509Certificate2 cert = CreateCertificateWithMultipleUris(
+            Certificate cert = CreateCertificateWithMultipleUris(
                 [uri1, uri2, uri3],
                 SubjectName,
                 [Utils.GetHostName()],
@@ -1259,7 +1259,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(applicationInstance, Is.Not.Null);
 
             // Create first certificate with multiple URIs including ApplicationUri
-            X509Certificate2 cert1 = CreateCertificateWithMultipleUris(
+            Certificate cert1 = CreateCertificateWithMultipleUris(
                 [ApplicationUri, "https://localhost:8080/Test1", "opc.tcp://localhost:4840/Test1"],
                 SubjectName,
                 [Utils.GetHostName()],
@@ -1267,7 +1267,7 @@ namespace Opc.Ua.Configuration.Tests
 
             const string subjectName2 = "CN=UA Configuration Test 2, O=OPC Foundation, C=US, S=Arizona";
             // Create second certificate with multiple URIs including ApplicationUri
-            X509Certificate2 cert2 = CreateCertificateWithMultipleUris(
+            Certificate cert2 = CreateCertificateWithMultipleUris(
                 ["urn:localhost:opcfoundation.org:OtherApp", ApplicationUri, "https://localhost:9443/Test2"],
                 subjectName2,
                 [Utils.GetHostName()],
@@ -1340,7 +1340,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(applicationInstance, Is.Not.Null);
 
             // Create first certificate with ApplicationUri
-            X509Certificate2 cert1 = CreateCertificateWithMultipleUris(
+            Certificate cert1 = CreateCertificateWithMultipleUris(
                 [ApplicationUri, "https://localhost:8080/Test1"],
                 SubjectName,
                 [Utils.GetHostName()],
@@ -1348,7 +1348,7 @@ namespace Opc.Ua.Configuration.Tests
 
             const string subjectName2 = "CN=UA Configuration Test 2, O=OPC Foundation, C=US, S=Arizona";
             // Create second certificate WITHOUT ApplicationUri
-            X509Certificate2 cert2 = CreateCertificateWithMultipleUris(
+            Certificate cert2 = CreateCertificateWithMultipleUris(
                 ["urn:localhost:opcfoundation.org:OtherApp", "https://localhost:9443/Test2"],
                 subjectName2,
                 [Utils.GetHostName()],
@@ -1402,7 +1402,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
-        private static X509Certificate2 CreateInvalidCert(InvalidCertType certType)
+        private static Certificate CreateInvalidCert(InvalidCertType certType)
         {
             // reasonable defaults
             DateTime notBefore = DateTime.Today.AddDays(-30);
@@ -1443,7 +1443,7 @@ namespace Opc.Ua.Configuration.Tests
                 .CreateForRSA();
         }
 
-        private static X509Certificate2Collection CreateInvalidCertChain(InvalidCertType certType)
+        private static CertificateCollection CreateInvalidCertChain(InvalidCertType certType)
         {
             // reasonable defaults
             DateTime notBefore = DateTime.Today.AddYears(-1);
@@ -1481,13 +1481,13 @@ namespace Opc.Ua.Configuration.Tests
             }
 
             const string rootCASubjectName = "CN=Root CA Test, O=OPC Foundation, C=US, S=Arizona";
-            using X509Certificate2 rootCA = CertificateFactory
+            using Certificate rootCA = CertificateFactory
                 .CreateCertificate(rootCASubjectName)
                 .SetNotBefore(issuerNotBefore)
                 .SetNotAfter(issuerNotAfter)
                 .SetCAConstraint(-1)
                 .CreateForRSA();
-            X509Certificate2 appCert = CertificateFactory
+            Certificate appCert = CertificateFactory
                 .CreateCertificate(ApplicationUri, ApplicationName, SubjectName, domainNames)
                 .SetNotBefore(notBefore)
                 .SetNotAfter(notAfter)
@@ -1522,7 +1522,7 @@ namespace Opc.Ua.Configuration.Tests
         /// <param name="subjectName">The subject name for the certificate</param>
         /// <param name="domainNames">The domain names for the certificate</param>
         /// <returns>A certificate with multiple URIs in the SAN extension</returns>
-        private static X509Certificate2 CreateCertificateWithMultipleUris(
+        private static Certificate CreateCertificateWithMultipleUris(
             IList<string> applicationUris,
             string subjectName,
             IList<string> domainNames,

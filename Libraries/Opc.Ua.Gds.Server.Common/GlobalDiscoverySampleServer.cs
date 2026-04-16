@@ -283,7 +283,8 @@ namespace Opc.Ua.Gds.Server
         /// <param name="session">the session</param>
         private bool VerifiyApplicationRegistered(ISession session)
         {
-            X509Certificate2 applicationInstanceCertificate = session.ClientCertificate;
+            using Certificate applicationInstanceCertificate =
+                Certificate.FromRawData(session.ClientCertificate.RawData);
             bool applicationRegistered = false;
 
             Uri applicationUri = Utils.ParseUri(
@@ -299,11 +300,11 @@ namespace Opc.Ua.Gds.Server
                 configuration.ApplicationCertificatesStorePath);
             using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
             {
-                X509Certificate2Collection matchingCerts = applicationsStore
+                CertificateCollection matchingCerts = applicationsStore
                     .FindByThumbprintAsync(applicationInstanceCertificate.Thumbprint)
                     .Result;
 
-                if (matchingCerts.Contains(applicationInstanceCertificate))
+                if (matchingCerts.Count > 0)
                 {
                     applicationRegistered = true;
                 }

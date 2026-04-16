@@ -437,7 +437,7 @@ namespace Opc.Ua.Bindings
             uint requestId,
             uint sequenceNumber,
             uint channelId,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
@@ -810,7 +810,7 @@ namespace Opc.Ua.Bindings
                 // TODO: why only if SERVERCERT != null
                 if (!description.ServerCertificate.IsEmpty)
                 {
-                    X509Certificate2 serverCertificate = serverCertificateTypes
+                    Certificate serverCertificate = serverCertificateTypes
                         .GetInstanceCertificate(
                             description.SecurityPolicyUri);
                     if (serverCertificateTypes.SendCertificateChain)
@@ -1125,7 +1125,7 @@ namespace Opc.Ua.Bindings
         private void OnReportAuditOpenSecureChannelEvent(
             TcpServerChannel channel,
             OpenSecureChannelRequest request,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             try
@@ -1168,7 +1168,7 @@ namespace Opc.Ua.Bindings
         /// Callback for reporting the certificate audit events
         /// </summary>
         private void OnReportAuditCertificateEvent(
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             try

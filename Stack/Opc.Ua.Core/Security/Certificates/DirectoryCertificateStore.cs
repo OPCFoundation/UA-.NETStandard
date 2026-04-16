@@ -178,13 +178,13 @@ namespace Opc.Ua
         public bool NoPrivateKeys { get; private set; }
 
         /// <inheritdoc/>
-        public async Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
+        public async Task<CertificateCollection> EnumerateAsync(CancellationToken ct = default)
         {
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 IDictionary<string, Entry> certificatesInStore = Load(null);
-                var certificates = new X509Certificate2Collection();
+                var certificates = new CertificateCollection();
 
                 foreach (Entry entry in certificatesInStore.Values)
                 {
@@ -208,7 +208,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public async Task AddAsync(
-            X509Certificate2 certificate,
+            Certificate certificate,
             char[] password = null,
             CancellationToken ct = default)
         {
@@ -237,7 +237,7 @@ namespace Opc.Ua
                     string passcode = password == null ||
                         password.Length == 0 ? string.Empty : new string(password);
 
-                    data = certificate.Export(X509ContentType.Pkcs12, passcode);
+                    data = certificate.X509.Export(X509ContentType.Pkcs12, passcode);
                 }
                 else
                 {
@@ -262,7 +262,7 @@ namespace Opc.Ua
                 m_logger.LogError(
                     ex,
                     "Failed to add certificate {Certificate} to store {StorePath}.",
-                    certificate.AsLogSafeString(),
+                    certificate.X509.AsLogSafeString(),
                     StorePath);
                 throw;
             }
@@ -274,7 +274,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public async Task AddRejectedAsync(
-            X509Certificate2Collection certificates,
+            CertificateCollection certificates,
             int maxCertificates,
             CancellationToken ct = default)
         {
@@ -292,7 +292,7 @@ namespace Opc.Ua
 
                 DateTime now = DateTime.UtcNow;
                 int entries = 0;
-                foreach (X509Certificate2 certificate in certificates)
+                foreach (Certificate certificate in certificates)
                 {
                     // limit the number of certificates added per call.
                     if (maxCertificates != 0 && entries >= maxCertificates)
@@ -475,11 +475,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<X509Certificate2Collection> FindByThumbprintAsync(
+        public async Task<CertificateCollection> FindByThumbprintAsync(
             string thumbprint,
             CancellationToken ct = default)
         {
-            var certificates = new X509Certificate2Collection();
+            var certificates = new CertificateCollection();
 
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -572,7 +572,7 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key from a PFX file in the certificate store.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKeyAsync(
+        public async Task<Certificate> LoadPrivateKeyAsync(
             string thumbprint,
             string subjectName,
             string applicationUri,
@@ -607,22 +607,24 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        var certificatesInFile = new X509Certificate2Collection();
+                        var certificatesInFile = new CertificateCollection();
                         if (file.Extension
                             .Equals(kPemExtension, StringComparison.OrdinalIgnoreCase))
                         {
-                            certificatesInFile = PEMReader.ImportPublicKeysFromPEM(
-                                File.ReadAllBytes(file.FullName));
+                            certificatesInFile = CertificateCollection.From(
+                                PEMReader.ImportPublicKeysFromPEM(
+                                    File.ReadAllBytes(file.FullName)));
                         }
                         else
                         {
                             certificatesInFile.Add(
-                                X509CertificateLoader.LoadCertificateFromFile(file.FullName));
+                                Certificate.From(
+                                    X509CertificateLoader.LoadCertificateFromFile(file.FullName)));
                         }
 
-                        foreach (X509Certificate2 cert in certificatesInFile)
+                        foreach (Certificate cert in certificatesInFile)
                         {
-                            X509Certificate2 certificate = cert;
+                            Certificate certificate = cert;
 
                             if (!string.IsNullOrEmpty(thumbprint) &&
                                 !string.Equals(
@@ -654,7 +656,8 @@ namespace Opc.Ua
                             }
 
                             if (!string.IsNullOrEmpty(applicationUri) &&
-                                !X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri))
+                                !X509Utils.CompareApplicationUriWithCertificate(
+                                    certificate, applicationUri))
                             {
                                 continue;
                             }
@@ -699,25 +702,30 @@ namespace Opc.Ua
                                 {
                                     try
                                     {
-                                        certificate = X509CertificateLoader.LoadPkcs12FromFile(
-                                            privateKeyFilePfx.FullName,
-                                            password,
-                                            flag);
-                                        if (X509Utils.VerifyKeyPair(certificate, certificate, true))
+                                        certificate = Certificate.From(
+                                            X509CertificateLoader.LoadPkcs12FromFile(
+                                                privateKeyFilePfx.FullName,
+                                                password,
+                                                flag));
+                                        if (X509PfxUtils.VerifyKeyPair(
+                                            certificate, certificate, true))
                                         {
                                             m_logger.LogInformation(
                                                 Utils.TraceMasks.Security,
                                                 "Imported the PFX private key for {Certificate}.",
-                                                certificate.AsLogSafeString());
+                                                certificate.X509.AsLogSafeString());
                                             return certificate;
                                         }
-                                        m_logger.LogDebug("PFX Private key could not be verified for {Certificate}.",
-                                            certificate.AsLogSafeString());
+                                        m_logger.LogDebug(
+                                            "PFX Private key could not be verified for {Certificate}.",
+                                            certificate.X509.AsLogSafeString());
                                     }
                                     catch (Exception ex)
                                     {
-                                        m_logger.LogDebug(ex, "Failed to import the PFX private for {Certificate}.",
-                                            certificate.AsLogSafeString());
+                                        m_logger.LogDebug(
+                                            ex,
+                                            "Failed to import the PFX private for {Certificate}.",
+                                            certificate.X509.AsLogSafeString());
                                         importException = ex;
                                         certificate?.Dispose();
                                     }
@@ -736,21 +744,25 @@ namespace Opc.Ua
                                             certificate,
                                             pemDataBlob,
                                             password);
-                                    if (X509Utils.VerifyKeyPair(certificate, certificate, true))
+                                    if (X509PfxUtils.VerifyKeyPair(
+                                        certificate, certificate, true))
                                     {
                                         m_logger.LogInformation(
                                             Utils.TraceMasks.Security,
                                             "Imported the PEM private key for {Certificate}.",
-                                            certificate.AsLogSafeString());
+                                            certificate.X509.AsLogSafeString());
                                         return certificate;
                                     }
-                                    m_logger.LogDebug("PEM Private key could not be verified for {Certificate}.",
-                                        certificate.AsLogSafeString());
+                                    m_logger.LogDebug(
+                                        "PEM Private key could not be verified for {Certificate}.",
+                                        certificate.X509.AsLogSafeString());
                                 }
                                 catch (Exception exception)
                                 {
-                                    m_logger.LogDebug(exception, "Failed to import the PEM private for {Certificate}.",
-                                        certificate.AsLogSafeString());
+                                    m_logger.LogDebug(
+                                        exception,
+                                        "Failed to import the PEM private for {Certificate}.",
+                                        certificate.X509.AsLogSafeString());
                                     certificate?.Dispose();
                                     importException = exception;
                                 }
@@ -768,21 +780,25 @@ namespace Opc.Ua
                                             certificate,
                                             pemDataBlob,
                                             password);
-                                    if (X509Utils.VerifyKeyPair(certificate, certificate, true))
+                                    if (X509PfxUtils.VerifyKeyPair(
+                                        certificate, certificate, true))
                                     {
                                         m_logger.LogInformation(
                                             Utils.TraceMasks.Security,
                                             "Imported the PEM private key for {Certificate}.",
-                                            certificate.AsLogSafeString());
+                                            certificate.X509.AsLogSafeString());
                                         return certificate;
                                     }
-                                    m_logger.LogDebug("PEM Private key could not be verified for {Certificate}.",
-                                        certificate.AsLogSafeString());
+                                    m_logger.LogDebug(
+                                        "PEM Private key could not be verified for {Certificate}.",
+                                        certificate.X509.AsLogSafeString());
                                 }
                                 catch (Exception exception)
                                 {
-                                    m_logger.LogDebug(exception, "Failed to import the PEM private for {Certificate}.",
-                                        certificate.AsLogSafeString());
+                                    m_logger.LogDebug(
+                                        exception,
+                                        "Failed to import the PEM private for {Certificate}.",
+                                        certificate.X509.AsLogSafeString());
                                     certificate?.Dispose();
                                     importException = exception;
                                 }
@@ -792,7 +808,7 @@ namespace Opc.Ua
                                 m_logger.LogError(
                                     Utils.TraceMasks.Security,
                                     "A private key for the certificate {Certificate} does not exist.",
-                                     certificate.AsLogSafeString());
+                                     certificate.X509.AsLogSafeString());
                             }
                         }
                     }
@@ -854,8 +870,8 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public Task<StatusCode> IsRevokedAsync(
-            X509Certificate2 issuer,
-            X509Certificate2 certificate,
+            Certificate issuer,
+            Certificate certificate,
             CancellationToken ct = default)
         {
             if (issuer == null)
@@ -959,7 +975,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public async Task<X509CRLCollection> EnumerateCRLsAsync(
-            X509Certificate2 issuer,
+            Certificate issuer,
             bool validateUpdateTime = true,
             CancellationToken ct = default)
         {
@@ -1001,10 +1017,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
-            X509Certificate2 issuer = null;
-            X509Certificate2Collection certificates = await EnumerateAsync(ct).ConfigureAwait(
+            Certificate issuer = null;
+            CertificateCollection certificates = await EnumerateAsync(ct).ConfigureAwait(
                 false);
-            foreach (X509Certificate2 certificate in certificates)
+            foreach (Certificate certificate in certificates)
             {
                 if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName) &&
                     crl.VerifySignature(certificate, false))
@@ -1110,20 +1126,22 @@ namespace Opc.Ua
             {
                 try
                 {
-                    var certificatesInFile = new X509Certificate2Collection();
+                    var certificatesInFile = new CertificateCollection();
                     if (file.Extension
                         .Equals(kPemExtension, StringComparison.OrdinalIgnoreCase))
                     {
-                        certificatesInFile = PEMReader.ImportPublicKeysFromPEM(
-                            File.ReadAllBytes(file.FullName));
+                        certificatesInFile = CertificateCollection.From(
+                            PEMReader.ImportPublicKeysFromPEM(
+                                File.ReadAllBytes(file.FullName)));
                     }
                     else
                     {
                         certificatesInFile.Add(
-                            X509CertificateLoader.LoadCertificateFromFile(file.FullName));
+                            Certificate.From(
+                                X509CertificateLoader.LoadCertificateFromFile(file.FullName)));
                     }
 
-                    foreach (X509Certificate2 certificate in certificatesInFile)
+                    foreach (Certificate certificate in certificatesInFile)
                     {
                         var entry = new Entry
                         {
@@ -1221,10 +1239,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the file name to use for the certificate.
         /// </summary>
-        private static string GetFileName(X509Certificate2 certificate)
+        private static string GetFileName(Certificate certificate)
         {
             // build file name.
-            string commonName = certificate.FriendlyName;
+            string commonName = certificate.X509.FriendlyName;
 
             List<string> names = X509Utils.ParseDistinguishedName(certificate.Subject);
 
@@ -1338,9 +1356,9 @@ namespace Opc.Ua
         private class Entry
         {
             public FileInfo CertificateFile;
-            public X509Certificate2 Certificate;
+            public Certificate Certificate;
             public FileInfo PrivateKeyFile;
-            public X509Certificate2 CertificateWithPrivateKey;
+            public Certificate CertificateWithPrivateKey;
             public DateTime LastWriteTimeUtc;
         }
 

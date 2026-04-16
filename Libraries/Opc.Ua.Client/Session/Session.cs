@@ -38,6 +38,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -100,8 +101,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2? clientCertificate = null,
-            X509Certificate2Collection? clientCertificateChain = null,
+            Certificate? clientCertificate = null,
+            CertificateCollection? clientCertificateChain = null,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
             : this(
@@ -1118,12 +1119,12 @@ namespace Opc.Ua.Client
 
             // validate the server certificate /certificate chain.
             IUserIdentityTokenHandler identityToken = identity.TokenHandler;
-            X509Certificate2? serverCertificate = null;
+            Certificate? serverCertificate = null;
             ByteString certificateData = m_endpoint.Description.ServerCertificate;
 
             if (certificateData.Length > 0)
             {
-                X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(
+                CertificateCollection serverCertificateChain = Utils.ParseCertificateChainBlob(
                     certificateData,
                     m_telemetry);
 
@@ -3913,7 +3914,7 @@ namespace Opc.Ua.Client
                 try
                 {
                     // verify for certificate chain in endpoint.
-                    X509Certificate2Collection serverCertificateChain =
+                    CertificateCollection serverCertificateChain =
                         Utils.ParseCertificateChainBlob(
                             m_endpoint.Description.ServerCertificate,
                             m_telemetry);
@@ -3940,7 +3941,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void ValidateServerSignature(
-            X509Certificate2? serverCertificate,
+            Certificate? serverCertificate,
             SignatureData serverSignature,
             ByteString clientCertificateData,
             ByteString clientCertificateChainData,
@@ -3996,7 +3997,7 @@ namespace Opc.Ua.Client
         /// with the applicationUri of the server description before the validation.
         /// </summary>
         private void ValidateServerCertificateApplicationUri(
-            X509Certificate2? serverCertificate,
+            Certificate? serverCertificate,
             ConfiguredEndpoint endpoint)
         {
             if (serverCertificate != null)
@@ -4610,7 +4611,7 @@ namespace Opc.Ua.Client
         /// Load certificate for connection.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal static async Task<X509Certificate2> LoadInstanceCertificateAsync(
+        internal static async Task<Certificate> LoadInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             string securityProfile,
             ITelemetryContext telemetry,
@@ -4629,16 +4630,16 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Load certificate chain for connection.
         /// </summary>
-        internal static async Task<X509Certificate2Collection?> LoadCertificateChainAsync(
+        internal static async Task<CertificateCollection?> LoadCertificateChainAsync(
             ApplicationConfiguration configuration,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             CancellationToken ct = default)
         {
-            X509Certificate2Collection? clientCertificateChain = null;
+            CertificateCollection? clientCertificateChain = null;
             // load certificate chain.
             if (configuration.SecurityConfiguration.SendCertificateChain)
             {
-                clientCertificateChain = new X509Certificate2Collection(clientCertificate);
+                clientCertificateChain = new CertificateCollection { clientCertificate };
                 List<CertificateIdentifier> issuers = [];
                 await configuration
                     .CertificateValidator.GetIssuersAsync(clientCertificate, issuers, ct)
@@ -4869,7 +4870,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void ProcessResponseAdditionalHeader(
             ResponseHeader responseHeader,
-            X509Certificate2? serverCertificate)
+            Certificate? serverCertificate)
         {
             if (responseHeader != null &&
                 responseHeader.AdditionalHeader.TryGetEncodeable(out IEncodeable e) &&
@@ -4940,12 +4941,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The Instance Certificate.
         /// </summary>
-        protected X509Certificate2? m_instanceCertificate;
+        protected Certificate? m_instanceCertificate;
 
         /// <summary>
         /// The Instance Certificate Chain.
         /// </summary>
-        protected X509Certificate2Collection? m_instanceCertificateChain;
+        protected CertificateCollection? m_instanceCertificateChain;
 
         /// <summary>
         /// The session telemetry context
@@ -4989,7 +4990,7 @@ namespace Opc.Ua.Client
         private readonly List<IUserIdentity> m_identityHistory = [];
         private ByteString m_serverNonce;
         private ByteString m_previousServerNonce;
-        private X509Certificate2? m_serverCertificate;
+        private Certificate? m_serverCertificate;
         private uint m_publishCounter;
         private int m_tooManyPublishRequests;
         private long m_lastKeepAliveTime;

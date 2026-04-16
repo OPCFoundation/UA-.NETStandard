@@ -153,7 +153,7 @@ namespace Opc.Ua.Bindings
 
                 if (instanceCertificateTypesProvider != null)
                 {
-                    X509Certificate2 instanceCertificate = instanceCertificateTypesProvider
+                    Certificate instanceCertificate = instanceCertificateTypesProvider
                         .GetInstanceCertificate(
                             bestPolicy.SecurityPolicyUri);
                     description.ServerCertificate =

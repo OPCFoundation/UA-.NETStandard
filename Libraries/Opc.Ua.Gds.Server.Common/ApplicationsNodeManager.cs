@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Diagnostics;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server
@@ -192,11 +193,11 @@ namespace Opc.Ua.Gds.Server
         {
             if (certificate.Length > 0)
             {
-                using X509Certificate2 x509 = CertificateFactory.Create(certificate);
+                using Certificate x509 = CertificateFactory.Create(certificate);
                 NodeId certificateType = CertificateIdentifier.GetCertificateType(x509);
                 foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
                 {
-                    KeyValuePair<NodeId, X509Certificate2> matchingCert = certificateGroup
+                    KeyValuePair<NodeId, Certificate> matchingCert = certificateGroup
                         .Certificates
                         .FirstOrDefault(
                             kvp =>
@@ -224,8 +225,7 @@ namespace Opc.Ua.Gds.Server
 
                 if (certificateGroup != null)
                 {
-                    using X509Certificate2 x509 = CertificateFactory.Create(certificate);
-                    try
+                    using Certificate x509 = CertificateFactory.Create(certificate);                    try
                     {
                         Security.Certificates.X509CRL crl = await certificateGroup
                             .RevokeCertificateAsync(x509)
@@ -854,8 +854,8 @@ namespace Opc.Ua.Gds.Server
                     try
                     {
                         chain.ChainPolicy.ExtraStore
-                            .AddRange(await store.EnumerateAsync(cancellationToken)
-                                .ConfigureAwait(false));
+                            .AddRange((await store.EnumerateAsync(cancellationToken)
+                                .ConfigureAwait(false)).AsX509Certificate2Collection());
                     }
                     finally
                     {
@@ -863,8 +863,8 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                using X509Certificate2 x509 = CertificateFactory.Create(certificate);
-                if (chain.Build(x509))
+                using Certificate x509 = CertificateFactory.Create(certificate);
+                if (chain.Build(x509.X509))
                 {
                     result.CertificateStatus = StatusCodes.Good;
                     return result;
@@ -1479,7 +1479,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             // distinguish cert creation at approval/complete time
-            X509Certificate2 certificate = null;
+            Certificate certificate = null;
             if (result.Certificate.IsEmpty)
             {
                 state = m_request.ReadRequest(

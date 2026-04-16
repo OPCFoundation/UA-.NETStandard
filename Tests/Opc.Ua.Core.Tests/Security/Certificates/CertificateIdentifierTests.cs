@@ -43,7 +43,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [Parallelizable]
     public class CertificateIdentifierTests
     {
-        private X509Certificate2 m_selfSignedCert;
+        private Certificate m_selfSignedCert;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void DisposeCertificateNullsCertificateProperty()
         {
             // Use a separate certificate to avoid disposing the shared one
-            using X509Certificate2 cert = CertificateBuilder.Create("CN=DisposeTest")
+            using Certificate cert = CertificateBuilder.Create("CN=DisposeTest")
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(365)
                 .SetRSAKeySize(2048)

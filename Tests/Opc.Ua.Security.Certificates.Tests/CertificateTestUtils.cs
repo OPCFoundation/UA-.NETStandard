@@ -196,7 +196,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     {
         public string Path { get; private set; }
         public byte[] Cert { get; private set; }
-        public X509Certificate2 X509Certificate { get; private set; }
+        public Certificate X509Certificate { get; private set; }
 
         public void Initialize(byte[] blob, string path)
         {
@@ -204,7 +204,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Cert = blob;
             try
             {
-                X509Certificate = X509CertificateLoader.LoadCertificateFromFile(path);
+                X509Certificate = new Certificate(path);
             }
             catch
             {

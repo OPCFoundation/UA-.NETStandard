@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -51,7 +51,7 @@ namespace Opc.Ua
         /// Gets or sets the client certificate.
         /// </summary>
         /// <remarks>May be null if no security is used.</remarks>
-        public X509Certificate2 ClientCertificate { get; set; }
+        public Certificate ClientCertificate { get; set; }
 
         /// <summary>
         /// Gets or sets the client certificate chain.
@@ -59,13 +59,13 @@ namespace Opc.Ua
         /// <value>
         /// The client certificate chain.
         /// </value>
-        public X509Certificate2Collection ClientCertificateChain { get; set; }
+        public CertificateCollection ClientCertificateChain { get; set; }
 
         /// <summary>
         /// Gets or Sets the server certificate.
         /// </summary>
         /// <remarks>May be null if no security is used.</remarks>
-        public X509Certificate2 ServerCertificate { get; set; }
+        public Certificate ServerCertificate { get; set; }
 
         /// <summary>
         /// Gets or sets the certificate validator for the application.

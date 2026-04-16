@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -46,7 +45,7 @@ namespace Opc.Ua.Server.Tests
     {
         private Mock<IServerInternal> m_serverMock;
         private ITelemetryContext m_telemetry;
-        private X509Certificate2 m_testCertificate;
+        private Certificate m_testCertificate;
         private ApplicationConfiguration m_config;
 
         [OneTimeSetUp]
@@ -102,7 +101,7 @@ namespace Opc.Ua.Server.Tests
             return new TestableSessionManager(m_serverMock.Object, m_config);
         }
 
-        private Mock<ISession> CreateSessionMock(X509Certificate2 certificate)
+        private Mock<ISession> CreateSessionMock(Certificate certificate)
         {
             var sessionMock = new Mock<ISession>();
             sessionMock.Setup(s => s.ClientCertificate).Returns(certificate);

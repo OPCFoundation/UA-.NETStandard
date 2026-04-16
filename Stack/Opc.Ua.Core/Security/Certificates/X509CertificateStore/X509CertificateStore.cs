@@ -138,16 +138,16 @@ namespace Opc.Ua
         public bool NoPrivateKeys { get; private set; }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
+        public Task<CertificateCollection> EnumerateAsync(CancellationToken ct = default)
         {
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadOnly);
-            return Task.FromResult(new X509Certificate2Collection(store.Certificates));
+            return Task.FromResult(CertificateCollection.From(new X509Certificate2Collection(store.Certificates)));
         }
 
         /// <inheritdoc/>
         public Task AddAsync(
-            X509Certificate2 certificate,
+            Certificate certificate,
             char[] password = null,
             CancellationToken ct = default)
         {
@@ -159,30 +159,30 @@ namespace Opc.Ua
             using (var store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadWrite);
-                if (!store.Certificates.Contains(certificate))
+                if (!store.Certificates.Contains(certificate.X509))
                 {
                     if (certificate.HasPrivateKey && !NoPrivateKeys)
                     {
                         // X509Store needs a persisted private key
-                        X509Certificate2 persistedCertificate = X509Utils.CreateCopyWithPrivateKey(
+                        Certificate persistedCertificate = X509Utils.CreateCopyWithPrivateKey(
                             certificate,
                             true);
-                        store.Add(persistedCertificate);
+                        store.Add(persistedCertificate.X509);
                     }
                     else if (certificate.HasPrivateKey && NoPrivateKeys)
                     {
                         // ensure no private key is added to store
-                        using X509Certificate2 publicKey = CertificateFactory.Create(certificate.RawData);
-                        store.Add(publicKey);
+                        using Certificate publicKey = CertificateFactory.Create(certificate.RawData);
+                        store.Add(publicKey.X509);
                     }
                     else
                     {
-                        store.Add(certificate);
+                        store.Add(certificate.X509);
                     }
 
                     m_logger.LogInformation(
                         "Added certificate {Certificate} to X509Store {Name}.",
-                        certificate.AsLogSafeString(),
+                        certificate.X509.AsLogSafeString(),
                         store.Name);
                 }
             }
@@ -210,20 +210,20 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> FindByThumbprintAsync(
+        public Task<CertificateCollection> FindByThumbprintAsync(
             string thumbprint,
             CancellationToken ct = default)
         {
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadOnly);
 
-            var collection = new X509Certificate2Collection();
+            var collection = new CertificateCollection();
 
             foreach (X509Certificate2 certificate in store.Certificates)
             {
                 if (certificate.Thumbprint == thumbprint)
                 {
-                    collection.Add(certificate);
+                    collection.Add(Certificate.From(certificate));
                 }
             }
 
@@ -235,7 +235,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(
+        public Task<Certificate> LoadPrivateKeyAsync(
             string thumbprint,
             string subjectName,
             string applicationUri,
@@ -243,7 +243,7 @@ namespace Opc.Ua
             char[] password,
             CancellationToken ct = default)
         {
-            return Task.FromResult<X509Certificate2>(null);
+            return Task.FromResult<Certificate>(null);
         }
 
         /// <inheritdoc/>
@@ -253,8 +253,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
         public async Task<StatusCode> IsRevokedAsync(
-            X509Certificate2 issuer,
-            X509Certificate2 certificate,
+            Certificate issuer,
+            Certificate certificate,
             CancellationToken ct = default)
         {
             if (!SupportsCRLs)
@@ -343,7 +343,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
         public async Task<X509CRLCollection> EnumerateCRLsAsync(
-            X509Certificate2 issuer,
+            Certificate issuer,
             bool validateUpdateTime = true,
             CancellationToken ct = default)
         {
@@ -393,10 +393,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
-            X509Certificate2 issuer = null;
-            X509Certificate2Collection certificates = await EnumerateAsync(ct).ConfigureAwait(
+            Certificate issuer = null;
+            CertificateCollection certificates = await EnumerateAsync(ct).ConfigureAwait(
                 false);
-            foreach (X509Certificate2 certificate in certificates)
+            foreach (Certificate certificate in certificates)
             {
                 if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName) &&
                     crl.VerifySignature(certificate, false))
@@ -438,7 +438,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public Task AddRejectedAsync(
-            X509Certificate2Collection certificates,
+            CertificateCollection certificates,
             int maxCertificates,
             CancellationToken ct = default)
         {

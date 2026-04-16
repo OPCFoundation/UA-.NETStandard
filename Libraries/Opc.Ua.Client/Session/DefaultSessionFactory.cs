@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -249,8 +249,8 @@ namespace Opc.Ua.Client
                     endpoint);
             }
 
-            X509Certificate2? clientCertificate = null;
-            X509Certificate2Collection? clientCertificateChain = null;
+            Certificate? clientCertificate = null;
+            CertificateCollection? clientCertificateChain = null;
             if (endpointDescription.SecurityPolicyUri is not null and not SecurityPolicies.None)
             {
                 clientCertificate = await Session.LoadInstanceCertificateAsync(
@@ -346,8 +346,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2? clientCertificate = null,
-            X509Certificate2Collection? clientCertificateChain = null,
+            Certificate? clientCertificate = null,
+            CertificateCollection? clientCertificateChain = null,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {

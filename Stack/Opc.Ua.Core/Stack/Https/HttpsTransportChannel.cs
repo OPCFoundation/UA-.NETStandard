@@ -38,6 +38,7 @@ using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
@@ -396,7 +397,7 @@ namespace Opc.Ua.Bindings
                     if (m_settings!.ClientCertificate != null)
                     {
                         // prepare the server TLS certificate
-                        X509Certificate2 clientCertificate = m_settings.ClientCertificate;
+                        Certificate clientCertificate = m_settings.ClientCertificate;
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
                         try
                         {
@@ -413,7 +414,7 @@ namespace Opc.Ua.Bindings
                             m_logger.LogError(ce, "Copy of the private key for https was denied");
                         }
 #endif
-                        handler.ClientCertificates.Add(clientCertificate);
+                        handler.ClientCertificates.Add(clientCertificate.X509);
                     }
 
                     Func<
@@ -459,7 +460,7 @@ namespace Opc.Ua.Bindings
                                     validationChain.Add(cert);
                                 }
 
-                                m_quotas.CertificateValidator?.ValidateAsync(validationChain, default).GetAwaiter().GetResult();
+                                m_quotas.CertificateValidator?.ValidateAsync(CertificateCollection.From(validationChain), default).GetAwaiter().GetResult();
 
                                 return true;
                             }

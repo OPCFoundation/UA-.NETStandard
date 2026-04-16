@@ -583,7 +583,7 @@ namespace Opc.Ua.Bindings
             IMessageSocket socket,
             uint requestId,
             uint sequenceNumber,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
@@ -653,7 +653,7 @@ namespace Opc.Ua.Bindings
     public delegate void ReportAuditOpenSecureChannelEventHandler(
         TcpServerChannel channel,
         OpenSecureChannelRequest request,
-        X509Certificate2 clientCertificate,
+        Certificate clientCertificate,
         Exception exception);
 
     /// <summary>
@@ -667,6 +667,6 @@ namespace Opc.Ua.Bindings
     /// Used to report an open secure channel audit event.
     /// </summary>
     public delegate void ReportAuditCertificateEventHandler(
-        X509Certificate2 clientCertificate,
+        Certificate clientCertificate,
         Exception exception);
 }

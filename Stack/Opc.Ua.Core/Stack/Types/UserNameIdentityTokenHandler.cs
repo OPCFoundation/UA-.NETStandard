@@ -30,6 +30,7 @@
 using System;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -89,13 +90,13 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void Encrypt(
-            X509Certificate2 receiverCertificate,
+            Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce receiverEphemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false)
         {
             if (DecryptedPassword == null)
@@ -137,7 +138,7 @@ namespace Opc.Ua
                     senderIssuerCertificates.Count > 0 &&
                     senderIssuerCertificates[0].Thumbprint == senderCertificate.Thumbprint)
                 {
-                    var issuers = new X509Certificate2Collection();
+                    var issuers = new CertificateCollection();
 
                     for (int ii = 1; ii < senderIssuerCertificates.Count; ii++)
                     {
@@ -165,13 +166,13 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void Decrypt(
-            X509Certificate2 certificate,
+            Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce ephemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
             CertificateValidator validator = null)
         {
             //zero out existing password

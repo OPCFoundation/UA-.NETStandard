@@ -36,8 +36,8 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using System;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
@@ -54,9 +54,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using X509Certificate2 serverCertificate = CertificateFactory.CreateCertificate("CN=server").CreateForRSA();
-            using X509Certificate2 clientCertificate = CertificateFactory.CreateCertificate("CN=client").CreateForRSA();
-            var clientCertificateChain = new X509Certificate2Collection();
+            using Certificate serverCertificate = CertificateFactory.CreateCertificate("CN=server").CreateForRSA();
+            using Certificate clientCertificate = CertificateFactory.CreateCertificate("CN=client").CreateForRSA();
+            var clientCertificateChain = new CertificateCollection();
 
             var transportChannelMock = new Mock<IChannel>();
             var transportBindingsMock = new Mock<ITransportChannelBindings>();
@@ -86,9 +86,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public async Task CreateChannelShouldCreateChannelAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            using X509Certificate2 serverCertificate = CertificateFactory.CreateCertificate("CN=server").CreateForRSA();
-            using X509Certificate2 clientCertificate = CertificateFactory.CreateCertificate("CN=client").CreateForRSA();
-            var clientCertificateChain = new X509Certificate2Collection();
+            using Certificate serverCertificate = CertificateFactory.CreateCertificate("CN=server").CreateForRSA();
+            using Certificate clientCertificate = CertificateFactory.CreateCertificate("CN=client").CreateForRSA();
+            var clientCertificateChain = new CertificateCollection();
 
             var transportChannelMock = new Mock<IChannel>();
             var transportBindingsMock = new Mock<ITransportChannelBindings>();
@@ -499,7 +499,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(port, Is.EqualTo(-1));
         }
 
-        private static ConfiguredEndpoint GetTestEndpoint(X509Certificate2 serverCert)
+        private static ConfiguredEndpoint GetTestEndpoint(Certificate serverCert)
         {
             var endpoint = new ConfiguredEndpoint
             {

@@ -255,7 +255,7 @@ namespace Opc.Ua
                     for (int i = 0; i < appCerts.Count; i++)
                     {
                         CertificateIdentifier applicationCertificate = appCerts[i];
-                        X509Certificate2 certificate = await applicationCertificate
+                        Certificate certificate = await applicationCertificate
                             .FindAsync(true, applicationUri, m_telemetry, ct)
                             .ConfigureAwait(false);
                         if (certificate == null)
@@ -520,7 +520,7 @@ namespace Opc.Ua
                     // free.  isMaintenance=true ensures the semaphore wait never times out so
                     // that configuration-driven changes are always honoured.
                     _ = Task.Factory.StartNew(
-                        async () => await SaveCertificatesAsync([], isMaintenance: true).ConfigureAwait(false),
+                        async () => await SaveCertificatesAsync(new CertificateCollection(), isMaintenance: true).ConfigureAwait(false),
                         CancellationToken.None,
                         TaskCreationOptions.LongRunning,
                         TaskScheduler.Default);
@@ -529,14 +529,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task ValidateAsync(X509Certificate2 certificate, CancellationToken ct)
+        public Task ValidateAsync(Certificate certificate, CancellationToken ct)
         {
-            return ValidateAsync([certificate], ct);
+            return ValidateAsync(new CertificateCollection { certificate }, ct);
         }
 
         /// <inheritdoc/>
         public virtual Task ValidateAsync(
-            X509Certificate2Collection certificateChain,
+            CertificateCollection certificateChain,
             CancellationToken ct)
         {
             return ValidateAsync(certificateChain, null, ct);
@@ -544,14 +544,14 @@ namespace Opc.Ua
 
         /// <summary>
         /// Validates a certificate with domain validation check.
-        /// <see cref="ValidateAsync(X509Certificate2Collection, CancellationToken)"/>
+        /// <see cref="ValidateAsync(CertificateCollection, CancellationToken)"/>
         /// </summary>
         public virtual async Task ValidateAsync(
-            X509Certificate2Collection chain,
+            CertificateCollection chain,
             ConfiguredEndpoint endpoint,
             CancellationToken ct)
         {
-            X509Certificate2 certificate = chain[0];
+            Certificate certificate = chain[0];
 
             try
             {
@@ -559,7 +559,7 @@ namespace Opc.Ua
 
                 m_validatedCertificates.GetOrAdd(
                    certificate.Thumbprint,
-                   _ => X509CertificateLoader.LoadCertificate(certificate.RawData));
+                   _ => Certificate.FromRawData(certificate.RawData));
                 return;
             }
             catch (ServiceResultException se)
@@ -570,25 +570,25 @@ namespace Opc.Ua
             // add to list of peers.
             m_logger.LogWarning(
                 "Validation errors suppressed: {Certificate}",
-                certificate.AsLogSafeString());
+                certificate.X509.AsLogSafeString());
             m_validatedCertificates.GetOrAdd(
                    certificate.Thumbprint,
-                   _ => X509CertificateLoader.LoadCertificate(certificate.RawData));
+                   _ => Certificate.FromRawData(certificate.RawData));
         }
 
         /// <summary>
         /// Returns the issuers for the certificates.
         /// </summary>
         public async Task<bool> GetIssuersNoExceptionsOnGetIssuerAsync(
-            X509Certificate2Collection certificates,
+            CertificateCollection certificates,
             List<CertificateIdentifier> issuers,
-            Dictionary<X509Certificate2, ServiceResultException> validationErrors,
+            Dictionary<Certificate, ServiceResultException> validationErrors,
             CancellationToken ct = default)
         {
             bool isTrusted = false;
             CertificateIdentifier issuer = null;
             ServiceResultException revocationStatus = null;
-            X509Certificate2 certificate = certificates[0];
+            Certificate certificate = certificates[0];
 
             var untrustedList = new List<CertificateIdentifier>();
             for (int ii = 1; ii < certificates.Count; ii++)
@@ -718,7 +718,7 @@ namespace Opc.Ua
         /// </summary>
         [Obsolete("Use GetIssuersAsync instead.")]
         public Task<bool> GetIssuers(
-            X509Certificate2Collection certificates,
+            CertificateCollection certificates,
             List<CertificateIdentifier> issuers)
         {
             return GetIssuersAsync(certificates, issuers);
@@ -728,7 +728,7 @@ namespace Opc.Ua
         /// Returns the issuers for the certificates.
         /// </summary>
         public Task<bool> GetIssuersAsync(
-            X509Certificate2Collection certificates,
+            CertificateCollection certificates,
             List<CertificateIdentifier> issuers,
             CancellationToken ct = default)
         {
@@ -746,7 +746,7 @@ namespace Opc.Ua
         /// <param name="issuers">The issuers.</param>
         [Obsolete("Use GetIssuersAsync instead.")]
         public Task<bool> GetIssuers(
-            X509Certificate2 certificate,
+            Certificate certificate,
             List<CertificateIdentifier> issuers)
         {
             return GetIssuersAsync(certificate, issuers);
@@ -759,11 +759,11 @@ namespace Opc.Ua
         /// <param name="issuers">The issuers.</param>
         /// <param name="ct"></param>
         public Task<bool> GetIssuersAsync(
-            X509Certificate2 certificate,
+            Certificate certificate,
             List<CertificateIdentifier> issuers,
             CancellationToken ct = default)
         {
-            return GetIssuersAsync([certificate], issuers, ct);
+            return GetIssuersAsync(new CertificateCollection { certificate }, issuers, ct);
         }
 
         /// <summary>
@@ -772,7 +772,7 @@ namespace Opc.Ua
         private void InternalResetValidatedCertificates()
         {
             // dispose outdated list
-            foreach (KeyValuePair<string, X509Certificate2> kvp in m_validatedCertificates)
+            foreach (KeyValuePair<string, Certificate> kvp in m_validatedCertificates)
             {
                 kvp.Value?.Dispose();
             }
@@ -785,15 +785,15 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void HandleCertificateValidationException(
             ServiceResultException se,
-            X509Certificate2 certificate,
-            X509Certificate2Collection chain)
+            Certificate certificate,
+            CertificateCollection chain)
         {
             // check for errors that may be suppressed.
             if (ContainsUnsuppressibleSC(se.Result))
             {
                 m_logger.LogError(
                     "Certificate {Certificate} rejected. Reason={ServiceResult}.",
-                    certificate.AsLogSafeString(),
+                    certificate.X509.AsLogSafeString(),
                     se.Result);
 
                 // save the chain in rejected store to allow to add certs to a trusted or issuer store
@@ -829,7 +829,7 @@ namespace Opc.Ua
                     serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
                 {
                     accept = true;
-                    m_logger.LogInformation("Auto accepted certificate {Certificate}", certificate.AsLogSafeString());
+                    m_logger.LogInformation("Auto accepted certificate {Certificate}", certificate.X509.AsLogSafeString());
                 }
 
                 if (accept)
@@ -856,7 +856,7 @@ namespace Opc.Ua
                 // only log errors if the cert validation failed and it was not accepted
                 m_logger.LogError(
                     "Certificate {Certificate} validation failed with suppressible errors but was rejected. Reason={ServiceResult}.",
-                    certificate.AsLogSafeString(),
+                    certificate.X509.AsLogSafeString(),
                     se.Result.ToLongString());
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
 
@@ -904,10 +904,10 @@ namespace Opc.Ua
         /// Saves the certificate in the rejected certificate store.
         /// </summary>
         private Task SaveCertificateAsync(
-            X509Certificate2 certificate,
+            Certificate certificate,
             CancellationToken ct = default)
         {
-            return SaveCertificatesAsync([certificate], ct: ct);
+            return SaveCertificatesAsync(new CertificateCollection { certificate }, ct: ct);
         }
 
         /// <summary>
@@ -917,7 +917,7 @@ namespace Opc.Ua
         /// waits indefinitely so that configuration-driven changes are always honoured.
         /// </summary>
         private async Task SaveCertificatesAsync(
-            X509Certificate2Collection certificateChain,
+            CertificateCollection certificateChain,
             bool isMaintenance = false,
             CancellationToken ct = default)
         {
@@ -980,7 +980,7 @@ namespace Opc.Ua
         /// Returns the certificate information for a trusted peer certificate.
         /// </summary>
         private async Task<CertificateIdentifier> GetTrustedCertificateAsync(
-            X509Certificate2 certificate,
+            Certificate certificate,
             CancellationToken ct = default)
         {
             await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
@@ -991,7 +991,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < m_trustedCertificateList.Count; ii++)
                     {
-                        X509Certificate2 trusted = await m_trustedCertificateList[ii]
+                        Certificate trusted = await m_trustedCertificateList[ii]
                             .FindAsync(false, applicationUri: null, m_telemetry, ct)
                             .ConfigureAwait(false);
 
@@ -1012,7 +1012,7 @@ namespace Opc.Ua
                     {
                         try
                         {
-                            X509Certificate2Collection trusted = await store
+                            CertificateCollection trusted = await store
                                 .FindByThumbprintAsync(certificate.Thumbprint, ct)
                                 .ConfigureAwait(false);
 
@@ -1046,7 +1046,7 @@ namespace Opc.Ua
         /// Returns true if the certificate matches the criteria.
         /// </summary>
         private static bool Match(
-            X509Certificate2 certificate,
+            Certificate certificate,
             X500DistinguishedName subjectName,
             string serialNumber,
             string authorityKeyId)
@@ -1099,7 +1099,7 @@ namespace Opc.Ua
         /// Returns the certificate information for a trusted issuer certificate.
         /// </summary>
         private async Task<(CertificateIdentifier, ServiceResultException)> GetIssuerNoExceptionAsync(
-            X509Certificate2 certificate,
+            Certificate certificate,
             ArrayOf<CertificateIdentifier> explicitList,
             CertificateStoreIdentifier certificateStore,
             bool checkRecovationStatus,
@@ -1129,7 +1129,7 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < explicitList.Count; ii++)
                 {
-                    X509Certificate2 issuer = await explicitList[ii].FindAsync(
+                    Certificate issuer = await explicitList[ii].FindAsync(
                         false,
                         applicationUri: null,
                         m_telemetry,
@@ -1171,12 +1171,12 @@ namespace Opc.Ua
                         return (null, null);
                     }
 
-                    X509Certificate2Collection certificates = await store.EnumerateAsync(ct)
+                    CertificateCollection certificates = await store.EnumerateAsync(ct)
                         .ConfigureAwait(false);
 
                     for (int ii = 0; ii < certificates.Count; ii++)
                     {
-                        X509Certificate2 issuer = certificates[ii];
+                        Certificate issuer = certificates[ii];
 
                         if (issuer != null)
                         {
@@ -1250,7 +1250,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private async Task<CertificateIdentifier> GetIssuerAsync(
-            X509Certificate2 certificate,
+            Certificate certificate,
             ArrayOf<CertificateIdentifier> explicitList,
             CertificateStoreIdentifier certificateStore,
             bool checkRecovationStatus,
@@ -1290,18 +1290,18 @@ namespace Opc.Ua
         //     Justification = "Revocation is already checked."
         // )]
         protected virtual async Task InternalValidateAsync(
-            X509Certificate2Collection certificates,
+            CertificateCollection certificates,
             ConfiguredEndpoint endpoint,
             CancellationToken ct = default)
         {
-            X509Certificate2 certificate = certificates[0];
+            Certificate certificate = certificates[0];
 
             // check for previously validated certificate.
 
             if (UseValidatedCertificates &&
                 m_validatedCertificates.TryGetValue(
                     certificate.Thumbprint,
-                    out X509Certificate2 certificate2) &&
+                    out Certificate certificate2) &&
                 Utils.IsEqual(certificate2.RawData, certificate.RawData))
             {
                 return;
@@ -1312,7 +1312,7 @@ namespace Opc.Ua
 
             // get the issuers (checks the revocation lists if using directory stores).
             var issuers = new List<CertificateIdentifier>();
-            var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
+            var validationErrors = new Dictionary<Certificate, ServiceResultException>();
 
             bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuerAsync(
                 certificates,
@@ -1350,7 +1350,7 @@ namespace Opc.Ua
 
                 // we did the revocation check in the GetIssuers call. No need here.
                 policy.RevocationMode = X509RevocationMode.NoCheck;
-                policy.ExtraStore.Add(issuer.Certificate);
+                policy.ExtraStore.Add(issuer.Certificate.X509);
             }
 
             // build chain.
@@ -1358,7 +1358,7 @@ namespace Opc.Ua
             using (var chain = new X509Chain())
             {
                 chain.ChainPolicy = policy;
-                chain.Build(certificate);
+                chain.Build(certificate.X509);
 
                 // check the chain results.
                 CertificateIdentifier target = trustedCertificate ??
@@ -1471,7 +1471,7 @@ namespace Opc.Ua
             bool issuedByCA = !X509Utils.IsSelfSigned(certificate);
             if (issuers.Count > 0)
             {
-                X509Certificate2 rootCertificate = issuers[^1].Certificate;
+                Certificate rootCertificate = issuers[^1].Certificate;
                 if (!X509Utils.IsSelfSigned(rootCertificate))
                 {
                     chainIncomplete = true;
@@ -1505,7 +1505,7 @@ namespace Opc.Ua
                     bool isApplicationCertificate = false;
                     if (m_applicationCertificates != null)
                     {
-                        foreach (X509Certificate2 appCert in m_applicationCertificates)
+                        foreach (Certificate appCert in m_applicationCertificates)
                         {
                             if (Utils.IsEqual(appCert.RawData, certificate.RawData))
                             {
@@ -1639,15 +1639,15 @@ namespace Opc.Ua
         }
 
         private static ServiceResult PopulateSresultWithValidationErrors(
-            Dictionary<X509Certificate2, ServiceResultException> validationErrors)
+            Dictionary<Certificate, ServiceResultException> validationErrors)
         {
-            var p1List = new Dictionary<X509Certificate2, ServiceResultException>();
-            var p2List = new Dictionary<X509Certificate2, ServiceResultException>();
-            var p3List = new Dictionary<X509Certificate2, ServiceResultException>();
+            var p1List = new Dictionary<Certificate, ServiceResultException>();
+            var p2List = new Dictionary<Certificate, ServiceResultException>();
+            var p3List = new Dictionary<Certificate, ServiceResultException>();
 
             ServiceResult sresult = null;
 
-            foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in validationErrors)
+            foreach (KeyValuePair<Certificate, ServiceResultException> kvp in validationErrors)
             {
                 if (kvp.Value != null)
                 {
@@ -1694,7 +1694,7 @@ namespace Opc.Ua
 
             if (p3List.Count > 0)
             {
-                foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p3List)
+                foreach (KeyValuePair<Certificate, ServiceResultException> kvp in p3List)
                 {
                     LocalizedText message = CertificateMessage(
                         "Certificate revocation list not found.",
@@ -1709,7 +1709,7 @@ namespace Opc.Ua
             }
             if (p2List.Count > 0)
             {
-                foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p2List)
+                foreach (KeyValuePair<Certificate, ServiceResultException> kvp in p2List)
                 {
                     LocalizedText message = CertificateMessage("Certificate issuer is revoked.", kvp.Key);
                     sresult = new ServiceResult(
@@ -1722,7 +1722,7 @@ namespace Opc.Ua
             }
             if (p1List.Count > 0)
             {
-                foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p1List)
+                foreach (KeyValuePair<Certificate, ServiceResultException> kvp in p1List)
                 {
                     LocalizedText message = CertificateMessage("Certificate is revoked.", kvp.Key);
                     sresult = new ServiceResult(
@@ -1762,7 +1762,7 @@ namespace Opc.Ua
         /// <see cref="StatusCodes.BadCertificateHostNameInvalid"/>if the endpoint can not be found in the list of domais in the certificate.
         /// </exception>
         public void ValidateDomains(
-            X509Certificate2 serverCertificate,
+            Certificate serverCertificate,
             ConfiguredEndpoint endpoint,
             bool serverValidation = false)
         {
@@ -1770,7 +1770,7 @@ namespace Opc.Ua
                 m_useValidatedCertificates &&
                 m_validatedCertificates.TryGetValue(
                     serverCertificate.Thumbprint,
-                    out X509Certificate2 certificate2) &&
+                    out Certificate certificate2) &&
                 Utils.IsEqual(certificate2.RawData, serverCertificate.RawData))
             {
                 return;
@@ -1805,7 +1805,7 @@ namespace Opc.Ua
                         // write the invalid certificate to rejected store if specified.
                         m_logger.LogError(
                             "Certificate {Certificate} rejected. Reason={ServiceResult}.",
-                            serverCertificate.AsLogSafeString(),
+                            serverCertificate.X509.AsLogSafeString(),
                             Redact.Create(serviceResult));
                         _ = Task.Run(async () => await SaveCertificateAsync(serverCertificate)
                             .ConfigureAwait(false));
@@ -1827,7 +1827,7 @@ namespace Opc.Ua
         /// <see cref="StatusCodes.BadCertificateUriInvalid"/>if the application Uri can not be found in
         /// the subject alternate names field in the certificate.
         /// </exception>
-        public void ValidateApplicationUri(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint)
+        public void ValidateApplicationUri(Certificate serverCertificate, ConfiguredEndpoint endpoint)
         {
             ServiceResult serviceResult = ValidateServerCertificateApplicationUri(serverCertificate, endpoint);
 
@@ -1847,7 +1847,7 @@ namespace Opc.Ua
                     // write the invalid certificate to rejected store if specified.
                     m_logger.LogError(
                         "Certificate {Certificate} rejected. Reason={ServiceResult}.",
-                        serverCertificate.AsLogSafeString(),
+                        serverCertificate.X509.AsLogSafeString(),
                         Redact.Create(serviceResult));
                     _ = Task.Run(async () => await SaveCertificateAsync(serverCertificate).ConfigureAwait(false));
 
@@ -1856,7 +1856,7 @@ namespace Opc.Ua
             }
         }
 
-        private static ServiceResult ValidateServerCertificateApplicationUri(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint)
+        private static ServiceResult ValidateServerCertificateApplicationUri(Certificate serverCertificate, ConfiguredEndpoint endpoint)
         {
             string applicationUri = endpoint?.Description?.Server?.ApplicationUri;
 
@@ -2043,7 +2043,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a certificate information message.
         /// </summary>
-        private static LocalizedText CertificateMessage(string error, X509Certificate2 certificate)
+        private static LocalizedText CertificateMessage(string error, Certificate certificate)
         {
             StringBuilder message = new StringBuilder()
                 .AppendLine(error)
@@ -2062,7 +2062,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns if a self signed certificate is properly signed.
         /// </summary>
-        private static bool IsSignatureValid(X509Certificate2 cert)
+        private static bool IsSignatureValid(Certificate cert)
         {
             return X509Utils.VerifySelfSigned(cert);
         }
@@ -2105,7 +2105,7 @@ namespace Opc.Ua
         /// <param name="serverCertificate">The server certificate which is tested for domain names.</param>
         /// <param name="endpointUrl">The endpoint Url which was used to connect.</param>
         /// <returns>True if domain was found.</returns>
-        private static bool FindDomain(X509Certificate2 serverCertificate, Uri endpointUrl)
+        private static bool FindDomain(Certificate serverCertificate, Uri endpointUrl)
         {
             bool domainFound = false;
 
@@ -2167,7 +2167,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="NotSupportedException"></exception>
         public static bool IsECSecureForProfile(
-            X509Certificate2 certificate,
+            Certificate certificate,
             int requiredKeySizeInBits)
         {
             using ECDsa ecdsa =
@@ -2211,7 +2211,7 @@ namespace Opc.Ua
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
-        private readonly ConcurrentDictionary<string, X509Certificate2> m_validatedCertificates;
+        private readonly ConcurrentDictionary<string, Certificate> m_validatedCertificates;
         private CertificateStoreIdentifier m_trustedCertificateStore;
         private ArrayOf<CertificateIdentifier> m_trustedCertificateList;
         private CertificateStoreIdentifier m_issuerCertificateStore;
@@ -2219,7 +2219,7 @@ namespace Opc.Ua
         private CertificateStoreIdentifier m_rejectedCertificateStore;
         private event CertificateValidationEventHandler m_CertificateValidation;
         private event CertificateUpdateEventHandler m_CertificateUpdate;
-        private readonly List<X509Certificate2> m_applicationCertificates;
+        private readonly List<Certificate> m_applicationCertificates;
         private ProtectFlags m_protectFlags;
         private bool m_autoAcceptUntrustedCertificates;
         private bool m_rejectSHA1SignedCertificates;
@@ -2237,7 +2237,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        public CertificateValidationEventArgs(ServiceResult error, X509Certificate2 certificate)
+        public CertificateValidationEventArgs(ServiceResult error, Certificate certificate)
         {
             Error = error;
             Certificate = certificate;
@@ -2251,7 +2251,7 @@ namespace Opc.Ua
         /// <summary>
         /// The certificate.
         /// </summary>
-        public X509Certificate2 Certificate { get; }
+        public Certificate Certificate { get; }
 
         /// <summary>
         /// Whether the current error reported for

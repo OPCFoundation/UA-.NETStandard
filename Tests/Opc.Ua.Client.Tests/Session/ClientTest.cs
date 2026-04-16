@@ -168,7 +168,7 @@ namespace Opc.Ua.Client.Tests
 
                 if (!endpoint.ServerCertificate.IsEmpty)
                 {
-                    using X509Certificate2 cert = CertificateFactory.Create(
+                    using Certificate cert = CertificateFactory.Create(
                         endpoint.ServerCertificate);
                     TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
                 }
@@ -2011,7 +2011,7 @@ namespace Opc.Ua.Client.Tests
                 if (eccurveHashPair.Curve.Oid.FriendlyName
                     .Contains(extractedFriendlyNamae, StringComparison.Ordinal))
                 {
-                    X509Certificate2 cert = CertificateBuilder
+                    Certificate cert = CertificateBuilder
                         .Create("CN=Client Test ECC Subject, O=OPC Foundation")
                         .SetECCurve(eccurveHashPair.Curve)
                         .CreateForECDsa();

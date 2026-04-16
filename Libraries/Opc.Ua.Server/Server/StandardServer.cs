@@ -33,11 +33,11 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -264,7 +264,7 @@ namespace Opc.Ua.Server
             string globalChannelId,
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             ServerInternal?.ReportAuditOpenSecureChannelEvent(
@@ -286,7 +286,7 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public override void ReportAuditCertificateEvent(
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             ServerInternal?.ReportAuditCertificateEvent(clientCertificate, exception, m_logger);
@@ -337,16 +337,16 @@ namespace Opc.Ua.Server
                     requireEncryption = true;
                 }
 
-                X509Certificate2Collection clientIssuerCertificates = null;
+                CertificateCollection clientIssuerCertificates = null;
 
                 // validate client application instance certificate.
-                X509Certificate2 parsedClientCertificate = null;
+                Certificate parsedClientCertificate = null;
 
                 if (requireEncryption && clientCertificate.Length > 0)
                 {
                     try
                     {
-                        X509Certificate2Collection clientCertificateChain
+                        CertificateCollection clientCertificateChain
                             = Utils.ParseCertificateChainBlob(
                                 clientCertificate,
                                 m_serverInternal.Telemetry);
@@ -411,7 +411,7 @@ namespace Opc.Ua.Server
                 }
 
                 // load the certificate for the security profile
-                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider
+                Certificate instanceCertificate = InstanceCertificateTypesProvider
                     .GetInstanceCertificate(
                         context.SecurityPolicyUri);
 
@@ -2232,7 +2232,7 @@ namespace Opc.Ua.Server
                             };
 
                             // create the client.
-                            X509Certificate2 instanceCertificate =
+                            Certificate instanceCertificate =
                                 InstanceCertificateTypesProvider.GetInstanceCertificate(
                                     endpoint.Description?.SecurityPolicyUri ??
                                     SecurityPolicies.None);

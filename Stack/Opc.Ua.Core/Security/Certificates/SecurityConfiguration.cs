@@ -34,6 +34,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -151,7 +152,7 @@ namespace Opc.Ua
         /// <summary>
         /// Find application certificate for a security policy.
         /// </summary>
-        public async Task<X509Certificate2> FindApplicationCertificateAsync(
+        public async Task<Certificate> FindApplicationCertificateAsync(
             string securityPolicy,
             bool privateKey,
             ITelemetryContext telemetry,

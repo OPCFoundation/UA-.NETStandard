@@ -29,6 +29,7 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -52,7 +53,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// <paramref name="certificate"/> is <c>null</c>.
         /// </exception>
-        public X509IdentityTokenHandler(X509Certificate2 certificate)
+        public X509IdentityTokenHandler(Certificate certificate)
         {
             if (certificate == null)
             {
@@ -75,7 +76,7 @@ namespace Opc.Ua
         /// <summary>
         /// The certificate associated with the token.
         /// </summary>
-        public X509Certificate2 Certificate
+        public Certificate Certificate
         {
             get
             {
@@ -105,26 +106,26 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void Encrypt(
-            X509Certificate2 receiverCertificate,
+            Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce receiverEphemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false)
         {
         }
 
         /// <inheritdoc/>
         public void Decrypt(
-            X509Certificate2 certificate,
+            Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce ephemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
             CertificateValidator validator = null)
         {
         }
@@ -134,7 +135,7 @@ namespace Opc.Ua
             byte[] dataToSign,
             string securityPolicyUri)
         {
-            X509Certificate2 certificate = Certificate ??
+            Certificate certificate = Certificate ??
                 CertificateFactory.Create(m_token.CertificateData);
 
             SignatureData signatureData = SecurityPolicies.Sign(
@@ -155,16 +156,16 @@ namespace Opc.Ua
         {
             try
             {
-                X509Certificate2 certificate = Certificate ??
+                Certificate cert = Certificate ??
                     CertificateFactory.Create(m_token.CertificateData);
 
                 bool valid = SecurityPolicies.Verify(
-                    certificate,
+                    cert,
                     securityPolicyUri,
                     dataToVerify,
                     signatureData);
 
-                m_token.CertificateData = certificate.RawData.ToByteString();
+                m_token.CertificateData = cert.RawData.ToByteString();
 
                 return valid;
             }
@@ -204,6 +205,6 @@ namespace Opc.Ua
         }
 
         private readonly X509IdentityToken m_token;
-        private X509Certificate2 m_certificate;
+        private Certificate m_certificate;
     }
 }

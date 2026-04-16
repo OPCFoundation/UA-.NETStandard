@@ -40,10 +40,10 @@ namespace Opc.Ua.Security.Certificates.Tests
     [MemoryDiagnoser]
     public class Benchmarks
     {
-        private X509Certificate2 m_issuerCert;
+        private Certificate m_issuerCert;
         private IX509CRL m_issuerCrl;
         private X509CRL m_x509Crl;
-        private X509Certificate2 m_certificate;
+        private Certificate m_certificate;
         private byte[] m_randomByteArray;
         private byte[] m_encryptedByteArray;
         private byte[] m_signature;
@@ -113,7 +113,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void CreateCertificate()
         {
-            using X509Certificate2 cert = CertificateBuilder.Create("CN=Create").CreateForRSA();
+            using Certificate cert = CertificateBuilder.Create("CN=Create").CreateForRSA();
         }
 
         /// <summary>
@@ -204,7 +204,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void VerifySignature()
         {
             var signature = new X509Signature(m_certificate.RawData);
-            _ = signature.Verify(m_certificate);
+            _ = signature.Verify(m_certificate.X509);
         }
 
         /// <summary>

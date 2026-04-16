@@ -56,7 +56,7 @@ namespace Opc.Ua.Security.Certificates
             m_securityConfiguration = config.SecurityConfiguration;
             m_certificateValidator = new CertificateValidator(telemetry);
             m_certificateChain
-                = new ConcurrentDictionary<string, Tuple<X509Certificate2Collection, byte[]>>();
+                = new ConcurrentDictionary<string, Tuple<CertificateCollection, byte[]>>();
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace Opc.Ua.Security.Certificates
         /// Return the instance certificate for a security policy.
         /// </summary>
         /// <param name="securityPolicyUri">The security policy Uri</param>
-        public X509Certificate2 GetInstanceCertificate(string securityPolicyUri)
+        public Certificate GetInstanceCertificate(string securityPolicyUri)
         {
             if (securityPolicyUri == SecurityPolicies.None)
             {
@@ -128,7 +128,7 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the cached certificate chain blob of a certificate for use in a secure channel as raw byte array from cache.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public byte[] LoadCertificateChainRaw(X509Certificate2 certificate)
+        public byte[] LoadCertificateChainRaw(Certificate certificate)
         {
             if (certificate == null)
             {
@@ -137,7 +137,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (m_certificateChain.TryGetValue(
                     certificate.Thumbprint,
-                    out Tuple<X509Certificate2Collection, byte[]> result
+                    out Tuple<CertificateCollection, byte[]> result
                 ) &&
                 result.Item2 != null)
             {
@@ -151,8 +151,8 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the certificate chain for an application certificate.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public async Task<X509Certificate2Collection> LoadCertificateChainAsync(
-            X509Certificate2 certificate)
+        public async Task<CertificateCollection> LoadCertificateChainAsync(
+            Certificate certificate)
         {
             if (certificate == null)
             {
@@ -161,13 +161,13 @@ namespace Opc.Ua.Security.Certificates
 
             if (m_certificateChain.TryGetValue(
                     certificate.Thumbprint,
-                    out Tuple<X509Certificate2Collection, byte[]> certificateChainTuple))
+                    out Tuple<CertificateCollection, byte[]> certificateChainTuple))
             {
                 return certificateChainTuple.Item1;
             }
 
             // load certificate chain.
-            var certificateChain = new X509Certificate2Collection(certificate);
+            var certificateChain = new CertificateCollection(new[] { certificate });
             var issuers = new List<Ua.CertificateIdentifier>();
             if (await m_certificateValidator.GetIssuersAsync(certificate, issuers)
                 .ConfigureAwait(false))
@@ -182,7 +182,7 @@ namespace Opc.Ua.Security.Certificates
 
             // update cached values
             m_certificateChain[certificate.Thumbprint]
-                = new Tuple<X509Certificate2Collection, byte[]>(
+                = new Tuple<CertificateCollection, byte[]>(
                 certificateChain,
                 certificateChainRaw);
 
@@ -193,7 +193,7 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the certificate chain for an application certificate from cache.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public X509Certificate2Collection LoadCertificateChain(X509Certificate2 certificate)
+        public CertificateCollection LoadCertificateChain(Certificate certificate)
         {
             if (certificate == null)
             {
@@ -202,7 +202,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (m_certificateChain.TryGetValue(
                     certificate.Thumbprint,
-                    out Tuple<X509Certificate2Collection, byte[]> certificateChainTuple))
+                    out Tuple<CertificateCollection, byte[]> certificateChainTuple))
             {
                 return certificateChainTuple.Item1;
             }
@@ -223,6 +223,6 @@ namespace Opc.Ua.Security.Certificates
 
         private readonly CertificateValidator m_certificateValidator;
         private SecurityConfiguration m_securityConfiguration;
-        private readonly ConcurrentDictionary<string, Tuple<X509Certificate2Collection, byte[]>> m_certificateChain;
+        private readonly ConcurrentDictionary<string, Tuple<CertificateCollection, byte[]>> m_certificateChain;
     }
 }

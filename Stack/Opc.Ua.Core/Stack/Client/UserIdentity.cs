@@ -29,11 +29,11 @@
 
 using System;
 using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -87,7 +87,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an X509 certificate
         /// </summary>
-        public UserIdentity(X509Certificate2 certificate)
+        public UserIdentity(Certificate certificate)
         {
             m_token = new X509IdentityTokenHandler(certificate);
         }
@@ -143,7 +143,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificateId));
             }
 
-            X509Certificate2 certificate = await certificateId.LoadPrivateKeyExAsync(
+            Certificate certificate = await certificateId.LoadPrivateKeyExAsync(
                 certificatePasswordProvider,
                 applicationUri: null,
                 telemetry,

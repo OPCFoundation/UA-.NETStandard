@@ -53,7 +53,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <returns>The DNS names.</returns>
-        public static ArrayOf<string> GetDomainsFromCertificate(X509Certificate2 certificate)
+        public static ArrayOf<string> GetDomainsFromCertificate(Certificate certificate)
         {
             var dnsNames = new List<string>();
 
@@ -132,7 +132,7 @@ namespace Opc.Ua
         /// Returns the size of the public key and disposes RSA key.
         /// </summary>
         /// <param name="certificate">The certificate</param>
-        public static int GetRSAPublicKeySize(X509Certificate2 certificate)
+        public static int GetRSAPublicKeySize(Certificate certificate)
         {
             using RSA rsaPublicKey = certificate.GetRSAPublicKey();
             if (rsaPublicKey != null)
@@ -146,7 +146,7 @@ namespace Opc.Ua
         /// Returns the size of the public key of a given certificate
         /// </summary>
         /// <param name="certificate">The certificate</param>
-        public static int GetPublicKeySize(X509Certificate2 certificate)
+        public static int GetPublicKeySize(Certificate certificate)
         {
             using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
             {
@@ -171,7 +171,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate.</param>
         /// <returns>The application URI.</returns>
         [Obsolete("Use GetApplicationUrisFromCertificate instead. The certificate may contain more than one Uri.")]
-        public static string GetApplicationUriFromCertificate(X509Certificate2 certificate)
+        public static string GetApplicationUriFromCertificate(Certificate certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
             X509SubjectAltNameExtension alternateName = certificate
@@ -191,7 +191,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <returns>The application URIs.</returns>
-        public static IReadOnlyList<string> GetApplicationUrisFromCertificate(X509Certificate2 certificate)
+        public static IReadOnlyList<string> GetApplicationUrisFromCertificate(Certificate certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
             X509SubjectAltNameExtension alternateName = certificate
@@ -212,7 +212,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate to check.</param>
         /// <param name="applicationUri">The application URI to match.</param>
         /// <returns>True if the application URI matches any URI in the certificate; otherwise, false.</returns>
-        public static bool CompareApplicationUriWithCertificate(X509Certificate2 certificate, string applicationUri)
+        public static bool CompareApplicationUriWithCertificate(Certificate certificate, string applicationUri)
         {
             return CompareApplicationUriWithCertificate(certificate, applicationUri, out _);
         }
@@ -226,7 +226,7 @@ namespace Opc.Ua
         /// <param name="certificateApplicationUris">The list of application URIs found in the certificate.</param>
         /// <returns>True if the application URI matches any URI in the certificate; otherwise, false.</returns>
         public static bool CompareApplicationUriWithCertificate(
-            X509Certificate2 certificate,
+            Certificate certificate,
             string applicationUri,
             out IReadOnlyList<string> certificateApplicationUris)
         {
@@ -254,7 +254,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <returns>true if the application URI starts with urn: </returns>
-        public static bool HasApplicationURN(X509Certificate2 certificate)
+        public static bool HasApplicationURN(Certificate certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
             X509SubjectAltNameExtension alternateName = certificate
@@ -289,7 +289,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate.</param>
         /// <param name="endpointUrl">The endpoint url to verify.</param>
         /// <returns>True if the certificate matches the url.</returns>
-        public static bool DoesUrlMatchCertificate(X509Certificate2 certificate, Uri endpointUrl)
+        public static bool DoesUrlMatchCertificate(Certificate certificate, Uri endpointUrl)
         {
             if (endpointUrl == null || certificate == null)
             {
@@ -303,7 +303,7 @@ namespace Opc.Ua
         /// <summary>
         /// Determines whether the certificate is allowed to be an issuer.
         /// </summary>
-        public static bool IsIssuerAllowed(X509Certificate2 certificate)
+        public static bool IsIssuerAllowed(Certificate certificate)
         {
             X509BasicConstraintsExtension constraints = certificate
                 .FindExtension<X509BasicConstraintsExtension>();
@@ -319,7 +319,7 @@ namespace Opc.Ua
         /// <summary>
         /// Determines whether the certificate is issued by a Certificate Authority.
         /// </summary>
-        public static bool IsCertificateAuthority(X509Certificate2 certificate)
+        public static bool IsCertificateAuthority(Certificate certificate)
         {
             X509BasicConstraintsExtension constraints = certificate
                 .FindExtension<X509BasicConstraintsExtension>();
@@ -333,7 +333,7 @@ namespace Opc.Ua
         /// <summary>
         /// Return the key usage flags of a certificate.
         /// </summary>
-        public static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
+        public static X509KeyUsageFlags GetKeyUsage(Certificate cert)
         {
             X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
             foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
@@ -348,7 +348,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate to test.</param>
         /// <returns>True if self signed.</returns>
-        public static bool IsSelfSigned(X509Certificate2 certificate)
+        public static bool IsSelfSigned(Certificate certificate)
         {
             return CompareDistinguishedName(certificate.SubjectName, certificate.IssuerName);
         }
@@ -448,7 +448,7 @@ namespace Opc.Ua
         /// Compares two distinguished names.
         /// </summary>
         public static bool CompareDistinguishedName(
-            X509Certificate2 certificate,
+            Certificate certificate,
             List<string> parsedName)
         {
             // can't compare if the number of fields is 0.
@@ -628,7 +628,7 @@ namespace Opc.Ua
         /// Return if a certificate has a ECDsa signature.
         /// </summary>
         /// <param name="cert">The certificate to test.</param>
-        public static bool IsECDsaSignature(X509Certificate2 cert)
+        public static bool IsECDsaSignature(Certificate cert)
         {
             return X509PfxUtils.IsECDsaSignature(cert);
         }
@@ -637,7 +637,7 @@ namespace Opc.Ua
         /// Return a qualifier string if a ECDsa signature algorithm used.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
-        public static string GetECDsaQualifier(X509Certificate2 certificate)
+        public static string GetECDsaQualifier(Certificate certificate)
         {
             return EccUtils.GetECDsaQualifier(certificate);
         }
@@ -646,8 +646,8 @@ namespace Opc.Ua
         /// Verify RSA/ECDsa key pair of two certificates.
         /// </summary>
         public static bool VerifyKeyPair(
-            X509Certificate2 certWithPublicKey,
-            X509Certificate2 certWithPrivateKey,
+            Certificate certWithPublicKey,
+            Certificate certWithPrivateKey,
             bool throwOnError = false)
         {
             return X509PfxUtils.VerifyKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
@@ -658,8 +658,8 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         public static bool VerifyECDsaKeyPair(
-            X509Certificate2 certWithPublicKey,
-            X509Certificate2 certWithPrivateKey,
+            Certificate certWithPublicKey,
+            Certificate certWithPrivateKey,
             bool throwOnError = false)
         {
             return X509PfxUtils.VerifyECDsaKeyPair(
@@ -672,8 +672,8 @@ namespace Opc.Ua
         /// Verify RSA key pair of two certificates.
         /// </summary>
         public static bool VerifyRSAKeyPair(
-            X509Certificate2 certWithPublicKey,
-            X509Certificate2 certWithPrivateKey,
+            Certificate certWithPublicKey,
+            Certificate certWithPrivateKey,
             bool throwOnError = false)
         {
             return X509PfxUtils.VerifyRSAKeyPair(
@@ -685,12 +685,12 @@ namespace Opc.Ua
         /// <summary>
         /// Verify the signature of a self signed certificate.
         /// </summary>
-        public static bool VerifySelfSigned(X509Certificate2 cert)
+        public static bool VerifySelfSigned(Certificate cert)
         {
             try
             {
                 var signature = new X509Signature(cert.RawData);
-                return signature.Verify(cert);
+                return signature.Verify(cert.X509);
             }
             catch
             {
@@ -704,8 +704,8 @@ namespace Opc.Ua
         /// the private key requires an extra copy.
         /// </summary>
         /// <returns>The certificate</returns>
-        public static X509Certificate2 CreateCopyWithPrivateKey(
-            X509Certificate2 certificate,
+        public static Certificate CreateCopyWithPrivateKey(
+            Certificate certificate,
             bool persisted)
         {
             // a copy is only necessary on windows
@@ -728,10 +728,10 @@ namespace Opc.Ua
                     securePasscode.MakeReadOnly();
                     X509KeyStorageFlags storageFlags =
                         persisted ? X509KeyStorageFlags.PersistKeySet : X509KeyStorageFlags.Exportable;
-                    return X509CertificateLoader.LoadPkcs12(
-                        certificate.Export(X509ContentType.Pfx, securePasscode),
+                    return Certificate.From(X509CertificateLoader.LoadPkcs12(
+                        certificate.X509.Export(X509ContentType.Pfx, securePasscode),
                         passcode,
-                        storageFlags);
+                        storageFlags));
                 }
                 finally
                 {
@@ -748,7 +748,7 @@ namespace Opc.Ua
         /// <param name="password">The password to use to access the store.</param>
         /// <param name="noEphemeralKeySet">Set to true if the key should not use the ephemeral key set.</param>
         /// <returns>The certificate with a private key.</returns>
-        public static X509Certificate2 CreateCertificateFromPKCS12(
+        public static Certificate CreateCertificateFromPKCS12(
             byte[] rawData,
             ReadOnlySpan<char> password,
             bool noEphemeralKeySet = false)
@@ -759,15 +759,15 @@ namespace Opc.Ua
         /// <summary>
         /// Get the certificate by issuer and serial number.
         /// </summary>
-        public static async Task<X509Certificate2> FindIssuerCABySerialNumberAsync(
+        public static async Task<Certificate> FindIssuerCABySerialNumberAsync(
             ICertificateStore store,
             X500DistinguishedName issuer,
             string serialnumber)
         {
-            X509Certificate2Collection certificates = await store.EnumerateAsync()
+            CertificateCollection certificates = await store.EnumerateAsync()
                 .ConfigureAwait(false);
 
-            foreach (X509Certificate2 certificate in certificates)
+            foreach (Certificate certificate in certificates)
             {
                 if (CompareDistinguishedName(certificate.SubjectName, issuer) &&
                     Utils.IsEqual(certificate.SerialNumber, serialnumber))
@@ -782,14 +782,14 @@ namespace Opc.Ua
         /// <summary>
         /// Get the certificate issuer by its key identifier.
         /// </summary>
-        public static async Task<X509Certificate2> FindIssuerCAByKeyIdentifierAsync(
+        public static async Task<Certificate> FindIssuerCAByKeyIdentifierAsync(
             ICertificateStore store,
             X500DistinguishedName issuer,
             string keyIdentifier)
         {
-            X509Certificate2Collection certificates = await store.EnumerateAsync()
+            CertificateCollection certificates = await store.EnumerateAsync()
                 .ConfigureAwait(false);
-            foreach (X509Certificate2 certificate in certificates)
+            foreach (Certificate certificate in certificates)
             {
                 if (CompareDistinguishedName(certificate.SubjectName, issuer))
                 {
@@ -816,8 +816,8 @@ namespace Opc.Ua
         /// <param name="password">The password to use to protect the certificate.</param>
         /// <exception cref="ArgumentException"></exception>
         [Obsolete("Use AddToStoreAsync instead")]
-        public static X509Certificate2 AddToStore(
-            this X509Certificate2 certificate,
+        public static Certificate AddToStore(
+            this Certificate certificate,
             string storeType,
             string storePath,
             string password = null)
@@ -842,8 +842,8 @@ namespace Opc.Ua
         /// <param name="password">The password to use to protect the certificate.</param>
         /// <exception cref="ArgumentException"></exception>
         [Obsolete("Use AddToStoreAsync instead")]
-        public static X509Certificate2 AddToStore(
-            this X509Certificate2 certificate,
+        public static Certificate AddToStore(
+            this Certificate certificate,
             CertificateStoreIdentifier storeIdentifier,
             string password = null)
         {
@@ -868,8 +868,8 @@ namespace Opc.Ua
         /// <param name="telemetry">Telemetry context to use</param>
         /// <param name="ct">The cancellation token.</param>
         /// <exception cref="ArgumentException"></exception>
-        public static async Task<X509Certificate2> AddToStoreAsync(
-            this X509Certificate2 certificate,
+        public static async Task<Certificate> AddToStoreAsync(
+            this Certificate certificate,
             string storeType,
             string storePath,
             char[] password = null,
@@ -940,8 +940,8 @@ namespace Opc.Ua
         /// <param name="telemetry">Telemetry context to use</param>
         /// <param name="ct">The cancellation token.</param>
         /// <exception cref="ArgumentException">e.g. invalid store type</exception>
-        public static async Task<X509Certificate2> AddToStoreAsync(
-            this X509Certificate2 certificate,
+        public static async Task<Certificate> AddToStoreAsync(
+            this Certificate certificate,
             CertificateStoreIdentifier storeIdentifier,
             char[] password = null,
             ITelemetryContext telemetry = null,

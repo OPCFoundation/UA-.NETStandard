@@ -31,7 +31,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -223,11 +222,10 @@ namespace Opc.Ua.Server
 
                     if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
                     {
-                        X509Certificate2Collection certificates = await store.EnumerateAsync(cancellationToken)
+                        CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
                             .ConfigureAwait(false);
                         trustList.TrustedCertificates = trustList.TrustedCertificates.AddItems(
                             certificates
-                                .Cast<X509Certificate2>()
                                 .Select(certificate => certificate.RawData.ToByteString()));
                     }
 
@@ -255,10 +253,9 @@ namespace Opc.Ua.Server
 
                     if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
                     {
-                        X509Certificate2Collection certificates = await store.EnumerateAsync(cancellationToken)
+                        CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
                             .ConfigureAwait(false);
                         trustList.IssuerCertificates = trustList.IssuerCertificates.AddItems(certificates
-                            .Cast<X509Certificate2>()
                             .Select(certificate => certificate.RawData.ToByteString()));
                     }
 
@@ -589,9 +586,9 @@ namespace Opc.Ua.Server
                 TrustListDataType trustList = DecodeTrustListData(context, strm);
                 int masks = (int)trustList.SpecifiedLists;
 
-                X509Certificate2Collection issuerCertificates = null;
+                CertificateCollection issuerCertificates = null;
                 X509CRLCollection issuerCrls = null;
-                X509Certificate2Collection trustedCertificates = null;
+                CertificateCollection trustedCertificates = null;
                 X509CRLCollection trustedCrls = null;
 
                 // test integrity of all CRLs
@@ -600,7 +597,7 @@ namespace Opc.Ua.Server
                     issuerCertificates = [];
                     foreach (ByteString cert in trustList.IssuerCertificates)
                     {
-                        issuerCertificates.Add(X509CertificateLoader.LoadCertificate(cert.ToArray()));
+                        issuerCertificates.Add(CertificateFactory.Create(cert));
                     }
                 }
                 if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
@@ -744,7 +741,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                X509Certificate2 cert = null;
+                Certificate cert = null;
                 try
                 {
                     cert = CertificateFactory.Create(certificate);
@@ -863,7 +860,7 @@ namespace Opc.Ua.Server
                             "Failed to open certificate store.");
                     }
 
-                    X509Certificate2Collection certCollection = await store
+                    CertificateCollection certCollection = await store
                         .FindByThumbprintAsync(thumbprint, cancellationToken)
                         .ConfigureAwait(false);
 
@@ -879,7 +876,7 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                         foreach (X509CRL crl in crls)
                         {
-                            foreach (X509Certificate2 cert in certCollection)
+                            foreach (Certificate cert in certCollection)
                             {
                                 if (X509Utils.CompareDistinguishedName(
                                         cert.SubjectName,
@@ -1020,7 +1017,7 @@ namespace Opc.Ua.Server
 
         private async Task<bool> UpdateStoreCertificatesAsync(
             CertificateStoreIdentifier storeIdentifier,
-            X509Certificate2Collection updatedCerts,
+            CertificateCollection updatedCerts,
             CancellationToken cancellationToken = default)
         {
             bool result = true;
@@ -1035,9 +1032,9 @@ namespace Opc.Ua.Server
                             "Failed to open certificate store.");
                     }
 
-                    X509Certificate2Collection storeCerts = await store.EnumerateAsync(cancellationToken)
+                    CertificateCollection storeCerts = await store.EnumerateAsync(cancellationToken)
                         .ConfigureAwait(false);
-                    foreach (X509Certificate2 cert in storeCerts)
+                    foreach (Certificate cert in storeCerts)
                     {
                         if (!updatedCerts.Contains(cert))
                         {
@@ -1051,7 +1048,7 @@ namespace Opc.Ua.Server
                             updatedCerts.Remove(cert);
                         }
                     }
-                    foreach (X509Certificate2 cert in updatedCerts)
+                    foreach (Certificate cert in updatedCerts)
                     {
                         await store.AddAsync(cert, null, cancellationToken).ConfigureAwait(false);
                     }

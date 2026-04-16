@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -61,15 +61,15 @@ namespace Opc.Ua.Server
         public Session(
             OperationContext context,
             IServerInternal server,
-            X509Certificate2 serverCertificate,
+            Certificate serverCertificate,
             NodeId authenticationToken,
             ByteString clientNonce,
             Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
             string endpointUrl,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             double sessionTimeout,
             int maxBrowseContinuationPoints,
             int maxHistoryContinuationPoints)
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The application instance certificate associated with the client.
         /// </summary>
-        public X509Certificate2 ClientCertificate { get; }
+        public Certificate ClientCertificate { get; }
 
         /// <summary>
         /// The locales requested when the session was created.
@@ -501,7 +501,7 @@ namespace Opc.Ua.Server
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
-                        X509Certificate2Collection serverCertificateChain =
+                        CertificateCollection serverCertificateChain =
                             Utils.ParseCertificateChainBlob(
                                 EndpointDescription.ServerCertificate,
                                 m_server.Telemetry);
@@ -995,8 +995,8 @@ namespace Opc.Ua.Server
                 // decrypt the token.
                 if (m_serverCertificate == null)
                 {
-                    m_serverCertificate = X509CertificateLoader.LoadCertificate(
-                        EndpointDescription.ServerCertificate.ToArray());
+                    m_serverCertificate = CertificateFactory.Create(
+                        EndpointDescription.ServerCertificate);
 
                     // check for valid certificate.
                     if (m_serverCertificate == null)
@@ -1036,7 +1036,7 @@ namespace Opc.Ua.Server
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
-                        X509Certificate2Collection serverCertificateChain =
+                        CertificateCollection serverCertificateChain =
                             Utils.ParseCertificateChainBlob(
                                 EndpointDescription.ServerCertificate,
                                 m_server.Telemetry);
@@ -1268,11 +1268,11 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly string m_sessionName;
-        private X509Certificate2 m_serverCertificate;
+        private Certificate m_serverCertificate;
         private Nonce m_serverNonce;
         private string m_eccUserTokenSecurityPolicyUri;
         private Nonce m_eccUserTokenNonce;
-        private readonly X509Certificate2Collection m_clientIssuerCertificates;
+        private readonly CertificateCollection m_clientIssuerCertificates;
         private readonly int m_maxHistoryContinuationPoints;
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private List<ContinuationPoint> m_browseContinuationPoints;

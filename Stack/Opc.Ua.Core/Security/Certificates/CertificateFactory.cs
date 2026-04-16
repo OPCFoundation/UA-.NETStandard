@@ -68,7 +68,7 @@ namespace Opc.Ua
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
         [Obsolete("Use Create without useCache parameter")]
-        public static X509Certificate2 Create(
+        public static Certificate Create(
             ReadOnlyMemory<byte> encodedData,
             bool useCache)
         {
@@ -78,21 +78,17 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
-        public static X509Certificate2 Create(ReadOnlyMemory<byte> encodedData)
+        public static Certificate Create(ReadOnlyMemory<byte> encodedData)
         {
-#if NET6_0_OR_GREATER
-            return X509CertificateLoader.LoadCertificate(encodedData.Span);
-#else
-            return X509CertificateLoader.LoadCertificate(encodedData.ToArray());
-#endif
+            return Certificate.FromRawData(encodedData.ToArray());
         }
 
         /// <summary>
         /// Loads the cached version of a certificate.
         /// </summary>
         [Obsolete("This method just returns the certificate and can be removed")]
-        public static X509Certificate2 Load(
-            X509Certificate2 certificate,
+        public static Certificate Load(
+            Certificate certificate,
             bool ensurePrivateKeyAccessible)
         {
             return certificate;
@@ -141,9 +137,9 @@ namespace Opc.Ua
         /// The CRL number is increased by one and the new CRL is returned.
         /// </summary>
         public static X509CRL RevokeCertificate(
-            X509Certificate2 issuerCertificate,
+            Certificate issuerCertificate,
             X509CRLCollection issuerCrls,
-            X509Certificate2Collection revokedCertificates)
+            CertificateCollection revokedCertificates)
         {
             return RevokeCertificate(
                 issuerCertificate,
@@ -164,9 +160,9 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         /// <exception cref="NotSupportedException"></exception>
         public static X509CRL RevokeCertificate(
-            X509Certificate2 issuerCertificate,
+            Certificate issuerCertificate,
             X509CRLCollection issuerCrls,
-            X509Certificate2Collection revokedCertificates,
+            CertificateCollection revokedCertificates,
             DateTime thisUpdate,
             DateTime nextUpdate)
         {
@@ -204,7 +200,7 @@ namespace Opc.Ua
             // add existing serial numbers
             if (revokedCertificates != null)
             {
-                foreach (X509Certificate2 cert in revokedCertificates)
+                foreach (Certificate cert in revokedCertificates)
                 {
                     if (!crlRevokedList.ContainsKey(cert.SerialNumber))
                     {
@@ -232,11 +228,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a X509Certificate2 with a private key by combining
+        /// Create a Certificate with a private key by combining
         /// the certificate with a private key from a PEM stream
         /// </summary>
-        public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
-            X509Certificate2 certificate,
+        public static Certificate CreateCertificateWithPEMPrivateKey(
+            Certificate certificate,
             byte[] pemDataBlob)
         {
             return CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, default);
@@ -247,7 +243,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         public static byte[] CreateSigningRequest(
-            X509Certificate2 certificate,
+            Certificate certificate,
             // TODO: provide CertificateType to return CSR per certificate type
             ArrayOf<string> domainNames = default)
         {
@@ -320,13 +316,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a X509Certificate2 with a private key by combining
+        /// Create a Certificate with a private key by combining
         /// the new certificate with a private key from an existing certificate
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
-        public static X509Certificate2 CreateCertificateWithPrivateKey(
-            X509Certificate2 certificate,
-            X509Certificate2 certificateWithPrivateKey)
+        public static Certificate CreateCertificateWithPrivateKey(
+            Certificate certificate,
+            Certificate certificateWithPrivateKey)
         {
             if (!certificateWithPrivateKey.HasPrivateKey)
             {
@@ -356,11 +352,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a X509Certificate2 with a private key by combining
+        /// Create a Certificate with a private key by combining
         /// the certificate with a private key from a PEM stream
         /// </summary>
-        public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
-            X509Certificate2 certificate,
+        public static Certificate CreateCertificateWithPEMPrivateKey(
+            Certificate certificate,
             byte[] pemDataBlob,
             ReadOnlySpan<char> password)
         {

@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Security
 {
@@ -54,8 +54,8 @@ namespace Opc.Ua.Security
             string endpointUrl,
             string secureChannelId,
             EndpointDescription endpoint,
-            X509Certificate2 clientCertificate,
-            X509Certificate2 serverCertificate,
+            Certificate clientCertificate,
+            Certificate serverCertificate,
             BinaryEncodingSupport encodingSupport)
         {
             if (endpoint != null)
@@ -89,11 +89,11 @@ namespace Opc.Ua.Security
                     logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Client Certificate: {Certificate}",
-                        clientCertificate.AsLogSafeString());
+                        clientCertificate.X509.AsLogSafeString());
                     logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Server Certificate: {Certificate}",
-                        serverCertificate.AsLogSafeString());
+                        serverCertificate.X509.AsLogSafeString());
                 }
             }
             else

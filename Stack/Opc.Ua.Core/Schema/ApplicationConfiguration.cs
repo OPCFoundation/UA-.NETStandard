@@ -33,6 +33,7 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -1777,7 +1778,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the identifier with the raw data from a certificate.
         /// </summary>
-        public CertificateIdentifier(X509Certificate2 certificate)
+        public CertificateIdentifier(Certificate certificate)
         {
             Certificate = certificate;
         }
@@ -1786,7 +1787,7 @@ namespace Opc.Ua
         /// Initializes the identifier with the raw data from a certificate.
         /// </summary>
         public CertificateIdentifier(
-            X509Certificate2 certificate,
+            Certificate certificate,
             CertificateValidationOptions validationOptions)
         {
             Certificate = certificate;
@@ -1798,7 +1799,7 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier(byte[] rawData)
         {
-            Certificate = CertificateFactory.Create(rawData);
+            Certificate = Certificate.FromRawData(rawData);
         }
 
         /// <summary>
@@ -1998,7 +1999,7 @@ namespace Opc.Ua
         private string m_storePath;
         private string m_subjectName;
         private string m_thumbprint;
-        private X509Certificate2 m_certificate;
+        private Certificate m_certificate;
     }
 
     /// <summary>

@@ -103,7 +103,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the NodeId for the certificate type for the specified certificate.
         /// </summary>
-        public static NodeId GetEccCertificateTypeId(X509Certificate2 certificate)
+        public static NodeId GetEccCertificateTypeId(Certificate certificate)
         {
             string keyAlgorithm = certificate.GetKeyAlgorithm();
             if (keyAlgorithm != Oids.ECPublicKey)
@@ -174,7 +174,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the signature algorithm for the specified certificate.
         /// </summary>
-        public static string GetECDsaQualifier(X509Certificate2 certificate)
+        public static string GetECDsaQualifier(Certificate certificate)
         {
             if (X509Utils.IsECDsaSignature(certificate))
             {
@@ -204,7 +204,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the public key for the specified certificate.
         /// </summary>
-        public static ECDsa GetPublicKey(X509Certificate2 certificate)
+        public static ECDsa GetPublicKey(Certificate certificate)
         {
             return GetPublicKey(certificate, out string[] _);
         }
@@ -215,7 +215,7 @@ namespace Opc.Ua
         /// <exception cref="InvalidOperationException"></exception>
         /// <exception cref="NotImplementedException"></exception>
         public static ECDsa GetPublicKey(
-            X509Certificate2 certificate,
+            Certificate certificate,
             out string[] securityPolicyUris)
         {
             securityPolicyUris = null;
@@ -307,7 +307,7 @@ namespace Opc.Ua
         /// Returns the length of a ECDsa signature of a digest.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static int GetSignatureLength(X509Certificate2 signingCertificate)
+        public static int GetSignatureLength(Certificate signingCertificate)
         {
             if (signingCertificate == null)
             {
@@ -357,7 +357,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] Sign(
             ArraySegment<byte> dataToSign,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             string securityPolicyUri)
         {
             HashAlgorithmName algorithm = GetSignatureAlgorithmName(securityPolicyUri);
@@ -370,7 +370,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static byte[] Sign(
             ArraySegment<byte> dataToSign,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             HashAlgorithmName algorithm)
         {
 #if CURVE25519
@@ -454,7 +454,7 @@ namespace Opc.Ua
         public static bool Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             string securityPolicyUri)
         {
             return Verify(
@@ -470,7 +470,7 @@ namespace Opc.Ua
         public static bool Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             HashAlgorithmName algorithm)
         {
 #if CURVE25519
@@ -527,10 +527,10 @@ namespace Opc.Ua
         public EncryptedSecret(
             IServiceMessageContext context,
             string securityPolicyUri,
-            X509Certificate2Collection senderIssuerCertificates,
-            X509Certificate2 receiverCertificate,
+            CertificateCollection senderIssuerCertificates,
+            Certificate receiverCertificate,
             Nonce receiverNonce,
-            X509Certificate2 senderCertificate,
+            Certificate senderCertificate,
             Nonce senderNonce,
             CertificateValidator validator = null,
             bool doNotEncodeSenderCertificate = false)
@@ -549,12 +549,12 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the X.509 certificate of the sender.
         /// </summary>
-        public X509Certificate2 SenderCertificate { get; private set; }
+        public Certificate SenderCertificate { get; private set; }
 
         /// <summary>
         /// Gets or sets the collection of X.509 certificates of the sender's issuer.
         /// </summary>
-        public X509Certificate2Collection SenderIssuerCertificates { get; private set; }
+        public CertificateCollection SenderIssuerCertificates { get; private set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the sender's certificate should not be encoded.
@@ -574,7 +574,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the X.509 certificate of the receiver.
         /// </summary>
-        public X509Certificate2 ReceiverCertificate { get; }
+        public Certificate ReceiverCertificate { get; }
 
         /// <summary>
         /// Gets or sets the certificate validator.
@@ -962,7 +962,7 @@ namespace Opc.Ua
                     {
                         int blobSize = senderCertificate.Length;
 
-                        foreach (X509Certificate2 issuer in SenderIssuerCertificates)
+                        foreach (Certificate issuer in SenderIssuerCertificates)
                         {
                             blobSize += issuer.RawData.Length;
                         }
@@ -972,7 +972,7 @@ namespace Opc.Ua
 
                         int pos = senderCertificate.Length;
 
-                        foreach (X509Certificate2 issuer in SenderIssuerCertificates)
+                        foreach (Certificate issuer in SenderIssuerCertificates)
                         {
                             byte[] data = issuer.RawData;
                             Buffer.BlockCopy(data, 0, blob, pos, data.Length);
@@ -1124,7 +1124,7 @@ namespace Opc.Ua
             }
             else
             {
-                X509Certificate2Collection senderCertificateChain = Utils.ParseCertificateChainBlob(
+                CertificateCollection senderCertificateChain = Utils.ParseCertificateChainBlob(
                     senderCertificate,
                     telemetry);
 

@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -124,7 +123,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             // Create client certificate with matching ApplicationUri
-            X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
+            Certificate clientCert = CreateCertificateWithMultipleUris(
                 [kClientApplicationUri],
                 kClientSubjectName,
                 [Utils.GetHostName()],
@@ -159,7 +158,7 @@ namespace Opc.Ua.Server.Tests
 
             // Create client certificate with different ApplicationUri
             const string certUri = "urn:localhost:opcfoundation.org:WrongClient";
-            X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
+            Certificate clientCert = CreateCertificateWithMultipleUris(
                 [certUri],
                 kClientSubjectName,
                 [Utils.GetHostName()],
@@ -189,7 +188,7 @@ namespace Opc.Ua.Server.Tests
             const string uri2 = kClientApplicationUri; // This matches
             const string uri3 = "https://localhost:8080/OpcUaApp";
 
-            X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
+            Certificate clientCert = CreateCertificateWithMultipleUris(
                 [uri1, uri2, uri3],
                 kClientSubjectName,
                 [Utils.GetHostName()],
@@ -234,7 +233,7 @@ namespace Opc.Ua.Server.Tests
             const string uri2 = "urn:localhost:opcfoundation.org:App2";
             const string uri3 = "https://localhost:8080/OpcUaApp";
 
-            X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
+            Certificate clientCert = CreateCertificateWithMultipleUris(
                 [uri1, uri2, uri3],
                 kClientSubjectName,
                 [Utils.GetHostName()],
@@ -257,7 +256,7 @@ namespace Opc.Ua.Server.Tests
         /// Helper method to create a session with a custom client certificate.
         /// </summary>
         private async Task<Client.ISession> CreateSessionWithCustomCertificateAsync(
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             string clientApplicationUri)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -377,7 +376,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Creates a certificate with multiple application URIs in the SAN extension.
         /// </summary>
-        private static X509Certificate2 CreateCertificateWithMultipleUris(
+        private static Certificate CreateCertificateWithMultipleUris(
             IList<string> applicationUris,
             string subjectName,
             IList<string> domainNames,

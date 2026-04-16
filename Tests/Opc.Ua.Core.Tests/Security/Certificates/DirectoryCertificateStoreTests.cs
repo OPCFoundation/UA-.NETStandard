@@ -149,7 +149,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            X509Certificate2Collection certs = await store.EnumerateAsync().ConfigureAwait(false);
+            CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(certs, Is.Not.Null);
             Assert.That(certs.Count, Is.Zero);
         }
@@ -160,7 +160,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            X509Certificate2Collection certs = await store.FindByThumbprintAsync("0000000000000000000000000000000000000000")
+            CertificateCollection certs = await store.FindByThumbprintAsync("0000000000000000000000000000000000000000")
                 .ConfigureAwait(false);
             Assert.That(certs, Is.Not.Null);
             Assert.That(certs.Count, Is.Zero);
@@ -203,15 +203,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            using X509Certificate2 cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create("CN=DirStoreTestCert")
                 .SetLifeTime(365)
                 .CreateForRSA();
 
-            using X509Certificate2 publicKey = CertificateFactory.Create(cert.RawData);
+            using Certificate publicKey = CertificateFactory.Create(cert.RawData);
             await store.AddAsync(publicKey).ConfigureAwait(false);
 
-            X509Certificate2Collection certs = await store.EnumerateAsync().ConfigureAwait(false);
+            CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(certs.Count, Is.EqualTo(1));
             Assert.That(certs[0].Thumbprint, Is.EqualTo(publicKey.Thumbprint));
         }
@@ -222,15 +222,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            using X509Certificate2 cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create("CN=DirStoreFindTest")
                 .SetLifeTime(365)
                 .CreateForRSA();
 
-            using X509Certificate2 publicKey = CertificateFactory.Create(cert.RawData);
+            using Certificate publicKey = CertificateFactory.Create(cert.RawData);
             await store.AddAsync(publicKey).ConfigureAwait(false);
 
-            X509Certificate2Collection found = await store.FindByThumbprintAsync(publicKey.Thumbprint)
+            CertificateCollection found = await store.FindByThumbprintAsync(publicKey.Thumbprint)
                 .ConfigureAwait(false);
             Assert.That(found.Count, Is.EqualTo(1));
             Assert.That(found[0].Thumbprint, Is.EqualTo(publicKey.Thumbprint));
@@ -242,12 +242,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            using X509Certificate2 cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create("CN=DirStorePathTest")
                 .SetLifeTime(365)
                 .CreateForRSA();
 
-            using X509Certificate2 publicKey = CertificateFactory.Create(cert.RawData);
+            using Certificate publicKey = CertificateFactory.Create(cert.RawData);
             await store.AddAsync(publicKey).ConfigureAwait(false);
 
             string path = store.GetPublicKeyFilePath(publicKey.Thumbprint);
@@ -261,18 +261,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            using X509Certificate2 cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create("CN=DirStoreDeleteTest")
                 .SetLifeTime(365)
                 .CreateForRSA();
 
-            using X509Certificate2 publicKey = CertificateFactory.Create(cert.RawData);
+            using Certificate publicKey = CertificateFactory.Create(cert.RawData);
             await store.AddAsync(publicKey).ConfigureAwait(false);
 
             bool deleted = await store.DeleteAsync(publicKey.Thumbprint).ConfigureAwait(false);
             Assert.That(deleted, Is.True);
 
-            X509Certificate2Collection remaining = await store.EnumerateAsync().ConfigureAwait(false);
+            CertificateCollection remaining = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(remaining.Count, Is.Zero);
         }
 
@@ -282,7 +282,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            using X509Certificate2 cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create("CN=DirStorePfxTest")
                 .SetLifeTime(365)
                 .CreateForRSA();
@@ -314,7 +314,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(true, m_telemetry);
             store.Open(m_tempDir);
 
-            X509Certificate2Collection certs = await store.EnumerateAsync().ConfigureAwait(false);
+            CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(certs, Is.Not.Null);
             Assert.That(certs.Count, Is.Zero);
         }
@@ -325,10 +325,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            var certs = new X509Certificate2Collection();
+            var certs = new CertificateCollection();
             for (int i = 0; i < 3; i++)
             {
-                using X509Certificate2 cert = CertificateBuilder
+                using Certificate cert = CertificateBuilder
                     .Create($"CN=RejectedCert{i}")
                     .SetLifeTime(365)
                     .CreateForRSA();
@@ -337,10 +337,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             await store.AddRejectedAsync(certs, 5).ConfigureAwait(false);
 
-            X509Certificate2Collection found = await store.EnumerateAsync().ConfigureAwait(false);
+            CertificateCollection found = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(found.Count, Is.EqualTo(3));
 
-            foreach (X509Certificate2 cert in certs)
+            foreach (Certificate cert in certs)
             {
                 cert.Dispose();
             }
@@ -371,16 +371,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 store.Open(m_tempDir);
 
-                using X509Certificate2 cert = CertificateBuilder
+                using Certificate cert = CertificateBuilder
                     .Create("CN=ReloadTest")
                     .SetLifeTime(365)
                     .CreateForRSA();
 
-                using X509Certificate2 publicKey = CertificateFactory.Create(cert.RawData);
+                using Certificate publicKey = CertificateFactory.Create(cert.RawData);
                 await store.AddAsync(publicKey).ConfigureAwait(false);
 
                 store.Open(tempDir2);
-                X509Certificate2Collection certs = await store.EnumerateAsync().ConfigureAwait(false);
+                CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
                 Assert.That(certs.Count, Is.Zero);
             }
             finally

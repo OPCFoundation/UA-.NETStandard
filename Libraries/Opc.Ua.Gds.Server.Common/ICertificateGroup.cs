@@ -38,12 +38,12 @@ namespace Opc.Ua.Gds.Server
 {
     public class X509Certificate2KeyPair
     {
-        public X509Certificate2 Certificate { get; }
+        public Certificate Certificate { get; }
         public string PrivateKeyFormat { get; }
         public ByteString PrivateKey { get; }
 
         public X509Certificate2KeyPair(
-            X509Certificate2 certificate,
+            Certificate certificate,
             string privateKeyFormat,
             ByteString privateKey)
         {
@@ -64,7 +64,7 @@ namespace Opc.Ua.Gds.Server
     {
         NodeId Id { get; set; }
         ArrayOf<NodeId> CertificateTypes { get; set; }
-        ConcurrentDictionary<NodeId, X509Certificate2> Certificates { get; }
+        ConcurrentDictionary<NodeId, Certificate> Certificates { get; }
         CertificateGroupConfiguration Configuration { get; }
         CertificateStoreIdentifier AuthoritiesStore { get; }
         CertificateStoreIdentifier IssuerCertificatesStore { get; }
@@ -78,13 +78,13 @@ namespace Opc.Ua.Gds.Server
 
         Task InitAsync(CancellationToken ct = default);
 
-        Task<X509Certificate2> CreateCACertificateAsync(
+        Task<Certificate> CreateCACertificateAsync(
             string subjectName,
             NodeId certificateType,
             CancellationToken ct = default);
 
         Task<X509CRL> RevokeCertificateAsync(
-            X509Certificate2 certificate,
+            Certificate certificate,
             CancellationToken ct = default);
 
         Task VerifySigningRequestAsync(
@@ -92,7 +92,7 @@ namespace Opc.Ua.Gds.Server
             ByteString certificateRequest,
             CancellationToken ct = default);
 
-        Task<X509Certificate2> SigningRequestAsync(
+        Task<Certificate> SigningRequestAsync(
             ApplicationRecordDataType application,
             NodeId certificateType,
             string[] domainNames,
