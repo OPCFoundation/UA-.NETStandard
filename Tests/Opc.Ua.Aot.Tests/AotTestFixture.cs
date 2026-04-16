@@ -122,7 +122,8 @@ namespace Opc.Ua.Aot.Tests
                 null, endpointDescription,
                 EndpointConfiguration.Create(m_clientConfiguration));
 
-            using var sessionFactory = new DefaultSessionFactory(Telemetry);
+            var sessionFactory = new DefaultSessionFactory(Telemetry);
+#pragma warning disable CA2000 // Dispose objects before losing scope
             Session = await sessionFactory.CreateAsync(
                 m_clientConfiguration,
                 configuredEndpoint,
@@ -132,6 +133,7 @@ namespace Opc.Ua.Aot.Tests
                 identity: new UserIdentity(new AnonymousIdentityToken()),
                 preferredLocales: default,
                 ct: CancellationToken.None).ConfigureAwait(false);
+#pragma warning restore CA2000 // Dispose objects before losing scope
         }
 
         /// <summary>
@@ -148,7 +150,8 @@ namespace Opc.Ua.Aot.Tests
                 null, endpointDescription,
                 EndpointConfiguration.Create(m_clientConfiguration));
 
-            using var sessionFactory = new DefaultSessionFactory(Telemetry);
+            var sessionFactory = new DefaultSessionFactory(Telemetry);
+#pragma warning disable CA2000 // Dispose objects before losing scope
             return await sessionFactory.CreateAsync(
                 m_clientConfiguration,
                 configuredEndpoint,
@@ -158,6 +161,7 @@ namespace Opc.Ua.Aot.Tests
                 identity: new UserIdentity(new AnonymousIdentityToken()),
                 preferredLocales: default,
                 ct: CancellationToken.None).ConfigureAwait(false);
+#pragma warning restore CA2000 // Dispose objects before losing scope
         }
 
         public async ValueTask DisposeAsync()

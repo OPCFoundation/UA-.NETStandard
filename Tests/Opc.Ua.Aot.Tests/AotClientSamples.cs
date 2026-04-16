@@ -130,7 +130,7 @@ public static class AotClientSamples
     /// </summary>
     public static async Task BrowseAsync(ISession session)
     {
-        using var browser = new Browser(session)
+        var browser = new Browser(session)
         {
             BrowseDirection = BrowseDirection.Forward,
             NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable,
@@ -173,6 +173,7 @@ public static class AotClientSamples
         const int samplingInterval = 1000;
         const uint queueSize = 10;
 
+#pragma warning disable CA2000 // Dispose objects before losing scope
         var subscription = new Subscription(session.DefaultSubscription)
         {
             DisplayName = "AotTest Subscription",
@@ -182,6 +183,7 @@ public static class AotClientSamples
             MinLifetimeInterval = 3,
             KeepAliveCount = 5
         };
+#pragma warning restore CA2000 // Dispose objects before losing scope
 
         session.AddSubscription(subscription);
 
