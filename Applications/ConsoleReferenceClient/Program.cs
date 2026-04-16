@@ -145,6 +145,7 @@ namespace Quickstarts.ConsoleReferenceClient
             };
             var verboseOption = new Option<bool>("--verbose", "-v") { Description = "Verbose output" };
             var subscribeOption = new Option<bool>("--subscribe", "-s") { Description = "Subscribe" };
+            var testallEndpointsOption = new Option<bool>("--testall", "--ea") { Description = "Test All Endpoints" };
             var reverseConnectOption = new Option<string>("--reverseconnect", "--rc")
             {
                 Description = "Connect using the reverse connect endpoint. (e.g. --rc opc.tcp://localhost:65300)"
@@ -190,6 +191,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 jsonOption,
                 verboseOption,
                 subscribeOption,
+                testallEndpointsOption,
                 reverseConnectOption,
                 foreverOption,
                 leakChannelsOption,
@@ -239,6 +241,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 bool enableDurableSubscriptions =
                     parseResult.GetValue(durableSubscriptionOption);
                 var serverUrl = new Uri(parseResult.GetValue(serverUrlArgument));
+                var testallEndpoints = parseResult.GetValue(testallEndpointsOption);
 
                 ReverseConnectManager reverseConnectManager = null;
                 using var telemetry = new ConsoleTelemetry();
@@ -290,7 +293,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         logConsole,
                         fileLog,
                         appLog,
-                        LogLevel.Information);
+                        LogLevel.Warning);
 
                     // delete old certificate
                     if (renewCertificate)
@@ -324,6 +327,21 @@ namespace Quickstarts.ConsoleReferenceClient
                     var quitCTS = new CancellationTokenSource();
                     CancellationToken ct = quitCTS.Token;
                     ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+
+                    // handle connect all endpoints test.
+                    if (testallEndpoints)
+                    {
+                        var tester = new ClientSamples(
+                            telemetry,
+                            null,
+                            quitEvent,
+                            verbose);
+
+                        if (await tester.RunAsync(quitEvent, ct).ConfigureAwait(false))
+                        {
+                            return;
+                        }
+                    }
 
                     var userIdentity = new UserIdentity();
 
