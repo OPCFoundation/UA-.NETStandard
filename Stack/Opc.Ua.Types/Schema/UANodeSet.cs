@@ -257,7 +257,7 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute((ushort)0)]
+        [System.ComponentModel.DefaultValueAttribute(typeof(ushort), "0")]
         public ushort AccessRestrictions {
             get {
                 return this.accessRestrictionsField;
@@ -286,7 +286,7 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute((uint)0)]
+        [System.ComponentModel.DefaultValueAttribute(typeof(uint), "0")]
         public uint Permissions {
             get {
                 return this.permissionsField;
@@ -326,7 +326,7 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute((uint)0)]
+        [System.ComponentModel.DefaultValueAttribute(typeof(uint), "0")]
         public uint Code {
             get {
                 return this.codeField;
@@ -576,7 +576,7 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute((uint)0)]
+        [System.ComponentModel.DefaultValueAttribute(typeof(uint), "0")]
         public uint MaxStringLength {
             get {
                 return this.maxStringLengthField;
@@ -1061,7 +1061,7 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute((uint)0)]
+        [System.ComponentModel.DefaultValueAttribute(typeof(uint), "0")]
         public uint WriteMask {
             get {
                 return this.writeMaskField;
@@ -1073,7 +1073,7 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute((uint)0)]
+        [System.ComponentModel.DefaultValueAttribute(typeof(uint), "0")]
         public uint UserWriteMask {
             get {
                 return this.userWriteMaskField;
@@ -1436,7 +1436,7 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute((byte)0)]
+        [System.ComponentModel.DefaultValueAttribute(typeof(byte), "0")]
         public byte EventNotifier {
             get {
                 return this.eventNotifierField;
@@ -1610,7 +1610,7 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute((uint)1)]
+        [System.ComponentModel.DefaultValueAttribute(typeof(uint), "1")]
         public uint AccessLevel {
             get {
                 return this.accessLevelField;
@@ -1622,7 +1622,7 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute((uint)1)]
+        [System.ComponentModel.DefaultValueAttribute(typeof(uint), "1")]
         public uint UserAccessLevel {
             get {
                 return this.userAccessLevelField;
@@ -1673,7 +1673,7 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute((byte)0)]
+        [System.ComponentModel.DefaultValueAttribute(typeof(byte), "0")]
         public byte EventNotifier {
             get {
                 return this.eventNotifierField;
