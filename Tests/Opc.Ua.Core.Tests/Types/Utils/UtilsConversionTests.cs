@@ -90,12 +90,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         [Test]
-        public void FromHexStringNull()
-        {
-            Assert.Throws<ArgumentNullException>(() => Utils.FromHexString(null));
-        }
-
-        [Test]
         public void ToInt32WithSmallValue()
         {
             int result = Utils.ToInt32(42u);

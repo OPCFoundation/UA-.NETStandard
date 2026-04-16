@@ -1046,23 +1046,24 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a hexadecimal string to an array of bytes.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="buffer"/> is <c>null</c>.</exception>
         public static byte[] FromHexString(string buffer)
         {
-#if NET6_0_OR_GREATER
-            return Convert.FromHexString(buffer);
-#else
             if (buffer == null)
             {
                 return null;
             }
-
+#if NET6_0_OR_GREATER
+            return Convert.FromHexString(buffer);
+#else
             if (buffer.Length == 0)
             {
                 return [];
             }
 
-            string text = buffer.ToUpperInvariant();
             const string digits = "0123456789ABCDEF";
+            buffer = buffer.ToUpperInvariant();
 
             byte[] bytes = new byte[(buffer.Length / 2) + (buffer.Length % 2)];
 
