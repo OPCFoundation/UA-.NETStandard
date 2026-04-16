@@ -8,7 +8,7 @@
   xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
   TargetNamespace="http://opcfoundation.org/UA/"
   TargetVersion="1.05.07"
-  TargetPublicationDate="2025-12-25T00:00:00Z"
+  TargetPublicationDate="2026-04-15T00:00:00Z"
 >
   <opc:Namespaces>
     <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" InternalPrefix="Opc.Ua.Server" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
@@ -88,7 +88,7 @@
         <opc:Permission>Browse</opc:Permission>
         <opc:Permission>Read</opc:Permission>
       </opc:RolePermission>
-      <opc:RolePermission Role="WellKnownRole_ConfigureAdmin" >
+      <opc:RolePermission Role="WellKnownRole_ConfigureAdmin">
         <opc:Permission>All</opc:Permission>
       </opc:RolePermission>
       <opc:RolePermission Role="WellKnownRole_SecurityAdmin">
@@ -171,7 +171,7 @@
       </opc:Property>
       <opc:Property SymbolicName="NamespacePublicationDate" DataType="ua:DateTime">
         <opc:DefaultValue>
-          <uax:DateTime>2025-12-25T00:00:00</uax:DateTime>
+          <uax:DateTime>2026-04-15T00:00:00</uax:DateTime>
         </opc:DefaultValue>
       </opc:Property>
       <opc:Property SymbolicName="IsNamespaceSubset" DataType="ua:Boolean">
@@ -2648,19 +2648,19 @@
     </opc:Children>
   </opc:VariableType>
 
-  <opc:DataType SymbolicName="NumberRange" PartNo="5" BaseType="ua:Structure" ReleaseStatus="RC">
+  <opc:DataType SymbolicName="NumberRange" PartNo="5" BaseType="ua:Structure">
     <opc:Fields>
-      <opc:Field Name="Low"  DataType="ua:Number" />
-      <opc:Field Name="High"  DataType="ua:Number" />
+      <opc:Field Name="Low" DataType="ua:Number" />
+      <opc:Field Name="High" DataType="ua:Number" />
     </opc:Fields>
   </opc:DataType>
 
   <opc:VariableType SymbolicName="BaseAnalogType" BaseType="DataItemType" DataType="ua:Number" PartNo="8">
     <opc:Children>
       <opc:Property SymbolicName="InstrumentRange" DataType="Range" ModellingRule="Optional" />
-      <opc:Property SymbolicName="InstrumentNumberRange" DataType="NumberRange" ModellingRule="Optional" ReleaseStatus="RC" />
+      <opc:Property SymbolicName="InstrumentNumberRange" DataType="NumberRange" ModellingRule="Optional"  />
       <opc:Property SymbolicName="EURange" DataType="Range" ModellingRule="Optional" />
-      <opc:Property SymbolicName="EUNumberRange" DataType="NumberRange" ModellingRule="Optional" ReleaseStatus="RC" />
+      <opc:Property SymbolicName="EUNumberRange" DataType="NumberRange" ModellingRule="Optional"  />
       <opc:Property SymbolicName="EngineeringUnits" DataType="EUInformation" ModellingRule="Optional" />
     </opc:Children>
   </opc:VariableType>
@@ -2683,13 +2683,13 @@
     </opc:Children>
   </opc:VariableType>
 
-  <opc:VariableType SymbolicName="AnalogUnitRangeType" BaseType="AnalogItemType" DataType="ua:Number" ValueRank="Any" PartNo="8"  ReleaseStatus="RC">
+  <opc:VariableType SymbolicName="AnalogUnitRangeType" BaseType="AnalogItemType" DataType="ua:Number" ValueRank="Any" PartNo="8"  >
     <opc:Children>
       <opc:Property SymbolicName="EngineeringUnits" DataType="EUInformation" ModellingRule="Mandatory" />
     </opc:Children>
   </opc:VariableType>
 
-  <opc:VariableType SymbolicName="AnalogNumberUnitRangeType" BaseType="AnalogUnitRangeType" DataType="ua:Number" ValueRank="Any" PartNo="8" ReleaseStatus="RC">
+  <opc:VariableType SymbolicName="AnalogNumberUnitRangeType" BaseType="AnalogUnitRangeType" DataType="ua:Number" ValueRank="Any" PartNo="8" >
     <opc:Children>
       <opc:Property SymbolicName="EUNumberRange" DataType="NumberRange" ModellingRule="Mandatory" />
     </opc:Children>
@@ -4036,20 +4036,20 @@
     </opc:Children>
   </opc:ObjectType>
 
-  <opc:ObjectType SymbolicName="NonExclusiveRateOfChangeAlarmType" BaseType="NonExclusiveLimitAlarmType" PartNo="9" >
+  <opc:ObjectType SymbolicName="NonExclusiveRateOfChangeAlarmType" BaseType="NonExclusiveLimitAlarmType" PartNo="9">
     <opc:Children>
       <opc:Property SymbolicName="EngineeringUnits" DataType="EUInformation" ModellingRule="Optional" />
     </opc:Children>
   </opc:ObjectType>
 
-  <opc:ObjectType SymbolicName="ExclusiveDeviationAlarmType" BaseType="ExclusiveLimitAlarmType" PartNo="9" >
+  <opc:ObjectType SymbolicName="ExclusiveDeviationAlarmType" BaseType="ExclusiveLimitAlarmType" PartNo="9">
     <opc:Children>
       <opc:Property SymbolicName="SetpointNode" DataType="ua:NodeId" ModellingRule="Mandatory" />
       <opc:Property SymbolicName="BaseSetpointNode" DataType="ua:NodeId" ModellingRule="Optional" />
     </opc:Children>
   </opc:ObjectType>
 
-  <opc:ObjectType SymbolicName="ExclusiveRateOfChangeAlarmType" BaseType="ExclusiveLimitAlarmType" PartNo="9" >
+  <opc:ObjectType SymbolicName="ExclusiveRateOfChangeAlarmType" BaseType="ExclusiveLimitAlarmType" PartNo="9">
     <opc:Children>
       <opc:Property SymbolicName="EngineeringUnits" DataType="EUInformation" ModellingRule="Optional" />
     </opc:Children>
@@ -4972,6 +4972,10 @@
       <opc:Reference>
         <opc:ReferenceType>ua:HasCondition</opc:ReferenceType>
         <opc:TargetId>ua:CertificateExpirationAlarmType</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference>
+        <opc:ReferenceType>ua:HasCondition</opc:ReferenceType>
+        <opc:TargetId>ua:TrustListOutOfDateAlarmType</opc:TargetId>
       </opc:Reference>
     </opc:References>
     <opc:DefaultRolePermissions Name="SecurityAdminOnly" />
@@ -6623,7 +6627,7 @@
         <opc:DefaultRolePermissions Name="SecurityKeyServerAdminOnly" />
         <opc:DefaultAccessRestrictions>SigningRequired</opc:DefaultAccessRestrictions>
       </opc:Method>
-      <opc:Method SymbolicName="TriggerKeyUpdate" ModellingRule="Mandatory" >
+      <opc:Method SymbolicName="TriggerKeyUpdate" ModellingRule="Mandatory">
         <opc:DefaultRolePermissions Name="SecurityKeyServerPush" />
         <opc:DefaultAccessRestrictions>SigningRequired</opc:DefaultAccessRestrictions>
       </opc:Method>
@@ -8390,10 +8394,10 @@
         <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
       </opc:Object>
       <opc:Method SymbolicName="FindAlias" TypeDefinition="FindAliasMethodType" ModellingRule="Mandatory" />
-      <opc:Method SymbolicName="FindAliasVerbose" TypeDefinition="FindAliasVerboseMethodType" ModellingRule="Optional" ReleaseStatus="RC" />
+      <opc:Method SymbolicName="FindAliasVerbose" TypeDefinition="FindAliasVerboseMethodType" ModellingRule="Optional"  />
       <opc:Property SymbolicName="LastChange" DataType="VersionTime" ModellingRule="Optional" />
-      <opc:Method SymbolicName="AddAliasesToCategory" TypeDefinition="AddAliasesToCategoryMethodType" ModellingRule="Optional" ReleaseStatus="RC" />
-      <opc:Method SymbolicName="DeleteAliasesFromCategory" TypeDefinition="DeleteAliasesFromCategoryMethodType" ModellingRule="Optional" ReleaseStatus="RC" />
+      <opc:Method SymbolicName="AddAliasesToCategory" TypeDefinition="AddAliasesToCategoryMethodType" ModellingRule="Optional"  />
+      <opc:Method SymbolicName="DeleteAliasesFromCategory" TypeDefinition="DeleteAliasesFromCategoryMethodType" ModellingRule="Optional"  />
     </opc:Children>
   </opc:ObjectType>
 
@@ -8407,7 +8411,7 @@
     </opc:OutputArguments>
   </opc:Method>
 
-  <opc:Method SymbolicName="FindAliasVerboseMethodType" PartNo="17" ReleaseStatus="RC">
+  <opc:Method SymbolicName="FindAliasVerboseMethodType" PartNo="17">
     <opc:InputArguments>
       <opc:Argument Name="AliasNameSearchPattern" DataType="ua:String" />
       <opc:Argument Name="ReferenceTypeFilter" DataType="ua:NodeId" />
@@ -8417,7 +8421,7 @@
     </opc:OutputArguments>
   </opc:Method>
 
-  <opc:Method SymbolicName="AddAliasesToCategoryMethodType" PartNo="17" ReleaseStatus="RC">
+  <opc:Method SymbolicName="AddAliasesToCategoryMethodType" PartNo="17">
     <opc:InputArguments>
       <opc:Argument Name="AliasNames" DataType="ua:String" ValueRank="Array" />
       <opc:Argument Name="TargetNodes" DataType="ua:ExpandedNodeId" ValueRank="Array" />
@@ -8429,7 +8433,7 @@
     </opc:OutputArguments>
   </opc:Method>
 
-  <opc:Method SymbolicName="DeleteAliasesFromCategoryMethodType" PartNo="17" ReleaseStatus="RC">
+  <opc:Method SymbolicName="DeleteAliasesFromCategoryMethodType" PartNo="17">
     <opc:InputArguments>
       <opc:Argument Name="AliasNames" DataType="ua:String" ValueRank="Array" />
       <opc:Argument Name="TargetNodes" DataType="ua:ExpandedNodeId" ValueRank="Array" />
@@ -8439,27 +8443,6 @@
     </opc:OutputArguments>
   </opc:Method>
 
-  <opc:ObjectType SymbolicName="AliasNamePubSubConfigurationType" BaseType="ua:BaseObjectType" PartNo="17" ReleaseStatus="RC">
-    <opc:Children>
-      <opc:Property SymbolicName="PublishingInterval" DataType="Duration" ModellingRule="Mandatory" />
-      <opc:Property SymbolicName="KeyFrameCount" DataType="UInt32" ModellingRule="Mandatory" />
-      <opc:Property SymbolicName="KeepAliveTime" DataType="Duration" ModellingRule="Mandatory" />
-      <opc:Property SymbolicName="SecurityMode" DataType="MessageSecurityMode" ModellingRule="Mandatory" />
-      <opc:Property SymbolicName="SecurityGroupId" DataType="String" ModellingRule="Mandatory" />
-      <opc:Property SymbolicName="SecurityKeyServices" DataType="EndpointDescription" ValueRank="Array" ModellingRule="Mandatory" />
-      <opc:Property SymbolicName="MulticastAddress" DataType="NetworkAddressUrlDataType" ModellingRule="Mandatory" />
-      <opc:Property SymbolicName="Enabled" DataType="Boolean" ModellingRule="Mandatory" />
-      <opc:Property SymbolicName="NotificationDataSetClassId" DataType="Guid" ModellingRule="Optional">
-        <opc:Description DoNotIgnore="true">This is the DataSetClassId for notification messages related to addition or deletion of AliasNames or AliasNameCategories</opc:Description>
-        <opc:DefaultValue>
-          <uax:Guid>
-            <uax:String>65880051-7e5b-4a96-ae47-e0ef4704b924</uax:String>
-          </uax:Guid>
-        </opc:DefaultValue>
-      </opc:Property>
-    </opc:Children>
-  </opc:ObjectType>
-
   <opc:DataType SymbolicName="AliasNameDataType" BaseType="Structure" PartNo="17">
     <opc:Fields>
       <opc:Field Name="AliasName" DataType="ua:QualifiedName" />
@@ -8467,23 +8450,27 @@
     </opc:Fields>
   </opc:DataType>
 
-  <opc:DataType SymbolicName="AliasNameVerboseDataType" BaseType="Structure" PartNo="17" ReleaseStatus="RC">
+  <opc:DataType SymbolicName="AliasNameVerboseDataType" BaseType="Structure" PartNo="17">
     <opc:Fields>
       <opc:Field Name="AliasName" DataType="ua:QualifiedName" />
       <opc:Field Name="ReferencedNodes" DataType="ua:ExpandedNodeId" ValueRank="Array" />
-      <opc:Field Name="ServerUri" DataType="ua:String" ValueRank="Array" />
+      <opc:Field Name="ServerUris" DataType="ua:String" ValueRank="Array" />
       <opc:Field Name="AliasNameCategoryId" DataType="ua:NodeId" />
     </opc:Fields>
   </opc:DataType>
 
-  <opc:DataType SymbolicName="AliasCategoryUpdateDataType" BaseType="Structure" PartNo="17" ReleaseStatus="RC">
+  <opc:DataType SymbolicName="AliasCategoryUpdateDataType" BaseType="Structure" PartNo="17">
     <opc:Fields>
       <opc:Field Name="Category" DataType="ua:PortableNodeId" />
       <opc:Field Name="LastChange" DataType="ua:VersionTime" />
     </opc:Fields>
   </opc:DataType>
 
-  <opc:DataType SymbolicName="AliasUpdateDataType" BaseType="Structure" PartNo="17" ReleaseStatus="RC">
+  <opc:DataType SymbolicName="AliasUpdateDataType" BaseType="Structure" PartNo="17">
+    <opc:Children>
+      <opc:Property SymbolicName="DataSetClassId" DataType="Guid" ModellingRule="None" />
+      <opc:Property SymbolicName="DataSetMetaData" DataType="DataSetMetaDataType" ModellingRule="None" />
+    </opc:Children>
     <opc:Fields>
       <opc:Field Name="ApplicationUri" DataType="ua:String" />
       <opc:Field Name="Categories" DataType="ua:AliasCategoryUpdateDataType" ValueRank="Array" />
@@ -8519,19 +8506,6 @@
 
   <opc:Object SymbolicName="Topics" TypeDefinition="AliasNameCategoryType" ModellingRule="None" PartNo="17">
     <opc:BrowseName>Topics</opc:BrowseName>
-    <opc:References>
-      <opc:Reference IsInverse="true">
-        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
-        <opc:TargetId>ua:Aliases</opc:TargetId>
-      </opc:Reference>
-    </opc:References>
-  </opc:Object>
-
-  <opc:Object SymbolicName="AliasNamePubSubConfiguration" TypeDefinition="AliasNamePubSubConfigurationType" ModellingRule="None" PartNo="17" ReleaseStatus="RC">
-    <opc:BrowseName>AliasNamePubSubConfiguration</opc:BrowseName>
-    <opc:Children>
-      <opc:Property SymbolicName="NotificationDataSetClassId" ModellingRule="Mandatory" />
-    </opc:Children>
     <opc:References>
       <opc:Reference IsInverse="true">
         <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
@@ -9588,7 +9562,7 @@
       <opc:Property SymbolicName="MaxRecords" DataType="UInt32" ValueRank="Scalar" ModellingRule="Optional" />
       <opc:Property SymbolicName="MaxStorageDuration" DataType="Duration" ValueRank="Scalar" ModellingRule="Optional" />
       <opc:Property SymbolicName="MinimumSeverity" DataType="UInt16" ValueRank="Scalar" ModellingRule="Optional" />
-      <opc:Method SymbolicName="ReleaseContinuationPoint" TypeDefinition="ReleaseContinuationPointMethodType" ModellingRule="Optional" ReleaseStatus="RC" />
+      <opc:Method SymbolicName="ReleaseContinuationPoint" TypeDefinition="ReleaseContinuationPointMethodType" ModellingRule="Optional"  />
     </opc:Children>
   </opc:ObjectType>
 
@@ -9607,7 +9581,7 @@
     </opc:OutputArguments>
   </opc:Method>
 
-  <opc:Method SymbolicName="ReleaseContinuationPointMethodType" PartNo="26" ReleaseStatus="RC">
+  <opc:Method SymbolicName="ReleaseContinuationPointMethodType" PartNo="26">
     <opc:InputArguments>
       <opc:Argument Name="ContinuationPointIn" DataType="ua:ByteString" />
     </opc:InputArguments>

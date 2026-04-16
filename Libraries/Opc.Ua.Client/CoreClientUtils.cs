@@ -82,13 +82,13 @@ namespace Opc.Ua.Client
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
             // Connect to the local discovery server and find the available servers.
-            using (DiscoveryClient client = await DiscoveryClient.CreateAsync(
+            DiscoveryClient client = await DiscoveryClient.CreateAsync(
                     new Uri(Utils.Format(Utils.DiscoveryUrls[0], "localhost")),
                     endpointConfiguration,
                     telemetry,
-                    ct: ct).ConfigureAwait(false))
+                    ct: ct).ConfigureAwait(false);
             {
-                ArrayOf<ApplicationDescription> servers =
+                var servers =
                     await client.FindServersAsync(default, ct).ConfigureAwait(false);
 
                 // populate the drop down list with the discovery URLs for the available servers.
@@ -161,7 +161,7 @@ namespace Opc.Ua.Client
                 ? discoverTimeout
                 : DefaultDiscoverTimeout;
 
-            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+            DiscoveryClient client = await DiscoveryClient.CreateAsync(
                 application,
                 connection,
                 endpointConfiguration,
