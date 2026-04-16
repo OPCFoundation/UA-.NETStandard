@@ -210,7 +210,7 @@ namespace Opc.Ua.Security.Certificates
         /// the X509 extensions.
         /// </remarks>
         /// <param name="issuerCertificate">The issuer certificate.</param>
-        ICertificateBuilderIssuer SetIssuer(X509Certificate2 issuerCertificate);
+        ICertificateBuilderIssuer SetIssuer(Certificate issuerCertificate);
     }
 
     /// <summary>
@@ -282,7 +282,7 @@ namespace Opc.Ua.Security.Certificates
         /// Create the RSA certificate with signature.
         /// </summary>
         /// <returns>The signed certificate.</returns>
-        X509Certificate2 CreateForRSA();
+        Certificate CreateForRSA();
     }
 
     /// <summary>
@@ -294,7 +294,7 @@ namespace Opc.Ua.Security.Certificates
         /// Create the RSA certificate with signature using an external generator.
         /// </summary>
         /// <returns>The signed certificate.</returns>
-        X509Certificate2 CreateForRSA(X509SignatureGenerator generator);
+        Certificate CreateForRSA(X509SignatureGenerator generator);
     }
 
     /// <summary>
@@ -306,7 +306,7 @@ namespace Opc.Ua.Security.Certificates
         /// Create the ECC certificate with signature.
         /// </summary>
         /// <returns>The signed certificate.</returns>
-        X509Certificate2 CreateForECDsa();
+        Certificate CreateForECDsa();
     }
 
     /// <summary>
@@ -318,6 +318,6 @@ namespace Opc.Ua.Security.Certificates
         /// Create the ECDSA certificate with signature using an external generator.
         /// </summary>
         /// <returns>The signed certificate.</returns>
-        X509Certificate2 CreateForECDsa(X509SignatureGenerator generator);
+        Certificate CreateForECDsa(X509SignatureGenerator generator);
     }
 }

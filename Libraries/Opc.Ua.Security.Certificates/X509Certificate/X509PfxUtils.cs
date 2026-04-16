@@ -48,7 +48,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Return the key usage flags of a certificate.
         /// </summary>
-        private static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
+        private static X509KeyUsageFlags GetKeyUsage(Certificate cert)
         {
             X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
             foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
@@ -63,8 +63,8 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         public static bool VerifyKeyPair(
-            X509Certificate2 certWithPublicKey,
-            X509Certificate2 certWithPrivateKey,
+            Certificate certWithPublicKey,
+            Certificate certWithPrivateKey,
             bool throwOnError = false)
         {
             if (IsECDsaSignature(certWithPublicKey))
@@ -80,8 +80,8 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <exception cref="CryptographicException"></exception>
         public static bool VerifyRSAKeyPair(
-            X509Certificate2 certWithPublicKey,
-            X509Certificate2 certWithPrivateKey,
+            Certificate certWithPublicKey,
+            Certificate certWithPrivateKey,
             bool throwOnError = false)
         {
             bool result = false;
@@ -135,7 +135,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="noEphemeralKeySet">Set to true if the key should not use the ephemeral key set.</param>
         /// <returns>The certificate with a private key.</returns>
         /// <exception cref="NotSupportedException"></exception>
-        public static X509Certificate2 CreateCertificateFromPKCS12(
+        public static Certificate CreateCertificateFromPKCS12(
             byte[] rawData,
             ReadOnlySpan<char> password,
             bool noEphemeralKeySet = false)
@@ -159,14 +159,15 @@ namespace Opc.Ua.Security.Certificates
             // try some combinations of storage flags, support is platform dependent
             foreach (X509KeyStorageFlags flag in storageFlags)
             {
-                X509Certificate2 certificate = null;
+                Certificate certificate = null;
                 try
                 {
-                    // merge first cert with private key into X509Certificate2
-                    certificate = X509CertificateLoader.LoadPkcs12(
-                        rawData,
-                        password,
-                        flag);
+                    // merge first cert with private key into Certificate
+                    certificate = Certificate.From(
+                        X509CertificateLoader.LoadPkcs12(
+                            rawData,
+                            password,
+                            flag));
                     if (VerifyKeyPair(certificate, certificate, true))
                     {
                         // Found
@@ -184,7 +185,7 @@ namespace Opc.Ua.Security.Certificates
                 throw ex;
             }
             throw new NotSupportedException(
-                "Creating X509Certificate from PKCS #12 store failed");
+                "Creating Certificate from PKCS #12 store failed");
         }
 
         /// <summary>
@@ -226,7 +227,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// If the certificate has a ECDsa signature.
         /// </summary>
-        public static bool IsECDsaSignature(X509Certificate2 cert)
+        public static bool IsECDsaSignature(Certificate cert)
         {
             return cert.SignatureAlgorithm.Value switch
             {
@@ -241,8 +242,8 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <exception cref="CryptographicException"></exception>
         public static bool VerifyECDsaKeyPair(
-            X509Certificate2 certWithPublicKey,
-            X509Certificate2 certWithPrivateKey,
+            Certificate certWithPublicKey,
+            Certificate certWithPrivateKey,
             bool throwOnError = false)
         {
             bool result = false;

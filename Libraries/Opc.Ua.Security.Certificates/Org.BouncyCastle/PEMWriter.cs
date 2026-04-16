@@ -51,7 +51,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
         public static byte[] ExportPrivateKeyAsPEM(
-            X509Certificate2 certificate,
+            Certificate certificate,
             ReadOnlySpan<char> password = default)
         {
             bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
@@ -83,7 +83,7 @@ namespace Opc.Ua.Security.Certificates
                 }
 
                 ECPrivateKeyParameters privateKeyParameter = X509Utils.GetECDsaPrivateKeyParameter(
-                    certificate.GetECDsaPrivateKey());
+                    certificate);
                 // write private key as PKCS#8
                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(
                     privateKeyParameter);

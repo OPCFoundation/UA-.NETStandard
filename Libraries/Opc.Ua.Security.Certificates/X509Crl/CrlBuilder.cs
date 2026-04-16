@@ -199,7 +199,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="crlReason">The revocation reason</param>
         /// <exception cref="ArgumentNullException"><paramref name="certificate"/> is <c>null</c>.</exception>
         public CrlBuilder AddRevokedCertificate(
-            X509Certificate2 certificate,
+            Certificate certificate,
             CRLReason crlReason = CRLReason.Unspecified)
         {
             if (certificate == null)
@@ -270,7 +270,7 @@ namespace Opc.Ua.Security.Certificates
         /// Create the CRL with signature for RSA.
         /// </summary>
         /// <returns>The signed CRL.</returns>
-        public IX509CRL CreateForRSA(X509Certificate2 issuerCertificate)
+        public IX509CRL CreateForRSA(Certificate issuerCertificate)
         {
             using RSA rsa = issuerCertificate.GetRSAPrivateKey();
             var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
@@ -281,7 +281,7 @@ namespace Opc.Ua.Security.Certificates
         /// Create the CRL with signature for ECDsa.
         /// </summary>
         /// <returns>The signed CRL.</returns>
-        public IX509CRL CreateForECDsa(X509Certificate2 issuerCertificate)
+        public IX509CRL CreateForECDsa(Certificate issuerCertificate)
         {
             using ECDsa ecdsa = issuerCertificate.GetECDsaPrivateKey();
             var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);

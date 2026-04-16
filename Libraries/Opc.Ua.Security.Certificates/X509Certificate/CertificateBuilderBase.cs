@@ -102,16 +102,16 @@ namespace Opc.Ua.Security.Certificates
         public X509ExtensionCollection Extensions => m_extensions;
 
         /// <inheritdoc/>
-        public abstract X509Certificate2 CreateForRSA();
+        public abstract Certificate CreateForRSA();
 
         /// <inheritdoc/>
-        public abstract X509Certificate2 CreateForRSA(X509SignatureGenerator generator);
+        public abstract Certificate CreateForRSA(X509SignatureGenerator generator);
 
         /// <inheritdoc/>
-        public abstract X509Certificate2 CreateForECDsa();
+        public abstract Certificate CreateForECDsa();
 
         /// <inheritdoc/>
-        public abstract X509Certificate2 CreateForECDsa(X509SignatureGenerator generator);
+        public abstract Certificate CreateForECDsa(X509SignatureGenerator generator);
 
         /// <inheritdoc/>
         public ICertificateBuilder SetSerialNumberLength(int length)
@@ -264,7 +264,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public virtual ICertificateBuilderIssuer SetIssuer(X509Certificate2 issuerCertificate)
+        public virtual ICertificateBuilderIssuer SetIssuer(Certificate issuerCertificate)
         {
             IssuerCAKeyCert = issuerCertificate ??
                 throw new ArgumentNullException(nameof(issuerCertificate));
@@ -299,7 +299,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The issuer CA certificate.
         /// </summary>
-        protected X509Certificate2 IssuerCAKeyCert { get; private set; }
+        protected Certificate IssuerCAKeyCert { get; private set; }
 
         /// <summary>
         /// Validate and adjust settings to avoid creation of invalid certificates.

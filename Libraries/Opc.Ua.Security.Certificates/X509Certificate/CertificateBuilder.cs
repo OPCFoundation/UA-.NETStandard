@@ -81,7 +81,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public override X509Certificate2 CreateForRSA()
+        public override Certificate CreateForRSA()
         {
             CreateDefaults();
 
@@ -131,11 +131,12 @@ namespace Opc.Ua.Security.Certificates
                     serialNumber);
             }
 
-            return rsaKeyPair == null ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
+            return Certificate.From(
+                rsaKeyPair == null ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair));
         }
 
         /// <inheritdoc/>
-        public override X509Certificate2 CreateForRSA(X509SignatureGenerator generator)
+        public override Certificate CreateForRSA(X509SignatureGenerator generator)
         {
             CreateDefaults();
 
@@ -174,11 +175,12 @@ namespace Opc.Ua.Security.Certificates
                 NotAfter,
                 [.. ((IEnumerable<byte>)m_serialNumber).Reverse()]);
 
-            return rsaKeyPair == null ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
+            return Certificate.From(
+                rsaKeyPair == null ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair));
         }
 
         /// <inheritdoc/>
-        public override X509Certificate2 CreateForECDsa()
+        public override Certificate CreateForECDsa()
         {
             if (m_ecdsaPublicKey != null && IssuerCAKeyCert == null)
             {
@@ -229,11 +231,12 @@ namespace Opc.Ua.Security.Certificates
                     serialNumber);
             }
 
-            return key == null ? cert : cert.CopyWithPrivateKey(key);
+            return Certificate.From(
+                key == null ? cert : cert.CopyWithPrivateKey(key));
         }
 
         /// <inheritdoc/>
-        public override X509Certificate2 CreateForECDsa(X509SignatureGenerator generator)
+        public override Certificate CreateForECDsa(X509SignatureGenerator generator)
         {
             if (IssuerCAKeyCert == null)
             {
@@ -268,8 +271,8 @@ namespace Opc.Ua.Security.Certificates
                 NotAfter,
                 [.. ((IEnumerable<byte>)m_serialNumber).Reverse()]);
 
-            // return a X509Certificate2
-            return key == null ? signedCert : signedCert.CopyWithPrivateKey(key);
+            return Certificate.From(
+                key == null ? signedCert : signedCert.CopyWithPrivateKey(key));
         }
 
         /// <inheritdoc/>

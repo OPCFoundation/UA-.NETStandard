@@ -47,7 +47,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <typeparam name="T">The type of the extension.</typeparam>
         /// <param name="certificate">The certificate with extensions.</param>
-        public static T FindExtension<T>(this X509Certificate2 certificate)
+        public static T FindExtension<T>(this Certificate certificate)
             where T : X509Extension
         {
             return FindExtension<T>(certificate.Extensions);
@@ -259,7 +259,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="issuerCaCertificate">The issuer CA certificate</param>
         public static X509Extension BuildAuthorityKeyIdentifier(
-            this X509Certificate2 issuerCaCertificate)
+            this Certificate issuerCaCertificate)
         {
             // force exception if SKI is not present
             X509SubjectKeyIdentifierExtension ski = issuerCaCertificate

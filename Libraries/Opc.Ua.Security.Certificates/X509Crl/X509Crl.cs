@@ -119,13 +119,13 @@ namespace Opc.Ua.Security.Certificates
         /// Verifies the signature on the CRL.
         /// </summary>
         /// <exception cref="CryptographicException"></exception>
-        public bool VerifySignature(X509Certificate2 issuer, bool throwOnError)
+        public bool VerifySignature(Certificate issuer, bool throwOnError)
         {
             bool result;
             try
             {
                 var signature = new X509Signature(RawData);
-                result = signature.Verify(issuer);
+                result = signature.Verify(issuer.X509);
             }
             catch (Exception)
             {
@@ -142,9 +142,9 @@ namespace Opc.Ua.Security.Certificates
         /// Returns true if the certificate is revoked in the CRL.
         /// </summary>
         /// <exception cref="CryptographicException"></exception>
-        public bool IsRevoked(X509Certificate2 certificate)
+        public bool IsRevoked(Certificate certificate)
         {
-            if (certificate.IssuerName.Equals(IssuerName))
+            if (certificate.X509.IssuerName.Equals(IssuerName))
             {
                 throw new CryptographicException("Certificate was not created by the CRL Issuer.");
             }

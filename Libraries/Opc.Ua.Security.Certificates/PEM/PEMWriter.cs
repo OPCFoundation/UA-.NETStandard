@@ -61,7 +61,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the cert in PEM format.
         /// </summary>
-        public static byte[] ExportCertificateAsPEM(X509Certificate2 certificate)
+        public static byte[] ExportCertificateAsPEM(Certificate certificate)
         {
             return EncodeAsPEM(certificate.RawData, "CERTIFICATE");
         }
@@ -70,7 +70,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the public key in PEM format.
         /// </summary>
-        public static byte[] ExportPublicKeyAsPEM(X509Certificate2 certificate)
+        public static byte[] ExportPublicKeyAsPEM(Certificate certificate)
         {
             byte[] exportedPublicKey = null;
             using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
@@ -83,7 +83,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the RSA private key in PEM format.
         /// </summary>
-        public static byte[] ExportRSAPrivateKeyAsPEM(X509Certificate2 certificate)
+        public static byte[] ExportRSAPrivateKeyAsPEM(Certificate certificate)
         {
             byte[] exportedRSAPrivateKey = null;
             using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
@@ -97,7 +97,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the ECDsa private key in PEM format.
         /// </summary>
-        public static byte[] ExportECDsaPrivateKeyAsPEM(X509Certificate2 certificate)
+        public static byte[] ExportECDsaPrivateKeyAsPEM(Certificate certificate)
         {
             byte[] exportedECPrivateKey = null;
             using (ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
@@ -112,7 +112,7 @@ namespace Opc.Ua.Security.Certificates
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
         public static byte[] ExportPrivateKeyAsPEM(
-            X509Certificate2 certificate,
+            Certificate certificate,
             ReadOnlySpan<char> password = default)
         {
             byte[] exportedPkcs8PrivateKey = null;

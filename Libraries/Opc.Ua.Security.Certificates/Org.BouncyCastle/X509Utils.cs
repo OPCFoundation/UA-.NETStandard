@@ -105,9 +105,9 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <summary>
-        /// Get public key parameters from a X509Certificate2
+        /// Get public key parameters from a Certificate
         /// </summary>
-        internal static RsaKeyParameters GetRsaPublicKeyParameter(X509Certificate2 certificate)
+        internal static RsaKeyParameters GetRsaPublicKeyParameter(Certificate certificate)
         {
             using RSA rsa = certificate.GetRSAPublicKey();
             return GetRsaPublicKeyParameter(rsa);
@@ -126,11 +126,11 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <summary>
-        /// Get RSA private key parameters from a X509Certificate2.
+        /// Get RSA private key parameters from a Certificate.
         /// The private key must be exportable.
         /// </summary>
         internal static RsaPrivateCrtKeyParameters GetRsaPrivateKeyParameter(
-            X509Certificate2 certificate)
+            Certificate certificate)
         {
             // try to get signing/private key from certificate passed in
             using RSA rsa = certificate.GetRSAPrivateKey();
@@ -160,11 +160,11 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <summary>
-        /// Get ECDsa private key parameters from a X509Certificate2.
+        /// Get ECDsa private key parameters from a Certificate.
         /// The private key must be exportable.
         /// </summary>
         internal static ECPrivateKeyParameters GetECDsaPrivateKeyParameter(
-            X509Certificate2 certificate)
+            Certificate certificate)
         {
             // try to get signing/private key from certificate passed in
             using ECDsa ecdsa = certificate.GetECDsaPrivateKey();
@@ -327,7 +327,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// Get the serial number from a certificate as BigInteger.
         /// </summary>
-        internal static BigInteger GetSerialNumber(X509Certificate2 certificate)
+        internal static BigInteger GetSerialNumber(Certificate certificate)
         {
             byte[] serialNumber = certificate.GetSerialNumber();
             return new BigInteger(1, [.. ((IEnumerable<byte>)serialNumber).Reverse()]);
