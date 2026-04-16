@@ -1,7 +1,34 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -12,90 +39,11 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
-using Quickstarts;
 
 namespace Quickstarts
 {
     public partial class ClientSamples
     {
-        private readonly Lock m_lock = new();
-        private SessionReconnectHandler m_reconnectHandler;
-        private ApplicationConfiguration m_configuration;
-        private SessionWrapper m_wrapper;
-        //private bool m_verbose = true;
-
-        const string ServerUrl = "opc.tcp://localhost:62541";
-        const string UserName = "sysadmin";
-        const string Password = "demo";
-        const bool supportsX509 = true;
-
-        //const string ServerUrl = "opc.tcp://10.103.19.71:52520/OPCUA/SampleConsoleServer";
-        //const string UserName = "opcua";
-        //const string Password = "opcua";
-        //static bool supportsX509 = false;
-
-        //const string ServerUrl = "opc.tcp://10.103.141.179:4840";
-        //const string UserName = "iop";
-        //const string Password = "test";
-        //static bool supportsX509 = false;
-
-        //const string ServerUrl = "opc.tcp://78.46.151.116:4840";
-        //const string UserName = "user1";
-        //const string Password = "passsword";
-        //static bool supportsX509 = false;
-
-        //const string ServerUrl = "opc.tcp://10.103.119.62:4888/Softing/OpcUa/TestServer";
-        //const string UserName = "usr";
-        //const string Password = "pwd";
-        //const bool supportsX509 = true;
-
-        //static string TargetPolicy = SecurityPolicies.ECC_nistP256_AesGcm;
-
-        //const int kMaxSearchDepth = 128;
-        const int ReconnectPeriod = 1000;
-        const int ReconnectPeriodExponentialBackoff = 15000;
-
-        //public RunConnectAll(ApplicationConfiguration configuration, ITelemetryContext context)
-        //{
-        //    CryptoTrace.Enabled = true;
-
-        //    m_telemetry = context;
-        //    m_configuration = configuration;
-        //    m_logger = context.CreateLogger("Test");
-
-        //    m_reconnectHandler = new SessionReconnectHandler(
-        //        context,
-        //        true,
-        //        ReconnectPeriodExponentialBackoff);
-        //}
-
-
-        public class SessionWrapper : IUAClient
-        {
-            public ISession Session { get; init; }
-        }
-
-        private string GetUserCertificateFile(string securityPolicyUri)
-        {
-            var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
-
-            switch (securityPolicy.CertificateKeyAlgorithm)
-            {
-                default:
-                case CertificateKeyAlgorithm.RSA:
-                case CertificateKeyAlgorithm.RSADH:
-                    return $"iama.tester.rsa.pfx";
-                case CertificateKeyAlgorithm.BrainpoolP256r1:
-                    return $"iama.tester.brainpoolP256r1.pfx";
-                case CertificateKeyAlgorithm.BrainpoolP384r1:
-                    return $"iama.tester.brainpoolP384r1.pfx";
-                case CertificateKeyAlgorithm.NistP256:
-                    return $"iama.tester.nistP256.pfx";
-                case CertificateKeyAlgorithm.NistP384:
-                    return $"iama.tester.nistP384.pfx";
-            }
-        }
-
         public async Task<bool> RunAsync(ManualResetEvent quitEvent, CancellationToken ct)
         {
             try
@@ -103,7 +51,7 @@ namespace Quickstarts
                 m_reconnectHandler = new SessionReconnectHandler(
                     m_telemetry,
                     true,
-                    ReconnectPeriodExponentialBackoff);
+                    kReconnectPeriodExponentialBackoff);
 
                 m_logger.LogInformation("OPC UA Security Test Client");
                 CryptoTrace.Enabled = false;
@@ -124,7 +72,7 @@ namespace Quickstarts
                 };
 
                 // load the application configuration.
-                var configuration = m_configuration = await application
+                ApplicationConfiguration configuration = m_configuration = await application
                     .LoadApplicationConfigurationAsync(silent: false, ct: ct)
                     .ConfigureAwait(false);
 
@@ -140,43 +88,47 @@ namespace Quickstarts
                     throw new InvalidOperationException("Application instance certificate invalid!");
                 }
 
-                m_logger.LogInformation("Connecting to... {ServerUrl}", ServerUrl);
+                m_logger.LogInformation("Connecting to... {ServerUrl}", kServerUrl);
 
-                var endpoints = await GetEndpoints(
+                ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync(
                     m_configuration,
-                    ServerUrl,
+                    kServerUrl,
                     ct).ConfigureAwait(false);
 
                 //endpoints = endpoints.Where(x => x.SecurityPolicyUri == TargetPolicy).ToList();
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                 var sessionFactory = new DefaultSessionFactory(m_telemetry);
-                var userNameidentity = new UserIdentity(UserName, new UTF8Encoding(false).GetBytes(Password));
+                var userNameidentity = new UserIdentity(kUserName, new UTF8Encoding(false).GetBytes(kPassword));
 
-                foreach (var ii in endpoints.ToArray())
+                foreach (EndpointDescription ii in endpoints.ToArray())
                 {
-                    var userCertificateFile = GetUserCertificateFile(ii.SecurityPolicyUri);
+                    string userCertificateFile = GetUserCertificateFile(ii.SecurityPolicyUri);
 
-                    var x509 = X509CertificateLoader.LoadPkcs12FromFile(
+                    X509Certificate2 x509 = X509CertificateLoader.LoadPkcs12FromFile(
                         Path.Combine("..\\..\\pki\\trustedUser\\private",
                         userCertificateFile),
                         "password");
 
-                    var thumbprint = x509.Thumbprint;
+                    string thumbprint = x509.Thumbprint;
 
-                    var certificateIdentity = await LoadUserCertificateAsync(thumbprint, "password", ct).ConfigureAwait(false);
+                    UserIdentity certificateIdentity = await LoadUserCertificateAsync(thumbprint, "password", ct).ConfigureAwait(false);
 
                     var identities = new List<UserIdentity>
                     {
-                       new UserIdentity()
+                        new()
                     };
 
-                    if (!String.IsNullOrEmpty(UserName))
-                    { identities.Add(userNameidentity); }
-                    if (supportsX509)
-                    { identities.Add(certificateIdentity); }
+                    if (!string.IsNullOrEmpty(kUserName))
+                    {
+                        identities.Add(userNameidentity);
+                    }
+                    if (kSupportsX509)
+                    {
+                        identities.Add(certificateIdentity);
+                    }
 
-                    foreach (var identity in identities)
+                    foreach (UserIdentity identity in identities)
                     {
                         try
                         {
@@ -192,7 +144,7 @@ namespace Quickstarts
                                 identity.DisplayName,
                                 identity.TokenType);
 
-                            var wrapper = m_wrapper = await RunTestAsync(
+                            SessionWrapper wrapper = m_wrapper = await RunTestAsync(
                                 endpointConfiguration,
                                 sessionFactory,
                                 ii,
@@ -204,15 +156,14 @@ namespace Quickstarts
 
                             for (int count = 0; count < 1; count++)
                             {
-                                var result = await wrapper.Session.ReadAsync(
+                                ReadResponse result = await wrapper.Session.ReadAsync(
                                     null,
                                     0,
                                     TimestampsToReturn.Neither,
-                                    new List<ReadValueId>()
+                                    new List<ReadValueId>
                                     {
-                                        new ReadValueId()
-                                        {
-                                            NodeId = Opc.Ua.VariableIds.Server_ServerStatus_CurrentTime,
+                                        new() {
+                                            NodeId = VariableIds.Server_ServerStatus_CurrentTime,
                                             AttributeId = Attributes.Value
                                         }
                                     },
@@ -220,7 +171,7 @@ namespace Quickstarts
 
                                 m_logger.LogWarning(
                                     "CurrentTime: {CurrentTime}",
-                                    result.Results[0].WrappedValue.ToString());
+                                    result.Results[0].WrappedValue.GetDateTime());
 
                                 await Task.Delay(5000, ct).ConfigureAwait(false);
                             }
@@ -271,15 +222,19 @@ namespace Quickstarts
             return true;
         }
 
-        private async Task<UserIdentity> LoadUserCertificateAsync(string thumbprint, string password, CancellationToken ct)
+        private async Task<UserIdentity> LoadUserCertificateAsync(
+            string thumbprint,
+            string password,
+            CancellationToken ct)
         {
+            CertificateTrustList store = m_configuration.SecurityConfiguration.TrustedUserCertificates;
 #if NET8_0_OR_GREATER
-            var store = m_configuration.SecurityConfiguration.TrustedUserCertificates;
-
             // get user certificate with matching thumbprint
-            var hit = (
-                await store.GetCertificatesAsync(m_telemetry, ct).ConfigureAwait(false)
-            ).Find(X509FindType.FindByThumbprint, thumbprint, false).FirstOrDefault();
+            X509Certificate2Collection certificates =
+                await store.GetCertificatesAsync(m_telemetry, ct).ConfigureAwait(false);
+            X509Certificate2 hit = certificates
+                .Find(X509FindType.FindByThumbprint, thumbprint, false)
+                .FirstOrDefault();
 
             // create Certificate Identifier
             var cid = new CertificateIdentifier(hit)
@@ -292,15 +247,14 @@ namespace Quickstarts
                 cid,
                 new CertificatePasswordProvider(new UTF8Encoding(false).GetBytes(password)),
                 m_telemetry,
-                ct
-            ).ConfigureAwait(false);
+                ct).ConfigureAwait(false);
 #else
             await Task.Delay(1, ct).ConfigureAwait(false);
             throw new NotSupportedException("User certificate identity is only supported on .NET 8 or greater.");
 #endif
         }
 
-        public async Task<SessionWrapper> RunTestAsync(
+        internal async Task<SessionWrapper> RunTestAsync(
             EndpointConfiguration endpointConfiguration,
             DefaultSessionFactory sessionFactory,
             EndpointDescription endpointDescription,
@@ -322,24 +276,24 @@ namespace Quickstarts
                     m_configuration.ApplicationName,
                     600000,
                     //new UserIdentity(),
-                    (endpointDescription.SecurityMode != MessageSecurityMode.None) ? identity : new UserIdentity(),
+                    endpointDescription.SecurityMode != MessageSecurityMode.None ? identity : new UserIdentity(),
                     default,
                     ct
                 )
                 .ConfigureAwait(false);
 
-            var wrapper = m_wrapper = new SessionWrapper() { Session = isession };
+            SessionWrapper wrapper = m_wrapper = new SessionWrapper { Session = isession };
 
             // Assign the created session
             if (!wrapper.Session.Connected)
             {
-                throw new InvalidOperationException("Could not connect to server at " + ServerUrl);
+                throw new InvalidOperationException("Could not connect to server at " + kServerUrl);
             }
 
             wrapper.Session.KeepAliveInterval = 10000;
             wrapper.Session.KeepAlive += Session_KeepAlive;
 
-            var nodes = await BrowseFullAddressSpaceAsync(
+            ArrayOf<ReferenceDescription> nodes = await BrowseFullAddressSpaceAsync(
                 wrapper,
                 ObjectIds.ObjectsFolder,
                 null,
@@ -348,14 +302,14 @@ namespace Quickstarts
             return wrapper;
         }
 
-        private async ValueTask<ArrayOf<EndpointDescription>> GetEndpoints(
+        private static async ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
             ApplicationConfiguration application,
             string discoveryUrl,
             CancellationToken ct = default)
         {
             var endpointConfiguration = EndpointConfiguration.Create(application);
 
-            var client = await DiscoveryClient.CreateAsync(
+            DiscoveryClient client = await DiscoveryClient.CreateAsync(
                 application,
                 new Uri(discoveryUrl),
                 endpointConfiguration,
@@ -418,7 +372,7 @@ namespace Quickstarts
                         .BeginReconnect(
                             m_wrapper.Session,
                             null,
-                            ReconnectPeriod,
+                            kReconnectPeriod,
                             Client_ReconnectComplete
                             );
                     if (state == SessionReconnectHandler.ReconnectState.Triggered)
@@ -427,7 +381,7 @@ namespace Quickstarts
                             "KeepAlive status {StatusCode}, reconnect status {State}, reconnect period {ReconnectPeriod}ms.",
                             e.Status,
                             state,
-                            ReconnectPeriod
+                            kReconnectPeriod
                         );
                     }
                     else
@@ -470,7 +424,7 @@ namespace Quickstarts
                             m_reconnectHandler.Session.SessionId
                         );
                         ISession session = m_wrapper.Session;
-                        m_wrapper = new SessionWrapper() { Session = m_reconnectHandler.Session };
+                        m_wrapper = new SessionWrapper { Session = m_reconnectHandler.Session };
                         Utils.SilentDispose(session);
                     }
                     else
@@ -486,5 +440,42 @@ namespace Quickstarts
                 }
             }
         }
+
+        private static string GetUserCertificateFile(string securityPolicyUri)
+        {
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+
+            switch (securityPolicy.CertificateKeyAlgorithm)
+            {
+                case CertificateKeyAlgorithm.BrainpoolP256r1:
+                    return "iama.tester.brainpoolP256r1.pfx";
+                case CertificateKeyAlgorithm.BrainpoolP384r1:
+                    return "iama.tester.brainpoolP384r1.pfx";
+                case CertificateKeyAlgorithm.NistP256:
+                    return "iama.tester.nistP256.pfx";
+                case CertificateKeyAlgorithm.NistP384:
+                    return "iama.tester.nistP384.pfx";
+                default:
+                    return "iama.tester.rsa.pfx";
+            }
+        }
+
+        internal sealed class SessionWrapper : IUAClient
+        {
+            public ISession Session { get; init; }
+        }
+
+        private readonly Lock m_lock = new();
+        private SessionReconnectHandler m_reconnectHandler;
+        private ApplicationConfiguration m_configuration;
+        private SessionWrapper m_wrapper;
+
+        private const string kServerUrl = "opc.tcp://localhost:62541";
+        private const string kUserName = "sysadmin";
+        private const string kPassword = "demo";
+        private const bool kSupportsX509 = true;
+
+        private const int kReconnectPeriod = 1000;
+        private const int kReconnectPeriodExponentialBackoff = 15000;
     }
 }
