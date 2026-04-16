@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -55,6 +57,11 @@ namespace Opc.Ua.Gds.Tests
     [NonParallelizable]
     public class PushTest
     {
+        private static readonly HashSet<string> s_supportedPolicyUris =
+        [
+            .. SecurityPolicies.GetDisplayNames().Select(SecurityPolicies.GetUri)
+        ];
+
         /// <summary>
         /// CertificateTypes to run the Test with.
         /// For ECC types, the additional fourth element is the expected curve friendly name.
@@ -77,9 +84,37 @@ namespace Opc.Ua.Gds.Tests
             },
             new object[]
             {
+                nameof(OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType,
+                SecurityPolicies.ECC_nistP256_AesGcm,
+                ECCurve.NamedCurves.nistP256
+            },
+            new object[]
+            {
+                nameof(OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType,
+                SecurityPolicies.ECC_nistP256_ChaChaPoly,
+                ECCurve.NamedCurves.nistP256
+            },
+            new object[]
+            {
                 nameof(OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType),
                 OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType,
                 SecurityPolicies.ECC_nistP384,
+                ECCurve.NamedCurves.nistP384
+            },
+            new object[]
+            {
+                nameof(OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType,
+                SecurityPolicies.ECC_nistP384_AesGcm,
+                ECCurve.NamedCurves.nistP384
+            },
+            new object[]
+            {
+                nameof(OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType,
+                SecurityPolicies.ECC_nistP384_ChaChaPoly,
                 ECCurve.NamedCurves.nistP384
             },
             new object[]
@@ -91,15 +126,49 @@ namespace Opc.Ua.Gds.Tests
             },
             new object[]
             {
+                nameof(OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType,
+                SecurityPolicies.ECC_brainpoolP256r1_AesGcm,
+                ECCurve.NamedCurves.brainpoolP256r1
+            },
+            new object[]
+            {
+                nameof(OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType,
+                SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly,
+                ECCurve.NamedCurves.brainpoolP256r1
+            },
+            new object[]
+            {
                 nameof(OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType),
                 OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType,
                 SecurityPolicies.ECC_brainpoolP384r1,
+                ECCurve.NamedCurves.brainpoolP384r1
+            },
+            new object[]
+            {
+                nameof(OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType,
+                SecurityPolicies.ECC_brainpoolP384r1_AesGcm,
+                ECCurve.NamedCurves.brainpoolP384r1
+            },
+            new object[]
+            {
+                nameof(OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType,
+                SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly,
                 ECCurve.NamedCurves.brainpoolP384r1
             }
         ];
 
         public PushTest(string certificateTypeString, NodeId certificateType, string securityPolicyUri, ECCurve? curve)
         {
+            if (!s_supportedPolicyUris.Contains(securityPolicyUri))
+            {
+                NUnit.Framework.Assert.Ignore(
+                    $"Security policy {securityPolicyUri} is not supported on this runtime.");
+            }
+
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
                 Assert.Ignore(
@@ -108,7 +177,8 @@ namespace Opc.Ua.Gds.Tests
 
             // Skip brainpool curves on Mac OS
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
-                (securityPolicyUri == SecurityPolicies.ECC_brainpoolP256r1 || securityPolicyUri == SecurityPolicies.ECC_brainpoolP384r1))
+                (securityPolicyUri.Contains("ECC_brainpoolP256r1", StringComparison.Ordinal) ||
+                    securityPolicyUri.Contains("ECC_brainpoolP384r1", StringComparison.Ordinal)))
             {
                 Assert.Ignore("Brainpool curve is not supported on Mac OS.");
             }
@@ -177,8 +247,17 @@ namespace Opc.Ua.Gds.Tests
             await m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl)
                 .ConfigureAwait(false);
 
-            await m_pushClient.ConnectAsync(m_securityPolicyUri)
-                .ConfigureAwait(false);
+            try
+            {
+                await m_pushClient.ConnectAsync(m_securityPolicyUri)
+                    .ConfigureAwait(false);
+            }
+            catch (ArgumentException ex) when (
+                ex.Message.Contains("No endpoint found for SecurityPolicyUri", StringComparison.Ordinal))
+            {
+                NUnit.Framework.Assert.Ignore(
+                    $"Security policy {m_securityPolicyUri} is not advertised by the GDS test server.");
+            }
 
             await ConnectGDSClientAsync(true).ConfigureAwait(false);
 
@@ -761,7 +840,7 @@ namespace Opc.Ua.Gds.Tests
 
             X509Certificate2 newCert;
 
-            ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
+            ECCurve? curve = CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType);
 
             if (curve != null)
             {
@@ -1282,7 +1361,7 @@ namespace Opc.Ua.Gds.Tests
             var certificateStoreIdentifier = new CertificateStoreIdentifier(tempStorePath, false);
             Assert.That(EraseStore(certificateStoreIdentifier, telemetry), Is.True);
             const string subjectName = "CN=CA Test Cert, O=OPC Foundation";
-            ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
+            ECCurve? curve = CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType);
 
             if (curve != null)
             {

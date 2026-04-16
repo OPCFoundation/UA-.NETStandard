@@ -666,7 +666,14 @@ namespace Opc.Ua
         /// <remarks>If the platform returns a FQDN, only the host name is returned.</remarks>
         public static string GetHostName()
         {
-            return Dns.GetHostName().Split('.')[0].ToLowerInvariant();
+            var hostName = Dns.GetHostName();
+            // If platform returns an IPv4 or IPv6 address return it as is
+            if (IPAddress.TryParse(hostName, out _))
+            {
+                return hostName;
+            }
+
+            return hostName.Split('.')[0].ToLowerInvariant();
         }
 
         /// <summary>

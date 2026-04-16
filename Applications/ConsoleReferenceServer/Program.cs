@@ -173,7 +173,13 @@ namespace Quickstarts.ReferenceServer
                     }
 
                     // setup the logging
-                    telemetry.ConfigureLogging(server.Configuration, applicationName, logConsole, fileLog, appLog, LogLevel.Information);
+                    telemetry.ConfigureLogging(
+                        server.Configuration,
+                        applicationName,
+                        logConsole,
+                        fileLog,
+                        appLog,
+                        LogLevel.Warning);
 
                     // check or renew the certificate
                     Console.WriteLine("Check the certificate.");

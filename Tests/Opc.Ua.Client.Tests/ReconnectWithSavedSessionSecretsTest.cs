@@ -58,7 +58,9 @@ namespace Opc.Ua.Client.Tests
         [
             new object[] { SecurityPolicies.None },
             new object[] { SecurityPolicies.ECC_nistP256 },
-            new object[] { SecurityPolicies.Basic256Sha256 }
+            new object[] { SecurityPolicies.Basic256Sha256 },
+            new object[] { SecurityPolicies.RSA_DH_AesGcm },
+            new object[] { SecurityPolicies.RSA_DH_ChaChaPoly }
         ];
 
         private readonly string m_securityPolicy;
@@ -164,6 +166,8 @@ namespace Opc.Ua.Client.Tests
             bool sequentialPublishing,
             bool sendInitialValues)
         {
+            await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
+
             const int kTestSubscriptions = 5;
             const int kDelay = 2_000;
             const int kQueueSize = 10;

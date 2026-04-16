@@ -33,6 +33,9 @@
     <AnalysisMode>all</AnalysisMode>
     <AnalysisModeStyle>default</AnalysisModeStyle>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(BuildingInsideVisualStudio)' == 'true'">
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
   <ItemGroup Condition="'$(NoRoslynatorAnalzers)' == ''">
     <PackageReference Include="Roslynator.Analyzers" PrivateAssets="All" />
     <PackageReference Include="Roslynator.Formatting.Analyzers" PrivateAssets="All" />

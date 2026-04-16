@@ -1028,7 +1028,10 @@ namespace Opc.Ua.Bindings
                     var context = new SecureChannelContext(
                         channel.GlobalChannelId,
                         channel.EndpointDescription,
-                        RequestEncoding.Binary);
+                        RequestEncoding.Binary,
+                        channel.ClientCertificate?.RawData,
+                        channel.ServerCertificate?.RawData,
+                        channel.ChannelThumbprint);
 
                     IServiceResponse response = await m_callback.ProcessRequestAsync(
                         context,

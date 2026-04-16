@@ -223,6 +223,24 @@ The ambient model is marked as `Experimental` at this point and should not be us
 
 These issues will be addressed over time by refactoring the code base to be dependency injection friendly.
 
+### Opt out
+
+The simplest is to use a dummy implementation of `ITelemetryContext` such as 
+
+```csharp
+sealed class NullTelemetry : TelemetryContextBase
+{
+    public NullTelemetry()
+        : base(NullLoggerFactory.Instance) // <--- This comes from Microsoft.Extensions.Logging.Abstractions 
+    {
+    }
+}
+```
+
+It is also possible to pass `null` for a `ITelemetryContext` parameter, but this is not recommended as it
+will cause the code to fallback to the old tracing model and may cause format exceptions if the trace logger
+is not configured to handle semantic logging.
+
 ### Migrating
 
 #### Important context - read first

@@ -232,9 +232,10 @@ namespace Opc.Ua.Client
             encoder.WriteDateTime(null, config.Timestamp);
             encoder.WriteNodeId(null, config.SessionId);
             encoder.WriteNodeId(null, config.AuthenticationToken);
-            encoder.WriteByteString(null, config.ServerNonce?.Data);
+            encoder.WriteByteString(null, config.ServerNonce);
+            encoder.WriteByteString(null, config.ClientNonce);
             encoder.WriteString(null, config.UserIdentityTokenPolicy);
-            encoder.WriteByteString(null, config.ServerEccEphemeralKey?.Data);
+            encoder.WriteByteString(null, config.ServerEccEphemeralKey);
 
             // Subscriptions
             int subCount = config.Subscriptions?.Count ?? 0;
@@ -267,17 +268,10 @@ namespace Opc.Ua.Client
                 configuredEndpoint?.Description?.SecurityPolicyUri
                 ?? string.Empty;
 
-            ByteString nonceData = decoder.ReadByteString(null);
-            Nonce? serverNonce = !nonceData.IsNull
-                ? Nonce.CreateNonce(securityPolicy, nonceData.ToArray())
-                : null;
-
+            ByteString serverNonce = decoder.ReadByteString(null);
+            ByteString clientNonce = decoder.ReadByteString(null);
             string? userIdentityTokenPolicy = decoder.ReadString(null);
-
-            ByteString eccKeyData = decoder.ReadByteString(null);
-            Nonce? serverEccEphemeralKey = !eccKeyData.IsNull
-                ? Nonce.CreateNonce(securityPolicy, eccKeyData.ToArray())
-                : null;
+            ByteString serverEccEphemeralKey = decoder.ReadByteString(null);
 
             // Subscriptions
             int subCount = decoder.ReadInt32(null);
@@ -300,9 +294,11 @@ namespace Opc.Ua.Client
                 Timestamp = timestamp,
                 SessionId = sessionId,
                 AuthenticationToken = authenticationToken,
-                ServerNonce = serverNonce,
+                ServerNonce = serverNonce.IsNull ? null : serverNonce.ToArray(),
+                ClientNonce = clientNonce.IsNull ? null : clientNonce.ToArray(),
                 UserIdentityTokenPolicy = userIdentityTokenPolicy,
-                ServerEccEphemeralKey = serverEccEphemeralKey,
+                ServerEccEphemeralKey =
+                    serverEccEphemeralKey.IsNull ? null : serverEccEphemeralKey.ToArray(),
                 Subscriptions = subscriptions
             };
         }

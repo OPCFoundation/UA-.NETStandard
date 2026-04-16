@@ -43,6 +43,13 @@ namespace Opc.Ua
         public X509IdentityTokenHandler(X509IdentityToken token)
         {
             m_token = token;
+
+            if (!m_token.CertificateData.IsEmpty)
+            {
+                m_certificate = CertificateFactory.Create(m_token.CertificateData);
+            }
+
+            m_ownsCertificate = true;
         }
 
         /// <summary>
@@ -66,10 +73,27 @@ namespace Opc.Ua
             }
 
             Certificate = certificate;
+            m_ownsCertificate = true;
             m_token = new X509IdentityToken
             {
                 CertificateData = certificate.RawData.ToByteString()
             };
+        }
+
+        /// <summary>
+        /// Private constructor for <see cref="Clone"/>. The cloned handler
+        /// shares the certificate reference but does not own it, so it will
+        /// not dispose the certificate. This is necessary because the
+        /// certificate's private key may reside in protected storage and
+        /// cannot be deep-copied.
+        /// </summary>
+        private X509IdentityTokenHandler(
+            X509IdentityToken token,
+            X509Certificate2 certificate)
+        {
+            m_token = token;
+            m_certificate = certificate;
+            m_ownsCertificate = false;
         }
 
         /// <summary>
@@ -134,15 +158,13 @@ namespace Opc.Ua
             byte[] dataToSign,
             string securityPolicyUri)
         {
-            X509Certificate2 certificate = Certificate ??
-                CertificateFactory.Create(m_token.CertificateData);
+            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            X509Certificate2 certificate = Certificate;
 
-            SignatureData signatureData = SecurityPolicies.Sign(
+            var signatureData = SecurityPolicies.CreateSignatureData(
+                info,
                 certificate,
-                securityPolicyUri,
                 dataToSign);
-
-            m_token.CertificateData = certificate.RawData.ToByteString();
 
             return signatureData;
         }
@@ -155,16 +177,14 @@ namespace Opc.Ua
         {
             try
             {
-                X509Certificate2 certificate = Certificate ??
-                    CertificateFactory.Create(m_token.CertificateData);
+                var info = SecurityPolicies.GetInfo(securityPolicyUri);
+                X509Certificate2 certificate = Certificate;
 
-                bool valid = SecurityPolicies.Verify(
+                bool valid = SecurityPolicies.VerifySignatureData(
+                    signatureData,
+                    info,
                     certificate,
-                    securityPolicyUri,
-                    dataToVerify,
-                    signatureData);
-
-                m_token.CertificateData = certificate.RawData.ToByteString();
+                    dataToVerify);
 
                 return valid;
             }
@@ -180,17 +200,19 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            // TODOL Utils.SilentDispose(m_certificate);
+            if (m_ownsCertificate)
+            {
+                Utils.SilentDispose(m_certificate);
+            }
             m_certificate = null;
         }
 
         /// <inheritdoc/>
         public object Clone()
         {
-            return new X509IdentityTokenHandler(CoreUtils.Clone(m_token))
-            {
-                // TODO: m_certificate = m_certificate
-            };
+            return new X509IdentityTokenHandler(
+                CoreUtils.Clone(m_token),
+                m_certificate);
         }
 
         /// <inheritdoc/>
@@ -204,6 +226,7 @@ namespace Opc.Ua
         }
 
         private readonly X509IdentityToken m_token;
+        private readonly bool m_ownsCertificate;
         private X509Certificate2 m_certificate;
     }
 }
