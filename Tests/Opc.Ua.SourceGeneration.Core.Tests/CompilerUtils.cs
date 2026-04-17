@@ -822,6 +822,8 @@ namespace Opc.Ua.SourceGeneration
                 public class StateMachineStateState : BaseObjectState
                 {
                     public StateMachineStateState(NodeState? parent) : base(parent) { }
+                    public void CreateOrReplaceStateNumber(
+                        ISystemContext context, BaseInstanceState replacement) { }
                 }
                 public class StateMachineInitialStateState : StateMachineStateState
                 {
@@ -830,6 +832,28 @@ namespace Opc.Ua.SourceGeneration
                 public class StateMachineTransitionState : StateMachineStateState
                 {
                     public StateMachineTransitionState(NodeState? parent) : base(parent) { }
+                }
+                public class StateMachineState : BaseObjectState
+                {
+                    public StateMachineState(NodeState? parent) : base(parent) { }
+                    public void CreateOrReplaceStateNumber(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                    public void CreateOrReplaceCurrentState(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                    public void CreateOrReplaceLastTransition(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                }
+                public class StateVariableState : BaseDataVariableState
+                {
+                    public StateVariableState(NodeState? parent) : base(parent) { }
+                    public void CreateOrReplaceId(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                    public void CreateOrReplaceName(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                    public void CreateOrReplaceNumber(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                    public void CreateOrReplaceEffectiveDisplayName(
+                        ISystemContext context, BaseInstanceState replacement) { }
                 }
                 public class AddCommentMethodState : MethodState
                 {
