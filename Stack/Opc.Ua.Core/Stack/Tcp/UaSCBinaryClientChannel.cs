@@ -576,7 +576,6 @@ namespace Opc.Ua.Bindings
             ServerChannelCertificate = ServerCertificate?.RawData;
 
             m_oscRequestSignature = null;
-            byte[] signature;
 
             // write the asymmetric message.
             BufferCollection? chunksToSend = WriteAsymmetricMessage(
@@ -587,16 +586,10 @@ namespace Opc.Ua.Bindings
                 ServerCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length),
                 m_oscRequestSignature,
-                out signature);
+                out byte[] signature);
 
             // don't keep signature if secure channel enhancements are not used.
             m_oscRequestSignature = (SecurityPolicy.SecureChannelEnhancements) ? signature : null;
-
-            CryptoTrace.Start(ConsoleColor.Magenta, $"SendOpenSecureChannelRequest ({(renew ? "RENEW" : "OPEN")})");
-            CryptoTrace.WriteLine($"ClientCertificate={ClientCertificate?.Thumbprint}");
-            CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
-            CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(signature)}");
-            CryptoTrace.Finish("SendOpenSecureChannelRequest");
 
             // save token.
             m_requestedToken = token;
@@ -651,8 +644,7 @@ namespace Opc.Ua.Bindings
             uint sequenceNumber;
             try
             {
-                byte[] signature;
-                
+
                 messageBody = ReadAsymmetricMessage(
                     messageChunk,
                     ClientCertificate,
@@ -661,22 +653,12 @@ namespace Opc.Ua.Bindings
                     out requestId,
                     out sequenceNumber,
                     (State == TcpChannelState.Opening) ? m_oscRequestSignature : null,
-                    out signature);
+                    out byte[] signature);
 
                 if (State == TcpChannelState.Opening)
                 {
                     ChannelThumbprint = signature;
                 }
-
-                CryptoTrace.Start(ConsoleColor.Magenta, $"ProcessOpenSecureChannelResponse ({(State != TcpChannelState.Opening ? "RENEW" : "OPEN")})");
-                CryptoTrace.WriteLine($"messageBody={CryptoTrace.KeyToString(messageBody)}");
-                CryptoTrace.WriteLine($"messageBody.Offset={messageBody.Offset}");
-                CryptoTrace.WriteLine($"ClientCertificate={ClientCertificate?.Thumbprint}");
-                CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
-                CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(m_oscRequestSignature)}");
-                CryptoTrace.WriteLine($"ResponseSignature={CryptoTrace.KeyToString(signature)}");
-                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(ChannelThumbprint)}");
-                CryptoTrace.Finish("ProcessOpenSecureChannelResponse");
             }
             catch (Exception e)
             {

@@ -554,7 +554,6 @@ namespace Opc.Ua.Bindings
             X509Certificate2 receiverCertificate,
             ArraySegment<byte> messageBody)
         {
-            byte[] unused = null;
             return WriteAsymmetricMessage(
                 messageType,
                 requestId,
@@ -563,7 +562,7 @@ namespace Opc.Ua.Bindings
                 receiverCertificate,
                 messageBody,
                 null,
-                out unused);
+                out byte[] unused);
         }
 
         /// <summary>

@@ -483,12 +483,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Adds padding to a buffer. Input: buffer with unencrypted data starting at 0; plaintext data starting at offset; no padding.
+        /// Adds padding to a buffer. Input: buffer with unencrypted data starting at 0;
+        /// plaintext data starting at offset; no padding.
         /// </summary>
-        /// <param name="data">buffer with unencrypted data starting at 0; plaintext data starting at offset; no padding.</param>
+        /// <param name="data">buffer with unencrypted data starting at 0; plaintext data
+        /// starting at offset; no padding.</param>
         /// <param name="blockSize"></param>
-        /// <param name="trailingBytes">Additional bytes that will be appended after padding (e.g., HMAC) and must be considered for block alignment.</param>
-        /// <returns>Output: buffer with unencrypted data starting at 0; plaintext data starting at offset; padding added.</returns>
+        /// <param name="trailingBytes">Additional bytes that will be appended after
+        /// padding (e.g., HMAC) and must be considered for block alignment.</param>
+        /// <returns>Output: buffer with unencrypted data starting at 0; plaintext data
+        /// starting at offset; padding added.</returns>
         private static ArraySegment<byte> AddPadding(ArraySegment<byte> data, int blockSize, int trailingBytes = 0)
         {
             int paddingByteSize = blockSize > byte.MaxValue ? 2 : 1;
@@ -514,11 +518,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Removes padding from a buffer. Input: buffer with unencrypted data starting at 0; plaintext including padding starting at offset; signature removed.
+        /// Removes padding from a buffer. Input: buffer with unencrypted data starting at 0;
+        /// plaintext including padding starting at offset; signature removed.
         /// </summary>
-        /// <param name="data">Input: buffer with unencrypted data starting at 0; plaintext including padding starting at offset; signature removed.</param>
+        /// <param name="data">Input: buffer with unencrypted data starting at 0; plaintext
+        /// including padding starting at offset; signature removed.</param>
         /// <param name="blockSize"></param>
-        /// <returns>Output: buffer with unencrypted data starting at 0; plaintext starting at offset; padding excluded.</returns>
+        /// <returns>Output: buffer with unencrypted data starting at 0; plaintext starting
+        /// at offset; padding excluded.</returns>
         /// <exception cref="CryptographicException"></exception>
         private static ArraySegment<byte> RemovePadding(ArraySegment<byte> data, int blockSize)
         {
@@ -557,6 +564,8 @@ namespace Opc.Ua
         /// <summary>
         /// Encrypts the buffer using the algorithm specified by the security policy.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="CryptographicException"></exception>
         public static ArraySegment<byte> SymmetricEncryptAndSign(
             ArraySegment<byte> data,
             SecurityPolicyInfo securityPolicy,
@@ -715,16 +724,6 @@ namespace Opc.Ua
                 tag,
                 extraData);
 
-            CryptoTrace.Start(ConsoleColor.DarkCyan, "EncryptWithChaCha20Poly1305");
-            CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count}");
-            CryptoTrace.WriteLine($"TokenId/LastSequenceNumber={tokenId}/{lastSequenceNumber}");
-            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
-            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
-            CryptoTrace.WriteLine($"EncryptedData={CryptoTrace.KeyToString(ciphertext)}");
-            CryptoTrace.WriteLine($"Tag={CryptoTrace.KeyToString(tag)}");
-            CryptoTrace.WriteLine($"ExtraData={CryptoTrace.KeyToString(extraData.ToArray())}");
-            CryptoTrace.Finish("EncryptWithChaCha20Poly1305");
-
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
             {
@@ -738,9 +737,7 @@ namespace Opc.Ua
                 0,
                 data.Offset + data.Count + kChaChaPolyTagLength);
         }
-#endif
 
-#if NET8_0_OR_GREATER
         private static ArraySegment<byte> DecryptWithChaCha20Poly1305(
            ArraySegment<byte> data,
            byte[] encryptingKey,
@@ -751,17 +748,23 @@ namespace Opc.Ua
         {
             if (encryptingKey == null || encryptingKey.Length != 32)
             {
-                throw new ArgumentException("ChaCha20-Poly1305 requires a 256-bit (32-byte) key.", nameof(encryptingKey));
+                throw new ArgumentException(
+                    "ChaCha20-Poly1305 requires a 256-bit (32-byte) key.",
+                    nameof(encryptingKey));
             }
 
             if (iv == null || iv.Length != kChaChaPolyIvLength)
             {
-                throw new ArgumentException("ChaCha20-Poly1305 requires a 96-bit (12-byte) nonce.", nameof(iv));
+                throw new ArgumentException(
+                    "ChaCha20-Poly1305 requires a 96-bit (12-byte) nonce.",
+                    nameof(iv));
             }
 
             if (data.Count < kChaChaPolyTagLength) // Must at least contain tag
             {
-                throw new ArgumentException("Ciphertext too short.", nameof(data));
+                throw new ArgumentException(
+                    "Ciphertext too short.",
+                    nameof(data));
             }
 
             byte[] plaintext = new byte[data.Count - kChaChaPolyTagLength];
@@ -792,16 +795,6 @@ namespace Opc.Ua
                 signOnly ? [] : plaintext,
                 extraData);
 
-            CryptoTrace.Start(ConsoleColor.DarkCyan, "DecryptWithChaCha20Poly1305");
-            CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count - kChaChaPolyTagLength}");
-            CryptoTrace.WriteLine($"TokenId/LastSequenceNumber={tokenId}/{lastSequenceNumber}");
-            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
-            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
-            CryptoTrace.WriteLine($"EncryptedData={CryptoTrace.KeyToString(encryptedData)}");
-            CryptoTrace.WriteLine($"Tag={CryptoTrace.KeyToString(tag)}");
-            CryptoTrace.WriteLine($"ExtraData={CryptoTrace.KeyToString(extraData.ToArray())}");
-            CryptoTrace.Finish("DecryptWithChaCha20Poly1305");
-
             // Return layout: [associated data | plaintext]
             if (!signOnly)
             {
@@ -810,9 +803,7 @@ namespace Opc.Ua
 
             return new ArraySegment<byte>(data.Array, 0, data.Offset + data.Count - kChaChaPolyTagLength);
         }
-#endif
 
-#if NET8_0_OR_GREATER
         private const int kAesGcmIvLength = 12;
         private const int kAesGcmTagLength = 16;
 
@@ -853,16 +844,6 @@ namespace Opc.Ua
                 tag,
                 extraData);
 
-            CryptoTrace.Start(ConsoleColor.DarkCyan, "EncryptWithAesGcm");
-            CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count}");
-            CryptoTrace.WriteLine($"TokenId/LastSequenceNumber={tokenId}/{lastSequenceNumber}");
-            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
-            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
-            CryptoTrace.WriteLine($"EncryptedData={CryptoTrace.KeyToString(ciphertext)}");
-            CryptoTrace.WriteLine($"Tag={CryptoTrace.KeyToString(tag)}");
-            CryptoTrace.WriteLine($"ExtraData={CryptoTrace.KeyToString(extraData.ToArray())}");
-            CryptoTrace.Finish("DecryptWithAesGcm");
-
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
             {
@@ -876,9 +857,7 @@ namespace Opc.Ua
                 0,
                 data.Offset + data.Count + kAesGcmTagLength);
         }
-#endif
 
-#if NET8_0_OR_GREATER
         private static ArraySegment<byte> DecryptWithAesGcm(
             ArraySegment<byte> data,
             byte[] encryptingKey,
@@ -894,12 +873,16 @@ namespace Opc.Ua
 
             if (iv == null || iv.Length != kAesGcmIvLength)
             {
-                throw new ArgumentException("AES-GCM requires a 96-bit (12-byte) IV/nonce.", nameof(iv));
+                throw new ArgumentException(
+                    "AES-GCM requires a 96-bit (12-byte) IV/nonce.",
+                    nameof(iv));
             }
 
             if (data.Count < kAesGcmTagLength) // Must at least contain tag
             {
-                throw new ArgumentException("Ciphertext too short.", nameof(data));
+                throw new ArgumentException(
+                    "Ciphertext too short.",
+                    nameof(data));
             }
 
             byte[] plaintext = new byte[data.Count - kAesGcmTagLength];
@@ -923,16 +906,6 @@ namespace Opc.Ua
 
             iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
 
-            CryptoTrace.Start(ConsoleColor.DarkCyan, "DecryptWithAesGcm");
-            CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count - kAesGcmTagLength}");
-            CryptoTrace.WriteLine($"TokenId/LastSequenceNumber={tokenId}/{lastSequenceNumber}");
-            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
-            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
-            CryptoTrace.WriteLine($"EncryptedData={CryptoTrace.KeyToString(encryptedData)}");
-            CryptoTrace.WriteLine($"Tag={CryptoTrace.KeyToString(tag)}");
-            CryptoTrace.WriteLine($"ExtraData={CryptoTrace.KeyToString(extraData.ToArray())}");
-            CryptoTrace.Finish("DecryptWithAesGcm");
-
             aesGcm.Decrypt(
                 iv,
                 encryptedData,
@@ -950,11 +923,11 @@ namespace Opc.Ua
         }
 #endif
 
-            /// <summary>
-            /// Decrypts the buffer using the algorithm specified by the security policy.
-            /// </summary>
-            /// <exception cref="CryptographicException"></exception>
-            /// <exception cref="NotSupportedException"></exception>
+        /// <summary>
+        /// Decrypts the buffer using the algorithm specified by the security policy.
+        /// </summary>
+        /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
         public static ArraySegment<byte> SymmetricDecryptAndVerify(
            ArraySegment<byte> data,
            SecurityPolicyInfo securityPolicy,
@@ -1044,313 +1017,6 @@ namespace Opc.Ua
             }
 
             return new ArraySegment<byte>(data.Array, 0, data.Offset + data.Count);
-        }
-    }
-
-#if X
-    class FfdheDhWithRsaAuth
-    {
-        // ffdhe2048 prime from RFC 7919 (hex, without whitespace).
-        // (RFC 7919 Appendix A.3 — use this canonical modulus in production.)
-        const string FFDHE2048_HEX = @"
-            FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
-            D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
-            7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
-            2433F51F 5F066ED0 85636555 3DED1AF3 B557135E 7F57C935
-            984F0C70 E0E68B77 E2A689DA F3EFE872 1DF158A1 36ADE735
-            30ACCA4F 483A797A BC0AB182 B324FB61 D108A94B B2C8E3FB
-            B96ADAB7 60D7F468 1D4F42A3 DE394DF4 AE56EDE7 6372BB19
-            0B07A7C8 EE0A6D70 9E02FCE1 CDF7E2EC C03404CD 28342F61
-            9172FE9C E98583FF 8E4F1232 EEF28183 C3FE3B1B 4C6FAD73
-            3BB5FCBC 2EC22005 C58EF183 7D1683B2 C6F34A26 C1B2EFFA
-            886B4238 61285C97 FFFFFFFF FFFFFFFF";
-
-        // Generator for FFDHE groups is 2
-        static readonly BigInteger G = new BigInteger(2);
-
-        static void Main()
-        {
-            // Parse the RFC hex prime into a positive BigInteger
-            BigInteger p = ParseHexBigInteger(FFDHE2048_HEX);
-
-            // Recommended: use a short ephemeral exponent (e.g. 256-bit) for performance
-            // while still achieving ~128-bit security for typical scenarios.
-            // (RFC7919 and implementation guidance discuss exponent sizing; choose per your threat model.)
-            int privateBitLength = 256;
-
-            Console.WriteLine("Simulating DH exchange (ffdhe2048) with RSA signing...");
-
-            // Simulate Alice and Bob
-            var alice = CreateDhParticipant(p, privateBitLength);
-            var bob = CreateDhParticipant(p, privateBitLength);
-
-            // Each signs their public value with their own RSA key (DHE-RSA style authentication)
-            byte[] alicePub = ToBigEndian(alice.PublicValue);
-            byte[] bobPub = ToBigEndian(bob.PublicValue);
-
-            byte[] aliceSig, bobSig;
-            using (RSA rsaAlice = RSA.Create(2048))
-            using (RSA rsaBob = RSA.Create(2048))
-            {
-                // In real use the RSA keys are persistent (server cert) and public keys/certificates exchanged
-                aliceSig = rsaAlice.SignData(alicePub, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-                bobSig = rsaBob.SignData(bobPub, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-
-                // Each verifies the other's signature (in a real protocol they'd have the peer's cert/public key)
-                bool verifyAlice = rsaBob.VerifyData(bobPub, bobSig, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-                bool verifyBob = rsaAlice.VerifyData(alicePub, aliceSig, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-
-                Console.WriteLine($"Alice verifies Bob's signature: {verifyAlice}");
-                Console.WriteLine($"Bob verifies Alice's signature: {verifyBob}");
-            }
-
-            // Compute shared secrets
-            BigInteger aliceShared = BigInteger.ModPow(bob.PublicValue, alice.PrivateValue, p);
-            BigInteger bobShared = BigInteger.ModPow(alice.PublicValue, bob.PrivateValue, p);
-
-            if (aliceShared != bobShared)
-            {
-                Console.WriteLine("Shared secrets do not match! Aborting.");
-                return;
-            }
-
-            byte[] sharedBytes = ToBigEndian(aliceShared); // same as bobShared
-
-            // Derive 32-byte key with HKDF-SHA256 (RFC 5869)
-            byte[] salt = RandomNumberGenerator.GetBytes(32); // optional but recommended
-            byte[] info = Encoding.UTF8.GetBytes("ffdhe2048-dhe-rsa-derived-key");
-            byte[] aesKey = HkdfSha256(sharedBytes, salt, info, 32);
-        }
-
-        // Creates a participant with ephemeral private/public values
-        static (BigInteger PrivateValue, BigInteger PublicValue) CreateDhParticipant(BigInteger p, int privateBitLen)
-        {
-            BigInteger priv = GenerateRandomBigInteger(privateBitLen);
-            BigInteger pub = BigInteger.ModPow(G, priv, p);
-            return (priv, pub);
-        }
-
-        // Generate an unsigned positive BigInteger of bitLength bits (big-endian)
-        static BigInteger GenerateRandomBigInteger(int bitLength)
-        {
-            int byteCount = (bitLength + 7) / 8;
-            byte[] be = RandomNumberGenerator.GetBytes(byteCount);
-
-            // Ensure top bit set so the value has the requested bit length (avoid tiny exponents)
-            int topBitIndex = (bitLength - 1) % 8;
-            be[0] |= (byte)(1 << topBitIndex);
-
-            // Convert big-endian to little-endian + sign byte for BigInteger ctor
-            byte[] le = new byte[be.Length + 1]; // extra zero to force positive
-            for (int i = 0; i < be.Length; i++)
-                le[i] = be[be.Length - 1 - i];
-            le[le.Length - 1] = 0;
-            return new BigInteger(le);
-        }
-
-        // Convert BigInteger to big-endian unsigned byte[] (no leading zero)
-        static byte[] ToBigEndian(BigInteger value)
-        {
-            if (value.Sign < 0)
-                throw new ArgumentException("value must be non-negative");
-            byte[] le = value.ToByteArray(); // little-endian two's complement
-                                             // Trim any trailing zero that indicates sign if present
-            int last = le.Length - 1;
-            if (le[last] == 0)
-            {
-                Array.Resize(ref le, last);
-                last--;
-            }
-            byte[] be = new byte[le.Length];
-            for (int i = 0; i < le.Length; i++)
-                be[i] = le[le.Length - 1 - i];
-            return be;
-        }
-
-        // Parse hex into a positive BigInteger (handles odd-length and ensures positive)
-        static BigInteger ParseHexBigInteger(string hex)
-        {
-            hex = hex.Trim().Replace(" ", "").Replace("\n", "").Replace("\r", "");
-            // Ensure even length
-            if ((hex.Length & 1) == 1)
-                hex = "0" + hex;
-            // Use Convert.FromHexString (available in .NET 5+) or implement equivalent
-            byte[] be = Convert.FromHexString(hex);
-            // If highest bit of first byte is set, BigInteger.Parse with HexNumber can treat it as negative;
-            // we therefore construct positive BigInteger from big-endian bytes:
-            byte[] le = new byte[be.Length + 1];
-            for (int i = 0; i < be.Length; i++)
-                le[i] = be[be.Length - 1 - i];
-            le[le.Length - 1] = 0;
-            return new BigInteger(le);
-        }
-
-        // Simple HKDF-SHA256 implementation (RFC 5869)
-        static byte[] HkdfSha256(byte[] ikm, byte[] salt, byte[] info, int outLen)
-        {
-            // HKDF-Extract
-            byte[] prk;
-            using (var hmac = new HMACSHA256(salt ?? new byte[0]))
-            {
-                prk = hmac.ComputeHash(ikm);
-            }
-
-            // HKDF-Expand
-            int hashLen = 32;
-            int n = (outLen + hashLen - 1) / hashLen;
-            byte[] okm = new byte[outLen];
-            byte[] previous = Array.Empty<byte>();
-            using (var hmac = new HMACSHA256(prk))
-            {
-                int offset = 0;
-                for (byte i = 1; i <= n; i++)
-                {
-                    // T(i) = HMAC-PRK( T(i-1) | info | i )
-                    hmac.Initialize();
-                    hmac.TransformBlock(previous, 0, previous.Length, null, 0);
-                    if (info != null && info.Length > 0)
-                        hmac.TransformBlock(info, 0, info.Length, null, 0);
-                    byte[] counter = new byte[] { i };
-                    hmac.TransformFinalBlock(counter, 0, 1);
-                    previous = hmac.Hash!;
-                    int toCopy = Math.Min(hashLen, outLen - offset);
-                    Array.Copy(previous, 0, okm, offset, toCopy);
-                    offset += toCopy;
-                }
-            }
-            return okm;
-        }
-    }
-#endif
-
-    /// <summary>
-    /// A class to assist with tracing crypto operations.
-    /// </summary>
-    public static class CryptoTrace
-    {
-        /// <summary>
-        /// Enabled crypto traces to stdout.
-        /// </summary>
-        public static bool Enabled { get; set; } = true;
-
-        /// <summary>
-        /// Starts a trace block.
-        /// </summary>
-        public static void Start(ConsoleColor color, string format, params object[] args)
-        {
-#if DEBUG
-            if (Enabled)
-            {
-                Console.ForegroundColor = color;
-                Console.Write("============ ");
-                Console.Write(format, args);
-                Console.WriteLine(" ============");
-            }
-#endif
-        }
-
-        /// <summary>
-        /// Finishes a trace block.
-        /// </summary>
-        public static void Finish(string format, params object[] args)
-        {
-#if DEBUG
-            if (Enabled)
-            {
-                Console.Write("============ ");
-                Console.Write(format, args);
-                Console.WriteLine(" Finished ============");
-                Console.ForegroundColor = ConsoleColor.White;
-            }
-#endif
-        }
-
-        /// <summary>
-        /// Writes a trace message.
-        /// </summary>
-        public static void Write(string format, params object[] args)
-        {
-#if DEBUG
-            if (Enabled)
-            {
-                Console.Write(format, args);
-            }
-#endif
-        }
-
-        /// <summary>
-        /// Writes a trace message.
-        /// </summary>
-        public static void WriteLine(string format, params object[] args)
-        {
-#if DEBUG
-            if (Enabled)
-            {
-                Console.WriteLine(format, args);
-            }
-#endif
-        }
-
-        /// <summary>
-        /// Returns a debug string for a key.
-        /// </summary>
-        public static string KeyToString(ArraySegment<byte> key)
-        {
-#if DEBUG
-            if (Enabled)
-            {
-                byte[] bytes = new byte[key.Count];
-                Buffer.BlockCopy(key.Array ?? [], key.Offset, bytes, 0, key.Count);
-                return KeyToString(bytes);
-            }
-            else
-            {
-                return String.Empty;
-            }
-#else
-            return String.Empty;
-#endif
-        }
-
-        /// <summary>
-        /// Returns a debug string for a key.
-        /// </summary>
-        public static string KeyToString(byte[] key)
-        {
-#if DEBUG
-            if (Enabled)
-            {
-                if (key == null || key.Length == 0)
-                {
-                    return "Len=0:---";
-                }
-
-                byte checksum = 0;
-
-                foreach (var item in key)
-                {
-                    checksum ^= item;
-                }
-
-                if (key.Length <= 16)
-                {
-                    return "Len=" + key.Length.ToString(CultureInfo.InvariantCulture) +
-                        ":" +
-                        Utils.ToHexString(key) +
-                        "=>XOR=" +
-                        checksum.ToString(CultureInfo.InvariantCulture);
-                }
-
-                var text = Utils.ToHexString(key);
-                return $"Len={key.Length}:{text.Substring(0, 8)}...{text.Substring(text.Length - 8, 8)}=>XOR={checksum}";
-            }
-            else
-            {
-                return String.Empty;
-            }
-#else
-            return String.Empty;
-#endif
         }
     }
 }
