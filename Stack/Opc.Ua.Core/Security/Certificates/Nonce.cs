@@ -30,9 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.Serialization;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
@@ -184,13 +182,14 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(string securityPolicyUri)
         {
-            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
             return CreateNonce(info);
         }
 
         /// <summary>
         /// Creates a nonce for the specified security policy and nonce length.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="securityPolicy"/> is <c>null</c>.</exception>
         public static Nonce CreateNonce(SecurityPolicyInfo securityPolicy)
         {
             if (securityPolicy == null)
@@ -247,13 +246,14 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(string securityPolicyUri, byte[] nonceData)
         {
-            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
             return CreateNonce(info, nonceData);
         }
 
         /// <summary>
         /// Creates a new Nonce object for the specified security policy and nonce data.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="securityPolicy"/> is <c>null</c>.</exception>
         public static Nonce CreateNonce(SecurityPolicyInfo securityPolicy, byte[] nonceData)
         {
             if (securityPolicy == null)
@@ -604,6 +604,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new RSADiffieHellman instance for the specified group.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public static RSADiffieHellman Create(RSADiffieHellmanGroup group)
         {
             int min = 0;
@@ -655,7 +656,7 @@ namespace Opc.Ua
         {
             var dh = new RSADiffieHellman();
 
-            var bytes = new byte[nonce.Length+1];
+            byte[] bytes = new byte[nonce.Length+1];
 
             for (int ii = 0; ii < nonce.Length; ii++)
             {
@@ -673,8 +674,8 @@ namespace Opc.Ua
         /// </summary>
         public byte[] GetNonce()
         {
-            var nonce = new byte[m_nonceLength];
-            var publicKey = m_publicKey.ToByteArray();
+            byte[] nonce = new byte[m_nonceLength];
+            byte[] publicKey = m_publicKey.ToByteArray();
 
             for (int ii = 0; ii < publicKey.Length && ii < nonce.Length; ii++)
             {
@@ -687,6 +688,8 @@ namespace Opc.Ua
         /// <summary>
         /// Derives the raw secret agreement from the remote key.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
         public byte[] DeriveRawSecretAgreement(RSADiffieHellman remoteKey)
         {
             if (m_privateKey.IsZero)
@@ -713,17 +716,17 @@ namespace Opc.Ua
 
             var shared = BigInteger.ModPow(remoteKey.m_publicKey, m_privateKey, p);
 
-            var bytes = shared.ToByteArray();
+            byte[] bytes = shared.ToByteArray();
 
             if (bytes.Length < m_nonceLength)
             {
-                var padded = new byte[m_nonceLength];
+                byte[] padded = new byte[m_nonceLength];
                 Array.Copy(bytes, 0, padded, 0, bytes.Length);
                 bytes = padded;
             }
             else if (bytes.Length > m_nonceLength)
             {
-                var trucated = new byte[m_nonceLength];
+                byte[] trucated = new byte[m_nonceLength];
                 Array.Copy(bytes, 0, trucated, 0, m_nonceLength);
                 bytes = trucated;
             }
@@ -737,7 +740,7 @@ namespace Opc.Ua
         private static BigInteger RfcTextToBytes(string rfcText)
         {
             var bytes = new List<byte>();
-            var digit = new char[2];
+            char[] digit = new char[2];
             int pos = 0;
 
             bytes.Add(0);
@@ -759,8 +762,7 @@ namespace Opc.Ua
             }
 
             bytes.Reverse();
-            var integer = new BigInteger(bytes.ToArray());
-            return integer;
+            return new BigInteger(bytes.ToArray());
         }
     }
 }

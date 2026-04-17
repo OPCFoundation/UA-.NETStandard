@@ -250,7 +250,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The server application instance certificate used by this session.
         /// </summary>
-        public X509Certificate2 ServerCertificate => m_serverCertificate;
+        public Certificate ServerCertificate => m_serverCertificate;
 
         /// <summary>
         /// The application instance certificate associated with the client.

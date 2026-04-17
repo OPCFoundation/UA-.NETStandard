@@ -499,7 +499,7 @@ namespace Opc.Ua
             }
 
             // get the info object.
-            var info = GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri);
 
             // unsupported policy.
             if (info == null)
@@ -581,7 +581,7 @@ namespace Opc.Ua
             }
 
             // get the info object.
-            var info = GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri);
 
             // unsupported policy.
             if (info == null)
@@ -656,9 +656,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static SignatureData Sign(
             string securityPolicyUri,
-            Certificate certificate,
-            string securityPolicyUri,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             byte[] secureChannelSecret,
             byte[] remoteCertificate,
             byte[] remoteChannelCertificate,
@@ -675,7 +673,7 @@ namespace Opc.Ua
             }
 
             // get the info object.
-            var info = GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri);
 
             // unsupported policy.
             if (info == null)
@@ -687,7 +685,7 @@ namespace Opc.Ua
             }
 
             // create the data to sign.
-            byte[] dataToSign = (info.SecureChannelEnhancements)
+            byte[] dataToSign = info.SecureChannelEnhancements
                 ? Utils.Append(
                     secureChannelSecret ?? Array.Empty<byte>(),
                     remoteCertificate ?? Array.Empty<byte>(),
@@ -708,19 +706,20 @@ namespace Opc.Ua
         /// </summary>
         public static SignatureData CreateSignatureData(
            string securityPolicyUri,
-           X509Certificate2 localCertificate,
+           Certificate localCertificate,
            byte[] dataToSign)
         {
-            var info = GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri);
             return CreateSignatureData(info, localCertificate, dataToSign);
         }
 
         /// <summary>
         /// Creates a signature on the data provided using the SecurityPolicy.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static SignatureData CreateSignatureData(
            SecurityPolicyInfo securityPolicy,
-           X509Certificate2 localCertificate,
+           Certificate localCertificate,
            byte[] dataToSign)
         {
             var signatureData = new SignatureData();
@@ -768,10 +767,11 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a signature using the security enhancements if required by the SecurityPolicy.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static bool VerifySignatureData(
             SignatureData signature,
             string securityPolicyUri,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             byte[] secureChannelSecret,
             byte[] localCertificate,
             byte[] localChannelCertificate,
@@ -788,7 +788,7 @@ namespace Opc.Ua
             }
 
             // get the info object.
-            var info = GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri);
 
             // unsupported policy.
             if (info == null)
@@ -800,7 +800,7 @@ namespace Opc.Ua
             }
 
             // create the data to sign.
-            byte[] dataToVerify = (info.SecureChannelEnhancements)
+            byte[] dataToVerify = info.SecureChannelEnhancements
                 ? Utils.Append(
                     secureChannelSecret ?? Array.Empty<byte>(),
                     localCertificate ?? Array.Empty<byte>(),
@@ -825,13 +825,14 @@ namespace Opc.Ua
             Certificate signingCertificate,
             byte[] dataToVerify)
         {
-            var info = GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri);
             return VerifySignatureData(signature, info, signingCertificate, dataToVerify);
         }
 
         /// <summary>
         /// Verifies the signature using the SecurityPolicyUri and return true if valid.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static bool VerifySignatureData(
             SignatureData signature,
             SecurityPolicyInfo securityPolicy,

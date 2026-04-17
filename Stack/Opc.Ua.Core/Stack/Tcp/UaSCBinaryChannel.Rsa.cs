@@ -30,7 +30,6 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
@@ -60,14 +59,12 @@ namespace Opc.Ua.Bindings
                     "No private key for certificate.");
 
             // create the signature.
-            var signature = rsa.SignData(
+            return rsa.SignData(
                 dataToSign.Array,
                 dataToSign.Offset,
                 dataToSign.Count,
                 algorithm,
                 padding);
-
-            return signature;
         }
 
         /// <summary>

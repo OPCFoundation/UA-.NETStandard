@@ -11,10 +11,7 @@
 */
 
 using System;
-using System.IO;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 #if CURVE25519
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -33,10 +30,10 @@ namespace Opc.Ua
         public EncryptedSecret(
             IServiceMessageContext context,
             string securityPolicyUri,
-            X509Certificate2Collection senderIssuerCertificates,
-            X509Certificate2 receiverCertificate,
+            CertificateCollection senderIssuerCertificates,
+            Certificate receiverCertificate,
             Nonce receiverNonce,
-            X509Certificate2 senderCertificate,
+            Certificate senderCertificate,
             Nonce senderNonce,
             CertificateValidator validator = null,
             bool doNotEncodeSenderCertificate = false)
@@ -60,12 +57,12 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the X.509 certificate of the sender.
         /// </summary>
-        public X509Certificate2 SenderCertificate { get; private set; }
+        public Certificate SenderCertificate { get; private set; }
 
         /// <summary>
         /// Gets or sets the collection of X.509 certificates of the sender's issuer.
         /// </summary>
-        public X509Certificate2Collection SenderIssuerCertificates { get; private set; }
+        public CertificateCollection SenderIssuerCertificates { get; private set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the sender's certificate should not be encoded.
@@ -85,7 +82,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the X.509 certificate of the receiver.
         /// </summary>
-        public X509Certificate2 ReceiverCertificate { get; }
+        public Certificate ReceiverCertificate { get; }
 
         /// <summary>
         /// Gets or sets the certificate validator.
@@ -146,11 +143,9 @@ namespace Opc.Ua
         /// <param name="secret">The secret to encrypt.</param>
         /// <param name="nonce">The nonce to use for encryption.</param>
         /// <returns>The encrypted secret.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public byte[] Encrypt(byte[] secret, byte[] nonce)
         {
-            byte[] message = null;
-            int lengthPosition = 0;
-
             int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate);
 
             using var encoder = new BinaryEncoder(Context);
@@ -159,7 +154,7 @@ namespace Opc.Ua
             encoder.WriteNodeId(null, DataTypeIds.EccEncryptedSecret);
             encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
 
-            lengthPosition = encoder.Position;
+            int lengthPosition = encoder.Position;
             encoder.WriteUInt32(null, 0);
 
             encoder.WriteString(null, SecurityPolicy.Uri);
@@ -174,7 +169,7 @@ namespace Opc.Ua
                 {
                     int blobSize = senderCertificate.Length;
 
-                    foreach (X509Certificate2 issuer in SenderIssuerCertificates)
+                    foreach (Certificate issuer in SenderIssuerCertificates)
                     {
                         blobSize += issuer.RawData.Length;
                     }
@@ -184,7 +179,7 @@ namespace Opc.Ua
 
                     int pos = senderCertificate.Length;
 
-                    foreach (X509Certificate2 issuer in SenderIssuerCertificates)
+                    foreach (Certificate issuer in SenderIssuerCertificates)
                     {
                         byte[] data = issuer.RawData;
                         Buffer.BlockCopy(data, 0, blob, pos, data.Length);
@@ -202,7 +197,7 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadArgumentsMissing,
-                    $"The receiver did not provide an ephemeral key.");
+                    "The receiver did not provide an ephemeral key.");
             }
 
             byte[] senderNonce = SenderNonce.Data;
@@ -285,22 +280,21 @@ namespace Opc.Ua
                 encoder.WriteByte(null, 0xDE);
             }
 
-            message = encoder.CloseAndReturnBuffer();
+            byte[] message = encoder.CloseAndReturnBuffer();
+            int length = ((byte[])null).Length - 0 - 4;
 
-            int length = message.Length - lengthPosition - 4;
-
-            message[lengthPosition++] = (byte)(length & 0xFF);
-            message[lengthPosition++] = (byte)((length & 0xFF00) >> 8);
-            message[lengthPosition++] = (byte)((length & 0xFF0000) >> 16);
-            message[lengthPosition++] = (byte)((length & 0xFF000000) >> 24);
+            ((byte[])null)[lengthPosition++] = (byte)(length & 0xFF);
+            ((byte[])null)[lengthPosition++] = (byte)((length & 0xFF00) >> 8);
+            ((byte[])null)[lengthPosition++] = (byte)((length & 0xFF0000) >> 16);
+            ((byte[])null)[lengthPosition++] = (byte)((length & 0xFF000000) >> 24);
 
             _ = CryptoUtils.SymmetricEncryptAndSign(
-                new ArraySegment<byte>(message, startOfSecret, endOfSecret - startOfSecret),
+                new ArraySegment<byte>(null, startOfSecret, endOfSecret - startOfSecret),
                 SecurityPolicy,
                 encryptingKey,
                 iv);
 
-            var dataToSign = new ArraySegment<byte>(message, 0, message.Length - signatureLength);
+            var dataToSign = new ArraySegment<byte>(null, 0, ((byte[])null).Length - signatureLength);
 
             byte[] signature = CryptoUtils.Sign(
                 dataToSign,
@@ -310,21 +304,21 @@ namespace Opc.Ua
             Buffer.BlockCopy(
                 signature,
                 0,
-                message,
+                null,
                 endOfSecret + outerPaddingSize + tagLength,
                 signatureLength);
 
-            return message;
+            return null;
         }
 
-        private int GetPaddingCount(int blockSize, int secretLength, int dataLength)
+        private static int GetPaddingCount(int blockSize, int secretLength, int dataLength)
         {
             dataLength += 2; // add padding size
 
             int paddingCount =
                 dataLength % blockSize == 0
                 ? 0
-                : blockSize - dataLength % blockSize;
+                : blockSize - (dataLength % blockSize);
 
             if (paddingCount + secretLength < blockSize)
             {
@@ -387,7 +381,7 @@ namespace Opc.Ua
             }
             else
             {
-                X509Certificate2Collection senderCertificateChain = Utils.ParseCertificateChainBlob(
+                using CertificateCollection senderCertificateChain = Utils.ParseCertificateChainBlob(
                     senderCertificate.ToArray(),
                     telemetry);
 
@@ -400,11 +394,13 @@ namespace Opc.Ua
                 }
 
                 // validate the sender.
+#pragma warning disable CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
                 Validator?.ValidateAsync(senderCertificateChain, default).GetAwaiter().GetResult();
+#pragma warning restore CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
             }
 
             // extract the send certificate and any chain.
-            DateTime signingTime = (DateTime)decoder.ReadDateTime(null);
+            var signingTime = (DateTime)decoder.ReadDateTime(null);
 
             if (signingTime < earliestTime)
             {
@@ -542,17 +538,17 @@ namespace Opc.Ua
             }
 
             ByteString key = decoder.ReadByteString(null);
-            var paddingCount = decoder.ReadByte(null);
+            byte paddingCount = decoder.ReadByte(null);
 
             int error = 0;
 
             for (int ii = 0; ii < paddingCount; ii++)
             {
-                var padding = decoder.ReadByte(null);
-                error |= (padding & ~paddingCount);
+                byte padding = decoder.ReadByte(null);
+                error |= padding & ~paddingCount;
             }
 
-            var highByte = decoder.ReadByte(null);
+            byte highByte = decoder.ReadByte(null);
 
             if (error != 0 || highByte != 0)
             {

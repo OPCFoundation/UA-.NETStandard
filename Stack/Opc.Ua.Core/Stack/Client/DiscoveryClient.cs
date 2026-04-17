@@ -55,7 +55,7 @@ namespace Opc.Ua
                     discoveryUrl,
                     null,
                     (ITelemetryContext)null).GetAwaiter().GetResult();
-                var result = client;
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -82,7 +82,7 @@ namespace Opc.Ua
                     discoveryUrl,
                     configuration,
                     (ITelemetryContext)null).GetAwaiter().GetResult();
-                var result = client;
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -107,7 +107,7 @@ namespace Opc.Ua
                     connection,
                     configuration,
                     null).GetAwaiter().GetResult();
-                var result = client;
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -131,7 +131,7 @@ namespace Opc.Ua
                 client = CreateAsync(
                     application,
                     discoveryUrl).GetAwaiter().GetResult();
-                var result = client;
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -157,7 +157,7 @@ namespace Opc.Ua
                     application,
                     discoveryUrl,
                     configuration).GetAwaiter().GetResult();
-                var result = client;
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -183,7 +183,7 @@ namespace Opc.Ua
                     application,
                     connection,
                     configuration).GetAwaiter().GetResult();
-                var result = client;
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -212,7 +212,7 @@ namespace Opc.Ua
                     discoveryUrl,
                     endpointConfiguration,
                     applicationConfiguration).GetAwaiter().GetResult();
-                var result = client;
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }

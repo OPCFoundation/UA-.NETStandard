@@ -11,12 +11,8 @@
 */
 
 using System;
-using System.Globalization;
-using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
@@ -68,7 +64,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEccPolicy(string securityPolicyUri)
         {
-            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
 
             if (info != null)
             {
@@ -81,7 +77,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the NodeId for the certificate type for the specified certificate.
         /// </summary>
-        public static NodeId GetEccCertificateTypeId(X509Certificate2 certificate)
+        public static NodeId GetEccCertificateTypeId(Certificate certificate)
         {
             string keyAlgorithm = certificate.GetKeyAlgorithm();
             if (keyAlgorithm != Oids.ECPublicKey)
@@ -152,7 +148,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the signature algorithm for the specified certificate.
         /// </summary>
-        public static string GetECDsaQualifier(X509Certificate2 certificate)
+        public static string GetECDsaQualifier(Certificate certificate)
         {
             if (X509Utils.IsECDsaSignature(certificate))
             {
@@ -182,7 +178,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the public key for the specified certificate.
         /// </summary>
-        public static ECDsa GetPublicKey(X509Certificate2 certificate)
+        public static ECDsa GetPublicKey(Certificate certificate)
         {
             return GetPublicKey(certificate, out string[] _);
         }
@@ -193,7 +189,7 @@ namespace Opc.Ua
         /// <exception cref="InvalidOperationException"></exception>
         /// <exception cref="NotImplementedException"></exception>
         public static ECDsa GetPublicKey(
-            X509Certificate2 certificate,
+            Certificate certificate,
             out string[] securityPolicyUris)
         {
             securityPolicyUris = null;
@@ -285,7 +281,7 @@ namespace Opc.Ua
         /// Returns the length of a ECDsa signature of a digest.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static int GetSignatureLength(X509Certificate2 signingCertificate)
+        public static int GetSignatureLength(Certificate signingCertificate)
         {
             if (signingCertificate == null)
             {
@@ -313,10 +309,10 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] Sign(
             ArraySegment<byte> dataToSign,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             string securityPolicyUri)
         {
-            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
             return Sign(dataToSign, signingCertificate, info.AsymmetricSignatureAlgorithm);
         }
 
@@ -324,9 +320,10 @@ namespace Opc.Ua
         /// Computes a signature.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
         public static byte[] Sign(
             ArraySegment<byte> dataToSign,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             AsymmetricSignatureAlgorithm algorithm)
         {
             switch (algorithm)
@@ -381,33 +378,28 @@ namespace Opc.Ua
 
             using (senderPrivateKey)
             {
-                byte[] signature = senderPrivateKey.SignData(
+                return senderPrivateKey.SignData(
                     dataToSign.Array,
                     dataToSign.Offset,
                     dataToSign.Count,
                     hashAlgorithm);
-
-                return signature;
             }
         }
 
         /// <summary>
         /// Verifies a signature.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static bool Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             string securityPolicyUri)
         {
-            var info = SecurityPolicies.GetInfo(securityPolicyUri);
-
-            if (info == null)
-            {
-                throw new ServiceResultException(
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri)
+                ?? throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed,
                     $"Unknown security policy: {securityPolicyUri}");
-            }
 
             return Verify(
                 dataToVerify,
@@ -419,10 +411,11 @@ namespace Opc.Ua
         /// <summary>
         /// Verifies a signature.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public static bool Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             AsymmetricSignatureAlgorithm algorithm)
         {
             switch (algorithm)
@@ -669,14 +662,14 @@ namespace Opc.Ua
 #if NET8_0_OR_GREATER
         private static byte[] ApplyAeadMask(uint tokenId, uint lastSequenceNumber, byte[] iv)
         {
-            var copy = new byte[iv.Length];
+            byte[] copy = new byte[iv.Length];
             Buffer.BlockCopy(iv, 0, copy, 0, iv.Length);
 
-            copy[0] ^= (byte)((tokenId & 0x000000FF));
+            copy[0] ^= (byte)(tokenId & 0x000000FF);
             copy[1] ^= (byte)((tokenId & 0x0000FF00) >> 8);
             copy[2] ^= (byte)((tokenId & 0x00FF0000) >> 16);
             copy[3] ^= (byte)((tokenId & 0xFF000000) >> 24);
-            copy[4] ^= (byte)((lastSequenceNumber & 0x000000FF));
+            copy[4] ^= (byte)(lastSequenceNumber & 0x000000FF);
             copy[5] ^= (byte)((lastSequenceNumber & 0x0000FF00) >> 8);
             copy[6] ^= (byte)((lastSequenceNumber & 0x00FF0000) >> 16);
             copy[7] ^= (byte)((lastSequenceNumber & 0xFF000000) >> 24);

@@ -587,8 +587,8 @@ namespace Opc.Ua.Server
         /// <returns>The server signature or <c>null</c> when signing is not required.</returns>
         protected virtual SignatureData CreateSessionServerSignature(
             OperationContext context,
-            X509Certificate2 instanceCertificate,
-            X509Certificate2 parsedClientCertificate,
+            Certificate instanceCertificate,
+            Certificate parsedClientCertificate,
             ByteString clientNonce,
             ByteString serverNonce)
         {

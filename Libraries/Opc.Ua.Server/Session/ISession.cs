@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The server application instance certificate used by this session.
         /// </summary>
-        X509Certificate2 ServerCertificate { get; }
+        Certificate ServerCertificate { get; }
 
         /// <summary>
         /// The application instance certificate associated with the client.

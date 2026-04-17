@@ -39,7 +39,6 @@ using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -643,7 +642,7 @@ namespace Opc.Ua
         /// <remarks>If the platform returns a FQDN, only the host name is returned.</remarks>
         public static string GetHostName()
         {
-            var hostName = Dns.GetHostName();
+            string hostName = Dns.GetHostName();
             // If platform returns an IPv4 or IPv6 address return it as is
             if (IPAddress.TryParse(hostName, out _))
             {
@@ -1604,6 +1603,7 @@ namespace Opc.Ua
         /// Gets the XML qualified name for an IEncodeable type,
         /// checking [DataContract] first, then [DataType] attribute.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         private static XmlQualifiedName GetEncodeableXmlName(Type type)
         {
             // Try [DataContract] attribute

@@ -28,9 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Globalization;
 using System.Text;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {

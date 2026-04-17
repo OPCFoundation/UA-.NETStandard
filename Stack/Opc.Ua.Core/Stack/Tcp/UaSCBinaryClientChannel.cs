@@ -34,8 +34,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -590,7 +588,7 @@ namespace Opc.Ua.Bindings
                 out byte[] signature);
 
             // don't keep signature if secure channel enhancements are not used.
-            m_oscRequestSignature = (SecurityPolicy.SecureChannelEnhancements) ? signature : null;
+            m_oscRequestSignature = SecurityPolicy.SecureChannelEnhancements ? signature : null;
 
             // save token.
             m_requestedToken = token;

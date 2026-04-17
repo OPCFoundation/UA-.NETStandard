@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -90,7 +89,7 @@ namespace Opc.Ua
         /// </summary>
         private X509IdentityTokenHandler(
             X509IdentityToken token,
-            X509Certificate2 certificate)
+            Certificate certificate)
         {
             m_token = token;
             m_certificate = certificate;
@@ -159,16 +158,14 @@ namespace Opc.Ua
             byte[] dataToSign,
             string securityPolicyUri)
         {
-            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
             Certificate certificate = Certificate ??
                 CertificateFactory.Create(m_token.CertificateData);
 
-            var signatureData = SecurityPolicies.CreateSignatureData(
+            return SecurityPolicies.CreateSignatureData(
                 info,
                 certificate,
                 dataToSign);
-
-            return signatureData;
         }
 
         /// <inheritdoc/>
@@ -179,17 +176,15 @@ namespace Opc.Ua
         {
             try
             {
-                var info = SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
                 Certificate certificate = Certificate ??
                     CertificateFactory.Create(m_token.CertificateData);
 
-                bool valid = SecurityPolicies.VerifySignatureData(
+                return SecurityPolicies.VerifySignatureData(
                     signatureData,
                     info,
                     certificate,
                     dataToVerify);
-
-                return valid;
             }
             catch (Exception e)
             {
