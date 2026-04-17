@@ -201,7 +201,7 @@ namespace Opc.Ua
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
                     ServiceMessageContext.CreateEmpty(telemetry);
-                var parser = new XmlParser(typeof(ConfiguredEndpointCollection), istrm, context);
+                using var parser = new XmlParser(typeof(ConfiguredEndpointCollection), istrm, context);
                 var endpoints = new ConfiguredEndpointCollection();
                 endpoints.Decode(parser);
 
@@ -251,7 +251,7 @@ namespace Opc.Ua
             IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
                 ServiceMessageContext.CreateEmpty(null);
             using var writer = XmlWriter.Create(ostrm, Utils.DefaultXmlWriterSettings());
-            var encoder = new XmlEncoder(typeof(ConfiguredEndpointCollection), writer, context);
+            using var encoder = new XmlEncoder(typeof(ConfiguredEndpointCollection), writer, context);
             Encode(encoder);
             encoder.Close();
         }
@@ -1170,26 +1170,26 @@ namespace Opc.Ua
             Uri discoveryUrl = GetDiscoveryUrl(endpointUrl);
 
             // create the discovery client.
-            DiscoveryClient client;
-            if (connection != null)
-            {
-                client = await DiscoveryClient.CreateAsync(
-                    connection,
-                    m_configuration,
-                    telemetry,
-                    ct: ct).ConfigureAwait(false);
-            }
-            else
-            {
-                client = await DiscoveryClient.CreateAsync(
-                    discoveryUrl,
-                    m_configuration,
-                    telemetry,
-                    ct: ct).ConfigureAwait(false);
-            }
-
+            DiscoveryClient client = null;
             try
             {
+                if (connection != null)
+                {
+                    client = await DiscoveryClient.CreateAsync(
+                        connection,
+                        m_configuration,
+                        telemetry,
+                        ct: ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    client = await DiscoveryClient.CreateAsync(
+                        discoveryUrl,
+                        m_configuration,
+                        telemetry,
+                        ct: ct).ConfigureAwait(false);
+                }
+
                 // get the endpoints.
                 ArrayOf<EndpointDescription> collection = await client
                     .GetEndpointsAsync(default, ct)
@@ -1210,7 +1210,10 @@ namespace Opc.Ua
             }
             finally
             {
-                await client.CloseAsync(ct).ConfigureAwait(false);
+                if (client != null)
+                {
+                    await client.CloseAsync(ct).ConfigureAwait(false);
+                }
             }
         }
 

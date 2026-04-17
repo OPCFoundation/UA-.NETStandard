@@ -39,7 +39,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task CreateAndDeleteSubscriptionAsync()
         {
-            var subscription = new Subscription(fixture.Session!.DefaultSubscription)
+            using var subscription = new Subscription(fixture.Session!.DefaultSubscription)
             {
                 DisplayName = "AotCreateDelete",
                 PublishingEnabled = true,
@@ -85,7 +85,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task ModifySubscriptionAsync()
         {
-            var subscription = new Subscription(fixture.Session!.DefaultSubscription)
+            using var subscription = new Subscription(fixture.Session!.DefaultSubscription)
             {
                 DisplayName = "AotModify",
                 PublishingEnabled = true,
@@ -120,7 +120,7 @@ namespace Opc.Ua.Aot.Tests
             ISession sourceSession = await fixture.CreateSessionAsync("TransferSource")
                 .ConfigureAwait(false);
 
-            var subscription = new Subscription(sourceSession.DefaultSubscription)
+            using var subscription = new Subscription(sourceSession.DefaultSubscription)
             {
                 DisplayName = "AotTransfer",
                 PublishingEnabled = true,
@@ -182,7 +182,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task KeepAliveAsync()
         {
-            var subscription = new Subscription(fixture.Session!.DefaultSubscription)
+            using var subscription = new Subscription(fixture.Session!.DefaultSubscription)
             {
                 DisplayName = "AotKeepAlive",
                 PublishingEnabled = true,

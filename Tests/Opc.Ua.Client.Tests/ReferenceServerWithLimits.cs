@@ -113,14 +113,13 @@ namespace Opc.Ua.Client.Tests
             var asyncNodeManagers = new List<IAsyncNodeManager>();
             var nodeManagers = new List<INodeManager>();
 
-            asyncNodeManagers =
-                [
-                    // create the custom node manager.
-                    new ReferenceNodeManager(
-                        server,
-                        configuration
-                        )
-                ];
+            // create the custom node manager (ownership transfers to MasterNodeManager).
+#pragma warning disable CA2000 // Dispose objects before losing scope - ownership transfers to MasterNodeManagerWithLimits
+            var referenceNodeManager = new ReferenceNodeManager(
+                server,
+                configuration);
+#pragma warning restore CA2000
+            asyncNodeManagers = [referenceNodeManager];
 
             foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {

@@ -710,7 +710,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var queueHandler = new EventQueueHandler(false, m_factory.Create(telemetry), 1, telemetry);
+            using var queueHandler = new EventQueueHandler(false, m_factory.Create(telemetry), 1, telemetry);
 
             queueHandler.SetQueueSize(1, false);
 
@@ -729,7 +729,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var queueHandler = new EventQueueHandler(false, m_factory.Create(telemetry), 1, telemetry);
+            using var queueHandler = new EventQueueHandler(false, m_factory.Create(telemetry), 1, telemetry);
 
             queueHandler.SetQueueSize(1, true);
 
@@ -756,7 +756,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var queueHandler = new EventQueueHandler(false, m_factory.Create(telemetry), 1, telemetry);
+            using var queueHandler = new EventQueueHandler(false, m_factory.Create(telemetry), 1, telemetry);
 
             queueHandler.SetQueueSize(2, false);
 
@@ -800,7 +800,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var queueHandler = new EventQueueHandler(false, m_factory.Create(telemetry), 1, telemetry);
+            using var queueHandler = new EventQueueHandler(false, m_factory.Create(telemetry), 1, telemetry);
 
             queueHandler.SetQueueSize(2, false);
 
@@ -834,7 +834,7 @@ namespace Opc.Ua.Server.Tests
             bool called = false;
             void DiscardedValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(
+            using var queueHandler = new DataChangeQueueHandler(
                 1,
                 false,
                 m_factory.Create(telemetry),
@@ -874,7 +874,7 @@ namespace Opc.Ua.Server.Tests
             bool called = false;
             void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(
+            using var queueHandler = new DataChangeQueueHandler(
                 1,
                 false,
                 m_factory.Create(telemetry),
@@ -922,7 +922,7 @@ namespace Opc.Ua.Server.Tests
             bool called = false;
             void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(
+            using var queueHandler = new DataChangeQueueHandler(
                 1,
                 false,
                 m_factory.Create(telemetry),
@@ -963,7 +963,7 @@ namespace Opc.Ua.Server.Tests
             bool called = false;
             void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(
+            using var queueHandler = new DataChangeQueueHandler(
                 1,
                 false,
                 m_factory.Create(telemetry),
@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Server.Tests
             bool called = false;
             void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(
+            using var queueHandler = new DataChangeQueueHandler(
                 1,
                 false,
                 m_factory.Create(telemetry),
@@ -1066,7 +1066,7 @@ namespace Opc.Ua.Server.Tests
             bool called = false;
             void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(
+            using var queueHandler = new DataChangeQueueHandler(
                 1,
                 false,
                 m_factory.Create(telemetry),
@@ -1131,7 +1131,7 @@ namespace Opc.Ua.Server.Tests
             bool called = false;
             void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(
+            using var queueHandler = new DataChangeQueueHandler(
                 1,
                 false,
                 m_factory.Create(telemetry),
@@ -1203,7 +1203,7 @@ namespace Opc.Ua.Server.Tests
             IMonitoredItemQueueFactory factory = m_factory.Create(telemetry);
             if (factory.SupportsDurableQueues)
             {
-                MonitoredItem monitoredItem = CreateDurableMonitoredItem(factory, telemetry);
+                using MonitoredItem monitoredItem = CreateDurableMonitoredItem(factory, telemetry);
                 Assert.That(monitoredItem, Is.Not.Null);
                 Assert.That(monitoredItem.IsDurable, Is.True);
                 Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
@@ -1250,12 +1250,13 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.Ignore("Test only works with durable queues");
             }
-            MonitoredItem monitoredItem = CreateDurableMonitoredItem(factory, telemetry, true);
+            using MonitoredItem monitoredItem = CreateDurableMonitoredItem(factory, telemetry, true);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.IsDurable, Is.True);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
-            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            using var eventState = new AuditUrlMismatchEventState(null);
+            monitoredItem.QueueEvent(eventState);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
 
@@ -1281,7 +1282,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.Ignore("Test only works with durable queues");
             }
 
-            MonitoredItem monitoredItem = CreateDurableMonitoredItem(
+            using MonitoredItem monitoredItem = CreateDurableMonitoredItem(
                 factory,
                 telemetry,
                 false,
@@ -1322,7 +1323,7 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.Ignore("Test only works with durable queues");
             }
-            MonitoredItem monitoredItem = CreateDurableMonitoredItem(
+            using MonitoredItem monitoredItem = CreateDurableMonitoredItem(
                 factory,
                 telemetry,
                 true,
@@ -1331,12 +1332,15 @@ namespace Opc.Ua.Server.Tests
             Assert.That(monitoredItem.IsDurable, Is.True);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
-            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
-            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            using var eventState1 = new AuditUrlMismatchEventState(null);
+            monitoredItem.QueueEvent(eventState1);
+            using var eventState2 = new AuditUrlMismatchEventState(null);
+            monitoredItem.QueueEvent(eventState2);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            using var eventState3 = new AuditUrlMismatchEventState(null);
+            monitoredItem.QueueEvent(eventState3);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 

@@ -527,7 +527,7 @@ namespace Opc.Ua
             {
                 if (AreEventsMonitored)
                 {
-                    var e = new AuditConditionShelvingEventState(null);
+                    using var e = new AuditConditionShelvingEventState(null);
 
                     var info = new TranslationInfo(
                         "AuditConditionOneShotShelve",
@@ -619,7 +619,7 @@ namespace Opc.Ua
             {
                 if (AreEventsMonitored)
                 {
-                    var e = new AuditConditionShelvingEventState(null);
+                    using var e = new AuditConditionShelvingEventState(null);
 
                     var info = new TranslationInfo(
                         "AuditConditionTimedShelve",
@@ -712,7 +712,7 @@ namespace Opc.Ua
                 // raise the audit event.
                 if (AreEventsMonitored)
                 {
-                    var e = new AuditConditionShelvingEventState(null);
+                    using var e = new AuditConditionShelvingEventState(null);
 
                     var info = new TranslationInfo(
                         "AuditConditionUnshelve",

@@ -245,7 +245,7 @@ namespace Opc.Ua.Server.Tests
         public void SetAggregateManagerStoresManager()
         {
             using ServerInternalData data = CreateServerInternalData();
-            var aggregateManager = new AggregateManager(data);
+            using var aggregateManager = new AggregateManager(data);
 
             data.SetAggregateManager(aggregateManager);
 
@@ -398,7 +398,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DisposeDoesNotThrowWhenPropertiesAreNull()
         {
-            ServerInternalData data = CreateServerInternalData();
+            using ServerInternalData data = CreateServerInternalData();
             Assert.DoesNotThrow(() => data.Dispose());
         }
 

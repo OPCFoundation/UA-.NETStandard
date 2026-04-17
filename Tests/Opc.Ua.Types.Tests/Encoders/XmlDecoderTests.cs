@@ -53,7 +53,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var reader = XmlReader.Create(new StringReader(xml));
 
             // Act
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -79,7 +79,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
 
             // Act
-            var decoder = new XmlDecoder((XmlReader)null, messageContext);
+            using var decoder = new XmlDecoder((XmlReader)null, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -95,7 +95,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var xmlElement = XmlElement.From(xmlContent);
 
             // Act
-            var decoder = new XmlDecoder(xmlElement, messageContext);
+            using var decoder = new XmlDecoder(xmlElement, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -126,7 +126,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             System.Xml.XmlElement xmlElement = doc.DocumentElement;
 
             // Act
-            var decoder = new XmlDecoder(xmlElement, messageContext);
+            using var decoder = new XmlDecoder(xmlElement, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -160,7 +160,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             System.Xml.XmlElement xmlElement = doc.DocumentElement;
 
             // Act
-            var decoder = new XmlDecoder(xmlElement, messageContext);
+            using var decoder = new XmlDecoder(xmlElement, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -179,7 +179,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var reader = XmlReader.Create(new StringReader(xml));
 
             // Act
-            var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
+            using var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -195,7 +195,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var reader = XmlReader.Create(new StringReader(xml));
 
             // Act
-            var decoder = new XmlDecoder(null, reader, messageContext);
+            using var decoder = new XmlDecoder(null, reader, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -215,7 +215,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var reader = XmlReader.Create(new StringReader(xml));
 
             // Act
-            var decoder = new XmlDecoder(null, reader, messageContext);
+            using var decoder = new XmlDecoder(null, reader, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -234,7 +234,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </NamespaceUris>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var stringTable = new StringTable();
 
             // Act
@@ -258,7 +258,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </NamespaceUris>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var stringTable = new StringTable();
 
             // Act
@@ -280,7 +280,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </OtherElement>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var stringTable = new StringTable();
 
             // Act
@@ -302,7 +302,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </NamespaceUris>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var stringTable = new StringTable();
 
             // Act
@@ -327,7 +327,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </NamespaceUris>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var stringTable = new StringTable();
 
             // Act & Assert
@@ -346,7 +346,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ServerUris>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var stringTable = new StringTable();
 
             // Act
@@ -368,7 +368,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </NamespaceUris>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var stringTable = new StringTable();
 
             // Act
@@ -391,7 +391,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </NamespaceUris>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var stringTable = new StringTable();
 
             // Act
@@ -426,7 +426,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = "<Root></Root>";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             decoder.Close(false);
@@ -442,7 +442,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = "<Root></Root>";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act - Reader at initial state (NodeType.None)
             decoder.Close(true);
@@ -458,7 +458,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = "<Root><Child>Value</Child></Root>";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             reader.Read(); // Move to Root element
             reader.Read(); // Move to Child element
             reader.Read(); // Move to text
@@ -478,7 +478,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = "<Root></Root>";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             reader.Read(); // Move to Root element
             reader.Read(); // Move to EndElement
 
@@ -500,7 +500,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </Root>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             XmlQualifiedName result = decoder.Peek(XmlNodeType.None);
@@ -522,7 +522,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </Root>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             XmlQualifiedName result = decoder.Peek(XmlNodeType.Element);
@@ -540,7 +540,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = "<Root><Child>Value</Child></Root>";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             XmlQualifiedName result = decoder.Peek(XmlNodeType.EndElement);
@@ -556,7 +556,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = "<Root>TextContent</Root>";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             reader.Read(); // Move to Root
             reader.Read(); // Move to Text
 
@@ -580,7 +580,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </Root>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             XmlQualifiedName result = decoder.Peek(XmlNodeType.Element);
@@ -597,7 +597,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = "<Root><Child>Value</Child></Root>";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             XmlQualifiedName result = decoder.Peek(XmlNodeType.Element);
@@ -619,7 +619,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
+            using var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
 
             // Act
             bool result = decoder.Peek("Child");
@@ -639,7 +639,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
+            using var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
 
             // Act
             bool result = decoder.Peek("Other");
@@ -657,7 +657,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <TestEncodeable xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">TextContent</TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
+            using var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
             reader.Read(); // Move to Root
             reader.Read(); // Move to Text
 
@@ -679,7 +679,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
+            using var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
 
             // Act
             bool result = decoder.Peek("Child");
@@ -700,7 +700,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
+            using var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
 
             // Act
             bool result = decoder.Peek("Child");
@@ -718,7 +718,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <TestEncodeable xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"></TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
+            using var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
             reader.Read(); // Move to Root
             reader.Read(); // Move to EndElement
 
@@ -742,7 +742,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
+            using var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
             decoder.PushNamespace("http://opcfoundation.org/UA/");
             reader.Read(); // Move to Child
 
@@ -760,7 +760,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = "<Root><Child>Value</Child></Root>";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             decoder.ReadStartElement();
@@ -777,7 +777,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = "<Root/>";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             decoder.ReadStartElement();
@@ -799,7 +799,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </Root>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             decoder.ReadStartElement(); // Read Root
@@ -816,7 +816,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = "<Root>TextContent</Root>";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             decoder.ReadStartElement();
@@ -837,7 +837,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </Root>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             decoder.ReadStartElement();
@@ -854,7 +854,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """<Root attr="value"><Child>Value</Child></Root>""";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             decoder.ReadStartElement();
@@ -871,7 +871,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """<Root attr="value"/>""";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             decoder.ReadStartElement();
@@ -893,7 +893,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </Root>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             reader.Read(); // Move to Root
             reader.Read(); // Move to Target
             var qname = new XmlQualifiedName("Target", "http://opcfoundation.org/UA/");
@@ -923,7 +923,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </Root>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             reader.Read(); // Move to Root
             reader.Read();
             reader.Read(); // Move to first Target
@@ -951,7 +951,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </Root>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             reader.Read(); // Move to Root
             reader.Read(); // Move to Target
             var qname = new XmlQualifiedName("Target", "http://test.ns/");
@@ -976,7 +976,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </Root>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             reader.Read(); // Move to Root
             reader.Read();
             reader.Read(); // Move to first Target (different namespace)
@@ -1014,7 +1014,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </Root>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             reader.Read(); // Move to Root
             reader.Read(); // Move to Target
             reader.Read(); // White space
@@ -1038,7 +1038,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <Null xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"/>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1056,7 +1056,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">true</Boolean>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1074,7 +1074,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <SByte xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">-128</SByte>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1092,7 +1092,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <Byte xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">255</Byte>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1110,7 +1110,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <Int16 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">-32768</Int16>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1128,7 +1128,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <UInt16 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">65535</UInt16>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1146,7 +1146,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">-2147483648</Int32>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1164,7 +1164,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">4294967295</UInt32>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1182,7 +1182,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <Int64 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">-9223372036854775808</Int64>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1200,7 +1200,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <UInt64 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">18446744073709551615</UInt64>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1218,7 +1218,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <Float xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">3.14159</Float>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1236,7 +1236,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <Double xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">3.141592653589793</Double>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1254,7 +1254,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Hello World</String>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1272,7 +1272,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2024-01-15T12:30:45Z</DateTime>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1292,7 +1292,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </Guid>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1310,7 +1310,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <ByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">AQIDBA==</ByteString>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1330,7 +1330,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </XmlElement>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1350,7 +1350,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </NodeId>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1370,7 +1370,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ExpandedNodeId>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1390,7 +1390,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </StatusCode>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1411,7 +1411,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </QualifiedName>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1432,7 +1432,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </LocalizedText>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1454,7 +1454,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ListOfBoolean>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1476,7 +1476,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ListOfInt32>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1498,7 +1498,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ListOfString>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, default);
@@ -1516,7 +1516,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <InvalidType xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Value</InvalidType>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadVariantValue(null, default));
@@ -1535,7 +1535,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ListOfInvalidType>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadVariantValue(null, default));
@@ -1552,7 +1552,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <ByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">AQIDBA==</ByteString>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var typeId = new ExpandedNodeId(123);
 
             // Act
@@ -1582,7 +1582,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var typeId = new ExpandedNodeId(123);
 
             // Act
@@ -1612,7 +1612,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </CustomElement>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var typeId = new ExpandedNodeId(999);
 
             // Act
@@ -1630,7 +1630,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = "<Root xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\"/>";
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1653,7 +1653,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ExtensionObject>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1680,7 +1680,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ExtensionObject>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1701,7 +1701,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </TestEncodeableWithData>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1723,7 +1723,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </TestEncodeableWithData>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1751,7 +1751,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </TestEncodeableWithData>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act & Assert
@@ -1778,7 +1778,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ListOfTestEncodeableWithData>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1808,7 +1808,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ListOfTestEncodeableWithData>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1839,7 +1839,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ListOfTestEncodeableWithData>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act & Assert
@@ -1859,7 +1859,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </DiagnosticInfo>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1878,7 +1878,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <DiagnosticInfo xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1895,7 +1895,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             string xml = CreateDiagnosticInfoWithDepth(DiagnosticInfo.MaxInnerDepth + 1);
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1922,7 +1922,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ListOfDiagnosticInfo>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1949,7 +1949,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ListOfDiagnosticInfo>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1969,7 +1969,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <EncodingMask xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">5</EncodingMask>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -1988,7 +1988,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <Root xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -2007,7 +2007,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <SwitchField xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">7</SwitchField>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -2026,7 +2026,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <SwitchField xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</SwitchField>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -2045,7 +2045,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <TestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Value1</TestEnum>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -2064,7 +2064,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <TestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Value_2</TestEnum>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -2083,7 +2083,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <TestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Invalid</TestEnum>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -2106,7 +2106,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ListOfTestEnum>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -2129,7 +2129,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ListOfTestEnum>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
@@ -2161,7 +2161,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </TestEncodeableWithData>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             TestEncodeableWithData result = decoder.DecodeMessage<TestEncodeableWithData>();
@@ -2186,7 +2186,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </TestEncodeableWithData>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -2216,7 +2216,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </QualifiedName>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.SetMappingTables(streamNamespaces, null);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2246,7 +2246,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </NodeId>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.SetMappingTables(streamNamespaces, null);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2276,7 +2276,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ExpandedNodeId>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.SetMappingTables(streamNamespaces, null);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2304,7 +2304,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             </ExpandedNodeId>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             decoder.SetMappingTables(null, streamServers);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2332,7 +2332,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 <Unclosed>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var typeId = new ExpandedNodeId(999);
 
             // Act & Assert
@@ -2358,7 +2358,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             <Empty xmlns="http://test.namespace" />
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
+            using var decoder = new XmlDecoder(reader, messageContext);
             var typeId = new ExpandedNodeId(999);
 
             // Act
@@ -2407,7 +2407,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
-            var decoder = new XmlDecoder((XmlReader)null, messageContext);
+            using var decoder = new XmlDecoder((XmlReader)null, messageContext);
 
             // Act & Assert
             Assert.DoesNotThrow(decoder.Dispose);

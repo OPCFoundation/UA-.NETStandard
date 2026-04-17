@@ -104,14 +104,19 @@ namespace Quickstarts.ReferenceServer
             }
             else
             {
-                asyncNodeManagers =
-                [
-                    // create the custom node manager.
-                    new ReferenceNodeManager(
-                        server,
-                        configuration,
-                        UseSamplingGroupsInReferenceNodeManager)
-                ];
+                var referenceNodeManager = new ReferenceNodeManager(
+                    server,
+                    configuration,
+                    UseSamplingGroupsInReferenceNodeManager);
+                try
+                {
+                    asyncNodeManagers = [referenceNodeManager];
+                    referenceNodeManager = null;
+                }
+                finally
+                {
+                    referenceNodeManager?.Dispose();
+                }
 
                 foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
                 {
@@ -354,10 +359,19 @@ namespace Quickstarts.ReferenceServer
             if (args.UserIdentityTokenHandler is AnonymousIdentityTokenHandler or null)
             {
                 // allow anonymous authentication and set Anonymous role for this authentication
-                args.Identity = new RoleBasedIdentity(
-                    new UserIdentity(),
-                    [Role.Anonymous],
-                    ServerInternal.MessageContext.NamespaceUris);
+                var identity = new UserIdentity();
+                try
+                {
+                    args.Identity = new RoleBasedIdentity(
+                        identity,
+                        [Role.Anonymous],
+                        ServerInternal.MessageContext.NamespaceUris);
+                    identity = null;
+                }
+                finally
+                {
+                    identity?.Dispose();
+                }
                 return;
             }
 
@@ -395,8 +409,16 @@ namespace Quickstarts.ReferenceServer
             // User with permission to configure server
             if (userName == "sysadmin" && Utils.IsEqual(password, "demo"u8))
             {
-                return new SystemConfigurationIdentity(
-                    new UserIdentity(userTokenHandler));
+                var identity = new UserIdentity(userTokenHandler);
+                try
+                {
+                    return new SystemConfigurationIdentity(identity);
+                }
+                catch
+                {
+                    identity.Dispose();
+                    throw;
+                }
             }
 
             // standard users for CTT verification
@@ -417,10 +439,19 @@ namespace Quickstarts.ReferenceServer
                         new StatusCode(StatusCodes.BadUserAccessDenied.Code, "InvalidPassword"),
                         new LocalizedText(info)));
             }
-            return new RoleBasedIdentity(
-                new UserIdentity(userTokenHandler),
-                [Role.AuthenticatedUser],
-                ServerInternal.MessageContext.NamespaceUris);
+            var userIdentity = new UserIdentity(userTokenHandler);
+            try
+            {
+                return new RoleBasedIdentity(
+                    userIdentity,
+                    [Role.AuthenticatedUser],
+                    ServerInternal.MessageContext.NamespaceUris);
+            }
+            catch
+            {
+                userIdentity.Dispose();
+                throw;
+            }
         }
 
         /// <summary>

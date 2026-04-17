@@ -399,8 +399,8 @@ namespace Opc.Ua.PubSub.Encoding
 
                 if (!m_leaveOpen)
                 {
-                    Utils.SilentDispose(m_memoryStream);
-                    Utils.SilentDispose(m_stream);
+                    m_memoryStream?.Dispose();
+                    m_stream?.Dispose();
                     m_memoryStream = null;
                     m_stream = null;
                 }

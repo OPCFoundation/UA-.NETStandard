@@ -378,8 +378,8 @@ namespace Opc.Ua.Client
             {
                 StopKeepAliveTimerAsync().AsTask().GetAwaiter().GetResult();
 
-                Utils.SilentDispose(m_defaultSubscription);
-                Utils.SilentDispose(m_nodeCache);
+                m_defaultSubscription?.Dispose();
+                m_nodeCache?.Dispose();
 
                 List<Subscription>? subscriptions;
                 lock (m_lock)
@@ -390,9 +390,13 @@ namespace Opc.Ua.Client
 
                 foreach (Subscription subscription in subscriptions)
                 {
-                    Utils.SilentDispose(subscription);
+                    subscription?.Dispose();
                 }
                 subscriptions.Clear();
+
+                m_reconnectLock.Dispose();
+                m_eccServerEphemeralKey?.Dispose();
+                m_eccServerEphemeralKey = null;
             }
 
             base.Dispose(disposing);
@@ -649,7 +653,7 @@ namespace Opc.Ua.Client
             });
             set
             {
-                Utils.SilentDispose(m_defaultSubscription);
+                m_defaultSubscription?.Dispose();
                 m_defaultSubscription = value;
             }
         }
@@ -2113,16 +2117,25 @@ namespace Opc.Ua.Client
             try
             {
                 session.RecreateRenewUserIdentity();
-                // open the session.
-                await session
-                    .OpenAsync(
-                        SessionName,
-                        (uint)SessionTimeout,
-                        session.Identity ?? new UserIdentity(),
-                        PreferredLocales,
-                        m_checkDomain,
-                        ct)
-                    .ConfigureAwait(false);
+                UserIdentity? tempIdentity = session.Identity == null ? new UserIdentity() : null;
+                try
+                {
+                    // open the session.
+                    await session
+                        .OpenAsync(
+                            SessionName,
+                            (uint)SessionTimeout,
+                            session.Identity ?? tempIdentity!,
+                            PreferredLocales,
+                            m_checkDomain,
+                            ct)
+                        .ConfigureAwait(false);
+                    tempIdentity = null; // ownership transferred to session
+                }
+                finally
+                {
+                    tempIdentity?.Dispose();
+                }
 
                 await session.RecreateSubscriptionsAsync(
                     TransferSubscriptionsOnReconnect,
@@ -2169,16 +2182,25 @@ namespace Opc.Ua.Client
             try
             {
                 session.RecreateRenewUserIdentity();
-                // open the session.
-                await session
-                    .OpenAsync(
-                        SessionName,
-                        (uint)SessionTimeout,
-                        session.Identity ?? new UserIdentity(),
-                        PreferredLocales,
-                        CheckDomain,
-                        ct)
-                    .ConfigureAwait(false);
+                UserIdentity? tempIdentity = session.Identity == null ? new UserIdentity() : null;
+                try
+                {
+                    // open the session.
+                    await session
+                        .OpenAsync(
+                            SessionName,
+                            (uint)SessionTimeout,
+                            session.Identity ?? tempIdentity!,
+                            PreferredLocales,
+                            CheckDomain,
+                            ct)
+                        .ConfigureAwait(false);
+                    tempIdentity = null; // ownership transferred to session
+                }
+                finally
+                {
+                    tempIdentity?.Dispose();
+                }
 
                 await session.RecreateSubscriptionsAsync(
                     TransferSubscriptionsOnReconnect,
@@ -3870,7 +3892,25 @@ namespace Opc.Ua.Client
         {
             if (m_RenewUserIdentity != null)
             {
-                m_identity = m_RenewUserIdentity(this, m_identity) ?? new UserIdentity();
+                IUserIdentity renewed = m_RenewUserIdentity(this, m_identity);
+                UserIdentity? tempIdentity = null;
+                try
+                {
+                    if (renewed != null)
+                    {
+                        m_identity = renewed;
+                    }
+                    else
+                    {
+                        tempIdentity = new UserIdentity();
+                        m_identity = tempIdentity;
+                        tempIdentity = null; // ownership transferred to field
+                    }
+                }
+                finally
+                {
+                    tempIdentity?.Dispose();
+                }
             }
         }
 

@@ -173,7 +173,7 @@ namespace Opc.Ua.Client.Tests
             const int kQueueSize = 10;
 
             ServiceResultException sre;
-            UserIdentity userIdentity = anonymous
+            using UserIdentity userIdentity = anonymous
                 ? new UserIdentity()
                 : new UserIdentity("user1", "password"u8);
 
@@ -211,7 +211,7 @@ namespace Opc.Ua.Client.Tests
             int[] originSubscriptionFastDataCounters = new int[kTestSubscriptions];
             int[] targetSubscriptionCounters = new int[kTestSubscriptions];
             int[] targetSubscriptionFastDataCounters = new int[kTestSubscriptions];
-            var subscriptionTemplate = new TestableSubscription(session1.DefaultSubscription)
+            using var subscriptionTemplate = new TestableSubscription(session1.DefaultSubscription)
             {
                 PublishingInterval = 1_000,
                 KeepAliveCount = 5,
@@ -398,8 +398,8 @@ namespace Opc.Ua.Client.Tests
                 session2.DeleteSubscriptionsOnClose = true;
                 await session1.CloseAsync(1000, true).ConfigureAwait(false);
                 await session2.CloseAsync(1000, true).ConfigureAwait(false);
-                Utils.SilentDispose(session1);
-                Utils.SilentDispose(session2);
+                session1?.Dispose();
+                session2?.Dispose();
             }
 
             Assert.That(session1ConfigChanged, Is.Zero);

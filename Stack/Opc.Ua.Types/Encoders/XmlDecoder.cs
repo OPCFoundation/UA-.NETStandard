@@ -280,7 +280,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            CoreUtils.SilentDispose(m_reader);
+            m_reader?.Dispose();
             m_reader = null;
         }
 

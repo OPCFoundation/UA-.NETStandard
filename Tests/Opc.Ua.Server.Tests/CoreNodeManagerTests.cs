@@ -59,13 +59,13 @@ namespace Opc.Ua.Server.Tests
                         MaxDurableNotificationQueueSize = 100
                     }
                 };
-                var nodeManager = new CoreNodeManager(server.CurrentInstance, config);
+                using var nodeManager = new CoreNodeManager(server.CurrentInstance, config);
                 await nodeManager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
 
                 // Create a node in Namespace 0 that also exists in DiagnosticsNodeManager (e.g. Server Object)
                 // Note: We need a node that exists in DiagnosticsNodeManager. StandardServer populates it with BaseNodes.
                 // Let's use ObjectIds.Server.
-                var serverNode = new BaseObjectState(null)
+                using var serverNode = new BaseObjectState(null)
                 {
                     NodeId = ObjectIds.Server,
                     BrowseName = new QualifiedName(BrowseNames.Server, 0),
@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(diagNode.ReferenceExists(ReferenceTypeIds.HasComponent, false, targetNodeId), Is.False, "Reference should be removed");
 
                 // Act - isInternal = true
-                var serverNode2 = new BaseObjectState(null)
+                using var serverNode2 = new BaseObjectState(null)
                 {
                     NodeId = ObjectIds.Server,
                     BrowseName = new QualifiedName(BrowseNames.Server, 0),

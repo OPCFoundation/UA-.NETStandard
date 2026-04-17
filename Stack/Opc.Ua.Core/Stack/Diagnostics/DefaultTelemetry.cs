@@ -37,15 +37,17 @@ namespace Opc.Ua
     /// <summary>
     /// Default telemetry implementation
     /// </summary>
-    public sealed class DefaultTelemetry : TelemetryContextBase
+    public sealed class DefaultTelemetry : TelemetryContextBase, IDisposable
     {
+        private readonly ILoggerFactory _ownedFactory;
+
         /// <summary>
         /// Create default telemetry
         /// </summary>
-        private DefaultTelemetry(Action<ILoggingBuilder> configure)
-            : base(Microsoft.Extensions.Logging.LoggerFactory
-                .Create(configure))
+        private DefaultTelemetry(ILoggerFactory ownedFactory)
+            : base(ownedFactory)
         {
+            _ownedFactory = ownedFactory;
         }
 
         /// <summary>
@@ -55,7 +57,26 @@ namespace Opc.Ua
         /// <returns></returns>
         public static ITelemetryContext Create(Action<ILoggingBuilder> configure)
         {
-            return new DefaultTelemetry(configure);
+            ILoggerFactory? factory = null;
+            try
+            {
+                factory = Microsoft.Extensions.Logging.LoggerFactory.Create(configure);
+                var result = new DefaultTelemetry(factory);
+                factory = null;
+                return result;
+            }
+            finally
+            {
+                factory?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Dispose the owned logger factory.
+        /// </summary>
+        public void Dispose()
+        {
+            _ownedFactory?.Dispose();
         }
     }
 }

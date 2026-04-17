@@ -200,9 +200,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (m_ownsCertificate)
+            if (m_ownsCertificate && m_certificate != null)
             {
-                Utils.SilentDispose(m_certificate);
+                m_certificate.Dispose();
             }
             m_certificate = null;
         }

@@ -45,7 +45,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task FetchValuesAsyncShouldReturnResultSetAsync()
         {
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds =
             [
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchValueAsyncShouldReturnDataValueAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
 
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
@@ -111,7 +111,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchValuesAsyncShouldReturnEmptyResultSetForEmptyNodeIdsAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds = [];
 
@@ -127,7 +127,7 @@ namespace Opc.Ua.Client.Tests
         public void FetchValueAsyncShouldThrowServiceResultExceptionForBadStatusCode()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var dataValue = new DataValue(new Variant(123), StatusCodes.Bad, DateTime.UtcNow);
@@ -155,7 +155,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchValuesAsyncShouldReturnErrorsForBadStatusCodesAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds =
             [
@@ -193,10 +193,10 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void FetchValueAsyncShouldHandleCancellation()
         {
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
             cts.Cancel();
 
             session.Channel
@@ -214,14 +214,14 @@ namespace Opc.Ua.Client.Tests
         public void FetchValuesAsyncShouldHandleCancellation()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds =
             [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
             ];
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
             cts.Cancel();
 
             session.Channel
@@ -239,7 +239,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchValueAsyncShouldProcessDiagnosticInfoAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var dataValue = new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow);
@@ -271,7 +271,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchValuesAsyncShouldProcessDiagnosticInfoAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds =
             [
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchNodesAsyncShouldReturnResultSetAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds =
             [
@@ -389,7 +389,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchNodesAsyncShouldReturnResultSetWhenOptionalAttributesMissingAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds =
             [
@@ -472,7 +472,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchNodeAsyncShouldReturnNodeAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var node = new VariableNode
@@ -521,7 +521,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchNodesAsyncShouldReturnEmptyResultSetForEmptyNodeIdsAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds = [];
 
@@ -537,7 +537,7 @@ namespace Opc.Ua.Client.Tests
         public void FetchNodeAsyncShouldThrowServiceResultExceptionForBadStatusCode()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var node = new VariableNode
@@ -577,7 +577,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchNodesAsyncShouldReturnErrorsForBadStatusCodesAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds =
             [
@@ -650,7 +650,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchNodesAsyncShouldReturnErrorsForBadNodeClassTypeAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds =
             [
@@ -730,10 +730,10 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void FetchNodeAsyncShouldHandleCancellation()
         {
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
             cts.Cancel();
 
             session.Channel
@@ -751,14 +751,14 @@ namespace Opc.Ua.Client.Tests
         public void FetchNodesAsyncShouldHandleCancellation()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds =
             [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
             ];
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
             cts.Cancel();
 
             session.Channel
@@ -779,7 +779,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchNodeAsyncShouldProcessDiagnosticInfoAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var node = new VariableNode
@@ -828,7 +828,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchNodesAsyncShouldProcessDiagnosticInfoAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds =
             [
@@ -906,7 +906,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchReferencesAsyncShouldReturnResultSetAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             ArrayOf<ReferenceDescription> references =
@@ -957,7 +957,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchReferencesAsyncShouldReturnEmptyResultSetForEmptyNodeIdsAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeIds = ArrayOf.Empty<NodeId>();
 
@@ -974,7 +974,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchReferencesAsyncShouldReturnErrorsForBadStatusCodesAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds =
             [
@@ -1038,14 +1038,14 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void FetchReferencesAsyncShouldHandleCancellation()
         {
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             ArrayOf<NodeId> nodeIds =
             [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
             ];
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
             cts.Cancel();
 
             session.Channel
@@ -1063,7 +1063,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchReferenceAsyncShouldReturnReferenceDescriptionAsync()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var reference = new ReferenceDescription
@@ -1105,7 +1105,7 @@ namespace Opc.Ua.Client.Tests
         public void FetchReferenceAsyncShouldThrowServiceResultExceptionForBadStatusCode()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var reference = new ReferenceDescription
@@ -1145,10 +1145,10 @@ namespace Opc.Ua.Client.Tests
         public void FetchReferenceAsyncShouldHandleCancellation()
         {
             // Arrange
-            var session = SessionMock.Create();
+            using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
             cts.Cancel();
 
             session.Channel

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -61,7 +62,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
-            Utils.SilentDispose(m_context);
+            (m_context as IDisposable)?.Dispose();
         }
 
         /// <summary>
@@ -70,7 +71,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void SetEnableStateUpdatesTimestampAndClearsChangeMasks()
         {
-            var condition = new ConditionState(null);
+            using var condition = new ConditionState(null);
             condition.Create(m_context, new NodeId(1), QualifiedName.From("Condition"), default, true);
 
             // Set initial state
@@ -93,7 +94,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void SetSeverityUpdatesTimestampAndClearsChangeMasks()
         {
-            var condition = new ConditionState(null);
+            using var condition = new ConditionState(null);
             condition.Create(m_context, new NodeId(1), QualifiedName.From("Condition"), default, true);
 
             DateTimeUtc beforeTime = DateTimeUtc.Now;
@@ -116,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void SetActiveStateUpdatesTimestampAndClearsChangeMasks()
         {
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            using var alarm = new AlarmConditionState(m_telemetry, null);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
 
             DateTimeUtc beforeTime = DateTimeUtc.Now;
@@ -138,7 +139,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void SetSuppressedStateUpdatesTimestampAndClearsChangeMasks()
         {
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            using var alarm = new AlarmConditionState(m_telemetry, null);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
             alarm.SuppressedState = new TwoStateVariableState(alarm);
             alarm.SuppressedState.Create(m_context, default, QualifiedName.From(BrowseNames.SuppressedState), default, false);
@@ -162,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void SetAcknowledgedStateUpdatesTimestampAndClearsChangeMasks()
         {
-            var condition = new AcknowledgeableConditionState(null);
+            using var condition = new AcknowledgeableConditionState(null);
             condition.Create(m_context, new NodeId(1), QualifiedName.From("AckCondition"), default, true);
 
             DateTimeUtc beforeTime = DateTimeUtc.Now;
@@ -184,7 +185,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void SetConfirmedStateUpdatesTimestampAndClearsChangeMasks()
         {
-            var condition = new AcknowledgeableConditionState(null);
+            using var condition = new AcknowledgeableConditionState(null);
             condition.Create(m_context, new NodeId(1), QualifiedName.From("AckCondition"), default, true);
             condition.ConfirmedState = new TwoStateVariableState(condition);
             condition.ConfirmedState.Create(m_context, default, QualifiedName.From(BrowseNames.ConfirmedState), default, false);
@@ -208,7 +209,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void SetShelvingStateUpdatesTimestampAndClearsChangeMasks()
         {
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            using var alarm = new AlarmConditionState(m_telemetry, null);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
             alarm.ShelvingState = new ShelvedStateMachineState(alarm);
             alarm.ShelvingState.Create(m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
@@ -233,7 +234,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void SetActiveStateNotifiesSubscribers()
         {
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            using var alarm = new AlarmConditionState(m_telemetry, null);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
 
             // Initially inactive
@@ -261,7 +262,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void UpdateStateAfterEnableCallsEvaluateRetainStateOnEnable()
         {
             // Arrange
-            var condition = new ConditionState(null);
+            using var condition = new ConditionState(null);
             condition.Create(m_context, default, QualifiedName.From("TestCondition"), default, true);
 
             // Initially disabled

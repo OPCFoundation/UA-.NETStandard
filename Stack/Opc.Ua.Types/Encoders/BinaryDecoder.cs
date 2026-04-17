@@ -121,7 +121,7 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                CoreUtils.SilentDispose(m_reader);
+                m_reader?.Dispose();
                 m_reader = null;
             }
         }

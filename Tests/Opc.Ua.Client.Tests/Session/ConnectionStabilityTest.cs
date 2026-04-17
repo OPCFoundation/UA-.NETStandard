@@ -256,7 +256,7 @@ namespace Opc.Ua.Client.Tests
 
                 // Writer task - continuously write values
                 int writeCount = 0;
-                var writerCts = new CancellationTokenSource();
+                using var writerCts = new CancellationTokenSource();
                 var writerTask = Task.Run(async () =>
                 {
                     while (!writerCts.IsCancellationRequested)
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.Tests
                 }, writerCts.Token);
 
                 // Status reporting task
-                var statusReportingCts = new CancellationTokenSource();
+                using var statusReportingCts = new CancellationTokenSource();
                 var statusTask = Task.Run(async () =>
                 {
                     int reportCount = 0;
@@ -473,6 +473,8 @@ namespace Opc.Ua.Client.Tests
                     {
                         TestContext.Out.WriteLine($"Failed to delete subscription: {ex.Message}");
                     }
+
+                    subscription.Dispose();
                 }
 
                 if (session != null)

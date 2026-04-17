@@ -185,20 +185,8 @@ namespace Opc.Ua
             byte[] clientChannelCertificate,
             byte[] clientNonce)
         {
-            byte[] data = null;
-
-            CryptoTrace.Start(ConsoleColor.Yellow, "UserTokenSignatureData");
-
             if (SecureChannelEnhancements)
             {
-                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(channelThumbprint)}");
-                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
-                CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
-                CryptoTrace.WriteLine($"ServerChannelCertificate={CryptoTrace.KeyToString(serverChannelCertificate)}");
-                CryptoTrace.WriteLine($"ClientCertificate={CryptoTrace.KeyToString(clientCertificate)}");
-                CryptoTrace.WriteLine($"ClientChannelCertificate={CryptoTrace.KeyToString(clientChannelCertificate)}");
-                CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
-
                 using HashAlgorithm hash = CertificateThumbprintAlgorithm switch
                 {
                     CertificateThumbprintAlgorithm.SHA256 => SHA256.Create(),
@@ -207,12 +195,16 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                var serverCertificateHash = serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
-                var serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                var clientCertificateHash = clientCertificate != null ? hash.ComputeHash(clientCertificate) : null;
-                var clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
+                var serverCertificateHash =
+                    serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
+                var serverChannelCertificateHash =
+                    serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
+                var clientCertificateHash =
+                    clientCertificate != null ? hash.ComputeHash(clientCertificate) : null;
+                var clientChannelCertificateHash =
+                    clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
-                data = Utils.Append(
+                return Utils.Append(
                     channelThumbprint,
                     serverNonce,
                     serverCertificateHash,
@@ -223,21 +215,16 @@ namespace Opc.Ua
             }
             else
             {
-                CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
-                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
-
-                data = Utils.Append(
+                return Utils.Append(
                     serverCertificate,
                     serverNonce);
             }
-
-            CryptoTrace.Finish("UserTokenSignatureData");
-            return data;
         }
 
         /// <summary>
         /// Returns the data to be signed by the server when creating a session.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public byte[] GetServerSignatureData(
             byte[] channelThumbprint,
             byte[] clientNonce,
@@ -246,18 +233,8 @@ namespace Opc.Ua
             byte[] clientChannelCertificate,
             byte[] serverNonce)
         {
-            byte[] data = null;
-
-            CryptoTrace.Start(ConsoleColor.Yellow, "ServerSignatureData");
-
             if (SecureChannelEnhancements)
             {
-                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(channelThumbprint)}");
-                CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
-                CryptoTrace.WriteLine($"ServerChannelCertificate={CryptoTrace.KeyToString(serverChannelCertificate)}");
-                CryptoTrace.WriteLine($"ClientChannelCertificate={CryptoTrace.KeyToString(clientChannelCertificate)}");
-                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
-
                 using HashAlgorithm hash = CertificateThumbprintAlgorithm switch
                 {
                     CertificateThumbprintAlgorithm.SHA256 => SHA256.Create(),
@@ -266,10 +243,12 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                var serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                var clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
+                var serverChannelCertificateHash =
+                    serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
+                var clientChannelCertificateHash =
+                    clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
-                data = Utils.Append(
+                return Utils.Append(
                     channelThumbprint,
                     clientNonce,
                     serverChannelCertificateHash,
@@ -278,16 +257,10 @@ namespace Opc.Ua
             }
             else
             {
-                CryptoTrace.WriteLine($"ClientCertificate={CryptoTrace.KeyToString(clientCertificate)}");
-                CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
-
-                data = Utils.Append(
+                return Utils.Append(
                     clientCertificate,
                     clientNonce);
             }
-
-            CryptoTrace.Finish("ServerSignatureData");
-            return data;
         }
 
         /// <summary>
@@ -302,18 +275,8 @@ namespace Opc.Ua
             byte[] clientNonce)
         {
             byte[] data = null;
-
-            CryptoTrace.Start(ConsoleColor.Yellow, "ClientSignatureData");
-
             if (SecureChannelEnhancements)
             {
-                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(channelThumbprint)}");
-                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
-                CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
-                CryptoTrace.WriteLine($"ServerChannelCertificate={CryptoTrace.KeyToString(serverChannelCertificate)}");
-                CryptoTrace.WriteLine($"ClientChannelCertificate={CryptoTrace.KeyToString(clientChannelCertificate)}");
-                CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
-
                 using HashAlgorithm hash = CertificateThumbprintAlgorithm switch
                 {
                     CertificateThumbprintAlgorithm.SHA256 => SHA256.Create(),
@@ -336,15 +299,10 @@ namespace Opc.Ua
             }
             else
             {
-                CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
-                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
-
                 data = Utils.Append(
                     serverCertificate,
                     serverNonce);
             }
-
-            CryptoTrace.Finish("ClientSignatureData");
             return data;
         }
 
@@ -1022,7 +980,7 @@ namespace Opc.Ua
             IsDeprecated = false,
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
-         
+
         /// <summary>
         /// The RSA_DH_AES_GCM is an high security policy that uses AES GCM for symmetric encryption.
         /// </summary>

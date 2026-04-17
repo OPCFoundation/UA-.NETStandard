@@ -171,7 +171,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public void DisposeShouldNotThrow()
         {
-            var sut = new NullChannel();
+            using var sut = new NullChannel();
             Assert.DoesNotThrow(sut.Dispose);
         }
     }

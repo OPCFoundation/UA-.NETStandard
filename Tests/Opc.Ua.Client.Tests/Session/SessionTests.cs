@@ -49,7 +49,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task FetchOperationLimitsAsyncShouldFetchAllOperationLimitsAsync()
         {
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             ArrayOf<DataValue> dataValues =
@@ -137,7 +137,7 @@ namespace Opc.Ua.Client.Tests
         public void FetchOperationLimitsAsyncShouldHandleEmptyResponse()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             ArrayOf<DataValue> dataValues = [];
@@ -164,7 +164,7 @@ namespace Opc.Ua.Client.Tests
         public void FetchOperationLimitsAsyncShouldHandlePartialData()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             ArrayOf<DataValue> dataValues =
@@ -199,7 +199,7 @@ namespace Opc.Ua.Client.Tests
         public void FetchOperationLimitsAsyncShouldHandleErrors()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             ArrayOf<DataValue> dataValues = [new DataValue(StatusCodes.BadUnexpectedError)];
@@ -226,7 +226,7 @@ namespace Opc.Ua.Client.Tests
         public void FetchOperationLimitsAsyncShouldThrowWhenInvalidDataTypes()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             ArrayOf<DataValue> dataValues = [new DataValue("InvalidDataType")];
@@ -253,8 +253,9 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void FetchOperationLimitsAsyncShouldHandleTimeout()
         {
-            var sut = SessionMock.Create();
-            CancellationToken ct = new CancellationTokenSource(100).Token; // Set a short timeout
+            using var sut = SessionMock.Create();
+            using var cts = new CancellationTokenSource(100);
+            CancellationToken ct = cts.Token; // Set a short timeout
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -302,7 +303,7 @@ namespace Opc.Ua.Client.Tests
                 EndpointUrl = "opc.tcp://localhost:4840"
             };
 
-            var sut = new SessionMock(
+            using var sut = new SessionMock(
                 channel,
                 configuration,
                 new ConfiguredEndpoint(null, endpoint));
@@ -402,7 +403,7 @@ namespace Opc.Ua.Client.Tests
                 EndpointUrl = "opc.tcp://localhost:4840"
             };
 
-            var sut = new SessionMock(
+            using var sut = new SessionMock(
                 channel,
                 configuration,
                 new ConfiguredEndpoint(null, endpoint));
@@ -470,7 +471,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task FetchNamespaceTablesAsyncShouldFetchAndUpdateTablesAsync()
         {
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2"]));
@@ -501,7 +502,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchNamespaceTablesAsyncShouldFetchAndUpdateTablesAndLogDifferences1Async()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             var namespaceArray1 = new DataValue(Variant.From([Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
@@ -545,7 +546,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchNamespaceTablesAsyncShouldFetchAndUpdateTablesAndLogDifferences2Async()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             var namespaceArray1 = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
@@ -589,7 +590,7 @@ namespace Opc.Ua.Client.Tests
         public async Task FetchNamespaceTablesAsyncShouldHandlePartialSuccessAsync()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2"]));
@@ -620,7 +621,7 @@ namespace Opc.Ua.Client.Tests
         public void FetchNamespaceTablesAsyncShouldThrowInCaseOfBadResponse()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2"]));
@@ -649,7 +650,7 @@ namespace Opc.Ua.Client.Tests
         public void FetchNamespaceTablesAsyncShouldThrowWhenNamespaceArrayCouldNotBeRetrieved()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(StatusCodes.BadUnexpectedError);
@@ -677,7 +678,7 @@ namespace Opc.Ua.Client.Tests
         public void FetchNamespaceTablesAsyncShoulThrowWhenEmptyResponse()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             ArrayOf<DataValue> dataValues = [];
@@ -705,7 +706,7 @@ namespace Opc.Ua.Client.Tests
         public void FetchNamespaceTablesAsyncShouldThrowWhenInvalidDataTypesForNamespaceTable()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(new Variant(12345));
@@ -733,7 +734,7 @@ namespace Opc.Ua.Client.Tests
         public void FetchNamespaceTablesAsyncShouldThrowWhenInvalidDataTypeForServerUrls()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2"]));
@@ -761,7 +762,7 @@ namespace Opc.Ua.Client.Tests
         public async Task CloseAsyncShouldCloseSessionAndChannelSuccessfullyAsync()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
@@ -792,7 +793,7 @@ namespace Opc.Ua.Client.Tests
         public async Task CloseAsyncShouldHandleAlreadyClosedSessionAsync()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             sut.Dispose();
@@ -808,7 +809,7 @@ namespace Opc.Ua.Client.Tests
         public async Task CloseAsyncShouldHandleErrorsDuringCloseAsync()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
@@ -836,7 +837,7 @@ namespace Opc.Ua.Client.Tests
         public async Task CloseAsyncShouldCloseSessionWithoutDeletingSubscriptionsAsync()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
             sut.DeleteSubscriptionsOnClose = false;
             CancellationToken ct = CancellationToken.None;
@@ -868,7 +869,7 @@ namespace Opc.Ua.Client.Tests
         public async Task CloseAsyncShouldHandleChannelErrorsAsync()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
@@ -897,7 +898,7 @@ namespace Opc.Ua.Client.Tests
         public async Task CloseAsyncShouldCloseSessionSuccessfullyAsync()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
@@ -928,7 +929,7 @@ namespace Opc.Ua.Client.Tests
         public async Task CloseAsyncShouldHandleErrorsDuringCloseSessionAsync()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
@@ -955,7 +956,7 @@ namespace Opc.Ua.Client.Tests
         public async Task ReconnectAsyncShouldReconnectSuccessfullyAsync()
         {
             // Arrange
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
@@ -992,7 +993,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ReconnectAsyncShouldHandleReconnectFailure()
         {
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
@@ -1017,7 +1018,7 @@ namespace Opc.Ua.Client.Tests
         [Explicit("Requires proper channel creation mocking")]
         public void ReconnectAsyncShouldHandleNoSupportedFeatures()
         {
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
@@ -1036,7 +1037,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ReconnectAsyncShouldHandleCancellation()
         {
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
 
             sut.Channel
@@ -1058,7 +1059,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task ReconnectAsyncShouldHandleServerResponseWithNullNonceAsync()
         {
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
@@ -1106,7 +1107,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 ]
             };
-            var sut = SessionMock.Create(ep);
+            using var sut = SessionMock.Create(ep);
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
@@ -1120,7 +1121,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ReconnectAsyncShouldThrowWithBadActivationResponse()
         {
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
@@ -1155,7 +1156,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ReconnectAsyncShouldThrowWhenTimingOut()
         {
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
@@ -1195,7 +1196,7 @@ namespace Opc.Ua.Client.Tests
                     new UserTokenPolicy()
                 ]
             };
-            var sut = SessionMock.Create(ep);
+            using var sut = SessionMock.Create(ep);
             CancellationToken ct = CancellationToken.None;
             ByteString serverNonce = [1, 2, 3, 4];
             var authToken = NodeId.Parse("s=cookie");
@@ -1270,7 +1271,8 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            await sut.OpenAsync("test", new UserIdentity(), ct).ConfigureAwait(false);
+            using var identity = new UserIdentity();
+            await sut.OpenAsync("test", identity, ct).ConfigureAwait(false);
 
             Assert.That(sut.ServerNonce, Is.EqualTo(ByteString.From([1, 2, 3, 4])));
             sut.Channel.Verify();
@@ -1290,7 +1292,7 @@ namespace Opc.Ua.Client.Tests
                     new UserTokenPolicy()
                 ]
             };
-            var sut = SessionMock.Create(ep);
+            using var sut = SessionMock.Create(ep);
             CancellationToken ct = CancellationToken.None;
             ByteString serverNonce = [1, 2, 3, 4];
             var authToken = NodeId.Parse("s=cookie");
@@ -1336,8 +1338,9 @@ namespace Opc.Ua.Client.Tests
                 .Returns(new ValueTask())
                 .Verifiable(Times.Once);
 
+            using var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await sut.OpenAsync("test", new UserIdentity(), default).ConfigureAwait(false));
+                async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
             sut.Channel.Verify();
         }
@@ -1356,7 +1359,7 @@ namespace Opc.Ua.Client.Tests
                     new UserTokenPolicy()
                 ]
             };
-            var sut = SessionMock.Create(ep);
+            using var sut = SessionMock.Create(ep);
             CancellationToken ct = CancellationToken.None;
             ByteString serverNonce = [1, 2, 3, 4];
             var authToken = NodeId.Parse("s=cookie");
@@ -1402,11 +1405,12 @@ namespace Opc.Ua.Client.Tests
                 .Throws(new ServiceResultException(StatusCodes.BadNotConnected))
                 .Verifiable(Times.Once);
 
+            using var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.OpenAsync(
                     "test",
                     60000,
-                    new UserIdentity(),
+                    identity,
                     default,
                     true,
                     closeChannel: true,
@@ -1429,7 +1433,7 @@ namespace Opc.Ua.Client.Tests
                     new UserTokenPolicy()
                 ]
             };
-            var sut = SessionMock.Create(ep);
+            using var sut = SessionMock.Create(ep);
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1438,8 +1442,9 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadUnexpectedError))
                 .Verifiable(Times.Exactly(2));
 
+            using var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
-                  async () => await sut.OpenAsync("test", new UserIdentity(), default).ConfigureAwait(false));
+                  async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
 
             sut.Channel.Verify();
@@ -1459,10 +1464,11 @@ namespace Opc.Ua.Client.Tests
                     new UserTokenPolicy()
                 ]
             };
-            var sut = SessionMock.Create(ep);
+            using var sut = SessionMock.Create(ep);
 
+            using var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
-                  async () => await sut.OpenAsync("test", new UserIdentity(), default).ConfigureAwait(false));
+                  async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
 
             sut.Channel.Verify();
@@ -1486,10 +1492,11 @@ namespace Opc.Ua.Client.Tests
                     }
                 ]
             };
-            var sut = SessionMock.Create(ep);
+            using var sut = SessionMock.Create(ep);
 
+            using var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
-                  async () => await sut.OpenAsync("test", new UserIdentity(), default).ConfigureAwait(false));
+                  async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
             sut.Channel.Verify();
         }
@@ -1497,7 +1504,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void OpenAsyncShouldHandleCancellation()
         {
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1506,8 +1513,9 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new TaskCanceledException())
                 .Verifiable(Times.Once);
 
+            using var identity = new UserIdentity();
             Assert.ThrowsAsync<TaskCanceledException>(
-                async () => await sut.OpenAsync("test", new UserIdentity(), default).ConfigureAwait(false));
+                async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
 
             sut.Channel.Verify();
         }
@@ -1515,7 +1523,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void OpenAsyncShouldHandleInvalidServerResponse()
         {
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
             sut.Channel
@@ -1529,8 +1537,9 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
+            using var identity = new UserIdentity();
             Assert.ThrowsAsync<ServiceResultException>(
-                async () => await sut.OpenAsync("test", new UserIdentity(), ct).ConfigureAwait(false));
+                async () => await sut.OpenAsync("test", identity, ct).ConfigureAwait(false));
 
             sut.Channel.Verify();
         }
@@ -1538,12 +1547,12 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void SaveShouldOnlySaveSpecifiedSubscriptions()
         {
-            var sut = SessionMock.Create();
+            using var sut = SessionMock.Create();
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var subscription1 = new Subscription(telemetry, new SubscriptionOptions { DisplayName = "Subscription1" });
-            var subscription2 = new Subscription(telemetry, new SubscriptionOptions { DisplayName = "Subscription2" });
-            var subscription3 = new Subscription(telemetry, new SubscriptionOptions { DisplayName = "Subscription3" });
+            using var subscription1 = new Subscription(telemetry, new SubscriptionOptions { DisplayName = "Subscription1" });
+            using var subscription2 = new Subscription(telemetry, new SubscriptionOptions { DisplayName = "Subscription2" });
+            using var subscription3 = new Subscription(telemetry, new SubscriptionOptions { DisplayName = "Subscription3" });
 
             sut.AddSubscription(subscription1);
             sut.AddSubscription(subscription2);
@@ -1558,7 +1567,7 @@ namespace Opc.Ua.Client.Tests
             sut.Save(stream, subscriptionsToSave);
             stream.Position = 0;
 
-            var loadSession = SessionMock.Create();
+            using var loadSession = SessionMock.Create();
             var loadedSubscriptions = loadSession.Load(stream).ToList();
 
             Assert.That(loadedSubscriptions, Has.Count.EqualTo(2), "Only the specified subscriptions should be saved");

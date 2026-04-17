@@ -46,26 +46,6 @@ namespace Opc.Ua.Types.Tests.Utils
     [Parallelizable]
     public class CoreUtilsTests
     {
-        private sealed class ThrowingDisposable : IDisposable
-        {
-            public void Dispose()
-            {
-                throw new InvalidOperationException("Dispose failed");
-            }
-        }
-
-        private sealed class NonDisposable;
-
-        private sealed class TrackingDisposable : IDisposable
-        {
-            public bool Disposed { get; private set; }
-
-            public void Dispose()
-            {
-                Disposed = true;
-            }
-        }
-
         private sealed class CloneableObject : ICloneable
         {
             public int Value { get; set; }
@@ -74,48 +54,6 @@ namespace Opc.Ua.Types.Tests.Utils
             {
                 return new CloneableObject { Value = Value };
             }
-        }
-
-        [Test]
-        public void SilentDisposeWithThrowingDisposableDoesNotThrow()
-        {
-            var disposable = new ThrowingDisposable();
-
-            Assert.DoesNotThrow(() => CoreUtils.SilentDispose(disposable));
-        }
-
-        [Test]
-        public void SilentDisposeWithNullIDisposableDoesNotThrow()
-        {
-            IDisposable disposable = null;
-
-            Assert.DoesNotThrow(() => CoreUtils.SilentDispose(disposable));
-        }
-
-        [Test]
-        public void SilentDisposeWithObjectThatIsDisposable()
-        {
-            var tracking = new TrackingDisposable();
-
-            CoreUtils.SilentDispose((object)tracking);
-
-            Assert.That(tracking.Disposed, Is.True);
-        }
-
-        [Test]
-        public void SilentDisposeWithObjectThatIsNotDisposable()
-        {
-            var nonDisposable = new NonDisposable();
-
-#pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.DoesNotThrow(() => CoreUtils.SilentDispose((object)nonDisposable));
-#pragma warning restore IDE0004 // Remove Unnecessary Cast
-        }
-
-        [Test]
-        public void SilentDisposeWithNullObjectDoesNotThrow()
-        {
-            Assert.DoesNotThrow(() => CoreUtils.SilentDispose((object)null));
         }
 
         [Test]

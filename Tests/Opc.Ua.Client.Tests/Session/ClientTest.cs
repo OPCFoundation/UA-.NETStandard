@@ -645,7 +645,7 @@ namespace Opc.Ua.Client.Tests
         {
             byte[] identityToken = "fakeTokenString"u8.ToArray();
             using var issuedToken = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, identityToken);
-            var userIdentity = new UserIdentity(issuedToken);
+            using var userIdentity = new UserIdentity(issuedToken);
 
             ISession session = await ClientFixture
                 .ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity)
@@ -671,7 +671,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             byte[] identityToken = "fakeTokenString"u8.ToArray();
-            UserIdentity userIdentity = CreateUserIdentity(identityToken);
+            using UserIdentity userIdentity = CreateUserIdentity(identityToken);
 
             ISession session = await ClientFixture
                 .ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity)
@@ -870,7 +870,7 @@ namespace Opc.Ua.Client.Tests
 
             ServiceResultException sre;
 
-            UserIdentity userIdentity = anonymous
+            using UserIdentity userIdentity = anonymous
                 ? new UserIdentity()
                 : new UserIdentity("user1", "password"u8);
 
@@ -964,11 +964,11 @@ namespace Opc.Ua.Client.Tests
 
             session1.DeleteSubscriptionsOnClose = true;
             await session1.CloseAsync(1000).ConfigureAwait(false);
-            Utils.SilentDispose(session1);
+            session1?.Dispose();
 
             session2.DeleteSubscriptionsOnClose = true;
             await session2.CloseAsync(1000).ConfigureAwait(false);
-            Utils.SilentDispose(session2);
+            session2?.Dispose();
         }
 
         /// <summary>
@@ -983,7 +983,7 @@ namespace Opc.Ua.Client.Tests
             await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
             await IgnoreIfPolicyNotAdvertisedAsync(userTokenPolicy).ConfigureAwait(false);
 
-            UserIdentity userIdentity = new UserIdentity("user1", "password"u8);
+            using UserIdentity userIdentity = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -1031,7 +1031,7 @@ namespace Opc.Ua.Client.Tests
             {
                 session1.DeleteSubscriptionsOnClose = true;
                 await session1.CloseAsync(1000).ConfigureAwait(false);
-                Utils.SilentDispose(session1);
+                session1?.Dispose();
             }
         }
 
@@ -1044,8 +1044,8 @@ namespace Opc.Ua.Client.Tests
         [Order(270)]
         public async Task RecreateSessionWithRenewUserIdentityAsync()
         {
-            var userIdentityAnonymous = new UserIdentity();
-            var userIdentityPW = new UserIdentity("user1", "password"u8);
+            using var userIdentityAnonymous = new UserIdentity();
+            using var userIdentityPW = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -1103,15 +1103,15 @@ namespace Opc.Ua.Client.Tests
 
             session1.DeleteSubscriptionsOnClose = true;
             await session1.CloseAsync(1000).ConfigureAwait(false);
-            Utils.SilentDispose(session1);
+            session1?.Dispose();
 
             session2.DeleteSubscriptionsOnClose = true;
             await session2.CloseAsync(1000).ConfigureAwait(false);
-            Utils.SilentDispose(session2);
+            session2?.Dispose();
 
             session3.DeleteSubscriptionsOnClose = true;
             await session3.CloseAsync(1000).ConfigureAwait(false);
-            Utils.SilentDispose(session3);
+            session3?.Dispose();
         }
 
         [Test]
@@ -1902,7 +1902,7 @@ namespace Opc.Ua.Client.Tests
             IgnoreUnsupportedBrainpoolOnMacOs(securityPolicy);
             await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
 
-            var userIdentity = new UserIdentity("user1", "password"u8);
+            using var userIdentity = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -1949,7 +1949,7 @@ namespace Opc.Ua.Client.Tests
             using var issuedToken = new IssuedIdentityTokenHandler(
                 Profiles.JwtUserToken,
                 Encoding.UTF8.GetBytes(identityToken));
-            var userIdentity = new UserIdentity(issuedToken);
+            using var userIdentity = new UserIdentity(issuedToken);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -2076,7 +2076,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
-            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
+            using var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
@@ -2108,7 +2108,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
-            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
+            using var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
@@ -2136,7 +2136,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
-            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
+            using var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
@@ -2164,7 +2164,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
-            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
+            using var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
@@ -2194,7 +2194,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
-            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
+            using var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool result, uint revised) =
                 await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
@@ -2225,7 +2225,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
-            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
+            using var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
@@ -2252,7 +2252,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
-            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
+            using var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
@@ -2280,7 +2280,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
-            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
+            using var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
@@ -2308,7 +2308,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
-            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
+            using var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
@@ -2341,7 +2341,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
-            var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
+            using var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
             (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);

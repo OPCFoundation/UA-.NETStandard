@@ -177,7 +177,7 @@ namespace Opc.Ua.PubSub.Tests
         public void DisposeDoesNotThrowWithNoConnections()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var app = UaPubSubApplication.Create(telemetry);
+            using var app = UaPubSubApplication.Create(telemetry);
             Assert.That(app.Dispose, Throws.Nothing);
         }
 
@@ -185,7 +185,7 @@ namespace Opc.Ua.PubSub.Tests
         public void DoubleDisposeDoesNotThrow()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var app = UaPubSubApplication.Create(telemetry);
+            using var app = UaPubSubApplication.Create(telemetry);
             app.Dispose();
             Assert.That(app.Dispose, Throws.Nothing);
         }

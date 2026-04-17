@@ -843,7 +843,7 @@ namespace Opc.Ua
         {
             X509Certificate2 certificate = m_certificate;
             m_certificate = null;
-            Utils.SilentDispose(certificate);
+            certificate?.Dispose();
         }
 
         /// <summary>

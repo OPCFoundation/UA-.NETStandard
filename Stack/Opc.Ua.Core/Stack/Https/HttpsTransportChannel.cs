@@ -190,7 +190,7 @@ namespace Opc.Ua.Bindings
                 nameof(HttpsTransportChannel),
                 m_url);
 
-            Utils.SilentDispose(m_client);
+            m_client?.Dispose();
             m_client = null;
 
             return default;
@@ -228,7 +228,7 @@ namespace Opc.Ua.Bindings
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
             try
             {
-                var content = new ByteArrayContent(
+                using var content = new ByteArrayContent(
                     BinaryEncoder.EncodeMessage(request, context));
                 content.Headers.ContentType = s_mediaTypeHeaderValue;
                 if (EndpointDescription?.SecurityPolicyUri != null &&
@@ -325,7 +325,7 @@ namespace Opc.Ua.Bindings
             if (disposing && !m_disposed)
             {
                 m_disposed = true;
-                Utils.SilentDispose(m_client);
+                m_client?.Dispose();
                 m_client = null;
             }
         }
@@ -385,113 +385,121 @@ namespace Opc.Ua.Bindings
 
                 // auto validate server cert, if supported
                 // if unsupported, the TLS server cert must be trusted by a root CA
-                var handler = new HttpClientHandler
-                {
-                    ClientCertificateOptions = ClientCertificateOption.Manual,
-                    AllowAutoRedirect = false,
-                    // limit the number of concurrent connections, if supported
-                    MaxConnectionsPerServer = kMaxConnectionsPerServer,
-                    MaxRequestContentBufferSize = m_quotas!.MaxMessageSize
-                };
-
-                // send client certificate for servers that require TLS client authentication
-                if (m_settings!.ClientCertificate != null)
-                {
-                    // prepare the server TLS certificate
-                    X509Certificate2 clientCertificate = m_settings.ClientCertificate;
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
-                    try
-                    {
-                        // Create a copy of the certificate with the private key on platforms
-                        // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
-                        // If the key fails to copy, its probably a non exportable key from the X509Store.
-                        // Then we can use the original certificate, the private key is already in the key store.
-                        clientCertificate = X509Utils.CreateCopyWithPrivateKey(
-                            m_settings.ClientCertificate,
-                            false);
-                    }
-                    catch (CryptographicException ce)
-                    {
-                        m_logger.LogError(ce, "Copy of the private key for https was denied");
-                    }
-#endif
-                    handler.ClientCertificates.Add(clientCertificate);
-                    ClientChannelCertificate = clientCertificate.RawData;
-                }
-
-                Func<
-                    HttpRequestMessage,
-                    X509Certificate2,
-                    X509Chain,
-                    SslPolicyErrors,
-                    bool
-                >? serverCertificateCustomValidationCallback;
-
+                HttpClientHandler? handler = null;
                 try
                 {
-                    serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
+                    handler = new HttpClientHandler
                     {
+                        ClientCertificateOptions = ClientCertificateOption.Manual,
+                        AllowAutoRedirect = false,
+                        // limit the number of concurrent connections, if supported
+                        MaxConnectionsPerServer = kMaxConnectionsPerServer,
+                        MaxRequestContentBufferSize = m_quotas!.MaxMessageSize
+                    };
+
+                    // send client certificate for servers that require TLS client authentication
+                    if (m_settings!.ClientCertificate != null)
+                    {
+                        // prepare the server TLS certificate
+                        X509Certificate2 clientCertificate = m_settings.ClientCertificate;
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
                         try
                         {
-                            var validationChain = new X509Certificate2Collection();
-                            if (chain != null && chain.ChainElements != null)
+                            // Create a copy of the certificate with the private key on platforms
+                            // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
+                            // If the key fails to copy, its probably a non exportable key from the X509Store.
+                            // Then we can use the original certificate, the private key is already in the key store.
+                            clientCertificate = X509Utils.CreateCopyWithPrivateKey(
+                                m_settings.ClientCertificate,
+                                false);
+                        }
+                        catch (CryptographicException ce)
+                        {
+                            m_logger.LogError(ce, "Copy of the private key for https was denied");
+                        }
+#endif
+                        handler.ClientCertificates.Add(clientCertificate);
+                        ClientChannelCertificate = clientCertificate.RawData;
+                    }
+
+                    Func<
+                        HttpRequestMessage,
+                        X509Certificate2,
+                        X509Chain,
+                        SslPolicyErrors,
+                        bool
+                    >? serverCertificateCustomValidationCallback;
+
+                    try
+                    {
+                        serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
+                        {
+                            try
                             {
-                                int i = 0;
-                                m_logger.LogInformation(
-                                    Utils.TraceMasks.Security,
-                                    "{ChannelType} Validate server chain:",
-                                    nameof(HttpsTransportChannel));
-                                foreach (X509ChainElement element in chain.ChainElements)
+                                var validationChain = new X509Certificate2Collection();
+                                if (chain != null && chain.ChainElements != null)
+                                {
+                                    int i = 0;
+                                    m_logger.LogInformation(
+                                        Utils.TraceMasks.Security,
+                                        "{ChannelType} Validate server chain:",
+                                        nameof(HttpsTransportChannel));
+                                    foreach (X509ChainElement element in chain.ChainElements)
+                                    {
+                                        m_logger.LogInformation(
+                                            Utils.TraceMasks.Security,
+                                            "{Index}: {Certificate}",
+                                            i,
+                                            element.Certificate.AsLogSafeString());
+                                        validationChain.Add(element.Certificate);
+                                        i++;
+                                    }
+                                }
+                                else
                                 {
                                     m_logger.LogInformation(
                                         Utils.TraceMasks.Security,
-                                        "{Index}: {Certificate}",
-                                        i,
-                                        element.Certificate.AsLogSafeString());
-                                    validationChain.Add(element.Certificate);
-                                    i++;
+                                        "{ChannelType} Validate Server Certificate: {Certificate}",
+                                        cert.AsLogSafeString(),
+                                        nameof(HttpsTransportChannel));
+                                    validationChain.Add(cert);
                                 }
+
+                                m_quotas.CertificateValidator?.ValidateAsync(validationChain, default).GetAwaiter().GetResult();
+                                ServerChannelCertificate = cert.RawData;
+                                return true;
                             }
-                            else
+                            catch (Exception ex)
                             {
-                                m_logger.LogInformation(
-                                    Utils.TraceMasks.Security,
-                                    "{ChannelType} Validate Server Certificate: {Certificate}",
-                                    cert.AsLogSafeString(),
+                                m_logger.LogError(
+                                    ex,
+                                    "{ChannelType} Failed to validate certificate.",
                                     nameof(HttpsTransportChannel));
-                                validationChain.Add(cert);
                             }
+                            return false;
+                        };
 
-                            m_quotas.CertificateValidator?.ValidateAsync(validationChain, default).GetAwaiter().GetResult();
-                            ServerChannelCertificate = cert.RawData;
-                            return true;
-                        }
-                        catch (Exception ex)
-                        {
-                            m_logger.LogError(
-                                ex,
-                                "{ChannelType} Failed to validate certificate.",
-                                nameof(HttpsTransportChannel));
-                        }
-                        return false;
-                    };
+                        handler.ServerCertificateCustomValidationCallback = serverCertificateCustomValidationCallback!;
 
-                    handler.ServerCertificateCustomValidationCallback = serverCertificateCustomValidationCallback!;
-
-                    m_logger.LogInformation(
-                        "{ChannelType} ServerCertificate callback enabled.",
-                        nameof(HttpsTransportChannel));
-                }
-                catch (PlatformNotSupportedException)
-                {
-                    // client may throw if not supported (e.g. UWP)
-                    serverCertificateCustomValidationCallback = null;
-                }
+                        m_logger.LogInformation(
+                            "{ChannelType} ServerCertificate callback enabled.",
+                            nameof(HttpsTransportChannel));
+                    }
+                    catch (PlatformNotSupportedException)
+                    {
+                        // client may throw if not supported (e.g. UWP)
+                        serverCertificateCustomValidationCallback = null;
+                    }
 
 #pragma warning disable CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
-                m_client = new HttpClient(handler);
+                    m_client = new HttpClient(handler);
 #pragma warning restore CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
-
+                    handler = null; // ownership transferred to HttpClient
+                }
+                finally
+                {
+                    handler?.Dispose();
+                }
             }
             catch (Exception ex)
             {

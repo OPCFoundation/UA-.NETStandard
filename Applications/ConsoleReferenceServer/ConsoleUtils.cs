@@ -63,8 +63,16 @@ namespace Quickstarts
                 {
                     builder.SetMinimumLevel(LogLevel.Information);
                     m_configure?.Invoke(builder);
-                })
-                .AddSerilog(Log.Logger);
+                });
+            try
+            {
+                LoggerFactory = LoggerFactory.AddSerilog(Log.Logger);
+            }
+            catch
+            {
+                LoggerFactory.Dispose();
+                throw;
+            }
 
             ActivitySource = new ActivitySource("Quickstarts", "1.0.0");
 
@@ -186,15 +194,22 @@ namespace Quickstarts
             // create the serilog logger
             Serilog.Core.Logger serilogger = loggerConfiguration.CreateLogger();
 
-            // Dispose the old LoggerFactory and create a new one with the updated configuration
             ILoggerFactory oldLoggerFactory = LoggerFactory;
             LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
                 .Create(builder =>
                 {
                     builder.SetMinimumLevel(consoleLogLevel);
                     m_configure?.Invoke(builder);
-                })
-                .AddSerilog(serilogger);
+                });
+            try
+            {
+                LoggerFactory = LoggerFactory.AddSerilog(serilogger);
+            }
+            catch
+            {
+                LoggerFactory.Dispose();
+                throw;
+            }
             m_logger = LoggerFactory.CreateLogger("Main");
 
             oldLoggerFactory.Dispose();

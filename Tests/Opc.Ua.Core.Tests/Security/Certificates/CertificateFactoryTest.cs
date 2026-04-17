@@ -76,7 +76,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             foreach (X509Certificate2 cert in m_rootCACertificate.Values)
             {
-                Utils.SilentDispose(cert);
+                cert?.Dispose();
             }
         }
 
@@ -266,7 +266,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 foreach (X509Certificate2 cert in revokedCerts)
                 {
-                    Utils.SilentDispose(cert);
+                    cert?.Dispose();
                 }
             }
         }

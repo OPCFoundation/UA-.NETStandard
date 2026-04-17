@@ -575,29 +575,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Suppresses any exceptions while disposing the object.
-        /// </summary>
-        /// <remarks>
-        /// Writes errors to trace output in DEBUG builds.
-        /// </remarks>
-        public static void SilentDispose(object objectToDispose)
-        {
-            var disposable = objectToDispose as IDisposable;
-            SilentDispose(disposable);
-        }
-
-        /// <summary>
-        /// Suppresses any exceptions while disposing the object.
-        /// </summary>
-        /// <remarks>
-        /// Writes errors to trace output in DEBUG builds.
-        /// </remarks>
-        public static void SilentDispose(IDisposable disposable)
-        {
-            CoreUtils.SilentDispose(disposable);
-        }
-
-        /// <summary>
         /// The earliest time that can be represented on with UA date/time values.
         /// </summary>
         public static DateTime TimeBase => CoreUtils.TimeBase;
@@ -1465,7 +1442,7 @@ namespace Opc.Ua
             if (!EqualityComparer<T>.Default.Equals(value, default))
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
+                using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
                 encoder.Push(elementName.Name, elementName.Namespace);
                 encoderFunc(encoder, value);
                 encoder.Pop();
@@ -1579,7 +1556,7 @@ namespace Opc.Ua
             if (value != null)
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
+                using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
                 encoder.Push(elementName.Name, elementName.Namespace);
                 value.Encode(encoder);
                 encoder.Pop();

@@ -138,7 +138,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonNetworkMessageContentMask.DataSetMessageHeader,
                 ("IntField", Variant.From(42)));
 
-            var stream = new MemoryStream();
+            using var stream = new MemoryStream();
             msg.Encode(m_messageContext, stream);
 
             Assert.That(stream.ToArray(), Is.Not.Empty);

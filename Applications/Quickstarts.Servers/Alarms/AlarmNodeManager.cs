@@ -132,6 +132,10 @@ namespace Alarms
                     externalReferences[ObjectIds.ObjectsFolder] = references = [];
                 }
 
+                FolderState alarmsFolder = null;
+                MethodState startMethod = null;
+                MethodState startBranchMethod = null;
+                MethodState endMethod = null;
                 try
                 {
                     const string alarmsName = "Alarms";
@@ -143,7 +147,7 @@ namespace Alarms
 
                     int conditionTypeIndex = 0;
 
-                    FolderState alarmsFolder = CreateFolder(null, alarmsNodeName, alarmsName);
+                    alarmsFolder = CreateFolder(null, alarmsNodeName, alarmsName);
                     alarmsFolder.AddReference(
                         ReferenceTypeIds.Organizes,
                         true,
@@ -158,7 +162,7 @@ namespace Alarms
 
                     const string startMethodName = "Start";
                     const string startMethodNodeName = alarmsNodeName + "." + startMethodName;
-                    MethodState startMethod = AlarmHelpers.CreateMethod(
+                    startMethod = AlarmHelpers.CreateMethod(
                         alarmsFolder,
                         NamespaceIndex,
                         startMethodNodeName,
@@ -170,7 +174,7 @@ namespace Alarms
                     const string startBranchMethodNodeName = alarmsNodeName +
                         "." +
                         startBranchMethodName;
-                    MethodState startBranchMethod = AlarmHelpers.CreateMethod(
+                    startBranchMethod = AlarmHelpers.CreateMethod(
                         alarmsFolder,
                         NamespaceIndex,
                         startBranchMethodNodeName,
@@ -181,7 +185,7 @@ namespace Alarms
 
                     const string endMethodName = "End";
                     const string endMethodNodeName = alarmsNodeName + "." + endMethodName;
-                    MethodState endMethod = AlarmHelpers.CreateMethod(
+                    endMethod = AlarmHelpers.CreateMethod(
                         alarmsFolder,
                         NamespaceIndex,
                         endMethodNodeName,
@@ -266,12 +270,26 @@ namespace Alarms
                     m_alarms.Add(offNormal.AlarmNodeName, offNormal);
 
                     AddPredefinedNode(SystemContext, alarmsFolder);
+
+                    // ownership transferred to predefined nodes
+                    alarmsFolder = null;
+                    startMethod = null;
+                    startBranchMethod = null;
+                    endMethod = null;
+
                     StartTimer();
                     m_allowEntry = true;
                 }
                 catch (Exception e)
                 {
                     m_logger.LogError(e, "Error creating the AlarmNodeManager address space.");
+                }
+                finally
+                {
+                    endMethod?.Dispose();
+                    startBranchMethod?.Dispose();
+                    startMethod?.Dispose();
+                    alarmsFolder?.Dispose();
                 }
             }
         }
@@ -967,7 +985,7 @@ namespace Alarms
         {
             m_logger.LogInformation("Alarms: Starting simulation");
 
-            Utils.SilentDispose(m_simulationTimer);
+            m_simulationTimer?.Dispose();
             m_simulationTimer = new Timer(
                 DoSimulation,
                 null,
@@ -980,7 +998,7 @@ namespace Alarms
         /// </summary>
         private void DisposeTimer()
         {
-            Utils.SilentDispose(m_simulationTimer);
+            m_simulationTimer?.Dispose();
             m_simulationTimer = null;
 
             m_logger.LogInformation("Alarms: Stopped simulation");

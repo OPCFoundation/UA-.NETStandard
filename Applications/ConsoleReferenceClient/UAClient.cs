@@ -93,7 +93,8 @@ namespace Quickstarts
             }
             if (disposing)
             {
-                Utils.SilentDispose(Session);
+                m_reconnectHandler?.Dispose();
+                Session?.Dispose();
                 m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
             }
             m_disposed = true;
@@ -437,7 +438,7 @@ namespace Quickstarts
                         );
                         ISession session = Session;
                         Session = m_reconnectHandler.Session;
-                        Utils.SilentDispose(session);
+                        session?.Dispose();
                     }
                     else
                     {

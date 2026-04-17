@@ -106,7 +106,7 @@ namespace Opc.Ua.Client.Tests
         [OneTimeTearDown]
         public override Task OneTimeTearDownAsync()
         {
-            Utils.SilentDispose(ClientFixture);
+            ClientFixture?.Dispose();
             return base.OneTimeTearDownAsync();
         }
 
@@ -231,6 +231,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(endpoint, Is.Not.Null);
 
             // connect
+            using var userIdentity = new UserIdentity();
             ISession session = await sessionFactory.Create(telemetry)
                 .CreateAsync(
                     config,
@@ -240,7 +241,7 @@ namespace Opc.Ua.Client.Tests
                     false,
                     "Reverse Connect Client",
                     MaxTimeout,
-                    new UserIdentity(),
+                    userIdentity,
                     default)
                 .ConfigureAwait(false);
             Assert.That(session, Is.Not.Null);
@@ -295,6 +296,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(endpoint, Is.Not.Null);
 
             // connect
+            using var userIdentity = new UserIdentity();
             ISession session = await sessionFactory.Create(telemetry)
                 .CreateAsync(
                     config,
@@ -304,7 +306,7 @@ namespace Opc.Ua.Client.Tests
                     checkDomain,
                     "Reverse Connect Client",
                     MaxTimeout,
-                    new UserIdentity(),
+                    userIdentity,
                     default)
                 .ConfigureAwait(false);
 

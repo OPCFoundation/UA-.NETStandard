@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
@@ -180,7 +180,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
@@ -280,7 +280,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
@@ -382,7 +382,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
@@ -488,7 +488,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
@@ -589,7 +589,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
 
             var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;

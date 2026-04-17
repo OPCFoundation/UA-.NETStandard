@@ -207,7 +207,7 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                Utils.SilentDispose(key);
+                key?.Dispose();
             }
             return true;
         }
@@ -1281,10 +1281,9 @@ namespace Opc.Ua.Gds.Tests
             ITelemetryContext telemetry)
         {
             bool result = true;
-            ICertificateStore store = null;
             try
             {
-                store = trustList.OpenStore(telemetry);
+                using ICertificateStore store = trustList.OpenStore(telemetry);
                 X509CRLCollection storeCrls = await store.EnumerateCRLsAsync()
                     .ConfigureAwait(false);
                 foreach (X509CRL crl in storeCrls)
@@ -1304,10 +1303,6 @@ namespace Opc.Ua.Gds.Tests
             {
                 result = false;
             }
-            finally
-            {
-                store?.Close();
-            }
             return result;
         }
 
@@ -1317,10 +1312,9 @@ namespace Opc.Ua.Gds.Tests
             ITelemetryContext telemetry)
         {
             bool result = true;
-            ICertificateStore store = null;
             try
             {
-                store = trustList.OpenStore(telemetry);
+                using ICertificateStore store = trustList.OpenStore(telemetry);
                 X509Certificate2Collection storeCerts = await store.EnumerateAsync()
                     .ConfigureAwait(false);
                 foreach (X509Certificate2 cert in storeCerts)
@@ -1345,10 +1339,6 @@ namespace Opc.Ua.Gds.Tests
             catch
             {
                 result = false;
-            }
-            finally
-            {
-                store?.Close();
             }
             return result;
         }

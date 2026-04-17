@@ -71,7 +71,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = null;
             TemplateString templateString = "test template";
@@ -91,7 +91,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             string replacement = string.Empty;
             TemplateString templateString = "test template";
@@ -111,7 +111,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = null;
@@ -132,7 +132,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = null;
@@ -153,7 +153,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -173,7 +173,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -193,7 +193,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -213,7 +213,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -233,7 +233,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -253,7 +253,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -273,7 +273,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -293,7 +293,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -313,7 +313,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -334,7 +334,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -355,7 +355,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -377,7 +377,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -397,7 +397,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "testReplacement";
             TemplateString templateString = "test template";
@@ -417,7 +417,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             string replacement = new('x', 10000);
             TemplateString templateString = "test template";
@@ -437,7 +437,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "test{0}Replacement\n\r\t@#$%^&*()";
             TemplateString templateString = "test template";
@@ -457,7 +457,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "   ";
             IReadOnlyList<object> targets = [new()];
@@ -477,7 +477,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IReadOnlyList<object> targets = null;
@@ -497,7 +497,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IReadOnlyList<object> targets = [];
@@ -518,7 +518,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IReadOnlyList<object> targets = [new()];
@@ -538,7 +538,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IReadOnlyList<object> targets = [new()];
@@ -558,7 +558,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IReadOnlyList<object> targets = ["TargetItem"];
@@ -578,7 +578,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IReadOnlyList<object> targets = ["Target1", "Target2", "Target3"];
@@ -598,7 +598,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "Test@Replacement#123!";
             IReadOnlyList<object> targets = [new()];
@@ -618,7 +618,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             string replacement = new('A', 10000);
             IReadOnlyList<object> targets = [new()];
@@ -638,7 +638,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IReadOnlyList<object> targets = [null, new(), null];
@@ -660,7 +660,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var writer = new StringWriter();
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, "base template");
             const string replacement = "test";
             TemplateString templateString = null;
@@ -684,7 +684,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var writer = new StringWriter();
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, "base template");
             const string replacement = "test";
             TemplateString templateString = "test template";
@@ -706,7 +706,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var writer = new StringWriter();
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, "base template");
             const string replacement = "test";
             TemplateString templateString = "test template";
@@ -728,7 +728,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var writer = new StringWriter();
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, "base template");
             const string replacement = "test";
             TemplateString templateString = "test template";
@@ -750,7 +750,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var writer = new StringWriter();
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, "base template");
             const string replacement = "test";
             TemplateString templateString = "test template";
@@ -773,7 +773,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var writer = new StringWriter();
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, "base template");
             const string replacement = "   ";
             TemplateString templateString = "test template";
@@ -795,7 +795,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var writer = new StringWriter();
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, "base template");
             const string replacement = "!@#$%^&*()_+-=[]{}|;':\",./<>?";
             TemplateString templateString = "test template";
@@ -817,7 +817,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var writer = new StringWriter();
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, "base template");
             const string replacement = "test";
             TemplateString templateString = string.Empty;
@@ -839,7 +839,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var writer = new StringWriter();
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, "base template");
             const string replacement = "test";
             TemplateString templateString = "test template";
@@ -861,7 +861,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var writer = new StringWriter();
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, "base template");
             const string replacement = "test";
             TemplateString templateString = "test template";
@@ -880,7 +880,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void AddReplacement_ValidParametersWithNullOnWrite_DoesNotThrow()
         {
             // Arrange
-            var writer = new TemplateWriter(new StringWriter());
+            using var writer = new TemplateWriter(new StringWriter());
             var template = new Template(writer, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IEnumerable targets = new List<object> { "target1", "target2" };
@@ -898,7 +898,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void AddReplacement_ValidParametersWithOnWrite_DoesNotThrow()
         {
             // Arrange
-            var writer = new TemplateWriter(new StringWriter());
+            using var writer = new TemplateWriter(new StringWriter());
             var template = new Template(writer, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IEnumerable targets = new List<object> { "target1", "target2" };
@@ -918,7 +918,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void AddReplacement_StringAsTarget_DoesNotThrow()
         {
             // Arrange
-            var writer = new TemplateWriter(new StringWriter());
+            using var writer = new TemplateWriter(new StringWriter());
             var template = new Template(writer, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IEnumerable targets = "SingleStringTarget";
@@ -936,7 +936,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void AddReplacement_SingleItemTarget_DoesNotThrow()
         {
             // Arrange
-            var writer = new TemplateWriter(new StringWriter());
+            using var writer = new TemplateWriter(new StringWriter());
             var template = new Template(writer, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IEnumerable targets = new List<object> { "singleItem" };
@@ -960,7 +960,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void AddReplacement_SpecialCharactersInReplacement_DoesNotThrow(string replacement)
         {
             // Arrange
-            var writer = new TemplateWriter(new StringWriter());
+            using var writer = new TemplateWriter(new StringWriter());
             var template = new Template(writer, TemplateString.Empty);
             IEnumerable targets = new List<object> { "target1" };
             static TemplateString OnLoad(ILoadContext context) => TemplateString.Empty;
@@ -977,7 +977,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void AddReplacement_VariousTargetTypes_DoesNotThrow()
         {
             // Arrange
-            var writer = new TemplateWriter(new StringWriter());
+            using var writer = new TemplateWriter(new StringWriter());
             var template = new Template(writer, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IEnumerable targets = new ArrayList { 1, "string", 3.14, true };
@@ -995,7 +995,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void AddReplacement_MultipleTargetsMixedTypes_DoesNotThrow()
         {
             // Arrange
-            var writer = new TemplateWriter(new StringWriter());
+            using var writer = new TemplateWriter(new StringWriter());
             var template = new Template(writer, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IEnumerable targets = new List<object>
@@ -1021,7 +1021,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void AddReplacement_NullOnLoad_DoesNotThrow()
         {
             // Arrange
-            var writer = new TemplateWriter(new StringWriter());
+            using var writer = new TemplateWriter(new StringWriter());
             var template = new Template(writer, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IEnumerable targets = new List<object> { "target1" };
@@ -1040,7 +1040,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void AddReplacement_AllOptionalParametersNull_DoesNotThrow()
         {
             // Arrange
-            var writer = new TemplateWriter(new StringWriter());
+            using var writer = new TemplateWriter(new StringWriter());
             var template = new Template(writer, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IEnumerable targets = new List<object> { "target1" };
@@ -1057,7 +1057,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void AddReplacement_ArrayAsTargets_DoesNotThrow()
         {
             // Arrange
-            var writer = new TemplateWriter(new StringWriter());
+            using var writer = new TemplateWriter(new StringWriter());
             var template = new Template(writer, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IEnumerable targets = new[] { "target1", "target2", "target3" };
@@ -1075,7 +1075,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void AddReplacement_DuplicateTargets_DoesNotThrow()
         {
             // Arrange
-            var writer = new TemplateWriter(new StringWriter());
+            using var writer = new TemplateWriter(new StringWriter());
             var template = new Template(writer, TemplateString.Empty);
             const string replacement = "TestReplacement";
             IEnumerable targets = new List<object> { "target1", "target1", "target1" };
@@ -1200,7 +1200,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         private static Template CreateTestTemplate()
         {
             var writer = new StringWriter();
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             TemplateString templateString = "test";
             return new Template(templateWriter, templateString);
         }

@@ -56,7 +56,7 @@ namespace Opc.Ua.PubSub.Configuration
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);
-            var encoder = new XmlEncoder(typeof(PubSubConfigurationDataType), writer, context);
+            using var encoder = new XmlEncoder(typeof(PubSubConfigurationDataType), writer, context);
             pubSubConfiguration.Encode(encoder);
             encoder.Close();
         }
@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub.Configuration
                 IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
                     ServiceMessageContext.CreateEmpty(telemetry);
                 using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-                var parser = new XmlParser(typeof(PubSubConfigurationDataType), stream, context);
+                using var parser = new XmlParser(typeof(PubSubConfigurationDataType), stream, context);
                 var config = new PubSubConfigurationDataType();
                 config.Decode(parser);
                 return config;

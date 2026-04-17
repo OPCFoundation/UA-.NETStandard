@@ -58,21 +58,21 @@ namespace Opc.Ua.Server
                 // halt any outstanding timer.
                 if (m_registrationTimer != null)
                 {
-                    Utils.SilentDispose(m_registrationTimer);
+                    m_registrationTimer.Dispose();
                     m_registrationTimer = null;
                 }
 
                 // close the watcher.
                 if (m_configurationWatcher != null)
                 {
-                    Utils.SilentDispose(m_configurationWatcher);
+                    m_configurationWatcher.Dispose();
                     m_configurationWatcher = null;
                 }
 
                 // close the server.
                 if (m_serverInternal != null)
                 {
-                    Utils.SilentDispose(m_serverInternal);
+                    m_serverInternal.Dispose();
                     m_serverInternal = null;
                 }
 
@@ -80,6 +80,8 @@ namespace Opc.Ua.Server
                 {
                     CertificateValidator.CertificateUpdate -= OnCertificateUpdateAsync;
                 }
+
+                m_semaphoreSlim.Dispose();
             }
 
             base.Dispose(disposing);
@@ -3047,7 +3049,7 @@ namespace Opc.Ua.Server
             {
                 const string message = "Unexpected error starting application";
                 m_logger.LogCritical(Utils.TraceMasks.StartStop, e, message);
-                Utils.SilentDispose(m_serverInternal);
+                m_serverInternal?.Dispose();
                 m_serverInternal = null;
                 ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
                 ServerError = error;
@@ -3126,7 +3128,7 @@ namespace Opc.Ua.Server
                 // ensure that everything is cleaned up.
                 if (m_serverInternal != null)
                 {
-                    Utils.SilentDispose(m_serverInternal);
+                    m_serverInternal?.Dispose();
                     m_serverInternal = null;
                 }
             }

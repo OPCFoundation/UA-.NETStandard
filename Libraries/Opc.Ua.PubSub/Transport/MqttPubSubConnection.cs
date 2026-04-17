@@ -527,7 +527,7 @@ namespace Opc.Ua.PubSub.Transport
                     // dispose certificates
                     foreach (X509Certificate cert in certificates)
                     {
-                        Utils.SilentDispose(cert);
+                        cert?.Dispose();
                     }
                 }
             }
@@ -545,7 +545,7 @@ namespace Opc.Ua.PubSub.Transport
                             .ContinueWith(_ =>
                             {
                                 DisposeCerts(certificates);
-                                Utils.SilentDispose(client);
+                                client?.Dispose();
                             },
                             default,
                             TaskContinuationOptions.None,
@@ -555,7 +555,7 @@ namespace Opc.Ua.PubSub.Transport
                     else
                     {
                         DisposeCerts(certificates);
-                        Utils.SilentDispose(client);
+                        client?.Dispose();
                     }
                 }
             }

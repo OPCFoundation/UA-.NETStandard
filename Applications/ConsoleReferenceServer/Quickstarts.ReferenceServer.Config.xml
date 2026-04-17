@@ -67,7 +67,7 @@
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
-    <!-- WARNING: SHA1 signed certificates are by default rejected and should be phased out. 
+    <!-- WARNING: SHA1 signed certificates are by default rejected and should be phased out.
        only nano and embedded profiles are allowed to use sha1 signed certificates. -->
     <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
     <RejectUnknownRevocationStatus>true</RejectUnknownRevocationStatus>
@@ -102,15 +102,15 @@
       <ua:String>opc.tcp://localhost:62541/Quickstarts/ReferenceServer</ua:String>
       <!--<ua:String>https://localhost:62542/Quickstarts/ReferenceServer</ua:String>-->
     </BaseAddresses>
-    <!-- 
+    <!--
     These list the alternate addresses (via firewalls, multiple NICs etc.) that can be
     used to communicate with the server. The URL used by the client when calling
     FindServers/GetEndpoints or CreateSession will be used to filter the list of
     endpoints returned by checking for alternate base addresses that have a domain
     that matches the domain in the url provided by the client.
-    
+
     Note that any additional domains should be listed in the server's certificate. If they
-    are left out the client make refuse to connect because it has no way to know if the 
+    are left out the client make refuse to connect because it has no way to know if the
     alternate domain was authorized by the server administrator.
     -->
     <!--
@@ -132,7 +132,7 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
       </ServerSecurityPolicy>
-      
+
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256_AesGcm</SecurityPolicyUri>
@@ -141,7 +141,7 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256_AesGcm</SecurityPolicyUri>
       </ServerSecurityPolicy>
-      
+
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256_ChaChaPoly</SecurityPolicyUri>
@@ -204,7 +204,7 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1_ChaChaPoly</SecurityPolicyUri>
       </ServerSecurityPolicy>
-      
+
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#RSA_DH_AesGcm</SecurityPolicyUri>
@@ -392,12 +392,12 @@
     <!-- Show Only Security and Errors -->
     <!-- <TraceMasks>513</TraceMasks> -->
     <!-- Show Only Security, Errors and Trace -->
-    <TraceMasks>515</TraceMasks>
+    <!-- <TraceMasks>515</TraceMasks> -->
     <!-- Show Only Security, COM Calls, Errors and Trace -->
     <!-- <TraceMasks>771</TraceMasks> -->
     <!-- Show Only Security, Service Calls, Errors and Trace -->
     <!-- <TraceMasks>523</TraceMasks> -->
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
-    <!-- <TraceMasks>519</TraceMasks> -->
+    <TraceMasks>519</TraceMasks>
   </TraceConfiguration>
 </ApplicationConfiguration>

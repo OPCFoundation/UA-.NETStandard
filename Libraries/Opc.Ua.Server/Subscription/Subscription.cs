@@ -251,7 +251,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> monitoredItemKVP in m_monitoredItems)
                     {
-                        Utils.SilentDispose(monitoredItemKVP.Value?.Value);
+                        monitoredItemKVP.Value?.Value?.Dispose();
                     }
 
                     m_monitoredItems.Clear();
@@ -2380,7 +2380,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // generate start event.
-                var e = new RefreshStartEventState(null);
+                using var e = new RefreshStartEventState(null);
 
                 var message = new TranslationInfo(
                     "RefreshStartEvent",
@@ -2433,7 +2433,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // generate start event.
-                var e = new RefreshEndEventState(null);
+                using var e = new RefreshEndEventState(null);
 
                 var message = new TranslationInfo(
                     "RefreshEndEvent",

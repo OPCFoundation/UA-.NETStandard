@@ -58,12 +58,17 @@ namespace Opc.Ua.Gds.Tests
         public void Dispose()
         {
             PushClient?.Dispose();
+            if (m_application != null)
+            {
+                m_application.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                m_application = null;
+            }
         }
 
         public async Task LoadClientConfigurationAsync(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
-            var application = new ApplicationInstance(m_telemetry)
+            m_application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Server Configuration Push Test Client",
                 ApplicationType = ApplicationType.Client,
@@ -71,7 +76,7 @@ namespace Opc.Ua.Gds.Tests
             };
 #if USE_FILE_CONFIG
             // load the application configuration.
-            Config = await application.LoadApplicationConfigurationAsync(false)
+            Config = await m_application.LoadApplicationConfigurationAsync(false)
                 .ConfigureAwait(false);
 #else
             string root = Path.Combine(Path.GetTempPath(), "OPC");
@@ -105,7 +110,7 @@ namespace Opc.Ua.Gds.Tests
                     pkiRoot);
 
             // build the application configuration.
-            Config = await application
+            Config = await m_application
                 .Build(
                     "urn:localhost:opcfoundation.org:ServerConfigurationPushTestClient",
                     "http://opcfoundation.org/UA/ServerConfigurationPushTestClient")
@@ -123,7 +128,7 @@ namespace Opc.Ua.Gds.Tests
                 .ConfigureAwait(false);
 #endif
             // check the application certificate.
-            bool haveAppCertificate = await application
+            bool haveAppCertificate = await m_application
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
@@ -136,9 +141,9 @@ namespace Opc.Ua.Gds.Tests
                 CertificateValidator_CertificateValidation);
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
-                application.ApplicationConfiguration
+                m_application.ApplicationConfiguration
                     .ParseExtension<ServerConfigurationPushTestClientConfiguration>();
-            PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration);
+            PushClient = new ServerPushConfigurationClient(m_application.ApplicationConfiguration);
             EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
                 clientConfiguration.ServerUrl,
                 port);
@@ -242,6 +247,7 @@ namespace Opc.Ua.Gds.Tests
             await PushClient.ConnectAsync().ConfigureAwait(false);
         }
 
+        private ApplicationInstance m_application;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
     }

@@ -77,18 +77,7 @@ namespace Opc.Ua
             byte[] previousSecret)
         {
             byte[] ikm = null;
-            CryptoTrace.Start(ConsoleColor.Cyan, $"GenerateSecret");
-
 #if NET8_0_OR_GREATER
-#if xDEBUG
-            Span<char> privateKey = stackalloc char[2048];
-
-            if (m_ecdh != null && m_ecdh.TryExportECPrivateKeyPem(privateKey, out int charsWritten))
-            {
-                CryptoTrace.WriteLine($"Private Key PEM ({charsWritten} chars):");
-            }
-#endif
-
             if (m_ecdh != null)
             {
                 ikm = m_ecdh.DeriveRawSecretAgreement(remoteNonce.m_ecdh.PublicKey);
@@ -108,9 +97,6 @@ namespace Opc.Ua
                 ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh);
             }
 #endif
-            CryptoTrace.WriteLine($"IKM-Raw={CryptoTrace.KeyToString(ikm)}");
-            CryptoTrace.WriteLine($"Previous-IKM={CryptoTrace.KeyToString(previousSecret)}");
-
             if (ikm != null && previousSecret != null)
             {
                 for (int ii = 0; ii < ikm.Length && ii < previousSecret.Length; ii++)
@@ -118,14 +104,12 @@ namespace Opc.Ua
                     ikm[ii] ^= previousSecret[ii];
                 }
             }
-            CryptoTrace.WriteLine($"IKM-XOR={CryptoTrace.KeyToString(ikm)}");
-            CryptoTrace.Finish("GenerateSecret");
-
             return ikm;
         }
 
         /// <summary>
-        /// Derives a key from the remote nonce, using the specified salt, hash algorithm, and length.
+        /// Derives a key from the remote nonce, using the specified salt,
+        /// hash algorithm, and length.
         /// </summary>
         /// <param name="secret">The secret to use in key derivation.</param>
         /// <param name="salt">The salt to use in key derivation.</param>
@@ -138,10 +122,6 @@ namespace Opc.Ua
             KeyDerivationAlgorithm algorithm,
             int length)
         {
-            CryptoTrace.Start(ConsoleColor.DarkCyan, $"DeriveKeyData");
-            CryptoTrace.WriteLine($"Secret={CryptoTrace.KeyToString(secret)}");
-            CryptoTrace.WriteLine($"Salt={CryptoTrace.KeyToString(salt)}");
-
             using HMAC extract = algorithm switch
             {
                 KeyDerivationAlgorithm.HKDFSha256 => new HMACSHA256(salt),
@@ -150,8 +130,6 @@ namespace Opc.Ua
             };
 
             byte[] prk = extract.ComputeHash(secret);
-            CryptoTrace.WriteLine($"PRK={CryptoTrace.KeyToString(prk)}");
-
             using HMAC expand = algorithm switch
             {
                 KeyDerivationAlgorithm.HKDFSha256 => new HMACSHA256(prk),
@@ -168,7 +146,6 @@ namespace Opc.Ua
 
             // computer T(1)
             byte[] hash = expand.ComputeHash(info, 0, salt.Length + 1);
-            CryptoTrace.WriteLine($"T(1)={CryptoTrace.KeyToString(hash)}");
 
             int pos = 0;
 
@@ -184,16 +161,11 @@ namespace Opc.Ua
                 info[^1] = counter++;
 
                 hash = expand.ComputeHash(info, 0, info.Length);
-                CryptoTrace.WriteLine($"T({counter - 1})={CryptoTrace.KeyToString(hash)}");
-
                 for (int ii = 0; ii < hash.Length && pos < length; ii++)
                 {
                     output[pos++] = hash[ii];
                 }
             }
-
-            CryptoTrace.WriteLine($"KeyData={CryptoTrace.KeyToString(output)}");
-            CryptoTrace.Finish("DeriveKeyData");
 
             return output;
         }

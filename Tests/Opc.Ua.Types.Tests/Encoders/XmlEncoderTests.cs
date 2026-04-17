@@ -33,7 +33,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             // Act
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
 
             // Assert
             Assert.That(encoder, Is.Not.Null);
@@ -48,7 +48,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             // Act
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
             encoder.PushNamespace(Namespaces.OpcUaXsd);
             encoder.WriteString("Test", "value");
             encoder.PopNamespace();
@@ -78,7 +78,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Type systemType = typeof(ExtensionObject);
 
             // Act
-            var encoder = new XmlEncoder(systemType, writer, messageContext);
+            using var encoder = new XmlEncoder(systemType, writer, messageContext);
 
             // Assert
             Assert.That(encoder, Is.Not.Null);
@@ -95,7 +95,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Type systemType = typeof(ExtensionObject);
 
             // Act
-            var encoder = new XmlEncoder(systemType, null, messageContext);
+            using var encoder = new XmlEncoder(systemType, null, messageContext);
 
             // Assert
             Assert.That(encoder, Is.Not.Null);
@@ -120,7 +120,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var root = new XmlQualifiedName("TestRoot", Namespaces.OpcUaXsd);
 
             // Act
-            var encoder = new XmlEncoder(root, writer, messageContext);
+            using var encoder = new XmlEncoder(root, writer, messageContext);
 
             // Assert
             Assert.That(encoder, Is.Not.Null);
@@ -137,7 +137,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var root = new XmlQualifiedName("TestRoot", Namespaces.OpcUaXsd);
 
             // Act
-            var encoder = new XmlEncoder(root, null, messageContext);
+            using var encoder = new XmlEncoder(root, null, messageContext);
 
             // Assert
             Assert.That(encoder, Is.Not.Null);
@@ -162,7 +162,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var root = new XmlQualifiedName("TestElement", "http://test.namespace");
 
             // Act
-            var encoder = new XmlEncoder(root, writer, messageContext);
+            using var encoder = new XmlEncoder(root, writer, messageContext);
             encoder.Close();
 
             // Assert
@@ -188,7 +188,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             messageContext.NamespaceUris = contextNamespaceUris;
             messageContext.ServerUris = contextServerUris;
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
 
             var namespaceUris = new NamespaceTable();
             namespaceUris.Append("http://namespace1");
@@ -216,7 +216,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             messageContext.NamespaceUris = default;
             messageContext.ServerUris = contextServerUris;
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
 
             var serverUris = new StringTable();
             serverUris.Append("server1");
@@ -239,7 +239,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = default
             };
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
 
             var namespaceUris = new NamespaceTable();
             namespaceUris.Append("http://namespace1");
@@ -262,7 +262,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = default
             };
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
 
             var namespaceUris = new NamespaceTable();
             namespaceUris.Append("http://namespace1");
@@ -285,7 +285,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = default
             };
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
 
             var serverUris = new StringTable();
             serverUris.Append("server1");
@@ -304,7 +304,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
 
             // Act
             encoder.SaveStringTable("NamespaceUris", "Uri", null);
@@ -322,7 +322,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
             var stringTable = new StringTable();
 
             // Act
@@ -341,7 +341,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
             var stringTable = new StringTable();
             stringTable.Append("http://namespace0");
 
@@ -360,7 +360,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
             var stringTable = new StringTable();
             stringTable.Append("http://namespace0");
             stringTable.Append("http://namespace1");
@@ -385,7 +385,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
             var stringTable = new StringTable();
             stringTable.Append("first");
             stringTable.Append("second");
@@ -421,7 +421,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             using var writer = XmlWriter.Create(sb, settings);
             var root = new XmlQualifiedName("TestElement", "http://test.namespace");
-            var encoder = new XmlEncoder(root, writer, messageContext);
+            using var encoder = new XmlEncoder(root, writer, messageContext);
 
             // Act
             string result = encoder.CloseAndReturnText();
@@ -470,7 +470,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
 
             // Act
             EncodingType result = encoder.EncodingType;
@@ -486,7 +486,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
 
             // Act
             bool result = encoder.UseReversibleEncoding;
@@ -502,7 +502,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
             var message = new TestEncodeable();
 
             // Act
@@ -521,7 +521,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
-            var encoder = new XmlEncoder(messageContext);
+            using var encoder = new XmlEncoder(messageContext);
             TestEncodeable message = null;
 
             // Act & Assert
@@ -541,7 +541,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteBoolean("TestBoolean", true);
@@ -563,7 +563,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteBoolean("TestBoolean", false);
@@ -585,7 +585,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const sbyte value = 42;
 
             // Act
@@ -608,7 +608,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const sbyte value = -100;
 
             // Act
@@ -631,7 +631,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const sbyte value = sbyte.MinValue;
 
             // Act
@@ -654,7 +654,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const sbyte value = sbyte.MaxValue;
 
             // Act
@@ -677,7 +677,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const sbyte value = 0;
 
             // Act
@@ -700,7 +700,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const byte value = 42;
 
             // Act
@@ -723,7 +723,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const byte value = 0;
 
             // Act
@@ -746,7 +746,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const byte value = byte.MaxValue;
 
             // Act
@@ -769,7 +769,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const short value = 1234;
 
             // Act
@@ -792,7 +792,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const short value = -5000;
 
             // Act
@@ -815,7 +815,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const short value = short.MinValue;
 
             // Act
@@ -838,7 +838,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const short value = short.MaxValue;
 
             // Act
@@ -861,7 +861,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const short value = 0;
 
             // Act
@@ -884,7 +884,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const ushort value = 1234;
 
             // Act
@@ -907,7 +907,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const ushort value = 0;
 
             // Act
@@ -930,7 +930,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const ushort value = ushort.MaxValue;
 
             // Act
@@ -953,7 +953,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const int value = 123456;
 
             // Act
@@ -976,7 +976,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const int value = -50000;
 
             // Act
@@ -999,7 +999,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const int value = int.MinValue;
 
             // Act
@@ -1022,7 +1022,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const int value = int.MaxValue;
 
             // Act
@@ -1045,7 +1045,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const int value = 0;
 
             // Act
@@ -1068,7 +1068,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const uint value = 123456;
 
             // Act
@@ -1091,7 +1091,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const uint value = 0;
 
             // Act
@@ -1114,7 +1114,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const uint value = uint.MaxValue;
 
             // Act
@@ -1137,7 +1137,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const long value = 123456789012;
 
             // Act
@@ -1160,7 +1160,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const long value = -500000000000;
 
             // Act
@@ -1183,7 +1183,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const long value = long.MinValue;
 
             // Act
@@ -1206,7 +1206,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const long value = long.MaxValue;
 
             // Act
@@ -1229,7 +1229,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const long value = 0;
 
             // Act
@@ -1252,7 +1252,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const ulong value = 123456789012;
 
             // Act
@@ -1275,7 +1275,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const ulong value = 0;
 
             // Act
@@ -1298,7 +1298,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const ulong value = ulong.MaxValue;
 
             // Act
@@ -1321,7 +1321,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const float value = 3.14159f;
 
             // Act
@@ -1344,7 +1344,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const float value = 0f;
 
             // Act
@@ -1367,7 +1367,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const float value = -123.456f;
 
             // Act
@@ -1390,7 +1390,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const double value = 2.718281828;
 
             // Act
@@ -1413,7 +1413,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const double value = 0.0;
 
             // Act
@@ -1436,7 +1436,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             const double value = -987.654321;
 
             // Act
@@ -1461,7 +1461,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxByteStringLength = int.MaxValue,
                 MaxMessageSize = int.MaxValue
             };
-            var encoder = new XmlEncoder(context);
+            using var encoder = new XmlEncoder(context);
             string largeString = new('A', 1024 * 10); // 10 KB
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -1479,7 +1479,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             // Act & Assert
             encoder.WriteString(null, null);
             encoder.Close();
@@ -1501,7 +1501,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             var value = new DateTime(2024, 1, 15, 10, 30, 45, DateTimeKind.Utc);
 
             // Act
@@ -1524,7 +1524,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             var value = new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Local);
 
             // Act
@@ -1547,7 +1547,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             var guid = new Guid("12345678-1234-1234-1234-123456789abc");
             var value = new Uuid(guid);
 
@@ -1571,7 +1571,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             var value = new Uuid(Guid.Empty);
 
             // Act
@@ -1594,7 +1594,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             byte[] bytes = [1, 2, 3, 4, 5];
             var value = new ByteString(bytes);
 
@@ -1620,7 +1620,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxByteStringLength = (1024 * 10) - 1,
                 MaxMessageSize = int.MaxValue
             };
-            var encoder = new XmlEncoder(context);
+            using var encoder = new XmlEncoder(context);
             byte[] largeBuffer = new byte[1024 * 10]; // 10 KB
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -1638,7 +1638,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             var value = new ByteString(Array.Empty<byte>());
 
             // Act
@@ -1660,7 +1660,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             var value = default(ByteString);
 
             // Act
@@ -1682,7 +1682,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             ByteString bytes = [0, 1, 2, 3, 4, 5, 6, 7];
 
             // Act
@@ -1706,7 +1706,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             ReadOnlySpan<byte> bytes = [1, 2, 3, 4, 5];
 
             // Act
@@ -1729,7 +1729,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             ReadOnlySpan<byte> bytes = ReadOnlySpan<byte>.Empty;
 
             // Act
@@ -1752,7 +1752,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var xmlDoc = new XmlDocument();
             System.Xml.XmlElement systemElement = xmlDoc.CreateElement("TestElement");
@@ -1780,7 +1780,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             var nodeId = new NodeId(123, 1);
 
             // Act
@@ -1803,7 +1803,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             var nodeId = new NodeId("TestString", 2);
 
             // Act
@@ -1826,7 +1826,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             NodeId nodeId = NodeId.Null;
 
             // Act
@@ -1848,7 +1848,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             var expandedNodeId = new ExpandedNodeId(456, 1, null, 0);
 
             // Act
@@ -1871,7 +1871,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             var expandedNodeId = new ExpandedNodeId("ExpandedString", 3, null, 0);
 
             // Act
@@ -1894,7 +1894,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             ExpandedNodeId expandedNodeId = ExpandedNodeId.Null;
 
             // Act
@@ -1915,8 +1915,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var statusCode = new StatusCode(0x80010000);
 
             // Act
@@ -1939,8 +1939,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             StatusCode statusCode = StatusCodes.Good;
 
             // Act
@@ -1963,8 +1963,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             DiagnosticInfo diagnosticInfo = null;
 
             // Act
@@ -1985,8 +1985,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var diagnosticInfo = new DiagnosticInfo(1, 2, 3, 4, "Additional info");
 
             // Act
@@ -2015,8 +2015,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var qualifiedName = new QualifiedName("TestName", 1);
             encoder.SetMappingTables(encoderNamespaceUris, null);
 
@@ -2038,8 +2038,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var qualifiedName = new QualifiedName("TestName", 1);
 
             // Act
@@ -2061,8 +2061,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             QualifiedName qualifiedName = QualifiedName.Null;
 
             // Act
@@ -2083,8 +2083,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var localizedText = new LocalizedText("en-US", "Hello World");
 
             // Act
@@ -2106,8 +2106,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             LocalizedText localizedText = LocalizedText.Null;
 
             // Act
@@ -2128,8 +2128,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var variant = Variant.From(42);
 
             // Act
@@ -2151,8 +2151,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var variant = Variant.From("Test String");
 
             // Act
@@ -2174,8 +2174,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var variant = Variant.From(true);
 
             // Act
@@ -2197,8 +2197,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             Variant variant = Variant.Null;
 
             // Act
@@ -2219,8 +2219,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var statusCode = new StatusCode(0);
 
             // Act
@@ -2245,8 +2245,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var diagnosticInfo = new DiagnosticInfo();
 
             // Act
@@ -2266,8 +2266,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var qualifiedName = new QualifiedName("Name", 0);
 
             // Act
@@ -2288,8 +2288,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var localizedText = new LocalizedText("fr-FR", "Bonjour");
 
             // Act
@@ -2311,8 +2311,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            using var writer = XmlWriter.Create(sb, settings);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
             var variant = Variant.From(3.14159);
 
             // Act
@@ -2336,7 +2336,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteDataValue("TestValue", null);
@@ -2357,7 +2357,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var dataValue = new DataValue(
                 Variant.From(42),
@@ -2396,7 +2396,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ExtensionObject value = ExtensionObject.Null;
 
@@ -2419,7 +2419,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var body = new TestEncodeable();
             var value = new ExtensionObject(body, false);
@@ -2446,7 +2446,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteEncodeable<TestEncodeable>("TestEncodeable", null);
@@ -2470,7 +2470,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var value = new TestEncodeable();
 
@@ -2495,7 +2495,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var value = new TestEncodeable();
 
@@ -2518,7 +2518,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ArrayOf<TestEncodeable> values = [new TestEncodeable(), new TestEncodeable()];
 
@@ -2542,7 +2542,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var value = new TestEncodeable();
 
@@ -2567,7 +2567,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteEnumerated("TestEnum", TestEnum.Value1);
@@ -2589,7 +2589,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act - using an enum with numeric name
             encoder.WriteEnumerated("TestNumericEnum", TestNumericEnum.Item100);
@@ -2614,7 +2614,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteBooleanArray("TestArray", default);
@@ -2639,7 +2639,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<bool>());
 
@@ -2666,7 +2666,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             bool[] boolValues = [true, false, true];
             var values = ArrayOf.Wrapped(boolValues);
@@ -2696,7 +2696,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             bool[] boolValues = [true, false, true];
             var values = ArrayOf.Wrapped(boolValues);
@@ -2720,7 +2720,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteSByteArray("TestArray", default);
@@ -2745,7 +2745,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<sbyte>());
 
@@ -2772,7 +2772,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             sbyte[] sbyteValues = [42, -100, 127];
             var values = ArrayOf.Wrapped(sbyteValues);
@@ -2802,7 +2802,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             sbyte[] sbyteValues = [42, -100, 127];
             var values = ArrayOf.Wrapped(sbyteValues);
@@ -2826,7 +2826,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteByteArray("TestArray", default);
@@ -2851,7 +2851,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<byte>());
 
@@ -2878,7 +2878,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             byte[] byteValues = [42, 100, 255];
             var values = ArrayOf.Wrapped(byteValues);
@@ -2908,7 +2908,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             byte[] byteValues = [42, 100, 255];
             var values = ArrayOf.Wrapped(byteValues);
@@ -2932,7 +2932,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteInt16Array("TestArray", default);
@@ -2957,7 +2957,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<short>());
 
@@ -2984,7 +2984,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             short[] int16Values = [1234, -5000, 32767];
             var values = ArrayOf.Wrapped(int16Values);
@@ -3014,7 +3014,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             short[] int16Values = [1234, -5000, 32767];
             var values = ArrayOf.Wrapped(int16Values);
@@ -3038,7 +3038,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteUInt16Array("TestArray", default);
@@ -3063,7 +3063,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<ushort>());
 
@@ -3090,7 +3090,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ushort[] uint16Values = [1234, 5000, 65535];
             var values = ArrayOf.Wrapped(uint16Values);
@@ -3120,7 +3120,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ushort[] uint16Values = [1234, 5000, 65535];
             var values = ArrayOf.Wrapped(uint16Values);
@@ -3144,7 +3144,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteInt32Array("TestArray", default);
@@ -3169,7 +3169,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<int>());
 
@@ -3196,7 +3196,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             int[] int32Values = [123456, -50000, 2147483647];
             var values = ArrayOf.Wrapped(int32Values);
@@ -3226,7 +3226,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             int[] int32Values = [123456, -50000, 2147483647];
             var values = ArrayOf.Wrapped(int32Values);
@@ -3249,8 +3249,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteUInt32Array("TestArray", default);
@@ -3276,8 +3276,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<uint>());
 
@@ -3304,8 +3304,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             uint[] uint32Values = [1, 100, 50000, uint.MaxValue];
             var values = ArrayOf.Wrapped(uint32Values);
@@ -3336,8 +3336,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             uint[] uint32Values = [1, 2, 3];
             var values = ArrayOf.Wrapped(uint32Values);
@@ -3361,8 +3361,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteInt64Array("TestArray", default);
@@ -3386,8 +3386,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<long>());
 
@@ -3414,8 +3414,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             long[] int64Values = [1, -100, 50000, long.MinValue, long.MaxValue];
             var values = ArrayOf.Wrapped(int64Values);
@@ -3447,8 +3447,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             long[] int64Values = [1, 2, 3];
             var values = ArrayOf.Wrapped(int64Values);
@@ -3472,8 +3472,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteUInt64Array("TestArray", default);
@@ -3499,8 +3499,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<ulong>());
 
@@ -3527,8 +3527,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ulong[] uint64Values = [1, 100, 50000, ulong.MaxValue];
             var values = ArrayOf.Wrapped(uint64Values);
@@ -3559,8 +3559,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ulong[] uint64Values = [1, 2, 3];
             var values = ArrayOf.Wrapped(uint64Values);
@@ -3584,8 +3584,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteFloatArray("TestArray", default);
@@ -3609,8 +3609,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<float>());
 
@@ -3637,8 +3637,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             float[] floatValues = [1.5f, -2.75f, 0.0f, float.MaxValue];
             var values = ArrayOf.Wrapped(floatValues);
@@ -3668,8 +3668,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             float[] floatValues = [1.0f, 2.0f, 3.0f];
             var values = ArrayOf.Wrapped(floatValues);
@@ -3693,8 +3693,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteDoubleArray("TestArray", default);
@@ -3718,8 +3718,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<double>());
 
@@ -3746,8 +3746,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             double[] doubleValues = [1.5, -2.75, 0.0, double.MaxValue];
             var values = ArrayOf.Wrapped(doubleValues);
@@ -3777,8 +3777,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             double[] doubleValues = [1.0, 2.0, 3.0];
             var values = ArrayOf.Wrapped(doubleValues);
@@ -3801,8 +3801,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteStringArray("TestArray", default);
@@ -3825,8 +3825,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<string>());
 
@@ -3852,8 +3852,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             string[] stringValues = ["first", "second", "third"];
             var values = ArrayOf.Wrapped(stringValues);
@@ -3882,8 +3882,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             string[] stringValues = ["one", "two", "three"];
             var values = ArrayOf.Wrapped(stringValues);
@@ -3906,8 +3906,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteDateTimeArray("TestArray", default);
@@ -3932,8 +3932,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(
                 new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
                 writer,
                 messageContext);
@@ -3962,8 +3962,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ArrayOf<DateTimeUtc> values = [new DateTime(2023, 1, 1), new DateTime(2023, 12, 31)];
 
@@ -3989,8 +3989,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             DateTimeUtc[] dateTimeValues = [DateTimeUtc.Now, DateTimeUtc.Now, DateTimeUtc.Now];
             var values = ArrayOf.Wrapped(dateTimeValues);
@@ -4013,8 +4013,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteGuidArray("TestArray", default);
@@ -4039,8 +4039,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<Uuid>());
 
@@ -4066,8 +4066,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             Uuid[] guidValues = [Uuid.NewUuid(), Uuid.NewUuid()];
             var values = ArrayOf.Wrapped(guidValues);
@@ -4094,8 +4094,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             Uuid[] guidValues = [Uuid.NewUuid(), Uuid.NewUuid(), Uuid.NewUuid()];
             var values = ArrayOf.Wrapped(guidValues);
@@ -4118,8 +4118,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteByteStringArray("TestArray", default);
@@ -4144,8 +4144,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<ByteString>());
 
@@ -4171,8 +4171,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ByteString[] byteStringValues = [new ByteString(new byte[] { 1, 2, 3 }), new ByteString(new byte[] { 4, 5, 6 })];
             var values = ArrayOf.Wrapped(byteStringValues);
@@ -4199,8 +4199,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ByteString[] byteStringValues =
             [
@@ -4228,8 +4228,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteXmlElementArray("TestArray", default);
@@ -4254,8 +4254,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<XmlElement>());
 
@@ -4281,8 +4281,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var xmlDoc = new XmlDocument();
             System.Xml.XmlElement systemElement1 = xmlDoc.CreateElement("Element1");
@@ -4321,8 +4321,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var xmlDoc = new XmlDocument();
             System.Xml.XmlElement systemElement1 = xmlDoc.CreateElement("E1");
@@ -4353,8 +4353,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteNodeIdArray("TestArray", default);
@@ -4379,8 +4379,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<NodeId>());
 
@@ -4406,8 +4406,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             NodeId[] nodeIdValues = [new NodeId(123), new NodeId("test", 1), new NodeId(Guid.NewGuid())];
             var values = ArrayOf.Wrapped(nodeIdValues);
@@ -4434,8 +4434,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             NodeId[] nodeIdValues = [new NodeId(1), new NodeId(2), new NodeId(3)];
             var values = ArrayOf.Wrapped(nodeIdValues);
@@ -4458,8 +4458,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteExpandedNodeIdArray("TestArray", default);
@@ -4482,8 +4482,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<ExpandedNodeId>());
 
@@ -4509,8 +4509,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ExpandedNodeId[] expandedNodeIdValues = [new ExpandedNodeId(123, "http://test", 0), new ExpandedNodeId("test", "http://test2", 0)];
             var values = ArrayOf.Wrapped(expandedNodeIdValues);
@@ -4537,8 +4537,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ExpandedNodeId[] expandedNodeIdValues = [
                 new ExpandedNodeId(1, "http://test", 0),
@@ -4565,8 +4565,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteStatusCodeArray("TestArray", default);
@@ -4591,8 +4591,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<StatusCode>());
 
@@ -4618,8 +4618,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             StatusCode[] statusCodeValues = [StatusCodes.Good, StatusCodes.Bad, StatusCodes.Uncertain];
             var values = ArrayOf.Wrapped(statusCodeValues);
@@ -4646,8 +4646,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             StatusCode[] statusCodeValues = [StatusCodes.Good, StatusCodes.Bad, StatusCodes.Uncertain];
             var values = ArrayOf.Wrapped(statusCodeValues);
@@ -4670,8 +4670,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteDiagnosticInfoArray("TestArray", default);
@@ -4696,8 +4696,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<DiagnosticInfo>());
 
@@ -4724,8 +4724,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             DiagnosticInfo[] diagnosticInfoValues = [new DiagnosticInfo(), new DiagnosticInfo(1, 2, 3, 4, "test")];
             var values = ArrayOf.Wrapped(diagnosticInfoValues);
@@ -4752,8 +4752,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             DiagnosticInfo[] diagnosticInfoValues = [new DiagnosticInfo(), new DiagnosticInfo(1, 2, 3, 4, "test"), new DiagnosticInfo()];
             var values = ArrayOf.Wrapped(diagnosticInfoValues);
@@ -4776,8 +4776,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteQualifiedNameArray("TestArray", default);
@@ -4802,8 +4802,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<QualifiedName>());
 
@@ -4829,8 +4829,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             QualifiedName[] qualifiedNameValues = [new QualifiedName("name1"), new QualifiedName("name2", 1)];
             var values = ArrayOf.Wrapped(qualifiedNameValues);
@@ -4857,8 +4857,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ServerUris = new StringTable()
             };
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             QualifiedName[] qualifiedNameValues = [new QualifiedName("name1"), new QualifiedName("name2"), new QualifiedName("name3")];
             var values = ArrayOf.Wrapped(qualifiedNameValues);
@@ -4881,8 +4881,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteLocalizedTextArray("TestArray", default);
@@ -4905,8 +4905,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<LocalizedText>());
 
@@ -4931,8 +4931,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             LocalizedText[] localizedTextValues = [new LocalizedText("en", "Hello"), new LocalizedText("fr", "Bonjour")];
             var values = ArrayOf.Wrapped(localizedTextValues);
@@ -4959,8 +4959,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             LocalizedText[] localizedTextValues = [
                 new LocalizedText("en", "Hello"),
@@ -4987,8 +4987,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteVariantArray("TestArray", default);
@@ -5011,8 +5011,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<Variant>());
 
@@ -5037,8 +5037,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             Variant[] variantValues = [Variant.From(42), Variant.From("test")];
             var values = ArrayOf.Wrapped(variantValues);
@@ -5065,8 +5065,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             Variant[] variantValues = [Variant.From(42), Variant.From("test"), Variant.From(3.14)];
             var values = ArrayOf.Wrapped(variantValues);
@@ -5089,8 +5089,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteDataValueArray("TestArray", default);
@@ -5113,8 +5113,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<DataValue>());
 
@@ -5139,8 +5139,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             DataValue[] dataValueValues = [new DataValue(Variant.From(42)), new DataValue(Variant.From("test"))];
             var values = ArrayOf.Wrapped(dataValueValues);
@@ -5167,8 +5167,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             DataValue[] dataValueValues = [
                 new DataValue(Variant.From(42)),
@@ -5195,8 +5195,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteExtensionObjectArray("TestArray", default);
@@ -5219,8 +5219,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<ExtensionObject>());
 
@@ -5245,8 +5245,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ExtensionObject[] extensionObjectValues = [new ExtensionObject(ExpandedNodeId.Null), new ExtensionObject(ExpandedNodeId.Null)];
             var values = ArrayOf.Wrapped(extensionObjectValues);
@@ -5273,8 +5273,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             ExtensionObject[] extensionObjectValues = [
                 new ExtensionObject(ExpandedNodeId.Null),
@@ -5301,8 +5301,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
             encoder.WriteEncodeableArray<TestEncodeable>("TestArray", default);
@@ -5325,8 +5325,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var values = ArrayOf.Wrapped(Array.Empty<TestEncodeable>());
 
@@ -5351,8 +5351,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             TestEncodeable[] encodeableValues = [new TestEncodeable(), new TestEncodeable()];
             var values = ArrayOf.Wrapped(encodeableValues);
@@ -5378,8 +5378,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
 
             var stringWriter = new StringWriter();
-            var writer = XmlWriter.Create(stringWriter);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var writer = XmlWriter.Create(stringWriter);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             TestEncodeable[] encodeableValues = [new TestEncodeable(), new TestEncodeable(), new TestEncodeable()];
             var values = ArrayOf.Wrapped(encodeableValues);
@@ -5400,7 +5400,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(typeof(TestEncodeable), writer, messageContext);
+            using var encoder = new XmlEncoder(typeof(TestEncodeable), writer, messageContext);
 
             var values = ArrayOf.Wrapped([TestEnum.Value1, TestEnum.Value2, TestEnum.Value3]);
 
@@ -5426,7 +5426,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(typeof(TestEncodeable), writer, messageContext);
+            using var encoder = new XmlEncoder(typeof(TestEncodeable), writer, messageContext);
 
             ArrayOf<TestEnum> values = default;
 
@@ -5453,7 +5453,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(typeof(TestEncodeable), writer, messageContext);
+            using var encoder = new XmlEncoder(typeof(TestEncodeable), writer, messageContext);
 
             var values = ArrayOf.Wrapped([TestEnum.Value1, TestEnum.Value2, TestEnum.Value3]);
 
@@ -5473,7 +5473,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(typeof(TestEncodeable), writer, messageContext);
+            using var encoder = new XmlEncoder(typeof(TestEncodeable), writer, messageContext);
 
             // Act
             encoder.WriteSwitchField(42u, out string fieldName);
@@ -5496,7 +5496,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(typeof(TestEncodeable), writer, messageContext);
+            using var encoder = new XmlEncoder(typeof(TestEncodeable), writer, messageContext);
 
             // Act
             encoder.WriteEncodingMask(255u);
@@ -6804,7 +6804,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             encoder.WriteVariantValue("TestValue", variant);
             encoder.Close();
             string xml = sb.ToString();
@@ -6832,7 +6832,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 OmitXmlDeclaration = true
             };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             if (encoderNamespaceUris != null || encoderServerUris != null)
             {
                 encoder.SetMappingTables(encoderNamespaceUris, encoderServerUris);
@@ -6882,7 +6882,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(
+            using var encoder = new XmlEncoder(
                 new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
                 writer,
                 messageContext);
@@ -6903,7 +6903,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             encoder.WriteDiagnosticInfo(fieldName, value);
             encoder.Close();
             return sb.ToString();
@@ -6916,7 +6916,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var sb = new StringBuilder();
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
             using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(
+            using var encoder = new XmlEncoder(
                 new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
             encoder.WriteVariantValue(fieldName, variant);
             encoder.Close();

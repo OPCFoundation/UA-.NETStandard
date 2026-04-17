@@ -115,11 +115,6 @@ namespace Opc.Ua
             out byte[] encryptingKey,
             out byte[] iv)
         {
-            CryptoTrace.Start(ConsoleColor.Blue, $"EncryptedSecret {((forDecryption) ? "DECRYPT" : "ENCRYPT")}");
-            CryptoTrace.WriteLine($"SecurityPolicy={securityPolicy.Name}");
-            CryptoTrace.WriteLine($"LocalNonce={CryptoTrace.KeyToString(localNonce?.Data)}");
-            CryptoTrace.WriteLine($"RemoteNonce={CryptoTrace.KeyToString(remoteNonce?.Data)}");
-
             int encryptingKeySize = securityPolicy.SymmetricEncryptionKeyLength;
             int blockSize = securityPolicy.InitializationVectorLength;
 
@@ -143,11 +138,6 @@ namespace Opc.Ua
 
             Buffer.BlockCopy(keyData, 0, encryptingKey, 0, encryptingKey.Length);
             Buffer.BlockCopy(keyData, encryptingKeySize, iv, 0, iv.Length);
-
-            Console.ForegroundColor = ConsoleColor.Blue;
-            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
-            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
-            CryptoTrace.Finish("EncryptedSecret");
         }
 
         /// <summary>
@@ -158,8 +148,6 @@ namespace Opc.Ua
         /// <returns>The encrypted secret.</returns>
         public byte[] Encrypt(byte[] secret, byte[] nonce)
         {
-            byte[] encryptingKey = null;
-            byte[] iv = null;
             byte[] message = null;
             int lengthPosition = 0;
 
@@ -233,8 +221,8 @@ namespace Opc.Ua
                 SenderNonce,
                 ReceiverNonce,
                 false,
-                out encryptingKey,
-                out iv);
+                out byte[] encryptingKey,
+                out byte[] iv);
 
             // reserves space for padding and tag that is added by SymmetricEncryptAndSign.
             int startOfSecret = encoder.Position;

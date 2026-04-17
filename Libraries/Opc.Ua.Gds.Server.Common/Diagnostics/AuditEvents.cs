@@ -54,7 +54,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         {
             try
             {
-                var e = new CertificateDeliveredAuditEventState(null);
+                using var e = new CertificateDeliveredAuditEventState(null);
 
                 var message = new TranslationInfo(
                     "CertificateUpdateRequestedAuditEvent",
@@ -117,7 +117,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         {
             try
             {
-                var e = new CertificateRequestedAuditEventState(null);
+                using var e = new CertificateRequestedAuditEventState(null);
 
                 TranslationInfo message = default;
                 if (exception == null)
@@ -203,7 +203,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         {
             try
             {
-                var e = new ApplicationRegistrationChangedAuditEventState(null);
+                using var e = new ApplicationRegistrationChangedAuditEventState(null);
 
                 var message = new TranslationInfo(
                     "ApplicationRegistrationChangedAuditEvent",

@@ -2711,7 +2711,7 @@ namespace Opc.Ua
                                 case 1: // binary
                                     if (TryGetByteStringFromElement(uaBody, out ByteString bytes))
                                     {
-                                        var decoder = new BinaryDecoder(bytes.ToArray(), Context);
+                                        using var decoder = new BinaryDecoder(bytes.ToArray(), Context);
                                         value = decoder.ReadEncodeable<T>(null, typeId);
                                         return true;
                                     }
@@ -2724,7 +2724,7 @@ namespace Opc.Ua
                                         {
                                             break;
                                         }
-                                        var decoder = new XmlDecoder(xmlElement, Context);
+                                        using var decoder = new XmlDecoder(xmlElement, Context);
                                         decoder.PushNamespace(xmlElement.NamespaceURI);
                                         value = decoder.ReadEncodeable<T>(xmlElement.LocalName, typeId);
                                         decoder.PopNamespace();

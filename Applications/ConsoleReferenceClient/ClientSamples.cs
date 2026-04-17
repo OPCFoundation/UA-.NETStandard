@@ -62,7 +62,7 @@ namespace Quickstarts
     /// <summary>
     /// Sample Session calls based on the reference server node model.
     /// </summary>
-    public partial class ClientSamples
+    public class ClientSamples
     {
         private const int kMaxSearchDepth = 128;
 

@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateDisabled_0ToPause_1_Reader()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_subscriberConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_subscriberConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubReaderGroup -> DataSetReader brought to [Disabled, Disabled, Disabled, Disabled]
@@ -114,7 +114,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateDisabled_0ToOperational_2_Reader()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_subscriberConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_subscriberConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubReaderGroup -> DataSetReader brought to [Disabled, Disabled, Disabled, Disabled]
@@ -198,7 +198,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidatePaused_1ToDisabled_0_Reader()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_subscriberConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_subscriberConfigurationFile, telemetry);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -278,7 +278,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidatePaused_1ToOperational_2_Reader()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_subscriberConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_subscriberConfigurationFile, telemetry);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -332,7 +332,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateOperational_2ToDisabled_0_Reader()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_subscriberConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_subscriberConfigurationFile, telemetry);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -402,7 +402,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateOperational_2ToPaused_1_Reader()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_subscriberConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_subscriberConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubReaderGroup -> DataSetReader brought to [Disabled, Disabled, Disabled, Disabled]

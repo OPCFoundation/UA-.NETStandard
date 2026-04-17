@@ -774,7 +774,7 @@ namespace Opc.Ua
             // dispose outdated list
             foreach (KeyValuePair<string, X509Certificate2> kvp in m_validatedCertificates)
             {
-                Utils.SilentDispose(kvp.Value);
+                kvp.Value?.Dispose();
             }
             m_validatedCertificates.Clear();
         }

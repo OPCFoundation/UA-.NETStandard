@@ -478,7 +478,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 }
                 finally
                 {
-                    Utils.SilentDispose(key);
+                    key?.Dispose();
                 }
                 i++;
             }

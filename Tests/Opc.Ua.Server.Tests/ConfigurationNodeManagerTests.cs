@@ -96,7 +96,7 @@ namespace Opc.Ua.Server.Tests
 
             // Act: Manually add a new metadata node to ServerNamespaces
             // This bypasses CreateNamespaceMetadataState to ensure the event handler picks it up
-            var manualMetadata = new NamespaceMetadataState(serverNamespacesNode)
+            using var manualMetadata = new NamespaceMetadataState(serverNamespacesNode)
             {
                 // Assign a NodeId
                 NodeId = new NodeId(Guid.NewGuid(), 1),

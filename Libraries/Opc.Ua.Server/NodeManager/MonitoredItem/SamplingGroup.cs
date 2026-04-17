@@ -110,8 +110,8 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                Utils.SilentDispose(m_samplingTask);
-                Utils.SilentDispose(m_shutdownEvent);
+                m_samplingTask?.Dispose();
+                m_shutdownEvent.Dispose();
             }
         }
 

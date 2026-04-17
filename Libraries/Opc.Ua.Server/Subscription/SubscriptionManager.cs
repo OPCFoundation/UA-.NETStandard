@@ -125,17 +125,17 @@ namespace Opc.Ua.Server
 
                 foreach (SessionPublishQueue publishQueue in publishQueues)
                 {
-                    Utils.SilentDispose(publishQueue);
+                    publishQueue?.Dispose();
                 }
 
                 foreach (ISubscription subscription in subscriptions)
                 {
-                    Utils.SilentDispose(subscription);
+                    subscription?.Dispose();
                 }
 
-                Utils.SilentDispose(m_shutdownEvent);
-                Utils.SilentDispose(m_conditionRefreshEvent);
-                Utils.SilentDispose(m_semaphoreSlim);
+                m_shutdownEvent.Dispose();
+                m_conditionRefreshEvent.Dispose();
+                m_semaphoreSlim.Dispose();
             }
         }
 
@@ -483,15 +483,22 @@ namespace Opc.Ua.Server
             // close the publish queue for the session.
             if (m_publishQueues.TryRemove(sessionId, out SessionPublishQueue queue))
             {
-                subscriptionsToDelete = queue.Close();
-
-                // remove the subscriptions.
-                if (deleteSubscriptions && subscriptionsToDelete != null)
+                try
                 {
-                    for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
+                    subscriptionsToDelete = queue.Close();
+
+                    // remove the subscriptions.
+                    if (deleteSubscriptions && subscriptionsToDelete != null)
                     {
-                        m_subscriptions.TryRemove(subscriptionsToDelete[ii].Id, out _);
+                        for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
+                        {
+                            m_subscriptions.TryRemove(subscriptionsToDelete[ii].Id, out _);
+                        }
                     }
+                }
+                finally
+                {
+                    queue.Dispose();
                 }
             }
 

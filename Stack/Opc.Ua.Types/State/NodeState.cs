@@ -3086,33 +3086,69 @@ namespace Opc.Ua
             IEnumerable<IReference> additionalReferences,
             bool internalOnly)
         {
-            NodeBrowser browser =
-                (
-                    OnCreateBrowser?.Invoke(
+            NodeBrowser browser = OnCreateBrowser?.Invoke(
+                context,
+                this,
+                view,
+                referenceType,
+                includeSubtypes,
+                browseDirection,
+                browseName,
+                additionalReferences,
+                internalOnly);
+
+            NodeBrowser newBrowser = null;
+            try
+            {
+                if (browser == null)
+                {
+                    newBrowser = CreateDefaultNodeBrowser(
                         context,
-                        this,
                         view,
                         referenceType,
                         includeSubtypes,
                         browseDirection,
                         browseName,
                         additionalReferences,
-                        internalOnly))
-                ?? new NodeBrowser(
-                    context,
-                    view,
-                    referenceType,
-                    includeSubtypes,
-                    browseDirection,
-                    browseName,
-                    additionalReferences,
-                    internalOnly);
+                        internalOnly);
+                    browser = newBrowser;
+                }
 
-            PopulateBrowser(context, browser);
+                PopulateBrowser(context, browser);
 
-            OnPopulateBrowser?.Invoke(context, this, browser);
+                OnPopulateBrowser?.Invoke(context, this, browser);
 
-            return browser;
+                newBrowser = null;
+                return browser;
+            }
+            finally
+            {
+                newBrowser?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Creates a default NodeBrowser instance.
+        /// </summary>
+        private static NodeBrowser CreateDefaultNodeBrowser(
+            ISystemContext context,
+            ViewDescription view,
+            NodeId referenceType,
+            bool includeSubtypes,
+            BrowseDirection browseDirection,
+            QualifiedName browseName,
+            IEnumerable<IReference> additionalReferences,
+            bool internalOnly)
+        {
+            return new NodeBrowser(
+                context,
+                view,
+                referenceType,
+                includeSubtypes,
+                browseDirection,
+                browseName,
+                additionalReferences,
+                internalOnly);
         }
 
         /// <summary>

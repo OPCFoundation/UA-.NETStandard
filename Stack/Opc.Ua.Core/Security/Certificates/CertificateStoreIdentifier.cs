@@ -260,7 +260,7 @@ namespace Opc.Ua
                     null);
                 if (currentStore != null)
                 {
-                    Utils.SilentDispose(store);
+                    store?.Dispose();
                     store = currentStore;
                 }
             }

@@ -155,7 +155,7 @@ namespace Opc.Ua.Gds.Tests
             Stream stream)
         {
             IServiceMessageContext ctx = CreateMessageContext();
-            var parser = new XmlParser(
+            using var parser = new XmlParser(
                 typeof(GlobalDiscoveryServerConfiguration), stream, ctx);
             var config = new GlobalDiscoveryServerConfiguration();
             config.Decode(parser);
@@ -171,7 +171,7 @@ namespace Opc.Ua.Gds.Tests
             settings.Encoding = new UTF8Encoding(false);
             using (var writer = XmlWriter.Create(stream, settings))
             {
-                var encoder = new XmlEncoder(
+                using var encoder = new XmlEncoder(
                     typeof(GlobalDiscoveryServerConfiguration), writer, ctx);
                 configuration.Encode(encoder);
                 encoder.Close();

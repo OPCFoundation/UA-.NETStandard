@@ -40,7 +40,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateEnableOnDisabled()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
@@ -52,7 +52,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateEnableOnOperational()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateDisableOnEnabled()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateDisableOnDisabled()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateEnableOnNUll()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             Assert.Throws<ArgumentException>(
                 () => configurator.Enable(null),
@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateDisableOnNUll()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             Assert.Throws<ArgumentException>(
                 () => configurator.Disable(null),
@@ -110,7 +110,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateEnableOnNonExisting()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             var nonExisting = new PubSubConfigurationDataType();
             Assert.Throws<ArgumentException>(
@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateDisableOnNonExisting()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             var nonExisting = new PubSubConfigurationDataType();
             Assert.Throws<ArgumentException>(

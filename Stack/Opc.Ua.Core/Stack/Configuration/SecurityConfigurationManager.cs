@@ -149,7 +149,7 @@ namespace Opc.Ua.Security
                         using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                         IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
                             ServiceMessageContext.CreateEmpty(m_telemetry);
-                        var parser = new XmlParser(typeof(SecuredApplication), iStrm, ctx);
+                        using var parser = new XmlParser(typeof(SecuredApplication), iStrm, ctx);
                         application = new SecuredApplication();
                         SecuredApplicationEncoding.DecodeContents(parser, application);
 
@@ -168,7 +168,7 @@ namespace Opc.Ua.Security
                         using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                         IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
                             ServiceMessageContext.CreateEmpty(m_telemetry);
-                        var parser = new XmlParser(typeof(ApplicationConfiguration), iStrm, ctx);
+                        using var parser = new XmlParser(typeof(ApplicationConfiguration), iStrm, ctx);
                         applicationConfiguration = new ApplicationConfiguration(m_telemetry);
                         applicationConfiguration.Decode(parser);
                         applicationConfiguration.ServerConfiguration?.ValidateSecurityPolicies();
@@ -514,7 +514,7 @@ namespace Opc.Ua.Security
             // Use element.OuterXml so the XmlParser sees the root element (e.g. <SecurityConfiguration>).
             if (type == typeof(SecurityConfiguration))
             {
-                var parser = new XmlParser(type, element.OuterXml, context);
+                using var parser = new XmlParser(type, element.OuterXml, context);
                 var sec = new SecurityConfiguration();
                 sec.Decode(parser);
                 return sec;
@@ -522,7 +522,7 @@ namespace Opc.Ua.Security
 
             if (type == typeof(ServerConfiguration))
             {
-                var parser = new XmlParser(type, element.OuterXml, context);
+                using var parser = new XmlParser(type, element.OuterXml, context);
                 var srv = new ServerConfiguration();
                 srv.Decode(parser);
                 srv.ValidateSecurityPolicies();
@@ -531,7 +531,7 @@ namespace Opc.Ua.Security
 
             if (type == typeof(DiscoveryServerConfiguration))
             {
-                var parser = new XmlParser(type, element.OuterXml, context);
+                using var parser = new XmlParser(type, element.OuterXml, context);
                 var disc = new DiscoveryServerConfiguration();
                 disc.Decode(parser);
                 disc.ValidateSecurityPolicies();
@@ -556,7 +556,7 @@ namespace Opc.Ua.Security
             var writerSettings = Utils.DefaultXmlWriterSettings();
             writerSettings.Encoding = new UTF8Encoding(false);
             using var writer = XmlWriter.Create(memoryStream, writerSettings);
-            var encoder = new XmlEncoder(
+            using var encoder = new XmlEncoder(
                 new XmlQualifiedName(systemType.Name, namespaceUri),
                 writer,
                 ctx);

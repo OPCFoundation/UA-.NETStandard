@@ -1246,7 +1246,7 @@ namespace Opc.Ua.Server
                     if (m_eventQueueHandler.Overflow)
                     {
                         // construct event.
-                        var e = new EventQueueOverflowEventState(null);
+                        using var e = new EventQueueOverflowEventState(null);
 
                         var message = new TranslationInfo(
                             "EventQueueOverflowEventState",
@@ -2005,7 +2005,7 @@ namespace Opc.Ua.Server
                     {
                         if (QueueSize <= 1)
                         {
-                            Utils.SilentDispose(m_dataChangeQueueHandler);
+                            m_dataChangeQueueHandler?.Dispose();
                             m_dataChangeQueueHandler = null;
                             break; // queueing is disabled
                         }
@@ -2045,9 +2045,9 @@ namespace Opc.Ua.Server
                     }
                     break;
                 case MonitoringMode.Disabled:
-                    Utils.SilentDispose(m_eventQueueHandler);
+                    m_eventQueueHandler?.Dispose();
                     m_eventQueueHandler = null;
-                    Utils.SilentDispose(m_dataChangeQueueHandler);
+                    m_dataChangeQueueHandler?.Dispose();
                     m_dataChangeQueueHandler = null;
                     break;
                 default:
@@ -2192,8 +2192,8 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_dataChangeQueueHandler);
-                Utils.SilentDispose(m_eventQueueHandler);
+                m_dataChangeQueueHandler?.Dispose();
+                m_eventQueueHandler?.Dispose();
             }
         }
 

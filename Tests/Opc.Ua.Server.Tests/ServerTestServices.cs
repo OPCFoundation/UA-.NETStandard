@@ -150,37 +150,39 @@ namespace Opc.Ua.Server.Tests
             SecureChannelContext = secureChannelContext;
         }
 
-        public ValueTask<BrowseResponse> BrowseAsync(
+        public async ValueTask<BrowseResponse> BrowseAsync(
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken ct = default)
         {
-            return m_server.BrowseAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.BrowseAsync(
                 SecureChannelContext,
                 requestHeader,
                 view,
                 requestedMaxReferencesPerNode,
                 nodesToBrowse,
-                new RequestLifetime(ct));
+                lifetime).ConfigureAwait(false);
         }
 
-        public ValueTask<BrowseNextResponse> BrowseNextAsync(
+        public async ValueTask<BrowseNextResponse> BrowseNextAsync(
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
             ArrayOf<ByteString> continuationPoints,
             CancellationToken ct = default)
         {
-            return m_server.BrowseNextAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.BrowseNextAsync(
                 SecureChannelContext,
                 requestHeader,
                 releaseContinuationPoints,
                 continuationPoints,
-                new RequestLifetime(ct));
+                lifetime).ConfigureAwait(false);
         }
 
-        public ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
+        public async ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
             RequestHeader requestHeader,
             double requestedPublishingInterval,
             uint requestedLifetimeCount,
@@ -190,7 +192,8 @@ namespace Opc.Ua.Server.Tests
             byte priority,
             CancellationToken ct = default)
         {
-            return m_server.CreateSubscriptionAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.CreateSubscriptionAsync(
                 SecureChannelContext,
                 requestHeader,
                 requestedPublishingInterval,
@@ -199,26 +202,27 @@ namespace Opc.Ua.Server.Tests
                 maxNotificationsPerPublish,
                 publishingEnabled,
                 priority,
-                new RequestLifetime(ct));
+                lifetime).ConfigureAwait(false);
         }
 
-        public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken ct = default)
         {
-            return m_server.CreateMonitoredItemsAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.CreateMonitoredItemsAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 timestampsToReturn,
                 itemsToCreate,
-                new RequestLifetime(ct));
+                lifetime).ConfigureAwait(false);
         }
 
-        public ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
+        public async ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             double requestedPublishingInterval,
@@ -228,7 +232,8 @@ namespace Opc.Ua.Server.Tests
             byte priority,
             CancellationToken ct = default)
         {
-            return m_server.ModifySubscriptionAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.ModifySubscriptionAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionId,
@@ -237,118 +242,125 @@ namespace Opc.Ua.Server.Tests
                 requestedMaxKeepAliveCount,
                 maxNotificationsPerPublish,
                 priority,
-                new RequestLifetime(ct));
+                lifetime).ConfigureAwait(false);
         }
 
-        public ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+        public async ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken ct = default)
         {
-            return m_server.ModifyMonitoredItemsAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.ModifyMonitoredItemsAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 timestampsToReturn,
                 itemsToModify,
-                new RequestLifetime(ct));
+                lifetime).ConfigureAwait(false);
         }
 
-        public ValueTask<PublishResponse> PublishAsync(
+        public async ValueTask<PublishResponse> PublishAsync(
             RequestHeader requestHeader,
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             CancellationToken ct = default)
         {
-            return m_server.PublishAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.PublishAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionAcknowledgements,
-                new RequestLifetime(ct));
+                lifetime).ConfigureAwait(false);
         }
 
-        public ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
+        public async ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
             RequestHeader requestHeader,
             bool publishingEnabled,
             ArrayOf<uint> subscriptionIds,
             CancellationToken ct = default)
         {
-            return m_server.SetPublishingModeAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.SetPublishingModeAsync(
                 SecureChannelContext,
                 requestHeader,
                 publishingEnabled,
                 subscriptionIds,
-                new RequestLifetime(ct));
+                lifetime).ConfigureAwait(false);
         }
 
-        public ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
+        public async ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
             ArrayOf<uint> monitoredItemIds,
             CancellationToken ct = default)
         {
-            return
-                m_server.SetMonitoringModeAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.SetMonitoringModeAsync(
                     SecureChannelContext,
                     requestHeader,
                     subscriptionId,
                     monitoringMode,
                     monitoredItemIds,
-                    new RequestLifetime(ct));
+                    lifetime).ConfigureAwait(false);
         }
 
-        public ValueTask<RepublishResponse> RepublishAsync(
+        public async ValueTask<RepublishResponse> RepublishAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
             CancellationToken ct = default)
         {
-            return m_server.RepublishAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.RepublishAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 retransmitSequenceNumber,
-                new RequestLifetime(ct));
+                lifetime).ConfigureAwait(false);
         }
 
-        public ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+        public async ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             RequestHeader requestHeader,
             ArrayOf<uint> subscriptionIds,
             CancellationToken ct = default)
         {
-            return m_server.DeleteSubscriptionsAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.DeleteSubscriptionsAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionIds,
-                new RequestLifetime(ct));
+                lifetime).ConfigureAwait(false);
         }
 
-        public ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+        public async ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             RequestHeader requestHeader,
             ArrayOf<uint> subscriptionIds,
             bool sendInitialValues,
             CancellationToken ct = default)
         {
-            return m_server.TransferSubscriptionsAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.TransferSubscriptionsAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionIds,
                 sendInitialValues,
-                new RequestLifetime(ct));
+                lifetime).ConfigureAwait(false);
         }
 
-        public ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+        public async ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader requestHeader,
             ArrayOf<BrowsePath> browsePaths,
             CancellationToken ct = default)
         {
-            return m_server.TranslateBrowsePathsToNodeIdsAsync(
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.TranslateBrowsePathsToNodeIdsAsync(
                 SecureChannelContext,
                 requestHeader,
                 browsePaths,
-                new RequestLifetime(ct));
+                lifetime).ConfigureAwait(false);
         }
     }
 }

@@ -284,7 +284,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void DisposeCanBeCalledMultipleTimes()
         {
-            UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
             app.Dispose();
             Assert.DoesNotThrow(app.Dispose);
         }

@@ -135,7 +135,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public void DisposeOnUnopenedListenerDoesNotThrow()
         {
-            var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             Assert.DoesNotThrow(() => listener.Dispose());
         }
 
@@ -143,7 +143,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public void DoubleDisposeDoesNotThrow()
         {
-            var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             listener.Dispose();
             Assert.DoesNotThrow(() => listener.Dispose());
         }
@@ -152,7 +152,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public void CloseFollowedByDisposeDoesNotThrow()
         {
-            var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             listener.Close();
             Assert.DoesNotThrow(() => listener.Dispose());
         }
@@ -317,7 +317,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public void StopDoesNotThrowOnUnopenedListener()
         {
-            var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             listener.Stop();
             Assert.DoesNotThrow(() => listener.Dispose());
         }
@@ -394,7 +394,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = "text/html";
-            var responseBody = new MemoryStream();
+            using var responseBody = new MemoryStream();
             context.Response.Body = responseBody;
 
             await listener.SendAsync(context).ConfigureAwait(false);

@@ -231,7 +231,7 @@ namespace Opc.Ua.Server.Tests
                 //-- Act
                 StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
-                var sut = new MasterNodeManager(
+                using var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
                     null,
@@ -277,7 +277,7 @@ namespace Opc.Ua.Server.Tests
                 //-- Act
                 StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
-                var sut = new MasterNodeManager(
+                using var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
                     null,
@@ -334,7 +334,7 @@ namespace Opc.Ua.Server.Tests
                 //-- Act
                 StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
-                var sut = new MasterNodeManager(
+                using var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
                     null,
@@ -384,7 +384,7 @@ namespace Opc.Ua.Server.Tests
                 //-- Act
                 StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
-                var sut = new MasterNodeManager(
+                using var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
                     null,
@@ -435,7 +435,7 @@ namespace Opc.Ua.Server.Tests
                 //-- Act
                 StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
-                var sut = new MasterNodeManager(
+                using var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
                     null,

@@ -53,7 +53,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             bool expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -75,7 +75,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -116,7 +116,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             byte expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -136,7 +136,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             ByteString expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -156,7 +156,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -196,7 +196,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -245,7 +245,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -306,7 +306,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = (DateTime)value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -326,7 +326,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -362,7 +362,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             DiagnosticInfo expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -382,7 +382,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -410,7 +410,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             double expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -439,7 +439,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -493,7 +493,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             StructureType expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -515,7 +515,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -554,7 +554,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             ExpandedNodeId expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -574,7 +574,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -610,7 +610,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             ExtensionObject expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -630,7 +630,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -674,7 +674,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             float expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -703,7 +703,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -756,7 +756,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             Uuid expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -776,7 +776,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -816,7 +816,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             int expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -842,7 +842,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -888,7 +888,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             LocalizedText expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -908,7 +908,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -948,7 +948,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             long expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -974,7 +974,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1020,7 +1020,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             Variant expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1040,7 +1040,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             NodeId expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1060,7 +1060,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1096,7 +1096,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             QualifiedName expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1116,7 +1116,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1156,7 +1156,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             sbyte expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1182,7 +1182,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1232,7 +1232,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             short expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1258,7 +1258,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1304,7 +1304,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             StatusCode expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1324,7 +1324,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1362,7 +1362,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             string expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1385,7 +1385,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1407,7 +1407,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 .AddEncodeableTypes(typeof(EncodeableFactory).Assembly)
                 .Commit();
             var expected = new Argument();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
                 encoder.WriteEncodeableAsExtensionObject(JsonProperties.Value, expected);
@@ -1427,7 +1427,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             uint expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1451,7 +1451,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1497,7 +1497,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             ulong expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1521,7 +1521,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1567,7 +1567,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             ushort expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1591,7 +1591,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1633,7 +1633,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             Variant expected = value;
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1653,7 +1653,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1673,7 +1673,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = new Variant(Enumerable.Repeat(value, length).ToArray());
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1705,7 +1705,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {
@@ -1722,7 +1722,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (IEncoder encoder = CreateEncoder(buffers, messageContext))
             {

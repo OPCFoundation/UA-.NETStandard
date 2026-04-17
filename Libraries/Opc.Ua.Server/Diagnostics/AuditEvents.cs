@@ -87,7 +87,7 @@ namespace Opc.Ua.Server
             {
                 ISystemContext systemContext = server.DefaultAuditContext;
 
-                var e = new AuditEventState(null);
+                using var e = new AuditEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditEvent",
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                var e = new AuditWriteUpdateEventState(null);
+                using var e = new AuditWriteUpdateEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditWriteUpdateEvent",
@@ -260,7 +260,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                var e = new AuditHistoryValueUpdateEventState(null);
+                using var e = new AuditHistoryValueUpdateEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(
                     e,
@@ -319,7 +319,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                var e = new AuditHistoryAnnotationUpdateEventState(null);
+                using var e = new AuditHistoryAnnotationUpdateEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(
                     e,
@@ -373,7 +373,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                var e = new AuditHistoryEventUpdateEventState(null);
+                using var e = new AuditHistoryEventUpdateEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(
                     e,
@@ -437,7 +437,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                var e = new AuditHistoryRawModifyDeleteEventState(null);
+                using var e = new AuditHistoryRawModifyDeleteEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(
                     e,
@@ -502,7 +502,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                var e = new AuditHistoryAtTimeDeleteEventState(null);
+                using var e = new AuditHistoryAtTimeDeleteEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(
                     e,
@@ -557,7 +557,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                var e = new AuditHistoryEventDeleteEventState(null);
+                using var e = new AuditHistoryEventDeleteEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(
                     e,
@@ -761,7 +761,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // create AuditCertificateDataMismatchEventType
-                var e = new AuditCertificateDataMismatchEventState(null);
+                using var e = new AuditCertificateDataMismatchEventState(null);
 
                 e.Initialize(
                     systemContext,
@@ -832,7 +832,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // create AuditCancelEventState
-                var e = new AuditCancelEventState(null);
+                using var e = new AuditCancelEventState(null);
 
                 e.Initialize(
                     systemContext,
@@ -894,7 +894,7 @@ namespace Opc.Ua.Server
             try
             {
                 // create RoleMappingRuleChangedAuditEventState
-                var e = new RoleMappingRuleChangedAuditEventState(null);
+                using var e = new RoleMappingRuleChangedAuditEventState(null);
 
                 e.Initialize(
                     systemContext,
@@ -955,7 +955,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // raise an audit event.
-                var e = new AuditCreateSessionEventState(null);
+                using var e = new AuditCreateSessionEventState(null);
 
                 TranslationInfo message = default;
                 if (exception == null)
@@ -1045,7 +1045,7 @@ namespace Opc.Ua.Server
             {
                 ISystemContext systemContext = server.DefaultAuditContext;
 
-                var e = new AuditActivateSessionEventState(null);
+                using var e = new AuditActivateSessionEventState(null);
 
                 TranslationInfo message = default;
                 if (exception == null)
@@ -1120,7 +1120,7 @@ namespace Opc.Ua.Server
             {
                 ISystemContext systemContext = server.DefaultAuditContext;
 
-                var e = new AuditUrlMismatchEventState(null);
+                using var e = new AuditUrlMismatchEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditUrlMismatchEvent",
@@ -1205,7 +1205,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // raise an audit event.
-                var e = new AuditSessionEventState(null);
+                using var e = new AuditSessionEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditCloseSessionEvent",
@@ -1253,7 +1253,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // raise an audit event.
-                var e = new AuditSessionEventState(null);
+                using var e = new AuditSessionEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditSessionEventState",
@@ -1311,7 +1311,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                var e = new CertificateUpdatedAuditEventState(null);
+                using var e = new CertificateUpdatedAuditEventState(null);
 
                 TranslationInfo message = default;
                 if (exception == null)
@@ -1393,7 +1393,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                var e = new CertificateUpdateRequestedAuditEventState(null);
+                using var e = new CertificateUpdateRequestedAuditEventState(null);
 
                 var message = new TranslationInfo(
                     "CertificateUpdateRequestedAuditEvent",
@@ -1452,7 +1452,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                var e = new AuditAddNodesEventState(null);
+                using var e = new AuditAddNodesEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditAddNodesEventState",
@@ -1515,7 +1515,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                var e = new AuditDeleteNodesEventState(null);
+                using var e = new AuditDeleteNodesEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditDeleteNodesEventState",
@@ -1581,7 +1581,7 @@ namespace Opc.Ua.Server
             try
             {
                 // raise an audit event.
-                var e = new AuditOpenSecureChannelEventState(null);
+                using var e = new AuditOpenSecureChannelEventState(null);
                 TranslationInfo message = default;
                 if (exception == null)
                 {
@@ -1724,7 +1724,7 @@ namespace Opc.Ua.Server
             try
             {
                 // raise an audit event.
-                var e = new AuditChannelEventState(null);
+                using var e = new AuditChannelEventState(null);
 
                 TranslationInfo message = default;
                 if (exception == null)
@@ -1822,7 +1822,7 @@ namespace Opc.Ua.Server
             }
             try
             {
-                var e = new AuditUpdateMethodEventState(null);
+                using var e = new AuditUpdateMethodEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditUpdateMethodEventState",
@@ -1891,7 +1891,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                var e = new TrustListUpdatedAuditEventState(null);
+                using var e = new TrustListUpdatedAuditEventState(null);
 
                 var message = new TranslationInfo(
                     "TrustListUpdatedAuditEvent",
@@ -1947,7 +1947,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                var e = new TrustListUpdateRequestedAuditEventState(null);
+                using var e = new TrustListUpdateRequestedAuditEventState(null);
 
                 var message = new TranslationInfo(
                     "TrustListUpdateRequestedAuditEvent",

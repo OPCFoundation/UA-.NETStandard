@@ -199,7 +199,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (NodeState node in PredefinedNodes.Values)
                     {
-                        Utils.SilentDispose(node);
+                        node?.Dispose();
                     }
 
                     PredefinedNodes.Clear();
@@ -214,13 +214,15 @@ namespace Opc.Ua.Server
                 m_monitoredItemSemaphore.Wait(500);
                 try
                 {
-                    Utils.SilentDispose(m_monitoredItemManager);
+                    m_monitoredItemManager?.Dispose();
                 }
                 finally
                 {
                     m_monitoredItemSemaphore.Release();
                 }
                 m_monitoredItemSemaphore.Dispose();
+
+                m_componentCacheSemaphore.Dispose();
             }
         }
 
@@ -927,7 +929,7 @@ namespace Opc.Ua.Server
 
             foreach (NodeState node in nodes)
             {
-                Utils.SilentDispose(node);
+                node?.Dispose();
             }
             return default;
         }
@@ -3452,20 +3454,27 @@ namespace Opc.Ua.Server
         {
             if (RootNotifiers.TryRemove(notifier.NodeId, out notifier))
             {
-                lock (notifier)
+                try
                 {
-                    notifier.OnReportEvent = null;
-
-                    if (notifier.ReferenceExists(
-                        ReferenceTypeIds.HasNotifier,
-                        true,
-                        ObjectIds.Server))
+                    lock (notifier)
                     {
-                        notifier.RemoveReference(
+                        notifier.OnReportEvent = null;
+
+                        if (notifier.ReferenceExists(
                             ReferenceTypeIds.HasNotifier,
                             true,
-                            ObjectIds.Server);
+                            ObjectIds.Server))
+                        {
+                            notifier.RemoveReference(
+                                ReferenceTypeIds.HasNotifier,
+                                true,
+                                ObjectIds.Server);
+                        }
                     }
+                }
+                finally
+                {
+                    notifier.Dispose();
                 }
             }
             return default;
@@ -3697,32 +3706,41 @@ namespace Opc.Ua.Server
                     NodeHandle handle = nodesToValidate[ii];
 
                     bool success;
+                    IMonitoredItem monitoredItem = null;
 
-                    // validate node.
-                    NodeState source = await ValidateNodeAsync(systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false);
-
-                    if (source == null)
+                    try
                     {
-                        continue;
+                        // validate node.
+                        NodeState source = await ValidateNodeAsync(systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false);
+
+                        if (source == null)
+                        {
+                            continue;
+                        }
+
+                        IStoredMonitoredItem itemToCreate = itemsToRestore[handle.Index];
+
+                        // create monitored item.
+                        success = RestoreMonitoredItem(
+                            systemContext,
+                            handle,
+                            itemToCreate,
+                            savedOwnerIdentity,
+                            out monitoredItem);
+
+                        if (!success)
+                        {
+                            continue;
+                        }
+
+                        // save the monitored item.
+                        monitoredItems[handle.Index] = monitoredItem;
+                        monitoredItem = null; // ownership transferred
                     }
-
-                    IStoredMonitoredItem itemToCreate = itemsToRestore[handle.Index];
-
-                    // create monitored item.
-                    success = RestoreMonitoredItem(
-                        systemContext,
-                        handle,
-                        itemToCreate,
-                        savedOwnerIdentity,
-                        out IMonitoredItem monitoredItem);
-
-                    if (!success)
+                    finally
                     {
-                        continue;
+                        (monitoredItem as IDisposable)?.Dispose();
                     }
-
-                    // save the monitored item.
-                    monitoredItems[handle.Index] = monitoredItem;
                 }
 
                 m_monitoredItemManager.ApplyChanges();

@@ -266,7 +266,7 @@ namespace Opc.Ua.Server.Tests
         public void CreateDiagnosticInfo_WithError_ReturnsDiagnosticInfo()
         {
             var serverMock = new Mock<IServerInternal>();
-            var resourceMgr = new ResourceManager(new ApplicationConfiguration());
+            using var resourceMgr = new ResourceManager(new ApplicationConfiguration());
             serverMock.Setup(s => s.ResourceManager).Returns(resourceMgr);
             var context = CreateContext(DiagnosticsMasks.ServiceLocalizedText);
 

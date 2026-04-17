@@ -120,63 +120,72 @@ namespace MemoryBuffer
         /// </summary>
         private NodeStateReference NextChild()
         {
-            MemoryTagState tag;
+            MemoryTagState tag = null;
 
-            // check if a specific browse name is requested.
-            if (!BrowseName.IsNull)
+            try
             {
-                // check if match found previously.
-                if (m_position == uint.MaxValue)
+                // check if a specific browse name is requested.
+                if (!BrowseName.IsNull)
                 {
-                    return null;
+                    // check if match found previously.
+                    if (m_position == uint.MaxValue)
+                    {
+                        return null;
+                    }
+
+                    // browse name must be qualified by the correct namespace.
+                    if (m_buffer.TypeDefinitionId.NamespaceIndex != BrowseName.NamespaceIndex)
+                    {
+                        return null;
+                    }
+
+                    string name = BrowseName.Name;
+
+                    for (int ii = 0; ii < name.Length; ii++)
+                    {
+                        if (!"0123456789ABCDEF".Contains(name[ii], StringComparison.Ordinal))
+                        {
+                            return null;
+                        }
+                    }
+
+                    m_position = Convert.ToUInt32(name, 16);
+
+                    // check for memory overflow.
+                    if (m_position >= m_buffer.SizeInBytes.Value)
+                    {
+                        return null;
+                    }
+
+                    tag = new MemoryTagState(m_buffer, m_position);
+                    m_position = uint.MaxValue;
                 }
-
-                // browse name must be qualified by the correct namespace.
-                if (m_buffer.TypeDefinitionId.NamespaceIndex != BrowseName.NamespaceIndex)
+                // return the child at the next position.
+                else
                 {
-                    return null;
-                }
+                    if (m_position >= m_buffer.SizeInBytes.Value)
+                    {
+                        return null;
+                    }
 
-                string name = BrowseName.Name;
+                    tag = new MemoryTagState(m_buffer, m_position);
+                    m_position += m_buffer.ElementSize;
 
-                for (int ii = 0; ii < name.Length; ii++)
-                {
-                    if (!"0123456789ABCDEF".Contains(name[ii], StringComparison.Ordinal))
+                    // check for memory overflow.
+                    if (m_position >= m_buffer.SizeInBytes.Value)
                     {
                         return null;
                     }
                 }
 
-                m_position = Convert.ToUInt32(name, 16);
-
-                // check for memory overflow.
-                if (m_position >= m_buffer.SizeInBytes.Value)
-                {
-                    return null;
-                }
-
-                tag = new MemoryTagState(m_buffer, m_position);
-                m_position = uint.MaxValue;
+                var result = new NodeStateReference(ReferenceTypeIds.HasComponent, false, tag);
+                tag = null;
+                return result;
             }
-            // return the child at the next position.
-            else
+            finally
             {
-                if (m_position >= m_buffer.SizeInBytes.Value)
-                {
-                    return null;
-                }
-
-                tag = new MemoryTagState(m_buffer, m_position);
-                m_position += m_buffer.ElementSize;
-
-                // check for memory overflow.
-                if (m_position >= m_buffer.SizeInBytes.Value)
-                {
-                    return null;
-                }
+                tag?.Dispose();
             }
-
-            return new NodeStateReference(ReferenceTypeIds.HasComponent, false, tag);
         }
 
         /// <summary>

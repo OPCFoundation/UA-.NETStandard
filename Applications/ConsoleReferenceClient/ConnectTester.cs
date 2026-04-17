@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -42,9 +43,33 @@ using Opc.Ua.Configuration;
 
 namespace Quickstarts
 {
-    public partial class ClientSamples
+    /// <summary>
+    /// Wraps connect testing functionality
+    /// </summary>
+    public sealed class ConnectTester : IDisposable
     {
-        public async Task<bool> RunAsync(ManualResetEvent quitEvent, CancellationToken ct)
+        public ConnectTester(
+            ITelemetryContext telemetry,
+            ManualResetEvent quitEvent = null)
+        {
+            m_quitEvent = quitEvent;
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<ConnectTester>();
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            m_reconnectHandler?.Dispose();
+        }
+
+        /// <summary>
+        /// Run the tests until cancelled or quit
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        public async Task RunAsync(CancellationToken ct)
         {
             try
             {
@@ -54,7 +79,6 @@ namespace Quickstarts
                     kReconnectPeriodExponentialBackoff);
 
                 m_logger.LogInformation("OPC UA Security Test Client");
-                CryptoTrace.Enabled = false;
 
                 // The application name and config file names
                 const string applicationName = "ConsoleReferenceClient";
@@ -94,8 +118,6 @@ namespace Quickstarts
                     m_configuration,
                     kServerUrl,
                     ct).ConfigureAwait(false);
-
-                //endpoints = endpoints.Where(x => x.SecurityPolicyUri == TargetPolicy).ToList();
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                 var sessionFactory = new DefaultSessionFactory(m_telemetry);
@@ -204,54 +226,17 @@ namespace Quickstarts
                             ii.SecurityMode);
 
                         m_logger.LogWarning("{Line}", new string('=', 80));
-                        //break;
                     }
-
-                    //break;
                 }
 
                 Console.WriteLine("Ctrl-C to stop.");
-                quitEvent.WaitOne();
+                m_quitEvent.WaitOne();
             }
             catch (Exception e)
             {
                 m_logger.LogError("Exception: {Message}", e.Message);
                 m_logger.LogTrace("StackTrace: {StackTrace}", e.StackTrace);
             }
-
-            return true;
-        }
-
-        private async Task<UserIdentity> LoadUserCertificateAsync(
-            string thumbprint,
-            string password,
-            CancellationToken ct)
-        {
-            CertificateTrustList store = m_configuration.SecurityConfiguration.TrustedUserCertificates;
-#if NET8_0_OR_GREATER
-            // get user certificate with matching thumbprint
-            X509Certificate2Collection certificates =
-                await store.GetCertificatesAsync(m_telemetry, ct).ConfigureAwait(false);
-            X509Certificate2 hit = certificates
-                .Find(X509FindType.FindByThumbprint, thumbprint, false)
-                .FirstOrDefault();
-
-            // create Certificate Identifier
-            var cid = new CertificateIdentifier(hit)
-            {
-                StorePath = store.StorePath,
-                StoreType = store.StoreType
-            };
-
-            return await UserIdentity.CreateAsync(
-                cid,
-                new CertificatePasswordProvider(new UTF8Encoding(false).GetBytes(password)),
-                m_telemetry,
-                ct).ConfigureAwait(false);
-#else
-            await Task.Delay(1, ct).ConfigureAwait(false);
-            throw new NotSupportedException("User certificate identity is only supported on .NET 8 or greater.");
-#endif
         }
 
         internal async Task<SessionWrapper> RunTestAsync(
@@ -293,13 +278,46 @@ namespace Quickstarts
             wrapper.Session.KeepAliveInterval = 10000;
             wrapper.Session.KeepAlive += Session_KeepAlive;
 
-            ArrayOf<ReferenceDescription> nodes = await BrowseFullAddressSpaceAsync(
+            var samples = new ClientSamples(m_telemetry, null, m_quitEvent);
+            ArrayOf<ReferenceDescription> nodes = await samples.BrowseFullAddressSpaceAsync(
                 wrapper,
                 ObjectIds.ObjectsFolder,
                 null,
                 ct).ConfigureAwait(false);
 
             return wrapper;
+        }
+
+        private async Task<UserIdentity> LoadUserCertificateAsync(
+            string thumbprint,
+            string password,
+            CancellationToken ct)
+        {
+            CertificateTrustList store = m_configuration.SecurityConfiguration.TrustedUserCertificates;
+#if NET8_0_OR_GREATER
+            // get user certificate with matching thumbprint
+            X509Certificate2Collection certificates =
+                await store.GetCertificatesAsync(m_telemetry, ct).ConfigureAwait(false);
+            X509Certificate2 hit = certificates
+                .Find(X509FindType.FindByThumbprint, thumbprint, false)
+                .FirstOrDefault();
+
+            // create Certificate Identifier
+            var cid = new CertificateIdentifier(hit)
+            {
+                StorePath = store.StorePath,
+                StoreType = store.StoreType
+            };
+
+            return await UserIdentity.CreateAsync(
+                cid,
+                new CertificatePasswordProvider(new UTF8Encoding(false).GetBytes(password)),
+                m_telemetry,
+                ct).ConfigureAwait(false);
+#else
+            await Task.Delay(1, ct).ConfigureAwait(false);
+            throw new NotSupportedException("User certificate identity is only supported on .NET 8 or greater.");
+#endif
         }
 
         private static async ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
@@ -425,7 +443,7 @@ namespace Quickstarts
                         );
                         ISession session = m_wrapper.Session;
                         m_wrapper = new SessionWrapper { Session = m_reconnectHandler.Session };
-                        Utils.SilentDispose(session);
+                        session?.Dispose();
                     }
                     else
                     {
@@ -469,6 +487,9 @@ namespace Quickstarts
         private SessionReconnectHandler m_reconnectHandler;
         private ApplicationConfiguration m_configuration;
         private SessionWrapper m_wrapper;
+        private ILogger m_logger;
+        private ITelemetryContext m_telemetry;
+        private readonly ManualResetEvent m_quitEvent;
 
         private const string kServerUrl = "opc.tcp://localhost:62541";
         private const string kUserName = "sysadmin";

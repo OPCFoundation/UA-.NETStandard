@@ -55,10 +55,6 @@ namespace Quickstarts.ConsoleReferenceClient
         /// Main entry point.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "NodeSet2 export uses XmlSerializer with known OPC UA types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "NodeSet2 export uses XmlSerializer with known OPC UA types.")]
         public static Task<int> Main(string[] args)
         {
             Console.WriteLine("OPC UA Console Reference Client");
@@ -293,7 +289,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         logConsole,
                         fileLog,
                         appLog,
-                        LogLevel.Warning);
+                        LogLevel.Information);
 
                     // delete old certificate
                     if (renewCertificate)
@@ -331,16 +327,11 @@ namespace Quickstarts.ConsoleReferenceClient
                     // handle connect all endpoints test.
                     if (testallEndpoints)
                     {
-                        var tester = new ClientSamples(
+                        var tester = new ConnectTester(
                             telemetry,
-                            null,
-                            quitEvent,
-                            verbose);
-
-                        if (await tester.RunAsync(quitEvent, ct).ConfigureAwait(false))
-                        {
-                            return;
-                        }
+                            quitEvent);
+                        await tester.RunAsync(ct).ConfigureAwait(false);
+                        return;
                     }
 
                     var userIdentity = new UserIdentity();
@@ -742,7 +733,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 }
                 finally
                 {
-                    Utils.SilentDispose(reverseConnectManager);
+                    reverseConnectManager?.Dispose();
                 }
             });
 

@@ -69,7 +69,7 @@ namespace Opc.Ua.Client.Tests
             var userIdentityToken = new ExtensionObject();
             var userTokenSignature = new SignatureData();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -104,7 +104,7 @@ namespace Opc.Ua.Client.Tests
             var userIdentityToken = new ExtensionObject();
             var userTokenSignature = new SignatureData();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -141,7 +141,7 @@ namespace Opc.Ua.Client.Tests
             var userIdentityToken = new ExtensionObject();
             var userTokenSignature = new SignatureData();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -170,7 +170,7 @@ namespace Opc.Ua.Client.Tests
         {
             var nodesToAdd = Enumerable.Repeat(new AddNodesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerNodeManagement = 10;
 
@@ -208,7 +208,7 @@ namespace Opc.Ua.Client.Tests
         {
             var nodesToAdd = Enumerable.Repeat(new AddNodesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerNodeManagement = 10;
 
@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<AddNodesItem> nodesToAdd = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -275,7 +275,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<AddNodesItem> nodesToAdd = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -304,7 +304,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<AddNodesItem> nodesToAdd = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -327,7 +327,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<AddNodesItem> nodesToAdd = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -356,7 +356,7 @@ namespace Opc.Ua.Client.Tests
         {
             var referencesToAdd = Enumerable.Repeat(new AddReferencesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerNodeManagement = 10;
 
@@ -394,7 +394,7 @@ namespace Opc.Ua.Client.Tests
         {
             var referencesToAdd = Enumerable.Repeat(new AddReferencesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerNodeManagement = 10;
 
@@ -434,7 +434,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<AddReferencesItem> referencesToAdd = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -460,7 +460,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<AddReferencesItem> referencesToAdd = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -490,7 +490,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<AddReferencesItem> referencesToAdd = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -515,7 +515,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<AddReferencesItem> referencesToAdd = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -546,7 +546,7 @@ namespace Opc.Ua.Client.Tests
             const uint requestedMaxReferencesPerNode = 10u;
             var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
 
@@ -587,7 +587,7 @@ namespace Opc.Ua.Client.Tests
             var view = new ViewDescription();
             var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 5).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
 
@@ -645,7 +645,7 @@ namespace Opc.Ua.Client.Tests
             var view = new ViewDescription();
             var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
             ActivitySource activitySource = sessionMock.MessageContext.Telemetry.GetActivitySource();
@@ -705,7 +705,7 @@ namespace Opc.Ua.Client.Tests
             const uint requestedMaxReferencesPerNode = 10u;
             var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
             sessionMock.ActivityTraceFlags = ClientTraceFlags.Log;
@@ -749,7 +749,7 @@ namespace Opc.Ua.Client.Tests
             var view = new ViewDescription();
             var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
 
@@ -814,7 +814,7 @@ namespace Opc.Ua.Client.Tests
             var view = new ViewDescription();
             var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
 
@@ -858,7 +858,7 @@ namespace Opc.Ua.Client.Tests
             var view = new ViewDescription();
             var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
 
@@ -925,7 +925,7 @@ namespace Opc.Ua.Client.Tests
             var view = new ViewDescription();
             var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
 
@@ -978,7 +978,7 @@ namespace Opc.Ua.Client.Tests
             var view = new ViewDescription();
             var nodesToBrowse = Enumerable.Range(0, 15).Select(_ => new BrowseDescription()).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
 
@@ -1052,7 +1052,7 @@ namespace Opc.Ua.Client.Tests
             var view = new ViewDescription();
             var nodesToBrowse = Enumerable.Range(0, 15).Select(_ => new BrowseDescription()).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
 
@@ -1134,7 +1134,7 @@ namespace Opc.Ua.Client.Tests
             var view = new ViewDescription();
             var nodesToBrowse = Enumerable.Range(0, 15).Select(_ => new BrowseDescription()).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
 
@@ -1223,7 +1223,7 @@ namespace Opc.Ua.Client.Tests
             const uint requestedMaxReferencesPerNode = 10u;
             ArrayOf<BrowseDescription> nodesToBrowse = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1255,7 +1255,7 @@ namespace Opc.Ua.Client.Tests
             const uint requestedMaxReferencesPerNode = 10u;
             ArrayOf<BrowseDescription> nodesToBrowse = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1289,7 +1289,7 @@ namespace Opc.Ua.Client.Tests
             const uint requestedMaxReferencesPerNode = 10u;
             ArrayOf<BrowseDescription> nodesToBrowse = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1318,7 +1318,7 @@ namespace Opc.Ua.Client.Tests
             const uint requestedMaxReferencesPerNode = 10u;
             ArrayOf<BrowseDescription> nodesToBrowse = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1353,7 +1353,7 @@ namespace Opc.Ua.Client.Tests
                 .Repeat(ByteString.Empty, 15)
                 .ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.ServerCapabilities.MaxBrowseContinuationPoints = 10;
 
@@ -1395,7 +1395,7 @@ namespace Opc.Ua.Client.Tests
                 .Repeat(ByteString.Empty, 15)
                 .ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.ServerCapabilities.MaxBrowseContinuationPoints = 10;
 
@@ -1438,7 +1438,7 @@ namespace Opc.Ua.Client.Tests
 
             var continuationPoints = new List<ByteString>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1466,7 +1466,7 @@ namespace Opc.Ua.Client.Tests
 
             var continuationPoints = new List<ByteString>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1499,7 +1499,7 @@ namespace Opc.Ua.Client.Tests
 
             var continuationPoints = new List<ByteString>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1527,7 +1527,7 @@ namespace Opc.Ua.Client.Tests
 
             var continuationPoints = new List<ByteString>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1557,7 +1557,7 @@ namespace Opc.Ua.Client.Tests
         {
             var methodsToCall = Enumerable.Repeat(new CallMethodRequest(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerMethodCall = 10;
 
@@ -1594,7 +1594,7 @@ namespace Opc.Ua.Client.Tests
         {
             var methodsToCall = Enumerable.Repeat(new CallMethodRequest(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerMethodCall = 10;
 
@@ -1634,7 +1634,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<CallMethodRequest> methodsToCall = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1660,7 +1660,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<CallMethodRequest> methodsToCall = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1690,7 +1690,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<CallMethodRequest> methodsToCall = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1715,7 +1715,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<CallMethodRequest> methodsToCall = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1744,7 +1744,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint requestHandle = 1u;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1770,7 +1770,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint requestHandle = 1u;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1800,7 +1800,7 @@ namespace Opc.Ua.Client.Tests
         {
             const uint requestHandle = 1u;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1825,7 +1825,7 @@ namespace Opc.Ua.Client.Tests
         {
             const bool deleteSubscriptions = true;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1851,7 +1851,7 @@ namespace Opc.Ua.Client.Tests
         {
             const bool deleteSubscriptions = true;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1881,7 +1881,7 @@ namespace Opc.Ua.Client.Tests
         {
             const bool deleteSubscriptions = true;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1908,7 +1908,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             var itemsToCreate = Enumerable.Repeat(new MonitoredItemCreateRequest(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
@@ -1950,7 +1950,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             var itemsToCreate = Enumerable.Repeat(new MonitoredItemCreateRequest(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
@@ -1994,7 +1994,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2026,7 +2026,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2060,7 +2060,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2089,7 +2089,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2125,7 +2125,7 @@ namespace Opc.Ua.Client.Tests
             const bool publishingEnabled = true;
             const byte priority = 1;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2163,7 +2163,7 @@ namespace Opc.Ua.Client.Tests
             const bool publishingEnabled = true;
             const byte priority = 1;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2203,7 +2203,7 @@ namespace Opc.Ua.Client.Tests
             const bool publishingEnabled = true;
             const byte priority = 1;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2234,7 +2234,7 @@ namespace Opc.Ua.Client.Tests
             const uint subscriptionId = 1u;
             var monitoredItemIds = new List<uint>([.. Enumerable.Repeat(1u, 15)]);
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
@@ -2273,7 +2273,7 @@ namespace Opc.Ua.Client.Tests
             const uint subscriptionId = 1u;
             var monitoredItemIds = new List<uint>([.. Enumerable.Repeat(1u, 15)]);
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
@@ -2315,7 +2315,7 @@ namespace Opc.Ua.Client.Tests
             const uint subscriptionId = 1u;
             var monitoredItemIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2345,7 +2345,7 @@ namespace Opc.Ua.Client.Tests
             const uint subscriptionId = 1u;
             var monitoredItemIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2377,7 +2377,7 @@ namespace Opc.Ua.Client.Tests
             const uint subscriptionId = 1u;
             var monitoredItemIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2403,7 +2403,7 @@ namespace Opc.Ua.Client.Tests
         {
             var nodesToDelete = Enumerable.Repeat(new DeleteNodesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerNodeManagement = 10;
 
@@ -2440,7 +2440,7 @@ namespace Opc.Ua.Client.Tests
         {
             var nodesToDelete = Enumerable.Repeat(new DeleteNodesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerNodeManagement = 10;
 
@@ -2480,7 +2480,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<DeleteNodesItem> nodesToDelete = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2508,7 +2508,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<DeleteNodesItem> nodesToDelete = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2538,7 +2538,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<DeleteNodesItem> nodesToDelete = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2563,7 +2563,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<DeleteNodesItem> nodesToDelete = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2592,7 +2592,7 @@ namespace Opc.Ua.Client.Tests
         {
             var referencesToDelete = Enumerable.Repeat(new DeleteReferencesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerNodeManagement = 10;
 
@@ -2630,7 +2630,7 @@ namespace Opc.Ua.Client.Tests
         {
             var referencesToDelete = Enumerable.Repeat(new DeleteReferencesItem(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerNodeManagement = 10;
 
@@ -2670,7 +2670,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<DeleteReferencesItem> referencesToDelete = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2698,7 +2698,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<DeleteReferencesItem> referencesToDelete = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2728,7 +2728,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<DeleteReferencesItem> referencesToDelete = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2753,7 +2753,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<DeleteReferencesItem> referencesToDelete = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2782,7 +2782,7 @@ namespace Opc.Ua.Client.Tests
         {
             var subscriptionIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2810,7 +2810,7 @@ namespace Opc.Ua.Client.Tests
         {
             var subscriptionIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2840,7 +2840,7 @@ namespace Opc.Ua.Client.Tests
         {
             var subscriptionIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2868,7 +2868,7 @@ namespace Opc.Ua.Client.Tests
             const bool releaseContinuationPoints = true;
             var nodesToRead = Enumerable.Repeat(new HistoryReadValueId(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerHistoryReadData = 10;
 
@@ -2912,7 +2912,7 @@ namespace Opc.Ua.Client.Tests
             const bool releaseContinuationPoints = true;
             var nodesToRead = Enumerable.Repeat(new HistoryReadValueId(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerHistoryReadEvents = 10;
 
@@ -2958,7 +2958,7 @@ namespace Opc.Ua.Client.Tests
             const bool releaseContinuationPoints = true;
             ArrayOf<HistoryReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -2988,7 +2988,7 @@ namespace Opc.Ua.Client.Tests
             const bool releaseContinuationPoints = true;
             ArrayOf<HistoryReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3024,7 +3024,7 @@ namespace Opc.Ua.Client.Tests
             const bool releaseContinuationPoints = true;
             ArrayOf<HistoryReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3055,7 +3055,7 @@ namespace Opc.Ua.Client.Tests
             const bool releaseContinuationPoints = true;
             ArrayOf<HistoryReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3082,7 +3082,7 @@ namespace Opc.Ua.Client.Tests
         {
             var historyUpdateDetails = Enumerable.Repeat(new ExtensionObject(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerHistoryUpdateData = 10;
 
@@ -3120,7 +3120,7 @@ namespace Opc.Ua.Client.Tests
         {
             var historyUpdateDetails = Enumerable.Repeat(new ExtensionObject(new UpdateEventDetails()), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerHistoryUpdateEvents = 10;
 
@@ -3160,7 +3160,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<ExtensionObject> historyUpdateDetails = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3188,7 +3188,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<ExtensionObject> historyUpdateDetails = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3218,7 +3218,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<ExtensionObject> historyUpdateDetails = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3243,7 +3243,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<ExtensionObject> historyUpdateDetails = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3274,7 +3274,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             var itemsToModify = Enumerable.Repeat(new MonitoredItemModifyRequest(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
@@ -3316,7 +3316,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             var itemsToModify = Enumerable.Repeat(new MonitoredItemModifyRequest(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
@@ -3360,7 +3360,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             ArrayOf<MonitoredItemModifyRequest> itemsToModify = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3392,7 +3392,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             ArrayOf<MonitoredItemModifyRequest> itemsToModify = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3426,7 +3426,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             ArrayOf<MonitoredItemModifyRequest> itemsToModify = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3455,7 +3455,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             ArrayOf<MonitoredItemModifyRequest> itemsToModify = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3491,7 +3491,7 @@ namespace Opc.Ua.Client.Tests
             const uint maxNotificationsPerPublish = 100u;
             const byte priority = 1;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3529,7 +3529,7 @@ namespace Opc.Ua.Client.Tests
             const uint maxNotificationsPerPublish = 100u;
             const byte priority = 1;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3568,7 +3568,7 @@ namespace Opc.Ua.Client.Tests
             const uint maxNotificationsPerPublish = 100u;
             const byte priority = 1;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3598,7 +3598,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3626,7 +3626,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3656,7 +3656,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3685,7 +3685,7 @@ namespace Opc.Ua.Client.Tests
             const uint maxDataSetsToReturn = 10u;
             const uint maxReferencesToReturn = 10u;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3721,7 +3721,7 @@ namespace Opc.Ua.Client.Tests
             const uint maxDataSetsToReturn = 10u;
             const uint maxReferencesToReturn = 10u;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3759,7 +3759,7 @@ namespace Opc.Ua.Client.Tests
             const uint maxDataSetsToReturn = 10u;
             const uint maxReferencesToReturn = 10u;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3789,7 +3789,7 @@ namespace Opc.Ua.Client.Tests
             const bool releaseContinuationPoint = true;
             ByteString continuationPoint = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3819,7 +3819,7 @@ namespace Opc.Ua.Client.Tests
             const bool releaseContinuationPoint = true;
             ByteString continuationPoint = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3851,7 +3851,7 @@ namespace Opc.Ua.Client.Tests
             const bool releaseContinuationPoint = true;
             ByteString continuationPoint = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3879,7 +3879,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             var nodesToRead = Enumerable.Repeat(new ReadValueId(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerRead = 10;
 
@@ -3920,7 +3920,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             var nodesToRead = Enumerable.Repeat(new ReadValueId(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerRead = 10;
 
@@ -3963,7 +3963,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             ArrayOf<ReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -3995,7 +3995,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             ArrayOf<ReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4029,7 +4029,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             ArrayOf<ReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4058,7 +4058,7 @@ namespace Opc.Ua.Client.Tests
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             ArrayOf<ReadValueId> nodesToRead = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4089,7 +4089,7 @@ namespace Opc.Ua.Client.Tests
         {
             var nodesToRegister = Enumerable.Repeat(new NodeId(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerRegisterNodes = 10;
 
@@ -4127,7 +4127,7 @@ namespace Opc.Ua.Client.Tests
         {
             var nodesToRegister = Enumerable.Repeat(new NodeId(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerRegisterNodes = 10;
 
@@ -4167,7 +4167,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<NodeId> nodesToRegister = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4193,7 +4193,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<NodeId> nodesToRegister = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4223,7 +4223,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<NodeId> nodesToRegister = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4249,7 +4249,7 @@ namespace Opc.Ua.Client.Tests
             const uint subscriptionId = 1u;
             const uint retransmitSequenceNumber = 1u;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4279,7 +4279,7 @@ namespace Opc.Ua.Client.Tests
             const uint subscriptionId = 1u;
             const uint retransmitSequenceNumber = 1u;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4311,7 +4311,7 @@ namespace Opc.Ua.Client.Tests
             const uint subscriptionId = 1u;
             const uint retransmitSequenceNumber = 1u;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4339,7 +4339,7 @@ namespace Opc.Ua.Client.Tests
             const MonitoringMode monitoringMode = MonitoringMode.Reporting;
             var monitoredItemIds = new List<uint>([.. Enumerable.Repeat(1u, 15)]);
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
@@ -4381,7 +4381,7 @@ namespace Opc.Ua.Client.Tests
             const MonitoringMode monitoringMode = MonitoringMode.Reporting;
             var monitoredItemIds = new List<uint>([.. Enumerable.Repeat(1u, 15)]);
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
@@ -4425,7 +4425,7 @@ namespace Opc.Ua.Client.Tests
             const MonitoringMode monitoringMode = MonitoringMode.Reporting;
             var monitoredItemIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4457,7 +4457,7 @@ namespace Opc.Ua.Client.Tests
             const MonitoringMode monitoringMode = MonitoringMode.Reporting;
             var monitoredItemIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4491,7 +4491,7 @@ namespace Opc.Ua.Client.Tests
             const MonitoringMode monitoringMode = MonitoringMode.Reporting;
             var monitoredItemIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4520,7 +4520,7 @@ namespace Opc.Ua.Client.Tests
             const MonitoringMode monitoringMode = MonitoringMode.Reporting;
             var monitoredItemIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4552,7 +4552,7 @@ namespace Opc.Ua.Client.Tests
             const bool publishingEnabled = true;
             var subscriptionIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4582,7 +4582,7 @@ namespace Opc.Ua.Client.Tests
             const bool publishingEnabled = true;
             var subscriptionIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4614,7 +4614,7 @@ namespace Opc.Ua.Client.Tests
             const bool publishingEnabled = true;
             var subscriptionIds = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4643,7 +4643,7 @@ namespace Opc.Ua.Client.Tests
             var linksToAdd = new List<uint>([.. Enumerable.Repeat(1u, 15)]);
             var linksToRemove = new List<uint>([.. Enumerable.Repeat(1u, 15)]);
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
@@ -4693,7 +4693,7 @@ namespace Opc.Ua.Client.Tests
             var linksToAdd = new List<uint>([.. Enumerable.Repeat(1u, 15)]);
             var linksToRemove = new List<uint>([.. Enumerable.Repeat(1u, 15)]);
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
@@ -4738,7 +4738,7 @@ namespace Opc.Ua.Client.Tests
             var linksToAdd = new List<uint>();
             var linksToRemove = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4772,7 +4772,7 @@ namespace Opc.Ua.Client.Tests
             var linksToAdd = new List<uint>();
             var linksToRemove = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4808,7 +4808,7 @@ namespace Opc.Ua.Client.Tests
             var linksToAdd = new List<uint>();
             var linksToRemove = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4839,7 +4839,7 @@ namespace Opc.Ua.Client.Tests
             var linksToAdd = new List<uint>();
             var linksToRemove = new List<uint>();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4876,7 +4876,7 @@ namespace Opc.Ua.Client.Tests
             var subscriptionIds = new List<uint>();
             const bool sendInitialValues = true;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4906,7 +4906,7 @@ namespace Opc.Ua.Client.Tests
             var subscriptionIds = new List<uint>();
             const bool sendInitialValues = true;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4938,7 +4938,7 @@ namespace Opc.Ua.Client.Tests
             var subscriptionIds = new List<uint>();
             const bool sendInitialValues = true;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4965,7 +4965,7 @@ namespace Opc.Ua.Client.Tests
             var subscriptionIds = new List<uint>();
             const bool sendInitialValues = true;
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -4995,7 +4995,7 @@ namespace Opc.Ua.Client.Tests
         {
             var browsePaths = Enumerable.Repeat(new BrowsePath(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = 10;
 
@@ -5032,7 +5032,7 @@ namespace Opc.Ua.Client.Tests
         {
             var browsePaths = Enumerable.Repeat(new BrowsePath(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = 10;
 
@@ -5072,7 +5072,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<BrowsePath> browsePaths = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -5095,7 +5095,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<BrowsePath> browsePaths = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -5124,7 +5124,7 @@ namespace Opc.Ua.Client.Tests
         {
             var nodesToUnregister = Enumerable.Repeat(new NodeId(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerRegisterNodes = 10;
 
@@ -5155,7 +5155,7 @@ namespace Opc.Ua.Client.Tests
         {
             var nodesToUnregister = Enumerable.Repeat(new NodeId(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerRegisterNodes = 10;
 
@@ -5191,7 +5191,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<NodeId> nodesToUnregister = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -5219,7 +5219,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<NodeId> nodesToUnregister = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -5249,7 +5249,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<NodeId> nodesToUnregister = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -5274,7 +5274,7 @@ namespace Opc.Ua.Client.Tests
         {
             var nodesToWrite = Enumerable.Repeat(new WriteValue(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerWrite = 10;
 
@@ -5312,7 +5312,7 @@ namespace Opc.Ua.Client.Tests
         {
             var nodesToWrite = Enumerable.Repeat(new WriteValue(), 15).ToArrayOf();
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.OperationLimits.MaxNodesPerWrite = 10;
 
@@ -5352,7 +5352,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<WriteValue> nodesToWrite = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -5378,7 +5378,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<WriteValue> nodesToWrite = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -5408,7 +5408,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<WriteValue> nodesToWrite = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -5433,7 +5433,7 @@ namespace Opc.Ua.Client.Tests
         {
             ArrayOf<WriteValue> nodesToWrite = [];
             CancellationToken ct = CancellationToken.None;
-            var sessionMock = SessionMock.Create();
+            using var sessionMock = SessionMock.Create();
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(

@@ -289,19 +289,21 @@ namespace Opc.Ua.Bindings
                 {
                     if (m_inactivityDetectionTimer != null)
                     {
-                        Utils.SilentDispose(m_inactivityDetectionTimer);
+                        m_inactivityDetectionTimer.Dispose();
                         m_inactivityDetectionTimer = null;
                     }
 
+                    m_activeClientTracker?.Dispose();
+
                     if (m_listeningSocket != null)
                     {
-                        Utils.SilentDispose(m_listeningSocket);
+                        m_listeningSocket?.Dispose();
                         m_listeningSocket = null;
                     }
 
                     if (m_listeningSocketIPv6 != null)
                     {
-                        Utils.SilentDispose(m_listeningSocketIPv6);
+                        m_listeningSocketIPv6?.Dispose();
                         m_listeningSocketIPv6 = null;
                     }
 
@@ -312,7 +314,7 @@ namespace Opc.Ua.Bindings
                         m_channels = null;
                         foreach (KeyValuePair<uint, TcpListenerChannel> channelKeyValue in channels)
                         {
-                            Utils.SilentDispose(channelKeyValue.Value);
+                            channelKeyValue.Value?.Dispose();
                         }
                     }
                 }
@@ -464,8 +466,14 @@ namespace Opc.Ua.Bindings
         {
             if (m_channels?.TryRemove(channelId, out TcpListenerChannel channel) == true)
             {
-                Utils.SilentDispose(channel);
-                m_logger.LogInformation("ChannelId {Id}: closed", channelId);
+                try
+                {
+                    m_logger.LogInformation("ChannelId {Id}: closed", channelId);
+                }
+                finally
+                {
+                    channel?.Dispose();
+                }
             }
             else
             {
@@ -486,23 +494,32 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void CreateReverseConnection(Uri url, int timeout)
         {
-            var channel = new TcpServerChannel(
-                ListenerId,
-                this,
-                m_bufferManager,
-                m_quotas,
-                m_serverCertificateTypesProvider,
-                m_descriptions,
-                m_telemetry);
+            TcpServerChannel channel = null;
+            try
+            {
+                channel = new TcpServerChannel(
+                    ListenerId,
+                    this,
+                    m_bufferManager,
+                    m_quotas,
+                    m_serverCertificateTypesProvider,
+                    m_descriptions,
+                    m_telemetry);
 
-            uint channelId = GetNextChannelId();
-            channel.StatusChanged += Channel_StatusChanged;
-            channel.BeginReverseConnect(
-                channelId,
-                url,
-                OnReverseHelloComplete,
-                channel,
-                Math.Min(timeout, m_quotas.ChannelLifetime));
+                uint channelId = GetNextChannelId();
+                channel.StatusChanged += Channel_StatusChanged;
+                channel.BeginReverseConnect(
+                    channelId,
+                    url,
+                    OnReverseHelloComplete,
+                    channel,
+                    Math.Min(timeout, m_quotas.ChannelLifetime));
+                channel = null; // ownership transferred to async operation
+            }
+            finally
+            {
+                channel?.Dispose();
+            }
         }
 
         private void Channel_StatusChanged(
@@ -561,7 +578,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                Utils.SilentDispose(channel);
+                channel?.Dispose();
             }
         }
 
@@ -608,9 +625,6 @@ namespace Opc.Ua.Bindings
                         NoDelay = true,
                         LingerState = new LingerOption(true, 5)
                     };
-                    var args = new SocketAsyncEventArgs();
-                    args.Completed += OnAccept;
-                    args.UserToken = m_listeningSocket;
                     m_listeningSocket.Bind(endpoint);
                     m_listeningSocket.Listen(kSocketBacklog);
 
@@ -620,9 +634,21 @@ namespace Opc.Ua.Bindings
                         m_inactivityDetectPeriod,
                         m_inactivityDetectPeriod);
 
-                    if (!m_listeningSocket.AcceptAsync(args))
+                    SocketAsyncEventArgs args = null;
+                    try
                     {
-                        OnAccept(null, args);
+                        args = new SocketAsyncEventArgs();
+                        args.Completed += OnAccept;
+                        args.UserToken = m_listeningSocket;
+                        if (!m_listeningSocket.AcceptAsync(args))
+                        {
+                            OnAccept(null, args);
+                        }
+                        args = null; // ownership transferred
+                    }
+                    finally
+                    {
+                        args?.Dispose();
                     }
                 }
                 catch (Exception ex)
@@ -651,14 +677,24 @@ namespace Opc.Ua.Bindings
                             NoDelay = true,
                             LingerState = new LingerOption(true, 5)
                         };
-                        var args = new SocketAsyncEventArgs { UserToken = m_listeningSocketIPv6 };
-                        args.Completed += OnAccept;
-
                         m_listeningSocketIPv6.Bind(endpointIPv6);
                         m_listeningSocketIPv6.Listen(kSocketBacklog);
-                        if (!m_listeningSocketIPv6.AcceptAsync(args))
+
+                        SocketAsyncEventArgs args = null;
+                        try
                         {
-                            OnAccept(null, args);
+                            args = new SocketAsyncEventArgs();
+                            args.Completed += OnAccept;
+                            args.UserToken = m_listeningSocketIPv6;
+                            if (!m_listeningSocketIPv6.AcceptAsync(args))
+                            {
+                                OnAccept(null, args);
+                            }
+                            args = null; // ownership transferred
+                        }
+                        finally
+                        {
+                            args?.Dispose();
                         }
                     }
                     catch (Exception ex)
@@ -732,21 +768,29 @@ namespace Opc.Ua.Bindings
                     "Could not find secure channel request.");
             }
 
-            // notify the application.
-            if (ConnectionWaiting != null)
+            try
             {
-                var args = new TcpConnectionWaitingEventArgs(
-                    serverUri,
-                    endpointUrl,
-                    channel.Socket);
-                await ConnectionWaiting(this, args).ConfigureAwait(false);
-                accepted = args.Accepted;
-            }
+                // notify the application.
+                if (ConnectionWaiting != null)
+                {
+                    var args = new TcpConnectionWaitingEventArgs(
+                        serverUri,
+                        endpointUrl,
+                        channel.Socket);
+                    await ConnectionWaiting(this, args).ConfigureAwait(false);
+                    accepted = args.Accepted;
+                }
 
-            if (!accepted)
+                if (!accepted)
+                {
+                    // add back in for other connection attempt.
+                    m_channels?.TryAdd(channelId, channel);
+                }
+                channel = null; // ownership transferred
+            }
+            finally
             {
-                // add back in for other connection attempt.
-                m_channels?.TryAdd(channelId, channel);
+                channel?.Dispose();
             }
 
             return accepted;
@@ -878,7 +922,7 @@ namespace Opc.Ua.Bindings
                                 "OnAccept: Maximum number of channels {CurrentCount} reached, serving channels is stopped until number is lower or equal than {MaxChannelCount} ",
                                 channelCount,
                                 MaxChannelCount);
-                            Utils.SilentDispose(e.AcceptSocket);
+                            e.AcceptSocket?.Dispose();
                         }
 
                         // check if the accept socket has been created.
@@ -949,7 +993,7 @@ namespace Opc.Ua.Bindings
                             }
                             finally
                             {
-                                Utils.SilentDispose(channel);
+                                channel?.Dispose();
                             }
                         }
                     }
@@ -959,19 +1003,26 @@ namespace Opc.Ua.Bindings
                     if (e.SocketError != SocketError.OperationAborted)
                     {
                         // go back and wait for the next connection.
+                        SocketAsyncEventArgs newArgs = null;
                         try
                         {
-                            e = new SocketAsyncEventArgs();
-                            e.Completed += OnAccept;
-                            e.UserToken = listeningSocket;
-                            if (!listeningSocket.AcceptAsync(e))
+                            newArgs = new SocketAsyncEventArgs();
+                            newArgs.Completed += OnAccept;
+                            newArgs.UserToken = listeningSocket;
+                            if (!listeningSocket.AcceptAsync(newArgs))
                             {
+                                e = newArgs;
                                 repeatAccept = true;
                             }
+                            newArgs = null; // ownership transferred
                         }
                         catch (Exception ex)
                         {
                             m_logger.LogError(ex, "Unexpected error listening for a new connection.");
+                        }
+                        finally
+                        {
+                            newArgs?.Dispose();
                         }
                     }
                 }

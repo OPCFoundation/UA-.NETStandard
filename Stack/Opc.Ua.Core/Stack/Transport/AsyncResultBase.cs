@@ -112,7 +112,7 @@ namespace Opc.Ua
                 // dispose the cancellation token.
                 if (m_cts != null)
                 {
-                    Utils.SilentDispose(m_cts);
+                    m_cts?.Dispose();
                     m_cts = null;
                 }
             }

@@ -62,7 +62,7 @@ namespace Opc.Ua.Types.Tests.State
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            CoreUtils.SilentDispose(m_messageContext);
+            (m_messageContext as IDisposable)?.Dispose();
         }
 
         private static BaseObjectState CreateObjectNode(
@@ -364,7 +364,7 @@ namespace Opc.Ua.Types.Tests.State
         public void AddChildSetsParentAndAddsToChildren()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "Child1");
+            using PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
 
             var children = new List<BaseInstanceState>();
@@ -377,7 +377,7 @@ namespace Opc.Ua.Types.Tests.State
         public void AddChildSetsDefaultReferenceTypeIfNull()
         {
             using BaseObjectState parent = CreateObjectNode();
-            var child = new BaseObjectState(null)
+            using var child = new BaseObjectState(null)
             {
                 BrowseName = QualifiedName.From("OrphanChild"),
                 ReferenceTypeId = NodeId.Null
@@ -391,7 +391,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using BaseObjectState parent = CreateObjectNode();
             parent.ClearChangeMasks(m_context, false);
-            PropertyState child = CreatePropertyChild(parent, "Child1");
+            using PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
             Assert.That(parent.ChangeMasks.HasFlag(NodeStateChangeMasks.Children), Is.True);
         }
@@ -400,7 +400,7 @@ namespace Opc.Ua.Types.Tests.State
         public void RemoveChildRemovesFromParent()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "Child1");
+            using PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
 
             parent.RemoveChild(child);
@@ -414,7 +414,7 @@ namespace Opc.Ua.Types.Tests.State
         public void RemoveChildSetsParentToNull()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "Child1");
+            using PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
 
             parent.RemoveChild(child);
@@ -425,7 +425,7 @@ namespace Opc.Ua.Types.Tests.State
         public void RemoveChildUpdatesChangeMasks()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "Child1");
+            using PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
             parent.ClearChangeMasks(m_context, false);
 
@@ -437,7 +437,7 @@ namespace Opc.Ua.Types.Tests.State
         public void RemoveChildThatDoesNotExistIsNoOp()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "NotAdded");
+            using PropertyState child = CreatePropertyChild(parent, "NotAdded");
             Assert.DoesNotThrow(() => parent.RemoveChild(child));
         }
 
@@ -454,9 +454,9 @@ namespace Opc.Ua.Types.Tests.State
         public void GetChildrenReturnsAllAddedChildren()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child1 = CreatePropertyChild(parent, "P1");
+            using PropertyState child1 = CreatePropertyChild(parent, "P1");
             child1.NodeId = new NodeId(2001, 0);
-            PropertyState child2 = CreatePropertyChild(parent, "P2");
+            using PropertyState child2 = CreatePropertyChild(parent, "P2");
             child2.NodeId = new NodeId(2002, 0);
             parent.AddChild(child1);
             parent.AddChild(child2);
@@ -470,7 +470,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildByBrowseNameFindsExistingChild()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "MyProp");
+            using PropertyState child = CreatePropertyChild(parent, "MyProp");
             parent.AddChild(child);
 
             BaseInstanceState found = parent.FindChild(m_context, QualifiedName.From("MyProp"));
@@ -490,7 +490,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildByBrowsePathReturnsCorrectChild()
         {
             using BaseObjectState root = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(root, "Level1");
+            using PropertyState child = CreatePropertyChild(root, "Level1");
             root.AddChild(child);
 
             var path = new List<QualifiedName> { QualifiedName.From("Level1") };
@@ -520,7 +520,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameFindsChild()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "SymChild");
+            using PropertyState child = CreatePropertyChild(parent, "SymChild");
             child.SymbolicName = "SymChild";
             parent.AddChild(child);
 
@@ -549,7 +549,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameStripsLeadingSlashes()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "Child1");
+            using PropertyState child = CreatePropertyChild(parent, "Child1");
             child.SymbolicName = "Child1";
             parent.AddChild(child);
 
@@ -569,7 +569,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameNavigatesNestedPath()
         {
             using BaseObjectState root = CreateObjectNode();
-            var intermediate = new BaseObjectState(root)
+            using var intermediate = new BaseObjectState(root)
             {
                 NodeId = new NodeId(5001, 0),
                 BrowseName = QualifiedName.From("Mid"),
@@ -577,7 +577,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             root.AddChild(intermediate);
 
-            PropertyState leaf = CreatePropertyChild(intermediate, "Leaf");
+            using PropertyState leaf = CreatePropertyChild(intermediate, "Leaf");
             leaf.SymbolicName = "Leaf";
             intermediate.AddChild(leaf);
 
@@ -598,10 +598,10 @@ namespace Opc.Ua.Types.Tests.State
         public void ReplaceChildReplacesExistingChild()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState original = CreatePropertyChild(parent, "Prop");
+            using PropertyState original = CreatePropertyChild(parent, "Prop");
             parent.AddChild(original);
 
-            PropertyState replacement = CreatePropertyChild(parent, "Prop");
+            using PropertyState replacement = CreatePropertyChild(parent, "Prop");
             replacement.NodeId = new NodeId(9001, 0);
             parent.ReplaceChild(m_context, replacement);
 
@@ -623,7 +623,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ReplaceChildThrowsForChildWithNullBrowseName()
         {
             using BaseObjectState parent = CreateObjectNode();
-            var child = new BaseObjectState(parent);
+            using var child = new BaseObjectState(parent);
             Assert.Throws<ArgumentException>(() => parent.ReplaceChild(m_context, child));
         }
 
@@ -891,7 +891,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ClearChangeMasksRecursivelyClearsChildren()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "Child");
+            using PropertyState child = CreatePropertyChild(parent, "Child");
             parent.AddChild(child);
             child.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
 
@@ -1061,7 +1061,7 @@ namespace Opc.Ua.Types.Tests.State
         public void CloneCopiesChildren()
         {
             using BaseObjectState original = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(original, "P1");
+            using PropertyState child = CreatePropertyChild(original, "P1");
             original.AddChild(child);
 
             using var clone = (BaseObjectState)original.Clone();
@@ -1087,7 +1087,7 @@ namespace Opc.Ua.Types.Tests.State
         public void CloneChildrenAreIndependentOfOriginal()
         {
             using BaseObjectState original = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(original, "Child1");
+            using PropertyState child = CreatePropertyChild(original, "Child1");
             original.AddChild(child);
 
             using var clone = (BaseObjectState)original.Clone();
@@ -1102,14 +1102,14 @@ namespace Opc.Ua.Types.Tests.State
         public void GetHierarchyRootReturnsRootForNestedChild()
         {
             using BaseObjectState root = CreateObjectNode();
-            var mid = new BaseObjectState(root)
+            using var mid = new BaseObjectState(root)
             {
                 NodeId = new NodeId(5001, 0),
                 BrowseName = QualifiedName.From("Mid")
             };
             root.AddChild(mid);
 
-            PropertyState leaf = CreatePropertyChild(mid, "Leaf");
+            using PropertyState leaf = CreatePropertyChild(mid, "Leaf");
             mid.AddChild(leaf);
 
             NodeState hierarchyRoot = leaf.GetHierarchyRoot();
@@ -1176,7 +1176,7 @@ namespace Opc.Ua.Types.Tests.State
         public void SetAreEventsMonitoredPropagatesIncludeChildren()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "C1");
+            using PropertyState child = CreatePropertyChild(parent, "C1");
             parent.AddChild(child);
 
             parent.SetAreEventsMonitored(m_context, true, true);
@@ -1286,7 +1286,7 @@ namespace Opc.Ua.Types.Tests.State
         public void DeleteRecursivelyDeletesChildren()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "Child1");
+            using PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
 
             NodeStateChangeMasks childCapture = NodeStateChangeMasks.None;
@@ -2007,7 +2007,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ExportWithChildrenIncludesChildrenInTable()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "ExportChild");
+            using PropertyState child = CreatePropertyChild(parent, "ExportChild");
             parent.AddChild(child);
 
             var table = new NodeTable(
@@ -2043,7 +2043,7 @@ namespace Opc.Ua.Types.Tests.State
         public void SaveAndLoadAsBinaryWithChildrenRoundTrips()
         {
             using BaseObjectState original = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(original, "BinChild");
+            using PropertyState child = CreatePropertyChild(original, "BinChild");
             original.AddChild(child);
 
             using var stream = new MemoryStream();
@@ -2271,7 +2271,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ConditionRefreshRecursesIntoChildren()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "C1");
+            using PropertyState child = CreatePropertyChild(parent, "C1");
             parent.AddChild(child);
 
             bool childInvoked = false;
@@ -2294,7 +2294,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindMethodReturnsMethodByNodeId()
         {
             using BaseObjectState parent = CreateObjectNode();
-            var method = new MethodState(parent)
+            using var method = new MethodState(parent)
             {
                 NodeId = new NodeId(3001, 0),
                 BrowseName = QualifiedName.From("MyMethod")
@@ -2310,7 +2310,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindMethodReturnsNullForNonMatchingId()
         {
             using BaseObjectState parent = CreateObjectNode();
-            var method = new MethodState(parent)
+            using var method = new MethodState(parent)
             {
                 NodeId = new NodeId(3001, 0),
                 BrowseName = QualifiedName.From("MyMethod")
@@ -2350,7 +2350,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ReadChildAttributeReadsNestedChild()
         {
             using BaseObjectState root = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(root, "ChildProp");
+            using PropertyState child = CreatePropertyChild(root, "ChildProp");
             root.AddChild(child);
 
             var relativePath = new List<QualifiedName> { QualifiedName.From("ChildProp") };
@@ -2366,7 +2366,7 @@ namespace Opc.Ua.Types.Tests.State
         public void GetInstanceHierarchyBuildsPathForChildren()
         {
             using BaseObjectState root = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(root, "Child1");
+            using PropertyState child = CreatePropertyChild(root, "Child1");
             child.SymbolicName = "Child1";
             child.NodeId = new NodeId(2001, 0);
             root.AddChild(child);
@@ -2382,7 +2382,7 @@ namespace Opc.Ua.Types.Tests.State
         public void GetInstanceHierarchyBuildsNestedPaths()
         {
             using BaseObjectState root = CreateObjectNode();
-            var mid = new BaseObjectState(root)
+            using var mid = new BaseObjectState(root)
             {
                 NodeId = new NodeId(5001, 0),
                 BrowseName = QualifiedName.From("Mid"),
@@ -2390,7 +2390,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             root.AddChild(mid);
 
-            PropertyState leaf = CreatePropertyChild(mid, "Leaf");
+            using PropertyState leaf = CreatePropertyChild(mid, "Leaf");
             leaf.SymbolicName = "Leaf";
             leaf.NodeId = new NodeId(5002, 0);
             mid.AddChild(leaf);
@@ -2512,9 +2512,9 @@ namespace Opc.Ua.Types.Tests.State
         public void MultipleChildrenWithSameBrowseNameFindReturnsFirst()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child1 = CreatePropertyChild(parent, "Dup");
+            using PropertyState child1 = CreatePropertyChild(parent, "Dup");
             child1.NodeId = new NodeId(3001, 0);
-            PropertyState child2 = CreatePropertyChild(parent, "Dup");
+            using PropertyState child2 = CreatePropertyChild(parent, "Dup");
             child2.NodeId = new NodeId(3002, 0);
             parent.AddChild(child1);
             parent.AddChild(child2);
@@ -2552,7 +2552,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ReplaceChildAddsChildIfBrowseNameNotFound()
         {
             using BaseObjectState parent = CreateObjectNode();
-            PropertyState child = CreatePropertyChild(parent, "NewChild");
+            using PropertyState child = CreatePropertyChild(parent, "NewChild");
             parent.ReplaceChild(m_context, child);
 
             var children = new List<BaseInstanceState>();
@@ -2564,14 +2564,14 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBrowsePathNavigatesMultipleLevels()
         {
             using BaseObjectState root = CreateObjectNode();
-            var mid = new BaseObjectState(root)
+            using var mid = new BaseObjectState(root)
             {
                 NodeId = new NodeId(5001, 0),
                 BrowseName = QualifiedName.From("Mid")
             };
             root.AddChild(mid);
 
-            PropertyState leaf = CreatePropertyChild(mid, "Leaf");
+            using PropertyState leaf = CreatePropertyChild(mid, "Leaf");
             mid.AddChild(leaf);
 
             var path = new List<QualifiedName> {

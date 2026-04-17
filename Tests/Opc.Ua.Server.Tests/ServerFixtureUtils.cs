@@ -143,11 +143,12 @@ namespace Opc.Ua.Server.Tests
             CancellationToken ct)
         {
             // close session
+            using var requestLifetime = new RequestLifetime(ct);
             CloseSessionResponse response = await server.CloseSessionAsync(
                 secureChannelContext,
                 requestHeader,
                 true,
-                new RequestLifetime(ct)).ConfigureAwait(false);
+                requestLifetime).ConfigureAwait(false);
             ValidateResponse(response.ResponseHeader);
         }
 

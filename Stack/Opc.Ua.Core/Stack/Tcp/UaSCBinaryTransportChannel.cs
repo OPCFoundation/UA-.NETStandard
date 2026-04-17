@@ -218,7 +218,7 @@ namespace Opc.Ua.Bindings
                             e,
                             "Exception while closing old channel during Reconnect.");
                     }
-                    Utils.SilentDispose(previousChannel);
+                    previousChannel?.Dispose();
                 }
             }
         }

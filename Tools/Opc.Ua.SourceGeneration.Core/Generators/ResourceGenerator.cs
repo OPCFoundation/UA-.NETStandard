@@ -313,17 +313,19 @@ namespace Opc.Ua.SourceGeneration
 
         private void WriteTextResource(ILoadContext context, Resource resource)
         {
-            TextReader reader = GetResourceTextReader(context, out bool leaveOpen);
+            TextReader reader = null;
             try
             {
+                reader = GetResourceTextReader(context, out bool leaveOpen);
                 WriteAsUtf8StringLiteral(context, reader);
+                if (leaveOpen)
+                {
+                    reader = null;
+                }
             }
             finally
             {
-                if (!leaveOpen)
-                {
-                    reader.Dispose();
-                }
+                reader?.Dispose();
             }
 
             TextReader GetResourceTextReader(ILoadContext context, out bool leaveOpen)

@@ -568,7 +568,6 @@ namespace Opc.Ua.Bindings
             try
             {
                 m_oscRequestSignature = null;
-                byte[] signature;
 
                 messageBody = ReadAsymmetricMessage(
                     messageChunk,
@@ -577,18 +576,11 @@ namespace Opc.Ua.Bindings
                     out clientCertificate,
                     out requestId,
                     out sequenceNumber,
-                    m_oscRequestSignature,
-                    out signature);
+                    null,
+                    out byte[] signature);
 
                 // don't keep signature if secure channel enhancements are not used.
-                m_oscRequestSignature = (SecurityPolicy.SecureChannelEnhancements) ? signature : null;
-
-                CryptoTrace.Start(ConsoleColor.Magenta, $"ProcessOpenSecureChannelRequest ({(State != TcpChannelState.Opening ? "RENEW" : "OPEN")})");
-                CryptoTrace.WriteLine($"ClientCertificate={clientCertificate?.Thumbprint}");
-                CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
-                CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(signature)}");
-                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(ChannelThumbprint)}");
-                CryptoTrace.Finish("ProcessOpenSecureChannelRequest");
+                m_oscRequestSignature = SecurityPolicy.SecureChannelEnhancements ? signature : null;
 
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelRequest"))
@@ -673,9 +665,10 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
+                using var openRequestStream = new ArraySegmentStream(chunksToProcess);
                 request =
                     BinaryDecoder.DecodeMessage<OpenSecureChannelRequest>(
-                        new ArraySegmentStream(chunksToProcess),
+                        openRequestStream,
                         Quotas.MessageContext) ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadStructureMissing,
@@ -691,12 +684,6 @@ namespace Opc.Ua.Bindings
                 token = CreateToken();
                 token.TokenId = GetNewTokenId();
                 token.ServerNonce = CreateNonce(ServerCertificate);
-
-                CryptoTrace.Start(ConsoleColor.Red, $"PreviousSecret");
-                CryptoTrace.WriteLine($"PreviousSecret={CryptoTrace.KeyToString(token.PreviousSecret)}");
-                CryptoTrace.WriteLine($"CurrentSecret={CryptoTrace.KeyToString(CurrentToken?.Secret)}");
-                CryptoTrace.Finish($"PreviousSecret");
-
                 token.PreviousSecret = CurrentToken?.Secret;
 
                 // check the client nonce.
@@ -840,7 +827,7 @@ namespace Opc.Ua.Bindings
                 // report the audit event for open secure channel
                 ReportAuditOpenSecureChannelEvent?.Invoke(this, request, ClientCertificate, e);
 
-                SendServiceFault(                    
+                SendServiceFault(
                     requestId,
                     State == TcpChannelState.Open,
                     ServiceResult.Create(
@@ -853,7 +840,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                Utils.SilentDispose(token);
+                token?.Dispose();
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelRequest");
             }
         }
@@ -916,9 +903,6 @@ namespace Opc.Ua.Bindings
 
                 // serialize fault.
                 byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
-                byte[] signature = null;
-
-                CryptoTrace.WriteLine($"messageBody={CryptoTrace.KeyToString(buffer)}");
 
                 // secure message.
                 chunksToSend = WriteAsymmetricMessage(
@@ -929,7 +913,7 @@ namespace Opc.Ua.Bindings
                     ClientCertificate,
                     new ArraySegment<byte>(buffer, 0, buffer.Length),
                     !renew ? m_oscRequestSignature : null,
-                    out signature);
+                    out byte[] signature);
 
                 // write the message to the server.
                 BeginWriteMessage(chunksToSend, null);
@@ -984,7 +968,6 @@ namespace Opc.Ua.Bindings
             response.ServerNonce = token.ServerNonce.ToByteString();
 
             byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
-            byte[] signature;
 
             BufferCollection chunksToSend = WriteAsymmetricMessage(
                 TcpMessageType.Open,
@@ -994,20 +977,12 @@ namespace Opc.Ua.Bindings
                 ClientCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length),
                 !renew ? m_oscRequestSignature : null,
-                out signature);
+                out byte[] signature);
 
             if (!renew)
             {
                 ChannelThumbprint = signature;
             }
-
-            CryptoTrace.Start(ConsoleColor.Magenta, $"SendOpenSecureChannelResponse ({(renew ? "RENEW" : "OPEN")})");
-            CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
-            CryptoTrace.WriteLine($"ClientCertificate={ClientCertificate?.Thumbprint}");
-            CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(m_oscRequestSignature)}");
-            CryptoTrace.WriteLine($"ResponseSignature={CryptoTrace.KeyToString(signature)}");
-            CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(ChannelThumbprint)}");
-            CryptoTrace.Finish("SendOpenSecureChannelResponse");
 
             // write the response to the client.
             try
@@ -1081,9 +1056,10 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
+                using var closeRequestStream = new ArraySegmentStream(chunksToProcess);
                 CloseSecureChannelRequest request =
                     BinaryDecoder.DecodeMessage<CloseSecureChannelRequest>(
-                        new ArraySegmentStream(chunksToProcess),
+                        closeRequestStream,
                         Quotas.MessageContext);
                 if (request == null)
                 {
@@ -1270,8 +1246,9 @@ namespace Opc.Ua.Bindings
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 // decode the request.
+                using var serviceRequestStream = new ArraySegmentStream(chunksToProcess);
                 IServiceRequest request = BinaryDecoder.DecodeMessage<IServiceRequest>(
-                    new ArraySegmentStream(chunksToProcess),
+                    serviceRequestStream,
                     Quotas.MessageContext);
                 if (request == null)
                 {

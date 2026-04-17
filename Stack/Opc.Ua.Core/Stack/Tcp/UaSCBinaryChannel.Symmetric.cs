@@ -89,7 +89,7 @@ namespace Opc.Ua.Bindings
             // compute the keys for the token.
             ComputeKeys(token);
 
-            Utils.SilentDispose(PreviousToken);
+            PreviousToken?.Dispose();
             PreviousToken = CurrentToken;
             CurrentToken = token;
             RenewedToken = null;
@@ -110,7 +110,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SetRenewedToken(ChannelToken token)
         {
-            Utils.SilentDispose(RenewedToken);
+            RenewedToken?.Dispose();
             RenewedToken = token;
             m_logger.LogInformation(
                 "ChannelId {Id}: Renewed Token #{TokenId} set. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
@@ -126,11 +126,11 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void DiscardTokens()
         {
-            Utils.SilentDispose(PreviousToken);
+            PreviousToken?.Dispose();
             PreviousToken = null;
-            Utils.SilentDispose(CurrentToken);
+            CurrentToken?.Dispose();
             CurrentToken = null;
-            Utils.SilentDispose(RenewedToken);
+            RenewedToken?.Dispose();
             RenewedToken = null;
 
             OnTokenActivated?.Invoke(null, null);
@@ -179,7 +179,7 @@ namespace Opc.Ua.Bindings
             {
                 length += hmac.HashSize/8;
             }
-      
+
             byte[] output = Utils.PSHA(hmac, null, seed, 0, length);
 
             byte[] signingKey = new byte[m_signatureKeySize];
@@ -212,8 +212,6 @@ namespace Opc.Ua.Bindings
             bool isServer,
             int length)
         {
-            CryptoTrace.WriteLine($"DeriveKeys for {((isServer) ? "SERVER" : "CLIENT")}");
-
             byte[] keyData = m_localNonce.DeriveKeyData(
                 token.Secret,
                 salt,
@@ -281,23 +279,9 @@ namespace Opc.Ua.Bindings
                         clientSecret);
 
                     DeriveKeysWithHKDF(token, serverSalt, true, token.SecurityPolicy.ServerKeyDataLength);
-
-                    CryptoTrace.Start(ConsoleColor.Green, $"ComputeKeys (TokenId={token.TokenId})");
-                    CryptoTrace.WriteLine($"IKM={CryptoTrace.KeyToString(token.Secret)}");
-                    CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverSecret)}");
-                    CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientSecret)}");
-                    CryptoTrace.WriteLine($"ServerSalt={CryptoTrace.KeyToString(serverSalt)}");
-                    CryptoTrace.WriteLine($"ServerEncryptingKey={CryptoTrace.KeyToString(token.ServerEncryptingKey)}");
-                    CryptoTrace.WriteLine($"ServerInitializationVector={CryptoTrace.KeyToString(token.ServerInitializationVector)}");
-                    CryptoTrace.WriteLine($"ClientEncryptingKey={CryptoTrace.KeyToString(token.ClientEncryptingKey)}");
-                    CryptoTrace.WriteLine($"ClientInitializationVector={CryptoTrace.KeyToString(token.ClientInitializationVector)}");
-                    CryptoTrace.Finish("ComputeKeys");
                     break;
                 }
-
                 default:
-                case KeyDerivationAlgorithm.PSha1:
-                case KeyDerivationAlgorithm.PSha256:
                     HashAlgorithmName algorithmName = token.SecurityPolicy.GetKeyDerivationHashAlgorithmName();
                     DeriveKeysWithPSHA(algorithmName, serverSecret, clientSecret, token, false);
                     DeriveKeysWithPSHA(algorithmName, clientSecret, serverSecret, token, true);
@@ -343,7 +327,7 @@ namespace Opc.Ua.Bindings
                     TcpMessageLimits.SequenceHeaderSize;
 
                 // write the body to stream.
-                var ostrm = new ArraySegmentStream(
+                using var ostrm = new ArraySegmentStream(
                     BufferManager,
                     SendBufferSize,
                     headerSize,

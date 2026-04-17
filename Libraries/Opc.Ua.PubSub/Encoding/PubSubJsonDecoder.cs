@@ -266,7 +266,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_reader);
+                (m_reader as IDisposable)?.Dispose();
                 m_reader = null;
             }
         }

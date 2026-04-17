@@ -64,7 +64,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void HasAuthorizationThrowsWhenUserLacksRequiredRole()
         {
-            var identity = new UserIdentity("user", s_passwordBytes);
+            using var identity = new UserIdentity("user", s_passwordBytes);
             var context = new SessionSystemContext(m_telemetry)
             {
                 UserIdentity = identity,
@@ -82,7 +82,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void HasAuthorizationSucceedsWhenUserHasDiscoveryAdminRole()
         {
-            var innerIdentity = new UserIdentity("admin", s_passwordBytes);
+            using var innerIdentity = new UserIdentity("admin", s_passwordBytes);
             var roles = new List<Role> { GdsRole.DiscoveryAdmin };
             var identity = new GdsRoleBasedIdentity(innerIdentity, roles, m_namespaceTable);
 
@@ -102,7 +102,7 @@ namespace Opc.Ua.Gds.Tests
         public void HasAuthorizationSucceedsWithSelfAdminForOwnApplication()
         {
             var appId = new NodeId(99);
-            var innerIdentity = new UserIdentity("appuser", s_passwordBytes);
+            using var innerIdentity = new UserIdentity("appuser", s_passwordBytes);
             var roles = new List<Role> { Role.AuthenticatedUser };
             var identity = new GdsRoleBasedIdentity(innerIdentity, roles, appId, m_namespaceTable);
 
@@ -124,7 +124,7 @@ namespace Opc.Ua.Gds.Tests
         {
             var ownAppId = new NodeId(99);
             var otherAppId = new NodeId(100);
-            var innerIdentity = new UserIdentity("appuser", s_passwordBytes);
+            using var innerIdentity = new UserIdentity("appuser", s_passwordBytes);
             var roles = new List<Role> { Role.AuthenticatedUser };
             var identity = new GdsRoleBasedIdentity(innerIdentity, roles, ownAppId, m_namespaceTable);
 
@@ -147,7 +147,7 @@ namespace Opc.Ua.Gds.Tests
         public void HasAuthorizationThrowsWithSelfAdminAndNullApplicationId()
         {
             var appId = new NodeId(99);
-            var innerIdentity = new UserIdentity("appuser", s_passwordBytes);
+            using var innerIdentity = new UserIdentity("appuser", s_passwordBytes);
             var roles = new List<Role> { Role.AuthenticatedUser };
             var identity = new GdsRoleBasedIdentity(innerIdentity, roles, appId, m_namespaceTable);
 
@@ -169,7 +169,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void HasAuthorizationThrowsForAnonymousUser()
         {
-            var identity = new UserIdentity();
+            using var identity = new UserIdentity();
             var context = new SessionSystemContext(m_telemetry)
             {
                 UserIdentity = identity,
@@ -187,7 +187,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void HasAuthorizationSucceedsWithCertificateAuthorityAdminRole()
         {
-            var innerIdentity = new UserIdentity("caadmin", s_passwordBytes);
+            using var innerIdentity = new UserIdentity("caadmin", s_passwordBytes);
             var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin };
             var identity = new GdsRoleBasedIdentity(innerIdentity, roles, m_namespaceTable);
 
@@ -301,7 +301,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void HasAuthorizationSucceedsWithAuthenticatedUserRole()
         {
-            var innerIdentity = new UserIdentity("user", s_passwordBytes);
+            using var innerIdentity = new UserIdentity("user", s_passwordBytes);
             var roles = new List<Role> { Role.AuthenticatedUser };
             var identity = new RoleBasedIdentity(innerIdentity, roles, m_namespaceTable);
 
@@ -320,7 +320,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void HasAuthorizationThrowsWhenNonSelfAdminIdentityAccessesSelfAdminOnlyList()
         {
-            var innerIdentity = new UserIdentity("user", s_passwordBytes);
+            using var innerIdentity = new UserIdentity("user", s_passwordBytes);
             var roles = new List<Role> { Role.Observer };
             var identity = new RoleBasedIdentity(innerIdentity, roles, m_namespaceTable);
 
@@ -342,7 +342,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void HasAuthorizationWithCertAuthorityAdminOrSelfAdminSucceedsForCaAdmin()
         {
-            var innerIdentity = new UserIdentity("caadmin", s_passwordBytes);
+            using var innerIdentity = new UserIdentity("caadmin", s_passwordBytes);
             var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin };
             var identity = new GdsRoleBasedIdentity(innerIdentity, roles, m_namespaceTable);
 

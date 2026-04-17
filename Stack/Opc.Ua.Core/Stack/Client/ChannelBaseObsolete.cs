@@ -267,7 +267,7 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                Utils.SilentDispose(Channel);
+                Channel?.Dispose();
                 Channel = null;
             }
         }
