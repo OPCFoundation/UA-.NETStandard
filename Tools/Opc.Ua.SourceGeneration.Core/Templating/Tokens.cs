@@ -64,6 +64,7 @@ namespace Opc.Ua.SourceGeneration
         public static string DictionaryUri => nameof(DictionaryUri);
         public static string Documentation => nameof(Documentation);
         public static string EmitDefaultValue => nameof(EmitDefaultValue);
+        public static string EncodingMaskModifier => nameof(EncodingMaskModifier);
         public static string EnumerationName => nameof(EnumerationName);
         public static string EventNotifier => nameof(EventNotifier);
         public static string FieldIndex => nameof(FieldIndex);

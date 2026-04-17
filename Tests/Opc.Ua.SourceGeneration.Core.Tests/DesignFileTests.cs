@@ -66,7 +66,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             // Arrange
             var collection = new DesignFileCollection
             {
-                DesignFiles = null,
+                Targets = null,
                 IdentifierFilePath = null,
                 Options = null
             };
@@ -83,7 +83,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             // Arrange
             var collection = new DesignFileCollection
             {
-                DesignFiles = [],
+                Targets = [],
                 IdentifierFilePath = null,
                 Options = null
             };
@@ -108,7 +108,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles =
+                Targets =
                 [
                     designFile
                 ],
@@ -120,9 +120,9 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Count.EqualTo(1));
-            Assert.That(result[0].DesignFiles, Is.Not.Null);
-            Assert.That(result[0].DesignFiles, Has.Count.EqualTo(1));
-            Assert.That(result[0].DesignFiles[0], Is.EqualTo(designFile));
+            Assert.That(result[0].Targets, Is.Not.Null);
+            Assert.That(result[0].Targets, Has.Count.EqualTo(1));
+            Assert.That(result[0].Targets[0], Is.EqualTo(designFile));
             Assert.That(result[0].IdentifierFilePath, Is.EqualTo("global.csv"));
             Assert.That(result[0].Options, Is.EqualTo(options));
         }
@@ -147,7 +147,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = "fallback.csv",
                 Options = options
             };
@@ -156,9 +156,9 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Count.EqualTo(1));
-            Assert.That(result[0].DesignFiles, Is.Not.Null);
-            Assert.That(result[0].DesignFiles, Has.Count.EqualTo(3));
-            Assert.That(result[0].DesignFiles, Is.EquivalentTo(designFiles));
+            Assert.That(result[0].Targets, Is.Not.Null);
+            Assert.That(result[0].Targets, Has.Count.EqualTo(3));
+            Assert.That(result[0].Targets, Is.EquivalentTo(designFiles));
             Assert.That(result[0].IdentifierFilePath, Is.EqualTo("fallback.csv"));
             Assert.That(result[0].Options, Is.EqualTo(options));
         }
@@ -185,7 +185,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = "default.csv",
                 Options = options
             };
@@ -196,8 +196,8 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             Assert.That(result, Has.Count.EqualTo(3));
             foreach (DesignFileCollection group in result)
             {
-                Assert.That(group.DesignFiles, Is.Not.Null);
-                Assert.That(group.DesignFiles, Has.Count.EqualTo(1));
+                Assert.That(group.Targets, Is.Not.Null);
+                Assert.That(group.Targets, Has.Count.EqualTo(1));
                 Assert.That(group.IdentifierFilePath, Is.EqualTo("default.csv"));
                 Assert.That(group.Options, Is.EqualTo(options));
             }
@@ -217,7 +217,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = "collection_identifier.csv",
                 Options = null
             };
@@ -243,7 +243,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = "fallback.csv",
                 Options = null
             };
@@ -274,7 +274,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = "fallback.csv",
                 Options = null
             };
@@ -306,7 +306,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = "fallback.csv",
                 Options = null
             };
@@ -337,7 +337,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = "fallback.csv",
                 Options = null
             };
@@ -372,7 +372,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = "fallback.csv",
                 Options = null
             };
@@ -381,13 +381,13 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Count.EqualTo(3));
-            DesignFileCollection group1 = result.FirstOrDefault(g => g.DesignFiles.Contains(Path.Combine(dir1, "Design1.xml")));
+            DesignFileCollection group1 = result.FirstOrDefault(g => g.Targets.Contains(Path.Combine(dir1, "Design1.xml")));
             Assert.That(group1, Is.Not.Null);
             Assert.That(group1.IdentifierFilePath, Is.EqualTo(Path.Combine(dir1, "id1.csv")));
-            DesignFileCollection group2 = result.FirstOrDefault(g => g.DesignFiles.Contains(Path.Combine(dir2, "Design2.xml")));
+            DesignFileCollection group2 = result.FirstOrDefault(g => g.Targets.Contains(Path.Combine(dir2, "Design2.xml")));
             Assert.That(group2, Is.Not.Null);
             Assert.That(group2.IdentifierFilePath, Is.EqualTo("fallback.csv"));
-            DesignFileCollection group3 = result.FirstOrDefault(g => g.DesignFiles.Contains(Path.Combine(dir3, "Design3.xml")));
+            DesignFileCollection group3 = result.FirstOrDefault(g => g.Targets.Contains(Path.Combine(dir3, "Design3.xml")));
             Assert.That(group3, Is.Not.Null);
             Assert.That(group3.IdentifierFilePath, Is.EqualTo(Path.Combine(dir3, "id3.csv")));
         }
@@ -421,7 +421,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = "global_fallback.csv",
                 Options = options
             };
@@ -430,14 +430,14 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Count.EqualTo(2));
-            DesignFileCollection group1 = result.FirstOrDefault(g => g.DesignFiles.Contains(Path.Combine(dir1, "DesignA.xml")));
+            DesignFileCollection group1 = result.FirstOrDefault(g => g.Targets.Contains(Path.Combine(dir1, "DesignA.xml")));
             Assert.That(group1, Is.Not.Null);
-            Assert.That(group1.DesignFiles, Has.Count.EqualTo(2));
+            Assert.That(group1.Targets, Has.Count.EqualTo(2));
             Assert.That(group1.IdentifierFilePath, Is.EqualTo("global_fallback.csv"));
             Assert.That(group1.Options, Is.EqualTo(options));
-            DesignFileCollection group2 = result.FirstOrDefault(g => g.DesignFiles.Contains(Path.Combine(dir2, "DesignC.xml")));
+            DesignFileCollection group2 = result.FirstOrDefault(g => g.Targets.Contains(Path.Combine(dir2, "DesignC.xml")));
             Assert.That(group2, Is.Not.Null);
-            Assert.That(group2.DesignFiles, Has.Count.EqualTo(3));
+            Assert.That(group2.Targets, Has.Count.EqualTo(3));
             Assert.That(group2.IdentifierFilePath, Is.EqualTo(Path.Combine(dir2, "identifiers_dir2.csv")));
             Assert.That(group2.Options, Is.EqualTo(options));
         }
@@ -456,7 +456,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = null,
                 Options = null
             };
@@ -482,7 +482,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = string.Empty,
                 Options = null
             };
@@ -509,7 +509,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = "default.csv",
                 Options = null
             };
@@ -542,7 +542,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var collection = new DesignFileCollection
             {
-                DesignFiles = designFiles,
+                Targets = designFiles,
                 IdentifierFilePath = "test.csv",
                 Options = options
             };
