@@ -56,7 +56,7 @@ namespace Opc.Ua.SourceGeneration
             bool useAllowSubtypes = false,
             List<string> identifierFiles = null)
         {
-            if (designFiles.DesignFiles.Count == 0)
+            if (designFiles.Targets == null || designFiles.Targets.Count == 0)
             {
                 return;
             }
@@ -126,7 +126,7 @@ namespace Opc.Ua.SourceGeneration
                 IModelDesign modelDesign = fileSystem.OpenModelDesign(
                     new DesignFileCollection
                     {
-                        DesignFiles = designFilesForModel
+                        Targets = designFilesForModel
                     },
                     options.Exclusions,
                     telemetry,
@@ -170,7 +170,7 @@ namespace Opc.Ua.SourceGeneration
             IModelDesign modelDesign = fileSystem.OpenModelDesign(
                 new DesignFileCollection
                 {
-                    DesignFiles =
+                    Targets =
                     [
                         BuiltInDesignFiles.StandardTypesXml,
                         BuiltInDesignFiles.UACoreServicesXml

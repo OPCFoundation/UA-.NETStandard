@@ -205,7 +205,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             using var fileSystem = new VirtualFileSystem();
             Generators.GenerateCode(new DesignFileCollection
             {
-                DesignFiles = [Path.Combine(
+                Targets = [Path.Combine(
                     Directory.GetCurrentDirectory(),
                     "Resources",
                     modelDesignFile)],
