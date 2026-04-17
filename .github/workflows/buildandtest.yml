@@ -2,6 +2,7 @@ name: Build and Test .NET 10.0
 
 on:
   push:
+    branches: [ master, main, develop/* ]
   pull_request:
     branches: [ master, main, develop/* ]
     paths:
