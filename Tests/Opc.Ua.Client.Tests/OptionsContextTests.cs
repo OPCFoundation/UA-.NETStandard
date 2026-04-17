@@ -363,10 +363,10 @@ namespace Opc.Ua.Client.Tests
             var state = new SessionState();
 
             Assert.That(state.Timestamp, Is.Not.EqualTo(default(System.DateTime)));
-            Assert.That(state.ServerNonce, Is.Null);
+            Assert.That(state.ServerNonce.IsNull, Is.True);
             Assert.That(state.UserIdentityTokenPolicy, Is.Null);
-            Assert.That(state.ServerEccEphemeralKey, Is.Null);
-            Assert.That(state.Subscriptions, Is.Null);
+            Assert.That(state.ServerEccEphemeralKey.IsNull, Is.True);
+            Assert.That(state.Subscriptions.IsEmpty, Is.True);
         }
 
         [Test]

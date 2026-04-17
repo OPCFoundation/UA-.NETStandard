@@ -717,7 +717,7 @@ namespace Opc.Ua.Client.Tests
 
             // Verify that the triggering relationships are persisted
             MonitoredItemState triggeringItemState = state.MonitoredItems
-                .FirstOrDefault(m => m.ClientId == triggeringItem.ClientHandle);
+                .Memory.ToArray().First(m => m.ClientId == triggeringItem.ClientHandle);
             Assert.That(triggeringItemState, Is.Not.Null);
             Assert.That(triggeringItemState.TriggeredItems.IsNull, Is.False);
             Assert.That(triggeringItemState.TriggeredItems.Count, Is.EqualTo(2));

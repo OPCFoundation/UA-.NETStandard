@@ -30,15 +30,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Serialization;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
     /// State object that is used for snapshotting the subscription state
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public record class SubscriptionState : SubscriptionOptions
+    [DataType(Namespace = Namespaces.OpcUaXsd)]
+    public partial record class SubscriptionState : SubscriptionOptions
     {
         /// <summary>
         /// Create subscription state
@@ -60,41 +59,37 @@ namespace Opc.Ua.Client
         /// Allows the list of monitored items to be saved/restored
         /// when the object is serialized.
         /// </summary>
-        [DataMember(Order = 11)]
-        public required MonitoredItemStateCollection MonitoredItems { get; init; }
+        [DataTypeField(Order = 11, StructureHandling = StructureHandling.Inline)]
+        public ArrayOf<MonitoredItemState> MonitoredItems { get; set; }
 
         /// <summary>
         /// The current publishing interval.
         /// </summary>
-        [DataMember(Order = 20)]
-        public double CurrentPublishingInterval { get; init; }
+        [DataTypeField(Order = 20)]
+        public double CurrentPublishingInterval { get; set; }
 
         /// <summary>
         /// The current keep alive count.
         /// </summary>
-        [DataMember(Order = 21)]
-        public uint CurrentKeepAliveCount { get; init; }
+        [DataTypeField(Order = 21)]
+        public uint CurrentKeepAliveCount { get; set; }
 
         /// <summary>
         /// The current lifetime count.
         /// </summary>
-        [DataMember(Order = 22)]
-        public uint CurrentLifetimeCount { get; init; }
+        [DataTypeField(Order = 22)]
+        public uint CurrentLifetimeCount { get; set; }
 
         /// <summary>
         /// When the state was created.
         /// </summary>
-        [DataMember(Order = 23)]
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        [DataTypeField(Order = 23)]
+        public DateTimeUtc Timestamp { get; set; } = DateTimeUtc.Now;
     }
 
     /// <summary>
     /// A collection of subscription states.
     /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfSubscription",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "Subscription")]
     public class SubscriptionStateCollection : List<SubscriptionState>, ICloneable
     {
         /// <summary>

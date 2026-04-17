@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -48,6 +49,7 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             _context = ServiceMessageContext.Create(telemetry);
+            _context.Factory.Builder.AddOpcUaClientDataTypes();
         }
 
         [Test]
@@ -55,10 +57,7 @@ namespace Opc.Ua.Client.Tests
         {
             var original = new MonitoredItemState();
 
-            MonitoredItemState decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeMonitoredItemState,
-                SessionStateEncoder.DecodeMonitoredItemState);
+            MonitoredItemState decoded = RoundTrip(original);
 
             Assert.That(decoded.DisplayName, Is.EqualTo(original.DisplayName));
             Assert.That(decoded.StartNodeId, Is.EqualTo(original.StartNodeId));
@@ -105,10 +104,7 @@ namespace Opc.Ua.Client.Tests
                 CacheQueueSize = 5
             };
 
-            MonitoredItemState decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeMonitoredItemState,
-                SessionStateEncoder.DecodeMonitoredItemState);
+            MonitoredItemState decoded = RoundTrip(original);
 
             Assert.That(decoded.DisplayName, Is.EqualTo("TestItem"));
             Assert.That(decoded.StartNodeId, Is.EqualTo(new NodeId(42, 2)));
@@ -138,10 +134,7 @@ namespace Opc.Ua.Client.Tests
                 Filter = null
             };
 
-            MonitoredItemState decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeMonitoredItemState,
-                SessionStateEncoder.DecodeMonitoredItemState);
+            MonitoredItemState decoded = RoundTrip(original);
 
             Assert.That(decoded.Filter, Is.Null);
             Assert.That(decoded.DisplayName, Is.EqualTo("NoFilter"));
@@ -169,10 +162,7 @@ namespace Opc.Ua.Client.Tests
                 }
             };
 
-            MonitoredItemState decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeMonitoredItemState,
-                SessionStateEncoder.DecodeMonitoredItemState);
+            MonitoredItemState decoded = RoundTrip(original);
 
             Assert.That(decoded.Filter, Is.InstanceOf<EventFilter>());
             var eventFilter = (EventFilter)decoded.Filter!;
@@ -182,15 +172,9 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void SubscriptionStateRoundTripWithDefaults()
         {
-            var original = new SubscriptionState
-            {
-                MonitoredItems = []
-            };
+            var original = new SubscriptionState();
 
-            SubscriptionState decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSubscriptionState,
-                SessionStateEncoder.DecodeSubscriptionState);
+            SubscriptionState decoded = RoundTrip(original);
 
             Assert.That(decoded.DisplayName, Is.EqualTo(original.DisplayName));
             Assert.That(decoded.PublishingInterval, Is.EqualTo(original.PublishingInterval));
@@ -201,8 +185,8 @@ namespace Opc.Ua.Client.Tests
             Assert.That(decoded.Priority, Is.EqualTo(original.Priority));
             Assert.That(decoded.TimestampsToReturn, Is.EqualTo(original.TimestampsToReturn));
             Assert.That(decoded.MaxMessageCount, Is.EqualTo(original.MaxMessageCount));
-            Assert.That(decoded.MonitoredItems, Is.Not.Null);
-            Assert.That(decoded.MonitoredItems, Is.Empty);
+            Assert.That(decoded.MonitoredItems.IsEmpty, Is.True);
+
         }
 
         [Test]
@@ -225,8 +209,8 @@ namespace Opc.Ua.Client.Tests
                 SequentialPublishing = true,
                 RepublishAfterTransfer = true,
                 TransferId = 42,
-                MonitoredItems = new MonitoredItemStateCollection
-                {
+                MonitoredItems =
+                [
                     new MonitoredItemState
                     {
                         DisplayName = "Item1",
@@ -241,17 +225,14 @@ namespace Opc.Ua.Client.Tests
                         ServerId = 11,
                         ClientId = 21
                     }
-                },
+                ],
                 CurrentPublishingInterval = 1000.0,
                 CurrentKeepAliveCount = 10,
                 CurrentLifetimeCount = 30,
                 Timestamp = timestamp
             };
 
-            SubscriptionState decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSubscriptionState,
-                SessionStateEncoder.DecodeSubscriptionState);
+            SubscriptionState decoded = RoundTrip(original);
 
             Assert.That(decoded.DisplayName, Is.EqualTo("TestSubscription"));
             Assert.That(decoded.PublishingInterval, Is.EqualTo(1000));
@@ -281,17 +262,13 @@ namespace Opc.Ua.Client.Tests
         {
             var original = new SubscriptionState
             {
-                DisplayName = "EmptySub",
-                MonitoredItems = null!
+                DisplayName = "EmptySub"
             };
 
-            SubscriptionState decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSubscriptionState,
-                SessionStateEncoder.DecodeSubscriptionState);
+            SubscriptionState decoded = RoundTrip(original);
 
-            Assert.That(decoded.MonitoredItems, Is.Not.Null);
-            Assert.That(decoded.MonitoredItems, Is.Empty);
+            Assert.That(decoded.MonitoredItems.IsEmpty, Is.True);
+
         }
 
         [Test]
@@ -308,10 +285,7 @@ namespace Opc.Ua.Client.Tests
                 ConfiguredEndpoint = null
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.SessionName, Is.EqualTo("TestSession"));
             Assert.That(decoded.CheckDomain, Is.False);
@@ -319,7 +293,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(decoded.AuthenticationToken, Is.EqualTo(new NodeId(2000)));
             Assert.That(decoded.Identity, Is.Null);
             Assert.That(decoded.ConfiguredEndpoint, Is.Null);
-            Assert.That(decoded.Subscriptions, Is.Null);
+            Assert.That(decoded.Subscriptions.IsEmpty, Is.True);
         }
 
         [Test]
@@ -369,10 +343,7 @@ namespace Opc.Ua.Client.Tests
                 AuthenticationToken = new NodeId("auth1", 1)
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.SessionName, Is.EqualTo("EndpointSession"));
             Assert.That(decoded.CheckDomain, Is.True);
@@ -412,10 +383,7 @@ namespace Opc.Ua.Client.Tests
                 AuthenticationToken = NodeId.Null
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.ConfiguredEndpoint, Is.Not.Null);
             Assert.That(decoded.ConfiguredEndpoint!.Configuration, Is.Not.Null);
@@ -431,32 +399,28 @@ namespace Opc.Ua.Client.Tests
                 Timestamp = timestamp,
                 SessionId = new NodeId(100),
                 AuthenticationToken = new NodeId(200),
-                Subscriptions = new SubscriptionStateCollection
-                {
+                Subscriptions = new List<SubscriptionState> {
                     new SubscriptionState
                     {
                         DisplayName = "Sub1",
                         PublishingInterval = 500,
-                        MonitoredItems = new MonitoredItemStateCollection
-                        {
+                        MonitoredItems =
+                        [
                             new MonitoredItemState
                             {
                                 DisplayName = "MI1",
                                 StartNodeId = new NodeId(10),
                                 ServerId = 1
                             }
-                        }
+                        ]
                     }
                 }
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
-            Assert.That(decoded.Subscriptions, Is.Not.Null);
-            Assert.That(decoded.Subscriptions!.Count, Is.EqualTo(1));
+            Assert.That(decoded.Subscriptions.IsEmpty, Is.False);
+            Assert.That(decoded.Subscriptions.Count, Is.EqualTo(1));
             Assert.That(decoded.Subscriptions[0].DisplayName, Is.EqualTo("Sub1"));
             Assert.That(decoded.Subscriptions[0].PublishingInterval, Is.EqualTo(500));
             Assert.That(decoded.Subscriptions[0].MonitoredItems.Count, Is.EqualTo(1));
@@ -464,23 +428,19 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void SessionConfigurationRoundTripWithNullSubscriptions()
+        public void SessionConfigurationRoundTripWithEmptySubscriptions()
         {
             var original = new SessionConfiguration
             {
                 SessionName = "NoSubs",
                 Timestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 SessionId = NodeId.Null,
-                AuthenticationToken = NodeId.Null,
-                Subscriptions = null
+                AuthenticationToken = NodeId.Null
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
-            Assert.That(decoded.Subscriptions, Is.Null);
+            Assert.That(decoded.Subscriptions.IsEmpty, Is.True);
         }
 
         [Test]
@@ -497,10 +457,7 @@ namespace Opc.Ua.Client.Tests
                 AuthenticationToken = new NodeId(2)
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.Identity, Is.Not.Null);
             Assert.That(decoded.Identity!.TokenType, Is.EqualTo(UserTokenType.Anonymous));
@@ -520,10 +477,7 @@ namespace Opc.Ua.Client.Tests
                 AuthenticationToken = new NodeId(2)
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.Identity, Is.Not.Null);
             Assert.That(decoded.Identity!.TokenType, Is.EqualTo(UserTokenType.UserName));
@@ -558,10 +512,7 @@ namespace Opc.Ua.Client.Tests
                 AuthenticationToken = NodeId.Null
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.ConfiguredEndpoint, Is.Not.Null);
             Assert.That(decoded.ConfiguredEndpoint!.ReverseConnect, Is.Not.Null);
@@ -594,10 +545,7 @@ namespace Opc.Ua.Client.Tests
                 AuthenticationToken = NodeId.Null
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.ConfiguredEndpoint, Is.Not.Null);
             Assert.That(decoded.ConfiguredEndpoint!.ReverseConnect, Is.Null);
@@ -612,19 +560,16 @@ namespace Opc.Ua.Client.Tests
             var original = new SessionConfiguration
             {
                 SessionName = "NonceSession",
-                ServerNonce = nonce.Data,
+                ServerNonce = ByteString.From(nonce.Data),
                 Timestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 SessionId = NodeId.Null,
                 AuthenticationToken = NodeId.Null
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
-            Assert.That(decoded.ServerNonce, Is.Not.Null);
-            Assert.That(decoded.ServerNonce, Is.EqualTo(nonceData));
+            Assert.That(decoded.ServerNonce.IsNull, Is.False);
+            Assert.That(decoded.ServerNonce.ToArray(), Is.EqualTo(nonceData));
         }
 
         [Test]
@@ -633,20 +578,17 @@ namespace Opc.Ua.Client.Tests
             var original = new SessionConfiguration
             {
                 SessionName = "NullNonceSession",
-                ServerNonce = null,
-                ServerEccEphemeralKey = null,
+                ServerNonce = default,
+                ServerEccEphemeralKey = default,
                 Timestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 SessionId = NodeId.Null,
                 AuthenticationToken = NodeId.Null
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
-            Assert.That(decoded.ServerNonce, Is.Null);
-            Assert.That(decoded.ServerEccEphemeralKey, Is.Null);
+            Assert.That(decoded.ServerNonce.IsNull, Is.True);
+            Assert.That(decoded.ServerEccEphemeralKey.IsNull, Is.True);
         }
 
         [Test]
@@ -661,10 +603,7 @@ namespace Opc.Ua.Client.Tests
                 AuthenticationToken = NodeId.Null
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.UserIdentityTokenPolicy,
                 Is.EqualTo("http://opcfoundation.org/UA/SecurityPolicy#None"));
@@ -690,7 +629,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     encoder.WriteStringArray(null, _context.NamespaceUris.ToArray());
                     encoder.WriteStringArray(null, _context.ServerUris.ToArray());
-                    SessionStateEncoder.EncodeSessionConfiguration(encoder, original);
+                    original.Encode(encoder);
                 }
                 data = ms.ToArray();
             }
@@ -740,10 +679,7 @@ namespace Opc.Ua.Client.Tests
                 AuthenticationToken = NodeId.Null
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
             EndpointConfiguration cfg = decoded.ConfiguredEndpoint!.Configuration;
             Assert.That(cfg.OperationTimeout, Is.EqualTo(30000));
@@ -768,10 +704,7 @@ namespace Opc.Ua.Client.Tests
                 TriggeredItems = []
             };
 
-            MonitoredItemState decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeMonitoredItemState,
-                SessionStateEncoder.DecodeMonitoredItemState);
+            MonitoredItemState decoded = RoundTrip(original);
 
             Assert.That(decoded.TriggeredItems.Count, Is.EqualTo(0));
         }
@@ -801,17 +734,16 @@ namespace Opc.Ua.Client.Tests
                 SessionId = new NodeId(Guid.NewGuid()),
                 AuthenticationToken = new NodeId(Guid.NewGuid()),
                 UserIdentityTokenPolicy = "policy1",
-                Subscriptions = new SubscriptionStateCollection
-                {
+                Subscriptions = new List<SubscriptionState> {
                     new SubscriptionState
                     {
                         DisplayName = "Sub1",
                         PublishingInterval = 1000,
-                        MonitoredItems = new MonitoredItemStateCollection
-                        {
+                        MonitoredItems =
+                        [
                             new MonitoredItemState { DisplayName = "MI1" },
                             new MonitoredItemState { DisplayName = "MI2" }
-                        }
+                        ]
                     },
                     new SubscriptionState
                     {
@@ -822,34 +754,30 @@ namespace Opc.Ua.Client.Tests
                 }
             };
 
-            SessionConfiguration decoded = RoundTrip(
-                original,
-                SessionStateEncoder.EncodeSessionConfiguration,
-                SessionStateEncoder.DecodeSessionConfiguration);
+            SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.SessionName, Is.EqualTo("FullSession"));
             Assert.That(decoded.CheckDomain, Is.True);
             Assert.That(decoded.Timestamp, Is.EqualTo(timestamp));
             Assert.That(decoded.UserIdentityTokenPolicy, Is.EqualTo("policy1"));
-            Assert.That(decoded.Subscriptions!.Count, Is.EqualTo(2));
+            Assert.That(decoded.Subscriptions.Count, Is.EqualTo(2));
             Assert.That(decoded.Subscriptions[0].MonitoredItems.Count, Is.EqualTo(2));
             Assert.That(decoded.Subscriptions[1].MonitoredItems, Is.Empty);
         }
 
-        private T RoundTrip<T>(
-            T original,
-            Action<BinaryEncoder, T> encode,
-            Func<BinaryDecoder, T> decode)
+        private T RoundTrip<T>(T original) where T : IEncodeable, new()
         {
             using var ms = new MemoryStream();
             using (var encoder = new BinaryEncoder(ms, _context, true))
             {
-                encode(encoder, original);
+                original.Encode(encoder);
             }
 
             ms.Position = 0;
             using var decoder = new BinaryDecoder(ms, _context);
-            return decode(decoder);
+            var decoded = new T();
+            decoded.Decode(decoder);
+            return decoded;
         }
     }
 }
