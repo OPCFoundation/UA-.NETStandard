@@ -71,7 +71,7 @@ namespace Opc.Ua.Gds.Tests
             ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
-            Certificate certificate = await certificateGroup
+            using Certificate certificate = await certificateGroup
                 .CreateCACertificateAsync(
                     configuration.SubjectName,
                     certificateGroup.CertificateTypes[0])
@@ -80,7 +80,7 @@ namespace Opc.Ua.Gds.Tests
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.TrustedListPath);
             using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
-            CertificateCollection certs = await trustedStore
+            using CertificateCollection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
             Assert.That(certs, Has.Count.EqualTo(1));
@@ -100,7 +100,7 @@ namespace Opc.Ua.Gds.Tests
             ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
-            Certificate certificate = await certificateGroup
+            using Certificate certificate = await certificateGroup
                 .CreateCACertificateAsync(
                     configuration.SubjectName,
                     certificateGroup.CertificateTypes[0])
@@ -114,7 +114,7 @@ namespace Opc.Ua.Gds.Tests
                 m_path + "/authorities",
                 configuration);
             using ICertificateStore authStore = otherCertGroup.AuthoritiesStore.OpenStore(telemetry);
-            CertificateCollection authStoreCerts = authStore.EnumerateAsync().GetAwaiter().GetResult();
+            using CertificateCollection authStoreCerts = authStore.EnumerateAsync().GetAwaiter().GetResult();
 
             Certificate firstAuthStoreCert = authStoreCerts[0];
             var id = new CertificateIdentifier
@@ -123,14 +123,14 @@ namespace Opc.Ua.Gds.Tests
                 StorePath = authStore.StorePath,
                 StoreType = authStore.StoreType
             };
-            Certificate authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+            using Certificate authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
             using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
-            CertificateCollection storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
-            CertificateCollection certs = await trustedStore
+            using CertificateCollection storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
+            using CertificateCollection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
             Assert.That(certs, Is.Not.Empty);
-            Certificate signedCert = CertificateBuilder.Create("CN=signedCert")
+            using Certificate signedCert = CertificateBuilder.Create("CN=signedCert")
                .SetIssuer(authCert)
                .CreateForRSA();
             await trustedStore.AddAsync(signedCert).ConfigureAwait(false);
@@ -166,7 +166,7 @@ namespace Opc.Ua.Gds.Tests
                         await store.DeleteCRLAsync(crl).ConfigureAwait(false);
                     }
                 }
-                Certificate certificate = await certificateGroup
+                using Certificate certificate = await certificateGroup
                     .CreateCACertificateAsync(
                         configuration.SubjectName,
                         certificateGroup.CertificateTypes[0])
@@ -186,8 +186,8 @@ namespace Opc.Ua.Gds.Tests
                     StorePath = authStore.StorePath,
                     StoreType = authStore.StoreType
                 };
-                Certificate authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
-                Certificate signedCert = CertificateBuilder.Create("CN=signedCert")
+                using Certificate authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+                using Certificate signedCert = CertificateBuilder.Create("CN=signedCert")
                .SetIssuer(authCert)
                .CreateForRSA();
                 await store.AddAsync(signedCert).ConfigureAwait(false);
@@ -209,7 +209,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task Test_Ca_Empty_Crl_Can_Be_Created()
         {
-            Certificate ca = CertificateBuilder.Create("CN=TestCA").SetCAConstraint().CreateForRSA();
+            using Certificate ca = CertificateBuilder.Create("CN=TestCA").SetCAConstraint().CreateForRSA();
             X509CRL crl = await CertificateGroup.CreateEmptyCrlAsync(ca).ConfigureAwait(false);
             Assert.That(crl, Is.Not.Null);
             Assert.That(crl.RevokedCertificates, Is.Empty);
@@ -229,7 +229,7 @@ namespace Opc.Ua.Gds.Tests
             ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
-            Certificate certificate = await certificateGroup
+            using Certificate certificate = await certificateGroup
                 .CreateCACertificateAsync(
                     configuration.SubjectName,
                     certificateGroup.CertificateTypes[0])
@@ -243,7 +243,7 @@ namespace Opc.Ua.Gds.Tests
                 m_path + "/authorities",
                 configuration);
             using ICertificateStore authStore = otherCertGroup.AuthoritiesStore.OpenStore(telemetry);
-            CertificateCollection authStoreCerts = authStore.EnumerateAsync().GetAwaiter().GetResult();
+            using CertificateCollection authStoreCerts = authStore.EnumerateAsync().GetAwaiter().GetResult();
 
             Certificate firstAuthStoreCert = authStoreCerts[0];
             var id = new CertificateIdentifier
@@ -252,14 +252,14 @@ namespace Opc.Ua.Gds.Tests
                 StorePath = authStore.StorePath,
                 StoreType = authStore.StoreType
             };
-            Certificate authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+            using Certificate authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
             using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
-            CertificateCollection storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
-            CertificateCollection certs = await trustedStore
+            using CertificateCollection storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
+            using CertificateCollection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
             Assert.That(certs, Is.Not.Empty);
-            Certificate signedCACert = CertificateBuilder.Create("CN=signedCert")
+            using Certificate signedCACert = CertificateBuilder.Create("CN=signedCert")
                 .SetCAConstraint()
                 .SetIssuer(authCert)
                .CreateForRSA();
@@ -283,7 +283,7 @@ namespace Opc.Ua.Gds.Tests
             ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
-            Certificate certificate = await certificateGroup
+            using Certificate certificate = await certificateGroup
                 .CreateCACertificateAsync(
                     configuration.SubjectName,
                     certificateGroup.CertificateTypes[0])
@@ -297,7 +297,7 @@ namespace Opc.Ua.Gds.Tests
                 m_path + "/authorities",
                 configuration);
             using ICertificateStore authStore = otherCertGroup.AuthoritiesStore.OpenStore(telemetry);
-            CertificateCollection authStoreCerts = authStore.EnumerateAsync().GetAwaiter().GetResult();
+            using CertificateCollection authStoreCerts = authStore.EnumerateAsync().GetAwaiter().GetResult();
 
             Certificate firstAuthStoreCert = authStoreCerts[0];
             var id = new CertificateIdentifier
@@ -306,14 +306,14 @@ namespace Opc.Ua.Gds.Tests
                 StorePath = authStore.StorePath,
                 StoreType = authStore.StoreType
             };
-            Certificate authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+            using Certificate authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
             using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
-            CertificateCollection storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
-            CertificateCollection certs = await trustedStore
+            using CertificateCollection storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
+            using CertificateCollection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
             Assert.That(certs, Is.Not.Empty);
-            Certificate signedCACert = CertificateBuilder.Create("CN=signedCert")
+            using Certificate signedCACert = CertificateBuilder.Create("CN=signedCert")
                 .SetCAConstraint()
                 .SetIssuer(authCert)
                .CreateForRSA();
@@ -347,7 +347,7 @@ namespace Opc.Ua.Gds.Tests
                 m_path + Path.DirectorySeparatorChar + "authorities",
                 cgConfiguration,
                 applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
-            Certificate certificate = await certificateGroup
+            using Certificate certificate = await certificateGroup
                 .CreateCACertificateAsync(
                     cgConfiguration.SubjectName,
                     certificateGroup.CertificateTypes[0])
@@ -358,7 +358,7 @@ namespace Opc.Ua.Gds.Tests
                     applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates
                         .OpenStore(telemetry))
             {
-                CertificateCollection certs = await trustedStore
+                using CertificateCollection certs = await trustedStore
                     .FindByThumbprintAsync(certificate.Thumbprint)
                     .ConfigureAwait(false);
                 Assert.That(certs, Has.Count.EqualTo(1));
@@ -367,7 +367,7 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(crls, Has.Count.EqualTo(1));
             }
 
-            Certificate certificateUpdated = await certificateGroup
+            using Certificate certificateUpdated = await certificateGroup
                 .CreateCACertificateAsync(
                     cgConfiguration.SubjectName,
                     certificateGroup.CertificateTypes[0])
@@ -378,7 +378,7 @@ namespace Opc.Ua.Gds.Tests
                     applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates
                         .OpenStore(telemetry))
             {
-                CertificateCollection certs = await trustedStore
+                using CertificateCollection certs = await trustedStore
                     .FindByThumbprintAsync(certificate.Thumbprint)
                     .ConfigureAwait(false);
                 Assert.That(certs, Has.Count.EqualTo(1));

@@ -130,7 +130,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateSelfSignedForECDsaDefaultTest(ECCurveHashPair eccurveHashPair)
         {
             // default cert
-            Certificate cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create(Subject)
                 .SetECCurve(eccurveHashPair.Curve)
                 .CreateForECDsa();
@@ -169,7 +169,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // set dates and extension
             const string applicationUri = "urn:opcfoundation.org:mypc";
             string[] domains = ["mypc", "mypc.opcfoundation.org", "192.168.1.100"];
-            Certificate cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create(Subject)
                 .SetNotBefore(DateTime.Today.AddYears(-1))
                 .SetNotAfter(DateTime.Today.AddYears(25))
@@ -207,7 +207,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateCACertForECDsa(ECCurveHashPair ecCurveHashPair)
         {
             // create a CA cert
-            Certificate cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create(Subject)
                 .SetCAConstraint()
                 .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
@@ -250,8 +250,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetECCurve(eccurve);
 
             // ensure every cert has a different serial number
-            Certificate cert1 = builder.CreateForECDsa();
-            Certificate cert2 = builder.CreateForECDsa();
+            using Certificate cert1 = builder.CreateForECDsa();
+            using Certificate cert2 = builder.CreateForECDsa();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             WriteCertificate(cert2, "Cert2 with max length serial number");
             Assert.That(
@@ -288,7 +288,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             serial[^1] &= 0x7f;
             Assert.That(builder.GetSerialNumber(), Is.EqualTo(serial));
-            Certificate cert1 = builder.SetECCurve(eccurve).CreateForECDsa();
+            using Certificate cert1 = builder.SetECCurve(eccurve).CreateForECDsa();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {serial.ToHexString(true)}");
             Assert.That(cert1.GetSerialNumber(), Is.EqualTo(serial));
@@ -297,7 +297,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // clear sign bit
             builder.SetSerialNumberLength(X509Defaults.SerialNumberLengthMax);
 
-            Certificate cert2 = builder.SetECCurve(eccurve).CreateForECDsa();
+            using Certificate cert2 = builder.SetECCurve(eccurve).CreateForECDsa();
             WriteCertificate(cert2, "Cert2 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {cert2.SerialNumber}");
             Assert.That(
@@ -310,7 +310,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateForECDsaWithGeneratorTest(ECCurveHashPair ecCurveHashPair)
         {
             // default signing cert with custom key
-            Certificate signingCert = CertificateBuilder
+            using Certificate signingCert = CertificateBuilder
                 .Create(Subject)
                 .SetCAConstraint()
                 .SetHashAlgorithm(HashAlgorithmName.SHA512)
@@ -324,7 +324,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                Certificate cert = CertificateBuilder
+                using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetIssuer(CertificateFactory.Create(signingCert.RawData))
                     .CreateForRSA(generator);
@@ -336,7 +336,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (ECDsa ecdsaPublicKey = signingCert.GetECDsaPublicKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                Certificate cert = CertificateBuilder
+                using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
                     .SetIssuer(CertificateFactory.Create(signingCert.RawData))
@@ -349,7 +349,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                Certificate cert = CertificateBuilder
+                using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
                     .SetIssuer(CertificateFactory.Create(signingCert.RawData))
@@ -365,7 +365,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 using ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey();
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                Certificate cert = CertificateBuilder
+                using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
                     .SetECCurve(ecCurveHashPair.Curve)
@@ -377,7 +377,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void SetECDsaPublicKeyByteArray(ECCurveHashPair ecCurveHashPair)
         {
             // default signing cert with custom key
-            Certificate signingCert = CertificateBuilder
+            using Certificate signingCert = CertificateBuilder
                 .Create(Subject)
                 .SetCAConstraint()
                 .SetHashAlgorithm(HashAlgorithmName.SHA512)
@@ -393,7 +393,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] pubKeyBytes = GetPublicKey(ecdsaPublicKey);
 
             var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-            Certificate cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create("CN=App Cert")
                 .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
                 .SetIssuer(CertificateFactory.Create(signingCert.RawData))

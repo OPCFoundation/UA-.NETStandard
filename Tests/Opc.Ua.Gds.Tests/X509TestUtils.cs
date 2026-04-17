@@ -48,7 +48,7 @@ namespace Opc.Ua.Gds.Tests
             byte[][] issuerCertificates,
             ITelemetryContext telemetry)
         {
-            Certificate newCert = CertificateFactory.Create(certificate);
+            using Certificate newCert = CertificateFactory.Create(certificate);
             Assert.That(newCert, Is.Not.Null);
             Certificate newPrivateKeyCert = null;
             if (privateKeyFormat == "PFX")

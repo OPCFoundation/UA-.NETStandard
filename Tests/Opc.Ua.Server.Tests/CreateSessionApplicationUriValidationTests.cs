@@ -123,7 +123,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             // Create client certificate with matching ApplicationUri
-            Certificate clientCert = CreateCertificateWithMultipleUris(
+            using Certificate clientCert = CreateCertificateWithMultipleUris(
                 [kClientApplicationUri],
                 kClientSubjectName,
                 [Utils.GetHostName()],
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server.Tests
 
             // Create client certificate with different ApplicationUri
             const string certUri = "urn:localhost:opcfoundation.org:WrongClient";
-            Certificate clientCert = CreateCertificateWithMultipleUris(
+            using Certificate clientCert = CreateCertificateWithMultipleUris(
                 [certUri],
                 kClientSubjectName,
                 [Utils.GetHostName()],
@@ -188,7 +188,7 @@ namespace Opc.Ua.Server.Tests
             const string uri2 = kClientApplicationUri; // This matches
             const string uri3 = "https://localhost:8080/OpcUaApp";
 
-            Certificate clientCert = CreateCertificateWithMultipleUris(
+            using Certificate clientCert = CreateCertificateWithMultipleUris(
                 [uri1, uri2, uri3],
                 kClientSubjectName,
                 [Utils.GetHostName()],
@@ -233,7 +233,7 @@ namespace Opc.Ua.Server.Tests
             const string uri2 = "urn:localhost:opcfoundation.org:App2";
             const string uri3 = "https://localhost:8080/OpcUaApp";
 
-            Certificate clientCert = CreateCertificateWithMultipleUris(
+            using Certificate clientCert = CreateCertificateWithMultipleUris(
                 [uri1, uri2, uri3],
                 kClientSubjectName,
                 [Utils.GetHostName()],

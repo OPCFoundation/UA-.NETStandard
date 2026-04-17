@@ -1781,7 +1781,7 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            Activity rootActivity = new Activity("Test_Activity_Root")
+            using Activity rootActivity = new Activity("Test_Activity_Root")
             {
                 ActivityTraceFlags = ActivityTraceFlags.Recorded
             }.Start();
@@ -2016,7 +2016,7 @@ namespace Opc.Ua.Client.Tests
                 if (eccurveHashPair.Curve.Oid.FriendlyName
                     .Contains(extractedFriendlyNamae, StringComparison.Ordinal))
                 {
-                    Certificate cert = CertificateBuilder
+                    using Certificate cert = CertificateBuilder
                         .Create("CN=Client Test ECC Subject, O=OPC Foundation")
                         .SetECCurve(eccurveHashPair.Curve)
                         .CreateForECDsa();

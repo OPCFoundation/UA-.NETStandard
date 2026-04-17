@@ -191,7 +191,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateSelfSignedForRSACustomHashDefaultKey(KeyHashPair keyHashPair)
         {
             // default cert with custom HashAlgorithm
-            Certificate cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create(Subject)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .CreateForRSA();
@@ -213,7 +213,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // set dates and extension
             const string applicationUri = "urn:opcfoundation.org:mypc";
             string[] domains = ["mypc", "mypc.opcfoundation.org", "192.168.1.100"];
-            Certificate cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create(Subject)
                 .SetNotBefore(DateTime.Today.AddYears(-1))
                 .SetNotAfter(DateTime.Today.AddYears(25))
@@ -292,8 +292,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax);
 
             // ensure every cert has a different serial number
-            Certificate cert1 = builder.CreateForRSA();
-            Certificate cert2 = builder.CreateForRSA();
+            using Certificate cert1 = builder.CreateForRSA();
+            using Certificate cert2 = builder.CreateForRSA();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             WriteCertificate(cert2, "Cert2 with max length serial number");
             Assert.That(
@@ -326,7 +326,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetSerialNumber(serial);
             serial[^1] &= 0x7f;
             Assert.That(builder.GetSerialNumber(), Is.EqualTo(serial));
-            Certificate cert1 = builder.CreateForRSA();
+            using Certificate cert1 = builder.CreateForRSA();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {serial.ToHexString(true)}");
             Assert.That(cert1.GetSerialNumber(), Is.EqualTo(serial));
@@ -335,7 +335,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // clear sign bit
             builder.SetSerialNumberLength(X509Defaults.SerialNumberLengthMax);
 
-            Certificate cert2 = builder.CreateForRSA();
+            using Certificate cert2 = builder.CreateForRSA();
             WriteCertificate(cert2, "Cert2 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {cert2.SerialNumber}");
             Assert.That(
