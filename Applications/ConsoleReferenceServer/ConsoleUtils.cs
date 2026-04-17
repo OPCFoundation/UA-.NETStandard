@@ -40,7 +40,6 @@ using System.CommandLine.Help;
 using Opc.Ua;
 using Serilog;
 using Serilog.Events;
-using Serilog.Templates;
 #if NET5_0_OR_GREATER
 using Microsoft.Extensions.Configuration;
 #endif
@@ -176,9 +175,8 @@ namespace Quickstarts
                 if (!string.IsNullOrWhiteSpace(outputFilePath))
                 {
                     loggerConfiguration.WriteTo.File(
-                        new ExpressionTemplate(
-                            "{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
                         Utils.ReplaceSpecialFolderNames(outputFilePath),
+                        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
                         restrictedToMinimumLevel: (LogEventLevel)fileLevel,
                         rollOnFileSizeLimit: true
                     );
