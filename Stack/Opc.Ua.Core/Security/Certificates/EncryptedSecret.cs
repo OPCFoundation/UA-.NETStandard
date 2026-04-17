@@ -281,20 +281,20 @@ namespace Opc.Ua
             }
 
             byte[] message = encoder.CloseAndReturnBuffer();
-            int length = ((byte[])null).Length - 0 - 4;
+            int length = message.Length - lengthPosition - 4;
 
-            ((byte[])null)[lengthPosition++] = (byte)(length & 0xFF);
-            ((byte[])null)[lengthPosition++] = (byte)((length & 0xFF00) >> 8);
-            ((byte[])null)[lengthPosition++] = (byte)((length & 0xFF0000) >> 16);
-            ((byte[])null)[lengthPosition++] = (byte)((length & 0xFF000000) >> 24);
+            message[lengthPosition++] = (byte)(length & 0xFF);
+            message[lengthPosition++] = (byte)((length & 0xFF00) >> 8);
+            message[lengthPosition++] = (byte)((length & 0xFF0000) >> 16);
+            message[lengthPosition++] = (byte)((length & 0xFF000000) >> 24);
 
             _ = CryptoUtils.SymmetricEncryptAndSign(
-                new ArraySegment<byte>(null, startOfSecret, endOfSecret - startOfSecret),
+                new ArraySegment<byte>(message, startOfSecret, endOfSecret - startOfSecret),
                 SecurityPolicy,
                 encryptingKey,
                 iv);
 
-            var dataToSign = new ArraySegment<byte>(null, 0, ((byte[])null).Length - signatureLength);
+            var dataToSign = new ArraySegment<byte>(message, 0, message.Length - signatureLength);
 
             byte[] signature = CryptoUtils.Sign(
                 dataToSign,
@@ -304,11 +304,11 @@ namespace Opc.Ua
             Buffer.BlockCopy(
                 signature,
                 0,
-                null,
+                message,
                 endOfSecret + outerPaddingSize + tagLength,
                 signatureLength);
 
-            return null;
+            return message;
         }
 
         private static int GetPaddingCount(int blockSize, int secretLength, int dataLength)
