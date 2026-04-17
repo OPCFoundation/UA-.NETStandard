@@ -138,16 +138,16 @@ namespace Opc.Ua.Client
         {
             lock (m_cache)
             {
-                var monitoredItemStateCollection = new MonitoredItemStateCollection(
+                var monitoredItemStates = new List<MonitoredItemState>(
                     m_monitoredItems.Count);
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
                     monitoredItem.Snapshot(out MonitoredItemState monitoredItemState);
-                    monitoredItemStateCollection.Add(monitoredItemState);
+                    monitoredItemStates.Add(monitoredItemState);
                 }
                 state = new SubscriptionState(State)
                 {
-                    MonitoredItems = monitoredItemStateCollection,
+                    MonitoredItems = monitoredItemStates,
                     CurrentKeepAliveCount = CurrentKeepAliveCount,
                     CurrentLifetimeCount = CurrentLifetimeCount,
                     CurrentPublishingInterval = CurrentPublishingInterval

@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Opc.Ua.Client
 {
@@ -87,43 +85,4 @@ namespace Opc.Ua.Client
         public DateTimeUtc Timestamp { get; set; } = DateTimeUtc.Now;
     }
 
-    /// <summary>
-    /// A collection of subscription states.
-    /// </summary>
-    public class SubscriptionStateCollection : List<SubscriptionState>, ICloneable
-    {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        public SubscriptionStateCollection()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <param name="collection">The existing collection to use as
-        /// the basis of creating this collection</param>
-        public SubscriptionStateCollection(IEnumerable<SubscriptionState> collection)
-            : base(collection)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <param name="capacity">The max. capacity of the collection</param>
-        public SubscriptionStateCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            var clone = new SubscriptionStateCollection();
-            clone.AddRange(this.Select(item => item with { }));
-            return clone;
-        }
-    }
 }
