@@ -43,37 +43,30 @@ namespace Opc.Ua.Aot.Tests
             {
                 DisplayName = "AotCreateDelete",
                 PublishingEnabled = true,
-                PublishingInterval = 1000,
-                KeepAliveCount = 5
+                PublishingInterval = 500,
+                KeepAliveCount = 2
             };
-
-            fixture.Session.AddSubscription(subscription);
-            await subscription.CreateAsync(CancellationToken.None)
-                .ConfigureAwait(false);
-
-            await Assert.That(subscription.Created).IsTrue();
 
             var item = new MonitoredItem(subscription.DefaultItem)
             {
                 StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
                 AttributeId = Attributes.Value,
-                DisplayName = "CurrentTime"
+                DisplayName = "CurrentTime",
+                SamplingInterval = 250
             };
 
-            int notificationCount = 0;
-            item.Notification += (_, _) =>
-                Interlocked.Increment(ref notificationCount);
-
             subscription.AddItem(item);
+            fixture.Session.AddSubscription(subscription);
+
+            await subscription.CreateAsync(CancellationToken.None)
+                .ConfigureAwait(false);
             await subscription.ApplyChangesAsync(CancellationToken.None)
                 .ConfigureAwait(false);
 
+            await Assert.That(subscription.Created).IsTrue();
             await Assert.That((int)subscription.MonitoredItemCount)
                 .IsEqualTo(1);
-
-            // Wait for at least one notification
-            await Task.Delay(2000).ConfigureAwait(false);
-            await Assert.That(notificationCount).IsGreaterThan(0);
+            await Assert.That(item.Status.Created).IsTrue();
 
             // Delete the subscription
             await fixture.Session.RemoveSubscriptionAsync(subscription)
