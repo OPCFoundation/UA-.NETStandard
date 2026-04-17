@@ -57,4 +57,5 @@
   <opc:DataType Name="ExtensionObject" />
   <opc:DataType Name="DataValue" />
   <opc:DataType Name="Variant" />
+
 </opc:TypeDictionary>

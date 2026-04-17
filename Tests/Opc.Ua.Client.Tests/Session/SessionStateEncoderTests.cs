@@ -612,7 +612,7 @@ namespace Opc.Ua.Client.Tests
             var original = new SessionConfiguration
             {
                 SessionName = "NonceSession",
-                ServerNonce = nonce,
+                ServerNonce = nonce.Data,
                 Timestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 SessionId = NodeId.Null,
                 AuthenticationToken = NodeId.Null
@@ -624,7 +624,7 @@ namespace Opc.Ua.Client.Tests
                 SessionStateEncoder.DecodeSessionConfiguration);
 
             Assert.That(decoded.ServerNonce, Is.Not.Null);
-            Assert.That(decoded.ServerNonce!.Data, Is.EqualTo(nonceData));
+            Assert.That(decoded.ServerNonce, Is.EqualTo(nonceData));
         }
 
         [Test]

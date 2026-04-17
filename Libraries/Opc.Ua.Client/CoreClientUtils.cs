@@ -82,42 +82,41 @@ namespace Opc.Ua.Client
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
             // Connect to the local discovery server and find the available servers.
-            using (DiscoveryClient client = await DiscoveryClient.CreateAsync(
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
                     new Uri(Utils.Format(Utils.DiscoveryUrls[0], "localhost")),
                     endpointConfiguration,
                     telemetry,
-                    ct: ct).ConfigureAwait(false))
-            {
-                ArrayOf<ApplicationDescription> servers =
-                    await client.FindServersAsync(default, ct).ConfigureAwait(false);
+                    ct: ct).ConfigureAwait(false);
 
-                // populate the drop down list with the discovery URLs for the available servers.
-                for (int ii = 0; ii < servers.Count; ii++)
+            ArrayOf<ApplicationDescription> servers =
+                await client.FindServersAsync(default, ct).ConfigureAwait(false);
+
+            // populate the drop down list with the discovery URLs for the available servers.
+            for (int ii = 0; ii < servers.Count; ii++)
+            {
+                if (servers[ii].ApplicationType == ApplicationType.DiscoveryServer)
                 {
-                    if (servers[ii].ApplicationType == ApplicationType.DiscoveryServer)
+                    continue;
+                }
+
+                for (int jj = 0; jj < servers[ii].DiscoveryUrls.Count; jj++)
+                {
+                    string discoveryUrl = servers[ii].DiscoveryUrls[jj];
+
+                    // Many servers will use the '/discovery' suffix for the discovery endpoint.
+                    // The URL without this prefix should be the base URL for the server.
+                    if (discoveryUrl.EndsWith(
+                        ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                     {
-                        continue;
+                        discoveryUrl =
+                            discoveryUrl[..^ConfiguredEndpoint.DiscoverySuffix.Length];
                     }
 
-                    for (int jj = 0; jj < servers[ii].DiscoveryUrls.Count; jj++)
+                    // ensure duplicates do not get added.
+                    if (!serverUrls.Exists(serverUrl =>
+                            serverUrl.Equals(discoveryUrl, StringComparison.OrdinalIgnoreCase)))
                     {
-                        string discoveryUrl = servers[ii].DiscoveryUrls[jj];
-
-                        // Many servers will use the '/discovery' suffix for the discovery endpoint.
-                        // The URL without this prefix should be the base URL for the server.
-                        if (discoveryUrl.EndsWith(
-                            ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
-                        {
-                            discoveryUrl =
-                                discoveryUrl[..^ConfiguredEndpoint.DiscoverySuffix.Length];
-                        }
-
-                        // ensure duplicates do not get added.
-                        if (!serverUrls.Exists(serverUrl =>
-                                serverUrl.Equals(discoveryUrl, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            serverUrls.Add(discoveryUrl);
-                        }
+                        serverUrls.Add(discoveryUrl);
                     }
                 }
             }
