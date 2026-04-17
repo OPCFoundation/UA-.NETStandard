@@ -477,6 +477,69 @@ public partial class SecuritySettings
 > `Exclude` would omit an explicit `false` on encode. `Include` ensures the
 > value always round-trips correctly.
 
+## Partial Init Properties
+
+The source generator supports `partial` properties with `init` accessors for
+immutable record types. This enables record classes with init-only properties
+to participate in OPC UA binary and XML encoding — the generator creates a
+private backing field for each such property and assigns to it directly during
+`Decode()`, bypassing the init-only constraint.
+
+### Example
+
+```csharp
+[DataType(Namespace = "urn:mycompany:myapp")]
+public partial record class DeviceConfig
+{
+    [DataTypeField(Order = 0)]
+    public partial string Name { get; init; } = "Default";
+
+    [DataTypeField(Order = 1)]
+    public partial int Port { get; init; }
+}
+```
+
+The generator produces:
+
+```csharp
+partial record class DeviceConfig : IEncodeable, IJsonEncodeable
+{
+    private string __Name = "Default";
+    public partial string Name { get => __Name; init => __Name = value; }
+
+    private int __Port;
+    public partial int Port { get => __Port; init => __Port = value; }
+
+    public virtual void Decode(IDecoder decoder)
+    {
+        // Assigns to backing field, bypassing init constraint
+        if (decoder.HasField("Name")) __Name = decoder.ReadString("Name");
+        if (decoder.HasField("Port")) __Port = decoder.ReadInt32("Port");
+    }
+    // ...
+}
+```
+
+### How It Works
+
+1. For each property declared as `partial` with an `init` accessor, the
+   generator emits a private backing field named `__<PropertyName>`.
+2. The partial property implementation delegates `get` and `init` to that
+   backing field.
+3. `Decode()` assigns to the backing field directly, which is legal because
+   the field is a regular mutable field — only the public `init` accessor is
+   restricted to object-initializer contexts.
+4. `Clone()` for record types uses `this with { }`, which copies init-only
+   properties automatically via the copy constructor.
+
+### When to Use
+
+- Use `partial` + `init` properties when you want an immutable public API
+  (callers can only set values at construction time) while still allowing
+  the decoder to populate the object from a binary or XML stream.
+- This is especially useful for configuration and options types modeled as
+  `record class`.
+
 ## Requirements and Constraints
 
 1. **Must be `partial`**: The class must be declared `partial` so the generator
