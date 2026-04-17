@@ -837,7 +837,9 @@ TypeInfo TypeInfo { get; }                // Type info of the field
 
 ## Known Limitations
 
-1. **OptionSet Support**: OPC UA 1.04 OptionSet types do not automatically create enumeration flags
+1. **OptionSet Support**: Concrete Structure-backed sub-types of the abstract `OptionSet` DataType (`i=12755`, e.g. `AccessRights`, `CarExtras`) are automatically registered by the default `ComplexTypeSystem` builder as `Opc.Ua.Encoders.OptionSet` runtime instances, driven by either the `EnumDefinition` carried in `DataTypeDefinition` or a fallback synthesized from the `OptionSetValues` property. The runtime class exposes the two canonical `Value` / `ValidBits` ByteStrings plus bit accessors keyed by field name or bit index. Per Part 3 §8.40 / §3.2.8, the overall ByteString length is fixed by the sub-type's declared bits (exposed as `ByteLength`); setting a bit outside that range throws `ArgumentOutOfRangeException`. Remaining limitations:
+   - UInteger-backed OptionSet DataTypes (DataTypes deriving from an unsigned integer with `IsOptionSet=true`) continue to be represented as their underlying unsigned integer in a `Variant` — no per-bit metadata is surfaced.
+   - The legacy Reflection.Emit builder in `Opc.Ua.Client.ComplexTypes` throws `NotSupportedException` for OptionSet sub-types; switch to the default builder (`new ComplexTypeSystem(session)`) for OptionSet support.
 2. **Legacy Dictionary Support**: Some OPC UA 1.03 structured types that cannot be mapped to OPC UA 1.04 definitions are ignored
 3. **Type Modifications**: Once loaded, types cannot be dynamically updated during a session. Reconnect to reload modified types.
 

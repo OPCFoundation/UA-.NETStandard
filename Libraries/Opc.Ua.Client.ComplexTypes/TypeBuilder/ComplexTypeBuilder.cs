@@ -150,6 +150,25 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
+        /// OptionSet sub-types are not supported by the Reflection.Emit
+        /// complex type builder. Use the default (source-generated)
+        /// complex type builder instead for OptionSet support.
+        /// </summary>
+        /// <exception cref="NotSupportedException">Always thrown.</exception>
+        public IEncodeableType AddOptionSetType(
+            QualifiedName typeName,
+            ExpandedNodeId typeId,
+            ExpandedNodeId binaryEncodingId,
+            ExpandedNodeId xmlEncodingId,
+            ExpandedNodeId jsonEncodingId,
+            EnumDefinition enumDefinition)
+        {
+            throw new NotSupportedException(
+                "OptionSet DataTypes are not supported by the Reflection.Emit " +
+                "complex type builder. Use the default complex type builder.");
+        }
+
+        /// <summary>
         /// Create a unique namespace module name for the type.
         /// </summary>
         private static string FindModuleName(string moduleName, string targetNamespace)
