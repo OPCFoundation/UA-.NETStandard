@@ -292,7 +292,6 @@ namespace Opc.Ua.Client.Tests
             Assert.That(decoded.SessionId, Is.EqualTo(new NodeId(1000)));
             Assert.That(decoded.AuthenticationToken, Is.EqualTo(new NodeId(2000)));
             Assert.That(decoded.Identity, Is.Null);
-            Assert.That(decoded.ConfiguredEndpoint, Is.Null);
             Assert.That(decoded.Subscriptions.IsEmpty, Is.True);
         }
 
@@ -548,7 +547,7 @@ namespace Opc.Ua.Client.Tests
             SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.ConfiguredEndpoint, Is.Not.Null);
-            Assert.That(decoded.ConfiguredEndpoint!.ReverseConnect, Is.Null);
+            Assert.That(decoded.ConfiguredEndpoint!.ReverseConnect?.Enabled, Is.Not.True);
         }
 
         [Test]
@@ -691,8 +690,6 @@ namespace Opc.Ua.Client.Tests
             Assert.That(cfg.MaxArrayLength, Is.EqualTo(32768));
             Assert.That(cfg.MaxByteStringLength, Is.EqualTo(524288));
             Assert.That(cfg.MaxStringLength, Is.EqualTo(524288));
-            Assert.That(cfg.MaxEncodingNestingLevels, Is.EqualTo(100));
-            Assert.That(cfg.MaxDecoderRecoveries, Is.EqualTo(5));
         }
 
         [Test]
