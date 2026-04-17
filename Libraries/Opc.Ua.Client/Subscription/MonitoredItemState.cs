@@ -62,7 +62,7 @@ namespace Opc.Ua.Client
         /// 0 indicates not yet created or invalidated.
         /// </summary>
         [DataTypeField(Order = 13)]
-        public uint ServerId { get; set; }
+        public partial uint ServerId { get; init; }
 
         /// <summary>
         /// Client-assigned handle used in Publish notifications (clientHandle)
@@ -71,7 +71,7 @@ namespace Opc.Ua.Client
         /// Typically used as an index/key into client data structures.
         /// </summary>
         [DataTypeField(Order = 14)]
-        public uint ClientId { get; set; }
+        public partial uint ClientId { get; init; }
 
         /// <summary>
         /// When the state was created.
@@ -85,7 +85,7 @@ namespace Opc.Ua.Client
         /// Used to restore triggering links after session reconnect.
         /// </summary>
         [DataTypeField(Order = 16)]
-        public uint TriggeringItemId { get; set; }
+        public partial uint TriggeringItemId { get; init; }
 
         /// <summary>
         /// Collection of server-side identifiers of monitored items that are
@@ -93,13 +93,13 @@ namespace Opc.Ua.Client
         /// any other items. Used to restore triggering links after session reconnect.
         /// </summary>
         [DataTypeField(Order = 17)]
-        public ArrayOf<uint> TriggeredItems { get; set; }
+        public partial ArrayOf<uint> TriggeredItems { get; init; }
 
         /// <summary>
         /// The queue size used by the client-side cache.
         /// </summary>
         [DataTypeField(Order = 18)]
-        public uint CacheQueueSize { get; set; }
+        public partial uint CacheQueueSize { get; init; }
     }
 
     /// <summary>
