@@ -620,7 +620,6 @@ The `[Obsolete]` static `EncodeableFactory.GlobalFactory` was removed. `Encodeab
 Core complex type interfaces and default (non-reflection-emit) implementations moved from `Opc.Ua.Client.ComplexTypes` to `Libraries/Opc.Ua.Client/ComplexTypes/`.
 Namespace remains `Opc.Ua.Client.ComplexTypes`. If you used the default constructors without specifying the builder, and want to use the Reflection.Emit based type builders,
 you need to change your code to call `ComplexTypeSystem.Create(...)` instead of `new ComplexTypeSystem(...)` which now uses the new default builder not supporting Reflection.Emit.
-Session
 
 #### OptionSet DataType support
 
