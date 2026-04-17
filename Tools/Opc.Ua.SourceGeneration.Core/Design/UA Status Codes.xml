@@ -870,7 +870,7 @@
     <opc:Documentation>The value source supports cascade handshaking and is requesting initialization of a cascade primary.</opc:Documentation>
   </opc:Constant>
   <opc:Constant Name="Good_CascadeNotInvited">
-    <opc:Documentation>The value source supports cascade handshaking, however, the source’s current state does not allow for cascade.</opc:Documentation>
+    <opc:Documentation>The value source supports cascade handshaking, however, the source's current state does not allow for cascade.</opc:Documentation>
   </opc:Constant>
   <opc:Constant Name="Good_CascadeNotSelected">
     <opc:Documentation>The value source supports cascade handshaking, however, the source has not selected the corresponding cascade primary for use.</opc:Documentation>

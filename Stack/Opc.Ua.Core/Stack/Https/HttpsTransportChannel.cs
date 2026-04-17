@@ -135,17 +135,22 @@ namespace Opc.Ua.Bindings
             => m_quotas?.MessageContext ?? throw BadNotConnected();
 
         /// <inheritdoc/>
-        public ChannelToken? CurrentToken => null;
+        public ChannelToken CurrentToken => new();
+
+        /// <inheritdoc/>
+        public byte[] ChannelThumbprint => [];
+
+        /// <inheritdoc/>
+        public byte[] ClientChannelCertificate { get; private set; } = [];
+
+        /// <inheritdoc/>
+        public byte[] ServerChannelCertificate { get; private set; } = [];
 
         /// <inheritdoc/>
         public event ChannelTokenActivatedEventHandler OnTokenActivated
         {
-            add
-            {
-            }
-            remove
-            {
-            }
+            add {}
+            remove {}
         }
 
         /// <inheritdoc/>
@@ -415,6 +420,7 @@ namespace Opc.Ua.Bindings
                         }
 #endif
                         handler.ClientCertificates.Add(clientCertificate.X509);
+                        ClientChannelCertificate = clientCertificate.RawData;
                     }
 
                     Func<
@@ -461,7 +467,7 @@ namespace Opc.Ua.Bindings
                                 }
 
                                 m_quotas.CertificateValidator?.ValidateAsync(CertificateCollection.From(validationChain), default).GetAwaiter().GetResult();
-
+                                ServerChannelCertificate = cert.RawData;
                                 return true;
                             }
                             catch (Exception ex)

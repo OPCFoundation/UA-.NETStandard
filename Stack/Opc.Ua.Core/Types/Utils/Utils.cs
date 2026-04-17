@@ -643,7 +643,14 @@ namespace Opc.Ua
         /// <remarks>If the platform returns a FQDN, only the host name is returned.</remarks>
         public static string GetHostName()
         {
-            return Dns.GetHostName().Split('.')[0].ToLowerInvariant();
+            var hostName = Dns.GetHostName();
+            // If platform returns an IPv4 or IPv6 address return it as is
+            if (IPAddress.TryParse(hostName, out _))
+            {
+                return hostName;
+            }
+
+            return hostName.Split('.')[0].ToLowerInvariant();
         }
 
         /// <summary>
@@ -1046,23 +1053,24 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a hexadecimal string to an array of bytes.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="buffer"/> is <c>null</c>.</exception>
         public static byte[] FromHexString(string buffer)
         {
-#if NET6_0_OR_GREATER
-            return Convert.FromHexString(buffer);
-#else
             if (buffer == null)
             {
                 return null;
             }
-
+#if NET6_0_OR_GREATER
+            return Convert.FromHexString(buffer);
+#else
             if (buffer.Length == 0)
             {
                 return [];
             }
 
-            string text = buffer.ToUpperInvariant();
             const string digits = "0123456789ABCDEF";
+            buffer = buffer.ToUpperInvariant();
 
             byte[] bytes = new byte[(buffer.Length / 2) + (buffer.Length % 2)];
 

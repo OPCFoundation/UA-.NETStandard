@@ -367,7 +367,8 @@ namespace Opc.Ua.SourceGeneration
                     encodeLine);
             }
 
-            return (TemplateString)encodeLine;
+            context.Out.WriteLine(encodeLine);
+            return null;
         }
 
         private static TemplateString LoadTemplate_ListOfDecodedFields(ILoadContext context)
@@ -422,7 +423,7 @@ namespace Opc.Ua.SourceGeneration
                 if (field.IsArray)
                 {
                     decodeLine = CoreUtils.Format(
-                        """{0} = decoder.ReadEnumeratedArray<{1}>("{2}");""",
+                        "{0} = decoder.ReadEnumeratedArray<{1}>(\"{2}\");",
                         field.PropertyName,
                         typeName,
                         field.FieldName.Escape());
@@ -439,7 +440,7 @@ namespace Opc.Ua.SourceGeneration
             else
             {
                 decodeLine = CoreUtils.Format(
-                    """{0} = decoder.{1}("{2}");""",
+                    "{0} = decoder.{1}(\"{2}\");",
                     field.PropertyName,
                     readMethod,
                     field.FieldName.Escape());
@@ -448,12 +449,13 @@ namespace Opc.Ua.SourceGeneration
             if ((field.DefaultValueHandling & 2) == 0)
             {
                 decodeLine = CoreUtils.Format(
-                    """if (decoder.HasField("{0}")) {1}""",
+                    "if (decoder.HasField(\"{0}\")) {1}",
                     field.FieldName.Escape(),
                     decodeLine);
             }
 
-            return (TemplateString)decodeLine;
+            context.Out.WriteLine(decodeLine);
+            return null;
         }
 
         private static TemplateString LoadTemplate_ListOfComparedFields(ILoadContext context)
@@ -465,14 +467,17 @@ namespace Opc.Ua.SourceGeneration
 
             if (!IsDotNetEqualityComparable(field))
             {
-                return (TemplateString)CoreUtils.Format(
+                context.Out.WriteLine(
                     "if (!global::Opc.Ua.CoreUtils.IsEqual({0}, value.{0})) return false;",
                     field.PropertyName);
             }
-
-            return (TemplateString)CoreUtils.Format(
-                "if ({0} != value.{0}) return false;",
-                field.PropertyName);
+            else
+            {
+                context.Out.WriteLine(
+                    "if ({0} != value.{0}) return false;",
+                    field.PropertyName);
+            }
+            return null;
 
             static bool IsDotNetEqualityComparable(TypeFieldModel field) =>
                 !field.IsEncodeable; // Add any other type not comparable using ==
@@ -487,14 +492,17 @@ namespace Opc.Ua.SourceGeneration
 
             if (NeedsCloning(field))
             {
-                return (TemplateString)CoreUtils.Format(
+                context.Out.WriteLine(
                     "clone.{0} = ({1})global::Opc.Ua.CoreUtils.Clone({0});",
                     field.PropertyName, field.TypeName);
             }
-
-            return (TemplateString)CoreUtils.Format(
-                "clone.{0} = {0};",
-                field.PropertyName, field.TypeName);
+            else
+            {
+                context.Out.WriteLine(
+                    "clone.{0} = {0};",
+                    field.PropertyName);
+            }
+            return null;
 
             static bool NeedsCloning(TypeFieldModel field)
             {

@@ -642,7 +642,13 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             var roleIdentity = new RoleBasedIdentity(identity, roles, namespaces);
 
             var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt };
-            var channelContext = new SecureChannelContext("1", endpoint, RequestEncoding.Binary);
+            var channelContext = new SecureChannelContext(
+                "1",
+                endpoint,
+                RequestEncoding.Binary,
+                clientChannelCertificate: null,
+                serverChannelCertificate: null,
+                channelThumbprint: null);
             var reqHeader = new RequestHeader();
 
             var sessionMock = new Mock<ISession>();
@@ -790,7 +796,13 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             sessionMock.Setup(s => s.Id).Returns(new NodeId(9999, 1));
             sessionMock.Setup(s => s.EffectiveIdentity).Returns(roleIdentity);
             var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt };
-            var secureChannelContext = new SecureChannelContext("1", endpoint, RequestEncoding.Binary);
+            var secureChannelContext = new SecureChannelContext(
+                "1",
+                endpoint,
+                RequestEncoding.Binary,
+                clientChannelCertificate: null,
+                serverChannelCertificate: null,
+                channelThumbprint: null);
             var opContext = new OperationContext(
                 new RequestHeader(),
                 secureChannelContext,
@@ -906,7 +918,13 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             await manager.CreateAddressSpaceAsync(externalRefs).ConfigureAwait(false);
 
             var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt };
-            var secureChannelContext = new SecureChannelContext("1", endpoint, RequestEncoding.Binary);
+            var secureChannelContext = new SecureChannelContext(
+                "1",
+                endpoint,
+                RequestEncoding.Binary,
+                clientChannelCertificate: null,
+                serverChannelCertificate: null,
+                channelThumbprint: null);
 
             using var mockIdentity = new UserIdentity("admin", []);
             var mockRoleIdentity = new RoleBasedIdentity(mockIdentity, [Role.SecurityAdmin], m_serverMock.Object.NamespaceUris);

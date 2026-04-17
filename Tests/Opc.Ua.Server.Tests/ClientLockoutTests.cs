@@ -65,10 +65,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
-            var secureChannelContext = new SecureChannelContext(
-                sessionName,
-                endpoint,
-                RequestEncoding.Binary);
+            SecureChannelContext secureChannelContext = CreateSecureChannelContext(sessionName, endpoint);
             var requestHeader = new RequestHeader();
 
             CreateSessionResponse createResponse = await m_server.CreateSessionAsync(
@@ -129,10 +126,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
-            var secureChannelContext = new SecureChannelContext(
-                sessionName,
-                endpoint,
-                RequestEncoding.Binary);
+            SecureChannelContext secureChannelContext = CreateSecureChannelContext(sessionName, endpoint);
             var requestHeader = new RequestHeader();
 
             CreateSessionResponse createResponse = await m_server.CreateSessionAsync(
@@ -227,10 +221,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
-            var secureChannelContext = new SecureChannelContext(
-                sessionName,
-                endpoint,
-                RequestEncoding.Binary);
+            SecureChannelContext secureChannelContext = CreateSecureChannelContext(sessionName, endpoint);
             var requestHeader = new RequestHeader();
 
             CreateSessionResponse createResponse = await m_server.CreateSessionAsync(
@@ -335,6 +326,17 @@ namespace Opc.Ua.Server.Tests
             endpoint.SecurityMode = MessageSecurityMode.None;
             endpoint.SecurityPolicyUri = SecurityPolicies.None;
             return endpoint;
+        }
+
+        private static SecureChannelContext CreateSecureChannelContext(string sessionName, EndpointDescription endpoint)
+        {
+            return new SecureChannelContext(
+                sessionName,
+                endpoint,
+                RequestEncoding.Binary,
+                clientChannelCertificate: null,
+                serverChannelCertificate: null,
+                channelThumbprint: null);
         }
     }
 }

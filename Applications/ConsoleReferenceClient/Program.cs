@@ -56,10 +56,6 @@ namespace Quickstarts.ConsoleReferenceClient
         /// Main entry point.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
-            Justification = "NodeSet2 export uses XmlSerializer with known OPC UA types.")]
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "NodeSet2 export uses XmlSerializer with known OPC UA types.")]
         public static Task<int> Main(string[] args)
         {
             Console.WriteLine("OPC UA Console Reference Client");
@@ -146,6 +142,7 @@ namespace Quickstarts.ConsoleReferenceClient
             };
             var verboseOption = new Option<bool>("--verbose", "-v") { Description = "Verbose output" };
             var subscribeOption = new Option<bool>("--subscribe", "-s") { Description = "Subscribe" };
+            var testallEndpointsOption = new Option<bool>("--testall", "--ea") { Description = "Test All Endpoints" };
             var reverseConnectOption = new Option<string>("--reverseconnect", "--rc")
             {
                 Description = "Connect using the reverse connect endpoint. (e.g. --rc opc.tcp://localhost:65300)"
@@ -191,6 +188,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 jsonOption,
                 verboseOption,
                 subscribeOption,
+                testallEndpointsOption,
                 reverseConnectOption,
                 foreverOption,
                 leakChannelsOption,
@@ -240,6 +238,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 bool enableDurableSubscriptions =
                     parseResult.GetValue(durableSubscriptionOption);
                 var serverUrl = new Uri(parseResult.GetValue(serverUrlArgument));
+                var testallEndpoints = parseResult.GetValue(testallEndpointsOption);
 
                 ReverseConnectManager reverseConnectManager = null;
                 using var telemetry = new ConsoleTelemetry();
@@ -325,6 +324,16 @@ namespace Quickstarts.ConsoleReferenceClient
                     var quitCTS = new CancellationTokenSource();
                     CancellationToken ct = quitCTS.Token;
                     ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+
+                    // handle connect all endpoints test.
+                    if (testallEndpoints)
+                    {
+                        var tester = new ConnectTester(
+                            telemetry,
+                            quitEvent);
+                        await tester.RunAsync(ct).ConfigureAwait(false);
+                        return;
+                    }
 
                     var userIdentity = new UserIdentity();
 

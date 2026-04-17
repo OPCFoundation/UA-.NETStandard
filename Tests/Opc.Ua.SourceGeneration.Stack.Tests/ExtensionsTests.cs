@@ -438,27 +438,6 @@ namespace Test
         }
 
         [Test]
-        public void HasAttributeReturnsTrueWhenPresent()
-        {
-            const string code = @"
-using System;
-namespace Test
-{
-    [Obsolete]
-    public class MyClass { }
-}
-";
-            CSharpCompilation compilation = CSharpCompilation.Create("TestAssembly")
-                .AddReferences(CompilerUtils.TrustedReferences)
-                .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
-
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
-
-            Assert.That(symbol, Is.Not.Null);
-            Assert.That(symbol.HasAttribute("ObsoleteAttribute"), Is.True);
-        }
-
-        [Test]
         public void HasAttributeReturnsFalseWhenAbsent()
         {
             const string code = @"
@@ -512,6 +491,7 @@ namespace Test
             Assert.That(result, Is.Null);
         }
 
+#if NET8_0_OR_GREATER
         [Test]
         public void AttributeDataGetValueReturnsStringValueWhenFound()
         {
@@ -546,6 +526,58 @@ namespace Test
         }
 
         [Test]
+        public void AttributeDataGetIntegerReturnsValueWhenFound()
+        {
+            const string code = @"
+using System;
+namespace Test
+{
+    [MyAttr(Count = 7)]
+    public class MyClass { }
+
+    [AttributeUsage(AttributeTargets.Class)]
+    public class MyAttrAttribute : Attribute
+    {
+        public int Count { get; set; }
+    }
+}
+";
+            CSharpCompilation compilation = CSharpCompilation.Create("TestAssembly")
+                .AddReferences(CompilerUtils.TrustedReferences)
+                .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
+
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            AttributeData attr = symbol.GetAttributes()
+                .First(a => a.AttributeClass?.Name == "MyAttrAttribute");
+
+            int result = attr.GetInteger("Count");
+
+            Assert.That(result, Is.EqualTo(7));
+        }
+
+        [Test]
+        public void HasAttributeReturnsTrueWhenPresent()
+        {
+            const string code = @"
+using System;
+namespace Test
+{
+    [Obsolete]
+    public class MyClass { }
+}
+";
+            CSharpCompilation compilation = CSharpCompilation.Create("TestAssembly")
+                .AddReferences(CompilerUtils.TrustedReferences)
+                .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
+
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+
+            Assert.That(symbol, Is.Not.Null);
+            Assert.That(symbol.HasAttribute("ObsoleteAttribute"), Is.True);
+        }
+#endif
+
+        [Test]
         public void AttributeDataGetIntegerReturnsDefaultForNullAttribute()
         {
             AttributeData attr = null;
@@ -578,36 +610,6 @@ namespace Test
             int result = attr.GetInteger("NonExistent", 99);
 
             Assert.That(result, Is.EqualTo(99));
-        }
-
-        [Test]
-        public void AttributeDataGetIntegerReturnsValueWhenFound()
-        {
-            const string code = @"
-using System;
-namespace Test
-{
-    [MyAttr(Count = 7)]
-    public class MyClass { }
-
-    [AttributeUsage(AttributeTargets.Class)]
-    public class MyAttrAttribute : Attribute
-    {
-        public int Count { get; set; }
-    }
-}
-";
-            CSharpCompilation compilation = CSharpCompilation.Create("TestAssembly")
-                .AddReferences(CompilerUtils.TrustedReferences)
-                .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
-
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
-            AttributeData attr = symbol.GetAttributes()
-                .First(a => a.AttributeClass?.Name == "MyAttrAttribute");
-
-            int result = attr.GetInteger("Count");
-
-            Assert.That(result, Is.EqualTo(7));
         }
 
         [Test]

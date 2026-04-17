@@ -123,3 +123,10 @@ jobs:
         name: aot-results-${{ matrix.os }}
         path: '**/TestResults/**'
       if: ${{ always() }}
+
+    - name: Upload HTML Test Report
+      uses: actions/upload-artifact@v7
+      with:
+        name: TestReport
+        path: '**/*-report.html'
+      if: ${{ always() }}
