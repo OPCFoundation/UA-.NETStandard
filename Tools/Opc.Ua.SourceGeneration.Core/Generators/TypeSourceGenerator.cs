@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -252,6 +253,11 @@ namespace Opc.Ua.SourceGeneration
                 LoadTemplate_ListOfComparedFields);
 
             context.Template.AddReplacement(
+                Tokens.ListOfInitOnlyBackingFields,
+                model.Fields.Where(f => f.IsInitOnly).ToList(),
+                LoadTemplate_ListOfInitOnlyBackingFields);
+
+            context.Template.AddReplacement(
                 Tokens.ListOfChildCopies,
                 [model],
                 LoadTemplate_ListOfChildCopies,
@@ -384,6 +390,11 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            // For init-only partial properties, assign to the backing
+            // field directly since the init setter is not available
+            // inside the Decode method body.
+            string target = field.BackingFieldName ?? field.PropertyName;
+
             string decodeLine;
             if (field.IsEncodeable)
             {
@@ -395,7 +406,7 @@ namespace Opc.Ua.SourceGeneration
                         : "ReadEncodeableArray";
                     decodeLine = CoreUtils.Format(
                         "{0} = decoder.{1}<{2}>(\"{3}\");",
-                        field.PropertyName,
+                        target,
                         method,
                         field.ElementTypeName,
                         field.FieldName.Escape());
@@ -404,7 +415,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     decodeLine = CoreUtils.Format(
                         "{0} = decoder.ReadEncodeableAsExtensionObject<{1}>(\"{2}\");",
-                        field.PropertyName,
+                        target,
                         field.TypeName,
                         field.FieldName.Escape());
                 }
@@ -412,7 +423,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     decodeLine = CoreUtils.Format(
                         "{0} = decoder.ReadEncodeable<{1}>(\"{2}\");",
-                        field.PropertyName,
+                        target,
                         field.TypeName,
                         field.FieldName.Escape());
                 }
@@ -424,7 +435,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     decodeLine = CoreUtils.Format(
                         "{0} = decoder.ReadEnumeratedArray<{1}>(\"{2}\");",
-                        field.PropertyName,
+                        target,
                         typeName,
                         field.FieldName.Escape());
                 }
@@ -432,7 +443,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     decodeLine = CoreUtils.Format(
                         "{0} = decoder.ReadEnumerated<{1}>(\"{2}\");",
-                        field.PropertyName,
+                        target,
                         typeName,
                         field.FieldName.Escape());
                 }
@@ -441,7 +452,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 decodeLine = CoreUtils.Format(
                     "{0} = decoder.{1}(\"{2}\");",
-                    field.PropertyName,
+                    target,
                     readMethod,
                     field.FieldName.Escape());
             }
@@ -492,9 +503,18 @@ namespace Opc.Ua.SourceGeneration
 
             if (NeedsCloning(field))
             {
+                // For init-only properties use the backing field for assignment
+                string target = field.BackingFieldName != null
+                    ? $"clone.{field.BackingFieldName}"
+                    : $"clone.{field.PropertyName}";
                 context.Out.WriteLine(
-                    "clone.{0} = ({1})global::Opc.Ua.CoreUtils.Clone({0});",
-                    field.PropertyName, field.TypeName);
+                    "{0} = ({1})global::Opc.Ua.CoreUtils.Clone({2});",
+                    target, field.TypeName, field.PropertyName);
+            }
+            else if (field.IsInitOnly)
+            {
+                // Record's 'with' already copies simple init-only fields
+                return null;
             }
             else
             {
@@ -519,6 +539,68 @@ namespace Opc.Ua.SourceGeneration
                 }
                 return field.IsEncodeable;
             }
+        }
+
+        /// <summary>
+        /// Emits backing fields and partial property implementations for
+        /// init-only partial properties so that Decode() can assign
+        /// to the backing field directly.
+        /// </summary>
+        private static TemplateString LoadTemplate_ListOfInitOnlyBackingFields(
+            ILoadContext context)
+        {
+            if (context.Target is not TypeFieldModel field ||
+                !field.IsInitOnly ||
+                field.BackingFieldName == null)
+            {
+                return null;
+            }
+
+            // For field declarations the global:: prefix on C# keyword
+            // aliases (global::string, global::int etc.) is invalid.
+            // Strip it for built-in aliases, keep it for everything else.
+            string typeName = StripGlobalPrefixForAliases(field.TypeName);
+
+            context.Out.WriteLine(
+                "private {0} {1};",
+                typeName,
+                field.BackingFieldName);
+            context.Out.WriteLine(
+                "public partial {0} {1} {{ get => {2}; init => {2} = value; }}",
+                typeName,
+                field.PropertyName,
+                field.BackingFieldName);
+
+            return null;
+        }
+
+        /// <summary>
+        /// Strips the global:: prefix from C# keyword type aliases
+        /// that Roslyn FullyQualifiedFormat emits (e.g. global::string).
+        /// Returns the input unchanged for non-alias types.
+        /// </summary>
+        private static string StripGlobalPrefixForAliases(string typeName)
+        {
+            // C# type keyword aliases that Roslyn emits with global:: prefix
+            return typeName switch
+            {
+                "global::string" => "string",
+                "global::int" => "int",
+                "global::uint" => "uint",
+                "global::long" => "long",
+                "global::ulong" => "ulong",
+                "global::short" => "short",
+                "global::ushort" => "ushort",
+                "global::byte" => "byte",
+                "global::sbyte" => "sbyte",
+                "global::float" => "float",
+                "global::double" => "double",
+                "global::bool" => "bool",
+                "global::decimal" => "decimal",
+                "global::object" => "object",
+                "global::char" => "char",
+                _ => typeName
+            };
         }
 
         private static TemplateString LoadTemplate_ListOfTypeActivators(ILoadContext context)

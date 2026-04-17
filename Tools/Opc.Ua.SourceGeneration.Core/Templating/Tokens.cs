@@ -215,5 +215,6 @@ namespace Opc.Ua.SourceGeneration
         public static string HistorizingValue => nameof(HistorizingValue);
         public static string AccessLevelValue => nameof(AccessLevelValue);
         public static string UserAccessLevelValue => nameof(UserAccessLevelValue);
+        public static string ListOfInitOnlyBackingFields => nameof(ListOfInitOnlyBackingFields);
     }
 }

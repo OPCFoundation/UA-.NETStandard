@@ -255,6 +255,21 @@ namespace Opc.Ua.SourceGeneration
         /// 0 = Exclude, 1 = Emit, 2 = SetIfMissing, 3 = Include.
         /// </summary>
         public int DefaultValueHandling { get; set; }
+
+        /// <summary>
+        /// True if the property uses an init-only setter and is
+        /// declared as partial. The generator will emit a private
+        /// backing field and a partial property implementation so
+        /// that Decode() can assign to the backing field directly.
+        /// </summary>
+        public bool IsInitOnly { get; set; }
+
+        /// <summary>
+        /// The name of the generated backing field for init-only
+        /// partial properties (e.g. "__DisplayName").
+        /// Null when <see cref="IsInitOnly"/> is false.
+        /// </summary>
+        public string BackingFieldName { get; set; }
     }
 
     /// <summary>
