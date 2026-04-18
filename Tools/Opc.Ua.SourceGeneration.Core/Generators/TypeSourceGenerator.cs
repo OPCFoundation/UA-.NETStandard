@@ -561,10 +561,17 @@ namespace Opc.Ua.SourceGeneration
             // Strip it for built-in aliases, keep it for everything else.
             string typeName = StripGlobalPrefixForAliases(field.TypeName);
 
+            // Include the property initializer on the backing field if present,
+            // so that default values from the defining declaration are preserved.
+            string initializer = field.DefaultInitializer != null
+                ? $" = {field.DefaultInitializer}"
+                : string.Empty;
+
             context.Out.WriteLine(
-                "private {0} {1};",
+                "private {0} {1}{2};",
                 typeName,
-                field.BackingFieldName);
+                field.BackingFieldName,
+                initializer);
             context.Out.WriteLine(
                 "public partial {0} {1} {{ get => {2}; init => {2} = value; }}",
                 typeName,

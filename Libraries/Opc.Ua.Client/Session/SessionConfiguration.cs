@@ -42,7 +42,7 @@ namespace Opc.Ua.Client
         /// The session name used by the client.
         /// </summary>
         [DataTypeField(Order = 1)]
-        public string? SessionName { get; set; }
+        public partial string? SessionName { get; init; }
 
         /// <summary>
         /// The serialized user identity token. Use <see cref="Identity"/>
@@ -65,13 +65,13 @@ namespace Opc.Ua.Client
         /// The configured endpoint for the secure channel.
         /// </summary>
         [DataTypeField(Order = 3, StructureHandling = StructureHandling.Inline)]
-        public ConfiguredEndpoint? ConfiguredEndpoint { get; set; }
+        public partial ConfiguredEndpoint? ConfiguredEndpoint { get; init; }
 
         /// <summary>
         /// If the client is configured to check the certificate domain.
         /// </summary>
         [DataTypeField(Order = 4)]
-        public bool CheckDomain { get; set; }
+        public partial bool CheckDomain { get; init; }
     }
 
     /// <summary>
@@ -106,46 +106,46 @@ namespace Opc.Ua.Client
         /// The session id assigned by the server.
         /// </summary>
         [DataTypeField(Order = 11)]
-        public NodeId SessionId { get; set; }
+        public partial NodeId SessionId { get; init; }
 
         /// <summary>
         /// The authentication token used by the server to identify the session.
         /// </summary>
         [DataTypeField(Order = 12)]
-        public NodeId AuthenticationToken { get; set; }
+        public partial NodeId AuthenticationToken { get; init; }
 
         /// <summary>
         /// The raw bytes of the last server nonce received.
         /// Persisting bytes avoids object-serialization ambiguity for Nonce internals.
         /// </summary>
         [DataTypeField(Order = 13)]
-        public ByteString ServerNonce { get; set; }
+        public partial ByteString ServerNonce { get; init; }
 
         /// <summary>
         /// The raw bytes of the client nonce used when the session was created.
         /// Required for enhanced-policy activate signatures during reconnect.
         /// </summary>
         [DataTypeField(Order = 14)]
-        public ByteString ClientNonce { get; set; }
+        public partial ByteString ClientNonce { get; init; }
 
         /// <summary>
         /// The user identity token policy which was used to create the session.
         /// </summary>
         [DataTypeField(Order = 15)]
-        public string? UserIdentityTokenPolicy { get; set; }
+        public partial string? UserIdentityTokenPolicy { get; init; }
 
         /// <summary>
         /// The raw bytes of the last server ECC ephemeral key received.
         /// </summary>
         [DataTypeField(Order = 16)]
-        public ByteString ServerEccEphemeralKey { get; set; }
+        public partial ByteString ServerEccEphemeralKey { get; init; }
 
         /// <summary>
         /// Allows the list of subscriptions to be saved/restored
         /// when the object is serialized.
         /// </summary>
         [DataTypeField(Order = 20, StructureHandling = StructureHandling.Inline)]
-        public ArrayOf<SubscriptionState> Subscriptions { get; set; }
+        public partial ArrayOf<SubscriptionState> Subscriptions { get; init; }
     }
 
     /// <summary>

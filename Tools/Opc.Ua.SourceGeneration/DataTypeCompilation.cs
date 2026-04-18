@@ -491,8 +491,31 @@ namespace Opc.Ua.SourceGeneration
                 IsInitOnly = HasInitOnlySetter(prop),
                 BackingFieldName = HasInitOnlySetter(prop)
                     ? $"__{prop.Name}"
+                    : null,
+                DefaultInitializer = HasInitOnlySetter(prop)
+                    ? GetPropertyInitializer(prop)
                     : null
             };
+        }
+
+        /// <summary>
+        /// Extracts the default value initializer expression from a
+        /// partial property definition (e.g. the "= true" part of
+        /// "public partial bool Foo { get; init; } = true;").
+        /// Returns null if no initializer is present.
+        /// </summary>
+        private static string GetPropertyInitializer(IPropertySymbol prop)
+        {
+            foreach (SyntaxReference syntaxRef in prop.DeclaringSyntaxReferences)
+            {
+                if (syntaxRef.GetSyntax() is PropertyDeclarationSyntax propSyntax &&
+                    propSyntax.Initializer != null)
+                {
+                    return propSyntax.Initializer.Value.ToString();
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

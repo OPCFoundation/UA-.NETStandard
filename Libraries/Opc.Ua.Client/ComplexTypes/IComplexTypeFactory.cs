@@ -81,6 +81,22 @@ namespace Opc.Ua.Client.ComplexTypes
         IComplexTypeFieldBuilder AddStructuredType(
             QualifiedName name,
             StructureDefinition structureDefinition);
+
+        /// <summary>
+        /// Create an OptionSet type for a concrete sub-type of the
+        /// abstract <c>OptionSet</c> DataType. The wire format is the
+        /// inherited <c>Value</c>/<c>ValidBits</c> ByteStrings; the
+        /// <paramref name="enumDefinition"/> names the bits and is
+        /// either obtained from the DataTypeDefinition attribute or
+        /// synthesized from the <c>OptionSetValues</c> property.
+        /// </summary>
+        IEncodeableType AddOptionSetType(
+            QualifiedName typeName,
+            ExpandedNodeId typeId,
+            ExpandedNodeId binaryEncodingId,
+            ExpandedNodeId xmlEncodingId,
+            ExpandedNodeId jsonEncodingId,
+            EnumDefinition enumDefinition);
     }
 
     /// <summary>

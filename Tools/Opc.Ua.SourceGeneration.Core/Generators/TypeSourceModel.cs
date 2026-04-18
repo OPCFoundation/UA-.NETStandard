@@ -270,6 +270,14 @@ namespace Opc.Ua.SourceGeneration
         /// Null when <see cref="IsInitOnly"/> is false.
         /// </summary>
         public string BackingFieldName { get; set; }
+
+        /// <summary>
+        /// The default value initializer expression for init-only
+        /// partial properties (e.g. "\"MonitoredItem\"" or "true").
+        /// Captured from the defining declaration's initializer.
+        /// Null when there is no initializer.
+        /// </summary>
+        public string DefaultInitializer { get; set; }
     }
 
     /// <summary>

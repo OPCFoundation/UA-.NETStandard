@@ -60,25 +60,25 @@ namespace Opc.Ua.Client
         /// when the object is serialized.
         /// </summary>
         [DataTypeField(Order = 11, StructureHandling = StructureHandling.Inline)]
-        public ArrayOf<MonitoredItemState> MonitoredItems { get; set; }
+        public partial ArrayOf<MonitoredItemState> MonitoredItems { get; init; }
 
         /// <summary>
         /// The current publishing interval.
         /// </summary>
         [DataTypeField(Order = 20)]
-        public double CurrentPublishingInterval { get; set; }
+        public partial double CurrentPublishingInterval { get; init; }
 
         /// <summary>
         /// The current keep alive count.
         /// </summary>
         [DataTypeField(Order = 21)]
-        public uint CurrentKeepAliveCount { get; set; }
+        public partial uint CurrentKeepAliveCount { get; init; }
 
         /// <summary>
         /// The current lifetime count.
         /// </summary>
         [DataTypeField(Order = 22)]
-        public uint CurrentLifetimeCount { get; set; }
+        public partial uint CurrentLifetimeCount { get; init; }
 
         /// <summary>
         /// When the state was created.
