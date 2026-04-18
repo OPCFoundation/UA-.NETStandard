@@ -49,7 +49,9 @@ namespace Opc.Ua.Client.ComplexTypes
     /// with the following known restrictions:
     /// - Support only for V1.03 structured types which can be mapped to the V1.04
     /// structured type definition. Unsupported V1.03 types are ignored.
-    /// - V1.04 OptionSet does not create the enumeration flags.
+    /// - Concrete Structure-backed sub-types of the abstract <c>OptionSet</c>
+    /// DataType are supported. UInteger-backed <c>IsOptionSet</c> DataTypes
+    /// are left opaque (their wire form is the plain unsigned integer).
     /// </remarks>
     public class ComplexTypeSystem
     {
@@ -987,10 +989,65 @@ namespace Opc.Ua.Client.ComplexTypes
 
                             if (newType == null)
                             {
-                                structTypesToDoList.Add(structType);
                                 if (structureDefinition != null)
                                 {
+                                    structTypesToDoList.Add(structType);
                                     retryAddStructType = true;
+                                }
+                                else if (await IsOptionSetSubtypeAsync(structType.NodeId, ct)
+                                    .ConfigureAwait(false))
+                                {
+                                    // Concrete Structure-backed sub-type of the
+                                    // abstract OptionSet DataType. The wire
+                                    // format is the inherited Value/ValidBits
+                                    // ByteStrings; field semantics come from an
+                                    // EnumDefinition or the OptionSetValues
+                                    // property.
+                                    (
+                                        ArrayOf<NodeId> encodingIds,
+                                        ExpandedNodeId binaryEncodingId,
+                                        ExpandedNodeId xmlEncodingId
+                                    ) = await m_complexTypeResolver
+                                        .BrowseForEncodingsAsync(
+                                            structType.NodeId,
+                                            s_supportedEncodings,
+                                            ct)
+                                        .ConfigureAwait(false);
+                                    ExpandedNodeId typeId = NormalizeExpandedNodeId(
+                                        structType.NodeId);
+                                    newType = await AddOptionSetTypeAsync(
+                                            complexTypeBuilder,
+                                            dataTypeNode,
+                                            typeId,
+                                            binaryEncodingId,
+                                            xmlEncodingId,
+                                            ExpandedNodeId.Null,
+                                            ct)
+                                        .ConfigureAwait(false);
+                                    if (newType != null)
+                                    {
+                                        foreach (NodeId encodingId in encodingIds)
+                                        {
+                                            AddEncodeableType(encodingId, newType);
+                                        }
+                                        AddEncodeableType(structType.NodeId, newType);
+                                    }
+                                    else
+                                    {
+                                        m_logger.LogInformation(
+                                            "Skipped OptionSet sub-type {DataType} because no EnumDefinition or OptionSetValues property was found.",
+                                            dataTypeNode.BrowseName.Name);
+                                    }
+                                }
+                                else
+                                {
+                                    // A non-abstract Structure subtype without a valid
+                                    // DataTypeDefinition cannot be materialized by this path.
+                                    // Skip silently so the overall load is not marked as failed
+                                    // when the server exposes such unresolvable types.
+                                    m_logger.LogInformation(
+                                        "Skipped the type definition of {DataType} because no DataTypeDefinition is available.",
+                                        dataTypeNode.BrowseName.Name);
                                 }
                             }
                         }
@@ -1288,6 +1345,91 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
             return newType;
+        }
+
+        /// <summary>
+        /// Add an OptionSet type defined in a DataType node whose wire
+        /// format is the inherited <c>Value</c>/<c>ValidBits</c>
+        /// ByteStrings of the abstract <c>OptionSet</c> DataType.
+        /// </summary>
+        private async Task<IEncodeableType?> AddOptionSetTypeAsync(
+            IComplexTypeBuilder complexTypeBuilder,
+            DataTypeNode dataTypeNode,
+            ExpandedNodeId typeId,
+            ExpandedNodeId binaryEncodingId,
+            ExpandedNodeId xmlEncodingId,
+            ExpandedNodeId jsonEncodingId,
+            CancellationToken ct = default)
+        {
+            QualifiedName name = dataTypeNode.BrowseName;
+
+            // 1. use DataTypeDefinition
+            if (DisableDataTypeDefinition ||
+                !dataTypeNode.DataTypeDefinition.TryGetEncodeable(
+                    out EnumDefinition? enumDefinition))
+            {
+                // 2. fall back to OptionSetValues property (LocalizedText[])
+                Variant enumTypeArray = await m_complexTypeResolver
+                    .GetEnumTypeArrayAsync(dataTypeNode.NodeId, ct)
+                    .ConfigureAwait(false);
+                if (enumTypeArray.TryGet(out ArrayOf<LocalizedText> localizedText))
+                {
+                    enumDefinition = localizedText.ToEnumDefinition(name.Name);
+                }
+                else
+                {
+                    enumDefinition = null;
+                }
+            }
+
+            if (enumDefinition == null)
+            {
+                return null;
+            }
+
+            // Mark as OptionSet (bit positions rather than ordinal values).
+            enumDefinition.IsOptionSet = true;
+
+            // Add EnumDefinition to cache
+            m_dataTypeDefinitionCache[dataTypeNode.NodeId] = enumDefinition;
+
+            return complexTypeBuilder.AddOptionSetType(
+                name,
+                typeId,
+                binaryEncodingId,
+                xmlEncodingId,
+                jsonEncodingId,
+                enumDefinition);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if <paramref name="dataTypeId"/> is a
+        /// concrete sub-type of the abstract <c>OptionSet</c> DataType.
+        /// </summary>
+        private async Task<bool> IsOptionSetSubtypeAsync(
+            ExpandedNodeId dataTypeId,
+            CancellationToken ct)
+        {
+            NodeId superType = ExpandedNodeId.ToNodeId(
+                dataTypeId,
+                m_complexTypeResolver.NamespaceUris);
+            while (!superType.IsNull)
+            {
+                superType = await m_complexTypeResolver
+                    .FindSuperTypeAsync(superType, ct)
+                    .ConfigureAwait(false);
+                if (superType == DataTypeIds.OptionSet)
+                {
+                    return true;
+                }
+                if (superType == DataTypeIds.Structure ||
+                    superType == DataTypeIds.Enumeration ||
+                    TypeInfo.GetBuiltInType(superType) != BuiltInType.Null)
+                {
+                    return false;
+                }
+            }
+            return false;
         }
 
         /// <summary>
