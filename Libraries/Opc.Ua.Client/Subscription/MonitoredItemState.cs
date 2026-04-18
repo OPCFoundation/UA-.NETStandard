@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Opc.Ua.Client
 {
@@ -60,7 +62,7 @@ namespace Opc.Ua.Client
         /// 0 indicates not yet created or invalidated.
         /// </summary>
         [DataTypeField(Order = 13)]
-        public partial uint ServerId { get; init; }
+        public uint ServerId { get; set; }
 
         /// <summary>
         /// Client-assigned handle used in Publish notifications (clientHandle)
@@ -69,7 +71,7 @@ namespace Opc.Ua.Client
         /// Typically used as an index/key into client data structures.
         /// </summary>
         [DataTypeField(Order = 14)]
-        public partial uint ClientId { get; init; }
+        public uint ClientId { get; set; }
 
         /// <summary>
         /// When the state was created.
@@ -83,7 +85,7 @@ namespace Opc.Ua.Client
         /// Used to restore triggering links after session reconnect.
         /// </summary>
         [DataTypeField(Order = 16)]
-        public partial uint TriggeringItemId { get; init; }
+        public uint TriggeringItemId { get; set; }
 
         /// <summary>
         /// Collection of server-side identifiers of monitored items that are
@@ -91,13 +93,52 @@ namespace Opc.Ua.Client
         /// any other items. Used to restore triggering links after session reconnect.
         /// </summary>
         [DataTypeField(Order = 17)]
-        public partial ArrayOf<uint> TriggeredItems { get; init; }
+        public ArrayOf<uint> TriggeredItems { get; set; }
 
         /// <summary>
         /// The queue size used by the client-side cache.
         /// </summary>
         [DataTypeField(Order = 18)]
-        public partial uint CacheQueueSize { get; init; }
+        public uint CacheQueueSize { get; set; }
     }
 
+    /// <summary>
+    /// A collection of monitored item states.
+    /// </summary>
+    public class MonitoredItemStateCollection : List<MonitoredItemState>, ICloneable
+    {
+        /// <summary>
+        /// Initializes an empty collection.
+        /// </summary>
+        public MonitoredItemStateCollection()
+        {
+        }
+
+        /// <summary>
+        /// Initializes the collection from another collection.
+        /// </summary>
+        /// <param name="collection">The existing collection to use as
+        /// the basis of creating this collection</param>
+        public MonitoredItemStateCollection(IEnumerable<MonitoredItemState> collection)
+            : base(collection)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the collection with the specified capacity.
+        /// </summary>
+        /// <param name="capacity">The max. capacity of the collection</param>
+        public MonitoredItemStateCollection(int capacity)
+            : base(capacity)
+        {
+        }
+
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            var clone = new MonitoredItemStateCollection();
+            clone.AddRange(this.Select(item => item with { }));
+            return clone;
+        }
+    }
 }

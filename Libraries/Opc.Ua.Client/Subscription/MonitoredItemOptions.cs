@@ -51,7 +51,7 @@ namespace Opc.Ua.Client
         /// <para>Reference: Part4 Section5.13.</para>
         /// </summary>
         [DataTypeField(Order = 1)]
-        public partial string DisplayName { get; init; }
+        public string DisplayName { get; set; } = "MonitoredItem";
 
         /// <summary>
         /// Starting <c>NodeId</c> used with <c>RelativePath</c> to resolve the
@@ -62,7 +62,7 @@ namespace Opc.Ua.Client
         /// <para>Reference: Part4 Section5.13.</para>
         /// </summary>
         [DataTypeField(Order = 2)]
-        public partial NodeId StartNodeId { get; init; }
+        public NodeId StartNodeId { get; set; } = NodeId.Null;
 
         /// <summary>
         /// A relative browse path (client side string form) from <c>StartNodeId</c>
@@ -72,7 +72,7 @@ namespace Opc.Ua.Client
         /// directly.
         /// </summary>
         [DataTypeField(Order = 3)]
-        public partial string? RelativePath { get; init; }
+        public string? RelativePath { get; set; }
 
         /// <summary>
         /// The expected NodeClass of the target node (Variable, Object, etc.).
@@ -82,7 +82,7 @@ namespace Opc.Ua.Client
         /// helps avoid invalid monitored item creation requests.
         /// </summary>
         [DataTypeField(Order = 4)]
-        public partial NodeClass NodeClass { get; init; }
+        public NodeClass NodeClass { get; set; } = NodeClass.Variable;
 
         /// <summary>
         /// The AttributeId to monitor on the target node. For data changes this
@@ -92,7 +92,7 @@ namespace Opc.Ua.Client
         /// the service request.
         /// </summary>
         [DataTypeField(Order = 5)]
-        public partial uint AttributeId { get; init; }
+        public uint AttributeId { get; set; } = Attributes.Value;
 
         /// <summary>
         /// IndexRange selecting a subset of an array or matrix value (e.g. "0:9"
@@ -101,7 +101,7 @@ namespace Opc.Ua.Client
         /// server when generating notifications, reducing bandwidth for large arrays.
         /// </summary>
         [DataTypeField(Order = 6)]
-        public partial string? IndexRange { get; init; }
+        public string? IndexRange { get; set; }
 
         /// <summary>
         /// Requested data encoding (QualifiedName) for complex values (e.g.
@@ -110,7 +110,7 @@ namespace Opc.Ua.Client
         /// are serialized in a form understood by the client.
         /// </summary>
         [DataTypeField(Order = 7)]
-        public partial QualifiedName Encoding { get; init; }
+        public QualifiedName Encoding { get; set; } = QualifiedName.Null;
 
         /// <summary>
         /// Requested <c>MonitoringMode</c> for the item: Disabled (no sampling),
@@ -120,7 +120,7 @@ namespace Opc.Ua.Client
         /// collection.
         /// </summary>
         [DataTypeField(Order = 8)]
-        public partial MonitoringMode MonitoringMode { get; init; }
+        public MonitoringMode MonitoringMode { get; set; } = MonitoringMode.Reporting;
 
         /// <summary>
         /// Requested <c>samplingInterval</c> (ms) for the server's data sampling
@@ -130,7 +130,7 @@ namespace Opc.Ua.Client
         /// load; very large intervals reduce data freshness.
         /// </summary>
         [DataTypeField(Order = 9)]
-        public partial int SamplingInterval { get; init; }
+        public int SamplingInterval { get; set; } = -1;
 
         /// <summary>
         /// Optional server side filter controlling which data changes or events
@@ -143,7 +143,7 @@ namespace Opc.Ua.Client
         /// <para>Reference: Part4 Section5.13.</para>
         /// </summary>
         [DataTypeField(Order = 10, StructureHandling = StructureHandling.ExtensionObject)]
-        public partial MonitoringFilter? Filter { get; init; }
+        public MonitoringFilter? Filter { get; set; }
 
         /// <summary>
         /// Requested <c>queueSize</c> specifying the maximum number of notifications
@@ -154,7 +154,7 @@ namespace Opc.Ua.Client
         /// The server may revise.
         /// </summary>
         [DataTypeField(Order = 11)]
-        public partial uint QueueSize { get; init; }
+        public uint QueueSize { get; set; } = 0;
 
         /// <summary>
         /// <c>discardOldest</c> policy: if true the server discards the oldest
@@ -164,6 +164,6 @@ namespace Opc.Ua.Client
         /// samples for batch integrity.
         /// </summary>
         [DataTypeField(Order = 12)]
-        public partial bool DiscardOldest { get; init; }
+        public bool DiscardOldest { get; set; } = true;
     }
 }

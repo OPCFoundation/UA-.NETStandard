@@ -1033,28 +1033,11 @@ namespace Opc.Ua.Client
                     }
 
                     break;
-                case NodeClass.Unspecified:
-                    if (filter is EventFilter)
-                    {
-                        State = State with { NodeClass = NodeClass.Object };
-                    }
-                    else if (filter is DataChangeFilter)
-                    {
-                        State = State with { NodeClass = NodeClass.Variable };
-                    }
-                    else
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadFilterNotAllowed,
-                            "Filters may not be specified for nodes of class '{0}'.",
-                            nodeClass);
-                    }
-
-                    break;
                 case NodeClass.Method:
                 case NodeClass.ObjectType:
                 case NodeClass.ReferenceType:
                 case NodeClass.DataType:
+                case NodeClass.Unspecified:
                     throw ServiceResultException.Create(
                         StatusCodes.BadFilterNotAllowed,
                         "Filters may not be specified for nodes of class '{0}'.",
