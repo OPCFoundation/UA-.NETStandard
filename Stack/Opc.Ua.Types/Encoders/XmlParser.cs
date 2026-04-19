@@ -2004,8 +2004,7 @@ namespace Opc.Ua
             {
                 var enums = new List<EnumValue>();
 
-                XmlQualifiedName xmlName = Peek(XmlNodeType.Element);
-                if (xmlName is null)
+                if (!MoveToElement(null))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
@@ -2013,6 +2012,8 @@ namespace Opc.Ua
                         fieldName,
                         nameof(ReadEnumeratedArray));
                 }
+
+                XmlQualifiedName xmlName = Peek(XmlNodeType.Element);
                 PushNamespace(xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))
