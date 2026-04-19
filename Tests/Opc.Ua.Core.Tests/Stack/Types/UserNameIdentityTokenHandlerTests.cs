@@ -44,7 +44,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
     public class UserNameIdentityTokenHandlerTests
     {
         private const string kSecurityPolicyUri = SecurityPolicies.Basic256Sha256;
-        private const uint RsaEncryptedSecretDataTypeId = 17545;
+        private const int RsaEncryptedSecretPasswordThreshold = 64;
         private const int TestLegacyPasswordLength = 12;
 
         [Test]
@@ -123,6 +123,99 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.That(tokenHandler.DecryptedPassword, Is.EqualTo(expectedPassword));
         }
 
+        [Test]
+        public void EncryptUsesLegacyRsaFormatForShortPassword()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
+            byte[] password = RandomNumberGenerator.GetBytes(RsaEncryptedSecretPasswordThreshold - 1);
+
+            using X509Certificate2 certificate = CertificateBuilder
+                .Create("CN=User Identity Token Encrypt Legacy Subject, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using var tokenHandler = new UserNameIdentityTokenHandler("legacyUser", password);
+            tokenHandler.Encrypt(certificate, receiverNonce, kSecurityPolicyUri, context);
+
+            Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
+            var token = (UserNameIdentityToken)tokenHandler.Token;
+            Assert.That(token.EncryptionAlgorithm, Is.Not.Null.And.Not.Empty);
+
+            using var decryptHandler = new UserNameIdentityTokenHandler(token);
+            decryptHandler.Decrypt(
+                certificate,
+                Nonce.CreateNonce(securityPolicy, receiverNonce),
+                kSecurityPolicyUri,
+                context);
+
+            Assert.That(decryptHandler.DecryptedPassword, Is.EqualTo(password));
+        }
+
+        [Test]
+        public void EncryptUsesLegacyRsaFormatAtThresholdPasswordLength()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
+            byte[] password = RandomNumberGenerator.GetBytes(RsaEncryptedSecretPasswordThreshold);
+
+            using X509Certificate2 certificate = CertificateBuilder
+                .Create("CN=User Identity Token Encrypt Threshold Subject, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using var tokenHandler = new UserNameIdentityTokenHandler("thresholdUser", password);
+            tokenHandler.Encrypt(certificate, receiverNonce, kSecurityPolicyUri, context);
+
+            Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
+            var token = (UserNameIdentityToken)tokenHandler.Token;
+            Assert.That(token.EncryptionAlgorithm, Is.Not.Null.And.Not.Empty);
+
+            using var decryptHandler = new UserNameIdentityTokenHandler(token);
+            decryptHandler.Decrypt(
+                certificate,
+                Nonce.CreateNonce(securityPolicy, receiverNonce),
+                kSecurityPolicyUri,
+                context);
+
+            Assert.That(decryptHandler.DecryptedPassword, Is.EqualTo(password));
+        }
+
+        [Test]
+        public void EncryptUsesRsaEncryptedSecretForLongPassword()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
+            byte[] password = RandomNumberGenerator.GetBytes(RsaEncryptedSecretPasswordThreshold + 1);
+
+            using X509Certificate2 certificate = CertificateBuilder
+                .Create("CN=User Identity Token Encrypt Secret Subject, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using var tokenHandler = new UserNameIdentityTokenHandler("secretUser", password);
+            tokenHandler.Encrypt(certificate, receiverNonce, kSecurityPolicyUri, context);
+
+            Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
+            var token = (UserNameIdentityToken)tokenHandler.Token;
+            Assert.That(token.EncryptionAlgorithm, Is.Null);
+
+            using var decryptHandler = new UserNameIdentityTokenHandler(token);
+            decryptHandler.Decrypt(
+                certificate,
+                Nonce.CreateNonce(securityPolicy, receiverNonce),
+                kSecurityPolicyUri,
+                context);
+
+            Assert.That(decryptHandler.DecryptedPassword, Is.EqualTo(password));
+        }
+
         private static byte[] CreateRsaEncryptedSecret(
             IServiceMessageContext context,
             X509Certificate2 receiverCertificate,
@@ -152,7 +245,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] encryptedPayload = EncryptPayload(plainPayload, encryptingKey, iv);
 
             using var encoder = new BinaryEncoder(context);
-            encoder.WriteNodeId(null, new NodeId(RsaEncryptedSecretDataTypeId));
+            encoder.WriteNodeId(null, DataTypeIds.RsaEncryptedSecret);
             encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
             int lengthPosition = encoder.Position;
             encoder.WriteUInt32(null, 0);

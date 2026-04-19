@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// </summary>
     public sealed class UserNameIdentityTokenHandler : IUserIdentityTokenHandler
     {
-        private const uint RsaEncryptedSecretDataTypeId = 17545;
+        private const int RsaEncryptedSecretPasswordThreshold = 64;
         private static readonly TimeSpan RsaEncryptedSecretMaxClockSkew = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan RsaEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
 
@@ -124,6 +124,17 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
+                if (DecryptedPassword.Length > RsaEncryptedSecretPasswordThreshold)
+                {
+                    m_token.Password = EncryptRsaEncryptedSecret(
+                        receiverCertificate,
+                        receiverNonce,
+                        securityPolicyUri,
+                        context).ToByteString();
+                    m_token.EncryptionAlgorithm = null;
+                    return;
+                }
+
                 byte[] dataToEncrypt = Utils.Append(DecryptedPassword, receiverNonce);
 
                 ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityToken>();
@@ -169,6 +180,161 @@ namespace Opc.Ua
 
                 m_token.Password = secret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
                 m_token.EncryptionAlgorithm = null;
+            }
+        }
+
+        private byte[] EncryptRsaEncryptedSecret(
+            X509Certificate2 receiverCertificate,
+            byte[] receiverNonce,
+            string securityPolicyUri,
+            IServiceMessageContext context)
+        {
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            byte[] signingKey = null;
+            byte[] encryptingKey = null;
+            byte[] iv = null;
+            byte[] keyData = null;
+            byte[] encryptedPayload = null;
+
+            try
+            {
+                signingKey = Nonce.CreateRandomNonceData(securityPolicy.DerivedSignatureKeyLength, false);
+                encryptingKey = Nonce.CreateRandomNonceData(securityPolicy.SymmetricEncryptionKeyLength, false);
+                iv = Nonce.CreateRandomNonceData(securityPolicy.InitializationVectorLength, false);
+                keyData = Utils.Append(signingKey, encryptingKey, iv);
+
+                ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityToken>();
+                byte[] encryptedKeyData = SecurityPolicies.Encrypt(
+                    receiverCertificate,
+                    securityPolicyUri,
+                    keyData,
+                    logger).Data;
+
+                using var payloadEncoder = new BinaryEncoder(context);
+                payloadEncoder.WriteByteString(null, receiverNonce ?? []);
+                payloadEncoder.WriteByteString(null, DecryptedPassword);
+                byte[] payload = payloadEncoder.CloseAndReturnBuffer();
+
+                int blockSize = securityPolicy.InitializationVectorLength;
+                int paddingByteSize = blockSize > byte.MaxValue ? 2 : 1;
+                int paddingSize = blockSize - ((payload.Length + paddingByteSize) % blockSize);
+                paddingSize %= blockSize;
+
+                encryptedPayload = new byte[payload.Length + paddingSize + paddingByteSize];
+                Buffer.BlockCopy(payload, 0, encryptedPayload, 0, payload.Length);
+
+                for (int ii = payload.Length; ii < payload.Length + paddingSize; ii++)
+                {
+                    encryptedPayload[ii] = (byte)(paddingSize & 0xFF);
+                }
+
+                encryptedPayload[payload.Length + paddingSize] = (byte)(paddingSize & 0xFF);
+                if (paddingByteSize > 1)
+                {
+                    encryptedPayload[payload.Length + paddingSize + 1] = (byte)((paddingSize >> 8) & 0xFF);
+                }
+
+#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
+                using Aes aes = Aes.Create();
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.None;
+                aes.Key = encryptingKey;
+                aes.IV = iv;
+#pragma warning restore CA5401
+                using ICryptoTransform encryptor = aes.CreateEncryptor();
+                int bytesEncrypted = encryptor.TransformBlock(
+                    encryptedPayload,
+                    0,
+                    encryptedPayload.Length,
+                    encryptedPayload,
+                    0);
+                if (bytesEncrypted != encryptedPayload.Length)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingError);
+                }
+
+                CryptographicOperations.ZeroMemory(payload);
+
+                using var encoder = new BinaryEncoder(context);
+                encoder.WriteNodeId(null, DataTypeIds.RsaEncryptedSecret);
+                encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
+                int lengthPosition = encoder.Position;
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteString(null, securityPolicyUri);
+#pragma warning disable CA5350 // SHA1 is required by OPC UA RsaEncryptedSecret certificate hash field.
+                encoder.WriteByteString(null, SHA1.HashData(receiverCertificate.RawData));
+#pragma warning restore CA5350
+                encoder.WriteDateTime(null, DateTime.UtcNow);
+                encoder.WriteUInt16(null, (ushort)encryptedKeyData.Length);
+
+                // KeyData is a raw byte block with length encoded separately, not a ByteString field.
+                for (int ii = 0; ii < encryptedKeyData.Length; ii++)
+                {
+                    encoder.WriteByte(null, encryptedKeyData[ii]);
+                }
+
+                // Payload bytes are encoded as raw data according to RsaEncryptedSecret binary layout.
+                for (int ii = 0; ii < encryptedPayload.Length; ii++)
+                {
+                    encoder.WriteByte(null, encryptedPayload[ii]);
+                }
+
+                for (int ii = 0; ii < securityPolicy.SymmetricSignatureLength; ii++)
+                {
+                    encoder.WriteByte(null, 0);
+                }
+
+                byte[] encodedSecret = encoder.CloseAndReturnBuffer();
+                int extensionObjectLength = encodedSecret.Length - lengthPosition - 4;
+                encodedSecret[lengthPosition++] = (byte)(extensionObjectLength & 0xFF);
+                encodedSecret[lengthPosition++] = (byte)((extensionObjectLength >> 8) & 0xFF);
+                encodedSecret[lengthPosition++] = (byte)((extensionObjectLength >> 16) & 0xFF);
+                encodedSecret[lengthPosition] = (byte)((extensionObjectLength >> 24) & 0xFF);
+
+                int signatureStart = encodedSecret.Length - securityPolicy.SymmetricSignatureLength;
+                if (securityPolicy.SymmetricSignatureLength > 0)
+                {
+                    using HMAC hmac = securityPolicy.CreateSignatureHmac(signingKey) ??
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The security policy does not support symmetric signatures required for RSAEncryptedSecret creation.");
+                    byte[] signature = hmac.ComputeHash(encodedSecret, 0, signatureStart);
+                    Buffer.BlockCopy(
+                        signature,
+                        0,
+                        encodedSecret,
+                        signatureStart,
+                        Math.Min(signature.Length, securityPolicy.SymmetricSignatureLength));
+                }
+
+                return encodedSecret;
+            }
+            finally
+            {
+                if (signingKey != null)
+                {
+                    CryptographicOperations.ZeroMemory(signingKey);
+                }
+
+                if (encryptingKey != null)
+                {
+                    CryptographicOperations.ZeroMemory(encryptingKey);
+                }
+
+                if (iv != null)
+                {
+                    CryptographicOperations.ZeroMemory(iv);
+                }
+
+                if (keyData != null)
+                {
+                    CryptographicOperations.ZeroMemory(keyData);
+                }
+
+                if (encryptedPayload != null)
+                {
+                    CryptographicOperations.ZeroMemory(encryptedPayload);
+                }
             }
         }
 
@@ -300,7 +466,7 @@ namespace Opc.Ua
             using var decoder = new BinaryDecoder(encodedSecret, context);
             NodeId typeId = decoder.ReadNodeId(null);
 
-            if (typeId != new NodeId(RsaEncryptedSecretDataTypeId))
+            if (typeId != DataTypeIds.RsaEncryptedSecret)
             {
                 return false;
             }
