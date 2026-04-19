@@ -253,7 +253,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadEncodingError);
                 }
 
-                CryptographicOperations.ZeroMemory(payload);
+                ZeroMemory(payload);
 
                 using var encoder = new BinaryEncoder(context);
                 encoder.WriteNodeId(null, DataTypeIds.RsaEncryptedSecret);
@@ -262,7 +262,7 @@ namespace Opc.Ua
                 encoder.WriteUInt32(null, 0);
                 encoder.WriteString(null, securityPolicyUri);
 #pragma warning disable CA5350 // SHA1 is required by OPC UA RsaEncryptedSecret certificate hash field.
-                encoder.WriteByteString(null, SHA1.HashData(receiverCertificate.RawData));
+                encoder.WriteByteString(null, ComputeSha1Hash(receiverCertificate.RawData));
 #pragma warning restore CA5350
                 encoder.WriteDateTime(null, DateTime.UtcNow);
                 encoder.WriteUInt16(null, (ushort)encryptedKeyData.Length);
@@ -313,27 +313,27 @@ namespace Opc.Ua
             {
                 if (signingKey != null)
                 {
-                    CryptographicOperations.ZeroMemory(signingKey);
+                    ZeroMemory(signingKey);
                 }
 
                 if (encryptingKey != null)
                 {
-                    CryptographicOperations.ZeroMemory(encryptingKey);
+                    ZeroMemory(encryptingKey);
                 }
 
                 if (iv != null)
                 {
-                    CryptographicOperations.ZeroMemory(iv);
+                    ZeroMemory(iv);
                 }
 
                 if (keyData != null)
                 {
-                    CryptographicOperations.ZeroMemory(keyData);
+                    ZeroMemory(keyData);
                 }
 
                 if (encryptedPayload != null)
                 {
-                    CryptographicOperations.ZeroMemory(encryptedPayload);
+                    ZeroMemory(encryptedPayload);
                 }
             }
         }
@@ -496,7 +496,7 @@ namespace Opc.Ua
             if (certificateHash.Length > 0)
             {
 #pragma warning disable CA5350 // SHA1 is required by OPC UA RsaEncryptedSecret certificate hash field.
-                byte[] actualCertificateHash = SHA1.HashData(certificate.RawData);
+                byte[] actualCertificateHash = ComputeSha1Hash(certificate.RawData);
 #pragma warning restore CA5350
                 if (!Utils.IsEqual(certificateHash.ToArray(), actualCertificateHash))
                 {
@@ -627,32 +627,32 @@ namespace Opc.Ua
             {
                 if (keyData != null)
                 {
-                    CryptographicOperations.ZeroMemory(keyData);
+                    ZeroMemory(keyData);
                 }
 
                 if (signingKey != null)
                 {
-                    CryptographicOperations.ZeroMemory(signingKey);
+                    ZeroMemory(signingKey);
                 }
 
                 if (encryptingKey != null)
                 {
-                    CryptographicOperations.ZeroMemory(encryptingKey);
+                    ZeroMemory(encryptingKey);
                 }
 
                 if (iv != null)
                 {
-                    CryptographicOperations.ZeroMemory(iv);
+                    ZeroMemory(iv);
                 }
 
                 if (encryptedPayload != null)
                 {
-                    CryptographicOperations.ZeroMemory(encryptedPayload);
+                    ZeroMemory(encryptedPayload);
                 }
 
                 if (payload != null)
                 {
-                    CryptographicOperations.ZeroMemory(payload);
+                    ZeroMemory(payload);
                 }
             }
         }
@@ -709,6 +709,25 @@ namespace Opc.Ua
             }
             // TODO: Should compare password too?
             return true;
+        }
+
+        private static byte[] ComputeSha1Hash(byte[] data)
+        {
+            using SHA1 sha1 = SHA1.Create();
+            return sha1.ComputeHash(data);
+        }
+
+        private static void ZeroMemory(byte[] buffer)
+        {
+            if (buffer == null)
+            {
+                return;
+            }
+#if NETFRAMEWORK
+            Array.Clear(buffer, 0, buffer.Length);
+#else
+            CryptographicOperations.ZeroMemory(buffer);
+#endif
         }
 
         private readonly UserNameIdentityToken m_token;
