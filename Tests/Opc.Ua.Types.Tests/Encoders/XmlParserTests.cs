@@ -1568,7 +1568,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadEnumeratedArrayThrowsWhenEmptyElement()
+        public void ReadEnumeratedArrayThrowsWhenEmptyContent()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
@@ -1662,7 +1662,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result[0].Value, Is.EqualTo(0));
             Assert.That(result[0].Symbol, Is.EqualTo("Value1"));
+            Assert.That(result[1].Value, Is.EqualTo(0));
             Assert.That(result[1].Symbol, Is.EqualTo("Value2"));
         }
 
