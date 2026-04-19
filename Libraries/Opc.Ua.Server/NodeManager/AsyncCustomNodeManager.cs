@@ -555,6 +555,7 @@ namespace Opc.Ua.Server
             // load the predefined nodes from an XML document.
             var predefinedNodes = new NodeStateCollection();
             predefinedNodes.LoadFromResource(context, resourcePath, assembly, true);
+            TryRegisterPredefinedNodeDataTypes(context, predefinedNodes);
 
             // add the predefined nodes to the node manager.
             for (int ii = 0; ii < predefinedNodes.Count; ii++)
@@ -585,6 +586,7 @@ namespace Opc.Ua.Server
         {
             // load the predefined nodes from an XML document.
             NodeStateCollection predefinedNodes = await LoadPredefinedNodesAsync(context, cancellationToken).ConfigureAwait(false);
+            TryRegisterPredefinedNodeDataTypes(context, predefinedNodes);
 
             // add the predefined nodes to the node manager.
             for (int ii = 0; ii < predefinedNodes.Count; ii++)
@@ -605,6 +607,23 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             return new ValueTask<NodeState>(predefinedNode);
+        }
+
+        /// <summary>
+        /// Registers DataTypeDefinitions from predefined nodes in the encodeable factory.
+        /// </summary>
+        protected virtual void TryRegisterPredefinedNodeDataTypes(
+            ISystemContext context,
+            NodeStateCollection predefinedNodes)
+        {
+            try
+            {
+                PredefinedNodeComplexTypeRegistrar.RegisterDataTypes(context, predefinedNodes);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "Failed to register complex data types from predefined nodes.");
+            }
         }
 
         /// <summary>
