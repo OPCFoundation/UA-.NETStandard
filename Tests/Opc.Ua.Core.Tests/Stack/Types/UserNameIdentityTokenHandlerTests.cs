@@ -92,7 +92,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
-            byte[] expectedPassword = RandomNumberGenerator.GetBytes(TestLegacyPasswordLength);
+            byte[] expectedPassword = GetRandomBytes(TestLegacyPasswordLength);
 
             using X509Certificate2 certificate = CertificateBuilder
                 .Create("CN=User Identity Token Legacy Test Subject, O=OPC Foundation")
@@ -130,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
-            byte[] password = RandomNumberGenerator.GetBytes(RsaEncryptedSecretPasswordThreshold - 1);
+            byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold - 1);
 
             using X509Certificate2 certificate = CertificateBuilder
                 .Create("CN=User Identity Token Encrypt Legacy Subject, O=OPC Foundation")
@@ -161,7 +161,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
-            byte[] password = RandomNumberGenerator.GetBytes(RsaEncryptedSecretPasswordThreshold);
+            byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold);
 
             using X509Certificate2 certificate = CertificateBuilder
                 .Create("CN=User Identity Token Encrypt Threshold Subject, O=OPC Foundation")
@@ -192,7 +192,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
-            byte[] password = RandomNumberGenerator.GetBytes(RsaEncryptedSecretPasswordThreshold + 1);
+            byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold + 1);
 
             using X509Certificate2 certificate = CertificateBuilder
                 .Create("CN=User Identity Token Encrypt Secret Subject, O=OPC Foundation")
@@ -230,9 +230,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 throw new NotSupportedException("The test helper supports RSA security policies with CBC encryption only.");
             }
 
-            byte[] signingKey = RandomNumberGenerator.GetBytes(securityPolicy.DerivedSignatureKeyLength);
-            byte[] encryptingKey = RandomNumberGenerator.GetBytes(securityPolicy.SymmetricEncryptionKeyLength);
-            byte[] iv = RandomNumberGenerator.GetBytes(securityPolicy.InitializationVectorLength);
+            byte[] signingKey = GetRandomBytes(securityPolicy.DerivedSignatureKeyLength);
+            byte[] encryptingKey = GetRandomBytes(securityPolicy.SymmetricEncryptionKeyLength);
+            byte[] iv = GetRandomBytes(securityPolicy.InitializationVectorLength);
             byte[] keyData = Utils.Append(signingKey, encryptingKey, iv);
 
             byte[] encryptedKeyData = SecurityPolicies.Encrypt(
@@ -251,7 +251,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             encoder.WriteUInt32(null, 0);
             encoder.WriteString(null, securityPolicyUri);
 #pragma warning disable CA5350 // SHA1 is required by OPC UA RsaEncryptedSecret certificate hash field.
-            encoder.WriteByteString(null, SHA1.HashData(receiverCertificate.RawData));
+            encoder.WriteByteString(null, ComputeSha1Hash(receiverCertificate.RawData));
 #pragma warning restore CA5350
             encoder.WriteDateTime(null, DateTime.UtcNow);
             encoder.WriteUInt16(null, (ushort)encryptedKeyData.Length);
@@ -335,6 +335,20 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
             using ICryptoTransform encryptor = aes.CreateEncryptor();
             return encryptor.TransformFinalBlock(encryptedPayload, 0, encryptedPayload.Length);
+        }
+
+        private static byte[] GetRandomBytes(int count)
+        {
+            var bytes = new byte[count];
+            using RandomNumberGenerator rng = RandomNumberGenerator.Create();
+            rng.GetBytes(bytes);
+            return bytes;
+        }
+
+        private static byte[] ComputeSha1Hash(byte[] data)
+        {
+            using SHA1 sha1 = SHA1.Create();
+            return sha1.ComputeHash(data);
         }
     }
 }
