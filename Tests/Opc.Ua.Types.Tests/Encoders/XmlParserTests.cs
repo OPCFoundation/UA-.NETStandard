@@ -1563,6 +1563,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.Message, Does.Contain("does not contain any elements"));
         }
 
         [Test]
@@ -1572,6 +1573,25 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
             <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"></ListOfTestEnum>
+            """;
+            using var decoder = new XmlParser(xml, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEnumeratedArray("ListOfTestEnum"));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadEnumeratedArrayThrowsWhenElementContainsOnlyText()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">invalid text</ListOfTestEnum>
             """;
             using var decoder = new XmlParser(xml, messageContext);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
