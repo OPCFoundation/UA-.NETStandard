@@ -1545,6 +1545,27 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadEnumeratedArrayThrowsWhenNoElementsPresent()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <![CDATA[]]>
+            </ListOfTestEnum>
+            """;
+            using var decoder = new XmlParser(xml, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEnumeratedArray("ListOfTestEnum"));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
         public void DecodeMessageReturnsDecodedValue()
         {
             // Arrange

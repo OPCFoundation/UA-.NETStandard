@@ -2004,10 +2004,15 @@ namespace Opc.Ua
             {
                 var enums = new List<EnumValue>();
 
-                // TODO: We need to blindly discover the structure of the enumeration array
-                // We peek the first element and push the namespace, then move to it. But
-                // what if there is no first element?  We need test coverage here.
                 XmlQualifiedName xmlName = Peek(XmlNodeType.Element);
+                if (xmlName is null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unable to read field {0} in function {1}: The enumerated array does not contain any elements.",
+                        fieldName,
+                        nameof(ReadEnumeratedArray));
+                }
                 PushNamespace(xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))
