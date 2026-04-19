@@ -184,7 +184,7 @@ namespace Opc.Ua.Server
                         structureDefinition,
                         fieldTypes),
                 StructureType.Union or StructureType.UnionWithSubtypedValues =>
-                    // default selector value (0) means no active union field.
+                    // use the default union selector value.
                     new global::Opc.Ua.Encoders.Union(
                         xmlName,
                         typeId,
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server
                         xmlEncodingId,
                         structureDefinition,
                         fieldTypes,
-                        0),
+                        DefaultUnionSelector),
                 _ => null
             };
 
@@ -207,7 +207,7 @@ namespace Opc.Ua.Server
             IDictionary<NodeId, IType> knownTypes,
             out BuiltInType fieldType)
         {
-            if (field.DataType == ownerTypeId)
+            if (IsRecursiveFieldType(ownerTypeId, field.DataType))
             {
                 fieldType = BuiltInType.Null;
                 return true;
@@ -228,7 +228,7 @@ namespace Opc.Ua.Server
 
                 if (knownType is IEncodeableType)
                 {
-                    fieldType = allowSubTypes && field.IsOptional ? BuiltInType.ExtensionObject : BuiltInType.Null;
+                    fieldType = GetStructuredFieldBuiltInType(allowSubTypes, field.IsOptional);
                     return true;
                 }
             }
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server
 
                 if (superTypeId == DataTypeIds.Structure)
                 {
-                    fieldType = allowSubTypes && field.IsOptional ? BuiltInType.ExtensionObject : BuiltInType.Null;
+                    fieldType = GetStructuredFieldBuiltInType(allowSubTypes, field.IsOptional);
                     return true;
                 }
 
@@ -270,6 +270,16 @@ namespace Opc.Ua.Server
         {
             builtInType = TypeInfo.GetBuiltInType(dataTypeId);
             return builtInType != BuiltInType.Null;
+        }
+
+        private static bool IsRecursiveFieldType(NodeId ownerTypeId, NodeId fieldTypeId)
+        {
+            return fieldTypeId == ownerTypeId;
+        }
+
+        private static BuiltInType GetStructuredFieldBuiltInType(bool allowSubTypes, bool isOptional)
+        {
+            return allowSubTypes && isOptional ? BuiltInType.ExtensionObject : BuiltInType.Null;
         }
 
         private static bool TryGetDefinition<TDefinition>(
@@ -408,5 +418,7 @@ namespace Opc.Ua.Server
                 FlattenNodeTree(context, child, allNodes);
             }
         }
+
+        private const uint DefaultUnionSelector = 0;
     }
 }
