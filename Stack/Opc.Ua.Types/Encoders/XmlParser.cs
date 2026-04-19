@@ -2031,6 +2031,16 @@ namespace Opc.Ua
                 EndField(fieldName);
                 return enums.ToArrayOf();
             }
+
+            if (LastFieldWasEmpty)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Unable to read field {0} in function {1}: The enumerated array does not contain any elements.",
+                    fieldName,
+                    nameof(ReadEnumeratedArray));
+            }
+
             return isNil ? default : [];
         }
 
