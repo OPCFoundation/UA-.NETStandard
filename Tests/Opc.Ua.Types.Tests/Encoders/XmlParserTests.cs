@@ -1498,6 +1498,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.Message, Does.Contain("does not contain any elements"));
         }
 
         [Test]
@@ -1583,6 +1584,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.Message, Does.Contain("does not contain any elements"));
         }
 
         [Test]
