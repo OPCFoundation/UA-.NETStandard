@@ -1568,7 +1568,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadEnumeratedArrayThrowsWhenEmptyContent()
+        public void ReadEnumeratedArrayShouldThrowBadDecodingErrorWhenEmptyContent()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
@@ -1588,7 +1588,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadEnumeratedArrayThrowsWhenElementContainsOnlyText()
+        public void ReadEnumeratedArrayShouldThrowBadDecodingErrorWhenElementContainsOnlyText()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
@@ -1644,7 +1644,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadEnumeratedArrayParsesPopulatedArray()
+        public void ReadEnumeratedArrayShouldReturnCorrectCountForPopulatedArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
