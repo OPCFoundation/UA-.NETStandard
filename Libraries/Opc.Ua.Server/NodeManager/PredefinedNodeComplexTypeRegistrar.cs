@@ -160,10 +160,14 @@ namespace Opc.Ua.Server
                 fieldTypes[field.Name] = fieldType;
             }
 
-            (ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, _)
-                = GetEncodingIds(context, dataType, nodesById);
+            (
+                ExpandedNodeId binaryEncodingId,
+                ExpandedNodeId xmlEncodingId,
+                ExpandedNodeId jsonEncodingId
+            ) = GetEncodingIds(context, dataType, nodesById);
             var xmlName = GetXmlName(context, dataType);
             ExpandedNodeId typeId = NodeId.ToExpandedNodeId(dataType.NodeId, context.NamespaceUris);
+            _ = jsonEncodingId;
 
             encodeableType = structureDefinition.StructureType switch
             {
@@ -184,6 +188,7 @@ namespace Opc.Ua.Server
                         structureDefinition,
                         fieldTypes),
                 StructureType.Union or StructureType.UnionWithSubtypedValues =>
+                    // default selector value (0) means no active union field.
                     new global::Opc.Ua.Encoders.Union(
                         xmlName,
                         typeId,

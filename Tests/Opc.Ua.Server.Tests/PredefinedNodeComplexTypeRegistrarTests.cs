@@ -11,7 +11,7 @@ namespace Opc.Ua.Server.Tests
     public class PredefinedNodeComplexTypeRegistrarTests
     {
         [Test]
-        public void RegisterDataTypesAddsEnumAndStructureTypesToEncodeableFactory()
+        public void RegisterDataTypesSuccessfullyRegistersEnumAndStructureTypes()
         {
             SystemContext context = CreateSystemContext();
             ushort namespaceIndex = context.NamespaceUris.GetIndexOrAppend("urn:server-complex-types");
