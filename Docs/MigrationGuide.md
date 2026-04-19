@@ -43,12 +43,11 @@
       - [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
     - [Complex Types](#complex-types)
       - [ComplexTypes moved to Opc.Ua.Client assembly](#complextypes-moved-to-opcuaclient-assembly)
+      - [OptionSet DataType support](#optionset-datatype-support)
     - [Session and Browser State Persistence](#session-and-browser-state-persistence)
       - [Property type changes](#property-type-changes)
       - [`IUserIdentity` on `SessionOptions` is now computed](#iuseridentity-on-sessionoptions-is-now-computed)
       - [Encoding format is not guaranteed backward compatible](#encoding-format-is-not-guaranteed-backward-compatible)
-      - [OptionSet DataType support](#optionset-datatype-support)
-    - [Other Breaking Changes](#other-breaking-changes)
   - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
     - [Asynchronous as default](#asynchronous-as-default)
     - [Observability](#observability)
@@ -675,8 +674,6 @@ public partial record class SessionOptions
     }
 }
 ```
-
-When migrating code that previously set `Identity` directly, no code changes are required — the property still accepts `IUserIdentity`. However, if you were serializing session state manually, note that only `IdentityToken` round-trips through encode/decode.
 
 #### Encoding format is not guaranteed backward compatible
 
