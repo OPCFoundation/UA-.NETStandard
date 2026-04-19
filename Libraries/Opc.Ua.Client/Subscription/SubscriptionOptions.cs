@@ -27,15 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Runtime.Serialization;
-using System.Text.Json.Serialization;
-
 namespace Opc.Ua.Client
 {
-    [JsonSerializable(typeof(SubscriptionOptions))]
-    [JsonSerializable(typeof(SubscriptionState))]
-    internal partial class SubscriptionOptionsContext : JsonSerializerContext;
-
     /// <summary>
     /// Serializable options for a subscription.
     /// <para>
@@ -46,9 +39,19 @@ namespace Opc.Ua.Client
     /// and https://reference.opcfoundation.org/Core/Part4/v105/docs/5.14.
     /// </para>
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public record class SubscriptionOptions
+    [DataType(Namespace = Namespaces.OpcUaXsd)]
+    public partial record class SubscriptionOptions
     {
+        /// <summary>
+        /// Default constructor
+        /// </summary>
+        public SubscriptionOptions()
+        {
+            DisplayName = "Subscription";
+            TimestampsToReturn = TimestampsToReturn.Both;
+            MaxMessageCount = 10;
+        }
+
         /// <summary>
         /// A human readable display name for the subscription instance used
         /// locally by the client for logging, diagnostics and UI. This value
@@ -57,8 +60,8 @@ namespace Opc.Ua.Client
         /// operators identify the purpose of the subscription (e.g.
         /// "ProcessValues", "Alarms").
         /// </summary>
-        [DataMember(Order = 1)]
-        public string DisplayName { get; init; } = "Subscription";
+        [DataTypeField(Order = 1)]
+        public partial string DisplayName { get; init; }
 
         /// <summary>
         /// Requested <c>publishingInterval</c> (ms) sent in CreateSubscription.
@@ -69,8 +72,8 @@ namespace Opc.Ua.Client
         /// falls back to the server default. Selecting too small an interval
         /// can increase CPU and network load.
         /// </summary>
-        [DataMember(Order = 2)]
-        public int PublishingInterval { get; init; }
+        [DataTypeField(Order = 2)]
+        public partial int PublishingInterval { get; init; }
 
         /// <summary>
         /// Requested <c>keepAliveCount</c> (number of publishing intervals)
@@ -79,8 +82,8 @@ namespace Opc.Ua.Client
         /// Lower values mean the client gets more frequent confirmation that the
         /// subscription is alive even in quiet periods. The server may revise this.
         /// </summary>
-        [DataMember(Order = 3)]
-        public uint KeepAliveCount { get; init; }
+        [DataTypeField(Order = 3)]
+        public partial uint KeepAliveCount { get; init; }
 
         /// <summary>
         /// Requested <c>lifetimeCount</c> (number of publishing intervals)
@@ -89,8 +92,8 @@ namespace Opc.Ua.Client
         /// the subscription may be terminated. Must be larger than keepAliveCount
         /// (spec recommends at least3x). The server may revise this value.
         /// </summary>
-        [DataMember(Order = 4)]
-        public uint LifetimeCount { get; init; }
+        [DataTypeField(Order = 4)]
+        public partial uint LifetimeCount { get; init; }
 
         /// <summary>
         /// Requested <c>maxNotificationsPerPublish</c> limiting the number
@@ -100,8 +103,8 @@ namespace Opc.Ua.Client
         /// network packet size and memory consumption. Large bursts get split
         /// across multiple Publish responses if necessary.
         /// </summary>
-        [DataMember(Order = 5)]
-        public uint MaxNotificationsPerPublish { get; init; }
+        [DataTypeField(Order = 5)]
+        public partial uint MaxNotificationsPerPublish { get; init; }
 
         /// <summary>
         /// Requested <c>publishingEnabled</c> state. If false the server creates
@@ -109,8 +112,8 @@ namespace Opc.Ua.Client
         /// enabled with ModifySubscription or SetPublishingMode. Useful for
         /// staging monitored items.
         /// </summary>
-        [DataMember(Order = 6)]
-        public bool PublishingEnabled { get; init; }
+        [DataTypeField(Order = 6)]
+        public partial bool PublishingEnabled { get; init; }
 
         /// <summary>
         /// Requested <c>priority</c> hint allowing the server to schedule higher
@@ -118,8 +121,8 @@ namespace Opc.Ua.Client
         /// servers may use this value as a relative ranking (higher = more important)
         /// but are not required to strictly enforce ordering.
         /// </summary>
-        [DataMember(Order = 7)]
-        public byte Priority { get; init; }
+        [DataTypeField(Order = 7)]
+        public partial byte Priority { get; init; }
 
         /// <summary>
         /// Which timestamps (Source / Server / Both / Neither) the client
@@ -127,8 +130,8 @@ namespace Opc.Ua.Client
         /// used in the MonitoredItem and Read services. The default of Both provides
         /// maximum context at the cost of a few extra bytes.
         /// </summary>
-        [DataMember(Order = 8)]
-        public TimestampsToReturn TimestampsToReturn { get; init; } = TimestampsToReturn.Both;
+        [DataTypeField(Order = 8)]
+        public partial TimestampsToReturn TimestampsToReturn { get; init; }
 
         /// <summary>
         /// Maximum number of Publish responses cached locally by the client for late
@@ -136,8 +139,8 @@ namespace Opc.Ua.Client
         /// (not part of wire services). Larger values allow more tolerance to temporary
         /// processing delays; smaller values reduce memory usage.
         /// </summary>
-        [DataMember(Order = 9)]
-        public int MaxMessageCount { get; init; } = 10;
+        [DataTypeField(Order = 9)]
+        public partial int MaxMessageCount { get; init; }
 
         /// <summary>
         /// A client side min interval (ms) used to derive a safe <c>lifetimeCount</c>
@@ -145,8 +148,8 @@ namespace Opc.Ua.Client
         /// lifetimeCount * publishingInterval is not below an application defined
         /// minimum lifetime.0 means disabled.
         /// </summary>
-        [DataMember(Order = 12)]
-        public uint MinLifetimeInterval { get; init; }
+        [DataTypeField(Order = 12)]
+        public partial uint MinLifetimeInterval { get; init; }
 
         /// <summary>
         /// When true the client disables its per-monitored-item value cache,
@@ -154,8 +157,8 @@ namespace Opc.Ua.Client
         /// cost of losing last-value lookups without application tracking. Use for
         /// streaming scenarios where each notification is processed once then discarded.
         /// </summary>
-        [DataMember(Order = 13)]
-        public bool DisableMonitoredItemCache { get; init; }
+        [DataTypeField(Order = 13)]
+        public partial bool DisableMonitoredItemCache { get; init; }
 
         /// <summary>
         /// When true incoming Publish responses are processed strictly sequentially
@@ -163,8 +166,8 @@ namespace Opc.Ua.Client
         /// This can simplify application logic for ordering dependent processing
         /// (e.g. aggregate calculations) at the cost of reduced parallelism.
         /// </summary>
-        [DataMember(Order = 14)]
-        public bool SequentialPublishing { get; init; }
+        [DataTypeField(Order = 14)]
+        public partial bool SequentialPublishing { get; init; }
 
         /// <summary>
         /// When true the client will automatically issue Republish requests
@@ -172,8 +175,8 @@ namespace Opc.Ua.Client
         /// available lost sequence numbers and minimize data loss. This automates
         /// the gap recovery behavior defined for the Republish service.
         /// </summary>
-        [DataMember(Name = "RepublishAfterTransfer", Order = 15)]
-        public bool RepublishAfterTransfer { get; init; }
+        [DataTypeField(Name = "RepublishAfterTransfer", Order = 15)]
+        public partial bool RepublishAfterTransfer { get; init; }
 
         /// <summary>
         /// The transferable subscription identifier (server assigned) used to
@@ -182,7 +185,7 @@ namespace Opc.Ua.Client
         /// currently transferable. Persisting this value allows restoring behavior
         /// after reconnect.
         /// </summary>
-        [DataMember(Name = "TransferId", Order = 16)]
-        public uint TransferId { get; init; }
+        [DataTypeField(Name = "TransferId", Order = 16)]
+        public partial uint TransferId { get; init; }
     }
 }

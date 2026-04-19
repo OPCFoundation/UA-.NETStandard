@@ -30,15 +30,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Serialization;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
     /// State object that is used for snapshotting the monitored item
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public record class MonitoredItemState : MonitoredItemOptions
+    [DataType(Namespace = Namespaces.OpcUaXsd)]
+    public partial record class MonitoredItemState : MonitoredItemOptions
     {
         /// <summary>
         /// Create monitored item state
@@ -62,8 +61,8 @@ namespace Opc.Ua.Client
         /// and perform Modify/SetMonitoringMode/Delete operations across reconnects.
         /// 0 indicates not yet created or invalidated.
         /// </summary>
-        [DataMember(Order = 13)]
-        public uint ServerId { get; init; }
+        [DataTypeField(Order = 13)]
+        public partial uint ServerId { get; init; }
 
         /// <summary>
         /// Client-assigned handle used in Publish notifications (clientHandle)
@@ -71,45 +70,41 @@ namespace Opc.Ua.Client
         /// structures without lookups on serverId. Should be unique per subscription.
         /// Typically used as an index/key into client data structures.
         /// </summary>
-        [DataMember(Order = 14)]
-        public uint ClientId { get; init; }
+        [DataTypeField(Order = 14)]
+        public partial uint ClientId { get; init; }
 
         /// <summary>
         /// When the state was created.
         /// </summary>
-        [DataMember(Order = 15)]
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        [DataTypeField(Order = 15)]
+        public DateTimeUtc Timestamp { get; set; } = DateTimeUtc.Now;
 
         /// <summary>
         /// Server-side identifier of the triggering item if this monitored item
         /// is triggered by another item. 0 indicates this item is not triggered.
         /// Used to restore triggering links after session reconnect.
         /// </summary>
-        [DataMember(Order = 16)]
-        public uint TriggeringItemId { get; init; }
+        [DataTypeField(Order = 16)]
+        public partial uint TriggeringItemId { get; init; }
 
         /// <summary>
         /// Collection of server-side identifiers of monitored items that are
         /// triggered by this item. Empty or null if this item does not trigger
         /// any other items. Used to restore triggering links after session reconnect.
         /// </summary>
-        [DataMember(Order = 17)]
-        public ArrayOf<uint> TriggeredItems { get; init; }
+        [DataTypeField(Order = 17)]
+        public partial ArrayOf<uint> TriggeredItems { get; init; }
 
         /// <summary>
         /// The queue size used by the client-side cache.
         /// </summary>
-        [DataMember(Order = 18)]
-        public uint CacheQueueSize { get; init; }
+        [DataTypeField(Order = 18)]
+        public partial uint CacheQueueSize { get; init; }
     }
 
     /// <summary>
     /// A collection of monitored item states.
     /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfMonitoredItems",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "MonitoredItems")]
     public class MonitoredItemStateCollection : List<MonitoredItemState>, ICloneable
     {
         /// <summary>
