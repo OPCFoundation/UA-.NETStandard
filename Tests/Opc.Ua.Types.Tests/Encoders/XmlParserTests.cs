@@ -1566,6 +1566,63 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadEnumeratedArrayReturnsDefaultWhenFieldIsNil()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true" />
+            """;
+            using var decoder = new XmlParser(xml, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ArrayOf<EnumValue> result = decoder.ReadEnumeratedArray("ListOfTestEnum");
+
+            // Assert
+            Assert.That(result.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ReadEnumeratedArrayReturnsDefaultWhenFieldIsMissing()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <Other xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+            """;
+            using var decoder = new XmlParser(xml, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ArrayOf<EnumValue> result = decoder.ReadEnumeratedArray("ListOfTestEnum");
+
+            // Assert
+            Assert.That(result.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ReadEnumeratedArrayReturnsCountForNonGenericOverload()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <TestEnum>Value1</TestEnum>
+                <TestEnum>Value2</TestEnum>
+            </ListOfTestEnum>
+            """;
+            using var decoder = new XmlParser(xml, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ArrayOf<EnumValue> result = decoder.ReadEnumeratedArray("ListOfTestEnum");
+
+            // Assert
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
         public void DecodeMessageReturnsDecodedValue()
         {
             // Arrange
