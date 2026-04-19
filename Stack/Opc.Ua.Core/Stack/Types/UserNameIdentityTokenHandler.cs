@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 
@@ -38,6 +40,8 @@ namespace Opc.Ua
     /// </summary>
     public sealed class UserNameIdentityTokenHandler : IUserIdentityTokenHandler
     {
+        private const uint kRsaEncryptedSecretDataTypeId = 17545;
+
         /// <summary>
         /// Create token handler
         /// </summary>
@@ -197,6 +201,12 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
+                if (TryDecryptRsaEncryptedSecret(certificate, receiverNonce, securityPolicyUri, context, out byte[] decryptedSecret))
+                {
+                    DecryptedPassword = decryptedSecret;
+                    return;
+                }
+
                 var encryptedData = new EncryptedData
                 {
                     Data = m_token.Password.ToArray(),
@@ -260,6 +270,192 @@ namespace Opc.Ua
                     0,
                     m_token.Password.Length,
                     context.Telemetry);
+            }
+        }
+
+        private bool TryDecryptRsaEncryptedSecret(
+            X509Certificate2 certificate,
+            Nonce receiverNonce,
+            string securityPolicyUri,
+            IServiceMessageContext context,
+            out byte[] decryptedPassword)
+        {
+            decryptedPassword = null;
+
+            if (certificate == null || !string.IsNullOrEmpty(m_token.EncryptionAlgorithm))
+            {
+                return false;
+            }
+
+            byte[] encodedSecret = m_token.Password.ToArray();
+            if (encodedSecret == null || encodedSecret.Length < 8)
+            {
+                return false;
+            }
+
+            using var decoder = new BinaryDecoder(encodedSecret, context);
+            NodeId typeId = decoder.ReadNodeId(null);
+
+            if (typeId != new NodeId(kRsaEncryptedSecretDataTypeId))
+            {
+                return false;
+            }
+
+            var encoding = (ExtensionObjectEncoding)decoder.ReadByte(null);
+            if (encoding != ExtensionObjectEncoding.Binary)
+            {
+                throw new ServiceResultException(StatusCodes.BadDataEncodingUnsupported);
+            }
+
+            int endOfSecret = checked((int)decoder.ReadUInt32(null) + decoder.Position);
+            if (endOfSecret > encodedSecret.Length || endOfSecret <= decoder.Position)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+            string encryptedSecretPolicyUri = decoder.ReadString(null);
+            if (!string.Equals(encryptedSecretPolicyUri, securityPolicyUri, StringComparison.Ordinal))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unexpected encrypted secret security policy: {0}",
+                    encryptedSecretPolicyUri);
+            }
+
+            ByteString certificateHash = decoder.ReadByteString(null);
+            if (certificateHash.Length > 0)
+            {
+#pragma warning disable CA5350 // SHA1 is required by OPC UA RsaEncryptedSecret certificate hash field.
+                byte[] actualCertificateHash = SHA1.HashData(certificate.RawData);
+#pragma warning restore CA5350
+                if (!Utils.IsEqual(certificateHash.ToArray(), actualCertificateHash))
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+                }
+            }
+
+            _ = decoder.ReadDateTime(null);
+            ushort keyDataLength = decoder.ReadUInt16(null);
+            if (keyDataLength == 0 || decoder.Position + keyDataLength > endOfSecret)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+            int keyDataStart = decoder.Position;
+            _ = decoder.BaseStream.Seek(keyDataLength, SeekOrigin.Current);
+
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            if (securityPolicy == null || securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
+            }
+
+            int signatureLength = securityPolicy.SymmetricSignatureLength;
+            int signatureStart = endOfSecret - signatureLength;
+            if (signatureStart <= decoder.Position)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+            byte[] keyData = null;
+            byte[] signingKey = null;
+            byte[] encryptingKey = null;
+            byte[] iv = null;
+
+            try
+            {
+                ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityTokenHandler>();
+                keyData = RsaUtils.Decrypt(
+                    new ArraySegment<byte>(encodedSecret, keyDataStart, keyDataLength),
+                    certificate,
+                    securityPolicy.AsymmetricEncryptionAlgorithm switch
+                    {
+                        AsymmetricEncryptionAlgorithm.RsaOaepSha1 => RsaUtils.Padding.OaepSHA1,
+                        AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1 => RsaUtils.Padding.Pkcs1,
+                        _ => RsaUtils.Padding.OaepSHA256
+                    },
+                    logger);
+
+                int expectedKeyDataLength =
+                    securityPolicy.DerivedSignatureKeyLength +
+                    securityPolicy.SymmetricEncryptionKeyLength +
+                    securityPolicy.InitializationVectorLength;
+
+                if (keyData.Length < expectedKeyDataLength)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError);
+                }
+
+                signingKey = new byte[securityPolicy.DerivedSignatureKeyLength];
+                encryptingKey = new byte[securityPolicy.SymmetricEncryptionKeyLength];
+                iv = new byte[securityPolicy.InitializationVectorLength];
+                Buffer.BlockCopy(keyData, 0, signingKey, 0, signingKey.Length);
+                Buffer.BlockCopy(keyData, signingKey.Length, encryptingKey, 0, encryptingKey.Length);
+                Buffer.BlockCopy(keyData, signingKey.Length + encryptingKey.Length, iv, 0, iv.Length);
+
+                if (signatureLength > 0)
+                {
+                    using HMAC hmac = securityPolicy.CreateSignatureHmac(signingKey) ??
+                        throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+
+                    byte[] expectedSignature = hmac.ComputeHash(encodedSecret, 0, signatureStart);
+                    int notValid = expectedSignature.Length == signatureLength ? 0 : 1;
+
+                    for (int ii = 0; ii < signatureLength && ii < expectedSignature.Length; ii++)
+                    {
+                        notValid |= expectedSignature[ii] ^ encodedSecret[signatureStart + ii];
+                    }
+
+                    if (notValid != 0)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                    }
+                }
+
+                int encryptedPayloadStart = decoder.Position;
+                int encryptedPayloadLength = signatureStart - encryptedPayloadStart;
+                ArraySegment<byte> plainText = CryptoUtils.SymmetricDecryptAndVerify(
+                    new ArraySegment<byte>(encodedSecret, encryptedPayloadStart, encryptedPayloadLength),
+                    securityPolicy,
+                    encryptingKey,
+                    iv);
+
+                using var payloadDecoder = new BinaryDecoder(
+                    plainText.Array,
+                    plainText.Offset + encryptedPayloadStart,
+                    plainText.Count - encryptedPayloadStart,
+                    context);
+
+                ByteString actualNonce = payloadDecoder.ReadByteString(null);
+                if (receiverNonce?.Data != null && !Utils.IsEqual(actualNonce.ToArray(), receiverNonce.Data))
+                {
+                    throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                }
+
+                decryptedPassword = payloadDecoder.ReadByteString(null).ToArray();
+                return true;
+            }
+            finally
+            {
+                if (keyData != null)
+                {
+                    Array.Clear(keyData, 0, keyData.Length);
+                }
+
+                if (signingKey != null)
+                {
+                    Array.Clear(signingKey, 0, signingKey.Length);
+                }
+
+                if (encryptingKey != null)
+                {
+                    Array.Clear(encryptingKey, 0, encryptingKey.Length);
+                }
+
+                if (iv != null)
+                {
+                    Array.Clear(iv, 0, iv.Length);
+                }
             }
         }
 
