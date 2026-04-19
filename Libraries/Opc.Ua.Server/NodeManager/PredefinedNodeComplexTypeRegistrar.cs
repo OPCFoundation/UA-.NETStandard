@@ -160,14 +160,10 @@ namespace Opc.Ua.Server
                 fieldTypes[field.Name] = fieldType;
             }
 
-            (
-                ExpandedNodeId binaryEncodingId,
-                ExpandedNodeId xmlEncodingId,
-                ExpandedNodeId jsonEncodingId
-            ) = GetEncodingIds(context, dataType, nodesById);
+            (ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId)
+                = GetBinaryAndXmlEncodingIds(context, dataType, nodesById);
             var xmlName = GetXmlName(context, dataType);
             ExpandedNodeId typeId = NodeId.ToExpandedNodeId(dataType.NodeId, context.NamespaceUris);
-            _ = jsonEncodingId;
 
             encodeableType = structureDefinition.StructureType switch
             {
@@ -379,6 +375,17 @@ namespace Opc.Ua.Server
             }
 
             return (binaryEncodingId, xmlEncodingId, jsonEncodingId);
+        }
+
+        private static (ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId)
+            GetBinaryAndXmlEncodingIds(
+                ISystemContext context,
+                DataTypeState dataType,
+                IDictionary<NodeId, NodeState> nodesById)
+        {
+            (ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, _)
+                = GetEncodingIds(context, dataType, nodesById);
+            return (binaryEncodingId, xmlEncodingId);
         }
 
         private static XmlQualifiedName GetXmlName(ISystemContext context, DataTypeState dataType)
