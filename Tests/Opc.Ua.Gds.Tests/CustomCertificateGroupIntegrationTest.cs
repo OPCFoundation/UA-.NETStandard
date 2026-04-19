@@ -97,6 +97,13 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
+        public void ServerRegistersGdsEncodeableTypesOnStartup()
+        {
+            Assert.That(m_server.Server.MessageContext.Factory.ContainsEncodeableType(
+                DataTypeIds.ApplicationRecordDataType), Is.True);
+        }
+
+        [Test]
         public async Task CustomCertificateGroupAppearsInGetCertificateGroupsAsync()
         {
             // Connect as admin and register an application
