@@ -340,8 +340,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         private static byte[] GetRandomBytes(int count)
         {
             var bytes = new byte[count];
-            using RandomNumberGenerator rng = RandomNumberGenerator.Create();
-            rng.GetBytes(bytes);
+            using RandomNumberGenerator randomNumberGenerator = RandomNumberGenerator.Create();
+            randomNumberGenerator.GetBytes(bytes);
             return bytes;
         }
 
