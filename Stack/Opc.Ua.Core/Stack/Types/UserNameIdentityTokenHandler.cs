@@ -728,7 +728,7 @@ namespace Opc.Ua
             {
                 return;
             }
-#if NET8_0_OR_GREATER || NET9_0_OR_GREATER || NET10_0_OR_GREATER
+#if NET8_0_OR_GREATER
             CryptographicOperations.ZeroMemory(buffer);
 #else
             Array.Clear(buffer, 0, buffer.Length);
