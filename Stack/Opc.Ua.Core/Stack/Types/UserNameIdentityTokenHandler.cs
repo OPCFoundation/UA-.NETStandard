@@ -713,6 +713,11 @@ namespace Opc.Ua
 
         private static byte[] ComputeSha1Hash(byte[] data)
         {
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+
             using SHA1 sha1 = SHA1.Create();
             return sha1.ComputeHash(data);
         }
@@ -723,10 +728,10 @@ namespace Opc.Ua
             {
                 return;
             }
-#if NETFRAMEWORK
-            Array.Clear(buffer, 0, buffer.Length);
-#else
+#if NET8_0_OR_GREATER || NET9_0_OR_GREATER || NET10_0_OR_GREATER
             CryptographicOperations.ZeroMemory(buffer);
+#else
+            Array.Clear(buffer, 0, buffer.Length);
 #endif
         }
 
