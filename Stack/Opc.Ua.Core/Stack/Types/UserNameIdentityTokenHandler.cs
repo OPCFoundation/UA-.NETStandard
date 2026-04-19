@@ -40,7 +40,9 @@ namespace Opc.Ua
     /// </summary>
     public sealed class UserNameIdentityTokenHandler : IUserIdentityTokenHandler
     {
-        private const uint kRsaEncryptedSecretDataTypeId = 17545;
+        private const uint RsaEncryptedSecretDataTypeId = 17545;
+        private static readonly TimeSpan RsaEncryptedSecretMaxClockSkew = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan RsaEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
 
         /// <summary>
         /// Create token handler
@@ -282,6 +284,8 @@ namespace Opc.Ua
         {
             decryptedPassword = null;
 
+            // RSAEncryptedSecret stores algorithm details in the ExtensionObject body and
+            // therefore is only valid when EncryptionAlgorithm is not explicitly set.
             if (certificate == null || !string.IsNullOrEmpty(m_token.EncryptionAlgorithm))
             {
                 return false;
@@ -296,7 +300,7 @@ namespace Opc.Ua
             using var decoder = new BinaryDecoder(encodedSecret, context);
             NodeId typeId = decoder.ReadNodeId(null);
 
-            if (typeId != new NodeId(kRsaEncryptedSecretDataTypeId))
+            if (typeId != new NodeId(RsaEncryptedSecretDataTypeId))
             {
                 return false;
             }
@@ -334,7 +338,14 @@ namespace Opc.Ua
                 }
             }
 
-            _ = decoder.ReadDateTime(null);
+            DateTime signingTime = (DateTime)decoder.ReadDateTime(null);
+            DateTime now = DateTime.UtcNow;
+            // Accept tokens from the recent past to account for transit/processing delays while
+            // only allowing a small future clock skew to prevent replay with future-dated tokens.
+            if (signingTime < now - RsaEncryptedSecretMaxTokenAge || signingTime > now + RsaEncryptedSecretMaxClockSkew)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidTimestamp);
+            }
             ushort keyDataLength = decoder.ReadUInt16(null);
             if (keyDataLength == 0 || decoder.Position + keyDataLength > endOfSecret)
             {
@@ -361,6 +372,8 @@ namespace Opc.Ua
             byte[] signingKey = null;
             byte[] encryptingKey = null;
             byte[] iv = null;
+            byte[] encryptedPayload = null;
+            byte[] payload = null;
 
             try
             {
@@ -389,21 +402,30 @@ namespace Opc.Ua
                 signingKey = new byte[securityPolicy.DerivedSignatureKeyLength];
                 encryptingKey = new byte[securityPolicy.SymmetricEncryptionKeyLength];
                 iv = new byte[securityPolicy.InitializationVectorLength];
+                int keyMaterialOffset = signingKey.Length + encryptingKey.Length;
+                if (keyMaterialOffset + iv.Length > keyData.Length)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError);
+                }
+
                 Buffer.BlockCopy(keyData, 0, signingKey, 0, signingKey.Length);
                 Buffer.BlockCopy(keyData, signingKey.Length, encryptingKey, 0, encryptingKey.Length);
-                Buffer.BlockCopy(keyData, signingKey.Length + encryptingKey.Length, iv, 0, iv.Length);
+                Buffer.BlockCopy(keyData, keyMaterialOffset, iv, 0, iv.Length);
 
                 if (signatureLength > 0)
                 {
                     using HMAC hmac = securityPolicy.CreateSignatureHmac(signingKey) ??
-                        throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The security policy does not support symmetric signatures required for RSAEncryptedSecret validation.");
 
                     byte[] expectedSignature = hmac.ComputeHash(encodedSecret, 0, signatureStart);
                     int notValid = expectedSignature.Length == signatureLength ? 0 : 1;
 
-                    for (int ii = 0; ii < signatureLength && ii < expectedSignature.Length; ii++)
+                    for (int ii = 0; ii < signatureLength; ii++)
                     {
-                        notValid |= expectedSignature[ii] ^ encodedSecret[signatureStart + ii];
+                        byte expectedByte = ii < expectedSignature.Length ? expectedSignature[ii] : (byte)0;
+                        notValid |= expectedByte ^ encodedSecret[signatureStart + ii];
                     }
 
                     if (notValid != 0)
@@ -414,17 +436,17 @@ namespace Opc.Ua
 
                 int encryptedPayloadStart = decoder.Position;
                 int encryptedPayloadLength = signatureStart - encryptedPayloadStart;
+                encryptedPayload = new byte[encryptedPayloadLength];
+                Buffer.BlockCopy(encodedSecret, encryptedPayloadStart, encryptedPayload, 0, encryptedPayloadLength);
                 ArraySegment<byte> plainText = CryptoUtils.SymmetricDecryptAndVerify(
-                    new ArraySegment<byte>(encodedSecret, encryptedPayloadStart, encryptedPayloadLength),
+                    new ArraySegment<byte>(encryptedPayload),
                     securityPolicy,
                     encryptingKey,
                     iv);
+                payload = new byte[plainText.Count];
+                Buffer.BlockCopy(plainText.Array, plainText.Offset, payload, 0, payload.Length);
 
-                using var payloadDecoder = new BinaryDecoder(
-                    plainText.Array,
-                    plainText.Offset + encryptedPayloadStart,
-                    plainText.Count - encryptedPayloadStart,
-                    context);
+                using var payloadDecoder = new BinaryDecoder(payload, context);
 
                 ByteString actualNonce = payloadDecoder.ReadByteString(null);
                 if (receiverNonce?.Data != null && !Utils.IsEqual(actualNonce.ToArray(), receiverNonce.Data))
@@ -439,22 +461,32 @@ namespace Opc.Ua
             {
                 if (keyData != null)
                 {
-                    Array.Clear(keyData, 0, keyData.Length);
+                    CryptographicOperations.ZeroMemory(keyData);
                 }
 
                 if (signingKey != null)
                 {
-                    Array.Clear(signingKey, 0, signingKey.Length);
+                    CryptographicOperations.ZeroMemory(signingKey);
                 }
 
                 if (encryptingKey != null)
                 {
-                    Array.Clear(encryptingKey, 0, encryptingKey.Length);
+                    CryptographicOperations.ZeroMemory(encryptingKey);
                 }
 
                 if (iv != null)
                 {
-                    Array.Clear(iv, 0, iv.Length);
+                    CryptographicOperations.ZeroMemory(iv);
+                }
+
+                if (encryptedPayload != null)
+                {
+                    CryptographicOperations.ZeroMemory(encryptedPayload);
+                }
+
+                if (payload != null)
+                {
+                    CryptographicOperations.ZeroMemory(payload);
                 }
             }
         }

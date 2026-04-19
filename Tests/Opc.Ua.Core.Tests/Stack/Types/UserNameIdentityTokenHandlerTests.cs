@@ -44,7 +44,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
     public class UserNameIdentityTokenHandlerTests
     {
         private const string kSecurityPolicyUri = SecurityPolicies.Basic256Sha256;
-        private const uint kRsaEncryptedSecretDataTypeId = 17545;
+        private const uint RsaEncryptedSecretDataTypeId = 17545;
+        private const int TestLegacyPasswordLength = 12;
 
         [Test]
         public void DecryptSupportsRsaEncryptedSecretFormat()
@@ -89,8 +90,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
-            byte[] receiverNonce = RandomNumberGenerator.GetBytes(32);
-            byte[] expectedPassword = RandomNumberGenerator.GetBytes(12);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
+            byte[] expectedPassword = RandomNumberGenerator.GetBytes(TestLegacyPasswordLength);
 
             using X509Certificate2 certificate = CertificateBuilder
                 .Create("CN=User Identity Token Legacy Test Subject, O=OPC Foundation")
@@ -114,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             using var tokenHandler = new UserNameIdentityTokenHandler(token);
             tokenHandler.Decrypt(
                 certificate,
-                Nonce.CreateNonce(kSecurityPolicyUri, receiverNonce),
+                Nonce.CreateNonce(securityPolicy, receiverNonce),
                 kSecurityPolicyUri,
                 context);
 
@@ -150,7 +152,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] encryptedPayload = EncryptPayload(plainPayload, encryptingKey, iv);
 
             using var encoder = new BinaryEncoder(context);
-            encoder.WriteNodeId(null, new NodeId(kRsaEncryptedSecretDataTypeId));
+            encoder.WriteNodeId(null, new NodeId(RsaEncryptedSecretDataTypeId));
             encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
             int lengthPosition = encoder.Position;
             encoder.WriteUInt32(null, 0);
