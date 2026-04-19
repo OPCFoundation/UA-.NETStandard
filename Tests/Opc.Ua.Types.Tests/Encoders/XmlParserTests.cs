@@ -1566,6 +1566,25 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadEnumeratedArrayThrowsBadDecodingErrorWhenElementIsEmpty()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"></ListOfTestEnum>
+            """;
+            using var decoder = new XmlParser(xml, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEnumeratedArray("ListOfTestEnum"));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
         public void ReadEnumeratedArrayReturnsDefaultWhenFieldIsNil()
         {
             // Arrange
@@ -1602,7 +1621,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadEnumeratedArrayReturnsCountForNonGenericOverload()
+        public void ReadEnumeratedArraySuccessfullyParsesPopulatedArray()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
