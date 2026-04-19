@@ -1545,7 +1545,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadEnumeratedArrayThrowsWhenNoElementsPresent()
+        public void ReadEnumeratedArrayThrowsBadDecodingErrorWhenNoElementsPresent()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
