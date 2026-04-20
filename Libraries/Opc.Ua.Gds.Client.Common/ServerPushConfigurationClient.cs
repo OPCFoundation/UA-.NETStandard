@@ -211,6 +211,7 @@ namespace Opc.Ua.Gds.Client
                 try
                 {
                     Session?.Dispose();
+                    m_serverConfiguration = null;
                 }
                 finally
                 {
@@ -373,6 +374,7 @@ namespace Opc.Ua.Gds.Client
             {
                 ISession session = Session;
                 Session = null;
+                m_serverConfiguration = null;
 
                 if (session == null)
                 {
@@ -473,21 +475,9 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                ArrayOf<Variant> outputArguments = await session.CallAsync(
-                    ExpandedNodeId.ToNodeId(
-                        Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
-                        session.NamespaceUris
-                    ),
-                    ExpandedNodeId.ToNodeId(
-                        Ua.MethodIds
-                            .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks,
-                        session.NamespaceUris
-                    ),
-                    ct,
-                    (uint)masks)
-                    .ConfigureAwait(false);
+                TrustListTypeClient trustListClient = GetDefaultApplicationGroupTrustListClient(session);
 
-                uint fileHandle = (uint)outputArguments[0];
+                uint fileHandle = await trustListClient.OpenWithMasksAsync((uint)masks, ct).ConfigureAwait(false);
                 using var ostrm = new MemoryStream();
                 try
                 {
@@ -503,23 +493,8 @@ namespace Opc.Ua.Gds.Client
                     {
                         const int length = 256;
 
-                        outputArguments = await session.CallAsync(
-                            ExpandedNodeId.ToNodeId(
-                                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
-                                session.NamespaceUris
-                            ),
-                            ExpandedNodeId.ToNodeId(
-                                Ua.MethodIds
-                                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Read,
-                                session.NamespaceUris
-                            ),
-                            ct,
-                            fileHandle,
-                            length
-                            )
-                            .ConfigureAwait(false);
-
-                        var bytes = (ByteString)outputArguments[0];
+                        ByteString chunk = await trustListClient.ReadAsync(fileHandle, length, ct).ConfigureAwait(false);
+                        byte[] bytes = chunk.ToArray() ?? Array.Empty<byte>();
 
                         // Validate total size before reading
                         totalBytesRead += bytes.Length;
@@ -531,7 +506,7 @@ namespace Opc.Ua.Gds.Client
                                 maxTrustListSize);
                         }
 
-                        ostrm.Write(bytes.ToArray(), 0, bytes.Length);
+                        ostrm.Write(bytes, 0, bytes.Length);
 
                         if (length != bytes.Length)
                         {
@@ -539,36 +514,13 @@ namespace Opc.Ua.Gds.Client
                         }
                     }
 
-                    await session.CallAsync(
-                        ExpandedNodeId.ToNodeId(
-                            Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
-                            session.NamespaceUris
-                        ),
-                        ExpandedNodeId.ToNodeId(
-                            Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close,
-                            session.NamespaceUris
-                        ),
-                        ct,
-                        fileHandle)
-                        .ConfigureAwait(false);
+                    await trustListClient.CloseAsync(fileHandle, ct).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
                     if (IsConnected)
                     {
-                        await session.CallAsync(
-                            ExpandedNodeId.ToNodeId(
-                                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
-                                session.NamespaceUris
-                            ),
-                            ExpandedNodeId.ToNodeId(
-                                Ua.MethodIds
-                                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close,
-                                session.NamespaceUris
-                            ),
-                            ct,
-                            fileHandle)
-                            .ConfigureAwait(false);
+                        await trustListClient.CloseAsync(fileHandle, ct).ConfigureAwait(false);
                     }
 
                     throw;
@@ -642,19 +594,11 @@ namespace Opc.Ua.Gds.Client
                         maxTrustListSize);
                 }
 
-                ArrayOf<Variant> outputArguments = await session.CallAsync(
-                    ExpandedNodeId.ToNodeId(
-                        Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
-                        session.NamespaceUris
-                    ),
-                    ExpandedNodeId.ToNodeId(
-                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open,
-                        session.NamespaceUris
-                    ),
-                    ct,
-                    (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting)).ConfigureAwait(false);
+                TrustListTypeClient trustListClient = GetDefaultApplicationGroupTrustListClient(session);
 
-                uint fileHandle = (uint)outputArguments[0];
+                uint fileHandle = await trustListClient.OpenAsync(
+                    (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                    ct).ConfigureAwait(false);
 
                 try
                 {
@@ -673,52 +617,16 @@ namespace Opc.Ua.Gds.Client
                             writing = false;
                         }
 
-                        await session.CallAsync(
-                            ExpandedNodeId.ToNodeId(
-                                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
-                                session.NamespaceUris
-                            ),
-                            ExpandedNodeId.ToNodeId(
-                                Ua.MethodIds
-                                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Write,
-                                session.NamespaceUris
-                            ),
-                            ct,
-                            fileHandle,
-                            buffer.ToByteString()).ConfigureAwait(false);
+                        await trustListClient.WriteAsync(fileHandle, buffer.ToByteString(), ct).ConfigureAwait(false);
                     }
 
-                    outputArguments = await session.CallAsync(
-                        ExpandedNodeId.ToNodeId(
-                            Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
-                            session.NamespaceUris
-                        ),
-                        ExpandedNodeId.ToNodeId(
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate,
-                            session.NamespaceUris
-                        ),
-                        ct,
-                        fileHandle).ConfigureAwait(false);
-
-                    return (bool)outputArguments[0];
+                    return await trustListClient.CloseAndUpdateAsync(fileHandle, ct).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
                     if (IsConnected)
                     {
-                        await session.CallAsync(
-                            ExpandedNodeId.ToNodeId(
-                                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
-                                session.NamespaceUris
-                            ),
-                            ExpandedNodeId.ToNodeId(
-                                Ua.MethodIds
-                                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close,
-                                session.NamespaceUris
-                            ),
-                            ct,
-                            fileHandle).ConfigureAwait(false);
+                        await trustListClient.CloseAsync(fileHandle, ct).ConfigureAwait(false);
                     }
 
                     throw;
@@ -728,6 +636,20 @@ namespace Opc.Ua.Gds.Client
             {
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Returns a <see cref="TrustListTypeClient"/> for the
+        /// DefaultApplicationGroup trust list on the connected server.
+        /// </summary>
+        private TrustListTypeClient GetDefaultApplicationGroupTrustListClient(ISession session)
+        {
+            return new TrustListTypeClient(
+                session,
+                ExpandedNodeId.ToNodeId(
+                    Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
+                    session.NamespaceUris),
+                MessageContext.Telemetry);
         }
 
         /// <summary>
@@ -842,34 +764,16 @@ namespace Opc.Ua.Gds.Client
             NodeId certificateGroupId,
             CancellationToken ct = default)
         {
-            ArrayOf<NodeId> certificateTypeIds = [];
-            ArrayOf<ByteString> certificates = [];
-
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
             try
             {
-                ArrayOf<Variant> outputArguments = await session.CallAsync(
-                    ExpandedNodeId.ToNodeId(
-                        Ua.ObjectIds.ServerConfiguration,
-                        session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(
-                        Ua.MethodIds.ServerConfigurationType_GetCertificates,
-                        session.NamespaceUris
-                    ),
-                    ct,
-                    certificateGroupId).ConfigureAwait(false);
-                if (outputArguments.Count >= 2)
-                {
-                    certificateTypeIds = outputArguments[0].GetNodeIdArray();
-                    certificates = outputArguments[1].GetByteStringArray();
-                }
+                return await m_serverConfiguration.GetCertificatesAsync(certificateGroupId, ct).ConfigureAwait(false);
             }
             finally
             {
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
-            return (certificateTypeIds, certificates);
         }
 
         /// <summary>
@@ -918,27 +822,13 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                ArrayOf<Variant> outputArguments = await session.CallAsync(
-                    ExpandedNodeId.ToNodeId(
-                        Ua.ObjectIds.ServerConfiguration,
-                        session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(
-                        Ua.MethodIds.ServerConfiguration_CreateSigningRequest,
-                        session.NamespaceUris
-                    ),
-                    ct,
+                return await m_serverConfiguration.CreateSigningRequestAsync(
                     certificateGroupId,
                     certificateTypeId,
                     subjectName,
                     regeneratePrivateKey,
-                    nonce).ConfigureAwait(false);
-
-                if (outputArguments.Count > 0)
-                {
-                    return (ByteString)outputArguments[0];
-                }
-
-                return default;
+                    nonce,
+                    ct).ConfigureAwait(false);
             }
             finally
             {
@@ -997,27 +887,14 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                ArrayOf<Variant> outputArguments = await session.CallAsync(
-                    ExpandedNodeId.ToNodeId(
-                        Ua.ObjectIds.ServerConfiguration,
-                        session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(
-                        Ua.MethodIds.ServerConfiguration_UpdateCertificate,
-                        session.NamespaceUris),
-                    ct,
+                return await m_serverConfiguration.UpdateCertificateAsync(
                     certificateGroupId,
                     certificateTypeId,
                     certificate,
                     issuerCertificates,
                     privateKeyFormat,
-                    privateKey).ConfigureAwait(false);
-
-                if (outputArguments.Count > 0)
-                {
-                    return (bool)outputArguments[0];
-                }
-
-                return false;
+                    privateKey,
+                    ct).ConfigureAwait(false);
             }
             finally
             {
@@ -1044,16 +921,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                ArrayOf<Variant> outputArguments = await session.CallAsync(
-                    ExpandedNodeId.ToNodeId(
-                        Ua.ObjectIds.ServerConfiguration,
-                        session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(
-                        Ua.MethodIds.ServerConfiguration_GetRejectedList,
-                        session.NamespaceUris),
-                    ct).ConfigureAwait(false);
-
-                var rawCertificates = (ArrayOf<ByteString>)outputArguments[0];
+                ArrayOf<ByteString> rawCertificates = await m_serverConfiguration.GetRejectedListAsync(ct).ConfigureAwait(false);
                 var collection = new X509Certificate2Collection();
                 foreach (ByteString rawCertificate in rawCertificates)
                 {
@@ -1084,12 +952,7 @@ namespace Opc.Ua.Gds.Client
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
 
-            await session.CallAsync(
-                ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    Ua.MethodIds.ServerConfiguration_ApplyChanges,
-                    session.NamespaceUris),
-                ct).ConfigureAwait(false);
+            await m_serverConfiguration.ApplyChangesAsync(ct).ConfigureAwait(false);
         }
 
         private async Task<IUserIdentity> ElevatePermissionsAsync(
@@ -1252,6 +1115,11 @@ namespace Opc.Ua.Gds.Client
                     Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup,
                     Session.NamespaceUris);
 
+                m_serverConfiguration = new ServerConfigurationTypeClient(
+                    Session,
+                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
+                    MessageContext.Telemetry);
+
                 m_logger.LogInformation("Connected to {EndpointUrl}.", EndpointUrl);
             }
             finally
@@ -1291,6 +1159,7 @@ namespace Opc.Ua.Gds.Client
         private readonly ISessionFactory m_sessionFactory;
         private readonly ILogger m_logger;
         private ConfiguredEndpoint m_endpoint;
+        private ServerConfigurationTypeClient m_serverConfiguration;
         private bool m_disposed;
     }
 }

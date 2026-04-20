@@ -56,5 +56,49 @@ namespace Opc.Ua.SourceGeneration
         /// Write utf8 string literals when needed
         /// </summary>
         public bool UseUtf8StringLiterals { get; set; } = true;
+
+        /// <summary>
+        /// When set to <c>true</c>, the
+        /// <see cref="ObjectMethodProxyGenerator"/> emits a typed
+        /// asynchronous client wrapper for every <c>ObjectType</c> that
+        /// declares one or more methods. Off by default; consumers must
+        /// opt in explicitly.
+        /// </summary>
+        public bool GenerateObjectMethodProxies { get; set; }
+
+        /// <summary>
+        /// When set to <c>true</c>, only the
+        /// <see cref="ObjectMethodProxyGenerator"/> is run; the standard
+        /// per-model generators (Constants, NodeIds, NodeStates,
+        /// DataTypes, schemas) are skipped. Used when the proxies must be
+        /// emitted into a downstream assembly that already references a
+        /// project containing the generated constants and types.
+        /// Implies <see cref="GenerateObjectMethodProxies"/>.
+        /// </summary>
+        public bool GenerateObjectMethodProxiesOnly { get; set; }
+
+        /// <summary>
+        /// Optional override for the C# namespace used by classes emitted
+        /// by the <see cref="ObjectMethodProxyGenerator"/>. When unset,
+        /// the model's target namespace prefix is used.
+        /// </summary>
+        public string ObjectMethodProxyNamespace { get; set; }
+
+        /// <summary>
+        /// Maps an OPC UA namespace URI (key) to the C# namespace (value)
+        /// in which the corresponding source-generated <c>*TypeClient</c>
+        /// proxies live. Used by the
+        /// <see cref="ObjectMethodProxyGenerator"/> when a generated
+        /// proxy must derive from a base proxy that is defined in a
+        /// different (referenced) assembly.
+        /// </summary>
+        /// <remarks>
+        /// The standard mapping
+        /// <c>http://opcfoundation.org/UA/ -&gt; Opc.Ua.Client</c> is
+        /// always added by the generator and does not need to be
+        /// configured explicitly.
+        /// </remarks>
+        public IDictionary<string, string> ObjectMethodProxyExternalNamespaces { get; }
+            = new Dictionary<string, string>();
     }
 }

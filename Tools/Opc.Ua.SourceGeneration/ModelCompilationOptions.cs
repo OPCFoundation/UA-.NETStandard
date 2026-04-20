@@ -53,6 +53,37 @@ namespace Opc.Ua.SourceGeneration
         public IReadOnlyList<string> Exclude { get; set; }
 
         /// <summary>
+        /// Opt in to <see cref="ObjectMethodProxyGenerator"/>. When
+        /// <c>true</c>, the source generator emits typed asynchronous
+        /// client wrappers for every <c>ObjectType</c> that declares
+        /// methods. Surfaced from MSBuild via the
+        /// <c>ModelSourceGeneratorGenerateObjectMethodProxies</c> property.
+        /// </summary>
+        public bool GenerateObjectMethodProxies { get; set; }
+
+        /// <summary>
+        /// Opt in to ProxiesOnly mode for the
+        /// <see cref="ObjectMethodProxyGenerator"/>. When <c>true</c>,
+        /// the standard per-model generators (Constants, NodeIds,
+        /// NodeStates, DataTypes, schemas) are skipped and only the
+        /// proxy generator is run. Used when the proxies must land in a
+        /// downstream assembly that already references a project
+        /// containing the generated constants and types. Surfaced from
+        /// MSBuild via the
+        /// <c>ModelSourceGeneratorGenerateObjectMethodProxiesOnly</c>
+        /// property. Implies <see cref="GenerateObjectMethodProxies"/>.
+        /// </summary>
+        public bool GenerateObjectMethodProxiesOnly { get; set; }
+
+        /// <summary>
+        /// Optional override for the C# namespace used by classes emitted
+        /// by the <see cref="ObjectMethodProxyGenerator"/>. Surfaced from
+        /// MSBuild via the
+        /// <c>ModelSourceGeneratorObjectMethodProxyNamespace</c> property.
+        /// </summary>
+        public string ObjectMethodProxyNamespace { get; set; }
+
+        /// <summary>
         /// Get options from options provider
         /// </summary>
         /// <param name="provider"></param>
@@ -76,7 +107,13 @@ namespace Opc.Ua.SourceGeneration
                         nameof(DesignFileOptions.ReleaseCandidate))
                 },
                 Exclude = provider.GlobalOptions.GetStrings(nameof(Exclude)),
-                UseAllowSubtypes = provider.GlobalOptions.GetBool(nameof(UseAllowSubtypes))
+                UseAllowSubtypes = provider.GlobalOptions.GetBool(nameof(UseAllowSubtypes)),
+                GenerateObjectMethodProxies = provider.GlobalOptions.GetBool(
+                    nameof(GenerateObjectMethodProxies)),
+                GenerateObjectMethodProxiesOnly = provider.GlobalOptions.GetBool(
+                    nameof(GenerateObjectMethodProxiesOnly)),
+                ObjectMethodProxyNamespace = provider.GlobalOptions.GetString(
+                    nameof(ObjectMethodProxyNamespace))
             };
         }
     }

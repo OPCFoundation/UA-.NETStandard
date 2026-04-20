@@ -204,6 +204,28 @@ namespace Opc.Ua.SourceGeneration
                 serverApiGenerator.Emit();
                 var endpointsGenerator = new EndpointsGenerator(generatorContext);
                 endpointsGenerator.Emit();
+                // Always emit ObjectType client proxies into the
+                // Opc.Ua.Client namespace so every standard UA
+                // ObjectType has a strongly typed *TypeClient that
+                // downstream proxies (e.g. GDS) can derive from.
+                var stackProxyContext = new GeneratorContext
+                {
+                    FileSystem = generatorContext.FileSystem,
+                    OutputFolder = generatorContext.OutputFolder,
+                    ModelDesign = generatorContext.ModelDesign,
+                    Telemetry = generatorContext.Telemetry,
+                    Options = new GeneratorOptions
+                    {
+                        OptimizeForCompileSpeed = options.OptimizeForCompileSpeed,
+                        Exclusions = options.Exclusions,
+                        Cancellation = options.Cancellation,
+                        UseUtf8StringLiterals = options.UseUtf8StringLiterals,
+                        GenerateObjectMethodProxies = true,
+                        ObjectMethodProxyNamespace = "Opc.Ua.Client"
+                    }
+                };
+                var stackProxyGenerator = new ObjectMethodProxyGenerator(stackProxyContext);
+                stackProxyGenerator.Emit();
             }
 
             if ((generatorType & StackGenerationType.Models) != 0)
@@ -224,33 +246,44 @@ namespace Opc.Ua.SourceGeneration
             GeneratorContext context,
             bool validateSchemas = false)
         {
-            // Generate schemas
-            var xmlSchemaGenerator = new XmlSchemaGenerator(context)
-            {
-                ValidateOutput = validateSchemas
-            };
-            IEnumerable<Resource> xmlSchemaResource = xmlSchemaGenerator.Emit();
-            var binarySchemaGenerator = new BinarySchemaGenerator(context)
-            {
-                ValidateOutput = validateSchemas
-            };
-            IEnumerable<Resource> binarySchemaResource = binarySchemaGenerator.Emit();
-            var schemaResources = new ResourceGenerator(context);
-            schemaResources.Embed(
-                context.ModelDesign.TargetNamespace.Prefix,
-                "XmlSchemas",
-                false,
-                [.. binarySchemaResource, .. xmlSchemaResource]);
+            bool proxiesOnly = context.Options?.GenerateObjectMethodProxiesOnly == true;
 
-            // Must run after schema generation to initilize the dictionaries.
-            var constantsGenerator = new ConstantsGenerator(context);
-            constantsGenerator.Emit();
-            var nodeIdGenerator = new NodeIdGenerator(context);
-            nodeIdGenerator.Emit();
-            var nodeStateCodeGenerator = new NodeStateGenerator(context);
-            nodeStateCodeGenerator.Emit();
-            var dataTypesGenerator = new DataTypeGenerator(context);
-            dataTypesGenerator.Emit();
+            if (!proxiesOnly)
+            {
+                // Generate schemas
+                var xmlSchemaGenerator = new XmlSchemaGenerator(context)
+                {
+                    ValidateOutput = validateSchemas
+                };
+                IEnumerable<Resource> xmlSchemaResource = xmlSchemaGenerator.Emit();
+                var binarySchemaGenerator = new BinarySchemaGenerator(context)
+                {
+                    ValidateOutput = validateSchemas
+                };
+                IEnumerable<Resource> binarySchemaResource = binarySchemaGenerator.Emit();
+                var schemaResources = new ResourceGenerator(context);
+                schemaResources.Embed(
+                    context.ModelDesign.TargetNamespace.Prefix,
+                    "XmlSchemas",
+                    false,
+                    [.. binarySchemaResource, .. xmlSchemaResource]);
+
+                // Must run after schema generation to initilize the dictionaries.
+                var constantsGenerator = new ConstantsGenerator(context);
+                constantsGenerator.Emit();
+                var nodeIdGenerator = new NodeIdGenerator(context);
+                nodeIdGenerator.Emit();
+                var nodeStateCodeGenerator = new NodeStateGenerator(context);
+                nodeStateCodeGenerator.Emit();
+                var dataTypesGenerator = new DataTypeGenerator(context);
+                dataTypesGenerator.Emit();
+            }
+
+            if (proxiesOnly || context.Options?.GenerateObjectMethodProxies == true)
+            {
+                var objectMethodProxyGenerator = new ObjectMethodProxyGenerator(context);
+                objectMethodProxyGenerator.Emit();
+            }
         }
     }
 }
