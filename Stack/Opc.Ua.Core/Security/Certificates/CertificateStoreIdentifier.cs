@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 
 namespace Opc.Ua
@@ -176,6 +177,38 @@ namespace Opc.Ua
 
             return CertificateStoreType.Directory;
         }
+
+        /// <summary>
+        /// Resolves a store type using registered <see cref="ICertificateStoreProvider"/>
+        /// instances, falling back to the built-in store types.
+        /// </summary>
+        /// <param name="storeTypeName">The store type name to resolve.</param>
+        /// <param name="telemetry">The telemetry context for logging and diagnostics.</param>
+        /// <param name="providers">
+        /// An optional set of providers to try before the built-in store types.
+        /// </param>
+        /// <returns>A new <see cref="ICertificateStore"/> instance.</returns>
+#nullable enable
+        public static ICertificateStore CreateStore(
+            string storeTypeName,
+            ITelemetryContext telemetry,
+            IEnumerable<ICertificateStoreProvider>? providers)
+        {
+            if (providers != null)
+            {
+                foreach (var provider in providers)
+                {
+                    if (provider.StoreTypeName == storeTypeName)
+                    {
+                        return provider.CreateStore(telemetry);
+                    }
+                }
+            }
+
+            // Fallback to existing logic
+            return CreateStore(storeTypeName, telemetry);
+        }
+#nullable restore
 
         /// <summary>
         /// Returns an object that can be used to access the store.
