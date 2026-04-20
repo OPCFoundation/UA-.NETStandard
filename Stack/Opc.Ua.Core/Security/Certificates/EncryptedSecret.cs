@@ -81,6 +81,32 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates an <see cref="EncryptedSecret"/> instance for ECC encrypted secret encryption/decryption.
+        /// </summary>
+        public static EncryptedSecret CreateForEcc(
+            IServiceMessageContext context,
+            string securityPolicyUri,
+            X509Certificate2Collection senderIssuerCertificates,
+            X509Certificate2 receiverCertificate,
+            Nonce receiverNonce,
+            X509Certificate2 senderCertificate,
+            Nonce senderNonce,
+            CertificateValidator validator = null,
+            bool doNotEncodeSenderCertificate = false)
+        {
+            return new EncryptedSecret(
+                context: context,
+                securityPolicyUri: securityPolicyUri,
+                senderIssuerCertificates: senderIssuerCertificates,
+                receiverCertificate: receiverCertificate,
+                receiverNonce: receiverNonce,
+                senderCertificate: senderCertificate,
+                senderNonce: senderNonce,
+                validator: validator,
+                doNotEncodeSenderCertificate: doNotEncodeSenderCertificate);
+        }
+
+        /// <summary>
         /// Gets or sets the X.509 certificate of the sender.
         /// </summary>
         public X509Certificate2 SenderCertificate { get; private set; }
@@ -171,6 +197,11 @@ namespace Opc.Ua
         /// <returns>The encrypted secret.</returns>
         public byte[] Encrypt(byte[] secret, byte[] nonce)
         {
+            if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            {
+                return EncryptRsa(secret, nonce);
+            }
+
             byte[] message = null;
             int lengthPosition = 0;
 
@@ -705,6 +736,33 @@ namespace Opc.Ua
                     ZeroMemory(payload);
                 }
             }
+        }
+
+        /// <summary>
+        /// Tries to decrypt the encrypted secret and returns the plain secret.
+        /// </summary>
+        public bool TryDecrypt(byte[] encryptedSecret, byte[] expectedNonce, out byte[] secret)
+        {
+            secret = null;
+
+            if (encryptedSecret == null)
+            {
+                return false;
+            }
+
+            if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            {
+                return TryDecryptRsa(encryptedSecret, expectedNonce, out secret);
+            }
+
+            secret = Decrypt(
+                DateTime.UtcNow.AddHours(-1),
+                expectedNonce,
+                encryptedSecret,
+                0,
+                encryptedSecret.Length,
+                Context.Telemetry);
+            return true;
         }
 
         private int GetPaddingCount(int blockSize, int secretLength, int dataLength)
