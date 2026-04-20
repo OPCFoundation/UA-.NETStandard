@@ -755,14 +755,21 @@ namespace Opc.Ua
                 return TryDecryptRsa(encryptedSecret, expectedNonce, out secret);
             }
 
-            secret = Decrypt(
-                DateTime.UtcNow.AddHours(-1),
-                expectedNonce,
-                encryptedSecret,
-                0,
-                encryptedSecret.Length,
-                Context.Telemetry);
-            return true;
+            try
+            {
+                secret = Decrypt(
+                    DateTime.UtcNow.AddHours(-1),
+                    expectedNonce,
+                    encryptedSecret,
+                    0,
+                    encryptedSecret.Length,
+                    Context.Telemetry);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private int GetPaddingCount(int blockSize, int secretLength, int dataLength)

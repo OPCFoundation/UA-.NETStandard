@@ -124,6 +124,34 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         }
 
         [Test]
+        public void DecryptThrowsBadIdentityTokenInvalidWhenEccTryDecryptFails()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+
+            var token = new UserNameIdentityToken
+            {
+                UserName = "eccUser",
+                Password = (new byte[] { 0x00, 0x01, 0x02, 0x03 }).ToByteString(),
+                EncryptionAlgorithm = null
+            };
+
+            using var tokenHandler = new UserNameIdentityTokenHandler(token);
+            Assert.That(
+                () => tokenHandler.Decrypt(
+                    certificate: null,
+                    receiverNonce: null,
+                    securityPolicyUri: SecurityPolicies.ECC_nistP256,
+                    context: context,
+                    ephemeralKey: null,
+                    senderCertificate: null,
+                    senderIssuerCertificates: null,
+                    validator: null),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        [Test]
         public void EncryptUsesLegacyRsaFormatForShortPassword()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
