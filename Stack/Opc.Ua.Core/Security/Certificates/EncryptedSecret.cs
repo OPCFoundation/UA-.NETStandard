@@ -30,6 +30,8 @@ namespace Opc.Ua
     {
         private static readonly TimeSpan s_rsaEncryptedSecretMaxClockSkew = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan s_rsaEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
+        // ECC encrypted secrets use the same one-hour age window as RSA encrypted secrets
+        // to preserve consistent token replay tolerance across both encryption formats.
         private static readonly TimeSpan s_eccEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
 
         /// <summary>
@@ -776,23 +778,12 @@ namespace Opc.Ua
                     Context.Telemetry);
                 return true;
             }
-            catch (ServiceResultException)
-            {
-                return false;
-            }
-            catch (CryptographicException)
-            {
-                return false;
-            }
-            catch (IOException)
-            {
-                return false;
-            }
-            catch (FormatException)
-            {
-                return false;
-            }
-            catch (ArgumentException)
+            catch (Exception ex) when (
+                ex is ServiceResultException ||
+                ex is CryptographicException ||
+                ex is IOException ||
+                ex is FormatException ||
+                ex is ArgumentException)
             {
                 return false;
             }
