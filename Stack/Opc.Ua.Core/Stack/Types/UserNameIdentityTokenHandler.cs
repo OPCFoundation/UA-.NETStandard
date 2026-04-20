@@ -281,7 +281,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadIdentityTokenInvalid,
-                        "Failed to decrypt UserNameIdentityToken password using ECC encrypted secret. Validation, key derivation, or payload verification may have failed.");
+                        "Failed to decrypt UserNameIdentityToken password using ECC encrypted secret.");
                 }
 
                 DecryptedPassword = decryptedSecret;

@@ -30,6 +30,7 @@ namespace Opc.Ua
     {
         private static readonly TimeSpan s_rsaEncryptedSecretMaxClockSkew = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan s_rsaEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
+        private static readonly TimeSpan s_eccEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
 
         /// <summary>
         /// Create secret
@@ -767,7 +768,7 @@ namespace Opc.Ua
             try
             {
                 secret = Decrypt(
-                    DateTime.UtcNow.AddHours(-1),
+                    DateTime.UtcNow - s_eccEncryptedSecretMaxTokenAge,
                     expectedNonce,
                     encryptedSecret,
                     0,
