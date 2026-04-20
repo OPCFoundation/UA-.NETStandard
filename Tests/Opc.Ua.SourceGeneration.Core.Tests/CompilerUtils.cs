@@ -505,11 +505,15 @@ namespace Opc.Ua.SourceGeneration
                 {
                     public virtual NodeId NodeId { get; set; }
                 }
-                public interface IClientBase {}
+                public interface IClientBase
+                {
+                    IServiceMessageContext MessageContext { get; }
+                }
                 public class ClientBase : IClientBase
                 {
                     public ClientBase(ITransportChannel channel, ITelemetryContext telemetry) { }
                     public ITransportChannel TransportChannel => throw new NotSupportedException();
+                    public IServiceMessageContext MessageContext => throw new NotSupportedException();
 
                     protected static void ValidateResponse(
                         ResponseHeader? header) {}
@@ -518,6 +522,29 @@ namespace Opc.Ua.SourceGeneration
                     protected virtual void RequestCompleted(
                         IServiceRequest request, IServiceResponse response,
                         string serviceName) {}
+                }
+                public interface ISessionClient : IClientBase
+                {
+                }
+                public abstract class ObjectTypeClient
+                {
+                    protected ObjectTypeClient(
+                        ISessionClient session,
+                        NodeId objectId,
+                        ITelemetryContext telemetry)
+                    {
+                        Session = session;
+                        ObjectId = objectId;
+                        Telemetry = telemetry;
+                    }
+                    protected ISessionClient Session { get; }
+                    public NodeId ObjectId { get; }
+                    protected ITelemetryContext Telemetry { get; }
+                    protected ValueTask<ArrayOf<Variant>> CallMethodAsync(
+                        NodeId methodId,
+                        CancellationToken ct,
+                        params Variant[] args)
+                        => default;
                 }
                 public class FolderState : BaseObjectState
                 {
