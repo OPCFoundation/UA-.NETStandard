@@ -109,7 +109,7 @@ namespace Opc.Ua
             string trustedStorePath,
             string? issuerStorePath = null)
         {
-            ArgumentNullException.ThrowIfNull(trustList);
+            if (trustList == null) throw new ArgumentNullException(nameof(trustList));
 
             if (string.IsNullOrEmpty(trustedStorePath))
             {
@@ -153,7 +153,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            return OpenStore(entry.IssuerStorePath, entry.StoreType);
+            return OpenStore(entry.IssuerStorePath!, entry.StoreType);
         }
 
         /// <inheritdoc/>
@@ -161,7 +161,7 @@ namespace Opc.Ua
             TrustListIdentifier trustList,
             CancellationToken ct = default)
         {
-            ArgumentNullException.ThrowIfNull(trustList);
+            if (trustList == null) throw new ArgumentNullException(nameof(trustList));
 
             if (!_trustLists.ContainsKey(trustList))
             {
@@ -180,7 +180,7 @@ namespace Opc.Ua
         /// <param name="config">The security configuration to map from.</param>
         public void MapFromSecurityConfiguration(SecurityConfiguration config)
         {
-            ArgumentNullException.ThrowIfNull(config);
+            if (config == null) throw new ArgumentNullException(nameof(config));
 
             if (config.TrustedPeerCertificates != null)
             {

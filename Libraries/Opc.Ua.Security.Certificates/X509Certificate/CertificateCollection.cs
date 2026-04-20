@@ -42,12 +42,9 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public class CertificateCollection : IList<Certificate>, IDisposable
     {
-        #region Private Fields
         private readonly List<Certificate> m_certificates;
         private bool m_disposed;
-        #endregion
 
-        #region Constructors
         /// <summary>
         /// Initializes a new empty <see cref="CertificateCollection"/>.
         /// </summary>
@@ -82,9 +79,7 @@ namespace Opc.Ua.Security.Certificates
             m_certificates = new List<Certificate>(
                 certificates ?? throw new ArgumentNullException(nameof(certificates)));
         }
-        #endregion
 
-        #region Factory Methods
         /// <summary>
         /// Creates a <see cref="CertificateCollection"/> that takes
         /// ownership of all certificates in the supplied
@@ -116,9 +111,7 @@ namespace Opc.Ua.Security.Certificates
 
             return result;
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Creates a new <see cref="X509Certificate2Collection"/>
         /// containing copies of each certificate in this collection.
@@ -201,9 +194,7 @@ namespace Opc.Ua.Security.Certificates
                         findType, findValue, validOnly);
             }
         }
-        #endregion
 
-        #region IList<Certificate> Implementation
         /// <summary>
         /// Gets the number of certificates in the collection.
         /// </summary>
@@ -371,9 +362,7 @@ namespace Opc.Ua.Security.Certificates
         {
             return GetEnumerator();
         }
-        #endregion
 
-        #region IDisposable Implementation
         /// <summary>
         /// Disposes all owned <see cref="Certificate"/> objects and
         /// clears the collection.
@@ -407,9 +396,7 @@ namespace Opc.Ua.Security.Certificates
                 m_disposed = true;
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Throws an <see cref="ObjectDisposedException"/> if the
         /// collection has been disposed.
@@ -496,6 +483,5 @@ namespace Opc.Ua.Security.Certificates
 
             return result;
         }
-        #endregion
     }
 }
