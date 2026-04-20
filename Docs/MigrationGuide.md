@@ -689,7 +689,7 @@ The encoding format for session state has changed. Existing persisted session st
 
 **Breaking Change**: Boolean properties on source-generated data types now correctly default to `false` instead of `true`.
 
-Previous versions contained a bug in the source generator that inverted the default value for boolean fields in generated data types. Boolean fields without an explicit `<DefaultValue>` in the model design XML were initialized to `true` instead of the correct `false`. This has been fixed.
+Generated code produced by the model compiler contained a bug because it inverted the default value for boolean fields in generated data types. Boolean fields without an explicit `<DefaultValue>` in the model design XML were initialized to `true` instead of `false` as expected and defined in Part 6. This has been fixed.
 
 **Impact**: Any code that creates instances of source-generated data types and relies on boolean properties being `true` by default must now explicitly set those properties to `true`. This primarily affects PubSub configuration types:
 
@@ -703,9 +703,8 @@ Previous versions contained a bug in the source generator that inverted the defa
 | `DataSetReaderDataType` | `Enabled` | `true` | `false` |
 | `PublishedDataSetCustomSourceDataType` | `CyclicDataSet` | `true` | `false` |
 
-Other affected types include all source-generated structures with boolean fields (e.g., `AggregateConfiguration.TreatUncertainAsBad`, `MonitoringParameters.DiscardOldest`, `CreateSubscriptionRequest.PublishingEnabled`).
-
-> **Note:** Hand-written types in `Opc.Ua.Types` (such as `BrowseDescription`, `RelativePathElement`) are **not** affected — they already had explicit initialization in their constructors.
+Other affected types include all source-generated structures with boolean fields (e.g., `AggregateConfiguration.TreatUncertainAsBad`, `MonitoringParameters.DiscardOldest`, `CreateSubscriptionRequest.PublishingEnabled`) as well as 
+some hand-written types in `Opc.Ua.Types` (such as `BrowseDescription`, `RelativePathElement`).
 
 **Migration**: Add explicit initialization where your code depends on `true` as the default:
 
