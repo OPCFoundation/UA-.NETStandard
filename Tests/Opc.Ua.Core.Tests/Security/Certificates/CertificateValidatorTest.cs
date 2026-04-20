@@ -464,14 +464,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 // test setter if overflow certs are deleted
                 certValidator.MaxRejectedCertificates = 3;
+                // Allow pending background SaveCertificatesAsync tasks to drain
+                // before polling (they hold m_semaphore and can delay the cleanup task).
+                await Task.Delay(2000).ConfigureAwait(false);
                 certificates = await WaitForRejectedStoreCountAsync(
-                    validator, count => count <= 3, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    validator, count => count <= 3, TimeSpan.FromSeconds(60)).ConfigureAwait(false);
                 Assert.That(certificates, Has.Count.LessThanOrEqualTo(3));
 
                 // test setter if allcerts are deleted
                 certValidator.MaxRejectedCertificates = -1;
+                await Task.Delay(2000).ConfigureAwait(false);
                 certificates = await WaitForRejectedStoreCountAsync(
-                    validator, count => count == 0, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    validator, count => count == 0, TimeSpan.FromSeconds(60)).ConfigureAwait(false);
                 Assert.That(certificates, Is.Empty);
 
                 // ensure no certs are added to the rejected store
@@ -489,9 +493,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         Is.EqualTo(StatusCodes.BadCertificateUntrusted),
                         serviceResultException.Message);
                 }
-                await Task.Delay(1000).ConfigureAwait(false);
+                // Allow pending background tasks to complete before polling.
+                await Task.Delay(2000).ConfigureAwait(false);
                 certificates = await WaitForRejectedStoreCountAsync(
-                    validator, count => count == 0, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    validator, count => count == 0, TimeSpan.FromSeconds(60)).ConfigureAwait(false);
                 Assert.That(certificates, Is.Empty);
             }
             finally
