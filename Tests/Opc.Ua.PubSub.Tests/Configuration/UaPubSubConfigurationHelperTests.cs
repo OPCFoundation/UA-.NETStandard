@@ -73,7 +73,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void SaveAndLoadEmptyConfiguration()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             string filePath = Path.Combine(m_tempDir, "empty_config.xml");
 
             UaPubSubConfigurationHelper.SaveConfiguration(config, filePath, m_telemetry);
@@ -86,7 +86,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void SaveAndLoadConfigurationWithConnection()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             var connection = new PubSubConnectionDataType
             {
                 Name = "TestConnection",
@@ -111,7 +111,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void SaveAndLoadConfigurationWithWriterGroup()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             var connection = new PubSubConnectionDataType
             {
                 Name = "WGConn",
@@ -145,7 +145,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void SaveAndLoadConfigurationWithPublishedDataSets()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             var pds = new PublishedDataSetDataType
             {
                 Name = "DataSet1",
@@ -203,12 +203,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             string filePath = Path.Combine(m_tempDir, "overwrite.xml");
 
-            var config1 = new PubSubConfigurationDataType();
-            config1.Connections = config1.Connections.AddItem(new PubSubConnectionDataType { Name = "First" });
+            var config1 = new PubSubConfigurationDataType { Enabled = true };
+            config1.Connections = config1.Connections.AddItem(new PubSubConnectionDataType { Enabled = true, Name = "First" });
             UaPubSubConfigurationHelper.SaveConfiguration(config1, filePath, m_telemetry);
 
-            var config2 = new PubSubConfigurationDataType();
-            config2.Connections = config2.Connections.AddItem(new PubSubConnectionDataType { Name = "Second" });
+            var config2 = new PubSubConfigurationDataType { Enabled = true };
+            config2.Connections = config2.Connections.AddItem(new PubSubConnectionDataType { Enabled = true, Name = "Second" });
             UaPubSubConfigurationHelper.SaveConfiguration(config2, filePath, m_telemetry);
 
             PubSubConfigurationDataType loaded = UaPubSubConfigurationHelper.LoadConfiguration(filePath, m_telemetry);
@@ -218,7 +218,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void SaveAndLoadConfigurationWithReaderGroup()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             var connection = new PubSubConnectionDataType
             {
                 Name = "SubConn",
@@ -230,10 +230,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             var readerGroup = new ReaderGroupDataType
             {
+                Enabled = true,
                 Name = "RG1"
             };
             var reader = new DataSetReaderDataType
             {
+                Enabled = true,
                 Name = "Reader1",
                 PublisherId = new Variant("Publisher1"),
                 WriterGroupId = 1,
@@ -266,7 +268,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void SaveAndLoadConfigurationWithMultipleConnections()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             for (int i = 0; i < 3; i++)
             {
                 config.Connections = config.Connections.AddItem(new PubSubConnectionDataType
@@ -292,7 +294,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void SaveAndLoadConfigurationPreservesDataSetWriterProperties()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             var connection = new PubSubConnectionDataType
             {
                 Name = "DswConn",

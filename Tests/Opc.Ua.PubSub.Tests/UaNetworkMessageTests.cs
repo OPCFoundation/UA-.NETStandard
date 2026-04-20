@@ -54,7 +54,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DataSetMessagesConstructorSetsProperties()
         {
-            var writerGroup = new WriterGroupDataType { Name = "WG1", WriterGroupId = 5 };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1", WriterGroupId = 5 };
             var messages = new List<PubSubEncoding.JsonDataSetMessage>();
 
             var msg = new PubSubEncoding.JsonNetworkMessage(writerGroup, messages);
@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void MetaDataConstructorSetsProperties()
         {
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var metadata = new DataSetMetaDataType { Name = "Meta1" };
 
             var msg = new PubSubEncoding.JsonNetworkMessage(writerGroup, metadata);
@@ -111,7 +111,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void DataSetWriterIdReturnsSingleMessageWriterIdWhenUnset()
         {
             var dsMessage = new PubSubEncoding.JsonDataSetMessage { DataSetWriterId = 77 };
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var msg = new PubSubEncoding.JsonNetworkMessage(writerGroup, [dsMessage]);
 
             Assert.That(msg.DataSetWriterId, Is.EqualTo(77));
@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             var dsMessage1 = new PubSubEncoding.JsonDataSetMessage { DataSetWriterId = 10 };
             var dsMessage2 = new PubSubEncoding.JsonDataSetMessage { DataSetWriterId = 20 };
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var msg = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup, [dsMessage1, dsMessage2]);
 
@@ -189,7 +189,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DataSetMessagesConstructorWithNullListCreatesEmptyMessages()
         {
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var msg = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup, (List<PubSubEncoding.JsonDataSetMessage>)null);
             Assert.That(msg.DataSetMessages, Is.Not.Null);

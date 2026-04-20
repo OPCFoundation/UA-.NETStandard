@@ -478,7 +478,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             pubSubConnection1.ReaderGroups = pubSubConnection1.ReaderGroups.AddItem(readerGroup1);
 
             //create  pub sub configuration root object
-            return new PubSubConfigurationDataType { Connections = [pubSubConnection1] };
+            return new PubSubConfigurationDataType { Enabled = true, Connections = [pubSubConnection1] };
         }
 
         /// <summary>
@@ -645,7 +645,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             pubSubConnection1.ReaderGroups = pubSubConnection1.ReaderGroups.AddItem(readerGroup1);
 
             //create  pub sub configuration root object
-            return new PubSubConfigurationDataType { Connections = [pubSubConnection1] };
+            return new PubSubConfigurationDataType { Enabled = true, Connections = [pubSubConnection1] };
         }
 
         /// <summary>
@@ -807,7 +807,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             pubSubConnection1.ReaderGroups = pubSubConnection1.ReaderGroups.AddItem(readerGroup1);
 
             //create  pub sub configuration root object
-            return new PubSubConfigurationDataType { Connections = [pubSubConnection1] };
+            return new PubSubConfigurationDataType { Enabled = true, Connections = [pubSubConnection1] };
         }
 
         /// <summary>

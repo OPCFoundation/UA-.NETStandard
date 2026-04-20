@@ -26,6 +26,8 @@
       - [Predefined node processing](#predefined-node-processing)
     - [User Identity Token Handlers](#user-identity-token-handlers)
     - [Serialization and Configuration](#serialization-and-configuration)
+      - [Data Contract Serializer support removed](#data-contract-serializer-support-removed)
+      - [Default value of boolean properties in source-generated data types is now false](#default-value-of-boolean-properties-in-source-generated-data-types-is-now-false)
       - [DataContract to DataType migration](#datacontract-to-datatype-migration)
       - [Configuration collection types removed](#configuration-collection-types-removed)
       - [DataContractSerializer replaced](#datacontractserializer-replaced)
@@ -43,12 +45,11 @@
       - [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
     - [Complex Types](#complex-types)
       - [ComplexTypes moved to Opc.Ua.Client assembly](#complextypes-moved-to-opcuaclient-assembly)
+      - [OptionSet DataType support](#optionset-datatype-support)
     - [Session and Browser State Persistence](#session-and-browser-state-persistence)
       - [Property type changes](#property-type-changes)
       - [`IUserIdentity` on `SessionOptions` is now computed](#iuseridentity-on-sessionoptions-is-now-computed)
       - [Encoding format is not guaranteed backward compatible](#encoding-format-is-not-guaranteed-backward-compatible)
-      - [OptionSet DataType support](#optionset-datatype-support)
-    - [Other Breaking Changes](#other-breaking-changes)
     - [Certificate Management](#certificate-management)
       - [Certificate and CertificateCollection wrapper types](#certificate-and-certificatecollection-wrapper-types)
       - [CertificateManager and segregated interfaces](#certificatemanager-and-segregated-interfaces)
@@ -497,9 +498,49 @@ See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more info
 
 ### Serialization and Configuration
 
+#### Data Contract Serializer support removed
+
 Because **Data Contract serialization** is not AOT compliant and does not support trimming, all use of `DataContract` in the configuration has been removed. Instead, the source generator enables generating *IEncodeable* implementations using the `DataType` and `DataTypeField` attributes which are now consequently used for all configuration. Because the configuration is now `IEncodeable` the existing encoders and decoders (in particular the new `XmlParser` which parses Xml and allows out of order fields) compliant with Part 6 can be used to serialize and deserialize all configuration and configuration extensions.
 
 > Generated Data types still support DataContract based serialization, however, consider this a deprecated feature.
+
+#### Default value of boolean properties in source-generated data types is now false
+
+**Breaking Change**: Boolean properties on source-generated data types now correctly default to `false` instead of `true`.
+
+Generated code produced by the model compiler contained a bug because it inverted the default value for boolean fields in generated data types. Boolean fields without an explicit `<DefaultValue>` in the model design XML were initialized to `true` instead of `false` as expected and defined in Part 6. This has been fixed.
+
+**Impact**: Any code that creates instances of source-generated data types and relies on boolean properties being `true` by default must now explicitly set those properties to `true`. This primarily affects PubSub configuration types:
+
+| Type | Property | Old Default | New Default |
+|---|---|---|---|
+| `PubSubConfigurationDataType` | `Enabled` | `true` | `false` |
+| `PubSubConnectionDataType` | `Enabled` | `true` | `false` |
+| `WriterGroupDataType` | `Enabled` | `true` | `false` |
+| `ReaderGroupDataType` | `Enabled` | `true` | `false` |
+| `DataSetWriterDataType` | `Enabled` | `true` | `false` |
+| `DataSetReaderDataType` | `Enabled` | `true` | `false` |
+| `PublishedDataSetCustomSourceDataType` | `CyclicDataSet` | `true` | `false` |
+
+Other affected types include all source-generated structures with boolean fields (e.g., `AggregateConfiguration.TreatUncertainAsBad`, `MonitoringParameters.DiscardOldest`, `CreateSubscriptionRequest.PublishingEnabled`) as well as 
+some hand-written types in `Opc.Ua.Types` (such as `BrowseDescription`, `RelativePathElement`).
+
+**Migration**: Add explicit initialization where your code depends on `true` as the default:
+
+```csharp
+// Before (relied on incorrect true default)
+var connection = new PubSubConnectionDataType
+{
+    Name = "MyConnection"
+};
+
+// After (explicitly set Enabled)
+var connection = new PubSubConnectionDataType
+{
+    Enabled = true,
+    Name = "MyConnection"
+};
+```
 
 #### DataContract to DataType migration
 

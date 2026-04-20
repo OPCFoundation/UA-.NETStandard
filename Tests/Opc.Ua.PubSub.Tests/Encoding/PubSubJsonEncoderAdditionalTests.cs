@@ -1047,7 +1047,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             using var encoder = new PubSubJsonEncoder(m_context, useReversibleEncoding: true);
             encoder.PushStructure(null);
-            var extObj = new ExtensionObject(new WriterGroupDataType { Name = "TestWG" });
+            var extObj = new ExtensionObject(new WriterGroupDataType { Enabled = true, Name = "TestWG" });
             encoder.WriteExtensionObject("ExtObj", extObj);
             encoder.PopStructure();
 

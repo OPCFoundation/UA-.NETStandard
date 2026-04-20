@@ -1836,6 +1836,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var reader = new DataSetReaderDataType
             {
+                Enabled = true,
                 Name = "TestReader",
                 DataSetWriterId = dataSetWriterId,
                 DataSetFieldContentMask = (uint)fieldContentMask,

@@ -84,6 +84,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             var reader = new DataSetReaderDataType
             {
+                Enabled = true,
                 Name = "TestReader",
                 DataSetWriterId = 1
             };
@@ -101,7 +102,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void ConstructorSetsAllProperties()
         {
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
-            var reader = new DataSetReaderDataType { Name = "Reader1" };
+            var reader = new DataSetReaderDataType { Enabled = true, Name = "Reader1" };
 
             var args = new DataSetDecodeErrorEventArgs(
                 DataSetDecodeErrorReason.MetadataMajorVersion,
@@ -169,7 +170,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 null,
                 null);
 
-            var reader = new DataSetReaderDataType { Name = "NewReader" };
+            var reader = new DataSetReaderDataType { Enabled = true, Name = "NewReader" };
             args.DataSetReader = reader;
             Assert.That(args.DataSetReader, Is.SameAs(reader));
             Assert.That(args.DataSetReader.Name, Is.EqualTo("NewReader"));

@@ -127,7 +127,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             UaPubSubConfigurator configurator = CreateConfigurator();
             Assert.Throws<ArgumentException>(
-                () => configurator.Enable(new PubSubConnectionDataType()));
+                () => configurator.Enable(new PubSubConnectionDataType { Enabled = true }));
         }
 
         [Test]
@@ -135,7 +135,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             UaPubSubConfigurator configurator = CreateConfigurator();
             Assert.Throws<ArgumentException>(
-                () => configurator.Disable(new PubSubConnectionDataType()));
+                () => configurator.Disable(new PubSubConnectionDataType { Enabled = true }));
         }
 
         [Test]
@@ -253,7 +253,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             UaPubSubConfigurator configurator = CreateConfigurator();
             PubSubState state = configurator.FindStateForObject(
-                new PubSubConnectionDataType());
+                new PubSubConnectionDataType { Enabled = true });
             Assert.That(state, Is.EqualTo(PubSubState.Error));
         }
 
@@ -269,7 +269,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void FindIdForUnknownObjectReturnsInvalidId()
         {
             UaPubSubConfigurator configurator = CreateConfigurator();
-            uint id = configurator.FindIdForObject(new PubSubConnectionDataType());
+            uint id = configurator.FindIdForObject(new PubSubConnectionDataType { Enabled = true });
             Assert.That(id, Is.EqualTo(UaPubSubConfigurator.InvalidId));
         }
 
@@ -286,7 +286,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             UaPubSubConfigurator configurator = CreateConfigurator();
             object parent = configurator.FindParentForObject(
-                new PubSubConnectionDataType());
+                new PubSubConnectionDataType { Enabled = true });
             Assert.That(parent, Is.Null);
         }
 
@@ -295,7 +295,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             UaPubSubConfigurator configurator = CreateConfigurator();
             List<uint> children = configurator.FindChildrenIdsForObject(
-                new PubSubConnectionDataType());
+                new PubSubConnectionDataType { Enabled = true });
             Assert.That(children, Is.Empty);
         }
 
