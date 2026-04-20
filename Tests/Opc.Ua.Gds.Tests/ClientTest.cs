@@ -40,6 +40,8 @@ using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
+#pragma warning disable CS0618 // Tests exercise obsolete methods intentionally
+
 namespace Opc.Ua.Gds.Tests
 {
     /// <summary>

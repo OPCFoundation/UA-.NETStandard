@@ -32,6 +32,8 @@ using System.IO;
 using System.Security.Cryptography;
 using NUnit.Framework;
 
+#pragma warning disable CS0618 // Tests exercise obsolete CertificateFactory methods intentionally
+
 namespace Opc.Ua.Security.Certificates.Tests
 {
     /// <summary>

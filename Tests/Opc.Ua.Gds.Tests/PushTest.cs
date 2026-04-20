@@ -46,6 +46,8 @@ using Opc.Ua.Test;
 using Opc.Ua.Tests;
 using OpcUa = Opc.Ua;
 
+#pragma warning disable CS0618 // Tests exercise obsolete methods intentionally
+
 namespace Opc.Ua.Gds.Tests
 {
     [TestFixture]

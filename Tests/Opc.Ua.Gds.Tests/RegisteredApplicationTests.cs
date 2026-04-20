@@ -32,6 +32,8 @@ using NUnit.Framework;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
 
+#pragma warning disable CS0618 // Tests exercise obsolete methods intentionally
+
 namespace Opc.Ua.Gds.Tests
 {
     [TestFixture]

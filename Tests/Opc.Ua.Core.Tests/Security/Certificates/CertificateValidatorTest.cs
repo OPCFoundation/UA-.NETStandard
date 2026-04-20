@@ -41,6 +41,8 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
 using Opc.Ua.Tests;
 
+#pragma warning disable CS0618 // Tests exercise obsolete methods intentionally
+
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     /// <summary>
