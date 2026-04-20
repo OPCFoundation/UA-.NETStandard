@@ -112,6 +112,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             var writerGroup = new WriterGroupDataType
             {
+                Enabled = true,
                 Name = "InvalidWG",
                 MessageSettings = default,
                 TransportSettings = default
@@ -127,6 +128,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             var writerGroup = new WriterGroupDataType
             {
+                Enabled = true,
                 Name = "WrongSettingsWG",
                 MessageSettings = new ExtensionObject(new JsonWriterGroupMessageDataType()),
                 TransportSettings = new ExtensionObject(new DatagramWriterGroupTransportDataType())
@@ -142,6 +144,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             var writerGroup = new WriterGroupDataType
             {
+                Enabled = true,
                 Name = "WrongTransportWG",
                 MessageSettings = new ExtensionObject(new UadpWriterGroupMessageDataType()),
                 TransportSettings = new ExtensionObject(new BrokerWriterGroupTransportDataType())
@@ -157,6 +160,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             var writerGroup = new WriterGroupDataType
             {
+                Enabled = true,
                 Name = "EmptyWritersWG",
                 MessageSettings = new ExtensionObject(new UadpWriterGroupMessageDataType()),
                 TransportSettings = new ExtensionObject(new DatagramWriterGroupTransportDataType()),

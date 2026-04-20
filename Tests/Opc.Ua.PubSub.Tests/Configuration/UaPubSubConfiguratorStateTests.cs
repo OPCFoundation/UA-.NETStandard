@@ -110,7 +110,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableUnknownObjectThrowsArgumentException()
         {
-            var connection = new PubSubConnectionDataType { Name = "Unknown" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "Unknown" };
             Assert.That(() => m_configurator.Enable(connection), Throws.TypeOf<ArgumentException>());
         }
 
@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void DisableUnknownObjectThrowsArgumentException()
         {
-            var connection = new PubSubConnectionDataType { Name = "Unknown" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "Unknown" };
             Assert.That(() => m_configurator.Disable(connection), Throws.TypeOf<ArgumentException>());
         }
 
@@ -264,7 +264,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindStateForObjectReturnsErrorForUnknownObject()
         {
-            var unknown = new PubSubConnectionDataType { Name = "Unknown" };
+            var unknown = new PubSubConnectionDataType { Enabled = true, Name = "Unknown" };
             PubSubState state = m_configurator.FindStateForObject(unknown);
             Assert.That(state, Is.EqualTo(PubSubState.Error));
         }
@@ -295,7 +295,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindIdForObjectReturnsInvalidIdForUnknownObject()
         {
-            uint id = m_configurator.FindIdForObject(new PubSubConnectionDataType());
+            uint id = m_configurator.FindIdForObject(new PubSubConnectionDataType { Enabled = true });
             Assert.That(id, Is.EqualTo(UaPubSubConfigurator.InvalidId));
         }
 
@@ -494,6 +494,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             var newConfig = new PubSubConfigurationDataType
             {
+                Enabled = true,
                 Connections = [],
                 PublishedDataSets = []
             };
@@ -514,6 +515,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             var config = new PubSubConfigurationDataType
             {
+                Enabled = true,
                 Connections = [],
                 PublishedDataSets = []
             };

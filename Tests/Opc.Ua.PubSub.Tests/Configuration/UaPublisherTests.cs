@@ -76,6 +76,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             var writerGroupDataType = new WriterGroupDataType
             {
+                Enabled = true,
                 PublishingInterval = publishingInterval
             };
 
@@ -125,6 +126,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             var writerGroupDataType = new WriterGroupDataType
             {
+                Enabled = true,
                 PublishingInterval = publishingInterval
             };
 

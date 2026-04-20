@@ -1545,6 +1545,125 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadEnumeratedArrayThrowsBadDecodingErrorWhenNoElementsPresent()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <![CDATA[]]>
+            </ListOfTestEnum>
+            """;
+            using var decoder = new XmlParser(xml, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEnumeratedArray("ListOfTestEnum"));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.Message, Does.Contain("does not contain any elements"));
+        }
+
+        [Test]
+        public void ReadEnumeratedArrayShouldThrowBadDecodingErrorWhenEmptyContent()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"></ListOfTestEnum>
+            """;
+            using var decoder = new XmlParser(xml, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEnumeratedArray("ListOfTestEnum"));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.Message, Does.Contain("does not contain any elements"));
+        }
+
+        [Test]
+        public void ReadEnumeratedArrayShouldThrowBadDecodingErrorWhenElementContainsOnlyText()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">invalid text</ListOfTestEnum>
+            """;
+            using var decoder = new XmlParser(xml, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEnumeratedArray("ListOfTestEnum"));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.Message, Does.Contain("does not contain any elements"));
+        }
+
+        [Test]
+        public void ReadEnumeratedArrayReturnsDefaultWhenNil()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true" />
+            """;
+            using var decoder = new XmlParser(xml, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ArrayOf<EnumValue> result = decoder.ReadEnumeratedArray("ListOfTestEnum");
+
+            // Assert
+            Assert.That(result.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ReadEnumeratedArrayReturnsDefaultWhenMissing()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <Other xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+            """;
+            using var decoder = new XmlParser(xml, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ArrayOf<EnumValue> result = decoder.ReadEnumeratedArray("ListOfTestEnum");
+
+            // Assert
+            Assert.That(result.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ReadEnumeratedArrayShouldReturnCorrectCountForPopulatedArray()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <TestEnum>Value1</TestEnum>
+                <TestEnum>Value2</TestEnum>
+            </ListOfTestEnum>
+            """;
+            using var decoder = new XmlParser(xml, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ArrayOf<EnumValue> result = decoder.ReadEnumeratedArray("ListOfTestEnum");
+
+            // Assert
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
         public void DecodeMessageReturnsDecodedValue()
         {
             // Arrange
