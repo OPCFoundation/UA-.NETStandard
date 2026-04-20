@@ -81,7 +81,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates an <see cref="EncryptedSecret"/> instance for ECC encrypted secret encryption/decryption.
+        /// Creates an <see cref="EncryptedSecret"/> instance for ECC-based encryption and decryption operations.
         /// </summary>
         public static EncryptedSecret CreateForEcc(
             IServiceMessageContext context,
@@ -190,7 +190,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Encrypts a secret using the specified nonce.
+        /// Encrypts a secret using the specified nonce and selects RSA or ECC encoding based on the security policy.
         /// </summary>
         /// <param name="secret">The secret to encrypt.</param>
         /// <param name="nonce">The nonce to use for encryption.</param>
@@ -741,6 +741,13 @@ namespace Opc.Ua
         /// <summary>
         /// Tries to decrypt the encrypted secret and returns the plain secret.
         /// </summary>
+        /// <param name="encryptedSecret">The encrypted secret bytes.</param>
+        /// <param name="expectedNonce">The expected nonce to validate.</param>
+        /// <param name="secret">The decrypted secret when decryption succeeds.</param>
+        /// <returns>
+        /// <c>true</c> if decryption succeeds; otherwise <c>false</c>.
+        /// Routes to RSA or ECC decryption based on the configured security policy.
+        /// </returns>
         public bool TryDecrypt(byte[] encryptedSecret, byte[] expectedNonce, out byte[] secret)
         {
             secret = null;
@@ -766,23 +773,12 @@ namespace Opc.Ua
                     Context.Telemetry);
                 return true;
             }
-            catch (ServiceResultException)
-            {
-                return false;
-            }
-            catch (CryptographicException)
-            {
-                return false;
-            }
-            catch (IOException)
-            {
-                return false;
-            }
-            catch (FormatException)
-            {
-                return false;
-            }
-            catch (ArgumentException)
+            catch (Exception ex) when (
+                ex is ServiceResultException or
+                CryptographicException or
+                IOException or
+                FormatException or
+                ArgumentException)
             {
                 return false;
             }
