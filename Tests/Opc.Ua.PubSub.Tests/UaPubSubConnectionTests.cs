@@ -129,14 +129,14 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void CanPublishReturnsFalseWhenNotRunning()
         {
             Assert.That(m_connection.IsRunning, Is.False);
-            var writerGroup = new WriterGroupDataType();
+            var writerGroup = new WriterGroupDataType { Enabled = true };
             Assert.That(m_connection.CanPublish(writerGroup), Is.False);
         }
 
         [Test]
         public void CanPublishReturnsFalseForNullWriterGroup()
         {
-            var writerGroup = new WriterGroupDataType { Name = "NonExistent" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "NonExistent" };
             Assert.That(m_connection.CanPublish(writerGroup), Is.False);
         }
 
@@ -231,6 +231,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             var pubSubConfig = new PubSubConfigurationDataType
             {
+                Enabled = true,
                 Connections = [connectionConfig]
             };
 

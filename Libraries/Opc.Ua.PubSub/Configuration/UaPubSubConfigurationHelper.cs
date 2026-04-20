@@ -78,7 +78,7 @@ namespace Opc.Ua.PubSub.Configuration
                     ServiceMessageContext.CreateEmpty(telemetry);
                 using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
                 using var parser = new XmlParser(typeof(PubSubConfigurationDataType), stream, context);
-                var config = new PubSubConfigurationDataType();
+                var config = new PubSubConfigurationDataType { Enabled = true };
                 config.Decode(parser);
                 return config;
             }

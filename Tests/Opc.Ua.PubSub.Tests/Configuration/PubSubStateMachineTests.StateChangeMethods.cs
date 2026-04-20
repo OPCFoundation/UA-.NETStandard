@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
-            var nonExisting = new PubSubConfigurationDataType();
+            var nonExisting = new PubSubConfigurationDataType { Enabled = true };
             Assert.Throws<ArgumentException>(
                 () => configurator.Enable(nonExisting),
                 "The Enable method does not throw exception when called with non existing parameter.");
@@ -124,7 +124,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile, telemetry);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
-            var nonExisting = new PubSubConfigurationDataType();
+            var nonExisting = new PubSubConfigurationDataType { Enabled = true };
             Assert.Throws<ArgumentException>(
                 () => configurator.Disable(nonExisting),
                 "The Disable method does not throw exception when called with non existing parameter.");

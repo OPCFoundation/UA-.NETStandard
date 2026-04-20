@@ -83,7 +83,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindObjectByIdReturnsObjectWhenFound()
         {
-            var connection = new PubSubConnectionDataType { Name = "Conn1" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "Conn1" };
             StatusCode result = m_configurator.AddConnection(connection);
             Assert.That(StatusCode.IsGood(result), Is.True);
 
@@ -104,14 +104,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindIdForObjectReturnsInvalidIdForUnknownObject()
         {
-            uint id = m_configurator.FindIdForObject(new PubSubConnectionDataType());
+            uint id = m_configurator.FindIdForObject(new PubSubConnectionDataType { Enabled = true });
             Assert.That(id, Is.EqualTo(UaPubSubConfigurator.InvalidId));
         }
 
         [Test]
         public void FindStateForObjectReturnsOperationalForNewConnection()
         {
-            var connection = new PubSubConnectionDataType { Name = "StateConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "StateConn" };
             m_configurator.AddConnection(connection);
 
             PubSubState state = m_configurator.FindStateForObject(connection);
@@ -121,14 +121,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindStateForObjectReturnsErrorForUnknownObject()
         {
-            PubSubState state = m_configurator.FindStateForObject(new PubSubConnectionDataType());
+            PubSubState state = m_configurator.FindStateForObject(new PubSubConnectionDataType { Enabled = true });
             Assert.That(state, Is.EqualTo(PubSubState.Error));
         }
 
         [Test]
         public void FindStateForIdReturnsOperationalForNewConnection()
         {
-            var connection = new PubSubConnectionDataType { Name = "StateIdConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "StateIdConn" };
             m_configurator.AddConnection(connection);
 
             uint id = m_configurator.FindIdForObject(connection);
@@ -146,18 +146,18 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindParentForObjectReturnsNullForUnknownObject()
         {
-            object parent = m_configurator.FindParentForObject(new PubSubConnectionDataType());
+            object parent = m_configurator.FindParentForObject(new PubSubConnectionDataType { Enabled = true });
             Assert.That(parent, Is.Null);
         }
 
         [Test]
         public void FindParentForObjectReturnsParentForWriterGroup()
         {
-            var connection = new PubSubConnectionDataType { Name = "ParentConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "ParentConn" };
             m_configurator.AddConnection(connection);
             uint connId = m_configurator.FindIdForObject(connection);
 
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             StatusCode result = m_configurator.AddWriterGroup(connId, writerGroup);
             Assert.That(StatusCode.IsGood(result), Is.True);
 
@@ -169,21 +169,21 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void FindChildrenIdsForObjectReturnsEmptyForUnknownObject()
         {
             List<uint> children = m_configurator.FindChildrenIdsForObject(
-                new PubSubConnectionDataType());
+                new PubSubConnectionDataType { Enabled = true });
             Assert.That(children, Is.Empty);
         }
 
         [Test]
         public void FindChildrenIdsForObjectReturnsChildrenForConnection()
         {
-            var connection = new PubSubConnectionDataType { Name = "ChildConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "ChildConn" };
             m_configurator.AddConnection(connection);
             uint connId = m_configurator.FindIdForObject(connection);
 
-            var writerGroup = new WriterGroupDataType { Name = "ChildWG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "ChildWG1" };
             m_configurator.AddWriterGroup(connId, writerGroup);
 
-            var readerGroup = new ReaderGroupDataType { Name = "ChildRG1" };
+            var readerGroup = new ReaderGroupDataType { Enabled = true, Name = "ChildRG1" };
             m_configurator.AddReaderGroup(connId, readerGroup);
 
             List<uint> children = m_configurator.FindChildrenIdsForObject(connection);
@@ -193,7 +193,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableConnectionFromDisabledChangesStateToOperational()
         {
-            var connection = new PubSubConnectionDataType { Name = "EnableConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "EnableConn" };
             m_configurator.AddConnection(connection);
 
             // Connections start Operational, so disable first
@@ -211,7 +211,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableByIdFromDisabledChangesState()
         {
-            var connection = new PubSubConnectionDataType { Name = "EnableIdConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "EnableIdConn" };
             m_configurator.AddConnection(connection);
             uint connId = m_configurator.FindIdForObject(connection);
 
@@ -223,7 +223,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableAlreadyOperationalReturnsBadInvalidState()
         {
-            var connection = new PubSubConnectionDataType { Name = "DoubleEnableConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "DoubleEnableConn" };
             m_configurator.AddConnection(connection);
 
             // Connections start Operational
@@ -241,13 +241,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void EnableUnknownObjectThrowsArgumentException()
         {
             Assert.Throws<ArgumentException>(
-                () => m_configurator.Enable(new PubSubConnectionDataType()));
+                () => m_configurator.Enable(new PubSubConnectionDataType { Enabled = true }));
         }
 
         [Test]
         public void DisableConnectionChangesStateToDisabled()
         {
-            var connection = new PubSubConnectionDataType { Name = "DisableConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "DisableConn" };
             m_configurator.AddConnection(connection);
             // Connection starts Operational
 
@@ -261,7 +261,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void DisableByIdChangesState()
         {
-            var connection = new PubSubConnectionDataType { Name = "DisableIdConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "DisableIdConn" };
             m_configurator.AddConnection(connection);
             uint connId = m_configurator.FindIdForObject(connection);
             // Connection starts Operational
@@ -273,7 +273,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void DisableAlreadyDisabledReturnsBadInvalidState()
         {
-            var connection = new PubSubConnectionDataType { Name = "DoubleDisableConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "DoubleDisableConn" };
             m_configurator.AddConnection(connection);
 
             // Disable first time (from Operational)
@@ -293,17 +293,17 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void DisableUnknownObjectThrowsArgumentException()
         {
             Assert.Throws<ArgumentException>(
-                () => m_configurator.Disable(new PubSubConnectionDataType()));
+                () => m_configurator.Disable(new PubSubConnectionDataType { Enabled = true }));
         }
 
         [Test]
         public void EnableDisableWithChildrenPropagatesState()
         {
-            var connection = new PubSubConnectionDataType { Name = "PropConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "PropConn" };
             m_configurator.AddConnection(connection);
             uint connId = m_configurator.FindIdForObject(connection);
 
-            var writerGroup = new WriterGroupDataType { Name = "PropWG" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "PropWG" };
             m_configurator.AddWriterGroup(connId, writerGroup);
 
             // Connection starts Operational, children should also be Operational
@@ -370,7 +370,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void LoadConfigurationWithReplaceExistingClearsOldData()
         {
-            var connection = new PubSubConnectionDataType { Name = "OldConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "OldConn" };
             m_configurator.AddConnection(connection);
 
             string configFile = Utils.GetAbsoluteFilePath(
@@ -403,7 +403,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void FindChildrenIdsForConnectionWithNoChildren()
         {
-            var connection = new PubSubConnectionDataType { Name = "NoChildConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "NoChildConn" };
             m_configurator.AddConnection(connection);
 
             List<uint> children = m_configurator.FindChildrenIdsForObject(connection);
@@ -413,11 +413,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddAndRemoveWriterGroupUpdatesLookups()
         {
-            var connection = new PubSubConnectionDataType { Name = "WGConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "WGConn" };
             m_configurator.AddConnection(connection);
             uint connId = m_configurator.FindIdForObject(connection);
 
-            var writerGroup = new WriterGroupDataType { Name = "TestWG" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "TestWG" };
             StatusCode addResult = m_configurator.AddWriterGroup(connId, writerGroup);
             Assert.That(StatusCode.IsGood(addResult), Is.True);
 
@@ -434,11 +434,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddAndRemoveReaderGroupUpdatesLookups()
         {
-            var connection = new PubSubConnectionDataType { Name = "RGConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "RGConn" };
             m_configurator.AddConnection(connection);
             uint connId = m_configurator.FindIdForObject(connection);
 
-            var readerGroup = new ReaderGroupDataType { Name = "TestRG" };
+            var readerGroup = new ReaderGroupDataType { Enabled = true, Name = "TestRG" };
             StatusCode addResult = m_configurator.AddReaderGroup(connId, readerGroup);
             Assert.That(StatusCode.IsGood(addResult), Is.True);
 
@@ -452,15 +452,15 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddAndRemoveDataSetWriterUpdatesLookups()
         {
-            var connection = new PubSubConnectionDataType { Name = "DSWConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "DSWConn" };
             m_configurator.AddConnection(connection);
             uint connId = m_configurator.FindIdForObject(connection);
 
-            var writerGroup = new WriterGroupDataType { Name = "DSWWG" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "DSWWG" };
             m_configurator.AddWriterGroup(connId, writerGroup);
             uint wgId = m_configurator.FindIdForObject(writerGroup);
 
-            var dataSetWriter = new DataSetWriterDataType { Name = "TestDSW" };
+            var dataSetWriter = new DataSetWriterDataType { Enabled = true, Name = "TestDSW" };
             StatusCode addResult = m_configurator.AddDataSetWriter(wgId, dataSetWriter);
             Assert.That(StatusCode.IsGood(addResult), Is.True);
 
@@ -474,15 +474,15 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddAndRemoveDataSetReaderUpdatesLookups()
         {
-            var connection = new PubSubConnectionDataType { Name = "DSRConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "DSRConn" };
             m_configurator.AddConnection(connection);
             uint connId = m_configurator.FindIdForObject(connection);
 
-            var readerGroup = new ReaderGroupDataType { Name = "DSRRG" };
+            var readerGroup = new ReaderGroupDataType { Enabled = true, Name = "DSRRG" };
             m_configurator.AddReaderGroup(connId, readerGroup);
             uint rgId = m_configurator.FindIdForObject(readerGroup);
 
-            var dataSetReader = new DataSetReaderDataType { Name = "TestDSR" };
+            var dataSetReader = new DataSetReaderDataType { Enabled = true, Name = "TestDSR" };
             StatusCode addResult = m_configurator.AddDataSetReader(rgId, dataSetReader);
             Assert.That(StatusCode.IsGood(addResult), Is.True);
 
@@ -496,14 +496,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableWriterGroupFromDisabledWithDisabledParentSetsPausedState()
         {
-            var connection = new PubSubConnectionDataType { Name = "PausedParentConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "PausedParentConn" };
             m_configurator.AddConnection(connection);
             uint connId = m_configurator.FindIdForObject(connection);
 
             // Disable parent first
             m_configurator.Disable(connection);
 
-            var writerGroup = new WriterGroupDataType { Name = "PausedWG" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "PausedWG" };
             m_configurator.AddWriterGroup(connId, writerGroup);
 
             // Writer group should start disabled since parent is disabled
@@ -518,12 +518,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableWriterGroupFromDisabledWithOperationalParentSetsOperationalState()
         {
-            var connection = new PubSubConnectionDataType { Name = "OpParentConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "OpParentConn" };
             m_configurator.AddConnection(connection);
             uint connId = m_configurator.FindIdForObject(connection);
             // Connection starts Operational
 
-            var writerGroup = new WriterGroupDataType { Name = "OpWG" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "OpWG" };
             m_configurator.AddWriterGroup(connId, writerGroup);
 
             // Disable the writer group, then re-enable

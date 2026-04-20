@@ -776,8 +776,7 @@ namespace Opc.Ua.Schema.Model
             string targetNamespace,
             Namespace[] namespaces,
             IServiceMessageContext context,
-            Func<string> onUnknownElement = null,
-            bool dataTypeQuirk = false)
+            Func<string> onUnknownElement = null)
         {
             TypeInfo decodedValueType = default;
             string defaultString = valueAsVariant ?
@@ -818,8 +817,7 @@ namespace Opc.Ua.Schema.Model
                     valueAsVariant,
                     targetNamespace,
                     namespaces,
-                    onUnknownElement,
-                    dataTypeQuirk)
+                    onUnknownElement)
                     ?? defaultString;
             }
 
@@ -837,8 +835,7 @@ namespace Opc.Ua.Schema.Model
             bool valueAsVariant,
             string targetNamespace,
             Namespace[] namespaces,
-            Func<string> onUnknownElement = null,
-            bool dataTypeQuirk = false)
+            Func<string> onUnknownElement = null)
         {
             // Note that we return a typed value since we initialize a object/variant
             switch (dataType.BasicDataType)
@@ -847,21 +844,6 @@ namespace Opc.Ua.Schema.Model
                     if (decodedValue is not bool boolValue)
                     {
                         boolValue = false;
-                    }
-
-                    // If decoded value was passed, but no type info, set to concrete
-                    // type so that we correctly handle the default value below.
-                    // Otherwise fall to the back compat path that inverts the value.
-                    else if (decodedValueType.IsUnknown)
-                    {
-                        decodedValueType = TypeInfo.Scalars.Boolean;
-                    }
-                    if (dataTypeQuirk &&
-                        (defaultValue == null || decodedValueType != TypeInfo.Scalars.Boolean))
-                    {
-                        // this is technically a bug but the potential for side effects is
-                        // so large that it is better to leave as is.
-                        return MakeReturnType(boolValue ? "false" : "true");
                     }
 
                     return MakeReturnType(boolValue ? "true" : "false");

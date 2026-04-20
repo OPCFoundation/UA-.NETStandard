@@ -661,10 +661,10 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests GetDefaultDotNetValue with Boolean type and true value without defaultValue (inverted bug).
+        /// Tests GetDefaultDotNetValue with Boolean type and true value without defaultValue.
         /// </summary>
-        [Theory]
-        public void GetDefaultDotNetValue_BooleanTrueWithoutDefaultValue_ReturnsFalseWithQuirk(bool quirk)
+        [Test]
+        public void GetDefaultDotNetValue_BooleanTrueWithoutDefaultValue_ReturnsTrue()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -682,19 +682,18 @@ namespace Opc.Ua.Schema.Model.Tests
                 false,
                 "TestNamespace",
                 namespaces,
-                mockContext.Object,
-                dataTypeQuirk: quirk);
+                mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo(quirk ? "false" : "true"));
+            Assert.That(result, Is.EqualTo("true"));
         }
 
         /// <summary>
-        /// Tests GetDefaultDotNetValue with Boolean type and false value without defaultValue (inverted bug).
-        /// Expected: Returns "true" due to documented bug.
+        /// Tests GetDefaultDotNetValue with Boolean type and false value without defaultValue.
+        /// Expected: Returns "false".
         /// </summary>
-        [Theory]
-        public void GetDefaultDotNetValue_BooleanFalseWithoutDefaultValue_ReturnsTrueWhenQuirk(bool quirk)
+        [Test]
+        public void GetDefaultDotNetValue_BooleanFalseWithoutDefaultValue_ReturnsFalse()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -712,11 +711,10 @@ namespace Opc.Ua.Schema.Model.Tests
                 false,
                 "TestNamespace",
                 namespaces,
-                mockContext.Object,
-                dataTypeQuirk: quirk);
+                mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo(quirk ? "true" : "false"));
+            Assert.That(result, Is.EqualTo("false"));
         }
 
         /// <summary>

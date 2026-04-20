@@ -277,6 +277,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             //create  the PubSub configuration root object
             return new PubSubConfigurationDataType
             {
+                Enabled = true,
                 Connections = [pubSubConnection1],
                 PublishedDataSets = [publishedDataSetSimple, publishedDataSetAllTypes]
             };
@@ -419,6 +420,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             //create  the PubSub configuration root object
             return new PubSubConfigurationDataType
             {
+                Enabled = true,
                 Connections = [pubSubConnection1],
                 PublishedDataSets = [publishedDataSetSimple, publishedDataSetAllTypes]
             };
@@ -557,6 +559,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             //create  the PubSub configuration root object
             return new PubSubConfigurationDataType
             {
+                Enabled = true,
                 Connections = [pubSubConnection1],
                 PublishedDataSets = [publishedDataSetSimple, publishedDataSetAllTypes]
             };

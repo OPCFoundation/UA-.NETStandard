@@ -1152,8 +1152,7 @@ namespace Opc.Ua.SourceGeneration
                     field,
                     field.ValueRank,
                     field.DataTypeNode,
-                    field.DefaultValue),
-                dataTypeQuirk: true);
+                    field.DefaultValue));
 
             context.Out.WriteLine("{0} = {1};", field.GetChildFieldName(), value);
             return null;
@@ -1239,8 +1238,7 @@ namespace Opc.Ua.SourceGeneration
                         field,
                         field.ValueRank,
                         field.DataTypeNode,
-                        field.DefaultValue),
-                    dataTypeQuirk: true));
+                        field.DefaultValue)));
             context.Template.AddReplacement(
                 Tokens.Identifier,
                 field.Identifier.ToString(CultureInfo.InvariantCulture));
