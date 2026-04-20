@@ -190,11 +190,11 @@ namespace Opc.Ua
                 {
                     if (entry.CertificateWithPrivateKey != null)
                     {
-                        certificates.Add(entry.CertificateWithPrivateKey);
+                        certificates.Add(entry.CertificateWithPrivateKey.AddRef());
                     }
                     else if (entry.Certificate != null)
                     {
-                        certificates.Add(entry.Certificate);
+                        certificates.Add(entry.Certificate.AddRef());
                     }
                 }
 
@@ -490,11 +490,11 @@ namespace Opc.Ua
                 {
                     if (entry.CertificateWithPrivateKey != null)
                     {
-                        certificates.Add(entry.CertificateWithPrivateKey);
+                        certificates.Add(entry.CertificateWithPrivateKey.AddRef());
                     }
                     else
                     {
-                        certificates.Add(entry.Certificate);
+                        certificates.Add(entry.Certificate.AddRef());
                     }
                 }
 

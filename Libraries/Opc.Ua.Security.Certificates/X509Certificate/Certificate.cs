@@ -39,6 +39,17 @@ namespace Opc.Ua.Security.Certificates
     /// Wraps an <see cref="X509Certificate2"/> providing a managed
     /// lifetime and implementing <see cref="IX509Certificate"/>.
     /// </summary>
+    /// <summary>
+    /// Wraps an <see cref="X509Certificate2"/> providing a managed
+    /// lifetime with reference counting and implementing
+    /// <see cref="IX509Certificate"/>.
+    /// </summary>
+    /// <remarks>
+    /// The inner <see cref="X509Certificate2"/> is disposed only when
+    /// the last reference is released. Use <see cref="AddRef"/> to
+    /// increment the reference count before sharing, and
+    /// <see cref="Dispose()"/> to decrement it.
+    /// </remarks>
     public class Certificate : IX509Certificate, IDisposable, IEquatable<Certificate>
     {
         /// <summary>
@@ -47,7 +58,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         internal X509Certificate2 X509 { get; }
 
-        private bool _disposed;
+        private int _refCount = 1;
 
         /// <summary>
         /// Creates a public-key-only certificate from DER or PEM encoded data.
@@ -357,21 +368,42 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
+        /// Increments the reference count on this certificate.
+        /// Each call must be balanced by a call to <see cref="Dispose()"/>.
+        /// The inner <see cref="X509Certificate2"/> is disposed only
+        /// when the last reference is released.
+        /// </summary>
+        /// <returns>This certificate instance for fluent usage.</returns>
+        public Certificate AddRef()
+        {
+            int current = System.Threading.Interlocked.Increment(ref _refCount);
+            if (current <= 1)
+            {
+                // Was already at 0 (disposed) — undo and throw.
+                System.Threading.Interlocked.Decrement(ref _refCount);
+                throw new ObjectDisposedException(nameof(Certificate));
+            }
+            return this;
+        }
+
+        /// <summary>
         /// Releases the resources used by the <see cref="Certificate"/>.
+        /// The inner <see cref="X509Certificate2"/> is disposed only
+        /// when the reference count reaches zero.
         /// </summary>
         /// <param name="disposing">
         /// <c>true</c> to release managed resources.
         /// </param>
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposed)
+            if (disposing)
             {
-                if (disposing)
+                int remaining = System.Threading.Interlocked
+                    .Decrement(ref _refCount);
+                if (remaining == 0)
                 {
                     X509.Dispose();
                 }
-
-                _disposed = true;
             }
         }
 
