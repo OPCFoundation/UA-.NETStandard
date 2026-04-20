@@ -859,15 +859,15 @@ namespace Opc.Ua.Client
             Snapshot(out SessionConfiguration configuration);
 
             // Snapshot subscription state
-            var subscriptionStateCollection = new SubscriptionStateCollection(SubscriptionCount);
+            var subscriptionStates = new List<SubscriptionState>(SubscriptionCount);
             foreach (Subscription subscription in Subscriptions)
             {
                 subscription.Snapshot(out SubscriptionState subscriptionState);
-                subscriptionStateCollection.Add(subscriptionState);
+                subscriptionStates.Add(subscriptionState);
             }
             state = new SessionState(configuration)
             {
-                Subscriptions = subscriptionStateCollection
+                Subscriptions = subscriptionStates
             };
         }
 
@@ -877,7 +877,7 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
             ThrowIfDisposed();
             Restore((SessionConfiguration)state);
-            if (state.Subscriptions == null)
+            if (state.Subscriptions.IsEmpty)
             {
                 return;
             }
@@ -893,11 +893,11 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Snapshot(out SessionConfiguration sessionConfiguration)
         {
-            byte[]? serverNonce = !m_serverNonce.IsEmpty ? m_serverNonce.ToArray() : null;
-            byte[]? clientNonce = m_clientNonce != null ? [.. m_clientNonce] : null;
-            byte[]? serverEccEphemeralKey = m_eccServerEphemeralKey?.Data != null
-                ? [.. m_eccServerEphemeralKey.Data]
-                : null;
+            ByteString serverNonce = !m_serverNonce.IsEmpty ? m_serverNonce : default;
+            ByteString clientNonce = m_clientNonce != null ? ByteString.From(m_clientNonce) : default;
+            ByteString serverEccEphemeralKey = m_eccServerEphemeralKey?.Data != null
+                ? ByteString.From([.. m_eccServerEphemeralKey.Data])
+                : default;
             sessionConfiguration = new SessionConfiguration
             {
                 SessionName = SessionName,
@@ -925,12 +925,12 @@ namespace Opc.Ua.Client
                     : null;
             m_identity = sessionConfiguration.Identity ?? new UserIdentity();
             m_checkDomain = sessionConfiguration.CheckDomain;
-            m_serverNonce = ByteString.From(sessionConfiguration.ServerNonce);
-            m_clientNonce = sessionConfiguration.ClientNonce != null
-                ? [.. sessionConfiguration.ClientNonce]
+            m_serverNonce = sessionConfiguration.ServerNonce;
+            m_clientNonce = !sessionConfiguration.ClientNonce.IsNull
+                ? sessionConfiguration.ClientNonce.ToArray()
                 : null;
             m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
-            if (sessionConfiguration.ServerEccEphemeralKey?.Length > 0)
+            if (sessionConfiguration.ServerEccEphemeralKey.Length > 0)
             {
                 string? ephemeralKeyPolicyUri = !string.IsNullOrEmpty(m_userTokenSecurityPolicyUri)
                     ? m_userTokenSecurityPolicyUri
@@ -938,7 +938,7 @@ namespace Opc.Ua.Client
                 SecurityPolicyInfo ephemeralKeyPolicy = SecurityPolicies.GetInfo(ephemeralKeyPolicyUri);
                 m_eccServerEphemeralKey = Nonce.CreateNonce(
                     ephemeralKeyPolicy,
-                    sessionConfiguration.ServerEccEphemeralKey);
+                    sessionConfiguration.ServerEccEphemeralKey.ToArray());
             }
             else
             {
@@ -979,8 +979,7 @@ namespace Opc.Ua.Client
                     null, context.NamespaceUris.ToArrayOf());
                 encoder.WriteStringArray(
                     null, context.ServerUris.ToArrayOf());
-                SessionStateEncoder.EncodeSessionConfiguration(
-                    encoder, sessionConfiguration);
+                sessionConfiguration.Encode(encoder);
             }
             return sessionConfiguration;
         }
@@ -993,11 +992,11 @@ namespace Opc.Ua.Client
         {
             using Activity? activity = m_telemetry.StartActivity();
             // Snapshot subscription state
-            var subscriptionStateCollection = new SubscriptionStateCollection();
+            var subscriptionStates = new List<SubscriptionState>();
             foreach (Subscription subscription in subscriptions)
             {
                 subscription.Snapshot(out SubscriptionState state);
-                subscriptionStateCollection.Add(state);
+                subscriptionStates.Add(state);
             }
 
             IServiceMessageContext context = MessageContext
@@ -1008,10 +1007,10 @@ namespace Opc.Ua.Client
                 null, context.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(
                 null, context.ServerUris.ToArrayOf());
-            encoder.WriteInt32(null, subscriptionStateCollection.Count);
-            foreach (SubscriptionState state in subscriptionStateCollection)
+            encoder.WriteInt32(null, subscriptionStates.Count);
+            foreach (SubscriptionState state in subscriptionStates)
             {
-                SessionStateEncoder.EncodeSubscriptionState(encoder, state);
+                state.Encode(encoder);
             }
         }
 
@@ -1042,8 +1041,8 @@ namespace Opc.Ua.Client
             var subscriptions = new SubscriptionCollection(count);
             for (int i = 0; i < count; i++)
             {
-                SubscriptionState state =
-                    SessionStateEncoder.DecodeSubscriptionState(decoder);
+                var state = new SubscriptionState();
+                state.Decode(decoder);
                 // Restore subscription from state
                 Subscription subscription = CreateSubscription(state);
                 subscription.Restore(state);

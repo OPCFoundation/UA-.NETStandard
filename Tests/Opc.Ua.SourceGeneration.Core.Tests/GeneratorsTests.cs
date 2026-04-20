@@ -53,7 +53,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Arrange
             var designFiles = new DesignFileCollection
             {
-                DesignFiles = []
+                Targets = []
             };
             var mockFileSystem = new Mock<IFileSystem>(MockBehavior.Strict);
             var mockTelemetry = new Mock<ITelemetryContext>(MockBehavior.Strict);

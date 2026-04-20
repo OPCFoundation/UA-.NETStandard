@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- *
+ * 
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -12,7 +12,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- *
+ * 
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -44,9 +44,8 @@
   <opc:Namespaces>
     <opc:Namespace Name="DemoModel" Prefix="DemoModel" XmlNamespace="urn:opcfoundation.org:2024-01:DemoModelTypes.xsd"  XmlPrefix="DemoModel">urn:opcfoundation.org:2024-01:DemoModel</opc:Namespace>
     <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" InternalPrefix="Opc.Ua.Server" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd" XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
-    <opc:Namespace Name="DI" Prefix="Opc.Ua.Di" InternalPrefix="Opc.Ua.Di.Server" XmlPrefix="OpcUaDi">http://opcfoundation.org/UA/DI/</opc:Namespace>
   </opc:Namespaces>
-
+  
   <opc:PermissionSets>
     <opc:PermissionSet Name="AuthenticatedUserOnly" >
       <opc:RolePermission Role="ua:WellKnownRole_AuthenticatedUser">
@@ -88,7 +87,7 @@
       </opc:Extension>
     </opc:Extensions>
   </opc:Object>
-
+  
   <opc:DataType SymbolicName="EnumUnderscoreTest" BaseType="ua:Enumeration" ForceEnumValues="true">
     <opc:Fields>
       <opc:Field Name="x_x" Identifier="1"/>
@@ -115,13 +114,16 @@
     <opc:DefaultAccessRestrictions>EncryptionRequired</opc:DefaultAccessRestrictions>
   </opc:VariableType>
 
+  <opc:Method SymbolicName="BlueTypeMethodType">
+  </opc:Method>
+  
   <opc:ObjectType SymbolicName="RestrictedObjectType" BaseType="ua:BaseObjectType">
     <opc:Children>
       <opc:Variable SymbolicName="Red" TypeDefinition="RestrictedVariableType" ModellingRule="Mandatory"/>
       <opc:Variable SymbolicName="Pink_Placeholder" TypeDefinition="RestrictedVariableType" ModellingRule="OptionalPlaceholder">
         <opc:BrowseName>&lt;Pink&gt;</opc:BrowseName>
       </opc:Variable>
-      <opc:Method SymbolicName="Blue" ModellingRule="Mandatory">
+      <opc:Method SymbolicName="BlueType" ModellingRule="Mandatory">
         <opc:DefaultRolePermissions Name="SecurityAdminOnly" />
         <opc:DefaultAccessRestrictions>SessionWithSigningAndApplyToBrowseRequired</opc:DefaultAccessRestrictions>
       </opc:Method>
@@ -151,6 +153,56 @@
     </opc:References>
   </opc:Object>
 
+  <opc:VariableType SymbolicName="YellowType" BaseType="ua:BaseDataVariableType" DataType="ua:String">
+    <opc:Children>
+      <opc:Property SymbolicName="Shade" DataType="ua:String" ModellingRule="Mandatory">
+        <opc:DefaultValue>
+          <uax:String>Pale</uax:String>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:DefaultInstanceBrowseName" DataType="ua:QualifiedName" ModellingRule="None">
+        <opc:DefaultValue>
+          <uax:QualifiedName>
+            <uax:NamespaceIndex>1</uax:NamespaceIndex>
+            <uax:Name>YellowThing</uax:Name>
+          </uax:QualifiedName>
+        </opc:DefaultValue>
+      </opc:Property>
+    </opc:Children>
+  </opc:VariableType>
+
+  <opc:ObjectType SymbolicName="BrightnessType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Object SymbolicName="Amber_Placeholder" TypeDefinition="ua:StateType" ModellingRule="MandatoryPlaceholder">
+        <opc:BrowseName>&lt;Amber&gt;</opc:BrowseName>
+        <opc:ReferenceType>ua:HasOrderedComponent</opc:ReferenceType>
+      </opc:Object>
+      <opc:Object SymbolicName="Green_Placeholder" TypeDefinition="ua:StateMachineType" ModellingRule="OptionalPlaceholder">
+        <opc:BrowseName>&lt;Green&gt;</opc:BrowseName>
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+      </opc:Object>
+    </opc:Children>
+  </opc:ObjectType>
+  
+  <opc:ObjectType SymbolicName="PictureType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Property SymbolicName="YellowThing" TypeDefinition="YellowType" ModellingRule="Mandatory" />
+      <opc:Object SymbolicName="Indigo_Placeholder" TypeDefinition="BrightnessType"  ModellingRule="MandatoryPlaceholder">
+        <opc:BrowseName>&lt;Indigo&gt;</opc:BrowseName>
+        <opc:ReferenceType>ua:HasComponent</opc:ReferenceType>
+      </opc:Object>
+    </opc:Children>
+  </opc:ObjectType>
+  
+  <opc:Object SymbolicName="Picture" TypeDefinition="PictureType">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+  
   <opc:DataType SymbolicName="HeaterStatus" BaseType="ua:Enumeration">
     <opc:Fields>
       <opc:Field Name="Off" Identifier="0">
@@ -192,6 +244,27 @@
       <opc:Field Name="AssetID" DataType="ua:String" />
       <opc:Field Name="StartTime" DataType="ua:DateTime" />
       <opc:Field Name="StatusComments" DataType="WorkOrderStatusType" ValueRank="Array" />
+    </opc:Fields>
+  </opc:DataType>
+  
+  <opc:DataType SymbolicName="ExtendedWorkOrderType" BaseType="WorkOrderType">
+    <opc:Fields>
+      <opc:Field Name="ContactX" DataType="ua:UInt32" />
+      <opc:Field Name="ContactY" DataType="ua:String" ValueRank="Array" IsOptional="true" />
+      <opc:Field Name="ContactZ" DataType="ua:ByteString" IsOptional="true" />
+    </opc:Fields>
+  </opc:DataType>
+  
+  <opc:DataType SymbolicName="PenultimateWorkOrderType" BaseType="ExtendedWorkOrderType">
+    <opc:Fields>
+      <opc:Field Name="Address" DataType="ua:String" />
+    </opc:Fields>
+  </opc:DataType>
+  
+  <opc:DataType SymbolicName="FinalWorkOrderType" BaseType="PenultimateWorkOrderType">
+    <opc:Fields>
+      <opc:Field Name="Phone" DataType="ua:String" IsOptional="true" />
+      <opc:Field Name="Email" DataType="ua:String" />
     </opc:Fields>
   </opc:DataType>
 
@@ -245,5 +318,6 @@
       <opc:Field Name="University" DataType="ua:String" IsOptional="true" />
     </opc:Fields>
   </opc:DataType>
+
 
 </opc:ModelDesign>

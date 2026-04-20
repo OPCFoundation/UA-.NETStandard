@@ -493,10 +493,17 @@ namespace Opc.Ua.SourceGeneration
                 /// </summary>
                 private void Initialize()
                 {
+                    EncodingMask = (uint){{Tokens.ClassName}}Fields.None;
                     {{Tokens.ListOfFieldInitializers}}
                 }
 
                 {{Tokens.ListOfProperties}}
+
+                /// <summary>
+                /// The encoding mask for the optional fields.
+                /// </summary>
+                [global::System.Runtime.Serialization.DataMember(Name = "EncodingMask", IsRequired = true, Order = 0)]
+                public {{Tokens.EncodingMaskModifier}}uint EncodingMask { get; set; }
 
                 /// <inheritdoc/>
                 public override global::Opc.Ua.ExpandedNodeId TypeId => DataTypeIds.{{Tokens.BrowseName}};

@@ -72,9 +72,16 @@ namespace Opc.Ua.SourceGeneration
     public sealed record class DesignFileCollection
     {
         /// <summary>
-        /// Design file location
+        /// Design files to generate code for. Typically a single file.
         /// </summary>
-        public IReadOnlyList<string> DesignFiles { get; init; }
+        public IReadOnlyList<string> Targets { get; init; } = [];
+
+        /// <summary>
+        /// Design files referenced by <see cref="Targets"/> but not
+        /// generated. They provide node resolution only (e.g. when a
+        /// target imports types from another companion specification).
+        /// </summary>
+        public IReadOnlyList<string> Dependencies { get; init; } = [];
 
         /// <summary>
         /// Optional identifier file if not same name and side
@@ -95,7 +102,9 @@ namespace Opc.Ua.SourceGeneration
     {
         /// <summary>
         /// Get design file groups for processing. A group is a set of design files
-        /// in the same common folder with an optional csv file included.
+        /// in the same common folder with an optional csv file included. Each group
+        /// carries the same <see cref="DesignFileCollection.Dependencies"/> so that
+        /// cross-model references resolve for every target.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="collection"/>
         /// is <c>null</c>.</exception>
@@ -121,11 +130,13 @@ namespace Opc.Ua.SourceGeneration
                     value.Add(idFile);
                 }
             }
-            return collection.DesignFiles
+            IReadOnlyList<string> dependencies = collection.Dependencies ?? [];
+            return collection.Targets
                 .GroupBy(Path.GetDirectoryName)
                 .Select(g => new DesignFileCollection
                 {
-                    DesignFiles = [.. g],
+                    Targets = [.. g],
+                    Dependencies = dependencies,
                     IdentifierFilePath = idFiles.TryGetValue(g.Key, out List<string> files) ?
                         files.FirstOrDefault() : collection.IdentifierFilePath,
                     Options = collection.Options
@@ -157,7 +168,10 @@ namespace Opc.Ua.SourceGeneration
             };
 
             string identifierFilePath = designFiles.IdentifierFilePath;
-            validator.Validate(designFiles.DesignFiles, identifierFilePath);
+            validator.Validate(
+                designFiles.Targets,
+                designFiles.Dependencies ?? [],
+                identifierFilePath);
             return validator;
         }
     }

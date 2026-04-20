@@ -74,6 +74,27 @@ namespace Opc.Ua.Client.ComplexTypes
             return new DefaultComplexTypeFieldBuilder(this, name, structureDefinition);
         }
 
+        /// <inheritdoc/>
+        public IEncodeableType AddOptionSetType(
+            QualifiedName typeName,
+            ExpandedNodeId typeId,
+            ExpandedNodeId binaryEncodingId,
+            ExpandedNodeId xmlEncodingId,
+            ExpandedNodeId jsonEncodingId,
+            EnumDefinition enumDefinition)
+        {
+            var xmlName = new XmlQualifiedName(typeName.Name, TargetNamespace);
+            var type = new Encoders.OptionSet(
+                xmlName,
+                typeId,
+                binaryEncodingId,
+                xmlEncodingId,
+                jsonEncodingId,
+                enumDefinition);
+            OnTypeCreated(type);
+            return type;
+        }
+
         /// <summary>
         /// Type created
         /// </summary>

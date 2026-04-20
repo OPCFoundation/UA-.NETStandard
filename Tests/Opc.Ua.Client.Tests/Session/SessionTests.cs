@@ -1588,8 +1588,8 @@ namespace Opc.Ua.Client.Tests
 
             SessionConfiguration configuration = source.SaveSessionConfiguration();
 
-            Assert.That(configuration.ClientNonce, Is.EquivalentTo(clientNonce));
-            Assert.That(configuration.ServerNonce, Is.EquivalentTo(serverNonce));
+            Assert.That(configuration.ClientNonce.ToArray(), Is.EquivalentTo(clientNonce));
+            Assert.That(configuration.ServerNonce.ToArray(), Is.EquivalentTo(serverNonce));
 
             var target = SessionMock.Create();
 

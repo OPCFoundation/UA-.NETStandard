@@ -84,6 +84,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.IEncodeable,
                 global::Opc.Ua.IJsonEncodeable
             {
+                {{Tokens.ListOfInitOnlyBackingFields}}
                 /// <inheritdoc/>
                 public virtual global::Opc.Ua.ExpandedNodeId TypeId
                     => {{Tokens.DataTypeIdConstant}};
@@ -155,6 +156,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.IEncodeable,
                 global::Opc.Ua.IJsonEncodeable
             {
+                {{Tokens.ListOfInitOnlyBackingFields}}
                 /// <inheritdoc/>
                 public global::Opc.Ua.ExpandedNodeId TypeId
                     => {{Tokens.DataTypeIdConstant}};
@@ -225,6 +227,7 @@ namespace Opc.Ua.SourceGeneration
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             {{Tokens.AccessModifier}} partial class {{Tokens.ClassName}}
             {
+                {{Tokens.ListOfInitOnlyBackingFields}}
                 /// <inheritdoc/>
                 public override global::Opc.Ua.ExpandedNodeId TypeId
                     => {{Tokens.DataTypeIdConstant}};
@@ -298,6 +301,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.IEncodeable,
                 global::Opc.Ua.IJsonEncodeable
             {
+                {{Tokens.ListOfInitOnlyBackingFields}}
                 /// <inheritdoc/>
                 public virtual global::Opc.Ua.ExpandedNodeId TypeId
                     => {{Tokens.DataTypeIdConstant}};
@@ -351,6 +355,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.IEncodeable,
                 global::Opc.Ua.IJsonEncodeable
             {
+                {{Tokens.ListOfInitOnlyBackingFields}}
                 /// <inheritdoc/>
                 public global::Opc.Ua.ExpandedNodeId TypeId
                     => {{Tokens.DataTypeIdConstant}};
@@ -403,6 +408,7 @@ namespace Opc.Ua.SourceGeneration
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             partial record class {{Tokens.ClassName}}
             {
+                {{Tokens.ListOfInitOnlyBackingFields}}
                 /// <inheritdoc/>
                 public override global::Opc.Ua.ExpandedNodeId TypeId
                     => {{Tokens.DataTypeIdConstant}};

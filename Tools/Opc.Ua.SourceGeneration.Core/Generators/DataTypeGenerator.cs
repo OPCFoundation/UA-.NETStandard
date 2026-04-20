@@ -494,6 +494,7 @@ namespace Opc.Ua.SourceGeneration
                     dataType.BaseTypeNode.SymbolicId.Namespace));
 
             List<Parameter> completeListOfFields = null;
+            bool hasAncestorWithOptionalFields = false;
 
             if (dataType.IsStructure)
             {
@@ -505,6 +506,12 @@ namespace Opc.Ua.SourceGeneration
                     parentDataType.SymbolicId != new XmlQualifiedName("Union", Namespaces.OpcUa))
                 {
                     inheritanceTree.Add(parentDataType);
+                    if (parentDataType.HasFields &&
+                        parentDataType.Fields != null &&
+                        parentDataType.Fields.Any(f => f.IsOptional))
+                    {
+                        hasAncestorWithOptionalFields = true;
+                    }
                     parentDataType = parentDataType.BaseTypeNode as DataTypeDesign;
                 }
 
@@ -523,6 +530,10 @@ namespace Opc.Ua.SourceGeneration
                     }
                 }
             }
+
+            context.Template.AddReplacement(
+                Tokens.EncodingMaskModifier,
+                hasAncestorWithOptionalFields ? "new " : string.Empty);
 
             // TODO: context.Template.AddReplacement(
             // TODO:     Tokens.IsAbstract,
@@ -730,14 +741,14 @@ namespace Opc.Ua.SourceGeneration
 
             if (isUnion)
             {
-                context.Out.WriteLine($"case {dataType.ClassName}Fields.{field.Name}:");
+                context.Out.WriteLine($"case {dataType.SymbolicName.Name}Fields.{field.Name}:");
                 context.Out.WriteLine("{");
             }
 
             if (field.IsOptional)
             {
                 context.Out.WriteLine(
-                    $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
             }
 
             string functionName = field.DataTypeNode.BasicDataType.ToString();
@@ -896,14 +907,14 @@ namespace Opc.Ua.SourceGeneration
             bool isUnion = dataType.IsUnion;
             if (isUnion)
             {
-                context.Out.WriteLine($"case {dataType.ClassName}Fields.{field.Name}:");
+                context.Out.WriteLine($"case {dataType.SymbolicName.Name}Fields.{field.Name}:");
                 context.Out.WriteLine("{");
             }
 
             if (field.IsOptional)
             {
                 context.Out.WriteLine(
-                    $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
             }
 
             string valueName = field.Name;
@@ -1042,14 +1053,14 @@ namespace Opc.Ua.SourceGeneration
             var dataType = (DataTypeDesign)field.Parent;
             if (dataType.IsUnion)
             {
-                context.Out.WriteLine($"case {dataType.ClassName}Fields.{field.Name}:");
+                context.Out.WriteLine($"case {dataType.SymbolicName.Name}Fields.{field.Name}:");
                 context.Out.WriteLine("{");
             }
 
             if (field.IsOptional)
             {
                 context.Out.WriteLine(
-                    $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
             }
 
             if (!field.DataTypeNode.IsDotNetEqualityComparable(field.ValueRank))
@@ -1087,14 +1098,14 @@ namespace Opc.Ua.SourceGeneration
             var dataType = (DataTypeDesign)field.Parent;
             if (dataType.IsUnion)
             {
-                context.Out.WriteLine($"case {dataType.ClassName}Fields.{field.Name}:");
+                context.Out.WriteLine($"case {dataType.SymbolicName.Name}Fields.{field.Name}:");
                 context.Out.WriteLine("{");
             }
 
             if (field.IsOptional)
             {
                 context.Out.WriteLine(
-                    $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
             }
 
             if (field.DataTypeNode.NeedsCloning())

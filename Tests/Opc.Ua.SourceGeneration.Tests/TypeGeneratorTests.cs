@@ -488,12 +488,12 @@ namespace TestApp.Incremental
                     new[] { new System.Collections.Generic.KeyValuePair<string, string>(
                         "TestSource.cs", source) }
                     .WithOpcUaGeneratedStack(),
-                    LanguageVersion.CSharp13);
+                    LanguageVersion.Preview);
 
             GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
-                    .WithLanguageVersion(LanguageVersion.CSharp13));
+                    .WithLanguageVersion(LanguageVersion.Preview));
 
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
@@ -550,6 +550,88 @@ namespace TestApp.Incremental
                 index += pattern.Length;
             }
             return count;
+        }
+
+        [Test]
+        public void PartialInitPropertiesGenerateBackingFieldsAndDecodeTarget()
+        {
+            const string source = @"
+using Opc.Ua;
+
+namespace TestApp.InitOnly
+{
+    [DataType]
+    public partial record class ImmutableConfig
+    {
+        [DataTypeField(Order = 0)]
+        public partial string Name { get; init; }
+
+        [DataTypeField(Order = 1)]
+        public partial int Port { get; init; }
+
+        public string NotSerialized { get; set; }
+    }
+}";
+            GeneratorRunResult result = RunGenerator(source);
+
+            Assert.That(result.GeneratedSources, Has.Length.EqualTo(1));
+            string generated = result.GeneratedSources[0].SourceText.ToString();
+
+            // Backing fields should be generated
+            Assert.That(generated, Does.Contain("private string __Name;"));
+            Assert.That(generated, Does.Contain("private int __Port;"));
+
+            // Partial property implementations should be generated
+            Assert.That(generated, Does.Contain(
+                "public partial string Name { get => __Name; init => __Name = value; }"));
+            Assert.That(generated, Does.Contain(
+                "public partial int Port { get => __Port; init => __Port = value; }"));
+
+            // Decode should use backing field
+            Assert.That(generated, Does.Contain("__Name = decoder.ReadString"));
+            Assert.That(generated, Does.Contain("__Port = decoder.ReadInt32"));
+
+            // Encode should use property name
+            Assert.That(generated, Does.Contain("encoder.WriteString(\"Name\", Name)"));
+            Assert.That(generated, Does.Contain("encoder.WriteInt32(\"Port\", Port)"));
+        }
+
+        [Test]
+        public void PartialInitPropertiesPreserveDefaultInitializers()
+        {
+            // Note: C# 14 partial properties cannot have initializers
+            // (CS8050). Only properties using the 'field' keyword or
+            // auto-properties can have initializers. So for partial
+            // init properties, the source gen backing field defaults
+            // to default(T). Properties needing non-default values
+            // should use 'set' instead of 'partial init'.
+            const string source = @"
+using Opc.Ua;
+
+namespace TestApp.InitDefaults
+{
+    [DataType]
+    public partial record class ConfigNoDefaults
+    {
+        [DataTypeField(Order = 0)]
+        public partial string Name { get; init; }
+
+        [DataTypeField(Order = 1)]
+        public partial int Port { get; init; }
+
+        [DataTypeField(Order = 2)]
+        public partial bool Enabled { get; init; }
+    }
+}";
+            GeneratorRunResult result = RunGenerator(source);
+
+            Assert.That(result.GeneratedSources, Has.Length.EqualTo(1));
+            string generated = result.GeneratedSources[0].SourceText.ToString();
+
+            // Backing fields default to default(T) — no initializer
+            Assert.That(generated, Does.Contain("private string __Name;"));
+            Assert.That(generated, Does.Contain("private int __Port;"));
+            Assert.That(generated, Does.Contain("private bool __Enabled;"));
         }
     }
 }

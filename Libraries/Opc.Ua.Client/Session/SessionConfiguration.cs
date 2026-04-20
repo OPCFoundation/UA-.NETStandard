@@ -27,66 +27,59 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.IO;
-using System.Runtime.Serialization;
-using System.Text.Json.Serialization;
 
 namespace Opc.Ua.Client
 {
-    [JsonSerializable(typeof(SessionOptions))]
-    [JsonSerializable(typeof(SessionState))]
-    [JsonSerializable(typeof(SessionConfiguration))]
-    internal partial class SessionConfigurationContext : JsonSerializerContext;
-
     /// <summary>
     /// A session configuration stores all the information
     /// needed to reconnect a session with a new secure channel.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    [KnownType(typeof(UserIdentityToken))]
-    [KnownType(typeof(AnonymousIdentityToken))]
-    [KnownType(typeof(X509IdentityToken))]
-    [KnownType(typeof(IssuedIdentityToken))]
-    [KnownType(typeof(UserIdentity))]
-    public record class SessionOptions
+    [DataType(Namespace = Namespaces.OpcUaXsd)]
+    public partial record class SessionOptions
     {
         /// <summary>
         /// The session name used by the client.
         /// </summary>
-        [DataMember(IsRequired = true, Order = 20)]
-        public string? SessionName { get; init; }
+        [DataTypeField(Order = 1)]
+        public partial string? SessionName { get; init; }
+
+        /// <summary>
+        /// The serialized user identity token. Use <see cref="Identity"/>
+        /// for the high-level <see cref="IUserIdentity"/> wrapper.
+        /// </summary>
+        [DataTypeField(Order = 2, StructureHandling = StructureHandling.ExtensionObject)]
+        public UserIdentityToken? IdentityToken { get; set; }
 
         /// <summary>
         /// The identity used to create the session.
+        /// This is a convenience property that wraps <see cref="IdentityToken"/>.
         /// </summary>
-        [DataMember(IsRequired = true, Order = 50)]
-        public IUserIdentity? Identity { get; init; }
+        public IUserIdentity? Identity
+        {
+            get => IdentityToken != null ? new UserIdentity(IdentityToken) : null;
+            set => IdentityToken = value?.TokenHandler?.Token;
+        }
 
         /// <summary>
         /// The configured endpoint for the secure channel.
         /// </summary>
-        [DataMember(IsRequired = true, Order = 60)]
-        public ConfiguredEndpoint? ConfiguredEndpoint { get; init; }
+        [DataTypeField(Order = 3, StructureHandling = StructureHandling.Inline)]
+        public partial ConfiguredEndpoint? ConfiguredEndpoint { get; init; }
 
         /// <summary>
         /// If the client is configured to check the certificate domain.
         /// </summary>
-        [DataMember(IsRequired = false, Order = 70)]
-        public bool CheckDomain { get; init; }
+        [DataTypeField(Order = 4)]
+        public partial bool CheckDomain { get; init; }
     }
 
     /// <summary>
     /// A session state stores not just configuration but
     /// also the subscription states
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    [KnownType(typeof(UserIdentityToken))]
-    [KnownType(typeof(AnonymousIdentityToken))]
-    [KnownType(typeof(X509IdentityToken))]
-    [KnownType(typeof(IssuedIdentityToken))]
-    [KnownType(typeof(UserIdentity))]
-    public record class SessionState : SessionOptions
+    [DataType(Namespace = Namespaces.OpcUaXsd)]
+    public partial record class SessionState : SessionOptions
     {
         /// <summary>
         /// Default constructor
@@ -106,66 +99,61 @@ namespace Opc.Ua.Client
         /// <summary>
         /// When the session configuration was created.
         /// </summary>
-        [DataMember(IsRequired = true, Order = 10)]
-        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        [DataTypeField(Order = 10)]
+        public DateTimeUtc Timestamp { get; set; } = DateTimeUtc.Now;
 
         /// <summary>
         /// The session id assigned by the server.
         /// </summary>
-        [DataMember(IsRequired = true, Order = 30)]
-        public NodeId SessionId { get; init; }
+        [DataTypeField(Order = 11)]
+        public partial NodeId SessionId { get; init; }
 
         /// <summary>
         /// The authentication token used by the server to identify the session.
         /// </summary>
-        [DataMember(IsRequired = true, Order = 40)]
-        public NodeId AuthenticationToken { get; init; }
+        [DataTypeField(Order = 12)]
+        public partial NodeId AuthenticationToken { get; init; }
 
         /// <summary>
         /// The raw bytes of the last server nonce received.
         /// Persisting bytes avoids object-serialization ambiguity for Nonce internals.
         /// </summary>
-        [DataMember(IsRequired = true, Order = 80)]
-        public byte[]? ServerNonce { get; init; }
+        [DataTypeField(Order = 13)]
+        public partial ByteString ServerNonce { get; init; }
 
         /// <summary>
         /// The raw bytes of the client nonce used when the session was created.
         /// Required for enhanced-policy activate signatures during reconnect.
         /// </summary>
-        [DataMember(IsRequired = false, Order = 85)]
-        public byte[]? ClientNonce { get; init; }
+        [DataTypeField(Order = 14)]
+        public partial ByteString ClientNonce { get; init; }
 
         /// <summary>
         /// The user identity token policy which was used to create the session.
         /// </summary>
-        [DataMember(IsRequired = true, Order = 90)]
-        public string? UserIdentityTokenPolicy { get; init; }
+        [DataTypeField(Order = 15)]
+        public partial string? UserIdentityTokenPolicy { get; init; }
 
         /// <summary>
         /// The raw bytes of the last server ECC ephemeral key received.
         /// </summary>
-        [DataMember(IsRequired = false, Order = 100)]
-        public byte[]? ServerEccEphemeralKey { get; init; }
+        [DataTypeField(Order = 16)]
+        public partial ByteString ServerEccEphemeralKey { get; init; }
 
         /// <summary>
         /// Allows the list of subscriptions to be saved/restored
         /// when the object is serialized.
         /// </summary>
-        [DataMember(Order = 200)]
-        public SubscriptionStateCollection? Subscriptions { get; init; }
+        [DataTypeField(Order = 20, StructureHandling = StructureHandling.Inline)]
+        public partial ArrayOf<SubscriptionState> Subscriptions { get; init; }
     }
 
     /// <summary>
     /// A session configuration stores all the information
     /// needed to reconnect a session with a new secure channel.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    [KnownType(typeof(UserIdentityToken))]
-    [KnownType(typeof(AnonymousIdentityToken))]
-    [KnownType(typeof(X509IdentityToken))]
-    [KnownType(typeof(IssuedIdentityToken))]
-    [KnownType(typeof(UserIdentity))]
-    public record class SessionConfiguration : SessionState
+    [DataType(Namespace = Namespaces.OpcUaXsd)]
+    public partial record class SessionConfiguration : SessionState
     {
         /// <summary>
         /// Default constructor
@@ -188,12 +176,15 @@ namespace Opc.Ua.Client
         public static SessionConfiguration? Create(Stream stream, ITelemetryContext telemetry)
         {
             var context = ServiceMessageContext.Create(telemetry);
+            context.Factory.Builder.AddOpcUaClientDataTypes();
             using var decoder = new BinaryDecoder(stream, context, true);
             ArrayOf<string> nsUris = decoder.ReadStringArray(null);
             ArrayOf<string> serverUris = decoder.ReadStringArray(null);
             context.NamespaceUris = new NamespaceTable(nsUris.Memory.ToArray());
             context.ServerUris = new StringTable(serverUris.Memory.ToArray());
-            return SessionStateEncoder.DecodeSessionConfiguration(decoder);
+            var config = new SessionConfiguration();
+            config.Decode(decoder);
+            return config;
         }
     }
 }

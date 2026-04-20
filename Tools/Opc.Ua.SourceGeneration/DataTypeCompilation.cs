@@ -487,8 +487,70 @@ namespace Opc.Ua.SourceGeneration
                 StructureHandling = structureHandling,
                 DefaultValueHandling = defaultValueHandling,
                 FieldTypeIsSealed = fieldTypeIsSealed,
-                FieldTypeHasEncodeableBase = fieldTypeHasEncodeableBase
+                FieldTypeHasEncodeableBase = fieldTypeHasEncodeableBase,
+                IsInitOnly = HasInitOnlySetter(prop),
+                BackingFieldName = HasInitOnlySetter(prop)
+                    ? $"__{prop.Name}"
+                    : null,
+                DefaultInitializer = HasInitOnlySetter(prop)
+                    ? GetPropertyInitializer(prop)
+                    : null
             };
+        }
+
+        /// <summary>
+        /// Extracts the default value initializer expression from a
+        /// partial property definition (e.g. the "= true" part of
+        /// "public partial bool Foo { get; init; } = true;").
+        /// Returns null if no initializer is present.
+        /// </summary>
+        private static string GetPropertyInitializer(IPropertySymbol prop)
+        {
+            foreach (SyntaxReference syntaxRef in prop.DeclaringSyntaxReferences)
+            {
+                if (syntaxRef.GetSyntax() is PropertyDeclarationSyntax propSyntax &&
+                    propSyntax.Initializer != null)
+                {
+                    return propSyntax.Initializer.Value.ToString();
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Detects whether a property has an init-only setter by
+        /// checking both the semantic model (IsInitOnly) and the
+        /// syntax tree (init keyword). The syntax check is needed
+        /// for partial property definitions where the semantic
+        /// model may not expose the init accessor.
+        /// </summary>
+        private static bool HasInitOnlySetter(IPropertySymbol prop)
+        {
+            if (prop.SetMethod?.IsInitOnly == true)
+            {
+                return true;
+            }
+
+            // For partial property definitions the semantic model
+            // may not expose IsInitOnly. Fall back to syntax check.
+            foreach (SyntaxReference syntaxRef in prop.DeclaringSyntaxReferences)
+            {
+                if (syntaxRef.GetSyntax() is PropertyDeclarationSyntax propSyntax &&
+                    propSyntax.AccessorList != null)
+                {
+                    foreach (AccessorDeclarationSyntax accessor in
+                        propSyntax.AccessorList.Accessors)
+                    {
+                        if (accessor.Kind() == SyntaxKind.InitAccessorDeclaration)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
 
         private static string ResolveNamespaceUri(

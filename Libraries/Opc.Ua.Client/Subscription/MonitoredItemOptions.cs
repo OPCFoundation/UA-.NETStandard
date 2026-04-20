@@ -27,15 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Runtime.Serialization;
-using System.Text.Json.Serialization;
-
 namespace Opc.Ua.Client
 {
-    [JsonSerializable(typeof(MonitoredItemOptions))]
-    [JsonSerializable(typeof(MonitoredItemState))]
-    internal partial class MonitoredItemOptionsContext : JsonSerializerContext;
-
     /// <summary>
     /// Serializable options for a client monitored item.
     /// <para>
@@ -46,12 +39,24 @@ namespace Opc.Ua.Client
     /// https://reference.opcfoundation.org/Core/Part4/v105/docs/5.14.
     /// </para>
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    [KnownType(typeof(DataChangeFilter))]
-    [KnownType(typeof(EventFilter))]
-    [KnownType(typeof(AggregateFilter))]
-    public record class MonitoredItemOptions
+    [DataType(Namespace = Namespaces.OpcUaXsd)]
+    public partial record class MonitoredItemOptions
     {
+        /// <summary>
+        /// Default constructor
+        /// </summary>
+        public MonitoredItemOptions()
+        {
+            DisplayName = "MonitoredItem";
+            StartNodeId = NodeId.Null;
+            NodeClass = NodeClass.Variable;
+            AttributeId = Attributes.Value;
+            Encoding = QualifiedName.Null;
+            MonitoringMode = MonitoringMode.Reporting;
+            SamplingInterval = -1;
+            DiscardOldest = true;
+        }
+
         /// <summary>
         /// Local human readable display name used by the client for logging and
         /// diagnostics of the monitored item. This is not the DisplayName attribute
@@ -60,8 +65,8 @@ namespace Opc.Ua.Client
         /// <para>Spec Context: Client side metadata.</para>
         /// <para>Reference: Part4 Section5.13.</para>
         /// </summary>
-        [DataMember(Order = 1)]
-        public string DisplayName { get; init; } = "MonitoredItem";
+        [DataTypeField(Order = 1)]
+        public partial string DisplayName { get; init; }
 
         /// <summary>
         /// Starting <c>NodeId</c> used with <c>RelativePath</c> to resolve the
@@ -71,8 +76,8 @@ namespace Opc.Ua.Client
         /// <para>Spec: ReadValueId.nodeId.</para>
         /// <para>Reference: Part4 Section5.13.</para>
         /// </summary>
-        [DataMember(Order = 2)]
-        public NodeId StartNodeId { get; init; } = NodeId.Null;
+        [DataTypeField(Order = 2)]
+        public partial NodeId StartNodeId { get; init; }
 
         /// <summary>
         /// A relative browse path (client side string form) from <c>StartNodeId</c>
@@ -81,8 +86,8 @@ namespace Opc.Ua.Client
         /// creating the monitored item. Null means no path; monitor the StartNodeId
         /// directly.
         /// </summary>
-        [DataMember(Order = 3)]
-        public string? RelativePath { get; init; }
+        [DataTypeField(Order = 3)]
+        public partial string? RelativePath { get; init; }
 
         /// <summary>
         /// The expected NodeClass of the target node (Variable, Object, etc.).
@@ -91,8 +96,8 @@ namespace Opc.Ua.Client
         /// uses Object / View and an EventFilter. Ensuring the correct NodeClass
         /// helps avoid invalid monitored item creation requests.
         /// </summary>
-        [DataMember(Order = 4)]
-        public NodeClass NodeClass { get; init; } = NodeClass.Variable;
+        [DataTypeField(Order = 4)]
+        public partial NodeClass NodeClass { get; init; }
 
         /// <summary>
         /// The AttributeId to monitor on the target node. For data changes this
@@ -101,8 +106,8 @@ namespace Opc.Ua.Client
         /// attributes may be monitored. Maps to <c>ReadValueId.AttributeId</c> in
         /// the service request.
         /// </summary>
-        [DataMember(Order = 5)]
-        public uint AttributeId { get; init; } = Attributes.Value;
+        [DataTypeField(Order = 5)]
+        public partial uint AttributeId { get; init; }
 
         /// <summary>
         /// IndexRange selecting a subset of an array or matrix value (e.g. "0:9"
@@ -110,8 +115,8 @@ namespace Opc.Ua.Client
         /// corresponds to <c>ReadValueId.indexRange</c> and is applied by the
         /// server when generating notifications, reducing bandwidth for large arrays.
         /// </summary>
-        [DataMember(Order = 6)]
-        public string? IndexRange { get; init; }
+        [DataTypeField(Order = 6)]
+        public partial string? IndexRange { get; init; }
 
         /// <summary>
         /// Requested data encoding (QualifiedName) for complex values (e.g.
@@ -119,8 +124,8 @@ namespace Opc.Ua.Client
         /// Use <c>QualifiedName.Null</c> for default encoding. Ensures notifications
         /// are serialized in a form understood by the client.
         /// </summary>
-        [DataMember(Order = 7)]
-        public QualifiedName Encoding { get; init; } = QualifiedName.Null;
+        [DataTypeField(Order = 7)]
+        public partial QualifiedName Encoding { get; init; }
 
         /// <summary>
         /// Requested <c>MonitoringMode</c> for the item: Disabled (no sampling),
@@ -129,8 +134,8 @@ namespace Opc.Ua.Client
         /// later via SetMonitoringMode. Default is Reporting for typical data
         /// collection.
         /// </summary>
-        [DataMember(Order = 8)]
-        public MonitoringMode MonitoringMode { get; init; } = MonitoringMode.Reporting;
+        [DataTypeField(Order = 8)]
+        public partial MonitoringMode MonitoringMode { get; init; }
 
         /// <summary>
         /// Requested <c>samplingInterval</c> (ms) for the server's data sampling
@@ -139,8 +144,8 @@ namespace Opc.Ua.Client
         /// server-revised value for final timing. Very small intervals increase
         /// load; very large intervals reduce data freshness.
         /// </summary>
-        [DataMember(Order = 9)]
-        public int SamplingInterval { get; init; } = -1;
+        [DataTypeField(Order = 9)]
+        public partial int SamplingInterval { get; init; }
 
         /// <summary>
         /// Optional server side filter controlling which data changes or events
@@ -152,8 +157,8 @@ namespace Opc.Ua.Client
         /// AggregateFilter).</para>
         /// <para>Reference: Part4 Section5.13.</para>
         /// </summary>
-        [DataMember(Order = 10)]
-        public MonitoringFilter? Filter { get; init; }
+        [DataTypeField(Order = 10, StructureHandling = StructureHandling.ExtensionObject)]
+        public partial MonitoringFilter? Filter { get; init; }
 
         /// <summary>
         /// Requested <c>queueSize</c> specifying the maximum number of notifications
@@ -163,8 +168,8 @@ namespace Opc.Ua.Client
         /// increase memory usage. Maps to <c>requestedParameters.queueSize</c>.
         /// The server may revise.
         /// </summary>
-        [DataMember(Order = 11)]
-        public uint QueueSize { get; init; } = 0;
+        [DataTypeField(Order = 11)]
+        public partial uint QueueSize { get; init; }
 
         /// <summary>
         /// <c>discardOldest</c> policy: if true the server discards the oldest
@@ -173,7 +178,7 @@ namespace Opc.Ua.Client
         /// for streaming latest-value scenarios; false preserves the earliest
         /// samples for batch integrity.
         /// </summary>
-        [DataMember(Order = 12)]
-        public bool DiscardOldest { get; init; } = true;
+        [DataTypeField(Order = 12)]
+        public partial bool DiscardOldest { get; init; }
     }
 }

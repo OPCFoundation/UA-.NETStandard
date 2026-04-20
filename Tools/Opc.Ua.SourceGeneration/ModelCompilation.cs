@@ -117,7 +117,7 @@ namespace Opc.Ua.SourceGeneration
                 // Process any remaining design files
                 new DesignFileCollection
                 {
-                    DesignFiles = [.. m_input
+                    Targets = [.. m_input
                         .Where(f => !nodesets.Files.ContainsValue(f.Item1.Path))
                         .Select(f => f.Item1.Path)],
                     Options = m_options.Options

@@ -526,8 +526,11 @@ namespace Quickstarts.ConsoleReferenceClient
 
                                     if (exportNodes)
                                     {
-                                        await samples
-                                            .ExportNodesToNodeSet2PerNamespaceAsync(uaClient.Session, allNodes, Environment.CurrentDirectory, cancellationToken)
+                                        await samples.ExportNodesToNodeSet2PerNamespaceAsync(
+                                                uaClient.Session,
+                                                allNodes,
+                                                Environment.CurrentDirectory,
+                                                cancellationToken)
                                             .ConfigureAwait(false);
                                     }
                                 }
