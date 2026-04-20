@@ -134,6 +134,11 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public bool DisableCertificateAutoCreation { get; set; }
 
+        /// <summary>
+        /// Gets the certificate manager for this application instance.
+        /// </summary>
+        public CertificateManager CertificateManager { get; private set; }
+
         /// <inheritdoc/>
         public async Task StartAsync(IServerBase server, CancellationToken ct = default)
         {
@@ -346,6 +351,11 @@ namespace Opc.Ua.Configuration
                     .ConfigureAwait(false);
                 result = result && nextResult;
             }
+
+            // Initialize CertificateManager from security configuration
+            CertificateManager ??= CertificateManagerFactory.Create(
+                securityConfiguration,
+                m_telemetry);
 
             return result;
         }

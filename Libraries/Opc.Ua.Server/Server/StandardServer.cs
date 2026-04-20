@@ -3076,6 +3076,14 @@ namespace Opc.Ua.Server
             }
 
             CertificateValidator.CertificateUpdate += OnCertificateUpdateAsync;
+
+            // Log availability of the new CertificateManager
+            if (CertificateManager != null)
+            {
+                m_logger.LogInformation(Utils.TraceMasks.StartStop,
+                    "CertificateManager initialized with {Count} trust lists.",
+                    CertificateManager.TrustLists.Count);
+            }
         }
 
         /// <inheritdoc/>

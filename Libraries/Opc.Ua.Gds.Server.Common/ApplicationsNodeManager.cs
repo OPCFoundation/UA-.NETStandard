@@ -48,6 +48,11 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public class ApplicationsNodeManager : CustomNodeManager2, ICallAsyncNodeManager
     {
+        /// <summary>
+        /// Gets or sets the trust-list manager for named store access.
+        /// </summary>
+        public ICertificateTrustListManager TrustListManager { get; set; }
+
         private readonly NodeId m_defaultApplicationGroupId;
         private readonly NodeId m_defaultHttpsGroupId;
         private readonly NodeId m_defaultUserTokenGroupId;

@@ -1827,6 +1827,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates a certificate collection from DER encoded chain blob
+        /// using the certificate factory.
+        /// </summary>
+        /// <param name="certificateData">The certificate data.</param>
+        /// <param name="factory">The certificate factory to use for parsing.</param>
+        public static CertificateCollection ParseCertificateChainBlob(
+            ReadOnlyMemory<byte> certificateData,
+            ICertificateFactory factory)
+        {
+            return factory.ParseChainBlob(certificateData);
+        }
+
+        /// <summary>
         /// Creates a DER blob from a X509Certificate2Collection.
         /// </summary>
         /// <param name="certificates">The certificates to be returned as raw data.</param>

@@ -694,6 +694,11 @@ namespace Opc.Ua
         public CertificateTypesProvider InstanceCertificateTypesProvider { get; private set; }
 
         /// <summary>
+        /// Gets the certificate manager, if available.
+        /// </summary>
+        public CertificateManager CertificateManager { get; protected set; }
+
+        /// <summary>
         /// Gets or sets the encodeable factory to use for this server instance.
         /// </summary>
         /// <remarks>
@@ -1436,6 +1441,17 @@ namespace Opc.Ua
                 configuration,
                 m_telemetry);
             InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
+
+            // Initialize the new CertificateManager if not already set.
+            if (CertificateManager == null)
+            {
+                CertificateManager = CertificateManagerFactory.Create(
+                    configuration.SecurityConfiguration,
+                    m_telemetry);
+                CertificateManager.LoadApplicationCertificatesAsync(
+                    configuration.SecurityConfiguration,
+                    configuration.ApplicationUri).GetAwaiter().GetResult();
+            }
 
             foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration
                 .SecurityPolicies)

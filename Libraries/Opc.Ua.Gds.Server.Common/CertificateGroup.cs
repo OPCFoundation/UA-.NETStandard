@@ -70,6 +70,12 @@ namespace Opc.Ua.Gds.Server
         /// <inheritdoc/>
         public CertificateStoreIdentifier IssuerCertificatesStore { get; }
 
+        /// <summary>
+        /// Gets or sets the certificate issuer service.
+        /// When set, certificate signing and CRL operations use this interface.
+        /// </summary>
+        public ICertificateIssuer CertificateIssuer { get; set; }
+
         protected string SubjectName { get; }
 
         [Obsolete("Use CertificateGroup(TelemetryContext) instead")]
