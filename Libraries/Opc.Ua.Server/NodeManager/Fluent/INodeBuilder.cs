@@ -36,8 +36,8 @@ namespace Opc.Ua.Server.Fluent
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Variable-only callbacks (e.g. <see cref="OnRead"/>) and method-only
-    /// callbacks (e.g. <see cref="OnCall"/>) throw
+    /// Variable-only callbacks (e.g. <c>OnRead</c>) and method-only
+    /// callbacks (e.g. <c>OnCall</c>) throw
     /// <see cref="ServiceResultException"/> with
     /// <see cref="StatusCodes.BadInvalidArgument"/> when invoked on a node
     /// of an incompatible class. Use <see cref="As{TState}"/> to obtain a

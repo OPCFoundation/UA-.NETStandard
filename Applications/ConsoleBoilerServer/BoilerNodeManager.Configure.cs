@@ -62,11 +62,11 @@ namespace Boiler
         partial void Configure(INodeManagerBuilder builder)
         {
             builder
-                .Node("Boilers/Boiler #1/Drum1001/LevelIndicator/Output")
+                .Node("Boilers/Boiler #1/DrumX001/LIX001/Output")
                 .OnRead(GenerateDrumLevel);
 
             builder
-                .Node("Boilers/Boiler #1/Pipe1001/FlowTransmitter1/Output")
+                .Node("Boilers/Boiler #1/PipeX001/FTX001/Output")
                 .OnRead(GeneratePipeFlow);
 
             builder
