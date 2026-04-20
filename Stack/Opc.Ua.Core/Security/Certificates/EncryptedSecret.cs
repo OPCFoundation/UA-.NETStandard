@@ -931,8 +931,16 @@ namespace Opc.Ua
             return key.ToArray();
         }
 
+        /// <summary>
+        /// Computes the SHA-1 hash required by the OPC UA RSAEncryptedSecret certificate hash field.
+        /// </summary>
         private static byte[] ComputeSha1Hash(byte[] data)
         {
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+
             using SHA1 sha1 = SHA1.Create();
             return sha1.ComputeHash(data);
         }
