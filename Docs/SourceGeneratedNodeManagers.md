@@ -1,7 +1,7 @@
 # Source-Generated NodeManagers
 
 This guide explains how to use the OPC UA stack source generator to emit a
-ready-to-host `CustomNodeManager2` for an information model design XML, and
+ready-to-host `AsyncCustomNodeManager` for an information model design XML, and
 how to wire callbacks (read/write/method/lifecycle) using the fluent
 `INodeManagerBuilder` API. The combination is designed for **single-file,
 NativeAOT-friendly** servers — see
@@ -22,23 +22,35 @@ the generator **additionally** emits, in either the `{ModelNamespace}`
 namespace (legacy MSBuild mode) or the user class's namespace
 (attribute mode):
 
-- `public partial class {Ns}NodeManager : CustomNodeManager2` (legacy)
-  or `public partial class {UserClass} : CustomNodeManager2` (attribute)
+- `public partial class {Ns}NodeManager : AsyncCustomNodeManager` (legacy)
+  or `public partial class {UserClass} : AsyncCustomNodeManager` (attribute)
   - Constructor `(IServerInternal, ApplicationConfiguration)`.
   - Pre-registers the model namespace URI.
-  - `LoadPredefinedNodes` returns `new NodeStateCollection().Add{Ns}(context)`.
-  - `CreateAddressSpace` calls `base`, then builds a fluent
-    `INodeManagerBuilder`, invokes `Configure(builder)`, calls
-    `builder.Seal()`, and replays `NotifyNodeAdded` for every predefined
-    node so per-node lifecycle hooks fire deterministically.
+  - `LoadPredefinedNodesAsync` returns
+    `new NodeStateCollection().Add{Ns}(context)` wrapped in a
+    `ValueTask<NodeStateCollection>`.
+  - `CreateAddressSpaceAsync` `await`s `base.CreateAddressSpaceAsync`,
+    then builds a fluent `INodeManagerBuilder`, invokes
+    `Configure(builder)`, calls `builder.Seal()`, and replays
+    `NotifyNodeAdded` for every predefined node so per-node lifecycle
+    hooks fire deterministically.
+  - `AddPredefinedNodeAsync` / `RemovePredefinedNodeAsync` overrides
+    forward to base and then dispatch the lifecycle notification.
+  - `OnMonitoredItemCreated` (still synchronous on the base) dispatches
+    the per-node hook.
   - Declares `partial void Configure(INodeManagerBuilder builder);` for
     user wiring.
-- `public class {Ns}NodeManagerFactory : INodeManagerFactory`
+- `public class {Ns}NodeManagerFactory : IAsyncNodeManagerFactory`
   - Returns the namespace URI in `NamespacesUris`.
-  - `Create(IServerInternal, ApplicationConfiguration)` returns a new
-    manager instance.
+  - `CreateAsync(IServerInternal, ApplicationConfiguration, CancellationToken)`
+    returns a `ValueTask<IAsyncNodeManager>` containing a new manager
+    instance.
   - Both members are `virtual` so consumers can subclass to add a second
     namespace or swap in a manager subclass.
+
+`AddNodeManager` on `StandardServer` has overloads for both
+`INodeManagerFactory` and `IAsyncNodeManagerFactory`; the generated
+async factory binds to the latter automatically.
 
 ## Opting in
 
@@ -67,8 +79,9 @@ public partial class MyDeviceNodeManager
 ```
 
 The generator emits a sibling `partial class MyDeviceNodeManager :
-CustomNodeManager2` and a `MyDeviceNodeManagerFactory` in the same
-namespace as the user class. No MSBuild flag is required.
+AsyncCustomNodeManager` and a `MyDeviceNodeManagerFactory` (implementing
+`IAsyncNodeManagerFactory`) in the same namespace as the user class. No
+MSBuild flag is required.
 
 When a project carries multiple model designs, disambiguate which
 design the attribute targets via either:
@@ -84,7 +97,7 @@ or by file stem:
 ```
 
 Set `GenerateFactory = false` to suppress factory emission when you want
-to ship a hand-written `INodeManagerFactory`.
+to ship a hand-written `IAsyncNodeManagerFactory`.
 
 ### Project-wide opt-in via MSBuild property (legacy)
 
@@ -108,8 +121,8 @@ every design in the project. Wire callbacks by adding a sibling
 `partial class {Prefix}NodeManager` that implements `Configure`.
 
 Without either opt-in, only the existing `Add{Ns}*` extensions are
-emitted — hand-written `CustomNodeManager2` subclasses keep working
-unchanged.
+emitted — hand-written `AsyncCustomNodeManager` (or legacy
+`CustomNodeManager2`) subclasses keep working unchanged.
 
 ## Wiring callbacks: the `Configure` partial
 
@@ -147,8 +160,12 @@ The builder exposes:
 | `OnNodeAdded` / `OnNodeRemoved` | Lifecycle dispatch from `NotifyNodeAdded` |
 | `OnEvent`, `OnConditionRefresh`, `OnHistoryRead`, `OnHistoryUpdate`, `OnMonitoredItemCreated` | Manager-level dispatch keyed by `NodeId` |
 
-All resolution happens **once** during `CreateAddressSpace`, against the
-in-memory predefined-node tree. There is no reflection, no
+`INodeManagerBuilder.NodeManager` is typed as `object` because both
+`INodeManager` and `IAsyncNodeManager` implementations are supported.
+Cast it to your concrete manager type if you need direct access.
+
+All resolution happens **once** during `CreateAddressSpaceAsync`,
+against the in-memory predefined-node tree. There is no reflection, no
 `Activator.CreateInstance`, no `Expression.Compile` — the whole pipeline
 is NativeAOT-safe.
 
@@ -184,6 +201,7 @@ internal sealed class MyServer : StandardServer
     protected override void OnServerStarting(ApplicationConfiguration cfg)
     {
         base.OnServerStarting(cfg);
+        // Resolves to the IAsyncNodeManagerFactory overload.
         AddNodeManager(new MyModel.MyModelNodeManagerFactory());
     }
 }
@@ -200,7 +218,7 @@ without forking:
 ```csharp
 public sealed class MyExtendedFactory : MyModel.MyModelNodeManagerFactory
 {
-    public override StringCollection NamespacesUris
+    public override ArrayOf<string> NamespacesUris
     {
         get
         {
@@ -210,8 +228,11 @@ public sealed class MyExtendedFactory : MyModel.MyModelNodeManagerFactory
         }
     }
 
-    public override INodeManager Create(IServerInternal server, ApplicationConfiguration cfg)
-        => new MyExtendedNodeManager(server, cfg);
+    public override ValueTask<IAsyncNodeManager> CreateAsync(
+        IServerInternal server,
+        ApplicationConfiguration cfg,
+        CancellationToken cancellationToken = default)
+        => new(new MyExtendedNodeManager(server, cfg));
 }
 ```
 
@@ -244,8 +265,9 @@ warnings** (~29 MB self-contained EXE).
 ## Current limitations
 
 - **Predefined-node-only wiring.** `Configure` runs after the predefined
-  tree is loaded. To inject dynamic nodes, override `CreateAddressSpace`
-  in another partial (the generator's CreateAddressSpace is virtual).
+  tree is loaded. To inject dynamic nodes, override
+  `CreateAddressSpaceAsync` in another partial (the generator's
+  `CreateAddressSpaceAsync` is virtual).
 - **Multi-namespace requires factory subclassing.** The default factory
   reports a single namespace; subclass `NamespacesUris` to add more.
 - **No browse-path wildcards** (`*`, `**`). Wire each path explicitly.
