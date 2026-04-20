@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         }
 
         [Test]
-        public void DecryptThrowsBadIdentityTokenInvalidWhenEccTryDecryptFails()
+        public void DecryptThrowsBadIdentityTokenInvalidWhenECCTryDecryptFails()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);

@@ -190,7 +190,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Encrypts a secret using the specified nonce and selects RSA or ECC encoding based on the security policy.
+        /// Encrypts a secret using the specified nonce.
+        /// Dispatches to RSA encoding when <see cref="SecurityPolicyInfo.EphemeralKeyAlgorithm"/> is
+        /// <see cref="CertificateKeyAlgorithm.None"/>, otherwise dispatches to ECC encoding.
         /// </summary>
         /// <param name="secret">The secret to encrypt.</param>
         /// <param name="nonce">The nonce to use for encryption.</param>
