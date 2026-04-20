@@ -773,12 +773,23 @@ namespace Opc.Ua
                     Context.Telemetry);
                 return true;
             }
-            catch (Exception ex) when (
-                ex is ServiceResultException or
-                CryptographicException or
-                IOException or
-                FormatException or
-                ArgumentException)
+            catch (ServiceResultException)
+            {
+                return false;
+            }
+            catch (CryptographicException)
+            {
+                return false;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+            catch (ArgumentException)
             {
                 return false;
             }
