@@ -79,6 +79,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var writerGroup = new WriterGroupDataType
             {
+                Enabled = true,
                 Name = "WG1",
                 MessageSettings = new ExtensionObject(
                     new JsonWriterGroupMessageDataType
@@ -104,6 +105,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             return new DataSetReaderDataType
             {
+                Enabled = true,
                 Name = "Reader1",
                 PublisherId = publisherId != null ? Variant.From(publisherId) : Variant.Null,
                 DataSetFieldContentMask = (uint)DataSetFieldContentMask.None,
@@ -184,7 +186,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeDecodeMetaDataMessageRoundTrips()
         {
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var metadata = new DataSetMetaDataType
             {
                 Name = "MetaRoundTrip",
@@ -211,7 +213,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeMetaDataWithoutDataSetWriterIdLogsButDoesNotThrow()
         {
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var metadata = new DataSetMetaDataType { Name = "Meta1" };
             var msg = new PubSubEncoding.JsonNetworkMessage(writerGroup, metadata, null)
             {
@@ -295,7 +297,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var dsMsg2 = new PubSubEncoding.JsonDataSetMessage(dataSet2, null);
             dsMsg2.SetFieldContentMask(DataSetFieldContentMask.None);
 
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var msg = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup, [dsMsg1, dsMsg2], null);
             msg.SetNetworkMessageContentMask(JsonNetworkMessageContentMask.None);
@@ -331,7 +333,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var dsMsg2 = new PubSubEncoding.JsonDataSetMessage(dataSet1, null);
             dsMsg2.SetFieldContentMask(DataSetFieldContentMask.None);
 
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var msg = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup, [dsMsg1, dsMsg2], null);
             msg.SetNetworkMessageContentMask(
@@ -402,7 +404,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             };
 
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var dsMsg = new PubSubEncoding.JsonDataSetMessage(dataSet, null);
             dsMsg.SetFieldContentMask(DataSetFieldContentMask.None);
 
@@ -521,6 +523,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var reader = new DataSetReaderDataType
             {
+                Enabled = true,
                 Name = "BadReader",
                 PublisherId = Variant.Null,
                 DataSetFieldContentMask = (uint)DataSetFieldContentMask.None,
@@ -596,7 +599,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             };
 
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var dsMsg = new PubSubEncoding.JsonDataSetMessage(dataSet, null);
             dsMsg.SetFieldContentMask(DataSetFieldContentMask.None);
 
@@ -616,7 +619,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeMetaDataMessageSetsMetaData()
         {
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var metadata = new DataSetMetaDataType
             {
                 Name = "MetaDecode",
@@ -643,7 +646,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeMetaDataMessageViaSubscribedDataSetsPath()
         {
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var metadata = new DataSetMetaDataType
             {
                 Name = "MetaViaSubscribed",
@@ -671,7 +674,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeEmptyDataSetMessagesWithHeaderProducesValidJson()
         {
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var msg = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup, new List<PubSubEncoding.JsonDataSetMessage>(), null);
             msg.SetNetworkMessageContentMask(
@@ -708,7 +711,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             };
 
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var dsMsg = new PubSubEncoding.JsonDataSetMessage(dataSet, null);
             dsMsg.SetFieldContentMask(DataSetFieldContentMask.None);
 

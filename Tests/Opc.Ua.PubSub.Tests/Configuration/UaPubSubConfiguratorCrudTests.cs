@@ -64,14 +64,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddConnectionWithDuplicateNameReturnsBadBrowseNameDuplicated()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
-            var connection1 = new PubSubConnectionDataType { Name = "TestConnection" };
+            var connection1 = new PubSubConnectionDataType { Enabled = true, Name = "TestConnection" };
             StatusCode result1 = configurator.AddConnection(connection1);
             Assert.That(StatusCode.IsGood(result1), Is.True);
 
-            var connection2 = new PubSubConnectionDataType { Name = "TestConnection" };
+            var connection2 = new PubSubConnectionDataType { Enabled = true, Name = "TestConnection" };
             StatusCode result2 = configurator.AddConnection(connection2);
             Assert.That(result2.Code, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
         }
@@ -79,12 +79,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddConnectionWithWriterGroupsProcessesSubGroups()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var connection = new PubSubConnectionDataType
             {
+                Enabled = true,
                 Name = "TestConnection",
                 WriterGroups = new ArrayOf<WriterGroupDataType>(new[] { writerGroup })
             };
@@ -96,12 +97,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddConnectionWithReaderGroupsProcessesSubGroups()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
-            var readerGroup = new ReaderGroupDataType { Name = "RG1" };
+            var readerGroup = new ReaderGroupDataType { Enabled = true, Name = "RG1" };
             var connection = new PubSubConnectionDataType
             {
+                Enabled = true,
                 Name = "TestConnection",
                 ReaderGroups = new ArrayOf<ReaderGroupDataType>(new[] { readerGroup })
             };
@@ -113,13 +115,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddConnectionWithEmptyNamedGroups()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
-            var writerGroup = new WriterGroupDataType { Name = "" };
-            var readerGroup = new ReaderGroupDataType { Name = "" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "" };
+            var readerGroup = new ReaderGroupDataType { Enabled = true, Name = "" };
             var connection = new PubSubConnectionDataType
             {
+                Enabled = true,
                 Name = "TestConnection",
                 WriterGroups = new ArrayOf<WriterGroupDataType>(new[] { writerGroup }),
                 ReaderGroups = new ArrayOf<ReaderGroupDataType>(new[] { readerGroup })
@@ -132,7 +135,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void RemoveConnectionByIdWithInvalidIdReturnsBadNodeIdUnknown()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             StatusCode result = configurator.RemoveConnection(9999);
@@ -142,7 +145,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddAndRemoveConnectionRoundTrip()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             bool connectionAddedFired = false;
@@ -156,7 +159,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             };
             configurator.ConnectionRemoved += (s, e) => connectionRemovedFired = true;
 
-            var connection = new PubSubConnectionDataType { Name = "MyConn" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "MyConn" };
             StatusCode addResult = configurator.AddConnection(connection);
             Assert.That(StatusCode.IsGood(addResult), Is.True);
             Assert.That(connectionAddedFired, Is.True);
@@ -169,7 +172,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddPublishedDataSetAndRemove()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             bool addedFired = false;
@@ -196,7 +199,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void RemovePublishedDataSetByInvalidIdReturnsGood()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             StatusCode result = configurator.RemovePublishedDataSet(9999);
@@ -206,20 +209,22 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void RemovePublishedDataSetAlsoRemovesAssociatedWriters()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             var dataSet = new PublishedDataSetDataType { Name = "DS1" };
             configurator.AddPublishedDataSet(dataSet);
 
-            var writer = new DataSetWriterDataType { Name = "W1", DataSetName = "DS1" };
+            var writer = new DataSetWriterDataType { Enabled = true, Name = "W1", DataSetName = "DS1" };
             var writerGroup = new WriterGroupDataType
             {
+                Enabled = true,
                 Name = "WG1",
                 DataSetWriters = new ArrayOf<DataSetWriterDataType>(new[] { writer })
             };
             var connection = new PubSubConnectionDataType
             {
+                Enabled = true,
                 Name = "C1",
                 WriterGroups = new ArrayOf<WriterGroupDataType>(new[] { writerGroup })
             };
@@ -232,7 +237,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddExtensionFieldAndRemove()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint dataSetId = 0;
@@ -269,7 +274,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddExtensionFieldWithDuplicateNameReturnsBadNodeIdExists()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint dataSetId = 0;
@@ -297,7 +302,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddExtensionFieldWithInvalidDataSetIdReturnsBadNodeIdInvalid()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             var field = new KeyValuePair
@@ -312,7 +317,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void RemoveExtensionFieldWithInvalidIdsReturnsBadNodeIdInvalid()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             StatusCode result = configurator.RemoveExtensionField(9999, 8888);
@@ -322,7 +327,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddPublishedDataSetWithExtensionFieldsProcessesThem()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             var field = new KeyValuePair
@@ -343,7 +348,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddPublishedDataSetWithDuplicateNameReturnsBadBrowseNameDuplicated()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             var ds1 = new PublishedDataSetDataType { Name = "SameName" };
@@ -358,20 +363,20 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddWriterGroupWithDuplicateNameReturnsBadBrowseNameDuplicated()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
             configurator.ConnectionAdded += (s, e) => connectionId = e.ConnectionId;
 
-            var connection = new PubSubConnectionDataType { Name = "C1" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "C1" };
             configurator.AddConnection(connection);
 
-            var wg1 = new WriterGroupDataType { Name = "WG1" };
+            var wg1 = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             StatusCode result1 = configurator.AddWriterGroup(connectionId, wg1);
             Assert.That(StatusCode.IsGood(result1), Is.True);
 
-            var wg2 = new WriterGroupDataType { Name = "WG1" };
+            var wg2 = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             StatusCode result2 = configurator.AddWriterGroup(connectionId, wg2);
             Assert.That(result2.Code, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
         }
@@ -379,20 +384,20 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddReaderGroupWithDuplicateNameReturnsBadBrowseNameDuplicated()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
             configurator.ConnectionAdded += (s, e) => connectionId = e.ConnectionId;
 
-            var connection = new PubSubConnectionDataType { Name = "C1" };
+            var connection = new PubSubConnectionDataType { Enabled = true, Name = "C1" };
             configurator.AddConnection(connection);
 
-            var rg1 = new ReaderGroupDataType { Name = "RG1" };
+            var rg1 = new ReaderGroupDataType { Enabled = true, Name = "RG1" };
             StatusCode result1 = configurator.AddReaderGroup(connectionId, rg1);
             Assert.That(StatusCode.IsGood(result1), Is.True);
 
-            var rg2 = new ReaderGroupDataType { Name = "RG1" };
+            var rg2 = new ReaderGroupDataType { Enabled = true, Name = "RG1" };
             StatusCode result2 = configurator.AddReaderGroup(connectionId, rg2);
             Assert.That(result2.Code, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
         }
@@ -400,7 +405,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddAndRemoveWriterGroupRoundTrip()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
@@ -410,8 +415,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             bool removedFired = false;
             configurator.WriterGroupRemoved += (s, e) => removedFired = true;
 
-            configurator.AddConnection(new PubSubConnectionDataType { Name = "C1" });
-            configurator.AddWriterGroup(connectionId, new WriterGroupDataType { Name = "WG1" });
+            configurator.AddConnection(new PubSubConnectionDataType { Enabled = true, Name = "C1" });
+            configurator.AddWriterGroup(connectionId, new WriterGroupDataType { Enabled = true, Name = "WG1" });
 
             StatusCode result = configurator.RemoveWriterGroup(writerGroupId);
             Assert.That(StatusCode.IsGood(result), Is.True);
@@ -421,7 +426,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddAndRemoveReaderGroupRoundTrip()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
@@ -431,8 +436,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             bool removedFired = false;
             configurator.ReaderGroupRemoved += (s, e) => removedFired = true;
 
-            configurator.AddConnection(new PubSubConnectionDataType { Name = "C1" });
-            configurator.AddReaderGroup(connectionId, new ReaderGroupDataType { Name = "RG1" });
+            configurator.AddConnection(new PubSubConnectionDataType { Enabled = true, Name = "C1" });
+            configurator.AddReaderGroup(connectionId, new ReaderGroupDataType { Enabled = true, Name = "RG1" });
 
             StatusCode result = configurator.RemoveReaderGroup(readerGroupId);
             Assert.That(StatusCode.IsGood(result), Is.True);
@@ -442,7 +447,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddDataSetWriterToWriterGroup()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
@@ -452,10 +457,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             bool writerAddedFired = false;
             configurator.DataSetWriterAdded += (s, e) => writerAddedFired = true;
 
-            configurator.AddConnection(new PubSubConnectionDataType { Name = "C1" });
-            configurator.AddWriterGroup(connectionId, new WriterGroupDataType { Name = "WG1" });
+            configurator.AddConnection(new PubSubConnectionDataType { Enabled = true, Name = "C1" });
+            configurator.AddWriterGroup(connectionId, new WriterGroupDataType { Enabled = true, Name = "WG1" });
 
-            var writer = new DataSetWriterDataType { Name = "W1", DataSetName = "DS1" };
+            var writer = new DataSetWriterDataType { Enabled = true, Name = "W1", DataSetName = "DS1" };
             StatusCode result = configurator.AddDataSetWriter(writerGroupId, writer);
             Assert.That(StatusCode.IsGood(result), Is.True);
             Assert.That(writerAddedFired, Is.True);
@@ -464,7 +469,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddDataSetReaderToReaderGroup()
         {
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
             uint connectionId = 0;
@@ -474,10 +479,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             bool readerAddedFired = false;
             configurator.DataSetReaderAdded += (s, e) => readerAddedFired = true;
 
-            configurator.AddConnection(new PubSubConnectionDataType { Name = "C1" });
-            configurator.AddReaderGroup(connectionId, new ReaderGroupDataType { Name = "RG1" });
+            configurator.AddConnection(new PubSubConnectionDataType { Enabled = true, Name = "C1" });
+            configurator.AddReaderGroup(connectionId, new ReaderGroupDataType { Enabled = true, Name = "RG1" });
 
-            var reader = new DataSetReaderDataType { Name = "R1" };
+            var reader = new DataSetReaderDataType { Enabled = true, Name = "R1" };
             StatusCode result = configurator.AddDataSetReader(readerGroupId, reader);
             Assert.That(StatusCode.IsGood(result), Is.True);
             Assert.That(readerAddedFired, Is.True);

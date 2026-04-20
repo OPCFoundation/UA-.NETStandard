@@ -77,6 +77,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var writerGroup = new WriterGroupDataType
             {
+                Enabled = true,
                 Name = "WG1",
                 MessageSettings = new ExtensionObject(
                     new JsonWriterGroupMessageDataType
@@ -108,7 +109,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ConstructorWithWriterGroupAndMessagesCreatesDataSetMessage()
         {
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var messages = new List<PubSubEncoding.JsonDataSetMessage>();
             var msg = new PubSubEncoding.JsonNetworkMessage(writerGroup, messages, null);
             Assert.That(msg.MessageType, Is.EqualTo("ua-data"));
@@ -117,7 +118,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ConstructorWithMetaDataCreatesMetaDataMessage()
         {
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var metadata = new DataSetMetaDataType { Name = "TestMeta" };
             var msg = new PubSubEncoding.JsonNetworkMessage(writerGroup, metadata, null);
             Assert.That(msg.MessageType, Is.EqualTo("ua-metadata"));
@@ -187,6 +188,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var reader = new DataSetReaderDataType
             {
+                Enabled = true,
                 Name = "Reader1",
                 PublisherId = Variant.Null,
                 DataSetFieldContentMask = (uint)DataSetFieldContentMask.None,
@@ -255,7 +257,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var dsMsg1 = new PubSubEncoding.JsonDataSetMessage(dataSet1, null);
             dsMsg1.SetFieldContentMask(DataSetFieldContentMask.None);
 
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var msg = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup,
                 [dsMsg1],
@@ -270,7 +272,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeMetaDataMessageProducesBytes()
         {
-            var writerGroup = new WriterGroupDataType { Name = "WG1" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var metadata = new DataSetMetaDataType
             {
                 Name = "MetaTest",
@@ -375,6 +377,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var reader = new DataSetReaderDataType
             {
+                Enabled = true,
                 Name = "Reader1",
                 PublisherId = Variant.From("WrongPublisher"),
                 DataSetFieldContentMask = (uint)DataSetFieldContentMask.None,

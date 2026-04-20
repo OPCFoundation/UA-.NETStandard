@@ -433,6 +433,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             // Arrange - create a simple DataSetWriter with specified KeyFrameCount
             var writer = new DataSetWriterDataType
             {
+                Enabled = true,
                 DataSetWriterId = 1,
                 KeyFrameCount = (uint)keyFrameCount
             };

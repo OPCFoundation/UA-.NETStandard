@@ -49,6 +49,7 @@
       - [Encoding format is not guaranteed backward compatible](#encoding-format-is-not-guaranteed-backward-compatible)
       - [OptionSet DataType support](#optionset-datatype-support)
     - [Other Breaking Changes](#other-breaking-changes)
+      - [Boolean default values in source-generated data types](#boolean-default-values-in-source-generated-data-types)
   - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
     - [Asynchronous as default](#asynchronous-as-default)
     - [Observability](#observability)
@@ -681,6 +682,47 @@ When migrating code that previously set `Identity` directly, no code changes are
 #### Encoding format is not guaranteed backward compatible
 
 The encoding format for session state has changed. Existing persisted session state files **cannot** be loaded by the new `SessionConfiguration.Create()` method. Handle restore failures and re-persist the new session state.
+
+### Other Breaking Changes
+
+#### Boolean default values in source-generated data types
+
+**Breaking Change**: Boolean properties on source-generated data types now correctly default to `false` instead of `true`.
+
+Previous versions contained a bug in the source generator that inverted the default value for boolean fields in generated data types. Boolean fields without an explicit `<DefaultValue>` in the model design XML were initialized to `true` instead of the correct `false`. This has been fixed.
+
+**Impact**: Any code that creates instances of source-generated data types and relies on boolean properties being `true` by default must now explicitly set those properties to `true`. This primarily affects PubSub configuration types:
+
+| Type | Property | Old Default | New Default |
+|---|---|---|---|
+| `PubSubConfigurationDataType` | `Enabled` | `true` | `false` |
+| `PubSubConnectionDataType` | `Enabled` | `true` | `false` |
+| `WriterGroupDataType` | `Enabled` | `true` | `false` |
+| `ReaderGroupDataType` | `Enabled` | `true` | `false` |
+| `DataSetWriterDataType` | `Enabled` | `true` | `false` |
+| `DataSetReaderDataType` | `Enabled` | `true` | `false` |
+| `PublishedDataSetCustomSourceDataType` | `CyclicDataSet` | `true` | `false` |
+
+Other affected types include all source-generated structures with boolean fields (e.g., `AggregateConfiguration.TreatUncertainAsBad`, `MonitoringParameters.DiscardOldest`, `CreateSubscriptionRequest.PublishingEnabled`).
+
+> **Note:** Hand-written types in `Opc.Ua.Types` (such as `BrowseDescription`, `RelativePathElement`) are **not** affected — they already had explicit initialization in their constructors.
+
+**Migration**: Add explicit initialization where your code depends on `true` as the default:
+
+```csharp
+// Before (relied on incorrect true default)
+var connection = new PubSubConnectionDataType
+{
+    Name = "MyConnection"
+};
+
+// After (explicitly set Enabled)
+var connection = new PubSubConnectionDataType
+{
+    Enabled = true,
+    Name = "MyConnection"
+};
+```
 
 ## Migrating from 1.05.377 to 1.05.378
 
