@@ -122,14 +122,10 @@ namespace Opc.Ua
             {
                 if (DecryptedPassword.Length > RsaEncryptedSecretPasswordThreshold)
                 {
-                    var encryptedSecret = new EncryptedSecret(
-                        context: context,
-                        securityPolicyUri: securityPolicyUri,
-                        senderIssuerCertificates: null,
-                        receiverCertificate: receiverCertificate,
-                        receiverNonce: null,
-                        senderCertificate: null,
-                        senderNonce: null);
+                    EncryptedSecret encryptedSecret = EncryptedSecret.CreateForRsa(
+                        context,
+                        securityPolicyUri,
+                        receiverCertificate);
                     m_token.Password = encryptedSecret.EncryptRsa(DecryptedPassword, receiverNonce).ToByteString();
                     m_token.EncryptionAlgorithm = null;
                     return;
@@ -214,14 +210,11 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
-                var encryptedSecret = new EncryptedSecret(
-                    context: context,
-                    securityPolicyUri: securityPolicyUri,
-                    senderIssuerCertificates: null,
-                    receiverCertificate: certificate,
-                    receiverNonce: receiverNonce,
-                    senderCertificate: null,
-                    senderNonce: null);
+                EncryptedSecret encryptedSecret = EncryptedSecret.CreateForRsa(
+                    context,
+                    securityPolicyUri,
+                    certificate,
+                    receiverNonce);
                 if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm) &&
                     encryptedSecret.TryDecryptRsa(m_token.Password.ToArray(), receiverNonce?.Data, out byte[] decryptedSecret))
                 {

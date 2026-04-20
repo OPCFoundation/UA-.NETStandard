@@ -62,6 +62,25 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates an <see cref="EncryptedSecret"/> instance for RSAEncryptedSecret encryption/decryption.
+        /// </summary>
+        public static EncryptedSecret CreateForRsa(
+            IServiceMessageContext context,
+            string securityPolicyUri,
+            X509Certificate2 receiverCertificate,
+            Nonce receiverNonce = null)
+        {
+            return new EncryptedSecret(
+                context: context,
+                securityPolicyUri: securityPolicyUri,
+                senderIssuerCertificates: null,
+                receiverCertificate: receiverCertificate,
+                receiverNonce: receiverNonce,
+                senderCertificate: null,
+                senderNonce: null);
+        }
+
+        /// <summary>
         /// Gets or sets the X.509 certificate of the sender.
         /// </summary>
         public X509Certificate2 SenderCertificate { get; private set; }
@@ -542,6 +561,8 @@ namespace Opc.Ua
 
             DateTime signingTime = (DateTime)decoder.ReadDateTime(null);
             DateTime now = DateTime.UtcNow;
+            // Accept tokens from the recent past to account for transit/processing delays while
+            // only allowing a small future clock skew to prevent replay with future-dated tokens.
             if (signingTime < now - s_rsaEncryptedSecretMaxTokenAge || signingTime > now + s_rsaEncryptedSecretMaxClockSkew)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidTimestamp);
