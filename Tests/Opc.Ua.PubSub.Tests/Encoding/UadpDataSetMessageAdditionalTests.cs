@@ -436,6 +436,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var reader = new DataSetReaderDataType
             {
+                Enabled = true,
                 DataSetMetaData = metaData,
                 MessageSettings = new ExtensionObject(
                     new UadpDataSetReaderMessageDataType())

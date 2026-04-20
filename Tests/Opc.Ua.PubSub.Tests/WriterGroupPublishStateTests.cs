@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Tests
         public void HasMetaDataChangedReturnsFalseForNullMetadata()
         {
             var state = new WriterGroupPublishState();
-            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+            var writer = new DataSetWriterDataType { Enabled = true, DataSetWriterId = 1 };
 
             bool result = state.HasMetaDataChanged(writer, null);
 
@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Tests
         public void ExcludeUnchangedFieldsReturnsDataSetOnFirstCall()
         {
             var state = new WriterGroupPublishState();
-            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+            var writer = new DataSetWriterDataType { Enabled = true, DataSetWriterId = 1 };
 
             var dataset = new DataSet("Test")
             {
@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Tests
         public void ExcludeUnchangedFieldsReturnsNullWhenNoChange()
         {
             var state = new WriterGroupPublishState();
-            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+            var writer = new DataSetWriterDataType { Enabled = true, DataSetWriterId = 1 };
 
             var dataset1 = new DataSet("Test")
             {
@@ -118,7 +118,7 @@ namespace Opc.Ua.PubSub.Tests
         public void ExcludeUnchangedFieldsDetectsValueChange()
         {
             var state = new WriterGroupPublishState();
-            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+            var writer = new DataSetWriterDataType { Enabled = true, DataSetWriterId = 1 };
 
             var dataset1 = new DataSet("Test")
             {
@@ -154,7 +154,7 @@ namespace Opc.Ua.PubSub.Tests
         public void ExcludeUnchangedFieldsDetectsStatusCodeChange()
         {
             var state = new WriterGroupPublishState();
-            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+            var writer = new DataSetWriterDataType { Enabled = true, DataSetWriterId = 1 };
 
             var dataset1 = new DataSet("Test")
             {
@@ -186,7 +186,7 @@ namespace Opc.Ua.PubSub.Tests
         public void ExcludeUnchangedFieldsHandlesNullFieldInSecondDataSet()
         {
             var state = new WriterGroupPublishState();
-            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+            var writer = new DataSetWriterDataType { Enabled = true, DataSetWriterId = 1 };
 
             var dataset1 = new DataSet("Test")
             {
@@ -220,7 +220,7 @@ namespace Opc.Ua.PubSub.Tests
         public void ExcludeUnchangedFieldsHandlesNullFieldInLastDataSet()
         {
             var state = new WriterGroupPublishState();
-            var writer = new DataSetWriterDataType { DataSetWriterId = 1 };
+            var writer = new DataSetWriterDataType { Enabled = true, DataSetWriterId = 1 };
 
             var dataset1 = new DataSet("Test")
             {

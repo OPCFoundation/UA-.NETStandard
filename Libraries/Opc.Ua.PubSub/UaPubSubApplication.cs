@@ -169,7 +169,7 @@ namespace Opc.Ua.PubSub
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         public static UaPubSubApplication Create(IUaPubSubDataStore dataStore, ITelemetryContext telemetry)
         {
-            return Create(new PubSubConfigurationDataType(), dataStore, telemetry);
+            return Create(new PubSubConfigurationDataType { Enabled = true }, dataStore, telemetry);
         }
 
         /// <summary>
@@ -246,7 +246,7 @@ namespace Opc.Ua.PubSub
             ITelemetryContext telemetry)
         {
             // if no argument received, start with empty configuration
-            pubSubConfiguration ??= new PubSubConfigurationDataType();
+            pubSubConfiguration ??= new PubSubConfigurationDataType { Enabled = true };
 
             var uaPubSubApplication = new UaPubSubApplication(telemetry, dataStore);
             uaPubSubApplication.UaPubSubConfigurator.LoadConfiguration(pubSubConfiguration);

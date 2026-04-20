@@ -519,6 +519,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             return new WriterGroupDataType
             {
+                Enabled = true,
                 WriterGroupId = 1,
                 MessageSettings = new ExtensionObject(
                     new UadpWriterGroupMessageDataType
@@ -581,6 +582,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var reader = new DataSetReaderDataType
             {
+                Enabled = true,
                 DataSetWriterId = dataSetMessage.DataSetWriterId,
                 WriterGroupId = 1,
                 DataSetMetaData = metaData,

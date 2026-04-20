@@ -422,6 +422,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             return new DataSetReaderDataType
             {
+                Enabled = true,
                 Name = "Reader1",
                 DataSetMetaData = new DataSetMetaDataType
                 {

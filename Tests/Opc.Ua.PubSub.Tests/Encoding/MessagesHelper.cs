@@ -342,6 +342,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             //create  the PubSub configuration root object
             var pubSubConfiguration = new PubSubConfigurationDataType
             {
+                Enabled = true,
                 Connections = [pubSubConnection1],
                 PublishedDataSets = []
             };
@@ -665,6 +666,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             //create  the PubSub configuration root object
             var pubSubConfiguration = new PubSubConfigurationDataType
             {
+                Enabled = true,
                 Connections = [pubSubConnection]
             };
 
@@ -1018,7 +1020,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             pubSubConnection1.ReaderGroups = pubSubConnection1.ReaderGroups.AddItem(readerGroup1);
 
             //create  the PubSub configuration root object
-            return new PubSubConfigurationDataType { Connections = [pubSubConnection1] };
+            return new PubSubConfigurationDataType { Enabled = true, Connections = [pubSubConnection1] };
         }
 
         /// <summary>

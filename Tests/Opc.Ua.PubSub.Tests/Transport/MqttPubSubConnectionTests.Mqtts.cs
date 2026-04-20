@@ -71,6 +71,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             using var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
             var pubSubConnectionDataType = new PubSubConnectionDataType
             {
+                Enabled = true,
                 Address = new ExtensionObject(new NetworkAddressUrlDataType { Url = "mqtts://localhost:8883" }),
                 ConnectionProperties = mqttConfiguration.ConnectionProperties
             };
