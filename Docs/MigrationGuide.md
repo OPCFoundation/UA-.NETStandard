@@ -49,6 +49,10 @@
       - [Encoding format is not guaranteed backward compatible](#encoding-format-is-not-guaranteed-backward-compatible)
       - [OptionSet DataType support](#optionset-datatype-support)
     - [Other Breaking Changes](#other-breaking-changes)
+    - [Certificate Management](#certificate-management)
+      - [Certificate and CertificateCollection wrapper types](#certificate-and-certificatecollection-wrapper-types)
+      - [CertificateManager and segregated interfaces](#certificatemanager-and-segregated-interfaces)
+      - [Obsoleted certificate APIs](#obsoleted-certificate-apis)
   - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
     - [Asynchronous as default](#asynchronous-as-default)
     - [Observability](#observability)
@@ -681,6 +685,83 @@ When migrating code that previously set `Identity` directly, no code changes are
 #### Encoding format is not guaranteed backward compatible
 
 The encoding format for session state has changed. Existing persisted session state files **cannot** be loaded by the new `SessionConfiguration.Create()` method. Handle restore failures and re-persist the new session state.
+
+### Certificate Management
+
+#### Certificate and CertificateCollection wrapper types
+
+`X509Certificate2` and `X509Certificate2Collection` are no longer used directly in the public API. They are replaced by `Certificate` and `CertificateCollection` (in `Opc.Ua.Security.Certificates`).
+
+**Migration steps:**
+
+```csharp
+// Before:
+X509Certificate2 cert = new X509Certificate2(rawData);
+X509Certificate2Collection certs = await store.Enumerate();
+
+// After:
+Certificate cert = new Certificate(rawData);
+CertificateCollection certs = await store.EnumerateAsync();
+```
+
+`Certificate` implements reference counting. Call `AddRef()` before sharing a certificate across ownership boundaries, and `Dispose()` to release. The inner `X509Certificate2` is disposed when the last reference is released.
+
+For .NET interop, use `certificate.AsX509Certificate2()` which returns a copy the caller must dispose. The internal `X509Certificate2` is accessible via the `internal X509` property for `InternalsVisibleTo` friends.
+
+`CertificateBuilder.CreateForRSA()` and `CreateForECDsa()` now return `Certificate` instead of `X509Certificate2`.
+
+#### CertificateManager and segregated interfaces
+
+A new centralized `CertificateManager` replaces the scattered certificate handling across `CertificateValidator`, `CertificateIdentifier`, `CertificateTypesProvider`, and `CertificateFactory`. It is composed of focused interfaces:
+
+| Interface | Purpose | Location |
+|-----------|---------|----------|
+| `ICertificateRegistry` | Read-only access to app certificates | `Opc.Ua` |
+| `ICertificateTrustListManager` | Named trust-list management | `Opc.Ua` |
+| `ICertificateValidatorEx` | Trust-list-scoped validation | `Opc.Ua` |
+| `ICertificateLifecycle` | Change notifications + cert updates | `Opc.Ua` |
+| `ICertificateFactory` | Stateless cert creation/parsing | `Opc.Ua.Security.Certificates` |
+| `ICertificateIssuer` | CA signing + CRL revocation | `Opc.Ua.Security.Certificates` |
+| `ICertificateStoreProvider` | Pluggable store backends | `Opc.Ua` |
+
+The `CertificateManager` is automatically initialized by `ServerBase` and `ApplicationInstance` during startup. Access it via `ServerBase.CertificateManager` or `ApplicationInstance.CertificateManager`.
+
+**Trust-lists are now named and extensible:**
+
+```csharp
+// Well-known: TrustListIdentifier.Peers, .Users, .Https, .Rejected
+// Custom:
+manager.RegisterTrustList(new TrustListIdentifier("MqttBrokers"),
+    trustedStorePath: "...", issuerStorePath: "...");
+
+// Validate against any trust-list
+var result = await manager.ValidateAsync(cert, TrustListIdentifier.Users);
+```
+
+**Subscribe to certificate changes:**
+
+```csharp
+manager.CertificateChanges.Subscribe(observer);
+```
+
+See [CertificateManager.md](CertificateManager.md) for the full API reference and usage guide.
+
+#### Obsoleted certificate APIs
+
+The following APIs are marked `[Obsolete]` and will be removed in the next minor version:
+
+| Obsolete API | Replacement |
+|-------------|-------------|
+| `CertificateFactory.CreateCertificate(string)` | `ICertificateFactory.CreateCertificate(string)` |
+| `CertificateFactory.CreateCertificate(string, string, string, ArrayOf<string>)` | `ICertificateFactory.CreateApplicationCertificate(...)` |
+| `CertificateFactory.CreateSigningRequest(...)` | `ICertificateFactory.CreateSigningRequest(...)` |
+| `CertificateFactory.RevokeCertificate(...)` | `ICertificateIssuer.RevokeCertificates(...)` |
+| `CertificateStoreType.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` via DI or pass to `CertificateManager` constructor |
+
+To suppress `CS0618` warnings while migrating, add at the top of affected files:
+```csharp
+#pragma warning disable CS0618 // Obsolete API usage during migration
+```
 
 ## Migrating from 1.05.377 to 1.05.378
 
