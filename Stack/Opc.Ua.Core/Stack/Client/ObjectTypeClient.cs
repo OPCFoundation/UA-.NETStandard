@@ -31,7 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Client
+namespace Opc.Ua
 {
     /// <summary>
     /// Shared abstract base class for all source-generated OPC UA

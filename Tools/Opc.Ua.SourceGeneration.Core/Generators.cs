@@ -204,10 +204,11 @@ namespace Opc.Ua.SourceGeneration
                 serverApiGenerator.Emit();
                 var endpointsGenerator = new EndpointsGenerator(generatorContext);
                 endpointsGenerator.Emit();
-                // Always emit ObjectType client proxies into the
-                // Opc.Ua.Client namespace so every standard UA
-                // ObjectType has a strongly typed *TypeClient that
-                // downstream proxies (e.g. GDS) can derive from.
+                // Always emit ObjectType client proxies for every
+                // standard UA ObjectType so downstream model proxies
+                // (e.g. GDS) can derive from them. Proxies are emitted
+                // into the model's own namespace (Opc.Ua for the
+                // standard NodeSet) — no namespace override.
                 var stackProxyContext = new GeneratorContext
                 {
                     FileSystem = generatorContext.FileSystem,
@@ -220,8 +221,7 @@ namespace Opc.Ua.SourceGeneration
                         Exclusions = options.Exclusions,
                         Cancellation = options.Cancellation,
                         UseUtf8StringLiterals = options.UseUtf8StringLiterals,
-                        GenerateObjectMethodProxies = true,
-                        ObjectMethodProxyNamespace = "Opc.Ua.Client"
+                        GenerateObjectMethodProxies = true
                     }
                 };
                 var stackProxyGenerator = new ObjectMethodProxyGenerator(stackProxyContext);

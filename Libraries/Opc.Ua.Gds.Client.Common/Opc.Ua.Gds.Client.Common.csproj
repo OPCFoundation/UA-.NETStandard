@@ -30,7 +30,6 @@
     <ModelSourceGeneratorExclude>Draft</ModelSourceGeneratorExclude>
     <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
     <ModelSourceGeneratorGenerateObjectMethodProxiesOnly>true</ModelSourceGeneratorGenerateObjectMethodProxiesOnly>
-    <ModelSourceGeneratorObjectMethodProxyNamespace>Opc.Ua.Client</ModelSourceGeneratorObjectMethodProxyNamespace>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="..\Opc.Ua.Gds.Common\Design\OpcUaGdsModel.csv" />

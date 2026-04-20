@@ -126,7 +126,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Even with no declared methods we still emit the *TypeClient
             // so derived models can inherit from it.
             Assert.That(content, Does.Contain("public partial class EmptyTypeClient"));
-            Assert.That(content, Does.Contain(": global::Opc.Ua.Client.ObjectTypeClient"));
+            Assert.That(content, Does.Contain(": global::Opc.Ua.ObjectTypeClient"));
         }
 
         [Test]
@@ -190,7 +190,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(content, Does.Contain("public partial class FooTypeClient"));
             Assert.That(
                 content,
-                Does.Contain(": global::Opc.Ua.Client.ObjectTypeClient"));
+                Does.Contain(": global::Opc.Ua.ObjectTypeClient"));
             Assert.That(content, Does.Contain("DoItAsync"));
             Assert.That(content, Does.Contain("int requestId"));
             Assert.That(
@@ -364,7 +364,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Emit_RootObjectType_DerivesFromObjectTypeClient()
         {
             // An ObjectType with no parent (BaseTypeNode == null) inherits
-            // from the hand-authored `Opc.Ua.Client.ObjectTypeClient` base.
+            // from the hand-authored `Opc.Ua.ObjectTypeClient` base.
             ObjectTypeDesign rootType = CreateObjectType("RootType", CreateMethod("Ping"));
             m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([rootType]);
 
@@ -379,7 +379,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(
                 content,
                 Does.Contain(
-                    "public partial class RootTypeClient : global::Opc.Ua.Client.ObjectTypeClient"));
+                    "public partial class RootTypeClient : global::Opc.Ua.ObjectTypeClient"));
         }
 
         private GeneratorContext CreateContext(GeneratorOptions options = null)

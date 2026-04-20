@@ -181,7 +181,7 @@ namespace Opc.Ua.SourceGeneration
         /// proxy class. Walks <see cref="TypeDesign.BaseTypeNode"/>: when
         /// the parent is itself an <see cref="ObjectTypeDesign"/> the
         /// emitted parent proxy is used; otherwise the shared abstract
-        /// <c>global::Opc.Ua.Client.ObjectTypeClient</c> base is
+        /// <c>global::Opc.Ua.ObjectTypeClient</c> base is
         /// returned.
         /// </summary>
         private string ResolveBaseClassName(ObjectTypeDesign objectType)
@@ -208,7 +208,7 @@ namespace Opc.Ua.SourceGeneration
         /// Returns the C# namespace into which the proxy for
         /// <paramref name="type"/> is (or would be) emitted. Internal
         /// types use the configured output namespace; external types are
-        /// looked up via the standard UA → <c>Opc.Ua.Client</c> default
+        /// looked up via the standard UA → <c>Opc.Ua</c> default
         /// and the user-supplied
         /// <see cref="GeneratorOptions.ObjectMethodProxyExternalNamespaces"/>
         /// override; otherwise the model's namespace prefix is used as a
@@ -715,8 +715,8 @@ namespace Opc.Ua.SourceGeneration
         ];
 
         private const string StandardUaNamespaceUri = "http://opcfoundation.org/UA/";
-        private const string StandardUaProxyNamespace = "Opc.Ua.Client";
-        private const string RootBaseClass = "global::Opc.Ua.Client.ObjectTypeClient";
+        private const string StandardUaProxyNamespace = "Opc.Ua";
+        private const string RootBaseClass = "global::Opc.Ua.ObjectTypeClient";
 
         private readonly IGeneratorContext m_context;
         private HashSet<string> m_inheritedMethodNames;
