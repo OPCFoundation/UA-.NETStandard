@@ -72,6 +72,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var reader = new DataSetReaderDataType
             {
+                Enabled = true,
                 Name = "Reader1",
                 PublisherId = new Variant("TestPub"),
                 DataSetWriterId = 0,
@@ -509,6 +510,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var reader = new DataSetReaderDataType
             {
+                Enabled = true,
                 Name = "RTReader",
                 PublisherId = new Variant("RTPub"),
                 DataSetWriterId = 0,
@@ -559,6 +561,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var reader = new DataSetReaderDataType
             {
+                Enabled = true,
                 Name = "NullPubReader",
                 PublisherId = Variant.Null,
                 DataSetWriterId = 0,
@@ -609,6 +612,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             var reader = new DataSetReaderDataType
             {
+                Enabled = true,
                 Name = "MismatchReader",
                 PublisherId = new Variant("PubB"),
                 DataSetWriterId = 0,

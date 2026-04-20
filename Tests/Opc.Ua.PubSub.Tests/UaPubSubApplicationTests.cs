@@ -75,7 +75,7 @@ namespace Opc.Ua.PubSub.Tests
         public void CreateWithEmptyConfigReturnsEmptyConnections()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var config = new PubSubConfigurationDataType();
+            var config = new PubSubConfigurationDataType { Enabled = true };
             using UaPubSubApplication app = UaPubSubApplication.Create(config, telemetry);
             Assert.That(app, Is.Not.Null);
             Assert.That(app.PubSubConnections.Count, Is.Zero);
