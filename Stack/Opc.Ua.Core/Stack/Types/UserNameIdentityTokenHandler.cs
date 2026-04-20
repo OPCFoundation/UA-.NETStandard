@@ -279,7 +279,9 @@ namespace Opc.Ua
 
                 if (!secret.TryDecrypt(m_token.Password.ToArray(), receiverNonce?.Data, out byte[] decryptedSecret))
                 {
-                    throw new ServiceResultException(StatusCodes.BadIdentityTokenInvalid);
+                    throw new ServiceResultException(
+                        StatusCodes.BadIdentityTokenInvalid,
+                        "Failed to decrypt password using ECC encrypted secret.");
                 }
 
                 DecryptedPassword = decryptedSecret;

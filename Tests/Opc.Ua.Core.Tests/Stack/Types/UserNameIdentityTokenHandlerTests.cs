@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             var token = new UserNameIdentityToken
             {
                 UserName = "eccUser",
-                Password = (new byte[] { 0x00, 0x01, 0x02, 0x03 }).ToByteString(),
+                Password = new byte[] { 0x00, 0x01, 0x02, 0x03 }.ToByteString(),
                 EncryptionAlgorithm = null
             };
 
