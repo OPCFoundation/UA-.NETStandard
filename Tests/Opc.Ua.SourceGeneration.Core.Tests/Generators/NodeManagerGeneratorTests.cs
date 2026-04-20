@@ -78,14 +78,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string mgr = files.Single(kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
 
             // Inheritance and partial — required so users can extend.
-            Assert.That(mgr, Does.Contain(": global::Opc.Ua.Server.CustomNodeManager2"));
+            Assert.That(mgr, Does.Contain(": global::Opc.Ua.Server.AsyncCustomNodeManager"));
             Assert.That(mgr, Does.Match(@"public\s+partial\s+class\s+\w+NodeManager"));
 
             // Lifecycle overrides that wire the runtime fluent dispatcher.
-            Assert.That(mgr, Does.Contain("LoadPredefinedNodes"));
-            Assert.That(mgr, Does.Contain("CreateAddressSpace"));
-            Assert.That(mgr, Does.Contain("AddPredefinedNode"));
-            Assert.That(mgr, Does.Contain("RemovePredefinedNode"));
+            Assert.That(mgr, Does.Contain("LoadPredefinedNodesAsync"));
+            Assert.That(mgr, Does.Contain("CreateAddressSpaceAsync"));
+            Assert.That(mgr, Does.Contain("AddPredefinedNodeAsync"));
+            Assert.That(mgr, Does.Contain("RemovePredefinedNodeAsync"));
             Assert.That(mgr, Does.Contain("OnMonitoredItemCreated"));
 
             // The user code-behind hook + the runtime builder type.
@@ -121,9 +121,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Members must be virtual so subclasses can override
             // (extending NamespacesUris or returning a custom manager).
             Assert.That(factory, Does.Match(@"public\s+virtual\s+global::Opc\.Ua\.ArrayOf<string>\s+NamespacesUris"));
-            Assert.That(factory, Does.Match(@"public\s+virtual\s+global::Opc\.Ua\.Server\.INodeManager\s+Create"));
+            Assert.That(factory, Does.Match(@"public\s+virtual\s+global::System\.Threading\.Tasks\.ValueTask<global::Opc\.Ua\.Server\.IAsyncNodeManager>\s+CreateAsync"));
 
-            Assert.That(factory, Does.Contain(": global::Opc.Ua.Server.INodeManagerFactory"));
+            Assert.That(factory, Does.Contain(": global::Opc.Ua.Server.IAsyncNodeManagerFactory"));
         }
 
         [Test]

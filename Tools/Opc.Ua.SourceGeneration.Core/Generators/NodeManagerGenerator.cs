@@ -36,9 +36,9 @@ namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
     /// Emits a partial <c>{Namespace}NodeManager</c> deriving from
-    /// <c>CustomNodeManager2</c> plus a matching
+    /// <c>AsyncCustomNodeManager</c> plus a matching
     /// <c>{Namespace}NodeManagerFactory</c> implementing
-    /// <c>INodeManagerFactory</c>. Opt-in via
+    /// <c>IAsyncNodeManagerFactory</c>. Opt-in via
     /// <see cref="DesignFileOptions.GenerateNodeManager"/>.
     /// </summary>
     /// <remarks>

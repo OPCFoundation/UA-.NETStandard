@@ -58,7 +58,7 @@ namespace Opc.Ua.SourceGeneration
                 /// fluent API in <c>Opc.Ua.Server.Fluent</c>.
                 /// </remarks>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-                public partial class {{Tokens.NodeManagerClassName}} : global::Opc.Ua.Server.CustomNodeManager2
+                public partial class {{Tokens.NodeManagerClassName}} : global::Opc.Ua.Server.AsyncCustomNodeManager
                 {
                     private global::Opc.Ua.Server.Fluent.NodeManagerBuilder __m_builder;
 
@@ -80,46 +80,47 @@ namespace Opc.Ua.SourceGeneration
                     partial void Configure(global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder);
 
                     /// <inheritdoc/>
-                    protected override global::Opc.Ua.NodeStateCollection LoadPredefinedNodes(
-                        global::Opc.Ua.ISystemContext context)
+                    protected override global::System.Threading.Tasks.ValueTask<global::Opc.Ua.NodeStateCollection> LoadPredefinedNodesAsync(
+                        global::Opc.Ua.ISystemContext context,
+                        global::System.Threading.CancellationToken cancellationToken = default)
                     {
-                        return new global::Opc.Ua.NodeStateCollection().Add{{Tokens.Namespace}}(context);
+                        return new global::System.Threading.Tasks.ValueTask<global::Opc.Ua.NodeStateCollection>(
+                            new global::Opc.Ua.NodeStateCollection().Add{{Tokens.Namespace}}(context));
                     }
 
                     /// <inheritdoc/>
-                    public override void CreateAddressSpace(
+                    public override async global::System.Threading.Tasks.ValueTask CreateAddressSpaceAsync(
                         global::System.Collections.Generic.IDictionary<global::Opc.Ua.NodeId,
-                            global::System.Collections.Generic.IList<global::Opc.Ua.IReference>> externalReferences)
+                            global::System.Collections.Generic.IList<global::Opc.Ua.IReference>> externalReferences,
+                        global::System.Threading.CancellationToken cancellationToken = default)
                     {
-                        lock (Lock)
+                        await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+
+                        ushort __nsIndex = Server.NamespaceUris.GetIndexOrAppend({{Tokens.NamespaceUri}});
+
+                        __m_builder = new global::Opc.Ua.Server.Fluent.NodeManagerBuilder(
+                            SystemContext,
+                            this,
+                            __nsIndex,
+                            __FindRootByBrowseName,
+                            __FindRootByNodeId);
+
+                        Configure(__m_builder);
+                        __m_builder.Seal();
+
+                        foreach (global::Opc.Ua.NodeState __node in PredefinedNodes.Values)
                         {
-                            base.CreateAddressSpace(externalReferences);
-
-                            ushort __nsIndex = Server.NamespaceUris.GetIndexOrAppend({{Tokens.NamespaceUri}});
-
-                            __m_builder = new global::Opc.Ua.Server.Fluent.NodeManagerBuilder(
-                                SystemContext,
-                                this,
-                                __nsIndex,
-                                __FindRootByBrowseName,
-                                __FindRootByNodeId);
-
-                            Configure(__m_builder);
-                            __m_builder.Seal();
-
-                            foreach (global::Opc.Ua.NodeState __node in PredefinedNodes.Values)
-                            {
-                                __m_builder.Dispatcher.NotifyNodeAdded(SystemContext, __node);
-                            }
+                            __m_builder.Dispatcher.NotifyNodeAdded(SystemContext, __node);
                         }
                     }
 
                     /// <inheritdoc/>
-                    protected override void AddPredefinedNode(
+                    protected override async global::System.Threading.Tasks.ValueTask AddPredefinedNodeAsync(
                         global::Opc.Ua.ISystemContext context,
-                        global::Opc.Ua.NodeState node)
+                        global::Opc.Ua.NodeState node,
+                        global::System.Threading.CancellationToken cancellationToken = default)
                     {
-                        base.AddPredefinedNode(context, node);
+                        await base.AddPredefinedNodeAsync(context, node, cancellationToken).ConfigureAwait(false);
                         if (__m_builder is { } __b)
                         {
                             __b.Dispatcher.NotifyNodeAdded(context, node);
@@ -127,16 +128,17 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     /// <inheritdoc/>
-                    protected override void RemovePredefinedNode(
+                    protected override async global::System.Threading.Tasks.ValueTask RemovePredefinedNodeAsync(
                         global::Opc.Ua.ISystemContext context,
                         global::Opc.Ua.NodeState node,
-                        global::System.Collections.Generic.List<global::Opc.Ua.Server.LocalReference> referencesToRemove)
+                        global::System.Collections.Generic.List<global::Opc.Ua.Server.LocalReference> referencesToRemove,
+                        global::System.Threading.CancellationToken cancellationToken = default)
                     {
                         if (__m_builder is { } __b)
                         {
                             __b.Dispatcher.NotifyNodeRemoved(context, node);
                         }
-                        base.RemovePredefinedNode(context, node, referencesToRemove);
+                        await base.RemovePredefinedNodeAsync(context, node, referencesToRemove, cancellationToken).ConfigureAwait(false);
                     }
 
                     /// <inheritdoc/>
@@ -194,18 +196,20 @@ namespace Opc.Ua.SourceGeneration
                 /// for the <c>{{Tokens.NamespaceUri}}</c> namespace.
                 /// </summary>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-                public partial class {{Tokens.NodeManagerFactoryClassName}} : global::Opc.Ua.Server.INodeManagerFactory
+                public partial class {{Tokens.NodeManagerFactoryClassName}} : global::Opc.Ua.Server.IAsyncNodeManagerFactory
                 {
                     /// <inheritdoc/>
                     public virtual global::Opc.Ua.ArrayOf<string> NamespacesUris
                         => new global::Opc.Ua.ArrayOf<string>(new string[] { {{Tokens.NamespaceUri}} });
 
                     /// <inheritdoc/>
-                    public virtual global::Opc.Ua.Server.INodeManager Create(
+                    public virtual global::System.Threading.Tasks.ValueTask<global::Opc.Ua.Server.IAsyncNodeManager> CreateAsync(
                         global::Opc.Ua.Server.IServerInternal server,
-                        global::Opc.Ua.ApplicationConfiguration configuration)
+                        global::Opc.Ua.ApplicationConfiguration configuration,
+                        global::System.Threading.CancellationToken cancellationToken = default)
                     {
-                        return new {{Tokens.NodeManagerClassName}}(server, configuration);
+                        return new global::System.Threading.Tasks.ValueTask<global::Opc.Ua.Server.IAsyncNodeManager>(
+                            new {{Tokens.NodeManagerClassName}}(server, configuration));
                     }
                 }
             }
