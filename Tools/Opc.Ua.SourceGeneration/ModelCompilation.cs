@@ -58,6 +58,7 @@ namespace Opc.Ua.SourceGeneration
             ImmutableArray<AdditionalText> identifierFiles,
             ModelCompilationOptions options,
             CompilationOptions compilationOptions,
+            ImmutableArray<NodeManagerAttributeDiscovery> nodeManagerBindings,
             ILogger logger)
         {
             m_context = context;
@@ -65,6 +66,7 @@ namespace Opc.Ua.SourceGeneration
             m_identifierFiles = identifierFiles;
             m_options = options;
             m_compilationOptions = compilationOptions;
+            m_nodeManagerBindings = nodeManagerBindings;
             m_telemetry = SourceGeneratorTelemetry.Create(logger, m_context);
         }
 
@@ -114,6 +116,45 @@ namespace Opc.Ua.SourceGeneration
                     generatorOptions,
                     m_options.UseAllowSubtypes);
 
+                // Resolve [NodeManager] bindings: validate partial-ness and
+                // build the binding list to pass into GenerateCode.
+                var bindings = new System.Collections.Generic.List<NodeManagerAttributeBinding>();
+                var bindingByPayload =
+                    new System.Collections.Generic.Dictionary<NodeManagerAttributeBinding, NodeManagerAttributeDiscovery>();
+                foreach (NodeManagerAttributeDiscovery discovery in m_nodeManagerBindings)
+                {
+                    if (discovery == null)
+                    {
+                        continue;
+                    }
+                    if (!discovery.IsPartial)
+                    {
+                        m_context.ReportDiagnostic(
+                            Diagnostic.Create(
+                                SourceGenerator.NodeManagerNotPartial,
+                                discovery.Location,
+                                discovery.Binding.TargetNamespace +
+                                "." +
+                                discovery.Binding.TargetClassName));
+                        continue;
+                    }
+                    bindings.Add(discovery.Binding);
+                    bindingByPayload[discovery.Binding] = discovery;
+                }
+
+                Action<NodeManagerAttributeBinding, string> reportBinding =
+                    (binding, message) =>
+                    {
+                        Location loc = bindingByPayload.TryGetValue(binding, out var d) && d != null
+                            ? d.Location
+                            : Location.None;
+                        m_context.ReportDiagnostic(
+                            Diagnostic.Create(
+                                SourceGenerator.NodeManagerBindingError,
+                                loc,
+                                message));
+                    };
+
                 // Process any remaining design files
                 new DesignFileCollection
                 {
@@ -127,7 +168,9 @@ namespace Opc.Ua.SourceGeneration
                     m_telemetry,
                     generatorOptions,
                     m_options.UseAllowSubtypes,
-                    [.. m_identifierFiles.Select(i => i.Path)]);
+                    [.. m_identifierFiles.Select(i => i.Path)],
+                    bindings.Count > 0 ? bindings : null,
+                    bindings.Count > 0 ? reportBinding : null);
 
                 // Collect all generated cs files and produce them into the compilation
                 foreach (string file in vfs.CreatedFiles
@@ -171,6 +214,7 @@ namespace Opc.Ua.SourceGeneration
         private readonly ImmutableArray<AdditionalText> m_identifierFiles;
         private readonly ModelCompilationOptions m_options;
         private readonly CompilationOptions m_compilationOptions;
+        private readonly ImmutableArray<NodeManagerAttributeDiscovery> m_nodeManagerBindings;
         private readonly SourceGeneratorTelemetry m_telemetry;
     }
 }

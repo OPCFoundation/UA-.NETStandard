@@ -70,6 +70,34 @@ namespace Opc.Ua.SourceGeneration
             customTags: ["opcua"]);
 
         /// <summary>
+        /// A <c>[NodeManager]</c> attribute could not be bound to a model
+        /// design (no matching URI / Design selector).
+        /// </summary>
+        public static readonly DiagnosticDescriptor NodeManagerBindingError = new(
+            id: "MODELGEN010",
+            title: "[NodeManager] binding error",
+            messageFormat: (LocalizableString)"{0}",
+            category: Name,
+            DiagnosticSeverity.Warning,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
+        /// A class annotated with <c>[NodeManager]</c> is not declared
+        /// <c>partial</c>.
+        /// </summary>
+        public static readonly DiagnosticDescriptor NodeManagerNotPartial = new(
+            id: "MODELGEN011",
+            title: "[NodeManager] class must be partial",
+            messageFormat: (LocalizableString)"Class '{0}' annotated with [NodeManager] must be declared as partial.",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
         /// Get diagnostic descriptor for event id
         /// </summary>
         public static bool TryGetDiagnostic(
