@@ -261,6 +261,7 @@ namespace Opc.Ua.Gds.Server
                 ct)
                 .ConfigureAwait(false);
 
+#pragma warning disable CS0618 // Type or member is obsolete - TODO: migrate to ICertificateFactory
             ICertificateBuilderIssuer builder = CertificateFactory
                 .CreateCertificate(
                     application.ApplicationUri,
@@ -270,6 +271,7 @@ namespace Opc.Ua.Gds.Server
                     subjectName,
                     domainNames)
                 .SetIssuer(signingKey);
+#pragma warning restore CS0618
 
             using Certificate certificate = TryGetECCCurve(certificateType, out ECCurve curve)
                 ? builder.SetECCurve(curve).CreateForECDsa()
@@ -314,7 +316,9 @@ namespace Opc.Ua.Gds.Server
             Certificate certificate,
             CancellationToken ct = default)
         {
-            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null, m_telemetry, ct)
+            X509CRL crl = await RevokeCertificateAsync(
+                AuthoritiesStore, certificate, null, m_telemetry,
+                CertificateIssuer, ct)
                 .ConfigureAwait(false);
 
             // Also update TrustedList CRL so registerd Applications can get the new CRL
@@ -479,8 +483,10 @@ namespace Opc.Ua.Gds.Server
             }
 
             DateTime yesterday = DateTime.Today.AddDays(-1);
+#pragma warning disable CS0618 // Type or member is obsolete - TODO: migrate to ICertificateFactory
             ICertificateBuilder builder = CertificateFactory
                 .CreateCertificate(subjectName)
+#pragma warning restore CS0618
                 .SetNotBefore(yesterday)
                 .SetLifeTime(Configuration.CACertificateLifetime)
                 .SetCAConstraint();
@@ -643,6 +649,27 @@ namespace Opc.Ua.Gds.Server
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
+            return await RevokeCertificateAsync(
+                storeIdentifier, certificate,
+                issuerKeyFilePassword, telemetry,
+                certificateIssuer: null, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Revoke the CA signed certificate with optional certificate issuer support.
+        /// The CRL number is increased by one and existing CRL for the issuer are deleted
+        /// from the store.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static async Task<X509CRL> RevokeCertificateAsync(
+            CertificateStoreIdentifier storeIdentifier,
+            Certificate certificate,
+            char[] issuerKeyFilePassword,
+            ITelemetryContext telemetry,
+            ICertificateIssuer certificateIssuer,
+            CancellationToken ct = default)
+        {
             X509CRL updatedCRL = null;
 
             bool isCACert = X509Utils.IsCertificateAuthority(certificate);
@@ -723,10 +750,22 @@ namespace Opc.Ua.Gds.Server
                 {
                     certificate
                 };
-                updatedCRL = CertificateFactory.RevokeCertificate(
-                    certCAWithPrivateKey,
-                    certCACrl,
-                    certificateCollection);
+                if (certificateIssuer != null)
+                {
+                    updatedCRL = certificateIssuer.RevokeCertificates(
+                        certCAWithPrivateKey,
+                        certCACrl,
+                        certificateCollection);
+                }
+                else
+                {
+#pragma warning disable CS0618 // Type or member is obsolete - TODO: migrate to ICertificateIssuer
+                    updatedCRL = CertificateFactory.RevokeCertificate(
+                        certCAWithPrivateKey,
+                        certCACrl,
+                        certificateCollection);
+#pragma warning restore CS0618
+                }
 
                 await store.AddCRLAsync(updatedCRL, ct).ConfigureAwait(false);
 

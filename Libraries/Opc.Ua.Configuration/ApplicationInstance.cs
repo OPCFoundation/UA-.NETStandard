@@ -876,12 +876,14 @@ namespace Opc.Ua.Configuration
                 Utils.GetAbsoluteDirectoryPath(id.StorePath, true, true, true);
             }
 
+#pragma warning disable CS0618 // Type or member is obsolete - TODO: migrate to ICertificateFactory
             Security.Certificates.ICertificateBuilder builder = CertificateFactory
                 .CreateCertificate(
                     configuration.ApplicationUri,
                     configuration.ApplicationName,
                     id.SubjectName,
                     serverDomainNames)
+#pragma warning restore CS0618
                 .SetLifeTime(lifeTimeInMonths);
 
             if (id.CertificateType.IsNull ||

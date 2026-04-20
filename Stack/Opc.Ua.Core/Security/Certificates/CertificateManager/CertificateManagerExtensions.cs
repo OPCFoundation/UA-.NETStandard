@@ -104,7 +104,8 @@ namespace Opc.Ua
 
             var manager = new CertificateManager(
                 telemetry,
-                maxRejectedCertificates: options.MaxRejectedCertificates);
+                maxRejectedCertificates: options.MaxRejectedCertificates,
+                expiryWarningThreshold: options.ExpiryWarningThreshold);
 
             manager.MapFromSecurityConfiguration(securityConfiguration);
 

@@ -1,0 +1,126 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+#nullable enable
+
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
+
+namespace Opc.Ua
+{
+    /// <summary>
+    /// Periodically checks application certificates for upcoming expiry
+    /// and emits <see cref="CertificateChangeKind.CertificateExpiring"/> events.
+    /// </summary>
+    internal sealed class CertificateLifecycleMonitor : IDisposable
+    {
+        private readonly CertificateChangeSubject _subject;
+        private readonly Func<IReadOnlyList<CertificateEntry>> _getCertificates;
+        private readonly TimeSpan _expiryThreshold;
+        private readonly Timer _timer;
+        private readonly ILogger _logger;
+        private readonly HashSet<string> _alreadyNotified = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CertificateLifecycleMonitor"/> class.
+        /// </summary>
+        /// <param name="subject">
+        /// The change subject used to emit certificate change events.
+        /// </param>
+        /// <param name="getCertificates">
+        /// A delegate that returns the current application certificates.
+        /// </param>
+        /// <param name="expiryThreshold">
+        /// The time span before expiry at which a warning is emitted.
+        /// </param>
+        /// <param name="checkInterval">
+        /// How often to check for expiring certificates.
+        /// </param>
+        /// <param name="telemetry">
+        /// The telemetry context used for logging.
+        /// </param>
+        public CertificateLifecycleMonitor(
+            CertificateChangeSubject subject,
+            Func<IReadOnlyList<CertificateEntry>> getCertificates,
+            TimeSpan expiryThreshold,
+            TimeSpan checkInterval,
+            ITelemetryContext telemetry)
+        {
+            _subject = subject ?? throw new ArgumentNullException(nameof(subject));
+            _getCertificates = getCertificates ?? throw new ArgumentNullException(nameof(getCertificates));
+            _expiryThreshold = expiryThreshold;
+            _logger = telemetry.CreateLogger<CertificateLifecycleMonitor>();
+
+            _timer = new Timer(CheckExpiry, null, TimeSpan.Zero, checkInterval);
+        }
+
+        private void CheckExpiry(object? state)
+        {
+            try
+            {
+                var certs = _getCertificates();
+                foreach (var entry in certs)
+                {
+                    if (entry.IsNearExpiry(_expiryThreshold) &&
+                        _alreadyNotified.Add(entry.Certificate.Thumbprint))
+                    {
+                        _logger.LogWarning(
+                            "Certificate {Thumbprint} expires at {NotAfter}.",
+                            entry.Certificate.Thumbprint,
+                            entry.NotAfter);
+
+                        _subject.Notify(new CertificateChangeEvent(
+                            CertificateChangeKind.CertificateExpiring,
+                            TrustListIdentifier.Peers,
+                            entry.CertificateType,
+                            entry.Certificate,
+                            null,
+                            null));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Error checking certificate expiry.");
+            }
+        }
+
+        /// <summary>
+        /// Resets notifications so already-notified certificates can be
+        /// re-checked (e.g., after a certificate update).
+        /// </summary>
+        public void Reset() => _alreadyNotified.Clear();
+
+        /// <inheritdoc/>
+        public void Dispose() => _timer.Dispose();
+    }
+}

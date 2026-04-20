@@ -317,6 +317,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="storeTypeName">The name of the store type.</param>
         /// <param name="storeType">Store type</param>
+        [Obsolete("Use ICertificateStoreProvider registered via DI instead.")]
         public static void RegisterCertificateStoreType(
             string storeTypeName,
             ICertificateStoreType storeType)

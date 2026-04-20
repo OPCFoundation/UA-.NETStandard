@@ -988,9 +988,11 @@ namespace Opc.Ua.Server
                 Utils.TraceMasks.Security,
                 "Create signing request {Certificate}",
                 certWithPrivateKey.X509.AsLogSafeString());
+#pragma warning disable CS0618 // Type or member is obsolete - TODO: migrate to ICertificateFactory
             ByteString certificateRequest = ByteString.From(CertificateFactory.CreateSigningRequest(
                 certWithPrivateKey,
                 X509Utils.GetDomainsFromCertificate(certWithPrivateKey)));
+#pragma warning restore CS0618
 
             return new CreateSigningRequestMethodStateResult
             {
@@ -1007,8 +1009,10 @@ namespace Opc.Ua.Server
         {
             Certificate certificate;
 
+#pragma warning disable CS0618 // Type or member is obsolete - TODO: migrate to ICertificateFactory
             ICertificateBuilder certificateBuilder = CertificateFactory
                 .CreateCertificate(m_configuration.ApplicationUri, m_configuration.ApplicationName, subjectName, domainNames)
+#pragma warning restore CS0618
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddDays(14));
 

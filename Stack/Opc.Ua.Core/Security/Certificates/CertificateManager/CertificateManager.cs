@@ -56,6 +56,7 @@ namespace Opc.Ua
         private readonly ILogger _logger;
         private readonly int _maxRejectedCertificates;
         private RejectedCertificateProcessor? _rejectedProcessor;
+        private CertificateLifecycleMonitor? _lifecycleMonitor;
         private CertificateValidator? _peerValidator;
         private CertificateValidator? _userValidator;
         private CertificateValidator? _httpsValidator;
@@ -83,10 +84,16 @@ namespace Opc.Ua
         /// The maximum number of rejected certificates to keep in the
         /// rejected store. Defaults to 5.
         /// </param>
+        /// <param name="expiryWarningThreshold">
+        /// The time before expiry at which
+        /// <see cref="CertificateChangeKind.CertificateExpiring"/> events
+        /// are emitted. Defaults to 14 days.
+        /// </param>
         public CertificateManager(
             ITelemetryContext telemetry,
             IEnumerable<ICertificateStoreProvider>? storeProviders = null,
-            int maxRejectedCertificates = 5)
+            int maxRejectedCertificates = 5,
+            TimeSpan? expiryWarningThreshold = null)
         {
             _telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             _logger = telemetry.CreateLogger<CertificateManager>();
@@ -95,6 +102,14 @@ namespace Opc.Ua
                 new DirectoryStoreProvider(),
                 new X509StoreProvider()
             ];
+
+            var threshold = expiryWarningThreshold ?? TimeSpan.FromDays(14);
+            _lifecycleMonitor = new CertificateLifecycleMonitor(
+                _changeSubject,
+                () => _applicationCertificates,
+                threshold,
+                TimeSpan.FromHours(1),
+                _telemetry);
         }
 
         /// <inheritdoc/>
@@ -352,6 +367,8 @@ namespace Opc.Ua
             _userValidator = null;
             _httpsValidator = null;
 
+            _lifecycleMonitor?.Reset();
+
             _changeSubject.Notify(new CertificateChangeEvent(
                 CertificateChangeKind.ApplicationCertificateUpdated,
                 TrustListIdentifier.Peers,
@@ -374,10 +391,171 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public async Task<TrustListData> ReadTrustListAsync(
+            TrustListIdentifier trustList,
+            TrustListMasks masks = TrustListMasks.All,
+            CancellationToken ct = default)
+        {
+            if (trustList == null) throw new ArgumentNullException(nameof(trustList));
+
+            var data = new TrustListData();
+
+            if ((masks & TrustListMasks.TrustedCertificates) != 0)
+            {
+                using ICertificateStore store = OpenTrustedStore(trustList);
+                data.TrustedCertificates = await store.EnumerateAsync(ct)
+                    .ConfigureAwait(false);
+            }
+
+            if ((masks & TrustListMasks.TrustedCrls) != 0)
+            {
+                using ICertificateStore store = OpenTrustedStore(trustList);
+                if (store.SupportsCRLs)
+                {
+                    data.TrustedCrls = await store.EnumerateCRLsAsync(ct)
+                        .ConfigureAwait(false);
+                }
+            }
+
+            ICertificateStore? issuerStore = OpenIssuerStore(trustList);
+            if (issuerStore != null)
+            {
+                using (issuerStore)
+                {
+                    if ((masks & TrustListMasks.IssuerCertificates) != 0)
+                    {
+                        data.IssuerCertificates = await issuerStore
+                            .EnumerateAsync(ct).ConfigureAwait(false);
+                    }
+
+                    if ((masks & TrustListMasks.IssuerCrls) != 0 &&
+                        issuerStore.SupportsCRLs)
+                    {
+                        data.IssuerCrls = await issuerStore
+                            .EnumerateCRLsAsync(ct).ConfigureAwait(false);
+                    }
+                }
+            }
+
+            return data;
+        }
+
+        /// <inheritdoc/>
+        public async Task WriteTrustListAsync(
+            TrustListIdentifier trustList,
+            TrustListData data,
+            TrustListMasks masks = TrustListMasks.All,
+            CancellationToken ct = default)
+        {
+            if (trustList == null) throw new ArgumentNullException(nameof(trustList));
+            if (data == null) throw new ArgumentNullException(nameof(data));
+
+            if ((masks & (TrustListMasks.TrustedCertificates |
+                          TrustListMasks.TrustedCrls)) != 0)
+            {
+                using ICertificateStore store = OpenTrustedStore(trustList);
+
+                if ((masks & TrustListMasks.TrustedCertificates) != 0)
+                {
+                    await ClearCertificatesAsync(store, ct)
+                        .ConfigureAwait(false);
+
+                    foreach (Certificate cert in data.TrustedCertificates)
+                    {
+                        await store.AddAsync(cert, ct: ct)
+                            .ConfigureAwait(false);
+                    }
+                }
+
+                if ((masks & TrustListMasks.TrustedCrls) != 0 &&
+                    store.SupportsCRLs)
+                {
+                    await ClearCrlsAsync(store, ct).ConfigureAwait(false);
+
+                    foreach (X509CRL crl in data.TrustedCrls)
+                    {
+                        await store.AddCRLAsync(crl, ct)
+                            .ConfigureAwait(false);
+                    }
+                }
+            }
+
+            if ((masks & (TrustListMasks.IssuerCertificates |
+                          TrustListMasks.IssuerCrls)) != 0)
+            {
+                ICertificateStore? issuerStore = OpenIssuerStore(trustList);
+                if (issuerStore != null)
+                {
+                    using (issuerStore)
+                    {
+                        if ((masks & TrustListMasks.IssuerCertificates) != 0)
+                        {
+                            await ClearCertificatesAsync(issuerStore, ct)
+                                .ConfigureAwait(false);
+
+                            foreach (Certificate cert in data.IssuerCertificates)
+                            {
+                                await issuerStore.AddAsync(cert, ct: ct)
+                                    .ConfigureAwait(false);
+                            }
+                        }
+
+                        if ((masks & TrustListMasks.IssuerCrls) != 0 &&
+                            issuerStore.SupportsCRLs)
+                        {
+                            await ClearCrlsAsync(issuerStore, ct)
+                                .ConfigureAwait(false);
+
+                            foreach (X509CRL crl in data.IssuerCrls)
+                            {
+                                await issuerStore.AddCRLAsync(crl, ct)
+                                    .ConfigureAwait(false);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes all certificates from the specified store.
+        /// </summary>
+        private static async Task ClearCertificatesAsync(
+            ICertificateStore store,
+            CancellationToken ct)
+        {
+            using CertificateCollection existing =
+                await store.EnumerateAsync(ct).ConfigureAwait(false);
+
+            foreach (Certificate cert in existing)
+            {
+                await store.DeleteAsync(cert.Thumbprint, ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Removes all CRLs from the specified store.
+        /// </summary>
+        private static async Task ClearCrlsAsync(
+            ICertificateStore store,
+            CancellationToken ct)
+        {
+            X509CRLCollection existing =
+                await store.EnumerateCRLsAsync(ct).ConfigureAwait(false);
+
+            foreach (X509CRL crl in existing)
+            {
+                await store.DeleteCRLAsync(crl, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
         public void Dispose()
         {
             if (!_disposed)
             {
+                _lifecycleMonitor?.Dispose();
                 _changeSubject.Complete();
 
                 if (_rejectedProcessor != null)

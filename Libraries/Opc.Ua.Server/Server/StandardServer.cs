@@ -81,6 +81,8 @@ namespace Opc.Ua.Server
                     CertificateValidator.CertificateUpdate -= OnCertificateUpdateAsync;
                 }
 
+                m_certManagerSubscription?.Dispose();
+
                 m_semaphoreSlim.Dispose();
             }
 
@@ -3083,6 +3085,10 @@ namespace Opc.Ua.Server
                 m_logger.LogInformation(Utils.TraceMasks.StartStop,
                     "CertificateManager initialized with {Count} trust lists.",
                     CertificateManager.TrustLists.Count);
+
+                // Subscribe to CertificateManager change notifications
+                m_certManagerSubscription = CertificateManager.CertificateChanges
+                    .Subscribe(new CertificateManagerChangeObserver(m_logger));
             }
         }
 
@@ -3704,5 +3710,30 @@ namespace Opc.Ua.Server
         private bool m_useRegisterServer2;
         private readonly List<INodeManagerFactory> m_nodeManagerFactories = [];
         private readonly List<IAsyncNodeManagerFactory> m_asyncNodeManagerFactories = [];
+        private IDisposable m_certManagerSubscription;
+
+        private sealed class CertificateManagerChangeObserver : IObserver<Security.Certificates.CertificateChangeEvent>
+        {
+            private readonly ILogger _logger;
+
+            public CertificateManagerChangeObserver(ILogger logger)
+            {
+                _logger = logger;
+            }
+
+            public void OnNext(Security.Certificates.CertificateChangeEvent value)
+            {
+                if (value.Kind == Security.Certificates.CertificateChangeKind.ApplicationCertificateUpdated)
+                {
+                    _logger.LogInformation(
+                        "CertificateManager: Application certificate updated for type {CertType}.",
+                        value.CertificateType);
+                }
+            }
+
+            public void OnError(Exception error) { }
+
+            public void OnCompleted() { }
+        }
     }
 }

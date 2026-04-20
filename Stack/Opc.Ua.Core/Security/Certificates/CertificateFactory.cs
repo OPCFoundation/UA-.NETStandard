@@ -99,6 +99,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="subjectName">The subject of the certificate</param>
         /// <returns>Return the Certificate builder.</returns>
+        [Obsolete("Use ICertificateFactory.CreateCertificate for new code.")]
         public static ICertificateBuilder CreateCertificate(string subjectName)
         {
             return CertificateBuilder.Create(subjectName);
@@ -115,6 +116,7 @@ namespace Opc.Ua
         /// Return the Certificate builder with X509 Subject Alt Name extension
         /// to create the certificate.
         /// </returns>
+        [Obsolete("Use ICertificateFactory.CreateApplicationCertificate for new code.")]
         public static ICertificateBuilder CreateCertificate(
             string applicationUri,
             string applicationName,
@@ -136,6 +138,7 @@ namespace Opc.Ua
         /// Revoke the certificate.
         /// The CRL number is increased by one and the new CRL is returned.
         /// </summary>
+        [Obsolete("Use ICertificateIssuer.RevokeCertificates for new code.")]
         public static X509CRL RevokeCertificate(
             Certificate issuerCertificate,
             X509CRLCollection issuerCrls,
@@ -159,6 +162,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
         /// <exception cref="NotSupportedException"></exception>
+        [Obsolete("Use ICertificateIssuer.RevokeCertificates for new code.")]
         public static X509CRL RevokeCertificate(
             Certificate issuerCertificate,
             X509CRLCollection issuerCrls,
@@ -242,6 +246,7 @@ namespace Opc.Ua
         /// Creates a certificate signing request from an existing certificate.
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
+        [Obsolete("Use ICertificateFactory.CreateSigningRequest for new code.")]
         public static byte[] CreateSigningRequest(
             Certificate certificate,
             // TODO: provide CertificateType to return CSR per certificate type
