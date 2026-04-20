@@ -54,9 +54,17 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Opt in to <see cref="ObjectMethodProxyGenerator"/>. When
-        /// <c>true</c>, the source generator emits typed asynchronous
-        /// client wrappers for every <c>ObjectType</c> that declares
-        /// methods. Surfaced from MSBuild via the
+        /// <c>true</c>, the source generator emits a typed asynchronous
+        /// client wrapper (<c>{TypeName}Client</c>) for every
+        /// <c>ObjectType</c> in the model — including types without
+        /// methods, so downstream models can derive from the emitted
+        /// proxies. Each generated proxy inherits from the proxy of its
+        /// parent ObjectType (forming a chain that mirrors the OPC UA
+        /// type hierarchy and ultimately roots at the hand-authored
+        /// <c>Opc.Ua.ObjectTypeClient</c> base). Methods that share a
+        /// name with an ancestor method are emitted with the C#
+        /// <c>new</c> modifier so the derived signature shadows the
+        /// ancestor. Surfaced from MSBuild via the
         /// <c>ModelSourceGeneratorGenerateObjectMethodProxies</c> property.
         /// </summary>
         public bool GenerateObjectMethodProxies { get; set; }
@@ -77,8 +85,12 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Optional override for the C# namespace used by classes emitted
-        /// by the <see cref="ObjectMethodProxyGenerator"/>. Surfaced from
-        /// MSBuild via the
+        /// by the <see cref="ObjectMethodProxyGenerator"/>. By default
+        /// proxies are emitted into the model's own namespace (i.e. the
+        /// C# prefix of the model's target namespace) — for example the
+        /// standard UA NodeSet emits into <c>Opc.Ua</c>. Set this option
+        /// to redirect proxy emission into a different namespace.
+        /// Surfaced from MSBuild via the
         /// <c>ModelSourceGeneratorObjectMethodProxyNamespace</c> property.
         /// </summary>
         public string ObjectMethodProxyNamespace { get; set; }
