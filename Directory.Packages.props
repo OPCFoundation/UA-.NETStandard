@@ -30,9 +30,9 @@
     <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.102" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.102" />
     <PackageVersion Include="System.CommandLine" Version="2.0.6" />
-    <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.6.37125.3" />
+    <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.7.37220.1" />
     <PackageVersion Include="Moq" Version="4.20.72" />
-    <PackageVersion Include="TUnit" Version="1.37.0" />
+    <PackageVersion Include="TUnit" Version="1.37.10" />
     <PackageVersion Include="MQTTnet" Version="5.1.0.1559" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.9.50" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
@@ -61,7 +61,7 @@
     <PackageVersion Include="System.IO.Compression" Version="4.3.0" />
     <PackageVersion Include="System.Net.NetworkInformation" Version="4.3.0" />
     <PackageVersion Include="System.Collections.Immutable" Version="10.0.6" />
-    <PackageVersion Include="System.Reflection.Metadata" Version="10.0.5" />
+    <PackageVersion Include="System.Reflection.Metadata" Version="10.0.6" />
     <PackageVersion Include="System.Text.Json" Version="10.0.6" />
     <PackageVersion Include="System.Private.Uri" Version="4.3.2" />
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />

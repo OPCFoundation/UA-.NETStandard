@@ -286,105 +286,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new ExpandedNodeId from a long-form text representation, resolving
-        /// namespace and server URIs against the supplied tables.
-        /// Use this overload when you know the caller is starting with a long form.
-        /// </summary>
-        /// <remarks>
-        /// Syntax (per OPC UA Part 6, section 5.1.12):
-        /// <code>
-        ///     [ svu=&lt;uri&gt; | svr=&lt;N&gt; ; ] [ nsu=&lt;uri&gt; | ns=&lt;N&gt; ; ] &lt;id&gt;
-        /// </code>
-        /// See <see cref="NodeId(string, NamespaceTable)"/> for the <c>&lt;id&gt;</c> portion.
-        /// <para>
-        /// The server prefix (<c>svu=&lt;uri&gt;;</c> or <c>svr=&lt;N&gt;;</c>) is optional.
-        /// If <c>svu=</c> is present, <paramref name="serverUris"/> must be supplied and must
-        /// contain the URI.
-        /// </para>
-        /// </remarks>
-        /// <param name="text">The long-form (Expanded)NodeId text.</param>
-        /// <param name="namespaceTable">Namespace table used to resolve <c>nsu=</c> URIs.</param>
-        /// <param name="serverUris">Server URI table used to resolve <c>svu=</c> URIs. May be null if <c>svu=</c> is not used.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="namespaceTable"/> is null.</exception>
-        /// <exception cref="ServiceResultException">The text cannot be parsed, or a URI is not in the supplied table.</exception>
-        public ExpandedNodeId(string text, NamespaceTable namespaceTable, StringTable serverUris = null)
-        {
-            if (namespaceTable == null)
-            {
-                throw new ArgumentNullException(nameof(namespaceTable));
-            }
-
-            uint serverIndex = 0;
-            string remainder = text ?? string.Empty;
-
-            if (remainder.StartsWith("svu=", StringComparison.Ordinal))
-            {
-                if (serverUris == null)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdInvalid,
-                        "Cannot parse long-form expanded node id text '{0}': server URI table was not supplied.",
-                        text);
-                }
-
-                int separator = remainder.IndexOf(';', 4);
-                if (separator < 0)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdInvalid,
-                        "Cannot parse long-form expanded node id text '{0}': missing ';' after svu=.",
-                        text);
-                }
-
-                string uri = CoreUtils.UnescapeUri(remainder.AsSpan(4, separator - 4));
-                int resolved = serverUris.GetIndex(uri);
-                if (resolved < 0)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdInvalid,
-                        "Server URI '{0}' is not in the server URI table.",
-                        uri);
-                }
-                serverIndex = (uint)resolved;
-                remainder = remainder[(separator + 1)..];
-            }
-            else if (remainder.StartsWith("svr=", StringComparison.Ordinal))
-            {
-                int separator = remainder.IndexOf(';', 4);
-                if (separator < 0 ||
-                    !uint.TryParse(
-#if NET || NETSTANDARD2_1_OR_GREATER
-                        remainder.AsSpan(4, separator - 4),
-#else
-                        remainder.Substring(4, separator - 4),
-#endif
-                        NumberStyles.None,
-                        CultureInfo.InvariantCulture,
-                        out serverIndex))
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdInvalid,
-                        "Cannot parse long-form expanded node id text '{0}': invalid svr= value.",
-                        text);
-                }
-                remainder = remainder[(separator + 1)..];
-            }
-
-            if (!NodeId.TryParseLongForm(namespaceTable, remainder, out NodeId inner, out NodeIdParseError error))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdInvalid,
-                    "Cannot parse long-form expanded node id text: '{0}' Error: {1}",
-                    text,
-                    error);
-            }
-
-            m_data.NamespaceUri = null;
-            m_data.ServerIndex = serverIndex;
-            m_nodeId = inner;
-        }
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="ExpandedNodeId"/> class.
         /// </summary>
         /// <param name="identifier">The identifier.</param>
@@ -1110,6 +1011,114 @@ namespace Opc.Ua
 
             // local node id.
             return expandedNodeId.WithNamespaceIndex(namespaceIndex);
+        }
+
+        /// <summary>
+        /// Creates a new ExpandedNodeId from a long-form text representation, resolving
+        /// namespace and server URIs against the supplied tables.
+        /// Use this overload when you know the caller is starting with a long form.
+        /// </summary>
+        /// <remarks>
+        /// Syntax (per OPC UA Part 6, section 5.1.12):
+        /// <code>
+        /// [ svu=&lt;uri&gt; | svr=&lt;N&gt; ; ] [ nsu=&lt;uri&gt; | ns=&lt;N&gt; ; ] &lt;id&gt;
+        /// </code>
+        /// See <see cref="NodeId.ParseLongForm(string, NamespaceTable)"/> for the
+        /// <c>&lt;id&gt;</c> portion.
+        /// <para>
+        /// The server prefix (<c>svu=&lt;uri&gt;;</c> or <c>svr=&lt;N&gt;;</c>) is optional.
+        /// If <c>svu=</c> is present, <paramref name="serverUris"/> must be supplied and must
+        /// contain the URI.
+        /// </para>
+        /// </remarks>
+        /// <param name="text">The long-form (Expanded)NodeId text.</param>
+        /// <param name="namespaceTable">Namespace table used to resolve <c>nsu=</c> URIs.</param>
+        /// <param name="serverUris">Server URI table used to resolve <c>svu=</c> URIs.
+        /// May be null if <c>svu=</c> is not used.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="namespaceTable"/> is
+        /// null.</exception>
+        /// <exception cref="ServiceResultException">The text cannot be parsed, or a URI
+        /// is not in the supplied table.</exception>
+        public static ExpandedNodeId ParseLongForm(
+            string text,
+            NamespaceTable namespaceTable,
+            StringTable serverUris = null)
+        {
+            if (namespaceTable == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceTable));
+            }
+
+            uint serverIndex = 0;
+            string remainder = text ?? string.Empty;
+
+            if (remainder.StartsWith("svu=", StringComparison.Ordinal))
+            {
+                if (serverUris == null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdInvalid,
+                        "Cannot parse long-form expanded node id text '{0}': server URI table was not supplied.",
+                        text);
+                }
+
+                int separator = remainder.IndexOf(';', 4);
+                if (separator < 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdInvalid,
+                        "Cannot parse long-form expanded node id text '{0}': missing ';' after svu=.",
+                        text);
+                }
+
+                string uri = CoreUtils.UnescapeUri(remainder.AsSpan(4, separator - 4));
+                int resolved = serverUris.GetIndex(uri);
+                if (resolved < 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdInvalid,
+                        "Server URI '{0}' is not in the server URI table.",
+                        uri);
+                }
+                serverIndex = (uint)resolved;
+                remainder = remainder[(separator + 1)..];
+            }
+            else if (remainder.StartsWith("svr=", StringComparison.Ordinal))
+            {
+                int separator = remainder.IndexOf(';', 4);
+                if (separator < 0 ||
+                    !uint.TryParse(
+#if NET || NETSTANDARD2_1_OR_GREATER
+                        remainder.AsSpan(4, separator - 4),
+#else
+                        remainder.Substring(4, separator - 4),
+#endif
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out serverIndex))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdInvalid,
+                        "Cannot parse long-form expanded node id text '{0}': invalid svr= value.",
+                        text);
+                }
+                remainder = remainder[(separator + 1)..];
+            }
+
+            if (!NodeId.TryParseLongForm(
+                namespaceTable,
+                remainder,
+                out NodeId inner,
+                out NodeIdParseError error))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "Cannot parse long-form expanded node id text: '{0}' Error: {1}",
+                    text,
+                    error);
+            }
+
+            return new ExpandedNodeId(inner, null, serverIndex);
         }
 
         /// <summary>

@@ -233,6 +233,39 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes a node identifier with a namespace index.
+        /// Throws an exception if the identifier type is not supported.
+        /// </summary>
+        /// <param name="value">The identifier</param>
+        /// <param name="namespaceIndex">The index of the namespace that
+        /// qualifies the node</param>
+        [Obsolete("Use concrete constructor with typed identifier values instead.")]
+        [JsonConstructor]
+        public NodeId(object value, ushort namespaceIndex)
+        {
+            switch (value)
+            {
+                case uint:
+                    this = SetIdentifier(IdType.Numeric, value);
+                    break;
+                case null or string:
+                    this = SetIdentifier(IdType.String, value);
+                    break;
+                case Guid:
+                    this = SetIdentifier(IdType.Guid, value);
+                    break;
+                case ByteString:
+                    this = SetIdentifier(IdType.Opaque, value);
+                    break;
+                default:
+                    throw new ArgumentException(
+                        "Identifier type not supported.",
+                        nameof(value));
+            }
+            m_inner.NamespaceIdx = namespaceIndex;
+        }
+
+        /// <summary>
         /// Creates a new NodeId from a long-form text representation, resolving
         /// the namespace URI against the supplied <see cref="NamespaceTable"/>.
         /// Use this overload when you know the caller is starting with a long form.
@@ -242,16 +275,23 @@ namespace Opc.Ua
         /// <list type="bullet">
         ///   <item><c>&lt;id&gt;</c> (bare identifier; equivalent to namespace 0)</item>
         ///   <item><c>ns=N;&lt;id&gt;</c> (numeric namespace index)</item>
-        ///   <item><c>nsu=&lt;escaped-uri&gt;;&lt;id&gt;</c> (namespace URI, resolved via <paramref name="namespaceTable"/>)</item>
+        ///   <item><c>nsu=&lt;escaped-uri&gt;;&lt;id&gt;</c> (namespace URI,
+        ///   resolved via <paramref name="namespaceTable"/>)</item>
         /// </list>
-        /// The <c>&lt;id&gt;</c> portion may be typed (<c>i=N</c>/<c>s=X</c>/<c>g=GUID</c>/<c>b=BASE64</c>)
+        /// The <c>&lt;id&gt;</c> portion may be typed
+        /// (<c>i=N</c>/<c>s=X</c>/<c>g=GUID</c>/<c>b=BASE64</c>)
         /// or a bare token, which is treated as a string identifier.
         /// </remarks>
         /// <param name="text">The long-form NodeId text.</param>
-        /// <param name="namespaceTable">Namespace table used to resolve the URI to an index.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="namespaceTable"/> is null.</exception>
-        /// <exception cref="ServiceResultException">The text cannot be parsed or the URI is not in the table.</exception>
-        public NodeId(string text, NamespaceTable namespaceTable)
+        /// <param name="namespaceTable">Namespace table used to resolve the URI to
+        /// an index.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="namespaceTable"/> is null.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The text cannot be parsed or the URI is not in the table.</exception>
+        public static NodeId ParseLongForm(
+            string text,
+            NamespaceTable namespaceTable)
         {
             if (namespaceTable == null)
             {
@@ -267,7 +307,37 @@ namespace Opc.Ua
                     error);
             }
 
-            this = value;
+            return value;
+        }
+
+        /// <summary>
+        /// Parses an NodeId formatted as a string and converts it a NodeId.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="options">The options to use when parsing a NodeId.</param>
+        /// <returns>The NodeId.</returns>
+        /// <exception cref="ServiceResultException">Thrown if the namespace
+        /// URI is not in the namespace table.</exception>
+        public static NodeId Parse(
+            IServiceMessageContext context,
+            string text,
+            NodeIdParsingOptions options = null)
+        {
+            if (!InternalTryParseWithContext(
+                context,
+                text,
+                options,
+                out NodeId value,
+                out NodeIdParseError error))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "Cannot parse node id text: '{0}' Error: {1}",
+                    text,
+                    error);
+            }
+            return value;
         }
 
         /// <summary>
@@ -334,69 +404,6 @@ namespace Opc.Ua
                 ? parsed.WithNamespaceIndex((ushort)namespaceIndex)
                 : parsed;
             return true;
-        }
-
-        /// <summary>
-        /// Initializes a node identifier with a namespace index.
-        /// Throws an exception if the identifier type is not supported.
-        /// </summary>
-        /// <param name="value">The identifier</param>
-        /// <param name="namespaceIndex">The index of the namespace that
-        /// qualifies the node</param>
-        [Obsolete("Use concrete constructor with typed identifier values instead.")]
-        [JsonConstructor]
-        public NodeId(object value, ushort namespaceIndex)
-        {
-            switch (value)
-            {
-                case uint:
-                    this = SetIdentifier(IdType.Numeric, value);
-                    break;
-                case null or string:
-                    this = SetIdentifier(IdType.String, value);
-                    break;
-                case Guid:
-                    this = SetIdentifier(IdType.Guid, value);
-                    break;
-                case ByteString:
-                    this = SetIdentifier(IdType.Opaque, value);
-                    break;
-                default:
-                    throw new ArgumentException(
-                        "Identifier type not supported.",
-                        nameof(value));
-            }
-            m_inner.NamespaceIdx = namespaceIndex;
-        }
-
-        /// <summary>
-        /// Parses an NodeId formatted as a string and converts it a NodeId.
-        /// </summary>
-        /// <param name="context">The current context.</param>
-        /// <param name="text">The text to parse.</param>
-        /// <param name="options">The options to use when parsing a NodeId.</param>
-        /// <returns>The NodeId.</returns>
-        /// <exception cref="ServiceResultException">Thrown if the namespace
-        /// URI is not in the namespace table.</exception>
-        public static NodeId Parse(
-            IServiceMessageContext context,
-            string text,
-            NodeIdParsingOptions options = null)
-        {
-            if (!InternalTryParseWithContext(
-                context,
-                text,
-                options,
-                out NodeId value,
-                out NodeIdParseError error))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdInvalid,
-                    "Cannot parse node id text: '{0}' Error: {1}",
-                    text,
-                    error);
-            }
-            return value;
         }
 
         /// <summary>
