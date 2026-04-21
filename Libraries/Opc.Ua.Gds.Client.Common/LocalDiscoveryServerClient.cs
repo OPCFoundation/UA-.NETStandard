@@ -83,13 +83,13 @@ namespace Opc.Ua.Gds.Client
 
         public int DefaultOperationTimeout { get; set; }
 
-        public Task<ArrayOf<ApplicationDescription>> FindServersAsync(
+        public ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(
             CancellationToken ct = default)
         {
             return FindServersAsync(null, null, ct);
         }
 
-        public async Task<ArrayOf<ApplicationDescription>> FindServersAsync(
+        public async ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(
             string endpointUrl,
             string endpointTransportProfileUri,
             CancellationToken ct = default)
@@ -108,12 +108,12 @@ namespace Opc.Ua.Gds.Client
 
             return response.Servers;
         }
-        public Task<ArrayOf<EndpointDescription>> GetEndpointsAsync(string endpointUrl, CancellationToken ct = default)
+        public ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(string endpointUrl, CancellationToken ct = default)
         {
             return GetEndpointsAsync(endpointUrl, null, ct);
         }
 
-        public async Task<ArrayOf<EndpointDescription>> GetEndpointsAsync(
+        public async ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
             string endpointUrl,
             string endpointTransportProfileUri,
             CancellationToken ct = default)
@@ -130,7 +130,7 @@ namespace Opc.Ua.Gds.Client
 
             return response.Endpoints;
         }
-        public Task<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
+        public ValueTask<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
             CancellationToken ct = default)
@@ -144,7 +144,7 @@ namespace Opc.Ua.Gds.Client
                 ct);
         }
 
-        public async Task<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
+        public async ValueTask<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
             string endpointUrl,
             string endpointTransportProfileUri,
             uint startingRecordId,

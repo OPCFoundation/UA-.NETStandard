@@ -94,54 +94,62 @@ namespace Opc.Ua.Gds.Client
         void ResetCredentials();
 
         /// <summary>Connects using the previously assigned endpoint.</summary>
-        Task ConnectAsync(CancellationToken ct = default);
+        ValueTask ConnectAsync(CancellationToken ct = default);
 
         /// <summary>Connects to the supplied endpoint URL.</summary>
-        Task ConnectAsync(string endpointUrl, CancellationToken ct = default);
+        ValueTask ConnectAsync(string endpointUrl, CancellationToken ct = default);
 
         /// <summary>Connects to the supplied configured endpoint.</summary>
-        Task ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default);
+        ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default);
 
         /// <summary>Disconnects the active session.</summary>
-        Task DisconnectAsync(CancellationToken ct = default);
+        ValueTask DisconnectAsync(CancellationToken ct = default);
 
         /// <summary>Returns the supported private-key formats.</summary>
-        Task<ArrayOf<string>> GetSupportedKeyFormatsAsync(CancellationToken ct = default);
+        /// <remarks>Reads the <c>SupportedPrivateKeyFormats</c> property of <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.2).</remarks>
+        ValueTask<ArrayOf<string>> GetSupportedKeyFormatsAsync(CancellationToken ct = default);
 
         /// <summary>Reads the default-application-group trust list.</summary>
-        Task<TrustListDataType> ReadTrustListAsync(
+        /// <remarks>Reads the trust list via the file transfer methods of <c>TrustListType</c> (OPC 10000-12 §7.8).</remarks>
+        ValueTask<TrustListDataType> ReadTrustListAsync(
             TrustListMasks masks = TrustListMasks.All,
             long maxTrustListSize = 0,
             CancellationToken ct = default);
 
         /// <summary>Updates the default-application-group trust list.</summary>
-        Task<bool> UpdateTrustListAsync(
+        /// <remarks>Writes the trust list via the file transfer methods of <c>TrustListType</c> (OPC 10000-12 §7.8).</remarks>
+        ValueTask<bool> UpdateTrustListAsync(
             TrustListDataType trustList,
             CancellationToken ct = default);
 
         /// <summary>Updates the default-application-group trust list.</summary>
-        Task<bool> UpdateTrustListAsync(
+        /// <remarks>Writes the trust list via the file transfer methods of <c>TrustListType</c> (OPC 10000-12 §7.8).</remarks>
+        ValueTask<bool> UpdateTrustListAsync(
             TrustListDataType trustList,
             long maxTrustListSize,
             CancellationToken ct = default);
 
         /// <summary>Adds a certificate to the trust list.</summary>
-        Task AddCertificateAsync(
+        /// <remarks>Calls the <c>AddCertificate</c> method on <c>TrustListType</c> (OPC 10000-12 §7.8.7).</remarks>
+        ValueTask AddCertificateAsync(
             X509Certificate2 certificate,
             bool isTrustedCertificate,
             CancellationToken ct = default);
 
         /// <summary>Removes a certificate from the trust list.</summary>
-        Task RemoveCertificateAsync(
+        /// <remarks>Calls the <c>RemoveCertificate</c> method on <c>TrustListType</c> (OPC 10000-12 §7.8.8).</remarks>
+        ValueTask RemoveCertificateAsync(
             string thumbprint,
             bool isTrustedCertificate,
             CancellationToken ct = default);
 
         /// <summary>Lists the rejected certificates.</summary>
-        Task<X509Certificate2Collection> GetRejectedListAsync(CancellationToken ct = default);
+        /// <remarks>Calls the <c>GetRejectedList</c> method on <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.6).</remarks>
+        ValueTask<X509Certificate2Collection> GetRejectedListAsync(CancellationToken ct = default);
 
         /// <summary>Creates a certificate signing request.</summary>
-        Task<ByteString> CreateSigningRequestAsync(
+        /// <remarks>Calls the <c>CreateSigningRequest</c> method on <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.4).</remarks>
+        ValueTask<ByteString> CreateSigningRequestAsync(
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             string subjectName,
@@ -150,7 +158,8 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default);
 
         /// <summary>Updates the application certificate.</summary>
-        Task<bool> UpdateCertificateAsync(
+        /// <remarks>Calls the <c>UpdateCertificate</c> method on <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.3).</remarks>
+        ValueTask<bool> UpdateCertificateAsync(
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             ByteString certificate,
@@ -160,10 +169,12 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default);
 
         /// <summary>Applies the configuration changes on the server.</summary>
-        Task ApplyChangesAsync(CancellationToken ct = default);
+        /// <remarks>Calls the <c>ApplyChanges</c> method on <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.5).</remarks>
+        ValueTask ApplyChangesAsync(CancellationToken ct = default);
 
         /// <summary>Lists the certificates configured on the server.</summary>
-        Task<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(
+        /// <remarks>Calls the <c>GetCertificates</c> method on <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.7).</remarks>
+        ValueTask<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(
             NodeId certificateGroupId,
             CancellationToken ct = default);
     }

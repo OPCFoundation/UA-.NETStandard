@@ -432,7 +432,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(Utils.IsEqual(beforeTrustList, afterAddTrustList), Is.False);
             ServiceResultException serviceResultException = Assert
                 .ThrowsAsync<ServiceResultException>(() =>
-                    m_pushClient.PushClient.RemoveCertificateAsync(m_caCert.Thumbprint, false));
+                    m_pushClient.PushClient.RemoveCertificateAsync(m_caCert.Thumbprint, false).AsTask());
             Assert.That(
                 serviceResultException.StatusCode,
                 Is.EqualTo(StatusCodes.BadInvalidArgument),
@@ -458,7 +458,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(beforeTrustList.IssuerCrls.Count, Is.EqualTo(afterAddTrustList.IssuerCrls.Count));
             Assert.That(Utils.IsEqual(beforeTrustList, afterAddTrustList), Is.False);
             await Assert.ThatAsync(
-                () => m_pushClient.PushClient.RemoveCertificateAsync(m_caCert.Thumbprint, true),
+                () => m_pushClient.PushClient.RemoveCertificateAsync(m_caCert.Thumbprint, true).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.False);
@@ -476,19 +476,19 @@ namespace Opc.Ua.Gds.Tests
             var invalidCertType = new NodeId(Guid.NewGuid());
             await Assert.ThatAsync(
                 () => m_pushClient.PushClient
-                    .CreateSigningRequestAsync(invalidCertGroup, default, null, false, default),
+                    .CreateSigningRequestAsync(invalidCertGroup, default, null, false, default).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () => m_pushClient.PushClient
-                    .CreateSigningRequestAsync(default, invalidCertType, default, false, default),
+                    .CreateSigningRequestAsync(default, invalidCertType, default, false, default).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () => m_pushClient.PushClient
-                    .CreateSigningRequestAsync(default, default, null, false, default),
+                    .CreateSigningRequestAsync(default, default, null, false, default).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () => m_pushClient.PushClient
-                    .CreateSigningRequestAsync(invalidCertGroup, invalidCertType, null, false, default),
+                    .CreateSigningRequestAsync(invalidCertGroup, invalidCertType, null, false, default).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
         }
 
@@ -519,7 +519,7 @@ namespace Opc.Ua.Gds.Tests
                         null,
                         false,
                         default
-                    ),
+                    ).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
         }
 
@@ -587,7 +587,7 @@ namespace Opc.Ua.Gds.Tests
             var invalidCertGroup = new NodeId(333);
             var invalidCertType = new NodeId(Guid.NewGuid());
             await Assert.ThatAsync(
-                () => m_pushClient.PushClient.UpdateCertificateAsync(default, default, default, null, default, default),
+                () => m_pushClient.PushClient.UpdateCertificateAsync(default, default, default, null, default, default).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () =>
@@ -598,7 +598,7 @@ namespace Opc.Ua.Gds.Tests
                         null,
                         default,
                         default
-                    ),
+                    ).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () =>
@@ -609,7 +609,7 @@ namespace Opc.Ua.Gds.Tests
                         null,
                         default,
                         default
-                    ),
+                    ).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () =>
@@ -620,19 +620,19 @@ namespace Opc.Ua.Gds.Tests
                         null,
                         default,
                         default
-                    ),
+                    ).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () => m_pushClient.PushClient
-                    .UpdateCertificateAsync(default, default, invalidRawCert.ToByteString(), null, default, default),
+                    .UpdateCertificateAsync(default, default, invalidRawCert.ToByteString(), null, default, default).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () => m_pushClient.PushClient
-                    .UpdateCertificateAsync(default, default, invalidCert.RawData.ToByteString(), null, default, default),
+                    .UpdateCertificateAsync(default, default, invalidCert.RawData.ToByteString(), null, default, default).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () => m_pushClient.PushClient
-                    .UpdateCertificateAsync(default, default, serverCert.RawData.ToByteString(), "XYZ", default, default),
+                    .UpdateCertificateAsync(default, default, serverCert.RawData.ToByteString(), "XYZ", default, default).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () =>
@@ -643,7 +643,7 @@ namespace Opc.Ua.Gds.Tests
                         "XYZ",
                         invalidCert.RawData.ToByteString(),
                         default
-                    ),
+                    ).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () =>
@@ -654,7 +654,7 @@ namespace Opc.Ua.Gds.Tests
                         null,
                         default,
                         [serverCert.RawData.ToByteString(), invalidCert.RawData.ToByteString()]
-                    ),
+                    ).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () =>
@@ -665,7 +665,7 @@ namespace Opc.Ua.Gds.Tests
                         null,
                         default,
                         [serverCert.RawData.ToByteString(), invalidCert.RawData.ToByteString()]
-                    ),
+                    ).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () =>
@@ -676,7 +676,7 @@ namespace Opc.Ua.Gds.Tests
                         null,
                         default,
                         [serverCert.RawData.ToByteString(), invalidCert.RawData.ToByteString()]
-                    ),
+                    ).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () =>
@@ -687,11 +687,11 @@ namespace Opc.Ua.Gds.Tests
                         null,
                         default,
                         [serverCert.RawData.ToByteString(), invalidRawCert.ToByteString()]
-                    ),
+                    ).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () => m_pushClient.PushClient
-                    .UpdateCertificateAsync(default, default, serverCert.RawData.ToByteString(), null, default, default),
+                    .UpdateCertificateAsync(default, default, serverCert.RawData.ToByteString(), null, default, default).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
         }
 
@@ -989,7 +989,7 @@ namespace Opc.Ua.Gds.Tests
             await ConnectPushClientAsync(true).ConfigureAwait(false);
 
             await Assert.ThatAsync(
-                () => m_pushClient.PushClient.GetCertificatesAsync(default),
+                () => m_pushClient.PushClient.GetCertificatesAsync(default).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
 
             (ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates) = await m_pushClient.PushClient.GetCertificatesAsync(
@@ -1014,10 +1014,10 @@ namespace Opc.Ua.Gds.Tests
         public async Task VerifyNoUserAccessAsync()
         {
             await ConnectPushClientAsync(false).ConfigureAwait(false);
-            await Assert.ThatAsync(() => m_pushClient.PushClient.ApplyChangesAsync(), Throws.Exception).ConfigureAwait(false);
-            await Assert.ThatAsync(() => m_pushClient.PushClient.GetRejectedListAsync(), Throws.Exception).ConfigureAwait(false);
+            await Assert.ThatAsync(() => m_pushClient.PushClient.ApplyChangesAsync().AsTask(), Throws.Exception).ConfigureAwait(false);
+            await Assert.ThatAsync(() => m_pushClient.PushClient.GetRejectedListAsync().AsTask(), Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
-                () => m_pushClient.PushClient.GetCertificatesAsync(default),
+                () => m_pushClient.PushClient.GetCertificatesAsync(default).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
                 () =>
@@ -1028,13 +1028,13 @@ namespace Opc.Ua.Gds.Tests
                         null,
                         default,
                         default
-                    ),
+                    ).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert.ThatAsync(
-                () => m_pushClient.PushClient.CreateSigningRequestAsync(default, default, null, false, default),
+                () => m_pushClient.PushClient.CreateSigningRequestAsync(default, default, null, false, default).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             await Assert
-                .ThatAsync(() => m_pushClient.PushClient.ReadTrustListAsync(), Throws.Exception).ConfigureAwait(false);
+                .ThatAsync(() => m_pushClient.PushClient.ReadTrustListAsync().AsTask(), Throws.Exception).ConfigureAwait(false);
         }
 
         private async Task ConnectPushClientAsync(

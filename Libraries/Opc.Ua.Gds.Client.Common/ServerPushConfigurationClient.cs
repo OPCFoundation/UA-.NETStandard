@@ -249,7 +249,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Connects using the default endpoint.
         /// </summary>
-        public Task ConnectAsync(CancellationToken ct = default)
+        public ValueTask ConnectAsync(CancellationToken ct = default)
         {
             return ConnectAsync(m_endpoint, ct);
         }
@@ -260,7 +260,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="ct">The cancellationToken</param>
         /// <exception cref="ArgumentNullException">endpointUrl</exception>
         /// <exception cref="ArgumentException">endpointUrl</exception>
-        public async Task ConnectAsync(string endpointUrl, CancellationToken ct = default)
+        public async ValueTask ConnectAsync(string endpointUrl, CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(endpointUrl))
             {
@@ -321,7 +321,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="endpoint">The endpoint.</param>
         /// <param name="ct">The cancellationToken</param>
         /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
-        public async Task ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
+        public async ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
             endpoint ??= m_endpoint ?? throw new ArgumentNullException(nameof(endpoint));
 
@@ -356,7 +356,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Disconnect the client connection.
         /// </summary>
-        public async Task DisconnectAsync(CancellationToken ct = default)
+        public async ValueTask DisconnectAsync(CancellationToken ct = default)
         {
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -389,7 +389,7 @@ namespace Opc.Ua.Gds.Client
         /// Gets the supported key formats.
         /// </summary>
         /// <exception cref="InvalidOperationException">Connection to server is not active.</exception>
-        public async Task<ArrayOf<string>> GetSupportedKeyFormatsAsync(CancellationToken ct = default)
+        public async ValueTask<ArrayOf<string>> GetSupportedKeyFormatsAsync(CancellationToken ct = default)
         {
             if (AdminCredentials == null || Endpoint == null)
             {
@@ -433,7 +433,7 @@ namespace Opc.Ua.Gds.Client
         /// Reads the trust list.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<TrustListDataType> ReadTrustListAsync(
+        public async ValueTask<TrustListDataType> ReadTrustListAsync(
             TrustListMasks masks = TrustListMasks.All,
             long maxTrustListSize = 0,
             CancellationToken ct = default)
@@ -486,7 +486,7 @@ namespace Opc.Ua.Gds.Client
         /// Updates the trust list.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public Task<bool> UpdateTrustListAsync(TrustListDataType trustList, CancellationToken ct = default)
+        public ValueTask<bool> UpdateTrustListAsync(TrustListDataType trustList, CancellationToken ct = default)
         {
             return UpdateTrustListAsync(trustList, 0, ct);
         }
@@ -495,7 +495,7 @@ namespace Opc.Ua.Gds.Client
         /// Updates the trust list.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<bool> UpdateTrustListAsync(TrustListDataType trustList, long maxTrustListSize, CancellationToken ct = default)
+        public async ValueTask<bool> UpdateTrustListAsync(TrustListDataType trustList, long maxTrustListSize, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
@@ -538,7 +538,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Add certificate.
         /// </summary>
-        public async Task AddCertificateAsync(X509Certificate2 certificate, bool isTrustedCertificate, CancellationToken ct = default)
+        public async ValueTask AddCertificateAsync(X509Certificate2 certificate, bool isTrustedCertificate, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
@@ -566,7 +566,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Remove certificate.
         /// </summary>
-        public async Task RemoveCertificateAsync(string thumbprint, bool isTrustedCertificate, CancellationToken ct = default)
+        public async ValueTask RemoveCertificateAsync(string thumbprint, bool isTrustedCertificate, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
@@ -602,7 +602,7 @@ namespace Opc.Ua.Gds.Client
         ///A list of DER encoded Certificates assigned to CertificateGroup.
         ///The certificateType for the Certificate is specified by the corresponding element in the certificateTypes parameter.
         /// </returns>
-        public async Task<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(
+        public async ValueTask<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(
             NodeId certificateGroupId,
             CancellationToken ct = default)
         {
@@ -626,7 +626,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="regeneratePrivateKey">if set to <c>true</c> [regenerate private key].</param>
         /// <param name="nonce">The nonce.</param>
         /// <param name="ct">The cancellationtoken</param>
-        public async Task<ByteString> CreateSigningRequestAsync(
+        public async ValueTask<ByteString> CreateSigningRequestAsync(
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             string subjectName,
@@ -662,7 +662,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="privateKey">The private ky.</param>
         /// <param name="issuerCertificates">An array containing the chain of issuer certificates.</param>
         /// <param name="ct">The cancellationToken</param>
-        public async Task<bool> UpdateCertificateAsync(
+        public async ValueTask<bool> UpdateCertificateAsync(
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             ByteString certificate,
@@ -693,7 +693,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Reads the rejected  list.
         /// </summary>
-        public async Task<X509Certificate2Collection> GetRejectedListAsync(CancellationToken ct = default)
+        public async ValueTask<X509Certificate2Collection> GetRejectedListAsync(CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
@@ -716,7 +716,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Restarts this instance.
         /// </summary>
-        public async Task ApplyChangesAsync(CancellationToken ct = default)
+        public async ValueTask ApplyChangesAsync(CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);

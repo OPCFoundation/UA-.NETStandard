@@ -237,7 +237,7 @@ namespace Opc.Ua.Gds.Client
         /// <returns>
         /// Whatever urls were found.
         /// </returns>
-        public async Task<List<string>> GetDefaultServerUrlsAsync(
+        public async ValueTask<List<string>> GetDefaultServerUrlsAsync(
             LocalDiscoveryServerClient lds,
             CancellationToken ct = default)
         {
@@ -279,7 +279,7 @@ namespace Opc.Ua.Gds.Client
         /// <returns>
         /// Whatever urls were found.
         /// </returns>
-        public async Task<List<string>> GetDefaultGdsUrlsAsync(
+        public async ValueTask<List<string>> GetDefaultGdsUrlsAsync(
             LocalDiscoveryServerClient lds,
             CancellationToken ct = default)
         {
@@ -312,7 +312,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Connects using the default endpoint.
         /// </summary>
-        public Task ConnectAsync(CancellationToken ct = default)
+        public ValueTask ConnectAsync(CancellationToken ct = default)
         {
             return ConnectAsync(m_endpoint, ct);
         }
@@ -323,7 +323,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="ct">The cancellationToken</param>
         /// <exception cref="ArgumentNullException">endpointUrl</exception>
         /// <exception cref="ArgumentException">endpointUrl</exception>
-        public async Task ConnectAsync(string endpointUrl, CancellationToken ct = default)
+        public async ValueTask ConnectAsync(string endpointUrl, CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(endpointUrl))
             {
@@ -384,7 +384,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="endpoint">The endpoint.</param>
         /// <param name="ct">The cancellationToken</param>
         /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
-        public async Task ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
+        public async ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
             if (endpoint == null)
             {
@@ -427,7 +427,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Disconnect the client connection.
         /// </summary>
-        public async Task DisconnectAsync(CancellationToken ct = default)
+        public async ValueTask DisconnectAsync(CancellationToken ct = default)
         {
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -531,7 +531,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="applicationUri">The application URI.</param>
         /// <param name="ct"> The cancellationToken.</param>
         /// <returns>The matching application.</returns>
-        public async Task<ArrayOf<ApplicationRecordDataType>> FindApplicationAsync(
+        public async ValueTask<ArrayOf<ApplicationRecordDataType>> FindApplicationAsync(
             string applicationUri,
             CancellationToken ct = default)
         {
@@ -550,7 +550,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
         /// <param name="ct"> The cancellationToken.</param>
         /// <returns>A enumarator used to access the results.</returns>
-        public async Task<ArrayOf<ServerOnNetwork>> QueryServersAsync(
+        public async ValueTask<ArrayOf<ServerOnNetwork>> QueryServersAsync(
             uint maxRecordsToReturn,
             string applicationName,
             string applicationUri,
@@ -579,7 +579,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="ct">The cancellationToken</param>
         /// <returns>A enumerator used to access the results.
         /// The time when the counter was last changed.</returns>
-        public async Task<(ArrayOf<ServerOnNetwork> servers, DateTimeUtc lastCounterResetTime)> QueryServersAsync(
+        public async ValueTask<(ArrayOf<ServerOnNetwork> servers, DateTimeUtc lastCounterResetTime)> QueryServersAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -613,11 +613,10 @@ namespace Opc.Ua.Gds.Client
         /// <returns>A enumerator used to access the results.
         /// The time when the counter was last changed.
         /// The id of the next record.</returns>
-        public async Task<(
+        public async ValueTask<(
             ArrayOf<ApplicationDescription> applications,
             DateTimeUtc lastCounterResetTime,
-            uint nextRecordId)>
-            QueryApplicationsAsync(
+            uint nextRecordId)> QueryApplicationsAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -646,7 +645,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="applicationId">The application id.</param>
         /// <param name="ct">The cancellationToken</param>
         /// <returns>The application record for the specified application id.</returns>
-        public async Task<ApplicationRecordDataType> GetApplicationAsync(
+        public async ValueTask<ApplicationRecordDataType> GetApplicationAsync(
             NodeId applicationId,
             CancellationToken ct = default)
         {
@@ -659,7 +658,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="application">The application.</param>
         /// <param name="ct">The cancellationToken</param>
         /// <returns>The application id assigned to the application.</returns>
-        public async Task<NodeId> RegisterApplicationAsync(
+        public async ValueTask<NodeId> RegisterApplicationAsync(
             ApplicationRecordDataType application,
             CancellationToken ct = default)
         {
@@ -677,7 +676,7 @@ namespace Opc.Ua.Gds.Client
         /// The length of this list is the same as the length as certificates list.
         /// A list of DER encoded Certificates assigned to Application.
         /// This list only includes Certificates that are currently valid.</returns>
-        public async Task<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(
+        public async ValueTask<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(
             NodeId applicationId,
             NodeId certificateGroupId,
             CancellationToken ct = default)
@@ -695,7 +694,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="ct">The cancellationToken</param>
         /// <returns>The first error encountered when validating the Certificate.
         /// When the result expires and should be rechecked. DateTime.MinValue if this is unknown.</returns>
-        public async Task<(StatusCode certificateStatus, DateTimeUtc validityTime)> CheckRevocationStatusAsync(
+        public async ValueTask<(StatusCode certificateStatus, DateTimeUtc validityTime)> CheckRevocationStatusAsync(
             ByteString certificate,
             CancellationToken ct = default)
         {
@@ -707,7 +706,7 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="application">The application.</param>
         /// <param name="ct">The cancellationToken</param>
-        public async Task UpdateApplicationAsync(ApplicationRecordDataType application, CancellationToken ct = default)
+        public async ValueTask UpdateApplicationAsync(ApplicationRecordDataType application, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             await m_directory.UpdateApplicationAsync(application, ct).ConfigureAwait(false);
@@ -717,7 +716,7 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="applicationId">The application id.</param>
         /// <param name="ct">The cancellationToken</param>
-        public async Task UnregisterApplicationAsync(NodeId applicationId, CancellationToken ct = default)
+        public async ValueTask UnregisterApplicationAsync(NodeId applicationId, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             await m_directory.UnregisterApplicationAsync(applicationId, ct).ConfigureAwait(false);
@@ -728,7 +727,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="applicationId">The application id.</param>
         /// <param name="certificate">The certificate to revoke</param>
         /// <param name="ct">The cancellationToken</param>
-        public async Task RevokeCertificateAsync(NodeId applicationId, ByteString certificate, CancellationToken ct = default)
+        public async ValueTask RevokeCertificateAsync(NodeId applicationId, ByteString certificate, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             await m_certificateDirectory.RevokeCertificateAsync(applicationId, certificate, ct).ConfigureAwait(false);
@@ -747,7 +746,7 @@ namespace Opc.Ua.Gds.Client
         /// <returns>
         /// The id for the request which is used to check when it is approved.
         /// </returns>
-        public async Task<NodeId> StartNewKeyPairRequestAsync(
+        public async ValueTask<NodeId> StartNewKeyPairRequestAsync(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -777,7 +776,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="certificateRequest">The certificate signing request (CSR).</param>
         /// <param name="ct">The cancellationToken</param>
         /// <returns>The id for the request which is used to check when it is approved.</returns>
-        public async Task<NodeId> StartSigningRequestAsync(
+        public async ValueTask<NodeId> StartSigningRequestAsync(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -799,7 +798,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="requestId">The request id.</param>
         /// <param name="ct">The cancellationToken</param>
         /// <returns>The public key.The private key.The issuer certificates.</returns>
-        public async Task<(ByteString publicKey, ByteString privateKey, ArrayOf<ByteString> issuerCertificates)> FinishRequestAsync(
+        public async ValueTask<(ByteString publicKey, ByteString privateKey, ArrayOf<ByteString> issuerCertificates)> FinishRequestAsync(
             NodeId applicationId,
             NodeId requestId,
             CancellationToken ct = default)
@@ -814,7 +813,7 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="applicationId">The application id.</param>
         /// <param name="ct">The cancellationToken</param>
-        public async Task<ArrayOf<NodeId>> GetCertificateGroupsAsync(NodeId applicationId, CancellationToken ct = default)
+        public async ValueTask<ArrayOf<NodeId>> GetCertificateGroupsAsync(NodeId applicationId, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             return await m_certificateDirectory.GetCertificateGroupsAsync(applicationId, ct).ConfigureAwait(false);
@@ -825,7 +824,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="applicationId">The application id.</param>
         /// <param name="certificateGroupId">Type of the trust list.</param>
         /// <param name="ct">The cancellationToken</param>
-        public async Task<NodeId> GetTrustListAsync(NodeId applicationId, NodeId certificateGroupId, CancellationToken ct = default)
+        public async ValueTask<NodeId> GetTrustListAsync(NodeId applicationId, NodeId certificateGroupId, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             return await m_certificateDirectory.GetTrustListAsync(
@@ -840,7 +839,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="certificateGroupId">Group of the trust list.</param>
         /// <param name="certificateTypeId">Type of the trust list.</param>
         /// <param name="ct">The cancellationToken</param>
-        public async Task<bool> GetCertificateStatusAsync(
+        public async ValueTask<bool> GetCertificateStatusAsync(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -857,7 +856,7 @@ namespace Opc.Ua.Gds.Client
         /// Reads the trust list.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public Task<TrustListDataType> ReadTrustListAsync(NodeId trustListId, CancellationToken ct = default)
+        public ValueTask<TrustListDataType> ReadTrustListAsync(NodeId trustListId, CancellationToken ct = default)
         {
             return ReadTrustListAsync(trustListId, 0, ct);
         }
@@ -866,7 +865,7 @@ namespace Opc.Ua.Gds.Client
         /// Reads the trust list.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<TrustListDataType> ReadTrustListAsync(
+        public async ValueTask<TrustListDataType> ReadTrustListAsync(
             NodeId trustListId,
             long maxTrustListSize,
             CancellationToken ct = default)
