@@ -63,7 +63,7 @@ namespace Opc.Ua.Server.Fluent
         /// System context that flows through <c>Configure</c>; typically the
         /// manager's <c>SystemContext</c>.
         /// </param>
-        /// <param name="nodeManager">The node manager being wired. Accepts either an <see cref="INodeManager"/> or an <see cref="IAsyncNodeManager"/>.</param>
+        /// <param name="nodeManager">The node manager being wired.</param>
         /// <param name="defaultNamespaceIndex">
         /// Namespace index used when a browse-path segment omits an explicit
         /// <c>ns=N;</c> prefix. Typically the manager's first registered
@@ -81,7 +81,7 @@ namespace Opc.Ua.Server.Fluent
         /// </param>
         public NodeManagerBuilder(
             ISystemContext context,
-            object nodeManager,
+            IAsyncNodeManager nodeManager,
             ushort defaultNamespaceIndex,
             Func<QualifiedName, NodeState> rootResolver,
             Func<NodeId, NodeState> nodeIdResolver)
@@ -97,7 +97,7 @@ namespace Opc.Ua.Server.Fluent
         public ISystemContext Context { get; }
 
         /// <inheritdoc/>
-        public object NodeManager { get; }
+        public IAsyncNodeManager NodeManager { get; }
 
         /// <inheritdoc/>
         public IFluentDispatcher Dispatcher => this;

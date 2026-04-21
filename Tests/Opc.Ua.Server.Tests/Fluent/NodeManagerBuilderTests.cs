@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var builder = new NodeManagerBuilder(
                 ctx,
-                nodeManager: Mock.Of<INodeManager>(),
+                nodeManager: Mock.Of<IAsyncNodeManager>(),
                 defaultNamespaceIndex: kNs,
                 rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
                 nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null);

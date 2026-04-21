@@ -160,9 +160,10 @@ The builder exposes:
 | `OnNodeAdded` / `OnNodeRemoved` | Lifecycle dispatch from `NotifyNodeAdded` |
 | `OnEvent`, `OnConditionRefresh`, `OnHistoryRead`, `OnHistoryUpdate`, `OnMonitoredItemCreated` | Manager-level dispatch keyed by `NodeId` |
 
-`INodeManagerBuilder.NodeManager` is typed as `object` because both
-`INodeManager` and `IAsyncNodeManager` implementations are supported.
-Cast it to your concrete manager type if you need direct access.
+`INodeManagerBuilder.NodeManager` is typed as `IAsyncNodeManager`. Use
+`builder.NodeManager.SyncNodeManager` to obtain the synchronous
+`INodeManager` facade for legacy interop, or cast it to your concrete
+manager type if you need direct access.
 
 All resolution happens **once** during `CreateAddressSpaceAsync`,
 against the in-memory predefined-node tree. There is no reflection, no

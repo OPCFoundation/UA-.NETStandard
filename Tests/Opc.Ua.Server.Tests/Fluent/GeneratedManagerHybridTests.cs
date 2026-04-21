@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var builder = new NodeManagerBuilder(
                 ctx,
-                Mock.Of<INodeManager>(),
+                Mock.Of<IAsyncNodeManager>(),
                 kNs,
                 q => roots.TryGetValue(q, out NodeState n) ? n : null,
                 id => byId.TryGetValue(id, out NodeState n) ? n : null);

@@ -77,12 +77,11 @@ namespace Opc.Ua.Server.Fluent
         /// The node manager whose graph is being wired. Exposed to support
         /// rare cases that need direct access (e.g. registering a
         /// dynamically generated node) without breaking out of the fluent
-        /// chain. Typed as <see cref="object"/> because both
-        /// <see cref="INodeManager"/> and
-        /// <see cref="IAsyncNodeManager"/> implementations are supported;
-        /// cast to the concrete manager type when needed.
+        /// chain. Use <see cref="IAsyncNodeManager.SyncNodeManager"/> to
+        /// obtain the synchronous <see cref="INodeManager"/> facade when
+        /// needed (e.g. when interacting with legacy callers).
         /// </summary>
-        object NodeManager { get; }
+        IAsyncNodeManager NodeManager { get; }
 
         /// <summary>
         /// Manager-level dispatch surface populated by the <c>On*</c>
