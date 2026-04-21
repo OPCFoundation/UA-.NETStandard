@@ -41,7 +41,7 @@ namespace Opc.Ua.Aot.Tests
     /// AOT smoke tests that verify the source-generated
     /// <c>Boiler.BoilerNodeManagerFactory</c> emitted by the
     /// <c>[NodeManager]</c> attribute on <see cref="global::Boiler.BoilerNodeManager"/>
-    /// (in the ConsoleBoilerServer sample) actually loads the boiler
+    /// (in the MinimalBoilerServer sample) actually loads the boiler
     /// address space, registers its namespace, and dispatches the
     /// fluent <c>OnRead</c> callback wired in
     /// <c>BoilerNodeManager.Configure.cs</c>. This protects the
@@ -287,7 +287,7 @@ namespace Opc.Ua.Aot.Tests
     /// Public <see cref="StandardServer"/> subclass that registers the
     /// source-generated <see cref="global::Boiler.BoilerNodeManagerFactory"/>.
     /// Mirrors the internal <c>BoilerStandardServer</c> in
-    /// ConsoleBoilerServer's <c>Program.cs</c> but is exposed as
+    /// MinimalBoilerServer's <c>Program.cs</c> but is exposed as
     /// <c>public</c> so <see cref="AotServerFixture{T}"/> can host it.
     /// </summary>
     public sealed class BoilerTestServer : StandardServer

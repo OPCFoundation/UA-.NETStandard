@@ -226,13 +226,28 @@ namespace Opc.Ua.SourceGeneration
         /// <param name="telemetry">Telemetry context for logging</param>
         /// <param name="options">Generator options</param>
         /// <param name="useAllowSubtypes">allow subtypes</param>
+        /// <param name="nodeManagerBindings">
+        /// Optional <c>[NodeManager]</c> attribute bindings discovered in
+        /// the consuming compilation. When supplied, each binding is
+        /// matched to a nodeset model by
+        /// <see cref="NodeManagerAttributeBinding.NamespaceUri"/> (preferred)
+        /// or, if no URI is given, by single-design fallback. Matched
+        /// bindings force <c>GenerateNodeManager = true</c> for the model
+        /// and override the manager class name and namespace.
+        /// </param>
+        /// <param name="reportBindingDiagnostic">
+        /// Optional callback invoked for each binding-related warning or
+        /// error (e.g. unmatched URI, ambiguous fallback).
+        /// </param>
         public static void GenerateCode(
             this NodesetFileCollection nodesets,
             IFileSystem fileSystem,
             string outputDir,
             ITelemetryContext telemetry,
             GeneratorOptions options = null,
-            bool useAllowSubtypes = false)
+            bool useAllowSubtypes = false,
+            IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
+            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null)
         {
             if (nodesets.Files.Count == 0)
             {
@@ -244,6 +259,13 @@ namespace Opc.Ua.SourceGeneration
             fileSystem = typeof(Generators).Assembly
                 .AsFileSystem("Opc.Ua.SourceGeneration.Design")
                 .WithFallback(fileSystem);
+
+            HashSet<NodeManagerAttributeBinding> usedBindings = nodeManagerBindings is { Count: > 0 }
+                ? new HashSet<NodeManagerAttributeBinding>()
+                : null;
+
+            int totalDesigns = nodesets.ModelUris.Count();
+
             foreach (string modelUri in nodesets.ModelUris)
             {
                 List<string> designFilesForModel =
@@ -255,14 +277,23 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
                 // The rest of the input is processed as design files
+                var model = new DesignFileCollection
+                {
+                    Targets = designFilesForModel
+                };
                 IModelDesign modelDesign = fileSystem.OpenModelDesign(
-                    new DesignFileCollection
-                    {
-                        Targets = designFilesForModel
-                    },
+                    model,
                     options.Exclusions,
                     telemetry,
                     useAllowSubtypes);
+
+                DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
+                    model,
+                    modelDesign,
+                    nodeManagerBindings,
+                    usedBindings,
+                    totalDesigns,
+                    reportBindingDiagnostic);
 
                 Generate(new GeneratorContext
                 {
@@ -271,10 +302,32 @@ namespace Opc.Ua.SourceGeneration
                     ModelDesign = modelDesign,
                     Telemetry = telemetry,
                     Options = options
-                }, validateSchemas: false);
+                },
+                validateSchemas: false,
+                designOptions: effectiveOptions);
                 // TODO {
                 // TODO     AvailableNodeSets = nodesets.Files
                 // TODO };
+            }
+
+            if (usedBindings != null && nodeManagerBindings != null && reportBindingDiagnostic != null)
+            {
+                foreach (NodeManagerAttributeBinding binding in nodeManagerBindings)
+                {
+                    if (!usedBindings.Contains(binding))
+                    {
+                        string selector = !string.IsNullOrEmpty(binding.NamespaceUri)
+                            ? "NamespaceUri='" + binding.NamespaceUri + "'"
+                            : !string.IsNullOrEmpty(binding.Design)
+                                ? "Design='" + binding.Design + "'"
+                                : "(no selector)";
+                        reportBindingDiagnostic(
+                            binding,
+                            "[NodeManager] on '" + binding.TargetNamespace + "." +
+                            binding.TargetClassName +
+                            "' did not match any model design (" + selector + ").");
+                    }
+                }
             }
         }
 

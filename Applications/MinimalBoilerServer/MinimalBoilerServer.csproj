@@ -2,8 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
-    <AssemblyName>ConsoleBoilerServer</AssemblyName>
-    <PackageId>ConsoleBoilerServer</PackageId>
+    <AssemblyName>MinimalBoilerServer</AssemblyName>
+    <PackageId>MinimalBoilerServer</PackageId>
     <Company>OPC Foundation</Company>
     <Description>Self-contained .NET console OPC UA server demonstrating source-generated NodeManagers + the fluent wiring API. Native AOT compatible.</Description>
     <Copyright>Copyright © 2004-2025 OPC Foundation, Inc</Copyright>
@@ -12,7 +12,6 @@
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PublishAot>true</PublishAot>
-    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
@@ -29,7 +28,10 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
   <ItemGroup>
-    <AdditionalFiles Include="Design\BoilerDesign.csv" />
-    <AdditionalFiles Include="Design\BoilerDesign.xml" />
+    <AdditionalFiles Include="Model\Boiler.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/Boiler/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>Boiler</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Boiler</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
   </ItemGroup>
 </Project>

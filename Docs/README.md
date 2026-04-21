@@ -16,7 +16,7 @@ Here is a list of available documentation for different topics:
 * Working with [ComplexTypes](ComplexTypes.md) - Custom structures and enumerations.
 * Client-based [NodeSet Export](NodeSetExport.md) - Export server address space to NodeSet2 XML.
 * Source generated [DataTypes] - How to annotate POCO classes and let the source generator generate the `IEncodeable` implementation.
-* Source generated [NodeManagers](SourceGeneratedNodeManagers.md) - Emit an `AsyncCustomNodeManager` from a model design XML and wire callbacks via the fluent `INodeManagerBuilder` API; supports NativeAOT single-file servers (sample: [ConsoleBoilerServer](../Applications/ConsoleBoilerServer)).
+* Source generated [NodeManagers](SourceGeneratedNodeManagers.md) - Emit an `AsyncCustomNodeManager` from a model design XML and wire callbacks via the fluent `INodeManagerBuilder` API; supports NativeAOT single-file servers (sample: [MinimalBoilerServer](../Applications/MinimalBoilerServer)).
 
 ## Reference application related
 

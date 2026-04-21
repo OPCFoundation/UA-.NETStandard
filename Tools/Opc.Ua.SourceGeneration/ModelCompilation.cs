@@ -109,15 +109,10 @@ namespace Opc.Ua.SourceGeneration
                 NodesetFileCollection nodesets = m_input.ToNodeSetFileCollection(
                     sourceFiles, // .WithFallback(vfs),
                     m_telemetry);
-                nodesets.GenerateCode(
-                    sourceFiles.WithFallback(vfs),
-                    string.Empty,
-                    m_telemetry,
-                    generatorOptions,
-                    m_options.UseAllowSubtypes);
 
                 // Resolve [NodeManager] bindings: validate partial-ness and
-                // build the binding list to pass into GenerateCode.
+                // build the binding list to pass into both GenerateCode calls
+                // (nodeset-derived and design-file-derived).
                 var bindings = new System.Collections.Generic.List<NodeManagerAttributeBinding>();
                 var bindingByPayload =
                     new System.Collections.Generic.Dictionary<NodeManagerAttributeBinding, NodeManagerAttributeDiscovery>();
@@ -154,6 +149,15 @@ namespace Opc.Ua.SourceGeneration
                                 loc,
                                 message));
                     };
+
+                nodesets.GenerateCode(
+                    sourceFiles.WithFallback(vfs),
+                    string.Empty,
+                    m_telemetry,
+                    generatorOptions,
+                    m_options.UseAllowSubtypes,
+                    bindings.Count > 0 ? bindings : null,
+                    bindings.Count > 0 ? reportBinding : null);
 
                 // Process any remaining design files
                 new DesignFileCollection

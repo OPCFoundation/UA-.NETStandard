@@ -5,7 +5,7 @@ ready-to-host `AsyncCustomNodeManager` for an information model design XML, and
 how to wire callbacks (read/write/method/lifecycle) using the fluent
 `INodeManagerBuilder` API. The combination is designed for **single-file,
 NativeAOT-friendly** servers — see
-`Applications/ConsoleBoilerServer` for the canonical sample.
+`Applications/MinimalBoilerServer` for the canonical sample.
 
 ## What the generator produces
 
@@ -208,7 +208,7 @@ legacy `INodeManagerFactory`. For advanced configuration (custom security
 policies, additional builder calls), set `OpcUaServerOptions.ConfigureBuilder`.
 
 That's the whole server. The Boiler version is in
-`Applications/ConsoleBoilerServer/Program.cs`.
+`Applications/MinimalBoilerServer/Program.cs`.
 
 ## Multi-namespace and manager-swap subclassing
 
@@ -259,7 +259,7 @@ Use `Microsoft.Extensions.Logging.Console` for AOT-friendly logging
 dotnet publish -c Release -r win-x64
 ```
 
-`Applications/ConsoleBoilerServer` publishes cleanly with **zero AOT/trim
+`Applications/MinimalBoilerServer` publishes cleanly with **zero AOT/trim
 warnings** (~29 MB self-contained EXE).
 
 ## Current limitations
@@ -276,5 +276,5 @@ warnings** (~29 MB self-contained EXE).
 
 ## Sample
 
-`Applications/ConsoleBoilerServer/` — a fully self-contained, NativeAOT
+`Applications/MinimalBoilerServer/` — a fully self-contained, NativeAOT
 single-file Boiler server. Read it top-to-bottom in &lt;200 lines.

@@ -53,7 +53,7 @@ namespace Boiler
     /// predefined Boiler instance, so all browse paths into the
     /// <c>Boilers/Boiler #1</c> sub-tree are addressable here.
     /// </remarks>
-    [NodeManager]
+    [NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
     public partial class BoilerNodeManager
     {
         private long m_drumLevelTicks;
