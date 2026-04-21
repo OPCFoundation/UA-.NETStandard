@@ -126,6 +126,7 @@ namespace Opc.Ua
                 m_writer.WriteAttributeString("xmlns", "uax", null, Namespaces.OpcUaXsd);
             }
 
+            m_prefixesInitialized = true;
             PushNamespace(namespaceUri);
         }
 
@@ -1822,7 +1823,7 @@ namespace Opc.Ua
                 // check for null.
                 if (value.IsNull)
                 {
-                    m_writer.WriteAttributeString("nil", Namespaces.XmlSchemaInstance, "true");
+                    m_writer.WriteAttributeString("xsi", "nil", Namespaces.XmlSchemaInstance, "true");
                     return;
                 }
                 try
@@ -2285,11 +2286,23 @@ namespace Opc.Ua
 
                 m_writer.WriteStartElement(fieldName, m_namespaces.Peek());
 
+                // On the first element this encoder writes, declare the xsi prefix so
+                // subsequent xsi:nil attributes inherit it instead of each site emitting
+                // its own xmlns declaration under a synthesized prefix (e.g. p5).
+                if (!m_prefixesInitialized)
+                {
+                    m_prefixesInitialized = true;
+                    if (m_writer.LookupPrefix(Namespaces.XmlSchemaInstance) == null)
+                    {
+                        m_writer.WriteAttributeString("xmlns", "xsi", null, Namespaces.XmlSchemaInstance);
+                    }
+                }
+
                 if (isDefault)
                 {
                     if (isNillable)
                     {
-                        m_writer.WriteAttributeString("nil", Namespaces.XmlSchemaInstance, "true");
+                        m_writer.WriteAttributeString("xsi", "nil", Namespaces.XmlSchemaInstance, "true");
                     }
 
                     m_writer.WriteEndElement();
@@ -2336,5 +2349,6 @@ namespace Opc.Ua
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
         private bool m_disposed;
+        private bool m_prefixesInitialized;
     }
 }

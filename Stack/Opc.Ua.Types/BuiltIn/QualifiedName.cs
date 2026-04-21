@@ -90,6 +90,75 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates a QualifiedName from a long-form text representation, resolving
+        /// the namespace URI against the supplied <see cref="NamespaceTable"/>.
+        /// Use this overload when you know the caller is starting with a long form.
+        /// </summary>
+        /// <remarks>
+        /// Accepted forms (matching the canonical QualifiedName representations):
+        /// <list type="bullet">
+        ///   <item><c>&lt;name&gt;</c> (equivalent to <c>0:&lt;name&gt;</c>)</item>
+        ///   <item><c>&lt;index&gt;:&lt;name&gt;</c> (numeric namespace index)</item>
+        ///   <item><c>nsu=&lt;escaped-uri&gt;;&lt;name&gt;</c> (URI resolved via <paramref name="namespaceTable"/>)</item>
+        /// </list>
+        /// </remarks>
+        /// <param name="text">The long-form QualifiedName text.</param>
+        /// <param name="namespaceTable">Namespace table used to resolve the URI to an index.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="namespaceTable"/> is null.</exception>
+        /// <exception cref="ServiceResultException">The URI is not in the namespace table.</exception>
+        public QualifiedName(string text, NamespaceTable namespaceTable)
+        {
+            if (namespaceTable == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceTable));
+            }
+
+            if (string.IsNullOrEmpty(text))
+            {
+                NamespaceIndex = 0;
+                Name = text;
+                return;
+            }
+
+            if (text.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int separator = text.IndexOf(';', 4);
+                if (separator < 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        $"Invalid long-form QualifiedName (missing ';' after nsu=): {text}");
+                }
+
+                string uri = CoreUtils.UnescapeUri(text.AsSpan(4, separator - 4));
+                int resolvedIndex = namespaceTable.GetIndex(uri);
+                if (resolvedIndex < 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        $"Namespace URI '{uri}' is not in the namespace table.");
+                }
+                NamespaceIndex = (ushort)resolvedIndex;
+                Name = text[(separator + 1)..];
+                return;
+            }
+
+            // <index>:<name> shorthand, or bare <name> (= 0:<name>).
+            int colon = text.IndexOf(':', StringComparison.Ordinal);
+            if (colon > 0 &&
+                ushort.TryParse(text[..colon], out ushort ns) &&
+                colon + 1 < text.Length)
+            {
+                NamespaceIndex = ns;
+                Name = text[(colon + 1)..];
+                return;
+            }
+
+            NamespaceIndex = 0;
+            Name = text;
+        }
+
+        /// <summary>
         /// Returns true if the item is null
         /// </summary>
         public bool IsNull => NamespaceIndex == 0 && string.IsNullOrEmpty(Name);

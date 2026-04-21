@@ -241,20 +241,108 @@ namespace Opc.Ua.Export
         public void Write(Stream istrm)
         {
             XmlWriterSettings setting = CoreUtils.DefaultXmlWriterSettings();
+            // Strip duplicate namespace declarations that inner value fragments emit.
+            // Combined with the DeclareRootNamespacesWriter below, the xmlns:xsi
+            // declaration only appears once (on UANodeSet) instead of once per Value.
+            setting.NamespaceHandling = NamespaceHandling.OmitDuplicates;
             var writer = XmlWriter.Create(istrm, setting);
+            // Pre-declare xmlns:xsi at the document root so inner value fragments
+            // (which contain xsi:nil="true" on unset fields) inherit the binding
+            // instead of each fragment declaring its own.
+            var rootWriter = new DeclareRootNamespacesWriter(
+                writer,
+                ("xsi", Namespaces.XmlSchemaInstance));
 
             try
             {
 #if NET5_0_OR_GREATER
-                SerializePreGen(writer, this);
+                SerializePreGen(rootWriter, this);
 #else
-                Serializer.Serialize(writer, this, null);
+                Serializer.Serialize(rootWriter, this, null);
 #endif
             }
             finally
             {
-                writer.Flush();
-                writer.Dispose();
+                rootWriter.Flush();
+                rootWriter.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// A delegating <see cref="XmlWriter"/> that emits a fixed set of
+        /// <c>xmlns:prefix</c> declarations on the first (root) element written.
+        /// </summary>
+        private sealed class DeclareRootNamespacesWriter : XmlWriter
+        {
+            private readonly XmlWriter m_inner;
+            private readonly (string Prefix, string Uri)[] m_declarations;
+            private bool m_declared;
+
+            public DeclareRootNamespacesWriter(XmlWriter inner, params (string Prefix, string Uri)[] declarations)
+            {
+                m_inner = inner;
+                m_declarations = declarations;
+            }
+
+            private void DeclareIfNeeded()
+            {
+                if (m_declared)
+                {
+                    return;
+                }
+                m_declared = true;
+                foreach (var (prefix, uri) in m_declarations)
+                {
+                    m_inner.WriteAttributeString("xmlns", prefix, null, uri);
+                }
+            }
+
+            public override WriteState WriteState => m_inner.WriteState;
+            public override string LookupPrefix(string ns)
+            {
+                foreach (var (prefix, uri) in m_declarations)
+                {
+                    if (uri == ns)
+                    {
+                        return prefix;
+                    }
+                }
+                return m_inner.LookupPrefix(ns);
+            }
+            public override void Flush() => m_inner.Flush();
+            public override void WriteBase64(byte[] buffer, int index, int count) => m_inner.WriteBase64(buffer, index, count);
+            public override void WriteCData(string text) => m_inner.WriteCData(text);
+            public override void WriteCharEntity(char ch) => m_inner.WriteCharEntity(ch);
+            public override void WriteChars(char[] buffer, int index, int count) => m_inner.WriteChars(buffer, index, count);
+            public override void WriteComment(string text) => m_inner.WriteComment(text);
+            public override void WriteDocType(string name, string pubid, string sysid, string subset) => m_inner.WriteDocType(name, pubid, sysid, subset);
+            public override void WriteEndAttribute() => m_inner.WriteEndAttribute();
+            public override void WriteEndDocument() => m_inner.WriteEndDocument();
+            public override void WriteEndElement() => m_inner.WriteEndElement();
+            public override void WriteEntityRef(string name) => m_inner.WriteEntityRef(name);
+            public override void WriteFullEndElement() => m_inner.WriteFullEndElement();
+            public override void WriteProcessingInstruction(string name, string text) => m_inner.WriteProcessingInstruction(name, text);
+            public override void WriteRaw(char[] buffer, int index, int count) => m_inner.WriteRaw(buffer, index, count);
+            public override void WriteRaw(string data) => m_inner.WriteRaw(data);
+            public override void WriteStartAttribute(string prefix, string localName, string ns) => m_inner.WriteStartAttribute(prefix, localName, ns);
+            public override void WriteStartDocument() => m_inner.WriteStartDocument();
+            public override void WriteStartDocument(bool standalone) => m_inner.WriteStartDocument(standalone);
+            public override void WriteStartElement(string prefix, string localName, string ns)
+            {
+                m_inner.WriteStartElement(prefix, localName, ns);
+                DeclareIfNeeded();
+            }
+            public override void WriteString(string text) => m_inner.WriteString(text);
+            public override void WriteSurrogateCharEntity(char lowChar, char highChar) => m_inner.WriteSurrogateCharEntity(lowChar, highChar);
+            public override void WriteWhitespace(string ws) => m_inner.WriteWhitespace(ws);
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    m_inner.Dispose();
+                }
+                base.Dispose(disposing);
             }
         }
 

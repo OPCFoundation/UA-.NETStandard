@@ -38,6 +38,8 @@ namespace Opc.Ua
     /// </summary>
     public sealed class UserNameIdentityTokenHandler : IUserIdentityTokenHandler
     {
+        private const int RsaEncryptedSecretPasswordThreshold = 64;
+
         /// <summary>
         /// Create token handler
         /// </summary>
@@ -118,6 +120,17 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
+                if (DecryptedPassword.Length > RsaEncryptedSecretPasswordThreshold)
+                {
+                    EncryptedSecret encryptedSecret = EncryptedSecret.CreateForRsa(
+                        context,
+                        securityPolicyUri,
+                        receiverCertificate);
+                    m_token.Password = encryptedSecret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
+                    m_token.EncryptionAlgorithm = null;
+                    return;
+                }
+
                 byte[] dataToEncrypt = Utils.Append(DecryptedPassword, receiverNonce);
 
                 ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityToken>();
@@ -150,16 +163,15 @@ namespace Opc.Ua
                     senderIssuerCertificates = issuers;
                 }
 
-                var secret = new EncryptedSecret(
-                    context,
-                    securityPolicyUri,
-                    senderIssuerCertificates,
-                    receiverCertificate,
-                    receiverEphemeralKey,
-                    senderCertificate,
-                    Nonce.CreateNonce(securityPolicy),
-                    null,
-                    doNotEncodeSenderCertificate);
+                EncryptedSecret secret = EncryptedSecret.CreateForEcc(
+                    context: context,
+                    securityPolicyUri: securityPolicyUri,
+                    senderIssuerCertificates: senderIssuerCertificates,
+                    receiverCertificate: receiverCertificate,
+                    receiverNonce: receiverEphemeralKey,
+                    senderCertificate: senderCertificate,
+                    senderNonce: Nonce.CreateNonce(securityPolicy),
+                    doNotEncodeSenderCertificate: doNotEncodeSenderCertificate);
 
                 m_token.Password = secret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
                 m_token.EncryptionAlgorithm = null;
@@ -197,6 +209,18 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
+                EncryptedSecret encryptedSecret = EncryptedSecret.CreateForRsa(
+                    context,
+                    securityPolicyUri,
+                    certificate,
+                    receiverNonce);
+                if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm) &&
+                    encryptedSecret.TryDecrypt(m_token.Password.ToArray(), receiverNonce?.Data, out byte[] decryptedSecret))
+                {
+                    DecryptedPassword = decryptedSecret;
+                    return;
+                }
+
                 var encryptedData = new EncryptedData
                 {
                     Data = m_token.Password.ToArray(),
@@ -243,23 +267,24 @@ namespace Opc.Ua
             // handle ECC and RSADH encryption.
             else
             {
-                var secret = new EncryptedSecret(
-                    context,
-                    securityPolicyUri,
-                    senderIssuerCertificates,
-                    certificate,
-                    ephemeralKey,
-                    senderCertificate,
-                    null,
-                    validator);
+                EncryptedSecret secret = EncryptedSecret.CreateForEcc(
+                    context: context,
+                    securityPolicyUri: securityPolicyUri,
+                    senderIssuerCertificates: senderIssuerCertificates,
+                    receiverCertificate: certificate,
+                    receiverNonce: ephemeralKey,
+                    senderCertificate: senderCertificate,
+                    senderNonce: null,
+                    validator: validator);
 
-                DecryptedPassword = secret.Decrypt(
-                    DateTime.UtcNow.AddHours(-1),
-                    receiverNonce.Data,
-                    m_token.Password.ToArray(),
-                    0,
-                    m_token.Password.Length,
-                    context.Telemetry);
+                if (!secret.TryDecrypt(m_token.Password.ToArray(), receiverNonce?.Data, out byte[] decryptedSecret))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadIdentityTokenInvalid,
+                        "Failed to decrypt UserNameIdentityToken password using ECC encrypted secret.");
+                }
+
+                DecryptedPassword = decryptedSecret;
             }
         }
 
