@@ -206,7 +206,7 @@ namespace Opc.Ua.Gds.Server
                     m_logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Created CA certificate {Certificate}",
-                        Certificates[certificateType].X509.AsLogSafeString());
+                        Certificates[certificateType]);
                 }
             }
         }
@@ -282,7 +282,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (privateKeyPassword == null || privateKeyPassword.Length == 0)
                 {
-                    privateKey = ByteString.From(certificate.X509.Export(X509ContentType.Pfx));
+                    privateKey = ByteString.From(certificate.Export(X509ContentType.Pfx));
                 }
                 else
                 {
@@ -292,7 +292,7 @@ namespace Opc.Ua.Gds.Server
                         passwordString.AppendChar(c);
                     }
                     passwordString.MakeReadOnly();
-                    privateKey = ByteString.From(certificate.X509.Export(X509ContentType.Pfx, passwordString));
+                    privateKey = ByteString.From(certificate.Export(X509ContentType.Pfx, passwordString));
                 }
             }
             else if (privateKeyFormat == "PEM")

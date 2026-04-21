@@ -630,7 +630,7 @@ namespace Opc.Ua.Server
                             Utils.TraceMasks.Security,
                             ex,
                             "Failed to verify integrity of the new certificate {Certificate} and the issuer list.",
-                            newCert.X509.AsLogSafeString());
+                            newCert);
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
                             "Failed to verify integrity of the new certificate and the issuer list.",
@@ -703,7 +703,7 @@ namespace Opc.Ua.Server
                                         Utils.TraceMasks.Security,
                                         ex,
                                         "Failed to update certificate {Certificate}. Retrying...",
-                                        newCert.X509.AsLogSafeString());
+                                        newCert);
                                 }
                             }
                             break;
@@ -738,7 +738,7 @@ namespace Opc.Ua.Server
                                         Utils.TraceMasks.Security,
                                         ex,
                                         "Failed to update certificate {Certificate} with PFX private key. Retrying...",
-                                        newCert.X509.AsLogSafeString());
+                                        newCert);
                                 }
                             }
                             break;
@@ -764,7 +764,7 @@ namespace Opc.Ua.Server
                                         Utils.TraceMasks.Security,
                                         ex,
                                         "Failed to update certificate {Certificate} with PEM private key. Retrying...",
-                                        newCert.X509.AsLogSafeString());
+                                        newCert);
                                 }
                             }
                             break;
@@ -839,7 +839,7 @@ namespace Opc.Ua.Server
                         m_logger.LogInformation(
                             Utils.TraceMasks.Security,
                             "Delete application certificate {Certificate}",
-                            existingCertIdentifier.Certificate.X509.AsLogSafeString());
+                            existingCertIdentifier.Certificate);
                         await appStore.DeleteAsync(
                             existingCertIdentifier.Thumbprint,
                             ct)
@@ -850,7 +850,7 @@ namespace Opc.Ua.Server
                         m_logger.LogInformation(
                             Utils.TraceMasks.Security,
                             "Add new application certificate {Certificate}",
-                            updateCertificate.CertificateWithPrivateKey.X509.AsLogSafeString());
+                            updateCertificate.CertificateWithPrivateKey);
                         Debug.Assert(updateCertificate.CertificateWithPrivateKey.HasPrivateKey);
                         await appStore.AddAsync(
                             updateCertificate.CertificateWithPrivateKey,
@@ -886,7 +886,7 @@ namespace Opc.Ua.Server
                                 m_logger.LogInformation(
                                     Utils.TraceMasks.Security,
                                     "Add new issuer certificate {Certificate}",
-                                    issuer.X509.AsLogSafeString());
+                                    issuer);
                                 await issuerStore.AddAsync(issuer, ct: ct).ConfigureAwait(false);
                             }
                             catch (ArgumentException)
@@ -915,7 +915,7 @@ namespace Opc.Ua.Server
                         Utils.TraceMasks.Security,
                         ex,
                         "Failed to update certificate {Certificate}.",
-                        newCert.X509.AsLogSafeString());
+                        newCert);
                     throw new ServiceResultException(
                         StatusCodes.BadSecurityChecksFailed,
                         "Failed to update certificate.",
@@ -987,7 +987,7 @@ namespace Opc.Ua.Server
             m_logger.LogInformation(
                 Utils.TraceMasks.Security,
                 "Create signing request {Certificate}",
-                certWithPrivateKey.X509.AsLogSafeString());
+                certWithPrivateKey);
 #pragma warning disable CS0618 // Type or member is obsolete - TODO: migrate to ICertificateFactory
             ByteString certificateRequest = ByteString.From(CertificateFactory.CreateSigningRequest(
                 certWithPrivateKey,
@@ -1061,7 +1061,7 @@ namespace Opc.Ua.Server
                         m_logger.LogInformation(
                             Utils.TraceMasks.Security,
                             "Apply Changes for certificate {Certificate}",
-                            updateCertificate.CertificateWithPrivateKey.X509.AsLogSafeString());
+                            updateCertificate.CertificateWithPrivateKey);
                     }
                 }
                 finally

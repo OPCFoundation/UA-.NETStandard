@@ -182,7 +182,7 @@ namespace Opc.Ua
 
                     m_logger.LogInformation(
                         "Added certificate {Certificate} to X509Store {Name}.",
-                        certificate.X509.AsLogSafeString(),
+                        certificate,
                         store.Name);
                 }
             }

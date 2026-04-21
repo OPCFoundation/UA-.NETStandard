@@ -180,7 +180,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (X509.HasPrivateKey)
             {
-                byte[] pfxData = X509.Export(X509ContentType.Pfx);
+                byte[] pfxData = Export(X509ContentType.Pfx);
                 return X509CertificateLoader.LoadPkcs12(
                     pfxData,
                     ReadOnlySpan<char>.Empty,
@@ -249,6 +249,43 @@ namespace Opc.Ua.Security.Certificates
         /// The OID of the signature algorithm used to sign the certificate.
         /// </summary>
         public Oid SignatureAlgorithm => X509.SignatureAlgorithm;
+
+        /// <summary>
+        /// Exports the certificate to a byte array in the specified format.
+        /// </summary>
+        /// <param name="contentType">
+        /// The format to export (e.g., <see cref="X509ContentType.Cert"/>,
+        /// <see cref="X509ContentType.Pfx"/>, <see cref="X509ContentType.Pkcs12"/>).
+        /// </param>
+        /// <returns>The exported certificate bytes.</returns>
+        public byte[] Export(X509ContentType contentType)
+        {
+            return X509.Export(contentType);
+        }
+
+        /// <summary>
+        /// Exports the certificate to a byte array in the specified format,
+        /// protected with a password.
+        /// </summary>
+        /// <param name="contentType">The format to export.</param>
+        /// <param name="password">The password to protect the exported data.</param>
+        /// <returns>The exported certificate bytes.</returns>
+        public byte[] Export(X509ContentType contentType, string? password)
+        {
+            return X509.Export(contentType, password);
+        }
+
+        /// <summary>
+        /// Exports the certificate to a byte array in the specified format,
+        /// protected with a secure password.
+        /// </summary>
+        /// <param name="contentType">The format to export.</param>
+        /// <param name="password">The password to protect the exported data.</param>
+        /// <returns>The exported certificate bytes.</returns>
+        public byte[] Export(X509ContentType contentType, ReadOnlySpan<char> password)
+        {
+            return X509.Export(contentType, password.ToString());
+        }
 
         /// <summary>
         /// Gets the RSA private key from the certificate, if available.
@@ -361,10 +398,32 @@ namespace Opc.Ua.Security.Certificates
                 .GetHashCode(Thumbprint);
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Returns a log-safe string representation of the certificate.
+        /// Includes identifying information (thumbprint, subject, validity,
+        /// key type) but omits privacy-relevant data.
+        /// </summary>
         public override string ToString()
         {
-            return X509.ToString();
+            try
+            {
+                var sb = new System.Text.StringBuilder(128);
+                sb.Append("[Subject=").Append(Subject);
+                sb.Append(", Thumbprint=").Append(Thumbprint);
+                sb.Append(", NotBefore=").Append(NotBefore.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+                sb.Append(", NotAfter=").Append(NotAfter.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+                sb.Append(", KeyAlgorithm=").Append(GetKeyAlgorithm());
+                if (HasPrivateKey)
+                {
+                    sb.Append(", HasPrivateKey");
+                }
+                sb.Append(']');
+                return sb.ToString();
+            }
+            catch
+            {
+                return "[Disposed Certificate]";
+            }
         }
 
         /// <summary>

@@ -729,7 +729,7 @@ namespace Opc.Ua
                     X509KeyStorageFlags storageFlags =
                         persisted ? X509KeyStorageFlags.PersistKeySet : X509KeyStorageFlags.Exportable;
                     return Certificate.From(X509CertificateLoader.LoadPkcs12(
-                        certificate.X509.Export(X509ContentType.Pfx, securePasscode),
+                        certificate.Export(X509ContentType.Pfx, securePasscode),
                         passcode,
                         storageFlags));
                 }

@@ -101,7 +101,7 @@ namespace Opc.Ua.Bindings
                     dataToVerify.Offset + 4);
                 string actualSignature = Utils.ToHexString(signature);
                 m_logger.LogError("Could not validate signature.");
-                m_logger.LogError("Certificate: {Certificate}", signingCertificate.X509.AsLogSafeString());
+                m_logger.LogError("Certificate: {Certificate}", signingCertificate);
                 m_logger.LogError(
                     "MessageType ={MessageType}, Length ={Length}, ActualSignature={ActualSignature}",
                     messageType,

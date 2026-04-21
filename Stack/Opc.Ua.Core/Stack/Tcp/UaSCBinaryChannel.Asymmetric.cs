@@ -1243,7 +1243,7 @@ namespace Opc.Ua.Bindings
             }
 
             m_logger.LogInformation("Security Policy: {SecurityPolicyUri}", SecurityPolicyUri);
-            m_logger.LogInformation("Sender Certificate {Certificate}", senderCertificate?.X509.AsLogSafeString());
+            m_logger.LogInformation("Sender Certificate {Certificate}", senderCertificate);
 
             // return the body.
             return new ArraySegment<byte>(

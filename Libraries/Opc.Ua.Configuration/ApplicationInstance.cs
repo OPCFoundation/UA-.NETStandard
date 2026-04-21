@@ -401,7 +401,7 @@ namespace Opc.Ua.Configuration
             // check that it is ok.
             if (certificate != null)
             {
-                m_logger.LogInformation("Check certificate: {Certificate}", certificate.X509.AsLogSafeString());
+                m_logger.LogInformation("Check certificate: {Certificate}", certificate);
                 bool certificateValid = await CheckApplicationInstanceCertificateAsync(
                         configuration,
                         id,
@@ -655,7 +655,7 @@ namespace Opc.Ua.Configuration
 
             m_logger.LogInformation(
                 "Check application instance certificate {Certificate}.",
-                certificate.X509.AsLogSafeString());
+                certificate);
 
             try
             {
@@ -740,7 +740,7 @@ namespace Opc.Ua.Configuration
 
             m_logger.LogInformation(
                 "Certificate {Certificate} validated for ApplicationUri: {ApplicationUri}",
-                certificate.X509.AsLogSafeString(),
+                certificate,
                 configuration.ApplicationUri);
 
             // update configuration.
@@ -899,7 +899,7 @@ namespace Opc.Ua.Configuration
 
                 m_logger.LogInformation(
                     "Certificate {Certificate} created for RSA with key size {KeySize} bits.",
-                    id.Certificate.X509.AsLogSafeString(),
+                    id.Certificate,
                     keySize);
             }
             else
@@ -913,7 +913,7 @@ namespace Opc.Ua.Configuration
 
                 m_logger.LogInformation(
                     "Certificate {Certificate} created for {Curve}.",
-                    id.Certificate.X509.AsLogSafeString(),
+                    id.Certificate,
                     curve.Value.Oid.FriendlyName);
             }
 
@@ -950,7 +950,7 @@ namespace Opc.Ua.Configuration
 
             m_logger.LogInformation(
                 "Certificate {Certificate} created for {ApplicationUri}.",
-                id.Certificate.X509.AsLogSafeString(),
+                id.Certificate,
                 configuration.ApplicationUri);
 
             // do not dispose temp cert, or X509Store certs become unusable
@@ -982,7 +982,7 @@ namespace Opc.Ua.Configuration
                 m_logger.LogInformation(
                     Utils.TraceMasks.Security,
                     "Deleting application instance certificate {Certificate} and private key.",
-                    certificate.X509.AsLogSafeString());
+                    certificate);
             }
 
             // delete trusted peer certificate.
@@ -1034,7 +1034,7 @@ namespace Opc.Ua.Configuration
                     m_logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Application certificate {Certificate} and private key deleted.",
-                        certificate.X509.AsLogSafeString());
+                        certificate);
                 }
             }
 
@@ -1100,7 +1100,7 @@ namespace Opc.Ua.Configuration
 
                     m_logger.LogInformation(
                         "Adding application certificate {Certificate} to trusted peer store.",
-                        certificate.X509.AsLogSafeString());
+                        certificate);
 
                     List<string> subjectName = X509Utils.ParseDistinguishedName(
                         certificate.Subject);
@@ -1141,7 +1141,7 @@ namespace Opc.Ua.Configuration
                             {
                                 m_logger.LogInformation(
                                     "Delete Certificate {Certificate} from trusted store.",
-                                    certificate.X509.AsLogSafeString());
+                                    certificate);
                                 await store.DeleteAsync(certificates[ii].Thumbprint, ct)
                                     .ConfigureAwait(false);
                                 break;

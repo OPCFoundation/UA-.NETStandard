@@ -869,7 +869,7 @@ namespace Opc.Ua.Gds.Tests
             if (keyFormat == "PFX")
             {
                 Assert.That(newCert.HasPrivateKey, Is.True);
-                privateKey = newCert.X509.Export(X509ContentType.Pfx);
+                privateKey = newCert.Export(X509ContentType.Pfx);
             }
             else if (keyFormat == "PEM")
             {

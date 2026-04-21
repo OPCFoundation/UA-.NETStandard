@@ -237,7 +237,7 @@ namespace Opc.Ua
                     string passcode = password == null ||
                         password.Length == 0 ? string.Empty : new string(password);
 
-                    data = certificate.X509.Export(X509ContentType.Pkcs12, passcode);
+                    data = certificate.Export(X509ContentType.Pkcs12, passcode);
                 }
                 else
                 {
@@ -262,7 +262,7 @@ namespace Opc.Ua
                 m_logger.LogError(
                     ex,
                     "Failed to add certificate {Certificate} to store {StorePath}.",
-                    certificate.X509.AsLogSafeString(),
+                    certificate,
                     StorePath);
                 throw;
             }
@@ -713,19 +713,19 @@ namespace Opc.Ua
                                             m_logger.LogInformation(
                                                 Utils.TraceMasks.Security,
                                                 "Imported the PFX private key for {Certificate}.",
-                                                certificate.X509.AsLogSafeString());
+                                                certificate);
                                             return certificate;
                                         }
                                         m_logger.LogDebug(
                                             "PFX Private key could not be verified for {Certificate}.",
-                                            certificate.X509.AsLogSafeString());
+                                            certificate);
                                     }
                                     catch (Exception ex)
                                     {
                                         m_logger.LogDebug(
                                             ex,
                                             "Failed to import the PFX private for {Certificate}.",
-                                            certificate.X509.AsLogSafeString());
+                                            certificate);
                                         importException = ex;
                                         certificate?.Dispose();
                                     }
@@ -750,19 +750,19 @@ namespace Opc.Ua
                                         m_logger.LogInformation(
                                             Utils.TraceMasks.Security,
                                             "Imported the PEM private key for {Certificate}.",
-                                            certificate.X509.AsLogSafeString());
+                                            certificate);
                                         return certificate;
                                     }
                                     m_logger.LogDebug(
                                         "PEM Private key could not be verified for {Certificate}.",
-                                        certificate.X509.AsLogSafeString());
+                                        certificate);
                                 }
                                 catch (Exception exception)
                                 {
                                     m_logger.LogDebug(
                                         exception,
                                         "Failed to import the PEM private for {Certificate}.",
-                                        certificate.X509.AsLogSafeString());
+                                        certificate);
                                     certificate?.Dispose();
                                     importException = exception;
                                 }
@@ -786,19 +786,19 @@ namespace Opc.Ua
                                         m_logger.LogInformation(
                                             Utils.TraceMasks.Security,
                                             "Imported the PEM private key for {Certificate}.",
-                                            certificate.X509.AsLogSafeString());
+                                            certificate);
                                         return certificate;
                                     }
                                     m_logger.LogDebug(
                                         "PEM Private key could not be verified for {Certificate}.",
-                                        certificate.X509.AsLogSafeString());
+                                        certificate);
                                 }
                                 catch (Exception exception)
                                 {
                                     m_logger.LogDebug(
                                         exception,
                                         "Failed to import the PEM private for {Certificate}.",
-                                        certificate.X509.AsLogSafeString());
+                                        certificate);
                                     certificate?.Dispose();
                                     importException = exception;
                                 }
@@ -808,7 +808,7 @@ namespace Opc.Ua
                                 m_logger.LogError(
                                     Utils.TraceMasks.Security,
                                     "A private key for the certificate {Certificate} does not exist.",
-                                     certificate.X509.AsLogSafeString());
+                                     certificate);
                             }
                         }
                     }

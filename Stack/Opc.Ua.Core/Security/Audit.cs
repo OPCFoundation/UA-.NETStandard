@@ -89,11 +89,11 @@ namespace Opc.Ua.Security
                     logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Client Certificate: {Certificate}",
-                        clientCertificate.X509.AsLogSafeString());
+                        clientCertificate);
                     logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Server Certificate: {Certificate}",
-                        serverCertificate.X509.AsLogSafeString());
+                        serverCertificate);
                 }
             }
             else

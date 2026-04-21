@@ -316,8 +316,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 string serverCertificateDerPath = CombinePath("server.der");
                 string serverCertificateKeyPath = CombinePath("server.key");
 
-                File.WriteAllBytes(ClientCertificatePfxPath, m_clientCert.X509.Export(X509ContentType.Pfx));
-                File.WriteAllBytes(clientCertificateDerPath, m_clientCert.X509.Export(X509ContentType.Cert));
+                File.WriteAllBytes(ClientCertificatePfxPath, m_clientCert.Export(X509ContentType.Pfx));
+                File.WriteAllBytes(clientCertificateDerPath, m_clientCert.Export(X509ContentType.Cert));
 #if NET7_0_OR_GREATER
                 string clientCertificatePem = m_clientCert.X509.ExportCertificatePem();
                 File.WriteAllText(clientCertificateCrtPath, clientCertificatePem);
@@ -332,7 +332,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 File.WriteAllText(serverCertificateKeyPath, privKeyPem);
                 File.WriteAllText(ServerCertificateCertPath, serverCertificatePem);
 #endif
-                File.WriteAllBytes(serverCertificateDerPath, m_serverCert.X509.Export(X509ContentType.Cert));
+                File.WriteAllBytes(serverCertificateDerPath, m_serverCert.Export(X509ContentType.Cert));
 
                 string mosquittoTlsConfig = CreateMosquittoTlsConfig(clientCertificateCrtPath,
                     serverCertificateKeyPath, ServerCertificateCertPath);
