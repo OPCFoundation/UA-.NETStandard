@@ -930,6 +930,7 @@ namespace Opc.Ua.Server
         /// <returns>The found method state, or null if not found.</returns>
         private MethodState FindMethodInTypeHierarchy(ISystemContext context, NodeId typeDefinitionId, NodeId methodId)
         {
+            // A limit to prevent infinite loops in case of a circular type hierarchy in malformed address spaces.
             const int maxHierarchyDepth = 100;
             int depth = 0;
             NodeId typeId = typeDefinitionId;
