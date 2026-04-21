@@ -35,20 +35,20 @@ namespace Opc.Ua.Gds.Client
 {
     /// <summary>
     /// The set of known server capability identifiers, populated from the
-    /// generated <see cref="WellKnownServerCapabilities"/> catalog.
+    /// generated <see cref="ServerCapabilities"/> catalog.
     /// </summary>
-    public class ServerCapabilities : IEnumerable<ServerCapability>
+    public class ServerCapabilityCatalog : IEnumerable<ServerCapability>
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="ServerCapabilities"/> class.
+        /// Initializes a new instance of the <see cref="ServerCapabilityCatalog"/> class.
         /// </summary>
-        public ServerCapabilities()
+        public ServerCapabilityCatalog()
         {
             ImmutableArray<ServerCapability>.Builder builder
                 = ImmutableArray.CreateBuilder<ServerCapability>();
             var lookup = new Dictionary<string, ServerCapability>(StringComparer.Ordinal);
 
-            foreach (KeyValuePair<string, string> entry in WellKnownServerCapabilities.All)
+            foreach (KeyValuePair<string, string> entry in ServerCapabilities.All)
             {
                 var capability = new ServerCapability { Id = entry.Key, Description = entry.Value };
                 builder.Add(capability);

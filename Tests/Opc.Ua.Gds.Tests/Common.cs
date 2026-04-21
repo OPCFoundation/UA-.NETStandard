@@ -71,11 +71,11 @@ namespace Opc.Ua.Gds.Tests
 #pragma warning restore IDE0079 // Remove unnecessary suppression
 #endif
 
-        private readonly ServerCapabilities m_serverCapabilities;
+        private readonly ServerCapabilityCatalog m_serverCapabilities;
 
         public ApplicationTestDataGenerator(int randomStart, ITelemetryContext telemetry)
         {
-            m_serverCapabilities = new ServerCapabilities();
+            m_serverCapabilities = new ServerCapabilityCatalog();
             RandomSource = new RandomSource(randomStart);
             DataGenerator = new DataGenerator(RandomSource, telemetry);
         }

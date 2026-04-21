@@ -34,7 +34,7 @@ using System.IO;
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Generates the WellKnownServerCapabilities catalog from
+    /// Generates the ServerCapabilities catalog from
     /// the embedded ServerCapabilities.csv design file.
     /// </summary>
     internal class ServerCapabilitiesGenerator : IGenerator
@@ -53,7 +53,7 @@ namespace Opc.Ua.SourceGeneration
             string fileName = Path.Combine(
                 m_context.OutputFolder,
                 CoreUtils.Format(
-                    "{0}.WellKnownServerCapabilities.g.cs",
+                    "{0}.ServerCapabilities.g.cs",
                     Constants.CoreNamespacePrefix));
 
             List<Capability> capabilities = LoadCapabilities(
@@ -112,7 +112,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Writes the generated WellKnownServerCapabilities source file.
+        /// Writes the generated ServerCapabilities source file.
         /// </summary>
         private static void WriteFile(TextWriter writer, List<Capability> capabilities)
         {
@@ -139,7 +139,7 @@ namespace Opc.Ua.SourceGeneration
                 "    /// Generated from the ServerCapabilities.csv design file.");
             writer.WriteLine(
                 "    /// </remarks>");
-            writer.WriteLine("    public static class WellKnownServerCapabilities");
+            writer.WriteLine("    public static class ServerCapabilities");
             writer.WriteLine("    {");
 
             for (int i = 0; i < capabilities.Count; i++)

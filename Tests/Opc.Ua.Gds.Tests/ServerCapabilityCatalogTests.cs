@@ -44,24 +44,24 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ConstructorCreatesInstance()
         {
-            var capabilities = new ServerCapabilities();
+            var capabilities = new ServerCapabilityCatalog();
             Assert.That(capabilities, Is.Not.Null);
         }
 
         [Test]
         public void ConstructorPopulatesFromGeneratedCatalog()
         {
-            var capabilities = new ServerCapabilities();
+            var capabilities = new ServerCapabilityCatalog();
             int count = capabilities.Count();
-            Assert.That(count, Is.EqualTo(WellKnownServerCapabilities.All.Count));
+            Assert.That(count, Is.EqualTo(ServerCapabilities.All.Count));
             Assert.That(count, Is.GreaterThan(0));
         }
 
         [Test]
         public void FindReturnsCapabilityById()
         {
-            var capabilities = new ServerCapabilities();
-            ServerCapability result = capabilities.Find(WellKnownServerCapabilities.DA);
+            var capabilities = new ServerCapabilityCatalog();
+            ServerCapability result = capabilities.Find(ServerCapabilities.DA);
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Id, Is.EqualTo("DA"));
             Assert.That(result.Description, Is.Not.Null.And.Not.Empty);
@@ -70,15 +70,15 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void FindReturnsCapabilityForGdsAndLds()
         {
-            var capabilities = new ServerCapabilities();
-            Assert.That(capabilities.Find(WellKnownServerCapabilities.GDS), Is.Not.Null);
-            Assert.That(capabilities.Find(WellKnownServerCapabilities.LDS), Is.Not.Null);
+            var capabilities = new ServerCapabilityCatalog();
+            Assert.That(capabilities.Find(ServerCapabilities.GDS), Is.Not.Null);
+            Assert.That(capabilities.Find(ServerCapabilities.LDS), Is.Not.Null);
         }
 
         [Test]
         public void FindReturnsNullForUnknownId()
         {
-            var capabilities = new ServerCapabilities();
+            var capabilities = new ServerCapabilityCatalog();
             ServerCapability result = capabilities.Find("UNKNOWN_XYZ");
             Assert.That(result, Is.Null);
         }
@@ -86,7 +86,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void FindReturnsNullForNullId()
         {
-            var capabilities = new ServerCapabilities();
+            var capabilities = new ServerCapabilityCatalog();
             ServerCapability result = capabilities.Find(null);
             Assert.That(result, Is.Null);
         }
@@ -94,12 +94,12 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void GetEnumeratorEnumeratesCapabilities()
         {
-            var capabilities = new ServerCapabilities();
+            var capabilities = new ServerCapabilityCatalog();
             var list = new List<ServerCapability>();
 
             list.AddRange(capabilities);
 
-            Assert.That(list, Has.Count.EqualTo(WellKnownServerCapabilities.All.Count));
+            Assert.That(list, Has.Count.EqualTo(ServerCapabilities.All.Count));
             Assert.That(list.All(c => !string.IsNullOrEmpty(c.Id)), Is.True);
         }
     }
