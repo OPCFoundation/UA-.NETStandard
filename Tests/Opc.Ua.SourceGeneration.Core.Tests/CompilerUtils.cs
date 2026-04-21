@@ -289,27 +289,13 @@ namespace Opc.Ua.SourceGeneration
             this ImmutableArray<Diagnostic> diagnostics,
             TextWriter output,
             out int errorCount,
-            out int warnCount,
-            bool filterLinkerAndReferenceErrors = false)
+            out int warnCount)
         {
             errorCount = 0;
             warnCount = 0;
             for (int ii = 0; ii < diagnostics.Length; ii++)
             {
                 Diagnostic diag = diagnostics[ii];
-                if (filterLinkerAndReferenceErrors &&
-                    (
-                        diag.Id == "CS0234" ||
-                        diag.Id == "CS0246" ||
-                        diag.Id == "CS1729" ||
-                        diag.Id == "CS1501" ||
-                        diag.Id == "CS0103" ||
-                        diag.Id == "CS1503"
-                    ))
-                {
-                    // ignore missing reference and symbols errors
-                    continue;
-                }
 
                 string sev;
                 int beforeAfter;
@@ -946,6 +932,36 @@ namespace Opc.Ua.SourceGeneration
                 public partial class FolderTypeClient : BaseObjectTypeClient
                 {
                     public FolderTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class BaseEventTypeClient : BaseObjectTypeClient
+                {
+                    public BaseEventTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class ConditionTypeClient : BaseObjectTypeClient
+                {
+                    public ConditionTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class BaseInterfaceTypeClient : BaseObjectTypeClient
+                {
+                    public BaseInterfaceTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class FiniteStateMachineTypeClient : BaseObjectTypeClient
+                {
+                    public FiniteStateMachineTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class InstrumentDiagnosticAlarmTypeClient : BaseObjectTypeClient
+                {
+                    public InstrumentDiagnosticAlarmTypeClient(
                         ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
                         : base(session, objectId, telemetry) { }
                 }

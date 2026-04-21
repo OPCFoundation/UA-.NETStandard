@@ -853,7 +853,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return $"""new global::Opc.Ua.ExpandedNodeId("{className.Escape()}", "{nsUri.Escape()}")""";
             }
-            return $"""global::Opc.Ua.ExpandedNodeId.Parse("{idString.Escape()}", "{nsUri.Escape()}")""";
+            return $"""new global::Opc.Ua.ExpandedNodeId(global::Opc.Ua.NodeId.Parse("{idString.Escape()}"), "{nsUri.Escape()}")""";
         }
 
         private static string FormatOptionalExpandedNodeIdExpression(
@@ -864,7 +864,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return "global::Opc.Ua.ExpandedNodeId.Null";
             }
-            return $"""global::Opc.Ua.ExpandedNodeId.Parse("{idString.Escape()}", "{nsUri.Escape()}")""";
+            return $"""new global::Opc.Ua.ExpandedNodeId(global::Opc.Ua.NodeId.Parse("{idString.Escape()}"), "{nsUri.Escape()}")""";
         }
     }
 

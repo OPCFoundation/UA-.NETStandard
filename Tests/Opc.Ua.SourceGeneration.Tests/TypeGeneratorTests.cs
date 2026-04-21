@@ -465,8 +465,7 @@ namespace TestApp.Incremental
             outputB.GetDiagnostics().Check(
                 TestContext.Out,
                 out int errors,
-                out int warnings,
-                filterLinkerAndReferenceErrors: true);
+                out int warnings);
             Assert.That(errors, Is.Zero,
                 $"Final incremental compilation produced {errors} errors");
         }
@@ -509,8 +508,7 @@ namespace TestApp.Incremental
             outputCompilation.GetDiagnostics().Check(
                 TestContext.Out,
                 out int errors,
-                out int warnings,
-                filterLinkerAndReferenceErrors: true);
+                out int warnings);
 
             if (!expectErrors)
             {
