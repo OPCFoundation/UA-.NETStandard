@@ -42,9 +42,6 @@ namespace Opc.Ua.SourceGeneration
     /// </summary>
     internal static class ReferenceMetadataScanner
     {
-        private const string AttributeNamespace = "Opc.Ua";
-        private const string AttributeName = "OpcUaModelDependencyAttribute";
-
         /// <summary>
         /// Returns the dependency attributes recorded by the given assembly.
         /// Returns <see cref="ImmutableArray{T}.Empty"/> if the file is missing,
@@ -137,15 +134,20 @@ namespace Opc.Ua.SourceGeneration
                     return false;
             }
 
-            return reader.StringComparer.Equals(typeName, AttributeName)
-                && reader.StringComparer.Equals(typeNamespace, AttributeNamespace);
+            Type attributeType = typeof(ModelDependencyAttribute);
+            return
+                reader.StringComparer.Equals(typeName, attributeType.Name) &&
+                reader.StringComparer.Equals(typeNamespace, attributeType.Namespace);
         }
 
         /// <summary>
         /// Decodes up to four fixed string arguments from a custom attribute blob.
         /// Null (SerString 0xFF) is returned as an empty string.
         /// </summary>
-        private static bool TryReadAttributeStrings(MetadataReader reader, CustomAttributeHandle handle, out string[] args)
+        private static bool TryReadAttributeStrings(
+            MetadataReader reader,
+            CustomAttributeHandle handle,
+            out string[] args)
         {
             args = null;
             BlobHandle blobHandle = reader.GetCustomAttribute(handle).Value;

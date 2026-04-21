@@ -70,11 +70,12 @@ namespace Opc.Ua.SourceGeneration
         /// <inheritdoc/>
         public bool Equals(ModelDependencyReference other)
         {
-            return string.Equals(AssemblyName, other.AssemblyName, StringComparison.Ordinal)
-                && string.Equals(ModelUri, other.ModelUri, StringComparison.Ordinal)
-                && string.Equals(Prefix, other.Prefix, StringComparison.Ordinal)
-                && string.Equals(Version, other.Version, StringComparison.Ordinal)
-                && string.Equals(PublicationDate, other.PublicationDate, StringComparison.Ordinal);
+            return
+                string.Equals(AssemblyName, other.AssemblyName, StringComparison.Ordinal) &&
+                string.Equals(ModelUri, other.ModelUri, StringComparison.Ordinal) &&
+                string.Equals(Prefix, other.Prefix, StringComparison.Ordinal) &&
+                string.Equals(Version, other.Version, StringComparison.Ordinal) &&
+                string.Equals(PublicationDate, other.PublicationDate, StringComparison.Ordinal);
         }
 
         /// <inheritdoc/>
