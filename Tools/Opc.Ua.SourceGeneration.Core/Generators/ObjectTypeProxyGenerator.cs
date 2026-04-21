@@ -44,25 +44,25 @@ namespace Opc.Ua.SourceGeneration
     /// <remarks>
     /// This generator runs by default for every model; consumers can
     /// suppress it by setting
-    /// <see cref="GeneratorOptions.OmitObjectMethodProxies"/> to
+    /// <see cref="GeneratorOptions.OmitObjectTypeProxies"/> to
     /// <c>true</c>. The output namespace defaults to the model's target
     /// namespace prefix and can be overridden via
-    /// <see cref="GeneratorOptions.ObjectMethodProxyNamespace"/>. When a
+    /// <see cref="GeneratorOptions.ObjectTypeProxyNamespace"/>. When a
     /// proxy must derive from a parent proxy emitted in a different
     /// assembly the
-    /// <see cref="GeneratorOptions.ObjectMethodProxyExternalNamespaces"/>
+    /// <see cref="GeneratorOptions.ObjectTypeProxyExternalNamespaces"/>
     /// dictionary is consulted to resolve the parent's CLR namespace
     /// (the standard UA namespace
     /// <c>http://opcfoundation.org/UA/</c> always maps to
     /// <c>Opc.Ua.Client</c>).
     /// </remarks>
-    internal sealed class ObjectMethodProxyGenerator : IGenerator
+    internal sealed class ObjectTypeProxyGenerator : IGenerator
     {
         /// <summary>
         /// Initializes a new instance of the
-        /// <see cref="ObjectMethodProxyGenerator"/> class.
+        /// <see cref="ObjectTypeProxyGenerator"/> class.
         /// </summary>
-        public ObjectMethodProxyGenerator(IGeneratorContext context)
+        public ObjectTypeProxyGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
         }
@@ -81,17 +81,17 @@ namespace Opc.Ua.SourceGeneration
             string fileName = Path.Combine(
                 m_context.OutputFolder,
                 CoreUtils.Format(
-                    "{0}.MethodProxies.g.cs",
+                    "{0}.TypeProxies.g.cs",
                     m_context.ModelDesign.TargetNamespace.Prefix));
 
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
-            var template = new Template(templateWriter, ObjectMethodProxyTemplates.File);
+            var template = new Template(templateWriter, ObjectTypeProxyTemplates.File);
 
             template.AddReplacement(Tokens.Namespace, outputNamespace);
             template.AddReplacement(
                 Tokens.ListOfTypes,
-                ObjectMethodProxyTemplates.ProxyClass,
+                ObjectTypeProxyTemplates.ProxyClass,
                 types,
                 WriteTemplate_ProxyClass);
 
@@ -171,7 +171,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string GetOutputNamespace()
         {
-            string @override = m_context.Options?.ObjectMethodProxyNamespace;
+            string @override = m_context.Options?.ObjectTypeProxyNamespace;
             return string.IsNullOrWhiteSpace(@override)
                 ? m_context.ModelDesign.TargetNamespace.Prefix
                 : @override;
@@ -211,7 +211,7 @@ namespace Opc.Ua.SourceGeneration
         /// types use the configured output namespace; external types are
         /// looked up via the standard UA → <c>Opc.Ua</c> default
         /// and the user-supplied
-        /// <see cref="GeneratorOptions.ObjectMethodProxyExternalNamespaces"/>
+        /// <see cref="GeneratorOptions.ObjectTypeProxyExternalNamespaces"/>
         /// override; otherwise the model's namespace prefix is used as a
         /// last resort.
         /// </summary>
@@ -229,7 +229,7 @@ namespace Opc.Ua.SourceGeneration
             if (!string.IsNullOrEmpty(typeUri))
             {
                 IDictionary<string, string> overrides =
-                    m_context.Options?.ObjectMethodProxyExternalNamespaces;
+                    m_context.Options?.ObjectTypeProxyExternalNamespaces;
                 if (overrides != null &&
                     overrides.TryGetValue(typeUri, out string mapped) &&
                     !string.IsNullOrWhiteSpace(mapped))

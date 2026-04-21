@@ -30,11 +30,11 @@
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Templates for the <see cref="ObjectMethodProxyGenerator"/>.
+    /// Templates for the <see cref="ObjectTypeProxyGenerator"/>.
     /// Emits typed C# wrappers around <c>ISession.CallAsync</c> for every
     /// OPC UA <c>ObjectType</c> that declares one or more methods.
     /// </summary>
-    internal static class ObjectMethodProxyTemplates
+    internal static class ObjectTypeProxyTemplates
     {
         /// <summary>
         /// Single output file template. Hosts every proxy class

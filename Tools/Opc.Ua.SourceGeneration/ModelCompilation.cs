@@ -101,11 +101,11 @@ namespace Opc.Ua.SourceGeneration
                         m_compilationOptions.LanguageVersion >= LanguageVersion.CSharp11,
                     OptimizeForCompileSpeed =
                         m_compilationOptions.OptimizationLevel == OptimizationLevel.Debug,
-                    OmitObjectMethodProxies = m_options.OmitObjectMethodProxies,
-                    ObjectMethodProxyNamespace =
-                        string.IsNullOrWhiteSpace(m_options.ObjectMethodProxyNamespace)
+                    OmitObjectTypeProxies = m_options.OmitObjectTypeProxies,
+                    ObjectTypeProxyNamespace =
+                        string.IsNullOrWhiteSpace(m_options.ObjectTypeProxyNamespace)
                             ? null
-                            : m_options.ObjectMethodProxyNamespace
+                            : m_options.ObjectTypeProxyNamespace
                 };
 
                 // Load all available nodeset files from the input

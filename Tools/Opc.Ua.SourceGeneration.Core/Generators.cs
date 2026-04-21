@@ -209,8 +209,8 @@ namespace Opc.Ua.SourceGeneration
                 // derive from them. Proxies are emitted into the model's
                 // own namespace (Opc.Ua for the standard NodeSet) — no
                 // namespace override. Suppressed when the consumer opts
-                // out via OmitObjectMethodProxies.
-                if (!options.OmitObjectMethodProxies)
+                // out via OmitObjectTypeProxies.
+                if (!options.OmitObjectTypeProxies)
                 {
                     var stackProxyContext = new GeneratorContext
                     {
@@ -226,7 +226,7 @@ namespace Opc.Ua.SourceGeneration
                             UseUtf8StringLiterals = options.UseUtf8StringLiterals
                         }
                     };
-                    var stackProxyGenerator = new ObjectMethodProxyGenerator(stackProxyContext);
+                    var stackProxyGenerator = new ObjectTypeProxyGenerator(stackProxyContext);
                     stackProxyGenerator.Emit();
                 }
             }
@@ -279,10 +279,10 @@ namespace Opc.Ua.SourceGeneration
             var dataTypesGenerator = new DataTypeGenerator(context);
             dataTypesGenerator.Emit();
 
-            if (context.Options?.OmitObjectMethodProxies != true)
+            if (context.Options?.OmitObjectTypeProxies != true)
             {
-                var objectMethodProxyGenerator = new ObjectMethodProxyGenerator(context);
-                objectMethodProxyGenerator.Emit();
+                var objectTypeProxyGenerator = new ObjectTypeProxyGenerator(context);
+                objectTypeProxyGenerator.Emit();
             }
         }
     }

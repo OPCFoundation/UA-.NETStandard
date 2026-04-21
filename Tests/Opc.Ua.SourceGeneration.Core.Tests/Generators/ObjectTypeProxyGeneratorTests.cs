@@ -39,14 +39,14 @@ using Opc.Ua.Schema.Model;
 namespace Opc.Ua.SourceGeneration.Generator.Tests
 {
     /// <summary>
-    /// Unit tests for the <see cref="ObjectMethodProxyGenerator"/> class.
+    /// Unit tests for the <see cref="ObjectTypeProxyGenerator"/> class.
     /// </summary>
     [TestFixture]
     [Category("Generator")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class ObjectMethodProxyGeneratorTests
+    public class ObjectTypeProxyGeneratorTests
     {
         private const string kTestNamespaceUri = "http://test.org/UA/";
         private const string kTestNamespacePrefix = "Test";
@@ -80,14 +80,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Constructor_NullContext_ThrowsArgumentNullException()
         {
             Assert.Throws<ArgumentNullException>(
-                () => new ObjectMethodProxyGenerator(null));
+                () => new ObjectTypeProxyGenerator(null));
         }
 
         [Test]
         public void Constructor_ValidContext_CreatesInstance()
         {
             GeneratorContext context = CreateContext();
-            var generator = new ObjectMethodProxyGenerator(context);
+            var generator = new ObjectTypeProxyGenerator(context);
             Assert.That(generator, Is.Not.Null);
         }
 
@@ -95,7 +95,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Emit_NoObjectTypes_DoesNotCreateFile()
         {
             GeneratorContext context = CreateContext();
-            var generator = new ObjectMethodProxyGenerator(context);
+            var generator = new ObjectTypeProxyGenerator(context);
 
             Resource[] resources = [.. generator.Emit()];
 
@@ -117,7 +117,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Returns(stream);
 
             GeneratorContext context = CreateContext();
-            var generator = new ObjectMethodProxyGenerator(context);
+            var generator = new ObjectTypeProxyGenerator(context);
 
             Resource[] resources = [.. generator.Emit()];
 
@@ -141,7 +141,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Returns(true);
 
             GeneratorContext context = CreateContext();
-            var generator = new ObjectMethodProxyGenerator(context);
+            var generator = new ObjectTypeProxyGenerator(context);
 
             Resource[] resources = [.. generator.Emit()];
 
@@ -173,7 +173,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Returns(stream);
 
             GeneratorContext context = CreateContext();
-            var generator = new ObjectMethodProxyGenerator(context);
+            var generator = new ObjectTypeProxyGenerator(context);
 
             Resource[] resources = [.. generator.Emit()];
 
@@ -181,7 +181,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(capturedPath, Is.Not.Null);
             Assert.That(
                 capturedPath,
-                Does.Contain($"{kTestNamespacePrefix}.MethodProxies.g.cs"));
+                Does.Contain($"{kTestNamespacePrefix}.TypeProxies.g.cs"));
 
             string content = Encoding.UTF8.GetString(stream.ToArray());
             Assert.That(
@@ -217,7 +217,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
                 .Returns(stream);
 
-            new ObjectMethodProxyGenerator(CreateContext()).Emit();
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
             Assert.That(
@@ -244,7 +244,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
                 .Returns(stream);
 
-            new ObjectMethodProxyGenerator(CreateContext()).Emit();
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
             Assert.That(
@@ -267,10 +267,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             GeneratorContext context = CreateContext(new GeneratorOptions
             {
-                ObjectMethodProxyNamespace = "My.Custom.Ns"
+                ObjectTypeProxyNamespace = "My.Custom.Ns"
             });
 
-            new ObjectMethodProxyGenerator(context).Emit();
+            new ObjectTypeProxyGenerator(context).Emit();
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
             Assert.That(content, Does.Contain("namespace My.Custom.Ns"));
@@ -295,7 +295,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
                 .Returns(stream);
 
-            new ObjectMethodProxyGenerator(CreateContext()).Emit();
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
             Assert.That(
@@ -318,7 +318,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
                 .Returns(stream);
 
-            new ObjectMethodProxyGenerator(CreateContext()).Emit();
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
             Assert.That(
@@ -351,7 +351,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
                 .Returns(stream);
 
-            new ObjectMethodProxyGenerator(CreateContext()).Emit();
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
             // The derived class section contains the `new` modifier on the
@@ -372,7 +372,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
                 .Returns(stream);
 
-            new ObjectMethodProxyGenerator(CreateContext()).Emit();
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
             Assert.That(

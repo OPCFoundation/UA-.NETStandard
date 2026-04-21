@@ -87,7 +87,7 @@ namespace Opc.Ua.SourceGeneration
                         // (Types-only) assembly which does not reference
                         // ISessionClient/ObjectTypeClient. Proxies are emitted
                         // by the Stack pass (Opc.Ua.Core) instead.
-                        OmitObjectMethodProxies =
+                        OmitObjectTypeProxies =
                             generationType == StackGenerationType.Models
                     });
                 // Collect all generated cs files and produce them into the compilation

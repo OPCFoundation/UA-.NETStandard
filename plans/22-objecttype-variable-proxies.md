@@ -48,7 +48,7 @@ Add a new `public readonly record struct DataValue<T>(T Value, StatusCode Status
 - A small private static helper to build the single-element `RelativePath`
   using `ReferenceTypeIds.HierarchicalReferences` (`includeSubtypes=true`).
 
-### 3. Generator changes (`ObjectMethodProxyGenerator`)
+### 3. Generator changes (`ObjectTypeProxyGenerator`)
 - New `GetDeclaredVariables(ObjectTypeDesign)` mirroring
   `GetDeclaredMethods` — returns both `VariableDesign` and `PropertyDesign`
   children that are NOT placeholders (skip
@@ -77,12 +77,12 @@ Add a new `public readonly record struct DataValue<T>(T Value, StatusCode Status
   method arguments.
 
 ### 5. Templates
-Add a new `Tokens.VariableList` token, plus `ObjectMethodProxyTemplates`
+Add a new `Tokens.VariableList` token, plus `ObjectTypeProxyTemplates`
 gains a new `Variable` template. The `ProxyClass` template grows one
 extra token expansion site between the constructor and `Tokens.MethodList`.
 
 ### 6. Tests
-- `ObjectMethodProxyGeneratorTests`: add a fixture with an `ObjectType`
+- `ObjectTypeProxyGeneratorTests`: add a fixture with an `ObjectType`
   that declares mandatory + optional + read-only variables and a
   property, plus a derived type that shadows one of them. Assert:
   - Read/Write wrappers emitted with correct signature and `T`.
@@ -124,12 +124,12 @@ caching semantics, and the access-level filter.
    `OpcUaCoreStubs`.
 3. `var-generator-discover` — Implement
    `GetDeclaredVariables` + `CollectInheritedVariableNames` +
-   placeholder filtering in `ObjectMethodProxyGenerator`.
+   placeholder filtering in `ObjectTypeProxyGenerator`.
 4. `var-generator-template` — Add `Tokens.VariableList`, extend
-   `ObjectMethodProxyTemplates.ProxyClass`, add `Variable` template.
+   `ObjectTypeProxyTemplates.ProxyClass`, add `Variable` template.
 5. `var-generator-emit` — Implement `LoadTemplate_Variable` (signature,
    AccessLevel filter, `new` modifier, browse-name field).
-6. `var-tests` — Add `ObjectMethodProxyGeneratorTests` cases for
+6. `var-tests` — Add `ObjectTypeProxyGeneratorTests` cases for
    variables (mandatory/optional/read-only/shadow/inheritance).
 7. `var-run-sg-tests` — Run all 3 SG test projects, fix regressions.
 8. `var-run-build` — `dotnet build UA.slnx` (Release) — fix any

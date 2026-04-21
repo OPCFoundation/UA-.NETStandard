@@ -1,4 +1,4 @@
-﻿# Source generation for OPC UA .NET Standard Library
+# Source generation for OPC UA .NET Standard Library
 
 This project uses C# source generators to create parts of the OPC UA .NET Standard Library at compile time. 
 Source generators are a powerful feature in C# that allow developers to generate additional source code 
@@ -122,7 +122,7 @@ the C# prefix of the model's target namespace. For example:
 | Custom NodeSet  | matches the model's target namespace prefix |
 
 To redirect proxy emission to a different namespace, set the
-`ModelSourceGeneratorObjectMethodProxyNamespace` MSBuild property.
+`ModelSourceGeneratorObjectTypeProxyNamespace` MSBuild property.
 
 ### MSBuild properties
 
@@ -131,14 +131,14 @@ the consuming project:
 
 | Property | Description |
 | -------- | ----------- |
-| `ModelSourceGeneratorOmitObjectMethodProxies` | Set to `true` to suppress emission of `*TypeClient` proxies. By default proxies are emitted for every `ObjectType` in the model alongside the standard model output (constants, NodeIds, NodeStates, DataTypes, schemas). |
-| `ModelSourceGeneratorObjectMethodProxyNamespace` | Optional. Overrides the C# namespace used for the emitted proxy classes. Defaults to the model's own namespace. |
+| `ModelSourceGeneratorOmitObjectTypeProxies` | Set to `true` to suppress emission of `*TypeClient` proxies. By default proxies are emitted for every `ObjectType` in the model alongside the standard model output (constants, NodeIds, NodeStates, DataTypes, schemas). |
+| `ModelSourceGeneratorObjectTypeProxyNamespace` | Optional. Overrides the C# namespace used for the emitted proxy classes. Defaults to the model's own namespace. |
 
 Example (suppress proxy emission for a model that does not need them):
 
 ```xml
 <PropertyGroup>
-  <ModelSourceGeneratorOmitObjectMethodProxies>true</ModelSourceGeneratorOmitObjectMethodProxies>
+  <ModelSourceGeneratorOmitObjectTypeProxies>true</ModelSourceGeneratorOmitObjectTypeProxies>
 </PropertyGroup>
 ```
 

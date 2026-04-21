@@ -59,25 +59,25 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// When set to <c>true</c>, the
-        /// <see cref="ObjectMethodProxyGenerator"/> is suppressed and no
+        /// <see cref="ObjectTypeProxyGenerator"/> is suppressed and no
         /// <c>*TypeClient</c> proxy classes are emitted. Off by default —
         /// proxies are emitted for every <c>ObjectType</c> in the model
         /// alongside the standard model output.
         /// </summary>
-        public bool OmitObjectMethodProxies { get; set; }
+        public bool OmitObjectTypeProxies { get; set; }
 
         /// <summary>
         /// Optional override for the C# namespace used by classes emitted
-        /// by the <see cref="ObjectMethodProxyGenerator"/>. When unset,
+        /// by the <see cref="ObjectTypeProxyGenerator"/>. When unset,
         /// the model's target namespace prefix is used.
         /// </summary>
-        public string ObjectMethodProxyNamespace { get; set; }
+        public string ObjectTypeProxyNamespace { get; set; }
 
         /// <summary>
         /// Maps an OPC UA namespace URI (key) to the C# namespace (value)
         /// in which the corresponding source-generated <c>*TypeClient</c>
         /// proxies live. Used by the
-        /// <see cref="ObjectMethodProxyGenerator"/> when a generated
+        /// <see cref="ObjectTypeProxyGenerator"/> when a generated
         /// proxy must derive from a base proxy that is defined in a
         /// different (referenced) assembly.
         /// </summary>
@@ -87,7 +87,7 @@ namespace Opc.Ua.SourceGeneration
         /// always added by the generator and does not need to be
         /// configured explicitly.
         /// </remarks>
-        public IDictionary<string, string> ObjectMethodProxyExternalNamespaces { get; }
+        public IDictionary<string, string> ObjectTypeProxyExternalNamespaces { get; }
             = new Dictionary<string, string>();
     }
 }
