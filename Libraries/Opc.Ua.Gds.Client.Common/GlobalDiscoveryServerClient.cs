@@ -256,8 +256,8 @@ namespace Opc.Ua.Gds.Client
                 {
                     // ignore GDS and LDS servers
                     var set = server.ServerCapabilities.ToList();
-                    if (set.Contains(WellKnownServerCapabilities.GlobalDiscoveryServer) ||
-                        set.Contains(WellKnownServerCapabilities.LocalDiscoveryServer))
+                    if (set.Contains(WellKnownServerCapabilities.GDS) ||
+                        set.Contains(WellKnownServerCapabilities.LDS))
                     {
                         continue;
                     }
@@ -296,7 +296,7 @@ namespace Opc.Ua.Gds.Client
 
                 foreach (ServerOnNetwork server in servers)
                 {
-                    if (server.ServerCapabilities.ToList().Contains(WellKnownServerCapabilities.GlobalDiscoveryServer))
+                    if (server.ServerCapabilities.ToList().Contains(WellKnownServerCapabilities.GDS))
                     {
                         gdsUrls.Add(server.DiscoveryUrl);
                     }

@@ -237,6 +237,8 @@ namespace Opc.Ua.SourceGeneration
                 attributesGenerator.Emit();
                 var statusCodesGenerator = new StatusCodesGenerator(generatorContext);
                 statusCodesGenerator.Emit();
+                var serverCapabilitiesGenerator = new ServerCapabilitiesGenerator(generatorContext);
+                serverCapabilitiesGenerator.Emit();
 
                 Generate(generatorContext, !options.OptimizeForCompileSpeed);
             }

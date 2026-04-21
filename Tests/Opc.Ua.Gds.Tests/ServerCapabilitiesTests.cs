@@ -28,9 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Gds.Client;
 
@@ -43,15 +41,6 @@ namespace Opc.Ua.Gds.Tests
     [Parallelizable]
     public class ServerCapabilitiesTests
     {
-        private static ServerCapabilities CreateTestCapabilities()
-        {
-            const string csv = "DA,Live Data\nAC,Alarms and Conditions\nHD,Historical Data\n";
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-            var capabilities = new ServerCapabilities();
-            capabilities.Load(stream);
-            return capabilities;
-        }
-
         [Test]
         public void ConstructorCreatesInstance()
         {
@@ -60,19 +49,36 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
+        public void ConstructorPopulatesFromGeneratedCatalog()
+        {
+            var capabilities = new ServerCapabilities();
+            int count = capabilities.Count();
+            Assert.That(count, Is.EqualTo(WellKnownServerCapabilities.All.Count));
+            Assert.That(count, Is.GreaterThan(0));
+        }
+
+        [Test]
         public void FindReturnsCapabilityById()
         {
-            ServerCapabilities capabilities = CreateTestCapabilities();
-            ServerCapability result = capabilities.Find("DA");
+            var capabilities = new ServerCapabilities();
+            ServerCapability result = capabilities.Find(WellKnownServerCapabilities.DA);
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Id, Is.EqualTo("DA"));
-            Assert.That(result.Description, Is.EqualTo("Live Data"));
+            Assert.That(result.Description, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void FindReturnsCapabilityForGdsAndLds()
+        {
+            var capabilities = new ServerCapabilities();
+            Assert.That(capabilities.Find(WellKnownServerCapabilities.GDS), Is.Not.Null);
+            Assert.That(capabilities.Find(WellKnownServerCapabilities.LDS), Is.Not.Null);
         }
 
         [Test]
         public void FindReturnsNullForUnknownId()
         {
-            ServerCapabilities capabilities = CreateTestCapabilities();
+            var capabilities = new ServerCapabilities();
             ServerCapability result = capabilities.Find("UNKNOWN_XYZ");
             Assert.That(result, Is.Null);
         }
@@ -80,7 +86,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void FindReturnsNullForNullId()
         {
-            ServerCapabilities capabilities = CreateTestCapabilities();
+            var capabilities = new ServerCapabilities();
             ServerCapability result = capabilities.Find(null);
             Assert.That(result, Is.Null);
         }
@@ -88,49 +94,13 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void GetEnumeratorEnumeratesCapabilities()
         {
-            ServerCapabilities capabilities = CreateTestCapabilities();
+            var capabilities = new ServerCapabilities();
             var list = new List<ServerCapability>();
 
             list.AddRange(capabilities);
 
-            Assert.That(list, Has.Count.EqualTo(3));
+            Assert.That(list, Has.Count.EqualTo(WellKnownServerCapabilities.All.Count));
             Assert.That(list.All(c => !string.IsNullOrEmpty(c.Id)), Is.True);
-        }
-
-        [Test]
-        public void LoadFromCustomStream()
-        {
-            const string csv = "TEST,Test Capability\nFOO,Foo Capability\n";
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-            var capabilities = new ServerCapabilities();
-            capabilities.Load(stream);
-
-            Assert.That(capabilities.Count(), Is.EqualTo(2));
-            ServerCapability test = capabilities.Find("TEST");
-            Assert.That(test, Is.Not.Null);
-            Assert.That(test.Description, Is.EqualTo("Test Capability"));
-        }
-
-        [Test]
-        public void LoadFromEmptyStreamProducesEmptyList()
-        {
-            using var stream = new MemoryStream([]);
-            var capabilities = new ServerCapabilities();
-            capabilities.Load(stream);
-
-            Assert.That(capabilities.Count(), Is.Zero);
-        }
-
-        [Test]
-        public void LoadSkipsLinesWithoutComma()
-        {
-            const string csv = "GOOD,Good Description\nBADLINE\nALSO_GOOD,Also Good\n";
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-            var capabilities = new ServerCapabilities();
-            capabilities.Load(stream);
-
-            Assert.That(capabilities.Count(), Is.EqualTo(2));
-            Assert.That(capabilities.Find("BADLINE"), Is.Null);
         }
     }
 }

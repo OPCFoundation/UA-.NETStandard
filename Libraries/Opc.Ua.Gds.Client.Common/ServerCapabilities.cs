@@ -30,13 +30,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.IO;
 
 namespace Opc.Ua.Gds.Client
 {
     /// <summary>
-    /// The set of known capability identifiers, loaded from the embedded
-    /// ServerCapabilities.csv resource by default.
+    /// The set of known server capability identifiers, populated from the
+    /// generated <see cref="WellKnownServerCapabilities"/> catalog.
     /// </summary>
     public class ServerCapabilities : IEnumerable<ServerCapability>
     {
@@ -45,7 +44,19 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         public ServerCapabilities()
         {
-            Load();
+            ImmutableArray<ServerCapability>.Builder builder
+                = ImmutableArray.CreateBuilder<ServerCapability>();
+            var lookup = new Dictionary<string, ServerCapability>(StringComparer.Ordinal);
+
+            foreach (KeyValuePair<string, string> entry in WellKnownServerCapabilities.All)
+            {
+                var capability = new ServerCapability { Id = entry.Key, Description = entry.Value };
+                builder.Add(capability);
+                lookup[entry.Key] = capability;
+            }
+
+            m_capabilities = builder.ToImmutable();
+            m_lookup = lookup;
         }
 
         /// <inheritdoc/>
@@ -64,76 +75,6 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Loads the default set of server capability identifiers from the
-        /// embedded ServerCapabilities.csv resource.
-        /// </summary>
-        public void Load()
-        {
-            Load(null);
-        }
-
-        /// <summary>
-        /// Loads the set of server capability identifiers from the stream.
-        /// </summary>
-        /// <param name="istrm">The input stream. If null the embedded resource is used.</param>
-        public void Load(Stream istrm)
-        {
-            ImmutableArray<ServerCapability>.Builder builder
-                = ImmutableArray.CreateBuilder<ServerCapability>();
-            var lookup = new Dictionary<string, ServerCapability>(StringComparer.Ordinal);
-
-            Stream resourceStream = null;
-            if (istrm == null)
-            {
-                foreach (string resourceName in typeof(Ua.ObjectIds).Assembly
-                    .GetManifestResourceNames())
-                {
-                    if (resourceName.EndsWith(
-                        "ServerCapabilities.csv",
-                        StringComparison.OrdinalIgnoreCase))
-                    {
-                        resourceStream = typeof(Ua.ObjectIds).Assembly
-                            .GetManifestResourceStream(resourceName);
-                        istrm = resourceStream;
-                        break;
-                    }
-                }
-            }
-
-            try
-            {
-                if (istrm != null)
-                {
-                    using var reader = new StreamReader(istrm);
-                    string line = reader.ReadLine();
-
-                    while (line != null)
-                    {
-                        int index = line.IndexOf(',', StringComparison.Ordinal);
-
-                        if (index >= 0)
-                        {
-                            string id = line[..index].Trim();
-                            string description = line[(index + 1)..].Trim();
-                            var capability = new ServerCapability { Id = id, Description = description };
-                            builder.Add(capability);
-                            lookup[id] = capability;
-                        }
-
-                        line = reader.ReadLine();
-                    }
-                }
-            }
-            finally
-            {
-                resourceStream?.Dispose();
-            }
-
-            m_capabilities = builder.ToImmutable();
-            m_lookup = lookup;
-        }
-
-        /// <summary>
         /// Finds the server capability with the specified identifier.
         /// </summary>
         /// <param name="id">The identifier.</param>
@@ -148,8 +89,8 @@ namespace Opc.Ua.Gds.Client
             return m_lookup.TryGetValue(id, out ServerCapability capability) ? capability : null;
         }
 
-        private ImmutableArray<ServerCapability> m_capabilities = ImmutableArray<ServerCapability>.Empty;
-        private Dictionary<string, ServerCapability> m_lookup;
+        private readonly ImmutableArray<ServerCapability> m_capabilities;
+        private readonly Dictionary<string, ServerCapability> m_lookup;
     }
 
     /// <summary>
@@ -188,37 +129,5 @@ namespace Opc.Ua.Gds.Client
 
             return string.Format(formatProvider, "[{0}] {1}", Id, Description);
         }
-
-        /// <summary>No information is available.</summary>
-        [Obsolete("Use WellKnownServerCapabilities.NoInformation instead.")]
-        public const string NoInformation = WellKnownServerCapabilities.NoInformation;
-
-        /// <summary>The server supports live data.</summary>
-        [Obsolete("Use WellKnownServerCapabilities.LiveData instead.")]
-        public const string LiveData = WellKnownServerCapabilities.LiveData;
-
-        /// <summary>The server supports alarms and conditions.</summary>
-        [Obsolete("Use WellKnownServerCapabilities.AlarmsAndConditions instead.")]
-        public const string AlarmsAndConditions = WellKnownServerCapabilities.AlarmsAndConditions;
-
-        /// <summary>The server supports historical data.</summary>
-        [Obsolete("Use WellKnownServerCapabilities.HistoricalData instead.")]
-        public const string HistoricalData = WellKnownServerCapabilities.HistoricalData;
-
-        /// <summary>The server supports historical events.</summary>
-        [Obsolete("Use WellKnownServerCapabilities.HistoricalEvents instead.")]
-        public const string HistoricalEvents = WellKnownServerCapabilities.HistoricalEvents;
-
-        /// <summary>The server is a global discovery server.</summary>
-        [Obsolete("Use WellKnownServerCapabilities.GlobalDiscoveryServer instead.")]
-        public const string GlobalDiscoveryServer = WellKnownServerCapabilities.GlobalDiscoveryServer;
-
-        /// <summary>The server is a local discovery server.</summary>
-        [Obsolete("Use WellKnownServerCapabilities.LocalDiscoveryServer instead.")]
-        public const string LocalDiscoveryServer = WellKnownServerCapabilities.LocalDiscoveryServer;
-
-        /// <summary>The server supports the device integration (DI) information model.</summary>
-        [Obsolete("Use WellKnownServerCapabilities.DI instead.")]
-        public const string DI = WellKnownServerCapabilities.DI;
     }
 }
