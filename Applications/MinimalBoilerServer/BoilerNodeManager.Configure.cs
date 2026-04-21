@@ -61,14 +61,22 @@ namespace Boiler
 
         partial void Configure(INodeManagerBuilder builder)
         {
+            // Addressing by browse-path — works against the deployment
+            // tree produced by the generator from the NodeSet2.
             builder
                 .Node("Boilers/Boiler #1/DrumX001/LIX001/Output")
                 .OnRead(GenerateDrumLevel);
 
+            // Addressing by absolute NodeId — use the generator's
+            // strongly-typed identifier table instead of a magic string.
             builder
-                .Node("Boilers/Boiler #1/PipeX001/FTX001/Output")
+                .Node(ExpandedNodeId.ToNodeId(
+                    Boiler.VariableIds.Boilers_Boiler__1_PipeX001_FTX001_Output,
+                    Server.NamespaceUris))
                 .OnRead(GeneratePipeFlow);
 
+            // Addressing by TypeDefinitionId — robust for well-known
+            // singletons, independent of browse-path layout.
             builder
                 .NodeFromTypeId(ExpandedNodeId.ToNodeId(Boiler.ObjectTypeIds.BoilerType, Server.NamespaceUris))
                 .OnNodeAdded((context, node) =>
