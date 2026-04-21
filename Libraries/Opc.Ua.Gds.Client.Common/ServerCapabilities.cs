@@ -29,12 +29,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 
 namespace Opc.Ua.Gds.Client
 {
     /// <summary>
-    /// The set known capability identifiers.
+    /// The set of known capability identifiers, loaded from the embedded
+    /// ServerCapabilities.csv resource by default.
     /// </summary>
     public class ServerCapabilities : IEnumerable<ServerCapability>
     {
@@ -46,14 +48,14 @@ namespace Opc.Ua.Gds.Client
             Load();
         }
 
+        /// <inheritdoc/>
         public IEnumerator<ServerCapability> GetEnumerator()
         {
-            if (m_capabilities == null)
+            ImmutableArray<ServerCapability> capabilities = m_capabilities;
+            for (int i = 0; i < capabilities.Length; i++)
             {
-                return new List<ServerCapability>().GetEnumerator();
+                yield return capabilities[i];
             }
-
-            return m_capabilities.GetEnumerator();
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
@@ -62,7 +64,8 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Loads the default set of server capability identifiers.
+        /// Loads the default set of server capability identifiers from the
+        /// embedded ServerCapabilities.csv resource.
         /// </summary>
         public void Load()
         {
@@ -72,11 +75,14 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Loads the set of server capability identifiers from the stream.
         /// </summary>
-        /// <param name="istrm">The input stream.</param>
+        /// <param name="istrm">The input stream. If null the embedded resource is used.</param>
         public void Load(Stream istrm)
         {
-            var capabilities = new List<ServerCapability>();
+            ImmutableArray<ServerCapability>.Builder builder
+                = ImmutableArray.CreateBuilder<ServerCapability>();
+            var lookup = new Dictionary<string, ServerCapability>(StringComparer.Ordinal);
 
+            Stream resourceStream = null;
             if (istrm == null)
             {
                 foreach (string resourceName in typeof(Ua.ObjectIds).Assembly
@@ -86,35 +92,45 @@ namespace Opc.Ua.Gds.Client
                         "ServerCapabilities.csv",
                         StringComparison.OrdinalIgnoreCase))
                     {
-                        istrm = typeof(Ua.ObjectIds).Assembly
+                        resourceStream = typeof(Ua.ObjectIds).Assembly
                             .GetManifestResourceStream(resourceName);
+                        istrm = resourceStream;
                         break;
                     }
                 }
             }
 
-            if (istrm != null)
+            try
             {
-                using var reader = new StreamReader(istrm);
-                string line = reader.ReadLine();
-
-                while (line != null)
+                if (istrm != null)
                 {
-                    int index = line.IndexOf(',', StringComparison.Ordinal);
+                    using var reader = new StreamReader(istrm);
+                    string line = reader.ReadLine();
 
-                    if (index >= 0)
+                    while (line != null)
                     {
-                        string id = line[..index].Trim();
-                        string description = line[(index + 1)..].Trim();
-                        capabilities.Add(
-                            new ServerCapability { Id = id, Description = description });
-                    }
+                        int index = line.IndexOf(',', StringComparison.Ordinal);
 
-                    line = reader.ReadLine();
+                        if (index >= 0)
+                        {
+                            string id = line[..index].Trim();
+                            string description = line[(index + 1)..].Trim();
+                            var capability = new ServerCapability { Id = id, Description = description };
+                            builder.Add(capability);
+                            lookup[id] = capability;
+                        }
+
+                        line = reader.ReadLine();
+                    }
                 }
             }
+            finally
+            {
+                resourceStream?.Dispose();
+            }
 
-            m_capabilities = capabilities;
+            m_capabilities = builder.ToImmutable();
+            m_lookup = lookup;
         }
 
         /// <summary>
@@ -124,21 +140,16 @@ namespace Opc.Ua.Gds.Client
         /// <returns>The server capability, if found. NULL if it does not exist.</returns>
         public ServerCapability Find(string id)
         {
-            if (id != null && m_capabilities != null)
+            if (id == null || m_lookup == null)
             {
-                foreach (ServerCapability capability in m_capabilities)
-                {
-                    if (capability.Id == id)
-                    {
-                        return capability;
-                    }
-                }
+                return null;
             }
 
-            return null;
+            return m_lookup.TryGetValue(id, out ServerCapability capability) ? capability : null;
         }
 
-        private List<ServerCapability> m_capabilities;
+        private ImmutableArray<ServerCapability> m_capabilities = ImmutableArray<ServerCapability>.Empty;
+        private Dictionary<string, ServerCapability> m_lookup;
     }
 
     /// <summary>
@@ -149,25 +160,14 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets or sets the identifier.
         /// </summary>
-        /// <value>
-        /// The identifier.
-        /// </value>
         public string Id { get; set; }
 
         /// <summary>
         /// Gets or sets the description.
         /// </summary>
-        /// <value>
-        /// The description.
-        /// </value>
         public string Description { get; set; }
 
-        /// <summary>
-        /// Returns a <see cref="string" /> that represents this instance.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string" /> that represents this instance.
-        /// </returns>
+        /// <inheritdoc/>
         public override string ToString()
         {
             return ToString(null, null);
@@ -178,9 +178,6 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="format">The format. Must be null.</param>
         /// <param name="formatProvider">The format provider.</param>
-        /// <returns>
-        /// A <see cref="string" /> that represents this instance.
-        /// </returns>
         /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -192,44 +189,36 @@ namespace Opc.Ua.Gds.Client
             return string.Format(formatProvider, "[{0}] {1}", Id, Description);
         }
 
-        /// <summary>
-        /// No information is available.
-        /// </summary>
-        public const string NoInformation = "NA";
+        /// <summary>No information is available.</summary>
+        [Obsolete("Use WellKnownServerCapabilities.NoInformation instead.")]
+        public const string NoInformation = WellKnownServerCapabilities.NoInformation;
 
-        /// <summary>
-        /// The server supports live data.
-        /// </summary>
-        public const string LiveData = "DA";
+        /// <summary>The server supports live data.</summary>
+        [Obsolete("Use WellKnownServerCapabilities.LiveData instead.")]
+        public const string LiveData = WellKnownServerCapabilities.LiveData;
 
-        /// <summary>
-        /// The server supports alarms and conditions
-        /// </summary>
-        public const string AlarmsAndConditions = "AC";
+        /// <summary>The server supports alarms and conditions.</summary>
+        [Obsolete("Use WellKnownServerCapabilities.AlarmsAndConditions instead.")]
+        public const string AlarmsAndConditions = WellKnownServerCapabilities.AlarmsAndConditions;
 
-        /// <summary>
-        /// The server supports historical data.
-        /// </summary>
-        public const string HistoricalData = "HD";
+        /// <summary>The server supports historical data.</summary>
+        [Obsolete("Use WellKnownServerCapabilities.HistoricalData instead.")]
+        public const string HistoricalData = WellKnownServerCapabilities.HistoricalData;
 
-        /// <summary>
-        /// The server supports historical events.
-        /// </summary>
-        public const string HistoricalEvents = "HE";
+        /// <summary>The server supports historical events.</summary>
+        [Obsolete("Use WellKnownServerCapabilities.HistoricalEvents instead.")]
+        public const string HistoricalEvents = WellKnownServerCapabilities.HistoricalEvents;
 
-        /// <summary>
-        /// The server is a global discovery server.
-        /// </summary>
-        public const string GlobalDiscoveryServer = "GDS";
+        /// <summary>The server is a global discovery server.</summary>
+        [Obsolete("Use WellKnownServerCapabilities.GlobalDiscoveryServer instead.")]
+        public const string GlobalDiscoveryServer = WellKnownServerCapabilities.GlobalDiscoveryServer;
 
-        /// <summary>
-        /// The server is a local discovery server.
-        /// </summary>
-        public const string LocalDiscoveryServer = "LDS";
+        /// <summary>The server is a local discovery server.</summary>
+        [Obsolete("Use WellKnownServerCapabilities.LocalDiscoveryServer instead.")]
+        public const string LocalDiscoveryServer = WellKnownServerCapabilities.LocalDiscoveryServer;
 
-        /// <summary>
-        /// The server supports the device integration (DI) information model.
-        /// </summary>
-        public const string DI = "DI";
+        /// <summary>The server supports the device integration (DI) information model.</summary>
+        [Obsolete("Use WellKnownServerCapabilities.DI instead.")]
+        public const string DI = WellKnownServerCapabilities.DI;
     }
 }

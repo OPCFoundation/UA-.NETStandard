@@ -63,14 +63,14 @@ namespace Opc.Ua.Gds.Tests
             Assert.Throws<FormatException>(() => capability.ToString("G", null));
         }
 
-        [TestCase(ServerCapability.LiveData, "DA")]
-        [TestCase(ServerCapability.NoInformation, "NA")]
-        [TestCase(ServerCapability.AlarmsAndConditions, "AC")]
-        [TestCase(ServerCapability.HistoricalData, "HD")]
-        [TestCase(ServerCapability.HistoricalEvents, "HE")]
-        [TestCase(ServerCapability.GlobalDiscoveryServer, "GDS")]
-        [TestCase(ServerCapability.LocalDiscoveryServer, "LDS")]
-        [TestCase(ServerCapability.DI, "DI")]
+        [TestCase(WellKnownServerCapabilities.LiveData, "DA")]
+        [TestCase(WellKnownServerCapabilities.NoInformation, "NA")]
+        [TestCase(WellKnownServerCapabilities.AlarmsAndConditions, "AC")]
+        [TestCase(WellKnownServerCapabilities.HistoricalData, "HD")]
+        [TestCase(WellKnownServerCapabilities.HistoricalEvents, "HE")]
+        [TestCase(WellKnownServerCapabilities.GlobalDiscoveryServer, "GDS")]
+        [TestCase(WellKnownServerCapabilities.LocalDiscoveryServer, "LDS")]
+        [TestCase(WellKnownServerCapabilities.DI, "DI")]
         public void ConstantsHaveExpectedValues(string actual, string expected)
         {
             Assert.That(actual, Is.EqualTo(expected));

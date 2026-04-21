@@ -121,15 +121,8 @@ namespace Opc.Ua.Gds.Client
         {
             get
             {
-                m_lock.Wait();
-                try
-                {
-                    return Session != null && Session.Connected;
-                }
-                finally
-                {
-                    m_lock.Release();
-                }
+                ISession session = Session;
+                return session is { Connected: true };
             }
         }
 
@@ -139,6 +132,14 @@ namespace Opc.Ua.Gds.Client
         public ISession Session { get; private set; }
 
         /// <summary>
+        /// Typed proxy for the ServerConfigurationType ObjectType
+        /// (CreateSigningRequest/UpdateCertificate/GetCertificates/GetRejectedList/
+        /// ApplyChanges). Constructed after a successful connect and cleared on
+        /// disconnect/dispose.
+        /// </summary>
+        public ServerConfigurationTypeClient ServerConfiguration => m_serverConfiguration;
+
+        /// <summary>
         /// Gets the endpoint.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
@@ -146,19 +147,8 @@ namespace Opc.Ua.Gds.Client
         {
             get
             {
-                m_lock.Wait();
-                try
-                {
-                    if (Session != null && Session.ConfiguredEndpoint != null)
-                    {
-                        return Session.ConfiguredEndpoint;
-                    }
-                    return m_endpoint;
-                }
-                finally
-                {
-                    m_lock.Release();
-                }
+                ISession session = Session;
+                return session?.ConfiguredEndpoint ?? m_endpoint;
             }
             set
             {
@@ -1019,31 +1009,25 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private async void Session_KeepAliveAsync(ISession session, KeepAliveEventArgs e)
+        private void Session_KeepAliveAsync(ISession session, KeepAliveEventArgs e)
         {
             if (m_disposed)
             {
                 return;
             }
+
+            // Re-raise the public KeepAlive event synchronously on the same callback
+            // thread to preserve original ordering for subscribers.
             try
             {
-                await m_lock.WaitAsync().ConfigureAwait(false);
-                try
+                if (ReferenceEquals(session, Session))
                 {
-                    if (!ReferenceEquals(session, Session))
-                    {
-                        return;
-                    }
+                    KeepAlive?.Invoke(session, e);
                 }
-                finally
-                {
-                    m_lock.Release();
-                }
-                KeepAlive?.Invoke(session, e);
             }
             catch (Exception exception)
             {
-                m_logger.LogError(exception, "Unexpected error in Session_KeepAlive.");
+                m_logger.LogError(exception, "Subscriber threw in KeepAlive handler.");
             }
         }
 
@@ -1093,7 +1077,6 @@ namespace Opc.Ua.Gds.Client
                 .ConfigureAwait(false);
 
                 Session.KeepAlive += Session_KeepAliveAsync;
-                Session.KeepAlive += KeepAlive;
 
                 if (!Session.Factory.ContainsEncodeableType(Ua.DataTypeIds.TrustListDataType))
                 {

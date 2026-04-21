@@ -138,15 +138,8 @@ namespace Opc.Ua.Gds.Client
         {
             get
             {
-                m_lock.Wait();
-                try
-                {
-                    return Session != null && Session.Connected;
-                }
-                finally
-                {
-                    m_lock.Release();
-                }
+                ISession session = Session;
+                return session is { Connected: true };
             }
         }
 
@@ -160,7 +153,7 @@ namespace Opc.Ua.Gds.Client
         /// (Find/Get/Query/Register/Unregister/UpdateApplication). Constructed
         /// after a successful connect and cleared on disconnect/dispose.
         /// </summary>
-        private DirectoryTypeClient m_directory;
+        public DirectoryTypeClient Directory => m_directory;
 
         /// <summary>
         /// Typed proxy for methods declared on the CertificateDirectoryType
@@ -168,6 +161,10 @@ namespace Opc.Ua.Gds.Client
         /// RevokeCertificate/GetCertificate*/GetTrustList/CheckRevocationStatus).
         /// Constructed after a successful connect and cleared on disconnect/dispose.
         /// </summary>
+        public CertificateDirectoryTypeClient CertificateDirectory => m_certificateDirectory;
+
+        private DirectoryTypeClient m_directory;
+
         private CertificateDirectoryTypeClient m_certificateDirectory;
 
         /// <summary>
@@ -178,19 +175,8 @@ namespace Opc.Ua.Gds.Client
         {
             get
             {
-                m_lock.Wait();
-                try
-                {
-                    if (Session != null && Session.ConfiguredEndpoint != null)
-                    {
-                        return Session.ConfiguredEndpoint;
-                    }
-                    return m_endpoint;
-                }
-                finally
-                {
-                    m_lock.Release();
-                }
+                ISession session = Session;
+                return session?.ConfiguredEndpoint ?? m_endpoint;
             }
             set
             {
@@ -251,8 +237,8 @@ namespace Opc.Ua.Gds.Client
                 {
                     // ignore GDS and LDS servers
                     var set = server.ServerCapabilities.ToList();
-                    if (set.Contains(ServerCapability.GlobalDiscoveryServer) ||
-                        set.Contains(ServerCapability.LocalDiscoveryServer))
+                    if (set.Contains(WellKnownServerCapabilities.GlobalDiscoveryServer) ||
+                        set.Contains(WellKnownServerCapabilities.LocalDiscoveryServer))
                     {
                         continue;
                     }
@@ -305,7 +291,7 @@ namespace Opc.Ua.Gds.Client
 
                 foreach (ServerOnNetwork server in servers)
                 {
-                    if (server.ServerCapabilities.ToList().Contains(ServerCapability.GlobalDiscoveryServer))
+                    if (server.ServerCapabilities.ToList().Contains(WellKnownServerCapabilities.GlobalDiscoveryServer))
                     {
                         gdsUrls.Add(server.DiscoveryUrl);
                     }
@@ -503,30 +489,56 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private async void Session_KeepAliveAsync(ISession session, KeepAliveEventArgs e)
+        private void Session_KeepAliveAsync(ISession session, KeepAliveEventArgs e)
         {
-            if (ServiceResult.IsBad(e.Status) && !m_disposed)
+            if (m_disposed)
             {
-                await m_lock.WaitAsync().ConfigureAwait(false);
+                return;
+            }
+
+            // Re-raise the public KeepAlive event synchronously on the same callback
+            // thread to preserve original ordering for subscribers.
+            try
+            {
+                KeepAlive?.Invoke(session, e);
+            }
+            catch (Exception exception)
+            {
+                m_logger.LogError(exception, "Subscriber threw in KeepAlive handler.");
+            }
+
+            if (!ServiceResult.IsBad(e.Status))
+            {
+                return;
+            }
+
+            // Bad keep-alive: schedule async cleanup without blocking the keep-alive
+            // callback thread. Errors are logged; we never throw out of fire-and-forget.
+            _ = Task.Run(async () =>
+            {
                 try
                 {
-                    if (session == Session)
+                    await m_lock.WaitAsync().ConfigureAwait(false);
+                    try
                     {
-                        Session.Dispose();
-                        Session = null;
-                        m_directory = null;
-                        m_certificateDirectory = null;
+                        if (ReferenceEquals(session, Session))
+                        {
+                            Session.Dispose();
+                            Session = null;
+                            m_directory = null;
+                            m_certificateDirectory = null;
+                        }
+                    }
+                    finally
+                    {
+                        m_lock.Release();
                     }
                 }
                 catch (Exception ex)
                 {
                     m_logger.LogError(ex, "Error during KeepAlive handling.");
                 }
-                finally
-                {
-                    m_lock.Release();
-                }
-            }
+            });
         }
 
         private void Session_SessionClosing(object sender, EventArgs e)
@@ -542,7 +554,9 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Occurs when the server status changes.
         /// </summary>
+#pragma warning disable CS0067
         public event MonitoredItemNotificationEventHandler ServerStatusChanged;
+#pragma warning restore CS0067
 
         /// <summary>
         /// Finds the applications with the specified application uri.
@@ -1346,12 +1360,6 @@ namespace Opc.Ua.Gds.Client
 
                 Session.SessionClosing += Session_SessionClosing;
                 Session.KeepAlive += Session_KeepAliveAsync;
-                Session.KeepAlive += KeepAlive;
-
-                // TODO: implement, suppress warning/error
-                if (ServerStatusChanged != null)
-                {
-                }
 
                 if (!Session.Factory.ContainsEncodeableType(DataTypeIds.ApplicationRecordDataType))
                 {
