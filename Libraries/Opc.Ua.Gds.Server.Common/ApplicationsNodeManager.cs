@@ -845,7 +845,7 @@ namespace Opc.Ua.Gds.Server
             try
             {
                 //create chain to validate Certificate against it
-                var chain = new X509Chain();
+                using var chain = new X509Chain();
                 chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
                 chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
 
@@ -857,9 +857,11 @@ namespace Opc.Ua.Gds.Server
                 {
                     try
                     {
+                        using CertificateCollection issuerCerts = await store
+                            .EnumerateAsync(cancellationToken)
+                            .ConfigureAwait(false);
                         chain.ChainPolicy.ExtraStore
-                            .AddRange((await store.EnumerateAsync(cancellationToken)
-                                .ConfigureAwait(false)).AsX509Certificate2Collection());
+                            .AddRange(issuerCerts.AsX509Certificate2Collection());
                     }
                     finally
                     {
