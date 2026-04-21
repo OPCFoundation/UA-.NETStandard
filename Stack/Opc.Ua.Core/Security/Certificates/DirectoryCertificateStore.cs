@@ -273,8 +273,8 @@ namespace Opc.Ua
             {
                 m_logger.LogError(
                     ex,
-                    "Failed to add certificate {Certificate} to store {StorePath}.",
-                    certificate,
+                    "Failed to add certificate with thumbprint {Thumbprint} to store {StorePath}.",
+                    certificate?.Thumbprint,
                     StorePath);
                 throw;
             }
