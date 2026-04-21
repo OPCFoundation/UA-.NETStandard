@@ -173,7 +173,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Mock.Of<IAsyncNodeManager>(),
                 kNs,
                 q => roots.TryGetValue(q, out NodeState n) ? n : null,
-                id => byId.TryGetValue(id, out NodeState n) ? n : null);
+                id => byId.TryGetValue(id, out NodeState n) ? n : null,
+                _ => System.Array.Empty<NodeState>());
 
             int nodeAddedCount = 0;
             builder.Node("Root/Var1").OnNodeAdded((_, _) => nodeAddedCount++);

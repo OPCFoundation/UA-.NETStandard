@@ -139,9 +139,21 @@ public partial class MyModelNodeManager
             .Node("Boilers/Boiler #1/Drum1001/LevelIndicator/Output")
             .OnRead(MyReadHandler);
 
+        // Resolve a singleton instance by its TypeDefinitionId — stable
+        // across deployments and independent of where the instance sits
+        // in the tree. Ideal for well-known types like
+        // HistoryServerCapabilities or a single BoilerType instance.
         builder
-            .Node("Boilers/Boiler #1")
+            .NodeFromTypeId(ExpandedNodeId.ToNodeId(
+                MyModel.ObjectTypeIds.BoilerType, Server.NamespaceUris))
             .OnNodeAdded((ctx, node) => /* ... */);
+
+        // For multi-instance types, disambiguate with a BrowseName:
+        builder
+            .NodeFromTypeId(
+                ExpandedNodeId.ToNodeId(MyModel.ObjectTypeIds.BoilerType, Server.NamespaceUris),
+                new QualifiedName("Boiler #2", nsIndex))
+            .OnRead(MyReadHandler);
     }
 }
 ```
@@ -149,6 +161,26 @@ public partial class MyModelNodeManager
 Path syntax is `/`-separated **BrowseNames**, rooted at the model
 namespace's predefined nodes. Optional `ns=N;` prefix lets you target a
 different namespace.
+
+### Addressing modes
+
+| Method | Resolves by | Use when |
+|--------|-------------|----------|
+| `Node(string path)` | BrowseName path | Deterministic tree layout, multiple siblings |
+| `Node(NodeId id)` / `Node<TState>(NodeId id)` | Absolute NodeId | You own the id (e.g. generated `Variables.*`) |
+| `NodeFromTypeId(NodeId typeId)` / `NodeFromTypeId<TState>(NodeId typeId)` | `BaseInstanceState.TypeDefinitionId` | Singleton instance of a well-known type |
+| `NodeFromTypeId(NodeId typeId, QualifiedName browseName)` | TypeDefinitionId + BrowseName | Multi-instance types — pick one |
+
+`NodeFromTypeId` walks every predefined node owned by this manager
+(and their sub-trees) at Configure-time. Error matrix:
+
+* `BadNodeIdInvalid` — `typeId` is null or `IsNull`.
+* `BadNodeIdUnknown` — no instance carries that `TypeDefinitionId`, or
+  the optional `browseName` disambiguator finds no match.
+* `BadBrowseNameDuplicated` — more than one candidate and no
+  disambiguator was supplied (or multiple candidates share the same
+  `browseName`).
+* `BadTypeMismatch` — typed overload's `TState` cast fails.
 
 The builder exposes:
 

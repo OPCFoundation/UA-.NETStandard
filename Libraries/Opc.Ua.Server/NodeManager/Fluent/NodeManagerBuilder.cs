@@ -79,18 +79,25 @@ namespace Opc.Ua.Server.Fluent
         /// <see cref="NodeId"/>. Typically backed by the manager's
         /// <c>PredefinedNodes</c> dictionary.
         /// </param>
+        /// <param name="typeIdResolver">
+        /// Delegate that returns every <see cref="NodeState"/> whose
+        /// <c>TypeDefinitionId</c> matches the supplied <see cref="NodeId"/>.
+        /// Typically a generated walk over the manager's predefined nodes.
+        /// </param>
         public NodeManagerBuilder(
             ISystemContext context,
             IAsyncNodeManager nodeManager,
             ushort defaultNamespaceIndex,
             Func<QualifiedName, NodeState> rootResolver,
-            Func<NodeId, NodeState> nodeIdResolver)
+            Func<NodeId, NodeState> nodeIdResolver,
+            Func<NodeId, IReadOnlyList<NodeState>> typeIdResolver)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             m_defaultNamespaceIndex = defaultNamespaceIndex;
             m_rootResolver = rootResolver ?? throw new ArgumentNullException(nameof(rootResolver));
             m_nodeIdResolver = nodeIdResolver ?? throw new ArgumentNullException(nameof(nodeIdResolver));
+            m_typeIdResolver = typeIdResolver ?? throw new ArgumentNullException(nameof(typeIdResolver));
         }
 
         /// <inheritdoc/>
@@ -174,6 +181,59 @@ namespace Opc.Ua.Server.Fluent
                     typeof(TState).Name);
             }
 
+            return new NodeBuilder<TState>(this, typed);
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder NodeFromTypeId(NodeId typeDefinitionId)
+        {
+            ThrowIfSealed();
+            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null);
+            return new NodeBuilder(this, node);
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder NodeFromTypeId(NodeId typeDefinitionId, QualifiedName browseName)
+        {
+            ThrowIfSealed();
+            NodeState node = ResolveByTypeDefinition(typeDefinitionId, browseName);
+            return new NodeBuilder(this, node);
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder<TState> NodeFromTypeId<TState>(NodeId typeDefinitionId)
+            where TState : NodeState
+        {
+            ThrowIfSealed();
+            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null);
+            if (node is not TState typed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "TypeDefinitionId '{0}' resolved to {1}, which is not assignable to {2}.",
+                    typeDefinitionId,
+                    node.GetType().Name,
+                    typeof(TState).Name);
+            }
+            return new NodeBuilder<TState>(this, typed);
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder<TState> NodeFromTypeId<TState>(NodeId typeDefinitionId, QualifiedName browseName)
+            where TState : NodeState
+        {
+            ThrowIfSealed();
+            NodeState node = ResolveByTypeDefinition(typeDefinitionId, browseName);
+            if (node is not TState typed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "TypeDefinitionId '{0}' (browse name '{1}') resolved to {2}, which is not assignable to {3}.",
+                    typeDefinitionId,
+                    browseName,
+                    node.GetType().Name,
+                    typeof(TState).Name);
+            }
             return new NodeBuilder<TState>(this, typed);
         }
 
@@ -309,6 +369,69 @@ namespace Opc.Ua.Server.Fluent
             return node;
         }
 
+        private NodeState ResolveByTypeDefinition(NodeId typeDefinitionId, QualifiedName browseName)
+        {
+            if (typeDefinitionId == null || typeDefinitionId.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "TypeDefinitionId is null or empty.");
+            }
+
+            IReadOnlyList<NodeState> candidates = m_typeIdResolver(typeDefinitionId)
+                ?? Array.Empty<NodeState>();
+
+            if (candidates.Count == 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdUnknown,
+                    "No predefined node has TypeDefinitionId '{0}'.",
+                    typeDefinitionId);
+            }
+
+            if (browseName == null)
+            {
+                if (candidates.Count > 1)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadBrowseNameDuplicated,
+                        "TypeDefinitionId '{0}' is ambiguous: {1} matching instances found. " +
+                        "Pass a QualifiedName disambiguator to NodeFromTypeId.",
+                        typeDefinitionId,
+                        candidates.Count);
+                }
+                return candidates[0];
+            }
+
+            NodeState match = null;
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (candidates[i].BrowseName == browseName)
+                {
+                    if (match != null)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadBrowseNameDuplicated,
+                            "TypeDefinitionId '{0}' has multiple instances with browse name '{1}'.",
+                            typeDefinitionId,
+                            browseName);
+                    }
+                    match = candidates[i];
+                }
+            }
+
+            if (match == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdUnknown,
+                    "TypeDefinitionId '{0}' has no instance with browse name '{1}'.",
+                    typeDefinitionId,
+                    browseName);
+            }
+
+            return match;
+        }
+
         private void ThrowIfSealed()
         {
             if (m_sealed)
@@ -339,6 +462,7 @@ namespace Opc.Ua.Server.Fluent
         private readonly ushort m_defaultNamespaceIndex;
         private readonly Func<QualifiedName, NodeState> m_rootResolver;
         private readonly Func<NodeId, NodeState> m_nodeIdResolver;
+        private readonly Func<NodeId, IReadOnlyList<NodeState>> m_typeIdResolver;
         private bool m_sealed;
         private readonly Dictionary<NodeId, HistoryReadHandler> m_historyRead = [];
         private readonly Dictionary<NodeId, HistoryUpdateHandler> m_historyUpdate = [];

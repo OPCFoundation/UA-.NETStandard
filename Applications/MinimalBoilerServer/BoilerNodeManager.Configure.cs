@@ -70,7 +70,7 @@ namespace Boiler
                 .OnRead(GeneratePipeFlow);
 
             builder
-                .Node("Boilers/Boiler #1")
+                .NodeFromTypeId(ExpandedNodeId.ToNodeId(Boiler.ObjectTypeIds.BoilerType, Server.NamespaceUris))
                 .OnNodeAdded((context, node) =>
                 {
                     Server.Telemetry.CreateLogger<BoilerNodeManager>()

@@ -89,7 +89,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 nodeManager: Mock.Of<IAsyncNodeManager>(),
                 defaultNamespaceIndex: kNs,
                 rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
-                nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null);
+                nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
+                typeIdResolver: _ => System.Array.Empty<NodeState>());
 
             return (builder, root, var1, method);
         }
@@ -465,6 +466,134 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             Assert.Throws<ArgumentNullException>(
                 () => b.Node("Root/Var1").OnNodeAdded(null));
+        }
+
+        // ---------- NodeFromTypeId ----------
+
+        private static NodeManagerBuilder CreateBuilderWithTypeIndex(
+            IReadOnlyDictionary<NodeId, IReadOnlyList<NodeState>> byType)
+        {
+            return new NodeManagerBuilder(
+                CreateContext(),
+                Mock.Of<IAsyncNodeManager>(),
+                kNs,
+                _ => null,
+                _ => null,
+                id => byType.TryGetValue(id, out IReadOnlyList<NodeState> list)
+                    ? list
+                    : System.Array.Empty<NodeState>());
+        }
+
+        private static BaseObjectState MakeObject(string name, NodeId typeDefId)
+        {
+            return new BaseObjectState(parent: null)
+            {
+                NodeId = new NodeId(name, kNs),
+                BrowseName = new QualifiedName(name, kNs),
+                TypeDefinitionId = typeDefId
+            };
+        }
+
+        [Test]
+        public void NodeFromTypeIdResolvesSingleton()
+        {
+            NodeId typeId = ObjectTypeIds.ServerCapabilitiesType;
+            BaseObjectState only = MakeObject("Caps", typeId);
+            NodeManagerBuilder b = CreateBuilderWithTypeIndex(
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new[] { only } });
+
+            INodeBuilder nb = b.NodeFromTypeId(typeId);
+
+            Assert.That(nb.Node, Is.SameAs(only));
+        }
+
+        [Test]
+        public void NodeFromTypeIdNullThrowsBadNodeIdInvalid()
+        {
+            NodeManagerBuilder b = CreateBuilderWithTypeIndex(
+                new Dictionary<NodeId, IReadOnlyList<NodeState>>());
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.NodeFromTypeId(NodeId.Null));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void NodeFromTypeIdUnknownThrowsBadNodeIdUnknown()
+        {
+            NodeManagerBuilder b = CreateBuilderWithTypeIndex(
+                new Dictionary<NodeId, IReadOnlyList<NodeState>>());
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.NodeFromTypeId(ObjectTypeIds.BaseObjectType));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public void NodeFromTypeIdAmbiguousThrowsBadBrowseNameDuplicated()
+        {
+            NodeId typeId = ObjectTypeIds.BaseObjectType;
+            BaseObjectState a = MakeObject("Boiler1", typeId);
+            BaseObjectState bn = MakeObject("Boiler2", typeId);
+            NodeManagerBuilder b = CreateBuilderWithTypeIndex(
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new NodeState[] { a, bn } });
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.NodeFromTypeId(typeId));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameDuplicated));
+        }
+
+        [Test]
+        public void NodeFromTypeIdWithBrowseNameDisambiguates()
+        {
+            NodeId typeId = ObjectTypeIds.BaseObjectType;
+            BaseObjectState a = MakeObject("Boiler1", typeId);
+            BaseObjectState bn = MakeObject("Boiler2", typeId);
+            NodeManagerBuilder b = CreateBuilderWithTypeIndex(
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new NodeState[] { a, bn } });
+
+            INodeBuilder nb = b.NodeFromTypeId(typeId, new QualifiedName("Boiler2", kNs));
+
+            Assert.That(nb.Node, Is.SameAs(bn));
+        }
+
+        [Test]
+        public void NodeFromTypeIdWithBrowseNameMissThrowsBadNodeIdUnknown()
+        {
+            NodeId typeId = ObjectTypeIds.BaseObjectType;
+            BaseObjectState a = MakeObject("Boiler1", typeId);
+            NodeManagerBuilder b = CreateBuilderWithTypeIndex(
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new NodeState[] { a } });
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.NodeFromTypeId(typeId, new QualifiedName("Nope", kNs)));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public void NodeFromTypeIdTypedReturnsTypedBuilder()
+        {
+            NodeId typeId = ObjectTypeIds.ServerCapabilitiesType;
+            BaseObjectState only = MakeObject("Caps", typeId);
+            NodeManagerBuilder b = CreateBuilderWithTypeIndex(
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new[] { only } });
+
+            INodeBuilder<BaseObjectState> nb = b.NodeFromTypeId<BaseObjectState>(typeId);
+
+            Assert.That(nb.Node, Is.SameAs(only));
+        }
+
+        [Test]
+        public void NodeFromTypeIdTypedThrowsBadTypeMismatch()
+        {
+            NodeId typeId = ObjectTypeIds.ServerCapabilitiesType;
+            BaseObjectState only = MakeObject("Caps", typeId);
+            NodeManagerBuilder b = CreateBuilderWithTypeIndex(
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new[] { only } });
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.NodeFromTypeId<MethodState>(typeId));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
         }
     }
 }

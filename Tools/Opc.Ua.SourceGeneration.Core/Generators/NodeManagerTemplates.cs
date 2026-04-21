@@ -103,7 +103,8 @@ namespace Opc.Ua.SourceGeneration
                             this,
                             __nsIndex,
                             __FindRootByBrowseName,
-                            __FindRootByNodeId);
+                            __FindRootByNodeId,
+                            __FindByTypeDefinitionId);
 
                         Configure(__m_builder);
                         __m_builder.Seal();
@@ -177,6 +178,47 @@ namespace Opc.Ua.SourceGeneration
                             return null;
                         }
                         return PredefinedNodes.TryGetValue(nodeId, out global::Opc.Ua.NodeState __node) ? __node : null;
+                    }
+
+                    private global::System.Collections.Generic.IReadOnlyList<global::Opc.Ua.NodeState> __FindByTypeDefinitionId(
+                        global::Opc.Ua.NodeId typeDefinitionId)
+                    {
+                        if (typeDefinitionId == null || typeDefinitionId.IsNull)
+                        {
+                            return global::System.Array.Empty<global::Opc.Ua.NodeState>();
+                        }
+
+                        var __matches = new global::System.Collections.Generic.List<global::Opc.Ua.NodeState>();
+                        var __queue = new global::System.Collections.Generic.Queue<global::Opc.Ua.NodeState>();
+                        var __seen = new global::System.Collections.Generic.HashSet<global::Opc.Ua.NodeState>();
+                        var __scratch = new global::System.Collections.Generic.List<global::Opc.Ua.BaseInstanceState>();
+                        foreach (global::Opc.Ua.NodeState __root in PredefinedNodes.Values)
+                        {
+                            if (__root != null && __seen.Add(__root))
+                            {
+                                __queue.Enqueue(__root);
+                            }
+                        }
+                        while (__queue.Count > 0)
+                        {
+                            global::Opc.Ua.NodeState __current = __queue.Dequeue();
+                            if (__current is global::Opc.Ua.BaseInstanceState __instance &&
+                                __instance.TypeDefinitionId == typeDefinitionId)
+                            {
+                                __matches.Add(__current);
+                            }
+                            __scratch.Clear();
+                            __current.GetChildren(SystemContext, __scratch);
+                            for (int __i = 0; __i < __scratch.Count; __i++)
+                            {
+                                global::Opc.Ua.BaseInstanceState __child = __scratch[__i];
+                                if (__child != null && __seen.Add(__child))
+                                {
+                                    __queue.Enqueue(__child);
+                                }
+                            }
+                        }
+                        return __matches;
                     }
                 }
             }

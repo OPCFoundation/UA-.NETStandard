@@ -136,5 +136,67 @@ namespace Opc.Ua.Server.Fluent
         /// <typeparam name="TState"></typeparam>
         INodeBuilder<TState> Node<TState>(NodeId nodeId)
             where TState : NodeState;
+
+        /// <summary>
+        /// Resolves the unique node whose <c>TypeDefinitionId</c>
+        /// matches <paramref name="typeDefinitionId"/>. Useful for singleton
+        /// instances such as <c>HistoryServerCapabilities</c> where the
+        /// well-known type id is far more stable than the deployment-specific
+        /// browse path.
+        /// </summary>
+        /// <param name="typeDefinitionId">
+        /// The type definition id of the instance to locate (typically a
+        /// generated <c>ObjectTypeIds.*</c> or <c>VariableTypeIds.*</c>
+        /// constant).
+        /// </param>
+        /// <exception cref="ServiceResultException">
+        /// <list type="bullet">
+        ///   <item><description><see cref="StatusCodes.BadNodeIdInvalid"/> — the id is null.</description></item>
+        ///   <item><description><see cref="StatusCodes.BadNodeIdUnknown"/> — no instance carries that type definition.</description></item>
+        ///   <item><description><see cref="StatusCodes.BadBrowseNameDuplicated"/> — more than one instance matches; supply a <see cref="QualifiedName"/> disambiguator via the <see cref="NodeFromTypeId(NodeId, QualifiedName)"/> overload.</description></item>
+        /// </list>
+        /// </exception>
+        INodeBuilder NodeFromTypeId(NodeId typeDefinitionId);
+
+        /// <summary>
+        /// Like <see cref="NodeFromTypeId(NodeId)"/> but disambiguates among
+        /// multiple instances by matching <paramref name="browseName"/>
+        /// against <see cref="NodeState.BrowseName"/>.
+        /// </summary>
+        /// <param name="typeDefinitionId">See <see cref="NodeFromTypeId(NodeId)"/>.</param>
+        /// <param name="browseName">
+        /// Browse name of the instance to pick out. May be <c>null</c>, in
+        /// which case the call behaves identically to the single-argument
+        /// overload.
+        /// </param>
+        /// <exception cref="ServiceResultException">
+        /// Same conditions as <see cref="NodeFromTypeId(NodeId)"/> plus
+        /// <see cref="StatusCodes.BadNodeIdUnknown"/> when the disambiguator
+        /// matches no candidate.
+        /// </exception>
+        INodeBuilder NodeFromTypeId(NodeId typeDefinitionId, QualifiedName browseName);
+
+        /// <summary>
+        /// Strongly-typed sibling of <see cref="NodeFromTypeId(NodeId)"/>.
+        /// </summary>
+        /// <typeparam name="TState">
+        /// Expected concrete <see cref="NodeState"/> derivative the resolved
+        /// instance must be assignable to.
+        /// </typeparam>
+        /// <exception cref="ServiceResultException">
+        /// As <see cref="NodeFromTypeId(NodeId)"/>, plus
+        /// <see cref="StatusCodes.BadTypeMismatch"/> if the instance is not
+        /// assignable to <typeparamref name="TState"/>.
+        /// </exception>
+        INodeBuilder<TState> NodeFromTypeId<TState>(NodeId typeDefinitionId)
+            where TState : NodeState;
+
+        /// <summary>
+        /// Strongly-typed sibling of
+        /// <see cref="NodeFromTypeId(NodeId, QualifiedName)"/>.
+        /// </summary>
+        /// <typeparam name="TState">See <see cref="NodeFromTypeId{TState}(NodeId)"/>.</typeparam>
+        INodeBuilder<TState> NodeFromTypeId<TState>(NodeId typeDefinitionId, QualifiedName browseName)
+            where TState : NodeState;
     }
 }
