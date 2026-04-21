@@ -60,8 +60,8 @@ namespace Opc.Ua.SourceGeneration
             using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, CodeTemplates.StatusCode_Attributes_File);
 
-            template.AddReplacement(Tokens.Prefix, Constants.CoreNamespacePrefix + ".Gds");
-            template.AddReplacement(Tokens.ClassName, "ServerCapabilities");
+            template.AddReplacement(Tokens.Prefix, Constants.CoreNamespacePrefix);
+            template.AddReplacement(Tokens.ClassName, "ServerCapability");
 
             List<Capability> capabilities = LoadCapabilities(
                 BuiltInDesignFiles.ServerCapabilitiesCsv);

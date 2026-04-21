@@ -43,7 +43,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ToStringReturnsFormattedString()
         {
-            var capability = new ServerCapability { Id = "DA", Description = "Live Data" };
+            var capability = new ServerCapabilityInfo { Id = "DA", Description = "Live Data" };
             string result = capability.ToString();
             Assert.That(result, Is.EqualTo("[DA] Live Data"));
         }
@@ -51,7 +51,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ToStringWithNullFormatReturnsFormattedString()
         {
-            var capability = new ServerCapability { Id = "AC", Description = "Alarms" };
+            var capability = new ServerCapabilityInfo { Id = "AC", Description = "Alarms" };
             string result = capability.ToString(null, null);
             Assert.That(result, Is.EqualTo("[AC] Alarms"));
         }
@@ -59,18 +59,18 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ToStringWithNonNullFormatThrowsFormatException()
         {
-            var capability = new ServerCapability { Id = "DA", Description = "Live Data" };
+            var capability = new ServerCapabilityInfo { Id = "DA", Description = "Live Data" };
             Assert.Throws<FormatException>(() => capability.ToString("G", null));
         }
 
-        [TestCase(ServerCapabilities.DA, "DA")]
-        [TestCase(ServerCapabilities.NA, "NA")]
-        [TestCase(ServerCapabilities.AC, "AC")]
-        [TestCase(ServerCapabilities.HD, "HD")]
-        [TestCase(ServerCapabilities.HE, "HE")]
-        [TestCase(ServerCapabilities.GDS, "GDS")]
-        [TestCase(ServerCapabilities.LDS, "LDS")]
-        [TestCase(ServerCapabilities.DI, "DI")]
+        [TestCase(ServerCapability.DA, "DA")]
+        [TestCase(ServerCapability.NA, "NA")]
+        [TestCase(ServerCapability.AC, "AC")]
+        [TestCase(ServerCapability.HD, "HD")]
+        [TestCase(ServerCapability.HE, "HE")]
+        [TestCase(ServerCapability.GDS, "GDS")]
+        [TestCase(ServerCapability.LDS, "LDS")]
+        [TestCase(ServerCapability.DI, "DI")]
         public void ConstantsHaveExpectedValues(string actual, string expected)
         {
             Assert.That(actual, Is.EqualTo(expected));

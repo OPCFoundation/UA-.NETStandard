@@ -71,11 +71,11 @@ namespace Opc.Ua.Gds.Tests
 #pragma warning restore IDE0079 // Remove unnecessary suppression
 #endif
 
-        private readonly ServerCapabilityCatalog m_serverCapabilities;
+        private readonly ServerCapabilities m_serverCapabilities;
 
         public ApplicationTestDataGenerator(int randomStart, ITelemetryContext telemetry)
         {
-            m_serverCapabilities = new ServerCapabilityCatalog();
+            m_serverCapabilities = new ServerCapabilities();
             RandomSource = new RandomSource(randomStart);
             DataGenerator = new DataGenerator(RandomSource, telemetry);
         }
@@ -190,7 +190,7 @@ namespace Opc.Ua.Gds.Tests
         {
             var serverCapabilities = new List<string>();
             int capabilities = RandomSource.NextInt32(8);
-            foreach (ServerCapability cap in m_serverCapabilities)
+            foreach (ServerCapabilityInfo cap in m_serverCapabilities)
             {
                 if (RandomSource.NextInt32(100) > 50)
                 {

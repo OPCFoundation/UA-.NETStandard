@@ -35,22 +35,22 @@ namespace Opc.Ua.Gds.Client
 {
     /// <summary>
     /// The set of known server capability identifiers, populated from the
-    /// generated <see cref="ServerCapabilities"/> catalog.
+    /// generated <see cref="ServerCapability"/> catalog.
     /// </summary>
-    public class ServerCapabilityCatalog : IEnumerable<ServerCapability>
+    public class ServerCapabilities : IEnumerable<ServerCapabilityInfo>
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="ServerCapabilityCatalog"/> class.
+        /// Initializes a new instance of the <see cref="ServerCapabilities"/> class.
         /// </summary>
-        public ServerCapabilityCatalog()
+        public ServerCapabilities()
         {
-            ImmutableArray<ServerCapability>.Builder builder
-                = ImmutableArray.CreateBuilder<ServerCapability>();
-            var lookup = new Dictionary<string, ServerCapability>(StringComparer.Ordinal);
+            ImmutableArray<ServerCapabilityInfo>.Builder builder
+                = ImmutableArray.CreateBuilder<ServerCapabilityInfo>();
+            var lookup = new Dictionary<string, ServerCapabilityInfo>(StringComparer.Ordinal);
 
-            foreach (KeyValuePair<string, string> entry in ServerCapabilities.All)
+            foreach (KeyValuePair<string, string> entry in ServerCapability.All)
             {
-                var capability = new ServerCapability { Id = entry.Key, Description = entry.Value };
+                var capability = new ServerCapabilityInfo { Id = entry.Key, Description = entry.Value };
                 builder.Add(capability);
                 lookup[entry.Key] = capability;
             }
@@ -60,9 +60,9 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <inheritdoc/>
-        public IEnumerator<ServerCapability> GetEnumerator()
+        public IEnumerator<ServerCapabilityInfo> GetEnumerator()
         {
-            ImmutableArray<ServerCapability> capabilities = m_capabilities;
+            ImmutableArray<ServerCapabilityInfo> capabilities = m_capabilities;
             for (int i = 0; i < capabilities.Length; i++)
             {
                 yield return capabilities[i];
@@ -79,24 +79,24 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="id">The identifier.</param>
         /// <returns>The server capability, if found. NULL if it does not exist.</returns>
-        public ServerCapability Find(string id)
+        public ServerCapabilityInfo Find(string id)
         {
             if (id == null || m_lookup == null)
             {
                 return null;
             }
 
-            return m_lookup.TryGetValue(id, out ServerCapability capability) ? capability : null;
+            return m_lookup.TryGetValue(id, out ServerCapabilityInfo capability) ? capability : null;
         }
 
-        private readonly ImmutableArray<ServerCapability> m_capabilities;
-        private readonly Dictionary<string, ServerCapability> m_lookup;
+        private readonly ImmutableArray<ServerCapabilityInfo> m_capabilities;
+        private readonly Dictionary<string, ServerCapabilityInfo> m_lookup;
     }
 
     /// <summary>
-    /// A server capability.
+    /// A server capability entry (identifier and human-readable description).
     /// </summary>
-    public class ServerCapability : IFormattable
+    public class ServerCapabilityInfo : IFormattable
     {
         /// <summary>
         /// Gets or sets the identifier.
