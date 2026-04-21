@@ -82,7 +82,13 @@ namespace Opc.Ua.SourceGeneration
                         Exclusions = m_options.Exclude,
                         OptimizeForCompileSpeed =
                             m_compilationOptions.OptimizationLevel ==
-                                OptimizationLevel.Debug
+                                OptimizationLevel.Debug,
+                        // The standard NodeSet "Models" pass runs in the Opc.Ua
+                        // (Types-only) assembly which does not reference
+                        // ISessionClient/ObjectTypeClient. Proxies are emitted
+                        // by the Stack pass (Opc.Ua.Core) instead.
+                        OmitObjectMethodProxies =
+                            generationType == StackGenerationType.Models
                     });
                 // Collect all generated cs files and produce them into the compilation
                 foreach (string file in fileSystem.CreatedFiles

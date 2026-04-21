@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -40,7 +39,8 @@ namespace Opc.Ua.Gds.Client
     /// <summary>
     /// A class that provides access to a Global Discovery Server.
     /// </summary>
-    public class GlobalDiscoveryServerClient : IDisposable
+    public class GlobalDiscoveryServerClient
+        : IGlobalDiscoveryServerClient, IAsyncDisposable, IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class.
@@ -54,8 +54,29 @@ namespace Opc.Ua.Gds.Client
             IUserIdentity adminUserIdentity = null,
             ISessionFactory sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
+            : this(configuration, options: null, adminUserIdentity, sessionFactory, diagnosticsMasks)
         {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class
+        /// with the supplied <see cref="GdsClientOptions"/>.
+        /// </summary>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="options">Client options. Defaults are used when null.</param>
+        /// <param name="adminUserIdentity">The user identity for the administrator.</param>
+        /// <param name="sessionFactory">Used to create session to the server.</param>
+        /// <param name="diagnosticsMasks">Return diagnostics to use for all requests.</param>
+        public GlobalDiscoveryServerClient(
+            ApplicationConfiguration configuration,
+            GdsClientOptions options,
+            IUserIdentity adminUserIdentity = null,
+            ISessionFactory sessionFactory = null,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
+        {
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
             Configuration = configuration;
+            m_options = options ?? new GdsClientOptions();
             MessageContext = configuration.CreateMessageContext();
             m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
             m_sessionFactory = sessionFactory ??
@@ -63,14 +84,8 @@ namespace Opc.Ua.Gds.Client
                 {
                     ReturnDiagnostics = diagnosticsMasks
                 };
-            // preset admin
             AdminCredentials = adminUserIdentity;
         }
-
-        /// <summary>
-        /// 1MB default max trust list size
-        /// </summary>
-        private const int kDefaultMaxTrustListSize = 1 * 1024 * 1024;
 
         /// <summary>
         /// Gets the application.
@@ -100,31 +115,44 @@ namespace Opc.Ua.Gds.Client
         /// <inheritdoc/>
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
 
-        /// <summary>
-        /// Called when the client is disposed
-        /// </summary>
-        /// <param name="disposing"></param>
-        protected virtual void Dispose(bool disposing)
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
         {
-            if (disposing && !m_disposed)
+            if (m_disposed)
             {
-                m_disposed = true;
-                m_lock.Wait();
+                return;
+            }
+            m_disposed = true;
+            try
+            {
+                m_disposeCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            try
+            {
+                await m_lock.WaitAsync().ConfigureAwait(false);
                 try
                 {
                     Session?.Dispose();
+                    Session = null;
                     m_directory = null;
                     m_certificateDirectory = null;
                 }
                 finally
                 {
                     m_lock.Release();
-                    m_lock.Dispose();
                 }
+            }
+            finally
+            {
+                m_lock.Dispose();
+                m_disposeCts.Dispose();
+                GC.SuppressFinalize(this);
             }
         }
 
@@ -168,9 +196,12 @@ namespace Opc.Ua.Gds.Client
         private CertificateDirectoryTypeClient m_certificateDirectory;
 
         /// <summary>
-        /// Gets the endpoint.
+        /// Gets the endpoint. The setter is write-once: an endpoint may be
+        /// assigned only before the first connect and only when not already
+        /// connected. Use <see cref="ResetCredentials"/> to clear the admin
+        /// credentials after a successful disconnect.
         /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="InvalidOperationException"/>
         public ConfiguredEndpoint Endpoint
         {
             get
@@ -186,30 +217,18 @@ namespace Opc.Ua.Gds.Client
                         "Session must be closed before changing endpoint.");
                 }
 
-                if (value == null ||
-                    m_endpoint == null ||
-                    value.EndpointUrl != m_endpoint.EndpointUrl)
-                {
-                    AdminCredentials = null;
-                }
-
                 m_endpoint = value;
             }
         }
 
         /// <summary>
-        ///  Returns list of servers known to the LDS, excluding GDS servers.
+        /// Clears the cached <see cref="AdminCredentials"/>. Use this after
+        /// disconnecting from a server before connecting to a different one.
         /// </summary>
-        /// <param name="lds">The LDS to use.</param>
-        /// <returns>
-        /// TRUE if successful; FALSE otherwise.
-        /// </returns>
-        [Obsolete("Use GetDefaultServerUrlsAsync instead.")]
-        public List<string> GetDefaultServerUrls(LocalDiscoveryServerClient lds)
+        public void ResetCredentials()
         {
-            return GetDefaultServerUrlsAsync(lds).GetAwaiter().GetResult();
+            AdminCredentials = null;
         }
-
         /// <summary>
         ///  Returns list of servers known to the LDS, excluding GDS servers.
         /// </summary>
@@ -252,20 +271,6 @@ namespace Opc.Ua.Gds.Client
 
             return serverUrls;
         }
-
-        /// <summary>
-        /// Returns list of GDS servers known to the LDS.
-        /// </summary>
-        /// <param name="lds">The LDS to use.</param>
-        /// <returns>
-        /// Whatever urls were found.
-        /// </returns>
-        [Obsolete("Use GetDefaultGdsUrlsAsync instead.")]
-        public List<string> GetDefaultGdsUrls(LocalDiscoveryServerClient lds)
-        {
-            return GetDefaultGdsUrlsAsync(lds).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Returns list of GDS servers known to the LDS.
         /// </summary>
@@ -304,16 +309,6 @@ namespace Opc.Ua.Gds.Client
 
             return gdsUrls;
         }
-
-        /// <summary>
-        /// Connects using the default endpoint.
-        /// </summary>
-        [Obsolete("Use ConnectAsync instead.")]
-        public void Connect()
-        {
-            ConnectAsync(m_endpoint).Wait();
-        }
-
         /// <summary>
         /// Connects using the default endpoint.
         /// </summary>
@@ -321,19 +316,6 @@ namespace Opc.Ua.Gds.Client
         {
             return ConnectAsync(m_endpoint, ct);
         }
-
-        /// <summary>
-        /// Connects the specified endpoint URL.
-        /// </summary>
-        /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <exception cref="ArgumentNullException">endpointUrl</exception>
-        /// <exception cref="ArgumentException">endpointUrl</exception>
-        [Obsolete("Use ConnectAsync instead.")]
-        public Task Connect(string endpointUrl)
-        {
-            return ConnectAsync(endpointUrl);
-        }
-
         /// <summary>
         /// Connects the specified endpoint URL.
         /// </summary>
@@ -355,8 +337,10 @@ namespace Opc.Ua.Gds.Client
                     nameof(endpointUrl));
             }
 
-            const int maxAttempts = 5;
-            for (int attempt = 0; ; attempt++)
+            int maxAttempts = m_options.MaxConnectAttempts;
+            int backoffMs = (int)m_options.ConnectBackoff.TotalMilliseconds;
+            ServiceResultException lastException = null;
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
                 try
                 {
@@ -377,29 +361,23 @@ namespace Opc.Ua.Gds.Client
                     return;
                 }
                 catch (ServiceResultException e) when (
-                (
                     e.StatusCode == StatusCodes.BadServerHalted ||
                     e.StatusCode == StatusCodes.BadSecureChannelClosed ||
-                    e.StatusCode == StatusCodes.BadNoCommunication
-                ) &&
-                attempt < maxAttempts)
+                    e.StatusCode == StatusCodes.BadNoCommunication)
                 {
-                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
-                    await Task.Delay(1000, ct).ConfigureAwait(false);
+                    lastException = e;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying...", attempt + 1);
+                    if (attempt + 1 < maxAttempts)
+                    {
+                        await Task.Delay(backoffMs, ct).ConfigureAwait(false);
+                    }
                 }
             }
+            throw lastException ?? ServiceResultException.Create(
+                StatusCodes.BadNoCommunication,
+                "Failed to connect after {0} attempts.",
+                maxAttempts);
         }
-
-        /// <summary>
-        /// Connects the specified endpoint.
-        /// </summary>
-        /// <param name="endpoint">The endpoint.</param>
-        [Obsolete("Use ConnectAsync instead.")]
-        public Task Connect(ConfiguredEndpoint endpoint)
-        {
-            return ConnectAsync(endpoint);
-        }
-
         /// <summary>
         /// Connects the specified endpoint.
         /// </summary>
@@ -408,13 +386,6 @@ namespace Opc.Ua.Gds.Client
         /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
         public async Task ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
-            if (endpoint != null &&
-                m_endpoint != null &&
-                endpoint.EndpointUrl != m_endpoint.EndpointUrl)
-            {
-                AdminCredentials = null;
-            }
-
             if (endpoint == null)
             {
                 endpoint = m_endpoint;
@@ -425,8 +396,10 @@ namespace Opc.Ua.Gds.Client
                 }
             }
 
-            const int maxAttempts = 5;
-            for (int attempt = 0; ; attempt++)
+            int maxAttempts = m_options.MaxConnectAttempts;
+            int backoffMs = (int)m_options.ConnectBackoff.TotalMilliseconds;
+            ServiceResultException lastException = null;
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
                 try
                 {
@@ -434,28 +407,23 @@ namespace Opc.Ua.Gds.Client
                     return;
                 }
                 catch (ServiceResultException e) when (
-                (
                     e.StatusCode == StatusCodes.BadServerHalted ||
                     e.StatusCode == StatusCodes.BadSecureChannelClosed ||
-                    e.StatusCode == StatusCodes.BadNoCommunication
-                ) &&
-                attempt < maxAttempts)
+                    e.StatusCode == StatusCodes.BadNoCommunication)
                 {
-                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
-                    await Task.Delay(1000, ct).ConfigureAwait(false);
+                    lastException = e;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying...", attempt + 1);
+                    if (attempt + 1 < maxAttempts)
+                    {
+                        await Task.Delay(backoffMs, ct).ConfigureAwait(false);
+                    }
                 }
             }
+            throw lastException ?? ServiceResultException.Create(
+                StatusCodes.BadNoCommunication,
+                "Failed to connect after {0} attempts.",
+                maxAttempts);
         }
-
-        /// <summary>
-        /// Disconnect the client connection.
-        /// </summary>
-        [Obsolete("Use DisconnectAsync instead.")]
-        public void Disconnect()
-        {
-            DisconnectAsync().GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Disconnect the client connection.
         /// </summary>
@@ -557,18 +525,6 @@ namespace Opc.Ua.Gds.Client
 #pragma warning disable CS0067
         public event MonitoredItemNotificationEventHandler ServerStatusChanged;
 #pragma warning restore CS0067
-
-        /// <summary>
-        /// Finds the applications with the specified application uri.
-        /// </summary>
-        /// <param name="applicationUri">The application URI.</param>
-        /// <returns>The matching application.</returns>
-        [Obsolete("Use FindApplicationAsync instead.")]
-        public ArrayOf<ApplicationRecordDataType> FindApplication(string applicationUri)
-        {
-            return FindApplicationAsync(applicationUri).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Finds the applications with the specified application uri.
         /// </summary>
@@ -584,33 +540,6 @@ namespace Opc.Ua.Gds.Client
                 applicationUri ?? string.Empty,
                 ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Queries the GDS for any servers matching the criteria.
-        /// </summary>
-        /// <param name="maxRecordsToReturn">The max records to return.</param>
-        /// <param name="applicationName">The filter applied to the application name.</param>
-        /// <param name="applicationUri">The filter applied to the application uri.</param>
-        /// <param name="productUri">The filter applied to the product uri.</param>
-        /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
-        /// <returns>A enumarator used to access the results.</returns>
-        [Obsolete("Use QueryServersAsync instead.")]
-        public ArrayOf<ServerOnNetwork> QueryServers(
-            uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            string productUri,
-            ArrayOf<string> serverCapabilities)
-        {
-            return QueryServersAsync(
-                0,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                productUri,
-                serverCapabilities).GetAwaiter().GetResult().servers;
-        }
-
         /// <summary>
         /// Queries the GDS for any servers matching the criteria.
         /// </summary>
@@ -638,71 +567,6 @@ namespace Opc.Ua.Gds.Client
                 serverCapabilities,
                 ct).ConfigureAwait(false)).servers;
         }
-
-        /// <summary>
-        /// Queries the GDS for any servers matching the criteria.
-        /// </summary>
-        /// <param name="startingRecordId">The id of the first record to return.</param>
-        /// <param name="maxRecordsToReturn">The max records to return.</param>
-        /// <param name="applicationName">The filter applied to the application name.</param>
-        /// <param name="applicationUri">The filter applied to the application uri.</param>
-        /// <param name="productUri">The filter applied to the product uri.</param>
-        /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
-        /// <returns>A enumerator used to access the results.</returns>
-        [Obsolete("Use QueryServersAsync instead.")]
-        public ArrayOf<ServerOnNetwork> QueryServers(
-            uint startingRecordId,
-            uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            string productUri,
-            ArrayOf<string> serverCapabilities)
-        {
-            (ArrayOf<ServerOnNetwork> servers, _) = QueryServersAsync(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                productUri,
-                serverCapabilities)
-                .GetAwaiter().GetResult();
-
-            return servers;
-        }
-
-        /// <summary>
-        /// Queries the GDS for any servers matching the criteria.
-        /// </summary>
-        /// <param name="startingRecordId">The id of the first record to return.</param>
-        /// <param name="maxRecordsToReturn">The max records to return.</param>
-        /// <param name="applicationName">The filter applied to the application name.</param>
-        /// <param name="applicationUri">The filter applied to the application uri.</param>
-        /// <param name="productUri">The filter applied to the product uri.</param>
-        /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
-        /// <param name="lastCounterResetTime">The time when the counter was last changed.</param>
-        /// <returns>A enumerator used to access the results.</returns>
-        [Obsolete("Use QueryServersAsync instead.")]
-        public ArrayOf<ServerOnNetwork> QueryServers(
-            uint startingRecordId,
-            uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            string productUri,
-            ArrayOf<string> serverCapabilities,
-            out DateTimeUtc lastCounterResetTime)
-        {
-            (ArrayOf<ServerOnNetwork> servers, lastCounterResetTime) = QueryServersAsync(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                productUri,
-                serverCapabilities)
-                .GetAwaiter().GetResult();
-
-            return servers;
-        }
-
         /// <summary>
         /// Queries the GDS for any servers matching the criteria.
         /// </summary>
@@ -735,45 +599,6 @@ namespace Opc.Ua.Gds.Client
                 ct).ConfigureAwait(false);
             return (servers, lastCounterResetTime);
         }
-
-        /// <summary>
-        /// Queries the GDS for any servers matching the criteria.
-        /// </summary>
-        /// <param name="startingRecordId">The id of the first record to return.</param>
-        /// <param name="maxRecordsToReturn">The max records to return.</param>
-        /// <param name="applicationName">The filter applied to the application name.</param>
-        /// <param name="applicationUri">The filter applied to the application uri.</param>
-        /// <param name="applicationType">The filter applied to the application uri.</param>
-        /// <param name="productUri">The filter applied to the product uri.</param>
-        /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
-        /// <param name="lastCounterResetTime">The time when the counter was last changed.</param>
-        /// <param name="nextRecordId">The id of the next record.</param>
-        /// <returns>A enumerator used to access the results.</returns>
-        [Obsolete("Use QueryApplicationsAsync instead.")]
-        public ArrayOf<ApplicationDescription> QueryApplications(
-            uint startingRecordId,
-            uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            uint applicationType,
-            string productUri,
-            ArrayOf<string> serverCapabilities,
-            out DateTimeUtc lastCounterResetTime,
-            out uint nextRecordId)
-        {
-            (ArrayOf<ApplicationDescription> applications, lastCounterResetTime, nextRecordId) = QueryApplicationsAsync(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                applicationType,
-                productUri,
-                serverCapabilities)
-                .GetAwaiter().GetResult();
-
-            return applications;
-        }
-
         /// <summary>
         /// Queries the GDS for any servers matching the criteria.
         /// </summary>
@@ -815,18 +640,6 @@ namespace Opc.Ua.Gds.Client
                     ct).ConfigureAwait(false);
             return (applications, lastCounterResetTime, nextRecordId);
         }
-
-        /// <summary>
-        /// Get the application record.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <returns>The application record for the specified application id.</returns>
-        [Obsolete("Use GetApplicationAsync instead.")]
-        public ApplicationRecordDataType GetApplication(NodeId applicationId)
-        {
-            return GetApplicationAsync(applicationId).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Get the application record.
         /// </summary>
@@ -840,18 +653,6 @@ namespace Opc.Ua.Gds.Client
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             return await m_directory.GetApplicationAsync(applicationId, ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Registers the application.
-        /// </summary>
-        /// <param name="application">The application.</param>
-        /// <returns>The application id assigned to the application.</returns>
-        [Obsolete("Use RegisterApplicationAsync instead.")]
-        public NodeId RegisterApplication(ApplicationRecordDataType application)
-        {
-            return RegisterApplicationAsync(application).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Registers the application.
         /// </summary>
@@ -865,28 +666,6 @@ namespace Opc.Ua.Gds.Client
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             return await m_directory.RegisterApplicationAsync(application, ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Returns the Certificates assigned to Application and associated with the CertificateGroup.
-        /// </summary>
-        /// <param name="applicationId">The identifier assigned to the Application by the GDS.</param>
-        /// <param name="certificateGroupId">An identifier for the CertificateGroup that the Certificates belong to.
-        ///If null, the CertificateManager shall return the Certificates for all CertificateGroups assigned to the Application.</param>
-        /// <param name="certificateTypeIds">The CertificateTypes that currently have a Certificate assigned.
-        /// The length of this list is the same as the length as certificates list.</param>
-        /// <param name="certificates">A list of DER encoded Certificates assigned to Application.
-        /// This list only includes Certificates that are currently valid.</param>
-        [Obsolete("Use GetCertificatesAsync instead")]
-        public void GetCertificates(
-            NodeId applicationId,
-            NodeId certificateGroupId,
-            out ArrayOf<NodeId> certificateTypeIds,
-            out ArrayOf<ByteString> certificates)
-        {
-            (certificateTypeIds, certificates) = GetCertificatesAsync(applicationId, certificateGroupId)
-                .GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Returns the Certificates assigned to Application and associated with the CertificateGroup.
         /// </summary>
@@ -909,22 +688,6 @@ namespace Opc.Ua.Gds.Client
                 certificateGroupId,
                 ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Checks the provided certificate for validity
-        /// </summary>
-        /// <param name="certificate">The DER encoded form of the Certificate to check.</param>
-        /// <param name="certificateStatus">The first error encountered when validating the Certificate.</param>
-        /// <param name="validityTime">When the result expires and should be rechecked. DateTime.MinValue if this is unknown.</param>
-        [Obsolete("Use CheckRevocationStatusAsync instead")]
-        public void CheckRevocationStatus(
-            ByteString certificate,
-            out StatusCode certificateStatus,
-            out DateTimeUtc validityTime)
-        {
-            (certificateStatus, validityTime) = CheckRevocationStatusAsync(certificate).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Checks the provided certificate for validity
         /// </summary>
@@ -939,17 +702,6 @@ namespace Opc.Ua.Gds.Client
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             return await m_certificateDirectory.CheckRevocationStatusAsync(certificate, ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Updates the application.
-        /// </summary>
-        /// <param name="application">The application.</param>
-        [Obsolete("Use UpdateApplicationAsync instead.")]
-        public void UpdateApplication(ApplicationRecordDataType application)
-        {
-            UpdateApplicationAsync(application).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Updates the application.
         /// </summary>
@@ -960,17 +712,6 @@ namespace Opc.Ua.Gds.Client
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             await m_directory.UpdateApplicationAsync(application, ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Unregisters the application.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        [Obsolete("Use UnregisterApplicationAsync instead.")]
-        public void UnregisterApplication(NodeId applicationId)
-        {
-            UnregisterApplicationAsync(applicationId).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Unregisters the application.
         /// </summary>
@@ -981,18 +722,6 @@ namespace Opc.Ua.Gds.Client
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             await m_directory.UnregisterApplicationAsync(applicationId, ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Revokes a Certificate issued to the Application by the CertificateManager
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificate">The certificate to revoke</param>
-        [Obsolete("Use RevokeCertificateAsync instead.")]
-        public void RevokeCertificate(NodeId applicationId, ByteString certificate)
-        {
-            RevokeCertificateAsync(applicationId, certificate).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Revokes a Certificate issued to the Application by the CertificateManager
         /// </summary>
@@ -1004,40 +733,6 @@ namespace Opc.Ua.Gds.Client
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             await m_certificateDirectory.RevokeCertificateAsync(applicationId, certificate, ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Requests a new certificate.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">The authority.</param>
-        /// <param name="certificateTypeId">Type of the certificate.</param>
-        /// <param name="subjectName">Name of the subject.</param>
-        /// <param name="domainNames">The domain names.</param>
-        /// <param name="privateKeyFormat">The private key format (PEM or PFX).</param>
-        /// <param name="privateKeyPassword">The private key password.</param>
-        /// <returns>
-        /// The id for the request which is used to check when it is approved.
-        /// </returns>
-        [Obsolete("Use StartNewKeyPairRequestAsync instead.")]
-        public NodeId StartNewKeyPairRequest(
-            NodeId applicationId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
-            string subjectName,
-            ArrayOf<string> domainNames,
-            string privateKeyFormat,
-            char[] privateKeyPassword)
-        {
-            return StartNewKeyPairRequestAsync(
-                applicationId,
-                certificateGroupId,
-                certificateTypeId,
-                subjectName,
-                domainNames,
-                privateKeyFormat,
-                privateKeyPassword).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Requests a new certificate.
         /// </summary>
@@ -1073,29 +768,6 @@ namespace Opc.Ua.Gds.Client
                 new string(privateKeyPassword),
                 ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Signs the certificate.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">The group of the trust list.</param>
-        /// <param name="certificateTypeId">The type of the trust list.</param>
-        /// <param name="certificateRequest">The certificate signing request (CSR).</param>
-        /// <returns>The id for the request which is used to check when it is approved.</returns>
-        [Obsolete("Use StartSigningRequestAsync instead.")]
-        public NodeId StartSigningRequest(
-            NodeId applicationId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
-            ByteString certificateRequest)
-        {
-            return StartSigningRequestAsync(
-                applicationId,
-                certificateGroupId,
-                certificateTypeId,
-                certificateRequest).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Signs the certificate.
         /// </summary>
@@ -1120,29 +792,6 @@ namespace Opc.Ua.Gds.Client
                 certificateRequest,
                 ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Checks the request status.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="requestId">The request id.</param>
-        /// <param name="privateKey">The private key.</param>
-        /// <param name="issuerCertificates">The issuer certificates.</param>
-        /// <returns>The public key.</returns>
-        [Obsolete("Use FinishRequestAsync instead.")]
-        public ByteString FinishRequest(
-            NodeId applicationId,
-            NodeId requestId,
-            out ByteString privateKey,
-            out ArrayOf<ByteString> issuerCertificates)
-        {
-            (ByteString publicKey, ByteString privateKeyResult, ArrayOf<ByteString> issuerCertificatesResult) =
-                FinishRequestAsync(applicationId, requestId).GetAwaiter().GetResult();
-            privateKey = privateKeyResult;
-            issuerCertificates = issuerCertificatesResult;
-            return publicKey;
-        }
-
         /// <summary>
         /// Checks the request status.
         /// </summary>
@@ -1160,17 +809,6 @@ namespace Opc.Ua.Gds.Client
                 await m_certificateDirectory.FinishRequestAsync(applicationId, requestId, ct).ConfigureAwait(false);
             return (certificate, privateKey, issuerCertificates);
         }
-
-        /// <summary>
-        /// Gets the certificate groups.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        [Obsolete("Use GetCertificateGroupsAsync instead.")]
-        public ArrayOf<NodeId> GetCertificateGroups(NodeId applicationId)
-        {
-            return GetCertificateGroupsAsync(applicationId).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Gets the certificate groups.
         /// </summary>
@@ -1181,18 +819,6 @@ namespace Opc.Ua.Gds.Client
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             return await m_certificateDirectory.GetCertificateGroupsAsync(applicationId, ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Gets the trust lists method.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">Type of the trust list.</param>
-        [Obsolete("Use GetTrustListAsync instead.")]
-        public NodeId GetTrustList(NodeId applicationId, NodeId certificateGroupId)
-        {
-            return GetTrustListAsync(applicationId, certificateGroupId).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Gets the trust lists method.
         /// </summary>
@@ -1207,25 +833,6 @@ namespace Opc.Ua.Gds.Client
                 certificateGroupId,
                 ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Gets the certificate status.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">Group of the trust list.</param>
-        /// <param name="certificateTypeId">Type of the trust list.</param>
-        [Obsolete("Use GetCertificateStatusAsync instead.")]
-        public bool GetCertificateStatus(
-            NodeId applicationId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId)
-        {
-            return GetCertificateStatusAsync(
-                applicationId,
-                certificateGroupId,
-                certificateTypeId).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Gets the certificate status.
         /// </summary>
@@ -1246,16 +853,6 @@ namespace Opc.Ua.Gds.Client
                 certificateTypeId,
                 ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Reads the trust list.
-        /// </summary>
-        [Obsolete("Use ReadTrustListAsync instead.")]
-        public TrustListDataType ReadTrustList(NodeId trustListId)
-        {
-            return ReadTrustListAsync(trustListId).GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Reads the trust list.
         /// </summary>
@@ -1276,58 +873,25 @@ namespace Opc.Ua.Gds.Client
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
+            long sizeLimit = maxTrustListSize == 0 ? m_options.MaxTrustListSize : maxTrustListSize;
+            int chunkSize = Math.Max(m_options.FileTransferChunkSize, 4096);
+
             var file = new FileTypeClient(session, trustListId, MessageContext.Telemetry);
             uint fileHandle = await file.OpenAsync((byte)OpenFileMode.Read, ct).ConfigureAwait(false);
-
-            using var ostrm = new MemoryStream();
             try
             {
-                // Use a reasonable maximum size limit for trust lists
-                if (maxTrustListSize == 0)
-                {
-                    maxTrustListSize = kDefaultMaxTrustListSize;
-                }
-
-                long totalBytesRead = 0;
-
-                while (true)
-                {
-                    const int length = 4096;
-
-                    ByteString chunk = await file.ReadAsync(fileHandle, length, ct).ConfigureAwait(false);
-                    byte[] bytes = chunk.ToArray() ?? Array.Empty<byte>();
-
-                    // Validate total size before writing
-                    totalBytesRead += bytes.Length;
-                    if (totalBytesRead > maxTrustListSize)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingLimitsExceeded,
-                            "Trust list size exceeds maximum allowed size of {0} bytes",
-                            maxTrustListSize);
-                    }
-
-                    ostrm.Write(bytes, 0, bytes.Length);
-
-                    if (length != bytes.Length)
-                    {
-                        break;
-                    }
-                }
+                return await TrustListFileTransferHelper.ReadAsync(
+                    file,
+                    fileHandle,
+                    session.MessageContext,
+                    sizeLimit,
+                    chunkSize,
+                    ct).ConfigureAwait(false);
             }
             finally
             {
                 await file.CloseAsync(fileHandle, ct).ConfigureAwait(false);
             }
-
-            ostrm.Position = 0;
-
-            var trustList = new TrustListDataType();
-            using (var decoder = new BinaryDecoder(ostrm, session.MessageContext))
-            {
-                trustList.Decode(decoder);
-            }
-            return trustList;
         }
 
         /// <summary>
@@ -1352,7 +916,7 @@ namespace Opc.Ua.Gds.Client
                     updateBeforeConnect,
                     false,
                     Configuration.ApplicationName,
-                    60000,
+                    (uint)m_options.SessionTimeout.TotalMilliseconds,
                     AdminCredentials,
                     PreferredLocales,
                     ct)
@@ -1417,6 +981,8 @@ namespace Opc.Ua.Gds.Client
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ISessionFactory m_sessionFactory;
         private readonly ILogger m_logger;
+        private readonly GdsClientOptions m_options;
+        private readonly CancellationTokenSource m_disposeCts = new();
         private ConfiguredEndpoint m_endpoint;
         private bool m_disposed;
     }
