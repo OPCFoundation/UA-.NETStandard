@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -35,7 +35,9 @@ using System.Xml;
 using System.Runtime.Serialization;
 using Opc.Ua;
 
-#pragma warning disable 1591
+
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+#pragma warning disable CA1707 // Identifiers should not contain underscores
 
 namespace Opc.Ua.Gds
 {
@@ -319,6 +321,12 @@ namespace Opc.Ua.Gds
 
         public const uint AuthorizationServiceType_RequestAccessToken = 969;
 
+        public const uint AuthorizationServiceType_StartRequestToken = 95;
+
+        public const uint AuthorizationServiceType_FinishRequestToken = 98;
+
+        public const uint AuthorizationServiceType_RefreshToken = 64;
+
         public const uint Directory_FindApplications = 143;
 
         public const uint Directory_RegisterApplication = 146;
@@ -483,11 +491,17 @@ namespace Opc.Ua.Gds
 
         public const uint Directory_FinishRequest = 163;
 
+        public const uint Directory_RevokeCertificate = 15005;
+
         public const uint Directory_GetCertificateGroups = 508;
+
+        public const uint Directory_GetCertificates = 174;
 
         public const uint Directory_GetTrustList = 204;
 
         public const uint Directory_GetCertificateStatus = 225;
+
+        public const uint Directory_CheckRevocationStatus = 177;
     }
     #endregion
 
@@ -550,8 +564,6 @@ namespace Opc.Ua.Gds
         public const uint ApplicationRecordDataType_Encoding_DefaultBinary = 134;
 
         public const uint ApplicationRecordDataType_Encoding_DefaultXml = 127;
-
-        public const uint ApplicationRecordDataType_Encoding_DefaultJson = 8001;
     }
     #endregion
 
@@ -586,6 +598,8 @@ namespace Opc.Ua.Gds
         public const uint AuthorizationServicesFolderType = 233;
 
         public const uint AuthorizationServiceType = 966;
+
+        public const uint AccessTokenRequestedAuditEventType = 111;
 
         public const uint AccessTokenIssuedAuditEventType = 975;
     }
@@ -1639,17 +1653,43 @@ namespace Opc.Ua.Gds
 
         public const uint AuthorizationServicesFolderType_ServiceName_Placeholder_RequestAccessToken_OutputArguments = 242;
 
+        public const uint AuthorizationServicesFolderType_ServiceName_Placeholder_StartRequestToken_InputArguments = 74;
+
+        public const uint AuthorizationServicesFolderType_ServiceName_Placeholder_StartRequestToken_OutputArguments = 75;
+
+        public const uint AuthorizationServicesFolderType_ServiceName_Placeholder_FinishRequestToken_InputArguments = 93;
+
+        public const uint AuthorizationServicesFolderType_ServiceName_Placeholder_FinishRequestToken_OutputArguments = 94;
+
+        public const uint AuthorizationServicesFolderType_ServiceName_Placeholder_RefreshToken_InputArguments = 38;
+
+        public const uint AuthorizationServicesFolderType_ServiceName_Placeholder_RefreshToken_OutputArguments = 39;
+
         public const uint AuthorizationServiceType_ServiceUri = 1003;
 
         public const uint AuthorizationServiceType_ServiceCertificate = 968;
 
         public const uint AuthorizationServiceType_UserTokenPolicies = 967;
 
+        public const uint AuthorizationServiceType_SupportedRoles = 110;
+
         public const uint AuthorizationServiceType_GetServiceDescription_OutputArguments = 1005;
 
         public const uint AuthorizationServiceType_RequestAccessToken_InputArguments = 970;
 
         public const uint AuthorizationServiceType_RequestAccessToken_OutputArguments = 971;
+
+        public const uint AuthorizationServiceType_StartRequestToken_InputArguments = 96;
+
+        public const uint AuthorizationServiceType_StartRequestToken_OutputArguments = 97;
+
+        public const uint AuthorizationServiceType_FinishRequestToken_InputArguments = 99;
+
+        public const uint AuthorizationServiceType_FinishRequestToken_OutputArguments = 100;
+
+        public const uint AuthorizationServiceType_RefreshToken_InputArguments = 65;
+
+        public const uint AuthorizationServiceType_RefreshToken_OutputArguments = 66;
 
         public const uint Directory_FindApplications_InputArguments = 144;
 
@@ -2787,6 +2827,12 @@ namespace Opc.Ua.Gds
 
         public static readonly ExpandedNodeId AuthorizationServiceType_RequestAccessToken = new ExpandedNodeId(Opc.Ua.Gds.Methods.AuthorizationServiceType_RequestAccessToken, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
+        public static readonly ExpandedNodeId AuthorizationServiceType_StartRequestToken = new ExpandedNodeId(Opc.Ua.Gds.Methods.AuthorizationServiceType_StartRequestToken, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServiceType_FinishRequestToken = new ExpandedNodeId(Opc.Ua.Gds.Methods.AuthorizationServiceType_FinishRequestToken, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServiceType_RefreshToken = new ExpandedNodeId(Opc.Ua.Gds.Methods.AuthorizationServiceType_RefreshToken, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
         public static readonly ExpandedNodeId Directory_FindApplications = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_FindApplications, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         public static readonly ExpandedNodeId Directory_RegisterApplication = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_RegisterApplication, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -2951,11 +2997,17 @@ namespace Opc.Ua.Gds
 
         public static readonly ExpandedNodeId Directory_FinishRequest = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_FinishRequest, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
+        public static readonly ExpandedNodeId Directory_RevokeCertificate = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_RevokeCertificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
         public static readonly ExpandedNodeId Directory_GetCertificateGroups = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_GetCertificateGroups, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId Directory_GetCertificates = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_GetCertificates, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         public static readonly ExpandedNodeId Directory_GetTrustList = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_GetTrustList, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         public static readonly ExpandedNodeId Directory_GetCertificateStatus = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_GetCertificateStatus, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId Directory_CheckRevocationStatus = new ExpandedNodeId(Opc.Ua.Gds.Methods.Directory_CheckRevocationStatus, Opc.Ua.Gds.Namespaces.OpcUaGds);
     }
     #endregion
 
@@ -3018,8 +3070,6 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId ApplicationRecordDataType_Encoding_DefaultBinary = new ExpandedNodeId(Opc.Ua.Gds.Objects.ApplicationRecordDataType_Encoding_DefaultBinary, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         public static readonly ExpandedNodeId ApplicationRecordDataType_Encoding_DefaultXml = new ExpandedNodeId(Opc.Ua.Gds.Objects.ApplicationRecordDataType_Encoding_DefaultXml, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        public static readonly ExpandedNodeId ApplicationRecordDataType_Encoding_DefaultJson = new ExpandedNodeId(Opc.Ua.Gds.Objects.ApplicationRecordDataType_Encoding_DefaultJson, Opc.Ua.Gds.Namespaces.OpcUaGds);
     }
     #endregion
 
@@ -3054,6 +3104,8 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId AuthorizationServicesFolderType = new ExpandedNodeId(Opc.Ua.Gds.ObjectTypes.AuthorizationServicesFolderType, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         public static readonly ExpandedNodeId AuthorizationServiceType = new ExpandedNodeId(Opc.Ua.Gds.ObjectTypes.AuthorizationServiceType, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AccessTokenRequestedAuditEventType = new ExpandedNodeId(Opc.Ua.Gds.ObjectTypes.AccessTokenRequestedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         public static readonly ExpandedNodeId AccessTokenIssuedAuditEventType = new ExpandedNodeId(Opc.Ua.Gds.ObjectTypes.AccessTokenIssuedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds);
     }
@@ -4107,17 +4159,43 @@ namespace Opc.Ua.Gds
 
         public static readonly ExpandedNodeId AuthorizationServicesFolderType_ServiceName_Placeholder_RequestAccessToken_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServicesFolderType_ServiceName_Placeholder_RequestAccessToken_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
+        public static readonly ExpandedNodeId AuthorizationServicesFolderType_ServiceName_Placeholder_StartRequestToken_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServicesFolderType_ServiceName_Placeholder_StartRequestToken_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServicesFolderType_ServiceName_Placeholder_StartRequestToken_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServicesFolderType_ServiceName_Placeholder_StartRequestToken_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServicesFolderType_ServiceName_Placeholder_FinishRequestToken_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServicesFolderType_ServiceName_Placeholder_FinishRequestToken_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServicesFolderType_ServiceName_Placeholder_FinishRequestToken_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServicesFolderType_ServiceName_Placeholder_FinishRequestToken_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServicesFolderType_ServiceName_Placeholder_RefreshToken_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServicesFolderType_ServiceName_Placeholder_RefreshToken_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServicesFolderType_ServiceName_Placeholder_RefreshToken_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServicesFolderType_ServiceName_Placeholder_RefreshToken_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
         public static readonly ExpandedNodeId AuthorizationServiceType_ServiceUri = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_ServiceUri, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         public static readonly ExpandedNodeId AuthorizationServiceType_ServiceCertificate = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_ServiceCertificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         public static readonly ExpandedNodeId AuthorizationServiceType_UserTokenPolicies = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_UserTokenPolicies, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
+        public static readonly ExpandedNodeId AuthorizationServiceType_SupportedRoles = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_SupportedRoles, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
         public static readonly ExpandedNodeId AuthorizationServiceType_GetServiceDescription_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_GetServiceDescription_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         public static readonly ExpandedNodeId AuthorizationServiceType_RequestAccessToken_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_RequestAccessToken_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         public static readonly ExpandedNodeId AuthorizationServiceType_RequestAccessToken_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_RequestAccessToken_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServiceType_StartRequestToken_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_StartRequestToken_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServiceType_StartRequestToken_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_StartRequestToken_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServiceType_FinishRequestToken_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_FinishRequestToken_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServiceType_FinishRequestToken_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_FinishRequestToken_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServiceType_RefreshToken_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_RefreshToken_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId AuthorizationServiceType_RefreshToken_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_RefreshToken_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         public static readonly ExpandedNodeId Directory_FindApplications_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_FindApplications_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
@@ -4982,6 +5060,8 @@ namespace Opc.Ua.Gds
     {
         public const string AccessTokenIssuedAuditEventType = "AccessTokenIssuedAuditEventType";
 
+        public const string AccessTokenRequestedAuditEventType = "AccessTokenRequestedAuditEventType";
+
         public const string ApplicationRecordDataType = "ApplicationRecordDataType";
 
         public const string ApplicationRegistrationChangedAuditEventType = "ApplicationRegistrationChangedAuditEventType";
@@ -5018,6 +5098,8 @@ namespace Opc.Ua.Gds
 
         public const string FinishRequest = "FinishRequest";
 
+        public const string FinishRequestToken = "FinishRequestToken";
+
         public const string GetApplication = "GetApplication";
 
         public const string GetCertificateGroups = "GetCertificateGroups";
@@ -5042,8 +5124,6 @@ namespace Opc.Ua.Gds
 
         public const string KeyCredentialServiceType = "KeyCredentialServiceType";
 
-        public const string ModelVersion = "ModelVersion";
-
         public const string OpcUaGds_BinarySchema = "Opc.Ua.Gds";
 
         public const string OpcUaGds_XmlSchema = "Opc.Ua.Gds";
@@ -5055,6 +5135,8 @@ namespace Opc.Ua.Gds
         public const string QueryApplications = "QueryApplications";
 
         public const string QueryServers = "QueryServers";
+
+        public const string RefreshToken = "RefreshToken";
 
         public const string RegisterApplication = "RegisterApplication";
 
@@ -5078,7 +5160,11 @@ namespace Opc.Ua.Gds
 
         public const string StartRequest = "StartRequest";
 
+        public const string StartRequestToken = "StartRequestToken";
+
         public const string StartSigningRequest = "StartSigningRequest";
+
+        public const string SupportedRoles = "SupportedRoles";
 
         public const string UnregisterApplication = "UnregisterApplication";
 
