@@ -1227,6 +1227,9 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             // Read limit and also first keep alive timers
+            // Server_ServerStatus_State is a ServerState enum which is wire-encoded as Int32.
+            // Using UInt32 here causes ClientBase.ValidateDataValue to log spurious
+            // BadTypeMismatch warnings on every keep-alive while the test runs.
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<ReadRequest>(r => r.NodesToRead.Count == 1),
@@ -1235,7 +1238,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     Results =
                     [
-                        new (new Variant(0u))
+                        new (new Variant((int)ServerState.Running))
                     ],
                     DiagnosticInfos = []
                 }))
