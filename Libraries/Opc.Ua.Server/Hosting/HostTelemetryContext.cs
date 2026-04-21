@@ -27,28 +27,28 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Server.Hosting;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62541;
-
-builder.Services
-    .AddOpcUaServer(o =>
+namespace Opc.Ua.Server.Hosting
+{
+    /// <summary>
+    /// <see cref="ITelemetryContext"/> implementation that adapts the host's
+    /// <see cref="ILoggerFactory"/> so a Generic-Host application has a single
+    /// logging pipeline shared between user code and the OPC UA stack.
+    /// </summary>
+    /// <remarks>
+    /// The host owns the lifetime of the supplied <see cref="ILoggerFactory"/>;
+    /// this adapter does not dispose it.
+    /// </remarks>
+    public sealed class HostTelemetryContext : TelemetryContextBase
     {
-        o.ApplicationName = "ConsoleBoilerServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:ConsoleBoilerServer";
-        o.ProductUri = "uri:opcfoundation.org:ConsoleBoilerServer";
-        o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/ConsoleBoilerServer");
-    })
-    .AddNodeManager<global::Boiler.BoilerNodeManagerFactory>();
-
-await builder.Build().RunAsync().ConfigureAwait(false);
+        /// <summary>
+        /// Creates a new <see cref="HostTelemetryContext"/> bound to the given
+        /// <see cref="ILoggerFactory"/>.
+        /// </summary>
+        public HostTelemetryContext(ILoggerFactory loggerFactory)
+            : base(loggerFactory)
+        {
+        }
+    }
+}

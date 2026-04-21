@@ -172,41 +172,40 @@ is NativeAOT-safe.
 
 ## Single-file `Program.cs` — what it looks like
 
+The shipping `Opc.Ua.Server.Hosting.AddOpcUaServer(...)` extension wires the
+server into the .NET Generic Host: configuration, certificate check,
+`ApplicationInstance` lifetime and Ctrl+C/SIGTERM handling are all owned
+by the host. User code stays at ~12 lines.
+
 ```csharp
-ITelemetryContext telemetry = DefaultTelemetry.Create(b => b.AddConsole());
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Server.Hosting;
 
-var application = new ApplicationInstance(telemetry)
-{
-    ApplicationName = "MyServer",
-    ApplicationType = ApplicationType.Server
-};
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+builder.Logging.AddConsole();
 
-await application.Build("urn:localhost:MyServer", "uri:opcfoundation.org:MyServer")
-    .AsServer([$"opc.tcp://localhost:51210/MyServer"])
-    .AddSignAndEncryptPolicies()
-    .AddSecurityConfiguration(applicationCerts, "%LocalAppData%/MyServer/pki")
-    .CreateAsync();
-
-await application.CheckApplicationInstanceCertificatesAsync(/* … */);
-
-var server = new MyServer(telemetry);
-await application.StartAsync(server);
-
-await Task.Delay(Timeout.Infinite, ctsCtrlC.Token);
-await server.StopAsync();
-
-internal sealed class MyServer : StandardServer
-{
-    public MyServer(ITelemetryContext t) : base(t) { }
-
-    protected override void OnServerStarting(ApplicationConfiguration cfg)
+builder.Services
+    .AddOpcUaServer(o =>
     {
-        base.OnServerStarting(cfg);
-        // Resolves to the IAsyncNodeManagerFactory overload.
-        AddNodeManager(new MyModel.MyModelNodeManagerFactory());
-    }
-}
+        o.ApplicationName = "MyServer";
+        o.ApplicationUri  = "urn:localhost:MyServer";
+        o.ProductUri      = "uri:opcfoundation.org:MyServer";
+        o.AutoAcceptUntrustedCertificates = true;
+        o.EndpointUrls.Add("opc.tcp://localhost:51210/MyServer");
+    })
+    .AddNodeManager<MyModel.MyModelNodeManagerFactory>();
+
+await builder.Build().RunAsync();
 ```
+
+`AddOpcUaServer` automatically registers a `HostTelemetryContext` so the
+host's `ILoggerFactory` backs `ITelemetryContext` — no separate logging
+pipeline is required. `IOpcUaServerBuilder.AddNodeManager<T>()` registers
+an `IAsyncNodeManagerFactory`; use `AddSyncNodeManager<T>()` for the
+legacy `INodeManagerFactory`. For advanced configuration (custom security
+policies, additional builder calls), set `OpcUaServerOptions.ConfigureBuilder`.
 
 That's the whole server. The Boiler version is in
 `Applications/ConsoleBoilerServer/Program.cs`.

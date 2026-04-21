@@ -27,28 +27,37 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.Configuration;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Opc.Ua.Server.Hosting;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62541;
-
-builder.Services
-    .AddOpcUaServer(o =>
+namespace Opc.Ua.Server.Hosting
+{
+    /// <summary>
+    /// Fluent helper returned by
+    /// <see cref="OpcUaServerServiceCollectionExtensions.AddOpcUaServer"/>;
+    /// allows chained registration of node-manager factories.
+    /// </summary>
+    public interface IOpcUaServerBuilder
     {
-        o.ApplicationName = "ConsoleBoilerServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:ConsoleBoilerServer";
-        o.ProductUri = "uri:opcfoundation.org:ConsoleBoilerServer";
-        o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/ConsoleBoilerServer");
-    })
-    .AddNodeManager<global::Boiler.BoilerNodeManagerFactory>();
+        /// <summary>
+        /// Underlying service collection. Use it to register additional services
+        /// the node-manager factories or custom <c>IAsyncNodeManagerFactory</c>
+        /// implementations may need.
+        /// </summary>
+        IServiceCollection Services { get; }
 
-await builder.Build().RunAsync().ConfigureAwait(false);
+        /// <summary>
+        /// Registers an asynchronous node-manager factory as a singleton.
+        /// </summary>
+        IOpcUaServerBuilder AddNodeManager<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
+            where TFactory : class, IAsyncNodeManagerFactory;
+
+        /// <summary>
+        /// Registers a synchronous (legacy) node-manager factory as a singleton.
+        /// </summary>
+        IOpcUaServerBuilder AddSyncNodeManager<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
+            where TFactory : class, INodeManagerFactory;
+    }
+}
