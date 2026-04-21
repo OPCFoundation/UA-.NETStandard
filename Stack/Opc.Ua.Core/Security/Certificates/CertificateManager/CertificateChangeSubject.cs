@@ -40,13 +40,13 @@ namespace Opc.Ua
     /// </summary>
     internal sealed class CertificateChangeSubject : IObservable<CertificateChangeEvent>
     {
-        private readonly List<IObserver<CertificateChangeEvent>> _observers = [];
-        private readonly object _lock = new();
+        private readonly List<IObserver<CertificateChangeEvent>> m_observers = [];
+        private readonly object m_lock = new();
 
         /// <inheritdoc/>
         public IDisposable Subscribe(IObserver<CertificateChangeEvent> observer)
         {
-            lock (_lock) { _observers.Add(observer); }
+            lock (m_lock) { m_observers.Add(observer); }
             return new Unsubscriber(this, observer);
         }
 
@@ -56,7 +56,7 @@ namespace Opc.Ua
         public void Notify(CertificateChangeEvent evt)
         {
             IObserver<CertificateChangeEvent>[] snapshot;
-            lock (_lock) { snapshot = [.. _observers]; }
+            lock (m_lock) { snapshot = [.. m_observers]; }
             foreach (var observer in snapshot)
             {
                 observer.OnNext(evt);
@@ -69,7 +69,7 @@ namespace Opc.Ua
         public void Complete()
         {
             IObserver<CertificateChangeEvent>[] snapshot;
-            lock (_lock) { snapshot = [.. _observers]; _observers.Clear(); }
+            lock (m_lock) { snapshot = [.. m_observers]; m_observers.Clear(); }
             foreach (var observer in snapshot)
             {
                 observer.OnCompleted();
@@ -82,7 +82,7 @@ namespace Opc.Ua
         {
             public void Dispose()
             {
-                lock (subject._lock) { subject._observers.Remove(observer); }
+                lock (subject.m_lock) { subject.m_observers.Remove(observer); }
             }
         }
     }

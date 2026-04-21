@@ -1436,7 +1436,7 @@ namespace Opc.Ua
                             m_logger.LogInformation(
                                 Utils.TraceMasks.Security,
                                 "An unexpected certificate {Certificate} was used in the certificate chain.",
-                                issuerCert.AsLogSafeString());
+                                issuerCert.Subject);
                             chainIncomplete = true;
                             isIssuerTrusted = false;
                             break;

@@ -863,5 +863,84 @@ namespace Opc.Ua.Security.Certificates.Tests
                 () => collection.Add(CreateTestCertificate("CN=Y")));
         }
         #endregion
+
+#if DEBUG
+        #region Leak Detection Finalizer Tests
+
+        [Test]
+        public void VerifyLeakDetectionTracksAllocation()
+        {
+            WeakReference weakRef = CreateLeakedCertificateRef("CN=LeakTest");
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            Assert.That(weakRef.IsAlive, Is.False);
+        }
+
+        [Test]
+        public void VerifyNoLeakWhenProperlyDisposed()
+        {
+            WeakReference weakRef = CreateDisposedCertificateRef(
+                "CN=NoLeakTest");
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            Assert.That(weakRef.IsAlive, Is.False);
+        }
+
+        [Test]
+        public void VerifyAddRefDisposeNoLeak()
+        {
+            WeakReference weakRef = CreateAddRefDisposedCertificateRef(
+                "CN=RefCountTest");
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            Assert.That(weakRef.IsAlive, Is.False);
+        }
+
+        [System.Runtime.CompilerServices.MethodImpl(
+            System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static WeakReference CreateLeakedCertificateRef(string cn)
+        {
+            Certificate cert = CertificateBuilder.Create(cn)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            return new WeakReference(cert);
+        }
+
+        [System.Runtime.CompilerServices.MethodImpl(
+            System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static WeakReference CreateDisposedCertificateRef(string cn)
+        {
+            Certificate cert = CertificateBuilder.Create(cn)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            cert.Dispose();
+            return new WeakReference(cert);
+        }
+
+        [System.Runtime.CompilerServices.MethodImpl(
+            System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static WeakReference CreateAddRefDisposedCertificateRef(
+            string cn)
+        {
+            Certificate cert = CertificateBuilder.Create(cn)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            cert.AddRef();
+            cert.Dispose();
+            cert.Dispose();
+            return new WeakReference(cert);
+        }
+
+        #endregion
+#endif
     }
 }

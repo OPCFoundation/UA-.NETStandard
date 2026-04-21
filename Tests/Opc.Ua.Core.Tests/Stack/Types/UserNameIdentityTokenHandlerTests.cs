@@ -56,7 +56,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] expectedPassword = Nonce.CreateNonce(96).Data;
 
-            using X509Certificate2 certificate = CertificateBuilder
+            using Certificate certificate = CertificateBuilder
                 .Create("CN=User Identity Token Test Subject, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
@@ -94,7 +94,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] expectedPassword = GetRandomBytes(TestLegacyPasswordLength);
 
-            using X509Certificate2 certificate = CertificateBuilder
+            using Certificate certificate = CertificateBuilder
                 .Create("CN=User Identity Token Legacy Test Subject, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
@@ -160,7 +160,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold - 1);
 
-            using X509Certificate2 certificate = CertificateBuilder
+            using Certificate certificate = CertificateBuilder
                 .Create("CN=User Identity Token Encrypt Legacy Subject, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
@@ -191,7 +191,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold);
 
-            using X509Certificate2 certificate = CertificateBuilder
+            using Certificate certificate = CertificateBuilder
                 .Create("CN=User Identity Token Encrypt Threshold Subject, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
@@ -222,7 +222,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold + 1);
 
-            using X509Certificate2 certificate = CertificateBuilder
+            using Certificate certificate = CertificateBuilder
                 .Create("CN=User Identity Token Encrypt Secret Subject, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
@@ -246,7 +246,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
         private static byte[] CreateRsaEncryptedSecret(
             IServiceMessageContext context,
-            X509Certificate2 receiverCertificate,
+            Certificate receiverCertificate,
             string securityPolicyUri,
             byte[] secret,
             byte[] nonce)

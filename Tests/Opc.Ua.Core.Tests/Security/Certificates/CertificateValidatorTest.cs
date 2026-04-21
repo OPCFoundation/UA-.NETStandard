@@ -41,8 +41,6 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
 using Opc.Ua.Tests;
 
-#pragma warning disable CS0618 // Tests exercise obsolete methods intentionally
-
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     /// <summary>
@@ -54,6 +52,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     public class CertificateValidatorTest
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+        private static readonly ICertificateIssuer s_issuer = new DefaultCertificateIssuer();
+
         [DatapointSource]
         public static readonly ECCurveHashPair[] ECCurveHashPairs = CertificateTestsForECDsa
             .GetECCurveHashPairs();
@@ -90,7 +91,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             DateTime rootCABaseTime = DateTime.UtcNow.AddDays(-1);
             rootCABaseTime = new DateTime(rootCABaseTime.Year - 1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            Certificate rootCert = CertificateFactory
+            Certificate rootCert = s_factory
                 .CreateCertificate(RootCASubject)
                 .SetNotBefore(rootCABaseTime)
                 .SetLifeTime(25 * 12)
@@ -100,17 +101,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
 
             m_caChain[0] = rootCert;
-            m_crlChain[0] = CertificateFactory.RevokeCertificate(rootCert, null, null);
+            m_crlChain[0] = s_issuer.RevokeCertificates(rootCert, null, null);
 
             // to save time, the dupe chain uses just the default key size/hash
-            m_caDupeChain[0] = CertificateFactory
+            m_caDupeChain[0] = s_factory
                 .CreateCertificate(RootCASubject)
                 .SetNotBefore(rootCABaseTime)
                 .SetLifeTime(25 * 12)
                 .SetCAConstraint()
                 .CreateForRSA();
 
-            m_crlDupeChain[0] = CertificateFactory.RevokeCertificate(m_caDupeChain[0], null, null);
+            m_crlDupeChain[0] = s_issuer.RevokeCertificates(m_caDupeChain[0], null, null);
             m_crlRevokedChain[0] = null;
 
             Certificate signingCert = rootCert;
@@ -134,7 +135,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     hashSize -= 128;
                 }
                 string subject = $"CN=Sub CA {i} Test Cert, O=OPC Foundation";
-                Certificate subCACert = CertificateFactory
+                Certificate subCACert = s_factory
                     .CreateCertificate(subject)
                     .SetNotBefore(subCABaseTime)
                     .SetLifeTime(5 * 12)
@@ -144,13 +145,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .SetRSAKeySize(keySize)
                     .CreateForRSA();
                 m_caChain[i] = subCACert;
-                m_crlChain[i] = CertificateFactory.RevokeCertificate(
+                m_crlChain[i] = s_issuer.RevokeCertificates(
                     subCACert,
                     null,
                     null,
                     subCABaseTime,
                     subCABaseTime + TimeSpan.FromDays(10));
-                Certificate subCADupeCert = CertificateFactory
+                Certificate subCADupeCert = s_factory
                     .CreateCertificate(subject)
                     .SetNotBefore(subCABaseTime)
                     .SetLifeTime(5 * 12)
@@ -158,7 +159,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .SetIssuer(signingCert)
                     .CreateForRSA();
                 m_caDupeChain[i] = subCADupeCert;
-                m_crlDupeChain[i] = CertificateFactory.RevokeCertificate(
+                m_crlDupeChain[i] = s_issuer.RevokeCertificates(
                     subCADupeCert,
                     null,
                     null,
@@ -171,7 +172,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // create a CRL with a revoked Sub CA
             for (int i = 0; i < kCaChainCount - 1; i++)
             {
-                m_crlRevokedChain[i] = CertificateFactory.RevokeCertificate(
+                m_crlRevokedChain[i] = s_issuer.RevokeCertificates(
                     m_caChain[i],
                     [m_crlChain[i]],
                     [m_caChain[i + 1]]);
@@ -181,12 +182,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             foreach (ApplicationTestData app in m_goodApplicationTestSet)
             {
                 string subject = app.Subject;
-                Certificate appCert = CertificateFactory
-                    .CreateCertificate(
+                Certificate appCert = s_factory
+                    .CreateApplicationCertificate(
                         app.ApplicationUri,
                         app.ApplicationName,
                         subject,
-                        app.DomainNames)
+                        app.DomainNames.ToList())
                     .CreateForRSA();
                 m_appSelfSignedCerts.Add(appCert);
             }
@@ -195,12 +196,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             foreach (ApplicationTestData app in m_goodApplicationTestSet)
             {
                 string subject = app.Subject;
-                Certificate appCert = CertificateFactory
-                    .CreateCertificate(
+                Certificate appCert = s_factory
+                    .CreateApplicationCertificate(
                         app.ApplicationUri,
                         app.ApplicationName,
                         subject,
-                        app.DomainNames)
+                        app.DomainNames.ToList())
                     .SetIssuer(signingCert)
                     .CreateForRSA();
                 app.Certificate = appCert.RawData;
@@ -208,7 +209,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             // create a CRL with all apps revoked
-            m_crlRevokedChain[kCaChainCount - 1] = CertificateFactory.RevokeCertificate(
+            m_crlRevokedChain[kCaChainCount - 1] = s_issuer.RevokeCertificates(
                 m_caChain[kCaChainCount - 1],
                 [m_crlChain[kCaChainCount - 1]],
                 m_appCerts);
@@ -217,12 +218,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             foreach (ApplicationTestData app in m_notYetValidCertsApplicationTestSet)
             {
                 string subject = app.Subject;
-                Certificate expiredappcert = CertificateFactory
-                    .CreateCertificate(
+                Certificate expiredappcert = s_factory
+                    .CreateApplicationCertificate(
                         app.ApplicationUri,
                         app.ApplicationName,
                         subject,
-                        app.DomainNames)
+                        app.DomainNames.ToList())
                     .SetNotAfter(subCABaseTime.AddMonths(4))
                     .SetNotBefore(subCABaseTime.AddMonths(1))
                     .SetIssuer(signingCert)
@@ -1144,8 +1145,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             const string applicationName = "App Test Cert";
-            Certificate cert = CertificateFactory
-                .CreateCertificate(null, applicationName, null)
+            Certificate cert = s_factory
+                .CreateCertificate("CN=" + applicationName + " ,O=OPC Foundation")
                 .SetNotBefore(DateTime.Today.AddDays(14))
                 .CreateForRSA();
             Assert.That(cert, Is.Not.Null);
@@ -1197,8 +1198,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             const string applicationName = "App Test Cert";
-            Certificate cert = CertificateFactory
-                .CreateCertificate(null, applicationName, null)
+            Certificate cert = s_factory
+                .CreateCertificate("CN=" + applicationName + " ,O=OPC Foundation")
                 .SetNotBefore(new DateTime(2010, 1, 1))
                 .SetLifeTime(12)
                 .CreateForRSA();
@@ -1245,8 +1246,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             const string subject = "CN=Signed App Test Cert, O=OPC Foundation";
-            Certificate cert = CertificateFactory
-                .CreateCertificate(null, null, subject)
+            Certificate cert = s_factory
+                .CreateCertificate(subject)
                 .SetNotBefore(DateTime.Today.AddDays(30))
                 .SetLifeTime(12)
                 .SetIssuer(m_caChain[0])
@@ -1328,8 +1329,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 #endif
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            Certificate cert = CertificateFactory
-                .CreateCertificate(null, null, "CN=SHA1 signed, O=OPC Foundation")
+            Certificate cert = s_factory
+                .CreateCertificate("CN=SHA1 signed, O=OPC Foundation")
                 .SetHashAlgorithm(HashAlgorithmName.SHA1)
                 .CreateForRSA();
             var validator = TemporaryCertValidator.Create(telemetry);
@@ -1392,8 +1393,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             const string subject = "CN=Invalid Signature Cert, O=OPC Foundation";
             // self signed but key usage is not valid for app cert
-            Certificate cert = CertificateFactory
-                .CreateCertificate(null, null, subject)
+            Certificate cert = s_factory
+                .CreateCertificate(subject)
                 .SetCAConstraint(0)
                 .CreateForRSA();
 
@@ -1436,7 +1437,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             const string subject = "CN=Invalid Signature Cert, O=OPC Foundation";
-            Certificate certBase = CertificateFactory.CreateCertificate(
+            Certificate certBase = s_factory.CreateApplicationCertificate(
                 null,
                 null,
                 subject).CreateForRSA();
@@ -1445,7 +1446,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 m_caChain[0].GetRSAPrivateKey(),
                 RSASignaturePadding.Pkcs1);
             // generate a self signed cert with invalid signature
-            ICertificateBuilder builder = CertificateFactory.CreateCertificate(
+            ICertificateBuilder builder = s_factory.CreateApplicationCertificate(
                 null,
                 null,
                 subject);
@@ -1514,8 +1515,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            Certificate cert = CertificateFactory
-                .CreateCertificate(null, null, "CN=1k Key")
+            Certificate cert = s_factory
+                .CreateCertificate("CN=1k Key")
                 .SetRSAKeySize(1024)
                 .CreateForRSA();
             var validator = TemporaryCertValidator.Create(telemetry);
@@ -1610,7 +1611,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            Certificate cert = CertificateFactory.CreateCertificate(
+            Certificate cert = s_factory.CreateApplicationCertificate(
                 null,
                 null,
                 "CN=Test").CreateForRSA();

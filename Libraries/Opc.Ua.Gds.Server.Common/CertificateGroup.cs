@@ -261,9 +261,8 @@ namespace Opc.Ua.Gds.Server
                 ct)
                 .ConfigureAwait(false);
 
-#pragma warning disable CS0618 // Type or member is obsolete - TODO: migrate to ICertificateFactory
-            ICertificateBuilderIssuer builder = CertificateFactory
-                .CreateCertificate(
+            ICertificateBuilderIssuer builder = new DefaultCertificateFactory()
+                .CreateApplicationCertificate(
                     application.ApplicationUri,
                     application.ApplicationNames.Count > 0
                         ? application.ApplicationNames[0].Text
@@ -271,7 +270,6 @@ namespace Opc.Ua.Gds.Server
                     subjectName,
                     domainNames)
                 .SetIssuer(signingKey);
-#pragma warning restore CS0618
 
             using Certificate certificate = TryGetECCCurve(certificateType, out ECCurve curve)
                 ? builder.SetECCurve(curve).CreateForECDsa()
@@ -286,13 +284,7 @@ namespace Opc.Ua.Gds.Server
                 }
                 else
                 {
-                    using var passwordString = new SecureString();
-                    foreach (char c in privateKeyPassword)
-                    {
-                        passwordString.AppendChar(c);
-                    }
-                    passwordString.MakeReadOnly();
-                    privateKey = ByteString.From(certificate.Export(X509ContentType.Pfx, passwordString));
+                    privateKey = ByteString.From(certificate.Export(X509ContentType.Pfx, privateKeyPassword));
                 }
             }
             else if (privateKeyFormat == "PEM")
@@ -483,10 +475,8 @@ namespace Opc.Ua.Gds.Server
             }
 
             DateTime yesterday = DateTime.Today.AddDays(-1);
-#pragma warning disable CS0618 // Type or member is obsolete - TODO: migrate to ICertificateFactory
-            ICertificateBuilder builder = CertificateFactory
+            ICertificateBuilder builder = new DefaultCertificateFactory()
                 .CreateCertificate(subjectName)
-#pragma warning restore CS0618
                 .SetNotBefore(yesterday)
                 .SetLifeTime(Configuration.CACertificateLifetime)
                 .SetCAConstraint();
@@ -750,22 +740,11 @@ namespace Opc.Ua.Gds.Server
                 {
                     certificate
                 };
-                if (certificateIssuer != null)
-                {
-                    updatedCRL = certificateIssuer.RevokeCertificates(
-                        certCAWithPrivateKey,
-                        certCACrl,
-                        certificateCollection);
-                }
-                else
-                {
-#pragma warning disable CS0618 // Type or member is obsolete - TODO: migrate to ICertificateIssuer
-                    updatedCRL = CertificateFactory.RevokeCertificate(
-                        certCAWithPrivateKey,
-                        certCACrl,
-                        certificateCollection);
-#pragma warning restore CS0618
-                }
+                ICertificateIssuer issuer = certificateIssuer ?? new DefaultCertificateIssuer();
+                updatedCRL = issuer.RevokeCertificates(
+                    certCAWithPrivateKey,
+                    certCACrl,
+                    certificateCollection);
 
                 await store.AddCRLAsync(updatedCRL, ct).ConfigureAwait(false);
 

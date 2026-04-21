@@ -80,12 +80,17 @@ namespace Opc.Ua.Security.Certificates
             string subjectName,
             IReadOnlyList<string>? domainNames = null)
         {
-            return CertificateBuilder
-                .Create(subjectName)
-                .AddExtension(
+            var builder = CertificateBuilder.Create(subjectName);
+
+            if (applicationUri != null || (domainNames != null && domainNames.Count > 0))
+            {
+                builder.AddExtension(
                     new X509SubjectAltNameExtension(
                         applicationUri,
                         domainNames ?? Array.Empty<string>()));
+            }
+
+            return builder;
         }
 
         /// <inheritdoc/>

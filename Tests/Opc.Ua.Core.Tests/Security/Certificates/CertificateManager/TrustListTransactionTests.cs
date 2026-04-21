@@ -35,8 +35,6 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
-#pragma warning disable CS0618 // Tests exercise obsolete methods intentionally
-
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     /// <summary>
@@ -50,25 +48,26 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetUICulture("en-us")]
     public class TrustListTransactionTests
     {
-        private ITelemetryContext _telemetry;
-        private readonly List<string> _tempDirs = [];
+        private static readonly ICertificateIssuer s_issuer = new DefaultCertificateIssuer();
+        private ITelemetryContext m_telemetry;
+        private readonly List<string> m_tempDirs = [];
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            _telemetry = NUnitTelemetryContext.Create();
+            m_telemetry = NUnitTelemetryContext.Create();
         }
 
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            (_telemetry as IDisposable)?.Dispose();
+            (m_telemetry as IDisposable)?.Dispose();
         }
 
         [TearDown]
         public void TearDown()
         {
-            foreach (string dir in _tempDirs)
+            foreach (string dir in m_tempDirs)
             {
                 try
                 {
@@ -83,14 +82,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
             }
 
-            _tempDirs.Clear();
+            m_tempDirs.Clear();
         }
 
         [Test]
         public async Task CommitAsyncAddsCertificateToStore()
         {
             string trustedPath = CreateTempDir();
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
             using Certificate cert = CertificateBuilder
@@ -117,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task CommitAsyncRemovesCertificateFromStore()
         {
             string trustedPath = CreateTempDir();
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
             using Certificate cert = CertificateBuilder
@@ -151,7 +150,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task DisposeWithoutCommitDoesNotModifyStore()
         {
             string trustedPath = CreateTempDir();
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
             using Certificate originalCert = CertificateBuilder
@@ -191,7 +190,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task CommitAsyncThrowsWhenDisposed()
         {
             string trustedPath = CreateTempDir();
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
             ITrustListTransaction transaction = await manager
@@ -206,7 +205,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task AddCrlAndCommit()
         {
             string trustedPath = CreateTempDir();
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
             // Create a self-signed CA certificate for CRL signing.
@@ -223,7 +222,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             // Build a CRL signed by the CA certificate.
-            X509CRL crl = CertificateFactory.RevokeCertificate(caCert, null, null);
+            X509CRL crl = s_issuer.RevokeCertificates(caCert, null, null);
 
             ITrustListTransaction transaction = await manager
                 .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
@@ -249,7 +248,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Path.GetTempPath(),
                 "opcua-tlt-test-" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(dir);
-            _tempDirs.Add(dir);
+            m_tempDirs.Add(dir);
             return dir;
         }
 

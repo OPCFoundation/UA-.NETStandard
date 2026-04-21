@@ -40,8 +40,6 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using Opc.Ua.X509StoreExtensions;
 
-#pragma warning disable CS0618 // Tests exercise obsolete methods intentionally
-
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     /// <summary>
@@ -53,6 +51,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     public class CertificateStoreTest
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+
         public const string X509StoreSubject
             = "CN=Opc.Ua.Core.Tests, O=OPC Foundation, OU=X509Store, C=US";
 
@@ -685,7 +685,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 int validityMonths = 2,
                 int startingFromDays = -2)
             {
-                ICertificateBuilder certificateFactory = CertificateFactory.CreateCertificate(subjectName)
+                ICertificateBuilder certificateFactory = s_factory.CreateCertificate(subjectName)
                     .SetNotBefore(startCreation.AddDays(startingFromDays))
                     .SetNotAfter(startCreation.AddDays(startingFromDays).AddMonths(validityMonths))
                     .SetHashAlgorithm(HashAlgorithmName.SHA256);
@@ -797,7 +797,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // Test that CA-signed certificate is prioritized over self-signed certificate
             // --------------------------------------------------------------------------
             // Create a CA certificate (start earlier to allow signing expired certs in tests)
-            Certificate caCertificate = CertificateFactory.CreateCertificate("CN=Test CA")
+            Certificate caCertificate = s_factory.CreateCertificate("CN=Test CA")
                 .SetNotBefore(startCreation.AddDays(-1000))
                 .SetNotAfter(startCreation.AddDays(-1000).AddYears(10))
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
@@ -805,7 +805,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
 
             // Create a CA-signed certificate with shorter remaining validity than the self-signed ones
-            Certificate caSignedCert = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
+            Certificate caSignedCert = s_factory.CreateCertificate("CN=Opc.Ua.Core.Tests")
                 .SetNotBefore(startCreation.AddDays(-2))
                 .SetNotAfter(startCreation.AddDays(540)) // Valid for ~18 months
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
@@ -922,7 +922,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 startingFromDays: -2); // Valid for ~30 more days
 
             // Using explicit dates due to large time span (1800 days validity starting 1900 days ago)
-            Certificate expiredCertLong = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
+            Certificate expiredCertLong = s_factory.CreateCertificate("CN=Opc.Ua.Core.Tests")
                 .SetNotBefore(startCreation.AddDays(-1900))
                 .SetNotAfter(startCreation.AddDays(-100)) // Expired 100 days ago
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
@@ -956,7 +956,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // CA-signed cert must have dates within CA's validity period
 
-            Certificate expiredCASigned = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
+            Certificate expiredCASigned = s_factory.CreateCertificate("CN=Opc.Ua.Core.Tests")
                 .SetNotBefore(startCreation.AddDays(-500))
                 .SetNotAfter(startCreation.AddDays(-320)) // Expired ~320 days ago (more expired than self-signed)
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
@@ -1014,7 +1014,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // Test 5: All expired with same NotAfter, CA-signed should win
             DateTime sameExpiry = startCreation.AddDays(-50); // Expired 50 days ago
             DateTime sameExpiryStart = sameExpiry.AddDays(-365); // Started 365 days before expiry
-            Certificate expiredSelfSigned1 = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
+            Certificate expiredSelfSigned1 = s_factory.CreateCertificate("CN=Opc.Ua.Core.Tests")
                 .SetNotBefore(sameExpiryStart)
                 .SetNotAfter(sameExpiry)
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
@@ -1022,7 +1022,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ["CN=Opc.Ua.Core.Tests"]))
                 .CreateForRSA();
 
-            Certificate expiredCASigned1 = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
+            Certificate expiredCASigned1 = s_factory.CreateCertificate("CN=Opc.Ua.Core.Tests")
                 .SetNotBefore(sameExpiryStart)
                 .SetNotAfter(sameExpiry)
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
@@ -1102,7 +1102,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "Should pick soonest to become valid when all are not-yet-valid");
 
             // Test 8: Not-yet-valid CA-signed vs self-signed - should prioritize CA-signed
-            Certificate notYetValidCASigned = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
+            Certificate notYetValidCASigned = s_factory.CreateCertificate("CN=Opc.Ua.Core.Tests")
                 .SetNotBefore(startCreation.AddDays(20))
                 .SetNotAfter(startCreation.AddDays(20).AddMonths(12))
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
@@ -1171,7 +1171,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 validityMonths: 48,
                 startingFromDays: -2); // Valid for ~48 months
 
-            Certificate validCASignedShorter = CertificateFactory.CreateCertificate("CN=Opc.Ua.Core.Tests")
+            Certificate validCASignedShorter = s_factory.CreateCertificate("CN=Opc.Ua.Core.Tests")
                 .SetNotBefore(startCreation.AddDays(-2))
                 .SetNotAfter(startCreation.AddDays(180)) // Valid for ~6 months
                 .SetHashAlgorithm(HashAlgorithmName.SHA256)
@@ -1200,13 +1200,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         private Certificate GetTestCert()
         {
-            return m_testCertificate ??= CertificateFactory.CreateCertificate(X509StoreSubject)
+            return m_testCertificate ??= s_factory.CreateCertificate(X509StoreSubject)
                 .CreateForRSA();
         }
 
         private Certificate GetTestCert2()
         {
-            return m_testCertificate2 ??= CertificateFactory.CreateCertificate(X509StoreSubject2)
+            return m_testCertificate2 ??= s_factory.CreateCertificate(X509StoreSubject2)
                 .CreateForRSA();
         }
 

@@ -48,19 +48,19 @@ namespace Opc.Ua
         ICertificateManager,
         IDisposable
     {
-        private readonly Dictionary<TrustListIdentifier, TrustListEntry> _trustLists = new();
-        private readonly List<CertificateEntry> _applicationCertificates = [];
-        private readonly List<ICertificateStoreProvider> _storeProviders;
-        private readonly CertificateChangeSubject _changeSubject = new();
-        private readonly ITelemetryContext _telemetry;
-        private readonly ILogger _logger;
-        private readonly int _maxRejectedCertificates;
-        private RejectedCertificateProcessor? _rejectedProcessor;
-        private CertificateLifecycleMonitor? _lifecycleMonitor;
-        private CertificateValidator? _peerValidator;
-        private CertificateValidator? _userValidator;
-        private CertificateValidator? _httpsValidator;
-        private bool _disposed;
+        private readonly Dictionary<TrustListIdentifier, TrustListEntry> m_trustLists = new();
+        private readonly List<CertificateEntry> m_applicationCertificates = [];
+        private readonly List<ICertificateStoreProvider> m_storeProviders;
+        private readonly CertificateChangeSubject m_changeSubject = new();
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
+        private readonly int m_maxRejectedCertificates;
+        private RejectedCertificateProcessor? m_rejectedProcessor;
+        private CertificateLifecycleMonitor? m_lifecycleMonitor;
+        private CertificateValidator? m_peerValidator;
+        private CertificateValidator? m_userValidator;
+        private CertificateValidator? m_httpsValidator;
+        private bool m_disposed;
 
         /// <summary>
         /// Internal record for a registered trust list.
@@ -95,28 +95,28 @@ namespace Opc.Ua
             int maxRejectedCertificates = 5,
             TimeSpan? expiryWarningThreshold = null)
         {
-            _telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
-            _logger = telemetry.CreateLogger<CertificateManager>();
-            _maxRejectedCertificates = maxRejectedCertificates;
-            _storeProviders = storeProviders?.ToList() ?? [
+            m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            m_logger = telemetry.CreateLogger<CertificateManager>();
+            m_maxRejectedCertificates = maxRejectedCertificates;
+            m_storeProviders = storeProviders?.ToList() ?? [
                 new DirectoryStoreProvider(),
                 new X509StoreProvider()
             ];
 
             var threshold = expiryWarningThreshold ?? TimeSpan.FromDays(14);
-            _lifecycleMonitor = new CertificateLifecycleMonitor(
-                _changeSubject,
-                () => _applicationCertificates,
+            m_lifecycleMonitor = new CertificateLifecycleMonitor(
+                m_changeSubject,
+                () => m_applicationCertificates,
                 threshold,
                 TimeSpan.FromHours(1),
-                _telemetry);
+                m_telemetry);
         }
 
         /// <inheritdoc/>
-        public IReadOnlyCollection<TrustListIdentifier> TrustLists => _trustLists.Keys;
+        public IReadOnlyCollection<TrustListIdentifier> TrustLists => m_trustLists.Keys;
 
         /// <inheritdoc/>
-        public IObservable<CertificateChangeEvent> CertificateChanges => _changeSubject;
+        public IObservable<CertificateChangeEvent> CertificateChanges => m_changeSubject;
 
         /// <inheritdoc/>
         public void RegisterTrustList(
@@ -133,10 +133,10 @@ namespace Opc.Ua
                     nameof(trustedStorePath));
             }
 
-            if (!_trustLists.TryAdd(trustList, new TrustListEntry(
+            if (!m_trustLists.TryAdd(trustList, new TrustListEntry(
                     trustedStorePath, issuerStorePath, StoreType: null)))
             {
-                _logger.LogDebug(
+                m_logger.LogDebug(
                     "Trust list '{TrustList}' is already registered, skipping.",
                     trustList);
             }
@@ -145,7 +145,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public ICertificateStore OpenTrustedStore(TrustListIdentifier trustList)
         {
-            if (!_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
+            if (!m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
             {
                 throw new KeyNotFoundException(
                     $"Trust list '{trustList}' is not registered.");
@@ -157,7 +157,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public ICertificateStore? OpenIssuerStore(TrustListIdentifier trustList)
         {
-            if (!_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
+            if (!m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
             {
                 throw new KeyNotFoundException(
                     $"Trust list '{trustList}' is not registered.");
@@ -178,7 +178,7 @@ namespace Opc.Ua
         {
             if (trustList == null) throw new ArgumentNullException(nameof(trustList));
 
-            if (!_trustLists.ContainsKey(trustList))
+            if (!m_trustLists.ContainsKey(trustList))
             {
                 throw new KeyNotFoundException(
                     $"Trust list '{trustList}' is not registered.");
@@ -230,12 +230,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IReadOnlyList<CertificateEntry> ApplicationCertificates => _applicationCertificates;
+        public IReadOnlyList<CertificateEntry> ApplicationCertificates => m_applicationCertificates;
 
         /// <inheritdoc/>
         public CertificateEntry? GetApplicationCertificate(NodeId certificateType)
         {
-            return _applicationCertificates.FirstOrDefault(
+            return m_applicationCertificates.FirstOrDefault(
                 e => e.CertificateType == certificateType);
         }
 
@@ -251,7 +251,7 @@ namespace Opc.Ua
                 }
             }
 
-            return _applicationCertificates.Count > 0 ? _applicationCertificates[0] : null;
+            return m_applicationCertificates.Count > 0 ? m_applicationCertificates[0] : null;
         }
 
         /// <inheritdoc/>
@@ -276,16 +276,16 @@ namespace Opc.Ua
             string? applicationUri = null,
             CancellationToken ct = default)
         {
-            _applicationCertificates.Clear();
+            m_applicationCertificates.Clear();
             var appCerts = securityConfiguration.ApplicationCertificates;
             for (int i = 0; i < appCerts.Count; i++)
             {
                 var certId = appCerts[i];
-                var certificate = await certId.FindAsync(true, applicationUri, _telemetry, ct)
+                var certificate = await certId.FindAsync(true, applicationUri, m_telemetry, ct)
                     .ConfigureAwait(false);
                 if (certificate != null)
                 {
-                    _applicationCertificates.Add(new CertificateEntry(
+                    m_applicationCertificates.Add(new CertificateEntry(
                         certificate,
                         new CertificateCollection(),
                         certId.CertificateType));
@@ -340,12 +340,12 @@ namespace Opc.Ua
             Certificate? oldCert = null;
 
             // Find and replace the existing entry.
-            for (int i = 0; i < _applicationCertificates.Count; i++)
+            for (int i = 0; i < m_applicationCertificates.Count; i++)
             {
-                if (_applicationCertificates[i].CertificateType == certificateType)
+                if (m_applicationCertificates[i].CertificateType == certificateType)
                 {
-                    oldCert = _applicationCertificates[i].Certificate;
-                    _applicationCertificates[i] = new CertificateEntry(
+                    oldCert = m_applicationCertificates[i].Certificate;
+                    m_applicationCertificates[i] = new CertificateEntry(
                         newCertificate,
                         issuerChain ?? new CertificateCollection(),
                         certificateType);
@@ -356,20 +356,20 @@ namespace Opc.Ua
             // If not found, add a new entry.
             if (oldCert == null)
             {
-                _applicationCertificates.Add(new CertificateEntry(
+                m_applicationCertificates.Add(new CertificateEntry(
                     newCertificate,
                     issuerChain ?? new CertificateCollection(),
                     certificateType));
             }
 
             // Invalidate cached validators.
-            _peerValidator = null;
-            _userValidator = null;
-            _httpsValidator = null;
+            m_peerValidator = null;
+            m_userValidator = null;
+            m_httpsValidator = null;
 
-            _lifecycleMonitor?.Reset();
+            m_lifecycleMonitor?.Reset();
 
-            _changeSubject.Notify(new CertificateChangeEvent(
+            m_changeSubject.Notify(new CertificateChangeEvent(
                 CertificateChangeKind.ApplicationCertificateUpdated,
                 TrustListIdentifier.Peers,
                 certificateType,
@@ -385,9 +385,9 @@ namespace Opc.Ua
             CertificateCollection chain,
             CancellationToken ct = default)
         {
-            _rejectedProcessor ??= new RejectedCertificateProcessor(
-                this, _maxRejectedCertificates, _telemetry);
-            return _rejectedProcessor.EnqueueAsync(chain, ct).AsTask();
+            m_rejectedProcessor ??= new RejectedCertificateProcessor(
+                this, m_maxRejectedCertificates, m_telemetry);
+            return m_rejectedProcessor.EnqueueAsync(chain, ct).AsTask();
         }
 
         /// <inheritdoc/>
@@ -553,23 +553,23 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (!_disposed)
+            if (!m_disposed)
             {
-                _lifecycleMonitor?.Dispose();
-                _changeSubject.Complete();
+                m_lifecycleMonitor?.Dispose();
+                m_changeSubject.Complete();
 
-                if (_rejectedProcessor != null)
+                if (m_rejectedProcessor != null)
                 {
-                    _rejectedProcessor.DisposeAsync()
+                    m_rejectedProcessor.DisposeAsync()
                         .AsTask().GetAwaiter().GetResult();
                 }
 
-                _peerValidator = null;
-                _userValidator = null;
-                _httpsValidator = null;
+                m_peerValidator = null;
+                m_userValidator = null;
+                m_httpsValidator = null;
 
-                _trustLists.Clear();
-                _disposed = true;
+                m_trustLists.Clear();
+                m_disposed = true;
             }
         }
 
@@ -586,9 +586,9 @@ namespace Opc.Ua
                 return cached;
             }
 
-            var validator = new CertificateValidator(_telemetry);
+            var validator = new CertificateValidator(m_telemetry);
 
-            if (_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
+            if (m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
             {
                 var trustedStore = new CertificateTrustList {
                     StorePath = entry.TrustedStorePath
@@ -599,7 +599,7 @@ namespace Opc.Ua
                     : null;
 
                 CertificateStoreIdentifier? rejectedStore = null;
-                if (_trustLists.TryGetValue(
+                if (m_trustLists.TryGetValue(
                         TrustListIdentifier.Rejected,
                         out TrustListEntry? rejectedEntry))
                 {
@@ -613,15 +613,15 @@ namespace Opc.Ua
             // Cache well-known validators for reuse.
             if (trustList == TrustListIdentifier.Peers)
             {
-                _peerValidator = validator;
+                m_peerValidator = validator;
             }
             else if (trustList == TrustListIdentifier.Users)
             {
-                _userValidator = validator;
+                m_userValidator = validator;
             }
             else if (trustList == TrustListIdentifier.Https)
             {
-                _httpsValidator = validator;
+                m_httpsValidator = validator;
             }
 
             return validator;
@@ -635,17 +635,17 @@ namespace Opc.Ua
         {
             if (trustList == TrustListIdentifier.Peers)
             {
-                return _peerValidator;
+                return m_peerValidator;
             }
 
             if (trustList == TrustListIdentifier.Users)
             {
-                return _userValidator;
+                return m_userValidator;
             }
 
             if (trustList == TrustListIdentifier.Https)
             {
-                return _httpsValidator;
+                return m_httpsValidator;
             }
 
             return null;
@@ -660,14 +660,14 @@ namespace Opc.Ua
         {
             storeType ??= CertificateStoreIdentifier.DetermineStoreType(storePath);
 
-            foreach (ICertificateStoreProvider provider in _storeProviders)
+            foreach (ICertificateStoreProvider provider in m_storeProviders)
             {
                 if (string.Equals(
                         provider.StoreTypeName,
                         storeType,
                         StringComparison.Ordinal))
                 {
-                    ICertificateStore store = provider.CreateStore(_telemetry);
+                    ICertificateStore store = provider.CreateStore(m_telemetry);
                     store.Open(storePath);
                     return store;
                 }
@@ -675,7 +675,7 @@ namespace Opc.Ua
 
             // Fallback to the existing factory method for custom store types.
             ICertificateStore fallbackStore =
-                CertificateStoreIdentifier.CreateStore(storeType, _telemetry);
+                CertificateStoreIdentifier.CreateStore(storeType, m_telemetry);
             fallbackStore.Open(storePath);
             return fallbackStore;
         }

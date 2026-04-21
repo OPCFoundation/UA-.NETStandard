@@ -45,15 +45,15 @@ namespace Opc.Ua
     /// </summary>
     internal sealed class TrustListTransaction : ITrustListTransaction
     {
-        private readonly ICertificateTrustListManager _manager;
-        private readonly List<Certificate> _addTrusted = new();
-        private readonly List<string> _removeTrusted = new();
-        private readonly List<Certificate> _addIssuer = new();
-        private readonly List<string> _removeIssuer = new();
-        private readonly List<X509CRL> _addCrls = new();
-        private readonly List<X509CRL> _removeCrls = new();
-        private bool _committed;
-        private bool _disposed;
+        private readonly ICertificateTrustListManager m_manager;
+        private readonly List<Certificate> m_addTrusted = new();
+        private readonly List<string> m_removeTrusted = new();
+        private readonly List<Certificate> m_addIssuer = new();
+        private readonly List<string> m_removeIssuer = new();
+        private readonly List<X509CRL> m_addCrls = new();
+        private readonly List<X509CRL> m_removeCrls = new();
+        private bool m_committed;
+        private bool m_disposed;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TrustListTransaction"/> class.
@@ -66,7 +66,7 @@ namespace Opc.Ua
             ICertificateTrustListManager manager,
             TrustListIdentifier trustList)
         {
-            _manager = manager ?? throw new ArgumentNullException(nameof(manager));
+            m_manager = manager ?? throw new ArgumentNullException(nameof(manager));
             TrustList = trustList ?? throw new ArgumentNullException(nameof(trustList));
         }
 
@@ -80,7 +80,7 @@ namespace Opc.Ua
         {
             ThrowIfDisposedOrCommitted();
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
-            _addTrusted.Add(certificate);
+            m_addTrusted.Add(certificate);
             return Task.CompletedTask;
         }
 
@@ -91,7 +91,7 @@ namespace Opc.Ua
         {
             ThrowIfDisposedOrCommitted();
             if (thumbprint == null) throw new ArgumentNullException(nameof(thumbprint));
-            _removeTrusted.Add(thumbprint);
+            m_removeTrusted.Add(thumbprint);
             return Task.CompletedTask;
         }
 
@@ -102,7 +102,7 @@ namespace Opc.Ua
         {
             ThrowIfDisposedOrCommitted();
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
-            _addIssuer.Add(certificate);
+            m_addIssuer.Add(certificate);
             return Task.CompletedTask;
         }
 
@@ -113,7 +113,7 @@ namespace Opc.Ua
         {
             ThrowIfDisposedOrCommitted();
             if (thumbprint == null) throw new ArgumentNullException(nameof(thumbprint));
-            _removeIssuer.Add(thumbprint);
+            m_removeIssuer.Add(thumbprint);
             return Task.CompletedTask;
         }
 
@@ -122,7 +122,7 @@ namespace Opc.Ua
         {
             ThrowIfDisposedOrCommitted();
             if (crl == null) throw new ArgumentNullException(nameof(crl));
-            _addCrls.Add(crl);
+            m_addCrls.Add(crl);
             return Task.CompletedTask;
         }
 
@@ -131,7 +131,7 @@ namespace Opc.Ua
         {
             ThrowIfDisposedOrCommitted();
             if (crl == null) throw new ArgumentNullException(nameof(crl));
-            _removeCrls.Add(crl);
+            m_removeCrls.Add(crl);
             return Task.CompletedTask;
         }
 
@@ -141,63 +141,63 @@ namespace Opc.Ua
             ThrowIfDisposedOrCommitted();
 
             // Apply trusted-store operations.
-            using (ICertificateStore trustedStore = _manager.OpenTrustedStore(TrustList))
+            using (ICertificateStore trustedStore = m_manager.OpenTrustedStore(TrustList))
             {
-                foreach (Certificate cert in _addTrusted)
+                foreach (Certificate cert in m_addTrusted)
                 {
                     await trustedStore.AddAsync(cert, ct: ct).ConfigureAwait(false);
                 }
 
-                foreach (string thumbprint in _removeTrusted)
+                foreach (string thumbprint in m_removeTrusted)
                 {
                     await trustedStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
                 }
 
                 // CRLs are stored alongside trusted certificates.
-                foreach (X509CRL crl in _addCrls)
+                foreach (X509CRL crl in m_addCrls)
                 {
                     await trustedStore.AddCRLAsync(crl, ct).ConfigureAwait(false);
                 }
 
-                foreach (X509CRL crl in _removeCrls)
+                foreach (X509CRL crl in m_removeCrls)
                 {
                     await trustedStore.DeleteCRLAsync(crl, ct).ConfigureAwait(false);
                 }
             }
 
             // Apply issuer-store operations if an issuer store is configured.
-            ICertificateStore? issuerStore = _manager.OpenIssuerStore(TrustList);
+            ICertificateStore? issuerStore = m_manager.OpenIssuerStore(TrustList);
             if (issuerStore != null)
             {
                 using (issuerStore)
                 {
-                    foreach (Certificate cert in _addIssuer)
+                    foreach (Certificate cert in m_addIssuer)
                     {
                         await issuerStore.AddAsync(cert, ct: ct).ConfigureAwait(false);
                     }
 
-                    foreach (string thumbprint in _removeIssuer)
+                    foreach (string thumbprint in m_removeIssuer)
                     {
                         await issuerStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
                     }
                 }
             }
 
-            _committed = true;
+            m_committed = true;
         }
 
         /// <inheritdoc/>
         public ValueTask DisposeAsync()
         {
-            if (!_disposed)
+            if (!m_disposed)
             {
-                _addTrusted.Clear();
-                _removeTrusted.Clear();
-                _addIssuer.Clear();
-                _removeIssuer.Clear();
-                _addCrls.Clear();
-                _removeCrls.Clear();
-                _disposed = true;
+                m_addTrusted.Clear();
+                m_removeTrusted.Clear();
+                m_addIssuer.Clear();
+                m_removeIssuer.Clear();
+                m_addCrls.Clear();
+                m_removeCrls.Clear();
+                m_disposed = true;
             }
 
             return default;
@@ -205,9 +205,9 @@ namespace Opc.Ua
 
         private void ThrowIfDisposedOrCommitted()
         {
-            if (_disposed) throw new ObjectDisposedException(GetType().FullName);
+            if (m_disposed) throw new ObjectDisposedException(GetType().FullName);
 
-            if (_committed)
+            if (m_committed)
             {
                 throw new InvalidOperationException(
                     "This transaction has already been committed.");

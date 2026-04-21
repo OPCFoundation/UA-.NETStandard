@@ -43,12 +43,12 @@ namespace Opc.Ua
     /// </summary>
     internal sealed class CertificateLifecycleMonitor : IDisposable
     {
-        private readonly CertificateChangeSubject _subject;
-        private readonly Func<IReadOnlyList<CertificateEntry>> _getCertificates;
-        private readonly TimeSpan _expiryThreshold;
-        private readonly Timer _timer;
-        private readonly ILogger _logger;
-        private readonly HashSet<string> _alreadyNotified = new(StringComparer.OrdinalIgnoreCase);
+        private readonly CertificateChangeSubject m_subject;
+        private readonly Func<IReadOnlyList<CertificateEntry>> m_getCertificates;
+        private readonly TimeSpan m_expiryThreshold;
+        private readonly Timer m_timer;
+        private readonly ILogger m_logger;
+        private readonly HashSet<string> m_alreadyNotified = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CertificateLifecycleMonitor"/> class.
@@ -75,30 +75,30 @@ namespace Opc.Ua
             TimeSpan checkInterval,
             ITelemetryContext telemetry)
         {
-            _subject = subject ?? throw new ArgumentNullException(nameof(subject));
-            _getCertificates = getCertificates ?? throw new ArgumentNullException(nameof(getCertificates));
-            _expiryThreshold = expiryThreshold;
-            _logger = telemetry.CreateLogger<CertificateLifecycleMonitor>();
+            m_subject = subject ?? throw new ArgumentNullException(nameof(subject));
+            m_getCertificates = getCertificates ?? throw new ArgumentNullException(nameof(getCertificates));
+            m_expiryThreshold = expiryThreshold;
+            m_logger = telemetry.CreateLogger<CertificateLifecycleMonitor>();
 
-            _timer = new Timer(CheckExpiry, null, TimeSpan.Zero, checkInterval);
+            m_timer = new Timer(CheckExpiry, null, TimeSpan.Zero, checkInterval);
         }
 
         private void CheckExpiry(object? state)
         {
             try
             {
-                var certs = _getCertificates();
+                var certs = m_getCertificates();
                 foreach (var entry in certs)
                 {
-                    if (entry.IsNearExpiry(_expiryThreshold) &&
-                        _alreadyNotified.Add(entry.Certificate.Thumbprint))
+                    if (entry.IsNearExpiry(m_expiryThreshold) &&
+                        m_alreadyNotified.Add(entry.Certificate.Thumbprint))
                     {
-                        _logger.LogWarning(
+                        m_logger.LogWarning(
                             "Certificate {Thumbprint} expires at {NotAfter}.",
                             entry.Certificate.Thumbprint,
                             entry.NotAfter);
 
-                        _subject.Notify(new CertificateChangeEvent(
+                        m_subject.Notify(new CertificateChangeEvent(
                             CertificateChangeKind.CertificateExpiring,
                             TrustListIdentifier.Peers,
                             entry.CertificateType,
@@ -110,7 +110,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Error checking certificate expiry.");
+                m_logger.LogDebug(ex, "Error checking certificate expiry.");
             }
         }
 
@@ -118,9 +118,9 @@ namespace Opc.Ua
         /// Resets notifications so already-notified certificates can be
         /// re-checked (e.g., after a certificate update).
         /// </summary>
-        public void Reset() => _alreadyNotified.Clear();
+        public void Reset() => m_alreadyNotified.Clear();
 
         /// <inheritdoc/>
-        public void Dispose() => _timer.Dispose();
+        public void Dispose() => m_timer.Dispose();
     }
 }

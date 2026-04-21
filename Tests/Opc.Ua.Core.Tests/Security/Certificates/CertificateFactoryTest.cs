@@ -40,8 +40,6 @@ using Opc.Ua.Security.Certificates.Tests;
 using Opc.Ua.Tests;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
-#pragma warning disable CS0618 // Tests exercise obsolete methods intentionally
-
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     /// <summary>
@@ -53,6 +51,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     public class CertificateFactoryTest
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+        private static readonly ICertificateIssuer s_issuer = new DefaultCertificateIssuer();
+
         [DatapointSource]
         public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection
         {
@@ -92,12 +93,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize, telemetry);
             ApplicationTestData app = appTestGenerator.ApplicationTestSet(1).First();
-            using Certificate cert = CertificateFactory
-                .CreateCertificate(
+            using Certificate cert = s_factory
+                .CreateApplicationCertificate(
                     app.ApplicationUri,
                     app.ApplicationName,
                     app.Subject,
-                    app.DomainNames)
+                    app.DomainNames.ToList())
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .SetRSAKeySize(keyHashPair.KeySize)
                 .CreateForRSA();
@@ -134,12 +135,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(issuerCertificate.HasPrivateKey, Is.True);
             var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize, telemetry);
             ApplicationTestData app = appTestGenerator.ApplicationTestSet(1).First();
-            using Certificate cert = CertificateFactory
-                .CreateCertificate(
+            using Certificate cert = s_factory
+                .CreateApplicationCertificate(
                     app.ApplicationUri,
                     app.ApplicationName,
                     app.Subject,
-                    app.DomainNames)
+                    app.DomainNames.ToList())
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .SetIssuer(issuerCertificate)
                 .SetRSAKeySize(keyHashPair.KeySize)
@@ -162,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             const string subject = "CN=CA Test Cert,O=OPC Foundation,C=US,S=Arizona";
             int pathLengthConstraint = (keyHashPair.KeySize / 512) - 3;
-            Certificate cert = CertificateFactory
+            Certificate cert = s_factory
                 .CreateCertificate(subject)
                 .SetLifeTime(25 * 12)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
@@ -191,7 +192,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Certificate issuerCertificate = GetIssuer(keyHashPair);
             Assert.That(X509Utils.VerifySelfSigned(issuerCertificate), Is.True);
 
-            using Certificate otherIssuerCertificate = CertificateFactory
+            using Certificate otherIssuerCertificate = s_factory
                 .CreateCertificate(issuerCertificate.Subject)
                 .SetLifeTime(TimeSpan.FromDays(180))
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
@@ -204,7 +205,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 for (int i = 0; i < 10; i++)
                 {
-                    Certificate cert = CertificateFactory
+                    Certificate cert = s_factory
                         .CreateCertificate($"CN=Test Cert {i}, O=Contoso")
                         .SetIssuer(issuerCertificate)
                         .SetRSAKeySize(
@@ -231,7 +232,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(X509Utils.VerifySelfSigned(issuerCertificate), Is.True);
                 X509Utils.VerifyRSAKeyPair(issuerCertificate, issuerCertificate, true);
 
-                X509CRL crl = CertificateFactory.RevokeCertificate(issuerCertificate, null, null);
+                X509CRL crl = s_issuer.RevokeCertificates(issuerCertificate, null, null);
                 Assert.That(crl, Is.Not.Null);
                 Assert.That(crl.VerifySignature(issuerCertificate, true), Is.True);
                 X509CrlNumberExtension extension = crl.CrlExtensions
@@ -245,7 +246,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.Throws<CryptographicException>(() =>
                         crl.VerifySignature(otherIssuerCertificate, true));
                     Assert.That(crl.IsRevoked(cert), Is.False);
-                    X509CRL nextCrl = CertificateFactory.RevokeCertificate(
+                    X509CRL nextCrl = s_issuer.RevokeCertificates(
                         issuerCertificate,
                         revokedList,
                         new CertificateCollection([cert]));

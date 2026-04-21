@@ -719,18 +719,12 @@ namespace Opc.Ua
                 char[] passcode = GeneratePasscode();
                 try
                 {
-                    // create a secure string for the passcode only on windows
-                    using var securePasscode = new SecureString();
-                    foreach (char c in passcode)
-                    {
-                        securePasscode.AppendChar(c);
-                    }
-                    securePasscode.MakeReadOnly();
                     X509KeyStorageFlags storageFlags =
                         persisted ? X509KeyStorageFlags.PersistKeySet : X509KeyStorageFlags.Exportable;
+                    string passcodeStr = new string(passcode);
                     return Certificate.From(X509CertificateLoader.LoadPkcs12(
-                        certificate.Export(X509ContentType.Pfx, securePasscode),
-                        passcode,
+                        certificate.Export(X509ContentType.Pfx, passcodeStr),
+                        passcodeStr,
                         storageFlags));
                 }
                 finally

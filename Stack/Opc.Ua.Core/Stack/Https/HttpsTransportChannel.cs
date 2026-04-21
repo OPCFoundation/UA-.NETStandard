@@ -451,7 +451,7 @@ namespace Opc.Ua.Bindings
                                             Utils.TraceMasks.Security,
                                             "{Index}: {Certificate}",
                                             i,
-                                            element.Certificate.AsLogSafeString());
+                                            element.Certificate.Subject);
                                         validationChain.Add(element.Certificate);
                                         i++;
                                     }
@@ -461,7 +461,7 @@ namespace Opc.Ua.Bindings
                                     m_logger.LogInformation(
                                         Utils.TraceMasks.Security,
                                         "{ChannelType} Validate Server Certificate: {Certificate}",
-                                        cert.AsLogSafeString(),
+                                        cert.Subject,
                                         nameof(HttpsTransportChannel));
                                     validationChain.Add(cert);
                                 }

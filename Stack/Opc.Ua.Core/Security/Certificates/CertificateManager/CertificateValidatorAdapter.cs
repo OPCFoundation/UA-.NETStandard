@@ -42,7 +42,7 @@ namespace Opc.Ua
     /// </summary>
     public sealed class CertificateValidatorAdapter : ICertificateValidator
     {
-        private readonly ICertificateValidatorEx _inner;
+        private readonly ICertificateValidatorEx m_inner;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CertificateValidatorAdapter"/> class.
@@ -53,13 +53,13 @@ namespace Opc.Ua
         /// </exception>
         public CertificateValidatorAdapter(ICertificateValidatorEx inner)
         {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
         }
 
         /// <inheritdoc/>
         public async Task ValidateAsync(Certificate certificate, CancellationToken ct)
         {
-            var result = await _inner.ValidateAsync(certificate, ct: ct).ConfigureAwait(false);
+            var result = await m_inner.ValidateAsync(certificate, ct: ct).ConfigureAwait(false);
             if (!result.IsValid)
             {
                 throw new ServiceResultException(result.StatusCode);
@@ -69,7 +69,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async Task ValidateAsync(CertificateCollection certificateChain, CancellationToken ct)
         {
-            var result = await _inner.ValidateAsync(certificateChain, ct: ct).ConfigureAwait(false);
+            var result = await m_inner.ValidateAsync(certificateChain, ct: ct).ConfigureAwait(false);
             if (!result.IsValid)
             {
                 throw new ServiceResultException(result.StatusCode);

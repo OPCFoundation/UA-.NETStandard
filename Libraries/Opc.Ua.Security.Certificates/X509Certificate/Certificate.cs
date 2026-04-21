@@ -35,6 +35,25 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security.Certificates
 {
+#if DEBUG
+    /// <summary>
+    /// Captures allocation context for leak-detection diagnostics.
+    /// </summary>
+    internal sealed class CertificateAllocationInfo
+    {
+        public string StackTrace { get; }
+        public string? Thumbprint { get; }
+        public DateTime CreatedAt { get; }
+
+        public CertificateAllocationInfo(string stackTrace, string? thumbprint)
+        {
+            StackTrace = stackTrace;
+            Thumbprint = thumbprint;
+            CreatedAt = DateTime.UtcNow;
+        }
+    }
+#endif
+
     /// <summary>
     /// Wraps an <see cref="X509Certificate2"/> providing a managed
     /// lifetime and implementing <see cref="IX509Certificate"/>.
@@ -58,8 +77,18 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         internal X509Certificate2 X509 { get; }
 
-        private int _refCount = 1;
+        private int m_refCount = 1;
 
+#if DEBUG
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Certificate, CertificateAllocationInfo> s_allocationTracker = new();
+#endif
+
+#if DEBUG
+        // CS8618: the finalizer introduces a code path where X509 may be
+        // unset on a partially-constructed instance; safe because the
+        // finalizer only reads m_refCount and the allocation tracker.
+#pragma warning disable CS8618
+#endif
         /// <summary>
         /// Creates a public-key-only certificate from DER or PEM encoded data.
         /// </summary>
@@ -67,6 +96,11 @@ namespace Opc.Ua.Security.Certificates
         public Certificate(byte[] rawData)
         {
             X509 = X509CertificateLoader.LoadCertificate(rawData);
+#if DEBUG
+            s_allocationTracker.AddOrUpdate(this, new CertificateAllocationInfo(
+                new System.Diagnostics.StackTrace(true).ToString(),
+                X509?.Thumbprint));
+#endif
         }
 
 #if NET6_0_OR_GREATER
@@ -77,6 +111,11 @@ namespace Opc.Ua.Security.Certificates
         public Certificate(ReadOnlySpan<byte> rawData)
         {
             X509 = X509CertificateLoader.LoadCertificate(rawData);
+#if DEBUG
+            s_allocationTracker.AddOrUpdate(this, new CertificateAllocationInfo(
+                new System.Diagnostics.StackTrace(true).ToString(),
+                X509?.Thumbprint));
+#endif
         }
 #endif
 
@@ -89,6 +128,11 @@ namespace Opc.Ua.Security.Certificates
         public Certificate(string fileName)
         {
             X509 = X509CertificateLoader.LoadCertificateFromFile(fileName);
+#if DEBUG
+            s_allocationTracker.AddOrUpdate(this, new CertificateAllocationInfo(
+                new System.Diagnostics.StackTrace(true).ToString(),
+                X509?.Thumbprint));
+#endif
         }
 
         /// <summary>
@@ -106,6 +150,11 @@ namespace Opc.Ua.Security.Certificates
         {
             X509 = X509CertificateLoader.LoadPkcs12(
                 rawData, password, keyStorageFlags);
+#if DEBUG
+            s_allocationTracker.AddOrUpdate(this, new CertificateAllocationInfo(
+                new System.Diagnostics.StackTrace(true).ToString(),
+                X509?.Thumbprint));
+#endif
         }
 
         /// <summary>
@@ -123,6 +172,11 @@ namespace Opc.Ua.Security.Certificates
         {
             X509 = X509CertificateLoader.LoadPkcs12FromFile(
                 fileName, password, keyStorageFlags);
+#if DEBUG
+            s_allocationTracker.AddOrUpdate(this, new CertificateAllocationInfo(
+                new System.Diagnostics.StackTrace(true).ToString(),
+                X509?.Thumbprint));
+#endif
         }
 
         /// <summary>
@@ -136,7 +190,15 @@ namespace Opc.Ua.Security.Certificates
         {
             X509 = certificate ??
                 throw new ArgumentNullException(nameof(certificate));
+#if DEBUG
+            s_allocationTracker.AddOrUpdate(this, new CertificateAllocationInfo(
+                new System.Diagnostics.StackTrace(true).ToString(),
+                X509?.Thumbprint));
+#endif
         }
+#if DEBUG
+#pragma warning restore CS8618
+#endif
 
         /// <summary>
         /// Creates a <see cref="Certificate"/> that takes ownership of the
@@ -435,15 +497,34 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>This certificate instance for fluent usage.</returns>
         public Certificate AddRef()
         {
-            int current = System.Threading.Interlocked.Increment(ref _refCount);
+            int current = System.Threading.Interlocked.Increment(ref m_refCount);
             if (current <= 1)
             {
                 // Was already at 0 (disposed) — undo and throw.
-                System.Threading.Interlocked.Decrement(ref _refCount);
+                System.Threading.Interlocked.Decrement(ref m_refCount);
                 throw new ObjectDisposedException(nameof(Certificate));
             }
             return this;
         }
+
+#if DEBUG
+        /// <summary>
+        /// Detects leaked certificates that were never disposed.
+        /// Only compiled in DEBUG builds.
+        /// </summary>
+        ~Certificate()
+        {
+            if (m_refCount > 0)
+            {
+                string message = $"Certificate leak detected: refCount={m_refCount}";
+                if (s_allocationTracker.TryGetValue(this, out CertificateAllocationInfo? info))
+                {
+                    message += $", Thumbprint={info.Thumbprint}, CreatedAt={info.CreatedAt:O}, AllocationStack:\n{info.StackTrace}";
+                }
+                System.Diagnostics.Debug.WriteLine(message);
+            }
+        }
+#endif
 
         /// <summary>
         /// Releases the resources used by the <see cref="Certificate"/>.
@@ -458,7 +539,7 @@ namespace Opc.Ua.Security.Certificates
             if (disposing)
             {
                 int remaining = System.Threading.Interlocked
-                    .Decrement(ref _refCount);
+                    .Decrement(ref m_refCount);
                 if (remaining == 0)
                 {
                     X509.Dispose();

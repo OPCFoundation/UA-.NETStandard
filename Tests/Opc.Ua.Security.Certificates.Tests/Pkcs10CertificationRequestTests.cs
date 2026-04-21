@@ -32,8 +32,6 @@ using System.IO;
 using System.Security.Cryptography;
 using NUnit.Framework;
 
-#pragma warning disable CS0618 // Tests exercise obsolete CertificateFactory methods intentionally
-
 namespace Opc.Ua.Security.Certificates.Tests
 {
     /// <summary>
@@ -46,6 +44,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     [SetCulture("en-us")]
     public class Pkcs10CertificationRequestTests
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
         /// <summary>
         /// Test parsing a valid RSA CSR from file.
         /// </summary>
@@ -90,7 +89,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .CreateForRSA();
 
             // Create CSR
-            byte[] csrData = CertificateFactory.CreateSigningRequest(certificate, domainNames);
+            byte[] csrData = s_factory.CreateSigningRequest(certificate, domainNames);
             Assert.That(csrData, Is.Not.Null);
             Assert.That(csrData, Is.Not.Empty);
 
@@ -129,7 +128,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .CreateForECDsa();
 
             // Create CSR
-            byte[] csrData = CertificateFactory.CreateSigningRequest(certificate, domainNames);
+            byte[] csrData = s_factory.CreateSigningRequest(certificate, domainNames);
             Assert.That(csrData, Is.Not.Null);
             Assert.That(csrData, Is.Not.Empty);
 
@@ -191,7 +190,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .CreateForRSA();
 
             // Create CSR
-            byte[] csrData = CertificateFactory.CreateSigningRequest(certificate, domainNames);
+            byte[] csrData = s_factory.CreateSigningRequest(certificate, domainNames);
 
             // Tamper with the signature (last 10 bytes)
             for (int i = csrData.Length - 10; i < csrData.Length; i++)
@@ -223,7 +222,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .CreateForRSA();
 
             // Create CSR
-            byte[] csrData = CertificateFactory.CreateSigningRequest(certificate, domainNames);
+            byte[] csrData = s_factory.CreateSigningRequest(certificate, domainNames);
 
             // Parse the CSR
             var csr = new Pkcs10CertificationRequest(csrData);
@@ -256,7 +255,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Create CSR
             // Note: CertificateFactory.CreateSigningRequest always adds a SAN extension
-            byte[] csrData = CertificateFactory.CreateSigningRequest(certificate);
+            byte[] csrData = s_factory.CreateSigningRequest(certificate);
 
             // Parse the CSR
             var csr = new Pkcs10CertificationRequest(csrData);
@@ -282,7 +281,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetLifeTime(TimeSpan.FromDays(30))
                 .CreateForRSA();
 
-            byte[] csrData = CertificateFactory.CreateSigningRequest(certificate);
+            byte[] csrData = s_factory.CreateSigningRequest(certificate);
             var csr = new Pkcs10CertificationRequest(csrData);
 
             byte[] requestInfo = csr.GetCertificationRequestInfo();
@@ -312,7 +311,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .AddExtension(new X509SubjectAltNameExtension(applicationUri, s_domainNames))
                     .CreateForRSA();
 
-                byte[] csrData = CertificateFactory.CreateSigningRequest(certificate);
+                byte[] csrData = s_factory.CreateSigningRequest(certificate);
                 var csr = new Pkcs10CertificationRequest(csrData);
 
                 Assert.That(csr, Is.Not.Null);
@@ -336,7 +335,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetLifeTime(TimeSpan.FromDays(30))
                 .CreateForRSA();
 
-            byte[] csrData = CertificateFactory.CreateSigningRequest(certificate);
+            byte[] csrData = s_factory.CreateSigningRequest(certificate);
             var csr = new Pkcs10CertificationRequest(csrData);
 
             string subjectName = csr.Subject.Name;

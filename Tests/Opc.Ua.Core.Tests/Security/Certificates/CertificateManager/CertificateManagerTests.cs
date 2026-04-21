@@ -47,25 +47,25 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetUICulture("en-us")]
     public class CertificateManagerTests
     {
-        private ITelemetryContext _telemetry;
-        private readonly List<string> _tempDirs = [];
+        private ITelemetryContext m_telemetry;
+        private readonly List<string> m_tempDirs = [];
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            _telemetry = NUnitTelemetryContext.Create();
+            m_telemetry = NUnitTelemetryContext.Create();
         }
 
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            (_telemetry as IDisposable)?.Dispose();
+            (m_telemetry as IDisposable)?.Dispose();
         }
 
         [TearDown]
         public void TearDown()
         {
-            foreach (string dir in _tempDirs)
+            foreach (string dir in m_tempDirs)
             {
                 try
                 {
@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
             }
 
-            _tempDirs.Clear();
+            m_tempDirs.Clear();
         }
 
         #region Trust-List Registry
@@ -88,7 +88,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void RegisterTrustListAddsEntry()
         {
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             string trustedPath = CreateTempDir();
 
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
@@ -100,7 +100,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void RegisterTrustListDuplicateIsNoOp()
         {
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             string trustedPath = CreateTempDir();
 
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
@@ -112,7 +112,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void OpenTrustedStoreReturnsStore()
         {
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             string trustedPath = CreateTempDir();
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void OpenIssuerStoreReturnsNullWhenNoIssuerPath()
         {
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             string trustedPath = CreateTempDir();
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
@@ -136,7 +136,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void OpenUnregisteredTrustListThrows()
         {
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
 
             Assert.Throws<KeyNotFoundException>(
                 () => manager.OpenTrustedStore(TrustListIdentifier.Peers));
@@ -162,7 +162,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 ApplicationCertificates = [certId]
             };
 
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             await manager.LoadApplicationCertificatesAsync(secConfig).ConfigureAwait(false);
 
             Assert.That(manager.ApplicationCertificates, Has.Count.EqualTo(1));
@@ -174,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task GetInstanceCertificateReturnsCertForPolicy()
         {
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             using Certificate cert = CertificateBuilder
                 .Create("CN=PolicyTest")
                 .SetRSAKeySize(2048)
@@ -199,7 +199,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task ValidateUntrustedCertReturnsFailure()
         {
             string trustedPath = CreateTempDir();
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
             using Certificate cert = CertificateBuilder
@@ -218,7 +218,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task ValidateTrustedCertReturnsSuccess()
         {
             string trustedPath = CreateTempDir();
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
             using Certificate cert = CertificateBuilder
@@ -245,7 +245,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task CertificateChangesNotifiesOnUpdate()
         {
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             CertificateChangeEvent received = null;
 
             using var subscription = manager.CertificateChanges.Subscribe(
@@ -271,7 +271,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task RejectCertificateAsyncEnqueuesSuccessfully()
         {
             string rejectedPath = CreateTempDir();
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Rejected, rejectedPath);
 
             using Certificate cert = CertificateBuilder
@@ -306,7 +306,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             };
 
             using CertificateManager manager = CertificateManagerFactory.Create(
-                secConfig, _telemetry);
+                secConfig, m_telemetry);
 
             Assert.That(manager.TrustLists, Does.Contain(TrustListIdentifier.Peers));
             Assert.That(manager.TrustLists, Does.Contain(TrustListIdentifier.Users));
@@ -323,7 +323,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Path.GetTempPath(),
                 "opcua-cm-test-" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(dir);
-            _tempDirs.Add(dir);
+            m_tempDirs.Add(dir);
             return dir;
         }
 

@@ -46,8 +46,6 @@ using Opc.Ua.Test;
 using Opc.Ua.Tests;
 using OpcUa = Opc.Ua;
 
-#pragma warning disable CS0618 // Tests exercise obsolete methods intentionally
-
 namespace Opc.Ua.Gds.Tests
 {
     [TestFixture]
@@ -59,6 +57,8 @@ namespace Opc.Ua.Gds.Tests
     [NonParallelizable]
     public class PushTest
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+
         private static readonly HashSet<string> s_supportedPolicyUris =
         [
             .. SecurityPolicies.GetDisplayNames().Select(SecurityPolicies.GetUri)
@@ -395,11 +395,11 @@ namespace Opc.Ua.Gds.Tests
         [Order(301)]
         public async Task AddRemoveCertAsync()
         {
-            using Certificate trustedCert = CertificateFactory
-                .CreateCertificate("uri:x:y:z", "TrustedCert", "CN=Push Server Test")
+            using Certificate trustedCert = s_factory
+                .CreateApplicationCertificate("uri:x:y:z", "TrustedCert", "CN=Push Server Test")
                 .CreateForRSA();
-            using Certificate issuerCert = CertificateFactory
-                .CreateCertificate("uri:x:y:z", "IssuerCert", "CN=Push Server Test")
+            using Certificate issuerCert = s_factory
+                .CreateApplicationCertificate("uri:x:y:z", "IssuerCert", "CN=Push Server Test")
                 .CreateForRSA();
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
@@ -575,8 +575,8 @@ namespace Opc.Ua.Gds.Tests
         public async Task UpdateCertificateSelfSignedNoPrivateKeyAssertsAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
-            using Certificate invalidCert = CertificateFactory
-                .CreateCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test")
+            using Certificate invalidCert = s_factory
+                .CreateApplicationCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test")
                 .CreateForRSA();
             using Certificate serverCert = CertificateFactory.Create(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
@@ -846,8 +846,8 @@ namespace Opc.Ua.Gds.Tests
 
             if (curve != null)
             {
-                newCert = CertificateFactory
-                    .CreateCertificate(
+                newCert = s_factory
+                    .CreateApplicationCertificate(
                         m_applicationRecord.ApplicationUri,
                         m_applicationRecord.ApplicationNames[0].Text,
                         m_selfSignedServerCert.Subject + "1")
@@ -857,8 +857,8 @@ namespace Opc.Ua.Gds.Tests
             // RSA Certificate
             else
             {
-                newCert = CertificateFactory
-                    .CreateCertificate(
+                newCert = s_factory
+                    .CreateApplicationCertificate(
                         m_applicationRecord.ApplicationUri,
                         m_applicationRecord.ApplicationNames[0].Text,
                         m_selfSignedServerCert.Subject + "1")
@@ -1357,8 +1357,8 @@ namespace Opc.Ua.Gds.Tests
 
             if (curve != null)
             {
-                m_caCert = await CertificateFactory
-                    .CreateCertificate(null, null, subjectName)
+                m_caCert = await s_factory
+                    .CreateCertificate(subjectName)
                     .SetCAConstraint()
                     .SetECCurve(curve.Value)
                     .CreateForECDsa()
@@ -1368,8 +1368,8 @@ namespace Opc.Ua.Gds.Tests
             // RSA Certificate
             else
             {
-                m_caCert = await CertificateFactory
-                    .CreateCertificate(null, null, subjectName)
+                m_caCert = await s_factory
+                    .CreateCertificate(subjectName)
                     .SetCAConstraint()
                     .CreateForRSA()
                     .AddToStoreAsync(certificateStoreIdentifier, telemetry: telemetry)

@@ -40,8 +40,6 @@ using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
-#pragma warning disable CS0618 // Tests exercise obsolete methods intentionally
-
 namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
@@ -56,6 +54,8 @@ namespace Opc.Ua.Gds.Tests
     [NonParallelizable]
     public class ClientTest
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+
         public class ConnectionProfile : IFormattable
         {
             public ConnectionProfile(
@@ -974,9 +974,9 @@ namespace Opc.Ua.Gds.Tests
                         application.PrivateKey,
                         application.PrivateKeyPassword);
                 }
-                byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
+                byte[] certificateRequest = s_factory.CreateSigningRequest(
                     csrCertificate,
-                    application.DomainNames);
+                    application.DomainNames.ToList());
                 csrCertificate.Dispose();
                 NodeId requestId = await m_gdsClient.GDSClient.StartSigningRequestAsync(
                     application.ApplicationRecord.ApplicationId,
@@ -1323,9 +1323,9 @@ namespace Opc.Ua.Gds.Tests
                     application.PrivateKey,
                     application.PrivateKeyPassword);
             }
-            byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
+            byte[] certificateRequest = s_factory.CreateSigningRequest(
                 csrCertificate,
-                application.DomainNames);
+                application.DomainNames.ToList());
             csrCertificate.Dispose();
 
             // ensure access to other applications is denied

@@ -45,11 +45,11 @@ namespace Opc.Ua
     /// </summary>
     internal sealed class RejectedCertificateProcessor : IAsyncDisposable
     {
-        private readonly Channel<CertificateCollection> _channel;
-        private readonly Task _processingTask;
-        private readonly ICertificateTrustListManager _trustListManager;
-        private readonly int _maxRejectedCertificates;
-        private readonly ILogger _logger;
+        private readonly Channel<CertificateCollection> m_channel;
+        private readonly Task m_processingTask;
+        private readonly ICertificateTrustListManager m_trustListManager;
+        private readonly int m_maxRejectedCertificates;
+        private readonly ILogger m_logger;
 
         /// <summary>
         /// Initializes a new instance of the
@@ -60,15 +60,15 @@ namespace Opc.Ua
             int maxRejectedCertificates,
             ITelemetryContext telemetry)
         {
-            _trustListManager = trustListManager;
-            _maxRejectedCertificates = maxRejectedCertificates;
-            _logger = telemetry.CreateLogger<RejectedCertificateProcessor>();
-            _channel = Channel.CreateBounded<CertificateCollection>(
+            m_trustListManager = trustListManager;
+            m_maxRejectedCertificates = maxRejectedCertificates;
+            m_logger = telemetry.CreateLogger<RejectedCertificateProcessor>();
+            m_channel = Channel.CreateBounded<CertificateCollection>(
                 new BoundedChannelOptions(100)
                 {
                     FullMode = BoundedChannelFullMode.DropOldest
                 });
-            _processingTask = ProcessAsync();
+            m_processingTask = ProcessAsync();
         }
 
         /// <summary>
@@ -77,9 +77,9 @@ namespace Opc.Ua
         public ValueTask EnqueueAsync(
             CertificateCollection chain,
             CancellationToken ct = default)
-            => _channel.Writer.TryWrite(chain)
+            => m_channel.Writer.TryWrite(chain)
                 ? default
-                : _channel.Writer.WriteAsync(chain, ct);
+                : m_channel.Writer.WriteAsync(chain, ct);
 
         /// <summary>
         /// Completes the channel and waits for all queued items to be
@@ -87,32 +87,32 @@ namespace Opc.Ua
         /// </summary>
         public async Task DrainAsync(CancellationToken ct = default)
         {
-            _channel.Writer.Complete();
-            await _processingTask.WaitAsync(ct).ConfigureAwait(false);
+            m_channel.Writer.Complete();
+            await m_processingTask.WaitAsync(ct).ConfigureAwait(false);
         }
 
         private async Task ProcessAsync()
         {
-            await foreach (var chain in _channel.Reader.ReadAllAsync()
+            await foreach (var chain in m_channel.Reader.ReadAllAsync()
                 .ConfigureAwait(false))
             {
                 try
                 {
-                    if (!_trustListManager.TrustLists
+                    if (!m_trustListManager.TrustLists
                         .Contains(TrustListIdentifier.Rejected))
                     {
                         continue;
                     }
 
-                    using var store = _trustListManager
+                    using var store = m_trustListManager
                         .OpenTrustedStore(TrustListIdentifier.Rejected);
                     await store.AddRejectedAsync(
-                        chain, _maxRejectedCertificates)
+                        chain, m_maxRejectedCertificates)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug(
+                    m_logger.LogDebug(
                         ex,
                         "Could not write rejected certificate to store.");
                 }
@@ -122,8 +122,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            _channel.Writer.TryComplete();
-            await _processingTask.ConfigureAwait(false);
+            m_channel.Writer.TryComplete();
+            await m_processingTask.ConfigureAwait(false);
         }
     }
 }

@@ -48,25 +48,25 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetUICulture("en-us")]
     public class CertificateValidatorAdapterTests
     {
-        private ITelemetryContext _telemetry;
-        private readonly List<string> _tempDirs = [];
+        private ITelemetryContext m_telemetry;
+        private readonly List<string> m_tempDirs = [];
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            _telemetry = NUnitTelemetryContext.Create();
+            m_telemetry = NUnitTelemetryContext.Create();
         }
 
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            (_telemetry as IDisposable)?.Dispose();
+            (m_telemetry as IDisposable)?.Dispose();
         }
 
         [TearDown]
         public void TearDown()
         {
-            foreach (string dir in _tempDirs)
+            foreach (string dir in m_tempDirs)
             {
                 try
                 {
@@ -81,14 +81,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
             }
 
-            _tempDirs.Clear();
+            m_tempDirs.Clear();
         }
 
         [Test]
         public async Task ValidateAsyncSuccessDoesNotThrow()
         {
             string trustedPath = CreateTempDir();
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
             using Certificate cert = CertificateBuilder
@@ -113,7 +113,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void ValidateAsyncFailureThrowsServiceResultException()
         {
             string trustedPath = CreateTempDir();
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
             using Certificate cert = CertificateBuilder
@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task ValidateChainAsyncSuccessDoesNotThrow()
         {
             string trustedPath = CreateTempDir();
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
             using Certificate cert = CertificateBuilder
@@ -157,7 +157,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void ValidateChainAsyncFailureThrowsServiceResultException()
         {
             string trustedPath = CreateTempDir();
-            using var manager = new CertificateManager(_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
             using Certificate cert = CertificateBuilder
@@ -181,7 +181,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Path.GetTempPath(),
                 "opcua-cva-test-" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(dir);
-            _tempDirs.Add(dir);
+            m_tempDirs.Add(dir);
             return dir;
         }
 

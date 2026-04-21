@@ -988,11 +988,9 @@ namespace Opc.Ua.Server
                 Utils.TraceMasks.Security,
                 "Create signing request {Certificate}",
                 certWithPrivateKey);
-#pragma warning disable CS0618 // Type or member is obsolete - TODO: migrate to ICertificateFactory
-            ByteString certificateRequest = ByteString.From(CertificateFactory.CreateSigningRequest(
+            ByteString certificateRequest = ByteString.From(s_certificateFactory.CreateSigningRequest(
                 certWithPrivateKey,
-                X509Utils.GetDomainsFromCertificate(certWithPrivateKey)));
-#pragma warning restore CS0618
+                X509Utils.GetDomainsFromCertificate(certWithPrivateKey).ToArray()));
 
             return new CreateSigningRequestMethodStateResult
             {
@@ -1009,10 +1007,8 @@ namespace Opc.Ua.Server
         {
             Certificate certificate;
 
-#pragma warning disable CS0618 // Type or member is obsolete - TODO: migrate to ICertificateFactory
-            ICertificateBuilder certificateBuilder = CertificateFactory
-                .CreateCertificate(m_configuration.ApplicationUri, m_configuration.ApplicationName, subjectName, domainNames)
-#pragma warning restore CS0618
+            ICertificateBuilder certificateBuilder = s_certificateFactory
+                .CreateApplicationCertificate(m_configuration.ApplicationUri, m_configuration.ApplicationName, subjectName, domainNames.ToArray())
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddDays(14));
 
@@ -1420,5 +1416,6 @@ namespace Opc.Ua.Server
         private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
         private readonly Dictionary<ushort, NamespaceMetadataState> m_namespaceMetadataStatesByIndex = [];
         private readonly Lock m_namespaceMetadataStatesLock = new();
+        private static readonly ICertificateFactory s_certificateFactory = new DefaultCertificateFactory();
     }
 }

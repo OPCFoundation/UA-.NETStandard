@@ -76,6 +76,7 @@ namespace Opc.Ua
         public DirectoryCertificateStore(bool noSubDirs, ITelemetryContext telemetry)
         {
             m_logger = telemetry.CreateLogger<DirectoryCertificateStore>();
+            m_cache = new CertificateCache(telemetry);
             m_noSubDirs = noSubDirs;
             m_certificates = [];
         }
@@ -108,6 +109,8 @@ namespace Opc.Ua
                     m_lock.Release();
                     // m_lock.Dispose(); // Fix store model
                 }
+
+                m_cache?.Dispose();
             }
             Close();
         }
@@ -165,7 +168,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Close()
         {
-            // intentionally keep information cached, dispose frees up resources
+            m_cache.Clear();
         }
 
         /// <inheritdoc/>
@@ -197,6 +200,13 @@ namespace Opc.Ua
                         certificates.Add(entry.Certificate.AddRef());
                     }
                 }
+
+                foreach (Certificate cert in certificates)
+                {
+                    m_cache.Set(cert.Thumbprint, cert);
+                }
+
+                m_logger.LogDebug(Utils.TraceMasks.Security, "Enumerated {Count} certificates from store, cache populated.", certificates.Count);
 
                 return certificates;
             }
@@ -256,6 +266,8 @@ namespace Opc.Ua
                 }
 
                 m_lastDirectoryCheck = DateTime.MinValue;
+                m_cache.Set(certificate.Thumbprint, certificate);
+                m_logger.LogDebug(Utils.TraceMasks.Security, "Certificate {Thumbprint} added to store and cache.", certificate.Thumbprint);
             }
             catch (Exception ex)
             {
@@ -458,6 +470,8 @@ namespace Opc.Ua
                     if (found)
                     {
                         m_lastDirectoryCheck = DateTime.MinValue;
+                        m_cache.Remove(thumbprint);
+                        m_logger.LogDebug(Utils.TraceMasks.Security, "Certificate {Thumbprint} removed from store and cache.", thumbprint);
                     }
                 }
                 finally
@@ -479,6 +493,16 @@ namespace Opc.Ua
             string thumbprint,
             CancellationToken ct = default)
         {
+            Certificate cached = m_cache.TryGet(thumbprint);
+            if (cached != null)
+            {
+                m_logger.LogDebug(Utils.TraceMasks.Security, "Certificate cache hit for thumbprint {Thumbprint}.", thumbprint);
+                var result = new CertificateCollection();
+                result.Add(cached);
+                return result;
+            }
+
+            m_logger.LogDebug(Utils.TraceMasks.Security, "Certificate cache miss for thumbprint {Thumbprint}, loading from disk.", thumbprint);
             var certificates = new CertificateCollection();
 
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
@@ -491,10 +515,12 @@ namespace Opc.Ua
                     if (entry.CertificateWithPrivateKey != null)
                     {
                         certificates.Add(entry.CertificateWithPrivateKey.AddRef());
+                        m_cache.Set(thumbprint, entry.CertificateWithPrivateKey);
                     }
                     else
                     {
                         certificates.Add(entry.Certificate.AddRef());
+                        m_cache.Set(thumbprint, entry.Certificate);
                     }
                 }
 
@@ -1207,6 +1233,8 @@ namespace Opc.Ua
                 m_lastDirectoryCheck = DateTime.MinValue;
             }
 
+            m_logger.LogInformation(Utils.TraceMasks.Security, "Certificate store reloaded from {Path}, {Count} entries.", StorePath, m_certificates.Count);
+
             return m_certificates;
         }
 
@@ -1364,6 +1392,7 @@ namespace Opc.Ua
 
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ILogger m_logger;
+        private readonly CertificateCache m_cache;
         private readonly bool m_noSubDirs;
         private DirectoryInfo m_certificateSubdir;
         private DirectoryInfo m_crlSubdir;

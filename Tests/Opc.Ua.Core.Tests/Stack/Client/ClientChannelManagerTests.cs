@@ -40,8 +40,6 @@ using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
-#pragma warning disable CS0618 // Tests exercise obsolete methods intentionally
-
 namespace Opc.Ua.Core.Tests.Stack.Client
 {
     [TestFixture]
@@ -51,13 +49,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     [Parallelizable]
     public sealed class ClientChannelManagerTests
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+
         [Test]
         public async Task CreateChannelShouldCreateChannelWithConnectionAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using Certificate serverCertificate = CertificateFactory.CreateCertificate("CN=server").CreateForRSA();
-            using Certificate clientCertificate = CertificateFactory.CreateCertificate("CN=client").CreateForRSA();
+            using Certificate serverCertificate = s_factory.CreateCertificate("CN=server").CreateForRSA();
+            using Certificate clientCertificate = s_factory.CreateCertificate("CN=client").CreateForRSA();
             var clientCertificateChain = new CertificateCollection();
 
             var transportChannelMock = new Mock<IChannel>();
@@ -88,8 +88,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public async Task CreateChannelShouldCreateChannelAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            using Certificate serverCertificate = CertificateFactory.CreateCertificate("CN=server").CreateForRSA();
-            using Certificate clientCertificate = CertificateFactory.CreateCertificate("CN=client").CreateForRSA();
+            using Certificate serverCertificate = s_factory.CreateCertificate("CN=server").CreateForRSA();
+            using Certificate clientCertificate = s_factory.CreateCertificate("CN=client").CreateForRSA();
             var clientCertificateChain = new CertificateCollection();
 
             var transportChannelMock = new Mock<IChannel>();
