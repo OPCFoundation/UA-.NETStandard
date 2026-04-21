@@ -80,6 +80,21 @@ namespace Opc.Ua.SourceGeneration
                     options.Exclusions,
                     telemetry,
                     useAllowSubtypes);
+
+                // Override resolution: if a referenced assembly already
+                // provides this model under the same C# prefix, silently
+                // skip local generation to avoid duplicate type emission.
+                Namespace target = modelDesign.TargetNamespace;
+                if (target != null &&
+                    !string.IsNullOrEmpty(target.Value) &&
+                    referencedModels.TryGetValue(target.Value,
+                        out ModelDependencyReference referenced) &&
+                    string.Equals(referenced.Prefix, target.Prefix,
+                        System.StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 Generate(new GeneratorContext
                 {
                     FileSystem = fileSystem,
