@@ -1049,76 +1049,17 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(namespaceTable));
             }
 
-            uint serverIndex = 0;
-            string remainder = text ?? string.Empty;
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
+            context.NamespaceUris = namespaceTable;
+            // Substitute an empty server table when none is supplied so that any
+            // svu= prefix in the input is naturally rejected (no URI in the
+            // empty table will resolve under RequireResolvedUris).
+            context.ServerUris = serverUris ?? new StringTable();
 
-            if (remainder.StartsWith("svu=", StringComparison.Ordinal))
-            {
-                if (serverUris == null)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdInvalid,
-                        "Cannot parse long-form expanded node id text '{0}': server URI table was not supplied.",
-                        text);
-                }
-
-                int separator = remainder.IndexOf(';', 4);
-                if (separator < 0)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdInvalid,
-                        "Cannot parse long-form expanded node id text '{0}': missing ';' after svu=.",
-                        text);
-                }
-
-                string uri = CoreUtils.UnescapeUri(remainder.AsSpan(4, separator - 4));
-                int resolved = serverUris.GetIndex(uri);
-                if (resolved < 0)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdInvalid,
-                        "Server URI '{0}' is not in the server URI table.",
-                        uri);
-                }
-                serverIndex = (uint)resolved;
-                remainder = remainder[(separator + 1)..];
-            }
-            else if (remainder.StartsWith("svr=", StringComparison.Ordinal))
-            {
-                int separator = remainder.IndexOf(';', 4);
-                if (separator < 0 ||
-                    !uint.TryParse(
-#if NET || NETSTANDARD2_1_OR_GREATER
-                        remainder.AsSpan(4, separator - 4),
-#else
-                        remainder.Substring(4, separator - 4),
-#endif
-                        NumberStyles.None,
-                        CultureInfo.InvariantCulture,
-                        out serverIndex))
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadNodeIdInvalid,
-                        "Cannot parse long-form expanded node id text '{0}': invalid svr= value.",
-                        text);
-                }
-                remainder = remainder[(separator + 1)..];
-            }
-
-            if (!NodeId.TryParseLongForm(
-                namespaceTable,
-                remainder,
-                out NodeId inner,
-                out NodeIdParseError error))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdInvalid,
-                    "Cannot parse long-form expanded node id text: '{0}' Error: {1}",
-                    text,
-                    error);
-            }
-
-            return new ExpandedNodeId(inner, null, serverIndex);
+            return Parse(
+                context,
+                text,
+                new NodeIdParsingOptions { RequireResolvedUris = true });
         }
 
         /// <summary>
@@ -1506,6 +1447,16 @@ namespace Opc.Ua
                     options?.UpdateTables == true
                         ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
                         : context.NamespaceUris.GetIndex(namespaceUri);
+
+                // Default behavior is lenient: an unresolved nsu= URI is carried
+                // through as an absolute ExpandedNodeId. ParseLongForm (and any
+                // other caller that opts in) sets RequireResolvedUris to refuse
+                // unresolved URIs instead.
+                if (namespaceIndex < 0 && options?.RequireResolvedUris == true)
+                {
+                    error = NodeIdParseError.NoNamespaceMapping;
+                    return false;
+                }
 
                 text = text[(index + 1)..];
             }

@@ -404,42 +404,13 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(namespaceTable));
             }
 
-            if (string.IsNullOrEmpty(text))
-            {
-                return new QualifiedName(text, 0);
-            }
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
+            context.NamespaceUris = namespaceTable;
 
-            if (text.StartsWith("nsu=", StringComparison.Ordinal))
-            {
-                int separator = text.IndexOf(';', 4);
-                if (separator < 0)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadNodeIdInvalid,
-                        $"Invalid long-form QualifiedName (missing ';' after nsu=): {text}");
-                }
-
-                string uri = CoreUtils.UnescapeUri(text.AsSpan(4, separator - 4));
-                int resolvedIndex = namespaceTable.GetIndex(uri);
-                if (resolvedIndex < 0)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadNodeIdInvalid,
-                        $"Namespace URI '{uri}' is not in the namespace table.");
-                }
-                return new QualifiedName(text[(separator + 1)..], (ushort)resolvedIndex);
-            }
-
-            // <index>:<name> shorthand, or bare <name> (= 0:<name>).
-            int colon = text.IndexOf(':', StringComparison.Ordinal);
-            if (colon > 0 &&
-                ushort.TryParse(text[..colon], out ushort ns) &&
-                colon + 1 < text.Length)
-            {
-                return new QualifiedName(text[(colon + 1)..], ns);
-            }
-
-            return new QualifiedName(text, 0);
+            // Parse(IServiceMessageContext, string, bool) is already strict on
+            // unresolved nsu= URIs (throws BadNodeIdInvalid). updateTables: false
+            // ensures the namespace table is not mutated by an unknown URI.
+            return Parse(context, text, updateTables: false);
         }
 
         /// <summary>
