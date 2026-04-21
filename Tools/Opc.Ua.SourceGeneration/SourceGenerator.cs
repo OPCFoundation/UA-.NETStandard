@@ -69,6 +69,28 @@ namespace Opc.Ua.SourceGeneration
             helpLinkUri: "www.opcfoundation.org",
             customTags: ["opcua"]);
 
+        public static readonly DiagnosticDescriptor ModelOverrideSkipped = new(
+            id: "MODELGEN010",
+            title: "Model already provided by referenced assembly",
+            messageFormat: (LocalizableString)"Model URI '{0}' is already provided by " +
+                "referenced assembly '{1}' under prefix '{2}'. Skipping local generation.",
+            category: Name,
+            DiagnosticSeverity.Info,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor ModelDependencyTieBreak = new(
+            id: "MODELGEN012",
+            title: "Multiple referenced assemblies expose same model",
+            messageFormat: (LocalizableString)"Multiple referenced assemblies provide model " +
+                "URI '{0}'. Selected '{1}' and ignored '{2}'.",
+            category: Name,
+            DiagnosticSeverity.Info,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
         /// <summary>
         /// Get diagnostic descriptor for event id
         /// </summary>

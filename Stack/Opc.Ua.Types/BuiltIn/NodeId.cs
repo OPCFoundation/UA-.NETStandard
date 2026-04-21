@@ -342,7 +342,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Parses a long-form NodeId text using the supplied <see cref="NamespaceTable"/>.
-        /// See <see cref="NodeId(string, NamespaceTable)"/> for accepted forms.
+        /// See the long-form NodeId parser for accepted forms.
         /// Strips the <c>nsu=&lt;uri&gt;;</c> prefix (if any) and delegates the rest to
         /// <see cref="TryParse(string, out NodeId, out NodeIdParseError)"/>, which is the
         /// authoritative source for <c>ns=</c>/<c>i=</c>/<c>s=</c>/<c>g=</c>/<c>b=</c> handling

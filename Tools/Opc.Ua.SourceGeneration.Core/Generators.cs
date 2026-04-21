@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -47,6 +48,9 @@ namespace Opc.Ua.SourceGeneration
         /// <param name="options">Generator options</param>
         /// <param name="useAllowSubtypes">allow subtypes</param>
         /// <param name="identifierFiles">Any additional csv files</param>
+        /// <param name="referencedModels">Models supplied by referenced
+        /// assemblies (keyed by model URI). Used to seed the assembly
+        /// dependency closure and may be empty.</param>
         public static void GenerateCode(
             this DesignFileCollection designFiles,
             IFileSystem fileSystem,
@@ -54,13 +58,15 @@ namespace Opc.Ua.SourceGeneration
             ITelemetryContext telemetry,
             GeneratorOptions options = null,
             bool useAllowSubtypes = false,
-            List<string> identifierFiles = null)
+            List<string> identifierFiles = null,
+            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null)
         {
             if (designFiles.Targets == null || designFiles.Targets.Count == 0)
             {
                 return;
             }
             options ??= new GeneratorOptions();
+            referencedModels ??= ImmutableDictionary<string, ModelDependencyReference>.Empty;
 
             // Combine with embedded resources in this assembly.
             fileSystem = typeof(Generators).Assembly
@@ -80,7 +86,8 @@ namespace Opc.Ua.SourceGeneration
                     OutputFolder = outputDir,
                     ModelDesign = modelDesign,
                     Telemetry = telemetry,
-                    Options = options
+                    Options = options,
+                    ReferencedModels = referencedModels
                 }, validateSchemas: false);
             }
         }
@@ -94,19 +101,26 @@ namespace Opc.Ua.SourceGeneration
         /// <param name="telemetry">Telemetry context for logging</param>
         /// <param name="options">Generator options</param>
         /// <param name="useAllowSubtypes">allow subtypes</param>
+        /// <param name="referencedModels">Models supplied by referenced
+        /// assemblies (keyed by model URI). When a target's model URI
+        /// is in this map the nodeset is skipped (referenced assembly
+        /// already supplies the types). Transitive nodeset dependencies
+        /// found in the map are also satisfied without erroring.</param>
         public static void GenerateCode(
             this NodesetFileCollection nodesets,
             IFileSystem fileSystem,
             string outputDir,
             ITelemetryContext telemetry,
             GeneratorOptions options = null,
-            bool useAllowSubtypes = false)
+            bool useAllowSubtypes = false,
+            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null)
         {
             if (nodesets.Files.Count == 0)
             {
                 return;
             }
             options ??= new GeneratorOptions();
+            referencedModels ??= ImmutableDictionary<string, ModelDependencyReference>.Empty;
 
             // Combine with embedded resources in this assembly.
             fileSystem = typeof(Generators).Assembly
@@ -117,8 +131,20 @@ namespace Opc.Ua.SourceGeneration
                 List<string> designFilesForModel =
                     nodesets.GetDesignFileListForModel(
                         modelUri,
-                        out NodesetFile nodeset);
+                        out NodesetFile nodeset,
+                        referencedModels);
                 if (designFilesForModel == null || nodeset.Info.Ignore)
+                {
+                    continue;
+                }
+
+                // Override resolution: if a referenced assembly already
+                // provides this model under the same C# prefix, silently
+                // skip local generation to avoid duplicate type emission.
+                if (referencedModels.TryGetValue(modelUri,
+                        out ModelDependencyReference referenced) &&
+                    string.Equals(referenced.Prefix, nodeset.Info.Prefix,
+                        System.StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -138,7 +164,8 @@ namespace Opc.Ua.SourceGeneration
                     OutputFolder = outputDir,
                     ModelDesign = modelDesign,
                     Telemetry = telemetry,
-                    Options = options
+                    Options = options,
+                    ReferencedModels = referencedModels
                 }, validateSchemas: false);
                 // TODO {
                 // TODO     AvailableNodeSets = nodesets.Files
@@ -251,6 +278,8 @@ namespace Opc.Ua.SourceGeneration
             nodeStateCodeGenerator.Emit();
             var dataTypesGenerator = new DataTypeGenerator(context);
             dataTypesGenerator.Emit();
+            var modelDependencyGenerator = new ModelDependencyGenerator(context);
+            modelDependencyGenerator.Emit();
         }
     }
 }

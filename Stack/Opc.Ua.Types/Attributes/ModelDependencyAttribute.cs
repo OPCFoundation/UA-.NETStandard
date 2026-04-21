@@ -50,8 +50,8 @@ namespace Opc.Ua
     /// When a downstream project overrides a model via <c>&lt;AdditionalFiles&gt;</c>,
     /// the generator compares the override's resolved <see cref="Prefix"/> against
     /// every recorded <see cref="Prefix"/> for the same <see cref="ModelUri"/> across
-    /// referenced assemblies. A match is an error (symbol collision); a difference
-    /// is expected (override types live in their own C# namespace).
+    /// referenced assemblies. A match means the model is not compiled; a difference
+    /// means that overridden types will live in their own C# namespace without conflict.
     /// </para>
     /// </remarks>
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = false)]

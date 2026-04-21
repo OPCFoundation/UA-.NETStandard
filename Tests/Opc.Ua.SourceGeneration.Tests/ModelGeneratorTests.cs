@@ -85,7 +85,7 @@ namespace Opc.Ua.SourceGeneration
                 .WithUpdatedAnalyzerConfigOptions(options)
                 ;
             GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
-            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(7));
+            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(8));
         }
 
         [Theory]
@@ -117,7 +117,7 @@ namespace Opc.Ua.SourceGeneration
                 .WithUpdatedAnalyzerConfigOptions(options)
                 ;
             GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
-            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(14));
+            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(16));
         }
 
         [Theory]
@@ -153,7 +153,7 @@ namespace Opc.Ua.SourceGeneration
 
             // There will be 120 errors due to missing Opc.Ua dll reference
             GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation, true);
-            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(6));
+            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(7));
 
             string testDataXmlSchema = ValidateXmlSchema(languageVersion, generatorResult);
             Assert.That(testDataXmlSchema,
