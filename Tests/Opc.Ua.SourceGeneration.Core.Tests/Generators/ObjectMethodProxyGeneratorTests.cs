@@ -267,7 +267,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             GeneratorContext context = CreateContext(new GeneratorOptions
             {
-                GenerateObjectMethodProxies = true,
                 ObjectMethodProxyNamespace = "My.Custom.Ns"
             });
 
@@ -390,11 +389,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 OutputFolder = "C:\\output",
                 ModelDesign = m_mockModelDesign.Object,
                 Telemetry = m_mockTelemetry.Object,
-                Options = options ??
-                    new GeneratorOptions
-                    {
-                        GenerateObjectMethodProxies = true
-                    }
+                Options = options ?? new GeneratorOptions()
             };
             return m_context;
         }

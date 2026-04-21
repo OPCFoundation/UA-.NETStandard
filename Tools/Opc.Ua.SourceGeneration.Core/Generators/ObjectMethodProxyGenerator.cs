@@ -42,8 +42,9 @@ namespace Opc.Ua.SourceGeneration
     /// per declared <c>MethodDesign</c> child.
     /// </summary>
     /// <remarks>
-    /// This generator is opt-in: it only runs when
-    /// <see cref="GeneratorOptions.GenerateObjectMethodProxies"/> is set to
+    /// This generator runs by default for every model; consumers can
+    /// suppress it by setting
+    /// <see cref="GeneratorOptions.OmitObjectMethodProxies"/> to
     /// <c>true</c>. The output namespace defaults to the model's target
     /// namespace prefix and can be overridden via
     /// <see cref="GeneratorOptions.ObjectMethodProxyNamespace"/>. When a

@@ -59,23 +59,12 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// When set to <c>true</c>, the
-        /// <see cref="ObjectMethodProxyGenerator"/> emits a typed
-        /// asynchronous client wrapper for every <c>ObjectType</c> that
-        /// declares one or more methods. Off by default; consumers must
-        /// opt in explicitly.
+        /// <see cref="ObjectMethodProxyGenerator"/> is suppressed and no
+        /// <c>*TypeClient</c> proxy classes are emitted. Off by default —
+        /// proxies are emitted for every <c>ObjectType</c> in the model
+        /// alongside the standard model output.
         /// </summary>
-        public bool GenerateObjectMethodProxies { get; set; }
-
-        /// <summary>
-        /// When set to <c>true</c>, only the
-        /// <see cref="ObjectMethodProxyGenerator"/> is run; the standard
-        /// per-model generators (Constants, NodeIds, NodeStates,
-        /// DataTypes, schemas) are skipped. Used when the proxies must be
-        /// emitted into a downstream assembly that already references a
-        /// project containing the generated constants and types.
-        /// Implies <see cref="GenerateObjectMethodProxies"/>.
-        /// </summary>
-        public bool GenerateObjectMethodProxiesOnly { get; set; }
+        public bool OmitObjectMethodProxies { get; set; }
 
         /// <summary>
         /// Optional override for the C# namespace used by classes emitted

@@ -53,8 +53,8 @@ namespace Opc.Ua.SourceGeneration
         public IReadOnlyList<string> Exclude { get; set; }
 
         /// <summary>
-        /// Opt in to <see cref="ObjectMethodProxyGenerator"/>. When
-        /// <c>true</c>, the source generator emits a typed asynchronous
+        /// Opt out of <see cref="ObjectMethodProxyGenerator"/>. By
+        /// default the source generator emits a typed asynchronous
         /// client wrapper (<c>{TypeName}Client</c>) for every
         /// <c>ObjectType</c> in the model — including types without
         /// methods, so downstream models can derive from the emitted
@@ -64,24 +64,11 @@ namespace Opc.Ua.SourceGeneration
         /// <c>Opc.Ua.ObjectTypeClient</c> base). Methods that share a
         /// name with an ancestor method are emitted with the C#
         /// <c>new</c> modifier so the derived signature shadows the
-        /// ancestor. Surfaced from MSBuild via the
-        /// <c>ModelSourceGeneratorGenerateObjectMethodProxies</c> property.
+        /// ancestor. Set this to <c>true</c> to suppress proxy
+        /// emission. Surfaced from MSBuild via the
+        /// <c>ModelSourceGeneratorOmitObjectMethodProxies</c> property.
         /// </summary>
-        public bool GenerateObjectMethodProxies { get; set; }
-
-        /// <summary>
-        /// Opt in to ProxiesOnly mode for the
-        /// <see cref="ObjectMethodProxyGenerator"/>. When <c>true</c>,
-        /// the standard per-model generators (Constants, NodeIds,
-        /// NodeStates, DataTypes, schemas) are skipped and only the
-        /// proxy generator is run. Used when the proxies must land in a
-        /// downstream assembly that already references a project
-        /// containing the generated constants and types. Surfaced from
-        /// MSBuild via the
-        /// <c>ModelSourceGeneratorGenerateObjectMethodProxiesOnly</c>
-        /// property. Implies <see cref="GenerateObjectMethodProxies"/>.
-        /// </summary>
-        public bool GenerateObjectMethodProxiesOnly { get; set; }
+        public bool OmitObjectMethodProxies { get; set; }
 
         /// <summary>
         /// Optional override for the C# namespace used by classes emitted
@@ -120,10 +107,8 @@ namespace Opc.Ua.SourceGeneration
                 },
                 Exclude = provider.GlobalOptions.GetStrings(nameof(Exclude)),
                 UseAllowSubtypes = provider.GlobalOptions.GetBool(nameof(UseAllowSubtypes)),
-                GenerateObjectMethodProxies = provider.GlobalOptions.GetBool(
-                    nameof(GenerateObjectMethodProxies)),
-                GenerateObjectMethodProxiesOnly = provider.GlobalOptions.GetBool(
-                    nameof(GenerateObjectMethodProxiesOnly)),
+                OmitObjectMethodProxies = provider.GlobalOptions.GetBool(
+                    nameof(OmitObjectMethodProxies)),
                 ObjectMethodProxyNamespace = provider.GlobalOptions.GetString(
                     nameof(ObjectMethodProxyNamespace))
             };

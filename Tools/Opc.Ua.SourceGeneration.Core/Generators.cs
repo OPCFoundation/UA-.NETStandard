@@ -204,28 +204,31 @@ namespace Opc.Ua.SourceGeneration
                 serverApiGenerator.Emit();
                 var endpointsGenerator = new EndpointsGenerator(generatorContext);
                 endpointsGenerator.Emit();
-                // Always emit ObjectType client proxies for every
-                // standard UA ObjectType so downstream model proxies
-                // (e.g. GDS) can derive from them. Proxies are emitted
-                // into the model's own namespace (Opc.Ua for the
-                // standard NodeSet) — no namespace override.
-                var stackProxyContext = new GeneratorContext
+                // Emit ObjectType client proxies for every standard UA
+                // ObjectType so downstream model proxies (e.g. GDS) can
+                // derive from them. Proxies are emitted into the model's
+                // own namespace (Opc.Ua for the standard NodeSet) — no
+                // namespace override. Suppressed when the consumer opts
+                // out via OmitObjectMethodProxies.
+                if (!options.OmitObjectMethodProxies)
                 {
-                    FileSystem = generatorContext.FileSystem,
-                    OutputFolder = generatorContext.OutputFolder,
-                    ModelDesign = generatorContext.ModelDesign,
-                    Telemetry = generatorContext.Telemetry,
-                    Options = new GeneratorOptions
+                    var stackProxyContext = new GeneratorContext
                     {
-                        OptimizeForCompileSpeed = options.OptimizeForCompileSpeed,
-                        Exclusions = options.Exclusions,
-                        Cancellation = options.Cancellation,
-                        UseUtf8StringLiterals = options.UseUtf8StringLiterals,
-                        GenerateObjectMethodProxies = true
-                    }
-                };
-                var stackProxyGenerator = new ObjectMethodProxyGenerator(stackProxyContext);
-                stackProxyGenerator.Emit();
+                        FileSystem = generatorContext.FileSystem,
+                        OutputFolder = generatorContext.OutputFolder,
+                        ModelDesign = generatorContext.ModelDesign,
+                        Telemetry = generatorContext.Telemetry,
+                        Options = new GeneratorOptions
+                        {
+                            OptimizeForCompileSpeed = options.OptimizeForCompileSpeed,
+                            Exclusions = options.Exclusions,
+                            Cancellation = options.Cancellation,
+                            UseUtf8StringLiterals = options.UseUtf8StringLiterals
+                        }
+                    };
+                    var stackProxyGenerator = new ObjectMethodProxyGenerator(stackProxyContext);
+                    stackProxyGenerator.Emit();
+                }
             }
 
             if ((generatorType & StackGenerationType.Models) != 0)
@@ -246,40 +249,35 @@ namespace Opc.Ua.SourceGeneration
             GeneratorContext context,
             bool validateSchemas = false)
         {
-            bool proxiesOnly = context.Options?.GenerateObjectMethodProxiesOnly == true;
-
-            if (!proxiesOnly)
+            // Generate schemas
+            var xmlSchemaGenerator = new XmlSchemaGenerator(context)
             {
-                // Generate schemas
-                var xmlSchemaGenerator = new XmlSchemaGenerator(context)
-                {
-                    ValidateOutput = validateSchemas
-                };
-                IEnumerable<Resource> xmlSchemaResource = xmlSchemaGenerator.Emit();
-                var binarySchemaGenerator = new BinarySchemaGenerator(context)
-                {
-                    ValidateOutput = validateSchemas
-                };
-                IEnumerable<Resource> binarySchemaResource = binarySchemaGenerator.Emit();
-                var schemaResources = new ResourceGenerator(context);
-                schemaResources.Embed(
-                    context.ModelDesign.TargetNamespace.Prefix,
-                    "XmlSchemas",
-                    false,
-                    [.. binarySchemaResource, .. xmlSchemaResource]);
+                ValidateOutput = validateSchemas
+            };
+            IEnumerable<Resource> xmlSchemaResource = xmlSchemaGenerator.Emit();
+            var binarySchemaGenerator = new BinarySchemaGenerator(context)
+            {
+                ValidateOutput = validateSchemas
+            };
+            IEnumerable<Resource> binarySchemaResource = binarySchemaGenerator.Emit();
+            var schemaResources = new ResourceGenerator(context);
+            schemaResources.Embed(
+                context.ModelDesign.TargetNamespace.Prefix,
+                "XmlSchemas",
+                false,
+                [.. binarySchemaResource, .. xmlSchemaResource]);
 
-                // Must run after schema generation to initilize the dictionaries.
-                var constantsGenerator = new ConstantsGenerator(context);
-                constantsGenerator.Emit();
-                var nodeIdGenerator = new NodeIdGenerator(context);
-                nodeIdGenerator.Emit();
-                var nodeStateCodeGenerator = new NodeStateGenerator(context);
-                nodeStateCodeGenerator.Emit();
-                var dataTypesGenerator = new DataTypeGenerator(context);
-                dataTypesGenerator.Emit();
-            }
+            // Must run after schema generation to initilize the dictionaries.
+            var constantsGenerator = new ConstantsGenerator(context);
+            constantsGenerator.Emit();
+            var nodeIdGenerator = new NodeIdGenerator(context);
+            nodeIdGenerator.Emit();
+            var nodeStateCodeGenerator = new NodeStateGenerator(context);
+            nodeStateCodeGenerator.Emit();
+            var dataTypesGenerator = new DataTypeGenerator(context);
+            dataTypesGenerator.Emit();
 
-            if (proxiesOnly || context.Options?.GenerateObjectMethodProxies == true)
+            if (context.Options?.OmitObjectMethodProxies != true)
             {
                 var objectMethodProxyGenerator = new ObjectMethodProxyGenerator(context);
                 objectMethodProxyGenerator.Emit();

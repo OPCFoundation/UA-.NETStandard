@@ -299,7 +299,7 @@ namespace Opc.Ua.SourceGeneration
                 Diagnostic diag = diagnostics[ii];
                 if (filterLinkerAndReferenceErrors &&
                     (
-                        // diag.Id == "CS0234" ||
+                        diag.Id == "CS0234" ||
                         diag.Id == "CS0246" ||
                         diag.Id == "CS1729" ||
                         diag.Id == "CS1501" ||
@@ -567,6 +567,7 @@ namespace Opc.Ua.SourceGeneration
                 public static partial class StatusCodes
                 {
                     public const uint Good = 0;
+                    public const uint BadUnexpectedError = 0x80010000u;
                 }
 
                 public static partial class DataTypes
@@ -907,6 +908,46 @@ namespace Opc.Ua.SourceGeneration
                 public class DeleteFileSystemObjectMethodState : MethodState
                 {
                     public DeleteFileSystemObjectMethodState(NodeState? parent) : base(parent) { }
+                }
+
+                public interface IClientBase
+                {
+                    IServiceMessageContext MessageContext { get; }
+                }
+                public interface ISessionClient : IClientBase
+                {
+                }
+                public abstract class ObjectTypeClient
+                {
+                    protected ObjectTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                    {
+                        Session = session;
+                        ObjectId = objectId;
+                        Telemetry = telemetry;
+                    }
+                    protected ISessionClient Session { get; }
+                    public NodeId ObjectId { get; }
+                    protected ITelemetryContext Telemetry { get; }
+                    protected System.Threading.Tasks.ValueTask<ArrayOf<Variant>> CallMethodAsync(
+                        NodeId methodId,
+                        System.Threading.CancellationToken ct,
+                        params Variant[] inputArguments)
+                    {
+                        return default;
+                    }
+                }
+                public partial class BaseObjectTypeClient : ObjectTypeClient
+                {
+                    public BaseObjectTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class FolderTypeClient : BaseObjectTypeClient
+                {
+                    public FolderTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
                 }
             }
             """;

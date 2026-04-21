@@ -19,28 +19,5 @@
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.Gds.Common\Opc.Ua.Gds.Common.csproj" />
-    <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
-      <OutputItemType>Analyzer</OutputItemType>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
-  </ItemGroup>
-  <Import Project="..\..\Tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
-  <PropertyGroup>
-    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
-    <ModelSourceGeneratorExclude>Draft</ModelSourceGeneratorExclude>
-    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
-    <ModelSourceGeneratorGenerateObjectMethodProxiesOnly>true</ModelSourceGeneratorGenerateObjectMethodProxiesOnly>
-  </PropertyGroup>
-  <ItemGroup>
-    <None Remove="..\Opc.Ua.Gds.Common\Design\OpcUaGdsModel.csv" />
-    <None Remove="..\Opc.Ua.Gds.Common\Design\OpcUaGdsModel.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <AdditionalFiles Include="..\Opc.Ua.Gds.Common\Design\OpcUaGdsModel.csv">
-      <Link>Design\OpcUaGdsModel.csv</Link>
-    </AdditionalFiles>
-    <AdditionalFiles Include="..\Opc.Ua.Gds.Common\Design\OpcUaGdsModel.xml">
-      <Link>Design\OpcUaGdsModel.xml</Link>
-    </AdditionalFiles>
   </ItemGroup>
 </Project>

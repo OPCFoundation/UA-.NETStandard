@@ -131,15 +131,14 @@ the consuming project:
 
 | Property | Description |
 | -------- | ----------- |
-| `ModelSourceGeneratorGenerateObjectMethodProxies` | Set to `true` to emit `*TypeClient` proxies in addition to the standard model output (constants, NodeIds, NodeStates, DataTypes, schemas). |
-| `ModelSourceGeneratorGenerateObjectMethodProxiesOnly` | Set to `true` to **only** emit proxies and skip the standard model generators. Use when the proxies must land in a downstream assembly that already references a project containing the generated constants and types (this is how `Opc.Ua.Gds.Client.Common` is wired). Implies `ModelSourceGeneratorGenerateObjectMethodProxies`. |
+| `ModelSourceGeneratorOmitObjectMethodProxies` | Set to `true` to suppress emission of `*TypeClient` proxies. By default proxies are emitted for every `ObjectType` in the model alongside the standard model output (constants, NodeIds, NodeStates, DataTypes, schemas). |
 | `ModelSourceGeneratorObjectMethodProxyNamespace` | Optional. Overrides the C# namespace used for the emitted proxy classes. Defaults to the model's own namespace. |
 
-Example (proxies-only consumer that piggybacks on the standard UA stack):
+Example (suppress proxy emission for a model that does not need them):
 
 ```xml
 <PropertyGroup>
-  <ModelSourceGeneratorGenerateObjectMethodProxiesOnly>true</ModelSourceGeneratorGenerateObjectMethodProxiesOnly>
+  <ModelSourceGeneratorOmitObjectMethodProxies>true</ModelSourceGeneratorOmitObjectMethodProxies>
 </PropertyGroup>
 ```
 
