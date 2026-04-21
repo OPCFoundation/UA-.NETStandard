@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -37,7 +37,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.06" PublicationDate="2025-11-08T00:00:00Z" />
+      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.07" PublicationDate="2026-04-15T00:00:00Z" />
     </xs:appinfo>
   </xs:annotation>
   
@@ -860,6 +860,21 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfCurrencyUnitType" type="tns:ListOfCurrencyUnitType" nillable="true"></xs:element>
+
+  <xs:complexType name="NumberRange">
+    <xs:sequence>
+      <xs:element name="Low" type="ua:Variant" minOccurs="0" />
+      <xs:element name="High" type="ua:Variant" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="NumberRange" type="tns:NumberRange" />
+
+  <xs:complexType name="ListOfNumberRange">
+    <xs:sequence>
+      <xs:element name="NumberRange" type="tns:NumberRange" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfNumberRange" type="tns:ListOfNumberRange" nillable="true"></xs:element>
 
   <xs:complexType name="AnnotationDataType">
     <xs:sequence>
@@ -2951,6 +2966,53 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfAliasNameDataType" type="tns:ListOfAliasNameDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="AliasNameVerboseDataType">
+    <xs:sequence>
+      <xs:element name="AliasName" type="ua:QualifiedName" minOccurs="0" nillable="true" />
+      <xs:element name="ReferencedNodes" type="ua:ListOfExpandedNodeId" minOccurs="0" nillable="true" />
+      <xs:element name="ServerUris" type="ua:ListOfString" minOccurs="0" nillable="true" />
+      <xs:element name="AliasNameCategoryId" type="ua:NodeId" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="AliasNameVerboseDataType" type="tns:AliasNameVerboseDataType" />
+
+  <xs:complexType name="ListOfAliasNameVerboseDataType">
+    <xs:sequence>
+      <xs:element name="AliasNameVerboseDataType" type="tns:AliasNameVerboseDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfAliasNameVerboseDataType" type="tns:ListOfAliasNameVerboseDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="AliasCategoryUpdateDataType">
+    <xs:sequence>
+      <xs:element name="Category" type="tns:PortableNodeId" minOccurs="0" nillable="true" />
+      <xs:element name="LastChange" type="xs:unsignedInt" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="AliasCategoryUpdateDataType" type="tns:AliasCategoryUpdateDataType" />
+
+  <xs:complexType name="ListOfAliasCategoryUpdateDataType">
+    <xs:sequence>
+      <xs:element name="AliasCategoryUpdateDataType" type="tns:AliasCategoryUpdateDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfAliasCategoryUpdateDataType" type="tns:ListOfAliasCategoryUpdateDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="AliasUpdateDataType">
+    <xs:sequence>
+      <xs:element name="ApplicationUri" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Categories" type="tns:ListOfAliasCategoryUpdateDataType" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="AliasUpdateDataType" type="tns:AliasUpdateDataType" />
+
+  <xs:complexType name="ListOfAliasUpdateDataType">
+    <xs:sequence>
+      <xs:element name="AliasUpdateDataType" type="tns:AliasUpdateDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfAliasUpdateDataType" type="tns:ListOfAliasUpdateDataType" nillable="true"></xs:element>
 
   <xs:simpleType  name="PasswordOptionsMask">
     <xs:restriction base="xs:unsignedInt">
@@ -6751,6 +6813,13 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="Annotation" type="tns:Annotation" />
+
+  <xs:complexType name="ListOfAnnotation">
+    <xs:sequence>
+      <xs:element name="Annotation" type="tns:Annotation" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfAnnotation" type="tns:ListOfAnnotation" nillable="true"></xs:element>
 
   <xs:simpleType  name="ExceptionDeviationFormat">
     <xs:restriction base="xs:string">

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -34,7 +34,9 @@ using System.Reflection;
 using System.Xml;
 using System.Runtime.Serialization;
 
-#pragma warning disable 1591
+
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+#pragma warning disable CA1707 // Identifiers should not contain underscores
 
 namespace Opc.Ua
 {
@@ -167,6 +169,8 @@ namespace Opc.Ua
         public const uint IdentityMappingRuleType = 15634;
 
         public const uint CurrencyUnitType = 23498;
+
+        public const uint NumberRange = 23903;
 
         public const uint AnnotationDataType = 32434;
 
@@ -411,6 +415,12 @@ namespace Opc.Ua
         public const uint JsonActionResponseMessage = 19322;
 
         public const uint AliasNameDataType = 23468;
+
+        public const uint AliasNameVerboseDataType = 24051;
+
+        public const uint AliasCategoryUpdateDataType = 24052;
+
+        public const uint AliasUpdateDataType = 24053;
 
         public const uint PasswordOptionsMask = 24277;
 
@@ -2408,7 +2418,19 @@ namespace Opc.Ua
 
         public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAlias = 23459;
 
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose = 23930;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory = 23936;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory = 23960;
+
         public const uint AliasNameCategoryType_FindAlias = 23462;
+
+        public const uint AliasNameCategoryType_FindAliasVerbose = 23963;
+
+        public const uint AliasNameCategoryType_AddAliasesToCategory = 23972;
+
+        public const uint AliasNameCategoryType_DeleteAliasesFromCategory = 23975;
 
         public const uint Aliases_FindAlias = 23476;
 
@@ -2613,6 +2635,8 @@ namespace Opc.Ua
         public const uint SerializationEntityType_ConfigureSerialization = 19839;
 
         public const uint LogObjectType_GetRecords = 19353;
+
+        public const uint LogObjectType_ReleaseContinuationPoint = 24372;
 
         public const uint ServerLog_GetRecords = 19373;
     }
@@ -3370,6 +3394,8 @@ namespace Opc.Ua
 
         public const uint CurrencyUnitType_Encoding_DefaultBinary = 23507;
 
+        public const uint NumberRange_Encoding_DefaultBinary = 24250;
+
         public const uint AnnotationDataType_Encoding_DefaultBinary = 32560;
 
         public const uint LinearConversionDataType_Encoding_DefaultBinary = 32561;
@@ -3551,6 +3577,12 @@ namespace Opc.Ua
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultBinary = 25532;
 
         public const uint AliasNameDataType_Encoding_DefaultBinary = 23499;
+
+        public const uint AliasNameVerboseDataType_Encoding_DefaultBinary = 24262;
+
+        public const uint AliasCategoryUpdateDataType_Encoding_DefaultBinary = 24338;
+
+        public const uint AliasUpdateDataType_Encoding_DefaultBinary = 24339;
 
         public const uint UserManagementDataType_Encoding_DefaultBinary = 24292;
 
@@ -4078,6 +4110,8 @@ namespace Opc.Ua
 
         public const uint CurrencyUnitType_Encoding_DefaultXml = 23520;
 
+        public const uint NumberRange_Encoding_DefaultXml = 24352;
+
         public const uint AnnotationDataType_Encoding_DefaultXml = 32572;
 
         public const uint LinearConversionDataType_Encoding_DefaultXml = 32573;
@@ -4259,6 +4293,12 @@ namespace Opc.Ua
         public const uint PubSubConfigurationValueDataType_Encoding_DefaultXml = 25548;
 
         public const uint AliasNameDataType_Encoding_DefaultXml = 23505;
+
+        public const uint AliasNameVerboseDataType_Encoding_DefaultXml = 24353;
+
+        public const uint AliasCategoryUpdateDataType_Encoding_DefaultXml = 24354;
+
+        public const uint AliasUpdateDataType_Encoding_DefaultXml = 24355;
 
         public const uint UserManagementDataType_Encoding_DefaultXml = 24296;
 
@@ -4751,714 +4791,6 @@ namespace Opc.Ua
         public const uint ProgramDiagnostic2DataType_Encoding_DefaultXml = 24038;
 
         public const uint Annotation_Encoding_DefaultXml = 892;
-
-        public const uint Union_Encoding_DefaultJson = 15085;
-
-        public const uint KeyValuePair_Encoding_DefaultJson = 15041;
-
-        public const uint AdditionalParametersType_Encoding_DefaultJson = 17547;
-
-        public const uint EphemeralKeyType_Encoding_DefaultJson = 17557;
-
-        public const uint EndpointType_Encoding_DefaultJson = 16150;
-
-        public const uint BitFieldDefinition_Encoding_DefaultJson = 32430;
-
-        public const uint RationalNumber_Encoding_DefaultJson = 19064;
-
-        public const uint Vector_Encoding_DefaultJson = 19065;
-
-        public const uint ThreeDVector_Encoding_DefaultJson = 19066;
-
-        public const uint CartesianCoordinates_Encoding_DefaultJson = 19067;
-
-        public const uint ThreeDCartesianCoordinates_Encoding_DefaultJson = 19068;
-
-        public const uint Orientation_Encoding_DefaultJson = 19069;
-
-        public const uint ThreeDOrientation_Encoding_DefaultJson = 19070;
-
-        public const uint Frame_Encoding_DefaultJson = 19071;
-
-        public const uint ThreeDFrame_Encoding_DefaultJson = 19072;
-
-        public const uint IdentityMappingRuleType_Encoding_DefaultJson = 15042;
-
-        public const uint CurrencyUnitType_Encoding_DefaultJson = 23528;
-
-        public const uint AnnotationDataType_Encoding_DefaultJson = 32584;
-
-        public const uint LinearConversionDataType_Encoding_DefaultJson = 32585;
-
-        public const uint QuantityDimension_Encoding_DefaultJson = 32586;
-
-        public const uint TrustListDataType_Encoding_DefaultJson = 15044;
-
-        public const uint BaseConfigurationDataType_Encoding_DefaultJson = 16632;
-
-        public const uint BaseConfigurationRecordDataType_Encoding_DefaultJson = 16633;
-
-        public const uint CertificateGroupDataType_Encoding_DefaultJson = 16634;
-
-        public const uint ConfigurationUpdateTargetType_Encoding_DefaultJson = 16635;
-
-        public const uint TransactionErrorType_Encoding_DefaultJson = 32390;
-
-        public const uint ApplicationConfigurationDataType_Encoding_DefaultJson = 23776;
-
-        public const uint ApplicationIdentityDataType_Encoding_DefaultJson = 16637;
-
-        public const uint EndpointDataType_Encoding_DefaultJson = 16642;
-
-        public const uint ServerEndpointDataType_Encoding_DefaultJson = 16643;
-
-        public const uint SecuritySettingsDataType_Encoding_DefaultJson = 16644;
-
-        public const uint UserTokenSettingsDataType_Encoding_DefaultJson = 16645;
-
-        public const uint ServiceCertificateDataType_Encoding_DefaultJson = 23739;
-
-        public const uint AuthorizationServiceConfigurationDataType_Encoding_DefaultJson = 23777;
-
-        public const uint DecimalDataType_Encoding_DefaultJson = 15045;
-
-        public const uint DataTypeSchemaHeader_Encoding_DefaultJson = 16151;
-
-        public const uint DataTypeDescription_Encoding_DefaultJson = 15057;
-
-        public const uint StructureDescription_Encoding_DefaultJson = 15058;
-
-        public const uint EnumDescription_Encoding_DefaultJson = 15059;
-
-        public const uint SimpleTypeDescription_Encoding_DefaultJson = 15700;
-
-        public const uint UABinaryFileDataType_Encoding_DefaultJson = 15714;
-
-        public const uint PortableQualifiedName_Encoding_DefaultJson = 24132;
-
-        public const uint PortableNodeId_Encoding_DefaultJson = 24133;
-
-        public const uint UnsignedRationalNumber_Encoding_DefaultJson = 24134;
-
-        public const uint DataSetMetaDataType_Encoding_DefaultJson = 15050;
-
-        public const uint FieldMetaData_Encoding_DefaultJson = 15051;
-
-        public const uint ConfigurationVersionDataType_Encoding_DefaultJson = 15049;
-
-        public const uint PublishedDataSetDataType_Encoding_DefaultJson = 16152;
-
-        public const uint PublishedDataSetSourceDataType_Encoding_DefaultJson = 16153;
-
-        public const uint PublishedVariableDataType_Encoding_DefaultJson = 15060;
-
-        public const uint PublishedDataItemsDataType_Encoding_DefaultJson = 16154;
-
-        public const uint PublishedEventsDataType_Encoding_DefaultJson = 16155;
-
-        public const uint PublishedDataSetCustomSourceDataType_Encoding_DefaultJson = 25561;
-
-        public const uint ActionTargetDataType_Encoding_DefaultJson = 18622;
-
-        public const uint PublishedActionDataType_Encoding_DefaultJson = 18623;
-
-        public const uint ActionMethodDataType_Encoding_DefaultJson = 18624;
-
-        public const uint PublishedActionMethodDataType_Encoding_DefaultJson = 18945;
-
-        public const uint DataSetWriterDataType_Encoding_DefaultJson = 16156;
-
-        public const uint DataSetWriterTransportDataType_Encoding_DefaultJson = 16157;
-
-        public const uint DataSetWriterMessageDataType_Encoding_DefaultJson = 16158;
-
-        public const uint PubSubGroupDataType_Encoding_DefaultJson = 16159;
-
-        public const uint WriterGroupDataType_Encoding_DefaultJson = 21198;
-
-        public const uint WriterGroupTransportDataType_Encoding_DefaultJson = 16161;
-
-        public const uint WriterGroupMessageDataType_Encoding_DefaultJson = 16280;
-
-        public const uint PubSubConnectionDataType_Encoding_DefaultJson = 16281;
-
-        public const uint ConnectionTransportDataType_Encoding_DefaultJson = 16282;
-
-        public const uint NetworkAddressDataType_Encoding_DefaultJson = 21199;
-
-        public const uint NetworkAddressUrlDataType_Encoding_DefaultJson = 21200;
-
-        public const uint ReaderGroupDataType_Encoding_DefaultJson = 21201;
-
-        public const uint ReaderGroupTransportDataType_Encoding_DefaultJson = 16284;
-
-        public const uint ReaderGroupMessageDataType_Encoding_DefaultJson = 16285;
-
-        public const uint DataSetReaderDataType_Encoding_DefaultJson = 16286;
-
-        public const uint DataSetReaderTransportDataType_Encoding_DefaultJson = 16287;
-
-        public const uint DataSetReaderMessageDataType_Encoding_DefaultJson = 16288;
-
-        public const uint SubscribedDataSetDataType_Encoding_DefaultJson = 16308;
-
-        public const uint TargetVariablesDataType_Encoding_DefaultJson = 16310;
-
-        public const uint FieldTargetDataType_Encoding_DefaultJson = 15061;
-
-        public const uint SubscribedDataSetMirrorDataType_Encoding_DefaultJson = 16311;
-
-        public const uint PubSubConfigurationDataType_Encoding_DefaultJson = 21202;
-
-        public const uint StandaloneSubscribedDataSetRefDataType_Encoding_DefaultJson = 23987;
-
-        public const uint StandaloneSubscribedDataSetDataType_Encoding_DefaultJson = 23988;
-
-        public const uint SecurityGroupDataType_Encoding_DefaultJson = 23989;
-
-        public const uint PubSubKeyPushTargetDataType_Encoding_DefaultJson = 25562;
-
-        public const uint PubSubConfiguration2DataType_Encoding_DefaultJson = 23990;
-
-        public const uint UadpWriterGroupMessageDataType_Encoding_DefaultJson = 16323;
-
-        public const uint UadpDataSetWriterMessageDataType_Encoding_DefaultJson = 16391;
-
-        public const uint UadpDataSetReaderMessageDataType_Encoding_DefaultJson = 16392;
-
-        public const uint JsonWriterGroupMessageDataType_Encoding_DefaultJson = 16393;
-
-        public const uint JsonDataSetWriterMessageDataType_Encoding_DefaultJson = 16394;
-
-        public const uint JsonDataSetReaderMessageDataType_Encoding_DefaultJson = 16404;
-
-        public const uint QosDataType_Encoding_DefaultJson = 23991;
-
-        public const uint TransmitQosDataType_Encoding_DefaultJson = 23992;
-
-        public const uint TransmitQosPriorityDataType_Encoding_DefaultJson = 23993;
-
-        public const uint ReceiveQosDataType_Encoding_DefaultJson = 23996;
-
-        public const uint ReceiveQosPriorityDataType_Encoding_DefaultJson = 23997;
-
-        public const uint DatagramConnectionTransportDataType_Encoding_DefaultJson = 17476;
-
-        public const uint DatagramConnectionTransport2DataType_Encoding_DefaultJson = 24000;
-
-        public const uint DatagramWriterGroupTransportDataType_Encoding_DefaultJson = 21203;
-
-        public const uint DatagramWriterGroupTransport2DataType_Encoding_DefaultJson = 24001;
-
-        public const uint DatagramDataSetReaderTransportDataType_Encoding_DefaultJson = 24002;
-
-        public const uint DtlsPubSubConnectionDataType_Encoding_DefaultJson = 18946;
-
-        public const uint BrokerConnectionTransportDataType_Encoding_DefaultJson = 15726;
-
-        public const uint BrokerWriterGroupTransportDataType_Encoding_DefaultJson = 16524;
-
-        public const uint BrokerDataSetWriterTransportDataType_Encoding_DefaultJson = 16525;
-
-        public const uint BrokerDataSetReaderTransportDataType_Encoding_DefaultJson = 16526;
-
-        public const uint PubSubConfigurationRefDataType_Encoding_DefaultJson = 25563;
-
-        public const uint PubSubConfigurationValueDataType_Encoding_DefaultJson = 25564;
-
-        public const uint AliasNameDataType_Encoding_DefaultJson = 23511;
-
-        public const uint UserManagementDataType_Encoding_DefaultJson = 24300;
-
-        public const uint PriorityMappingEntryType_Encoding_DefaultJson = 25247;
-
-        public const uint LldpManagementAddressTxPortType_Encoding_DefaultJson = 19299;
-
-        public const uint LldpManagementAddressType_Encoding_DefaultJson = 19300;
-
-        public const uint LldpTlvType_Encoding_DefaultJson = 19301;
-
-        public const uint ReferenceDescriptionDataType_Encoding_DefaultJson = 32677;
-
-        public const uint ReferenceListEntryDataType_Encoding_DefaultJson = 32678;
-
-        public const uint LogRecord_Encoding_DefaultJson = 19387;
-
-        public const uint LogRecordsDataType_Encoding_DefaultJson = 19803;
-
-        public const uint SpanContextDataType_Encoding_DefaultJson = 19804;
-
-        public const uint TraceContextDataType_Encoding_DefaultJson = 19805;
-
-        public const uint NameValuePair_Encoding_DefaultJson = 19806;
-
-        public const uint RolePermissionType_Encoding_DefaultJson = 15062;
-
-        public const uint DataTypeDefinition_Encoding_DefaultJson = 15063;
-
-        public const uint StructureField_Encoding_DefaultJson = 15065;
-
-        public const uint StructureDefinition_Encoding_DefaultJson = 15066;
-
-        public const uint EnumDefinition_Encoding_DefaultJson = 15067;
-
-        public const uint Node_Encoding_DefaultJson = 15068;
-
-        public const uint InstanceNode_Encoding_DefaultJson = 15069;
-
-        public const uint TypeNode_Encoding_DefaultJson = 15070;
-
-        public const uint ObjectNode_Encoding_DefaultJson = 15071;
-
-        public const uint ObjectTypeNode_Encoding_DefaultJson = 15073;
-
-        public const uint VariableNode_Encoding_DefaultJson = 15074;
-
-        public const uint VariableTypeNode_Encoding_DefaultJson = 15075;
-
-        public const uint ReferenceTypeNode_Encoding_DefaultJson = 15076;
-
-        public const uint MethodNode_Encoding_DefaultJson = 15077;
-
-        public const uint ViewNode_Encoding_DefaultJson = 15078;
-
-        public const uint DataTypeNode_Encoding_DefaultJson = 15079;
-
-        public const uint ReferenceNode_Encoding_DefaultJson = 15080;
-
-        public const uint Argument_Encoding_DefaultJson = 15081;
-
-        public const uint EnumValueType_Encoding_DefaultJson = 15082;
-
-        public const uint EnumField_Encoding_DefaultJson = 15083;
-
-        public const uint OptionSet_Encoding_DefaultJson = 15084;
-
-        public const uint TimeZoneDataType_Encoding_DefaultJson = 15086;
-
-        public const uint ApplicationDescription_Encoding_DefaultJson = 15087;
-
-        public const uint RequestHeader_Encoding_DefaultJson = 15088;
-
-        public const uint ResponseHeader_Encoding_DefaultJson = 15089;
-
-        public const uint ServiceFault_Encoding_DefaultJson = 15090;
-
-        public const uint SessionlessInvokeRequestType_Encoding_DefaultJson = 15091;
-
-        public const uint SessionlessInvokeResponseType_Encoding_DefaultJson = 15092;
-
-        public const uint FindServersRequest_Encoding_DefaultJson = 15093;
-
-        public const uint FindServersResponse_Encoding_DefaultJson = 15094;
-
-        public const uint ServerOnNetwork_Encoding_DefaultJson = 15095;
-
-        public const uint FindServersOnNetworkRequest_Encoding_DefaultJson = 15096;
-
-        public const uint FindServersOnNetworkResponse_Encoding_DefaultJson = 15097;
-
-        public const uint UserTokenPolicy_Encoding_DefaultJson = 15098;
-
-        public const uint EndpointDescription_Encoding_DefaultJson = 15099;
-
-        public const uint GetEndpointsRequest_Encoding_DefaultJson = 15100;
-
-        public const uint GetEndpointsResponse_Encoding_DefaultJson = 15101;
-
-        public const uint RegisteredServer_Encoding_DefaultJson = 15102;
-
-        public const uint RegisterServerRequest_Encoding_DefaultJson = 15103;
-
-        public const uint RegisterServerResponse_Encoding_DefaultJson = 15104;
-
-        public const uint DiscoveryConfiguration_Encoding_DefaultJson = 15105;
-
-        public const uint MdnsDiscoveryConfiguration_Encoding_DefaultJson = 15106;
-
-        public const uint RegisterServer2Request_Encoding_DefaultJson = 15107;
-
-        public const uint RegisterServer2Response_Encoding_DefaultJson = 15130;
-
-        public const uint ChannelSecurityToken_Encoding_DefaultJson = 15131;
-
-        public const uint OpenSecureChannelRequest_Encoding_DefaultJson = 15132;
-
-        public const uint OpenSecureChannelResponse_Encoding_DefaultJson = 15133;
-
-        public const uint CloseSecureChannelRequest_Encoding_DefaultJson = 15134;
-
-        public const uint CloseSecureChannelResponse_Encoding_DefaultJson = 15135;
-
-        public const uint SignedSoftwareCertificate_Encoding_DefaultJson = 15136;
-
-        public const uint SignatureData_Encoding_DefaultJson = 15137;
-
-        public const uint CreateSessionRequest_Encoding_DefaultJson = 15138;
-
-        public const uint CreateSessionResponse_Encoding_DefaultJson = 15139;
-
-        public const uint UserIdentityToken_Encoding_DefaultJson = 15140;
-
-        public const uint AnonymousIdentityToken_Encoding_DefaultJson = 15141;
-
-        public const uint UserNameIdentityToken_Encoding_DefaultJson = 15142;
-
-        public const uint X509IdentityToken_Encoding_DefaultJson = 15143;
-
-        public const uint IssuedIdentityToken_Encoding_DefaultJson = 15144;
-
-        public const uint ActivateSessionRequest_Encoding_DefaultJson = 15145;
-
-        public const uint ActivateSessionResponse_Encoding_DefaultJson = 15146;
-
-        public const uint CloseSessionRequest_Encoding_DefaultJson = 15147;
-
-        public const uint CloseSessionResponse_Encoding_DefaultJson = 15148;
-
-        public const uint CancelRequest_Encoding_DefaultJson = 15149;
-
-        public const uint CancelResponse_Encoding_DefaultJson = 15150;
-
-        public const uint NodeAttributes_Encoding_DefaultJson = 15151;
-
-        public const uint ObjectAttributes_Encoding_DefaultJson = 15152;
-
-        public const uint VariableAttributes_Encoding_DefaultJson = 15153;
-
-        public const uint MethodAttributes_Encoding_DefaultJson = 15157;
-
-        public const uint ObjectTypeAttributes_Encoding_DefaultJson = 15158;
-
-        public const uint VariableTypeAttributes_Encoding_DefaultJson = 15159;
-
-        public const uint ReferenceTypeAttributes_Encoding_DefaultJson = 15160;
-
-        public const uint DataTypeAttributes_Encoding_DefaultJson = 15161;
-
-        public const uint ViewAttributes_Encoding_DefaultJson = 15162;
-
-        public const uint GenericAttributeValue_Encoding_DefaultJson = 15163;
-
-        public const uint GenericAttributes_Encoding_DefaultJson = 15164;
-
-        public const uint AddNodesItem_Encoding_DefaultJson = 15165;
-
-        public const uint AddNodesResult_Encoding_DefaultJson = 15166;
-
-        public const uint AddNodesRequest_Encoding_DefaultJson = 15167;
-
-        public const uint AddNodesResponse_Encoding_DefaultJson = 15168;
-
-        public const uint AddReferencesItem_Encoding_DefaultJson = 15169;
-
-        public const uint AddReferencesRequest_Encoding_DefaultJson = 15170;
-
-        public const uint AddReferencesResponse_Encoding_DefaultJson = 15171;
-
-        public const uint DeleteNodesItem_Encoding_DefaultJson = 15172;
-
-        public const uint DeleteNodesRequest_Encoding_DefaultJson = 15173;
-
-        public const uint DeleteNodesResponse_Encoding_DefaultJson = 15174;
-
-        public const uint DeleteReferencesItem_Encoding_DefaultJson = 15175;
-
-        public const uint DeleteReferencesRequest_Encoding_DefaultJson = 15176;
-
-        public const uint DeleteReferencesResponse_Encoding_DefaultJson = 15177;
-
-        public const uint ViewDescription_Encoding_DefaultJson = 15179;
-
-        public const uint BrowseDescription_Encoding_DefaultJson = 15180;
-
-        public const uint ReferenceDescription_Encoding_DefaultJson = 15182;
-
-        public const uint BrowseResult_Encoding_DefaultJson = 15183;
-
-        public const uint BrowseRequest_Encoding_DefaultJson = 15184;
-
-        public const uint BrowseResponse_Encoding_DefaultJson = 15185;
-
-        public const uint BrowseNextRequest_Encoding_DefaultJson = 15186;
-
-        public const uint BrowseNextResponse_Encoding_DefaultJson = 15187;
-
-        public const uint RelativePathElement_Encoding_DefaultJson = 15188;
-
-        public const uint RelativePath_Encoding_DefaultJson = 15189;
-
-        public const uint BrowsePath_Encoding_DefaultJson = 15190;
-
-        public const uint BrowsePathTarget_Encoding_DefaultJson = 15191;
-
-        public const uint BrowsePathResult_Encoding_DefaultJson = 15192;
-
-        public const uint TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultJson = 15193;
-
-        public const uint TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultJson = 15194;
-
-        public const uint RegisterNodesRequest_Encoding_DefaultJson = 15195;
-
-        public const uint RegisterNodesResponse_Encoding_DefaultJson = 15196;
-
-        public const uint UnregisterNodesRequest_Encoding_DefaultJson = 15197;
-
-        public const uint UnregisterNodesResponse_Encoding_DefaultJson = 15198;
-
-        public const uint EndpointConfiguration_Encoding_DefaultJson = 15199;
-
-        public const uint QueryDataDescription_Encoding_DefaultJson = 15200;
-
-        public const uint NodeTypeDescription_Encoding_DefaultJson = 15201;
-
-        public const uint QueryDataSet_Encoding_DefaultJson = 15202;
-
-        public const uint NodeReference_Encoding_DefaultJson = 15203;
-
-        public const uint ContentFilterElement_Encoding_DefaultJson = 15204;
-
-        public const uint ContentFilter_Encoding_DefaultJson = 15205;
-
-        public const uint FilterOperand_Encoding_DefaultJson = 15206;
-
-        public const uint ElementOperand_Encoding_DefaultJson = 15207;
-
-        public const uint LiteralOperand_Encoding_DefaultJson = 15208;
-
-        public const uint AttributeOperand_Encoding_DefaultJson = 15209;
-
-        public const uint SimpleAttributeOperand_Encoding_DefaultJson = 15210;
-
-        public const uint ContentFilterElementResult_Encoding_DefaultJson = 15211;
-
-        public const uint ContentFilterResult_Encoding_DefaultJson = 15228;
-
-        public const uint ParsingResult_Encoding_DefaultJson = 15236;
-
-        public const uint QueryFirstRequest_Encoding_DefaultJson = 15244;
-
-        public const uint QueryFirstResponse_Encoding_DefaultJson = 15252;
-
-        public const uint QueryNextRequest_Encoding_DefaultJson = 15254;
-
-        public const uint QueryNextResponse_Encoding_DefaultJson = 15255;
-
-        public const uint ReadValueId_Encoding_DefaultJson = 15256;
-
-        public const uint ReadRequest_Encoding_DefaultJson = 15257;
-
-        public const uint ReadResponse_Encoding_DefaultJson = 15258;
-
-        public const uint HistoryReadValueId_Encoding_DefaultJson = 15259;
-
-        public const uint HistoryReadResult_Encoding_DefaultJson = 15260;
-
-        public const uint HistoryReadDetails_Encoding_DefaultJson = 15261;
-
-        public const uint ReadEventDetails_Encoding_DefaultJson = 15262;
-
-        public const uint ReadEventDetails2_Encoding_DefaultJson = 32802;
-
-        public const uint SortRuleElement_Encoding_DefaultJson = 18654;
-
-        public const uint ReadEventDetailsSorted_Encoding_DefaultJson = 18655;
-
-        public const uint ReadRawModifiedDetails_Encoding_DefaultJson = 15263;
-
-        public const uint ReadProcessedDetails_Encoding_DefaultJson = 15264;
-
-        public const uint ReadAtTimeDetails_Encoding_DefaultJson = 15269;
-
-        public const uint ReadAnnotationDataDetails_Encoding_DefaultJson = 23512;
-
-        public const uint HistoryData_Encoding_DefaultJson = 15270;
-
-        public const uint ModificationInfo_Encoding_DefaultJson = 15271;
-
-        public const uint HistoryModifiedData_Encoding_DefaultJson = 15272;
-
-        public const uint HistoryEvent_Encoding_DefaultJson = 15273;
-
-        public const uint HistoryModifiedEvent_Encoding_DefaultJson = 32833;
-
-        public const uint HistoryReadRequest_Encoding_DefaultJson = 15274;
-
-        public const uint HistoryReadResponse_Encoding_DefaultJson = 15275;
-
-        public const uint WriteValue_Encoding_DefaultJson = 15276;
-
-        public const uint WriteRequest_Encoding_DefaultJson = 15277;
-
-        public const uint WriteResponse_Encoding_DefaultJson = 15278;
-
-        public const uint HistoryUpdateDetails_Encoding_DefaultJson = 15279;
-
-        public const uint UpdateDataDetails_Encoding_DefaultJson = 15280;
-
-        public const uint UpdateStructureDataDetails_Encoding_DefaultJson = 15281;
-
-        public const uint UpdateEventDetails_Encoding_DefaultJson = 15282;
-
-        public const uint DeleteRawModifiedDetails_Encoding_DefaultJson = 15283;
-
-        public const uint DeleteAtTimeDetails_Encoding_DefaultJson = 15284;
-
-        public const uint DeleteEventDetails_Encoding_DefaultJson = 15285;
-
-        public const uint HistoryUpdateResult_Encoding_DefaultJson = 15286;
-
-        public const uint HistoryUpdateRequest_Encoding_DefaultJson = 15287;
-
-        public const uint HistoryUpdateResponse_Encoding_DefaultJson = 15288;
-
-        public const uint CallMethodRequest_Encoding_DefaultJson = 15289;
-
-        public const uint CallMethodResult_Encoding_DefaultJson = 15290;
-
-        public const uint CallRequest_Encoding_DefaultJson = 15291;
-
-        public const uint CallResponse_Encoding_DefaultJson = 15292;
-
-        public const uint MonitoringFilter_Encoding_DefaultJson = 15293;
-
-        public const uint DataChangeFilter_Encoding_DefaultJson = 15294;
-
-        public const uint EventFilter_Encoding_DefaultJson = 15295;
-
-        public const uint AggregateConfiguration_Encoding_DefaultJson = 15304;
-
-        public const uint AggregateFilter_Encoding_DefaultJson = 15312;
-
-        public const uint MonitoringFilterResult_Encoding_DefaultJson = 15313;
-
-        public const uint EventFilterResult_Encoding_DefaultJson = 15314;
-
-        public const uint AggregateFilterResult_Encoding_DefaultJson = 15315;
-
-        public const uint MonitoringParameters_Encoding_DefaultJson = 15320;
-
-        public const uint MonitoredItemCreateRequest_Encoding_DefaultJson = 15321;
-
-        public const uint MonitoredItemCreateResult_Encoding_DefaultJson = 15322;
-
-        public const uint CreateMonitoredItemsRequest_Encoding_DefaultJson = 15323;
-
-        public const uint CreateMonitoredItemsResponse_Encoding_DefaultJson = 15324;
-
-        public const uint MonitoredItemModifyRequest_Encoding_DefaultJson = 15325;
-
-        public const uint MonitoredItemModifyResult_Encoding_DefaultJson = 15326;
-
-        public const uint ModifyMonitoredItemsRequest_Encoding_DefaultJson = 15327;
-
-        public const uint ModifyMonitoredItemsResponse_Encoding_DefaultJson = 15328;
-
-        public const uint SetMonitoringModeRequest_Encoding_DefaultJson = 15329;
-
-        public const uint SetMonitoringModeResponse_Encoding_DefaultJson = 15331;
-
-        public const uint SetTriggeringRequest_Encoding_DefaultJson = 15332;
-
-        public const uint SetTriggeringResponse_Encoding_DefaultJson = 15333;
-
-        public const uint DeleteMonitoredItemsRequest_Encoding_DefaultJson = 15335;
-
-        public const uint DeleteMonitoredItemsResponse_Encoding_DefaultJson = 15336;
-
-        public const uint CreateSubscriptionRequest_Encoding_DefaultJson = 15337;
-
-        public const uint CreateSubscriptionResponse_Encoding_DefaultJson = 15338;
-
-        public const uint ModifySubscriptionRequest_Encoding_DefaultJson = 15339;
-
-        public const uint ModifySubscriptionResponse_Encoding_DefaultJson = 15340;
-
-        public const uint SetPublishingModeRequest_Encoding_DefaultJson = 15341;
-
-        public const uint SetPublishingModeResponse_Encoding_DefaultJson = 15342;
-
-        public const uint NotificationMessage_Encoding_DefaultJson = 15343;
-
-        public const uint NotificationData_Encoding_DefaultJson = 15344;
-
-        public const uint DataChangeNotification_Encoding_DefaultJson = 15345;
-
-        public const uint MonitoredItemNotification_Encoding_DefaultJson = 15346;
-
-        public const uint EventNotificationList_Encoding_DefaultJson = 15347;
-
-        public const uint EventFieldList_Encoding_DefaultJson = 15348;
-
-        public const uint HistoryEventFieldList_Encoding_DefaultJson = 15349;
-
-        public const uint StatusChangeNotification_Encoding_DefaultJson = 15350;
-
-        public const uint SubscriptionAcknowledgement_Encoding_DefaultJson = 15351;
-
-        public const uint PublishRequest_Encoding_DefaultJson = 15352;
-
-        public const uint PublishResponse_Encoding_DefaultJson = 15353;
-
-        public const uint RepublishRequest_Encoding_DefaultJson = 15354;
-
-        public const uint RepublishResponse_Encoding_DefaultJson = 15355;
-
-        public const uint TransferResult_Encoding_DefaultJson = 15356;
-
-        public const uint TransferSubscriptionsRequest_Encoding_DefaultJson = 15357;
-
-        public const uint TransferSubscriptionsResponse_Encoding_DefaultJson = 15358;
-
-        public const uint DeleteSubscriptionsRequest_Encoding_DefaultJson = 15359;
-
-        public const uint DeleteSubscriptionsResponse_Encoding_DefaultJson = 15360;
-
-        public const uint BuildInfo_Encoding_DefaultJson = 15361;
-
-        public const uint RedundantServerDataType_Encoding_DefaultJson = 15362;
-
-        public const uint EndpointUrlListDataType_Encoding_DefaultJson = 15363;
-
-        public const uint NetworkGroupDataType_Encoding_DefaultJson = 15364;
-
-        public const uint SamplingIntervalDiagnosticsDataType_Encoding_DefaultJson = 15365;
-
-        public const uint ServerDiagnosticsSummaryDataType_Encoding_DefaultJson = 15366;
-
-        public const uint ServerStatusDataType_Encoding_DefaultJson = 15367;
-
-        public const uint SessionDiagnosticsDataType_Encoding_DefaultJson = 15368;
-
-        public const uint SessionSecurityDiagnosticsDataType_Encoding_DefaultJson = 15369;
-
-        public const uint ServiceCounterDataType_Encoding_DefaultJson = 15370;
-
-        public const uint StatusResult_Encoding_DefaultJson = 15371;
-
-        public const uint SubscriptionDiagnosticsDataType_Encoding_DefaultJson = 15372;
-
-        public const uint ModelChangeStructureDataType_Encoding_DefaultJson = 15373;
-
-        public const uint SemanticChangeStructureDataType_Encoding_DefaultJson = 15374;
-
-        public const uint Range_Encoding_DefaultJson = 15375;
-
-        public const uint EUInformation_Encoding_DefaultJson = 15376;
-
-        public const uint ComplexNumberType_Encoding_DefaultJson = 15377;
-
-        public const uint DoubleComplexNumberType_Encoding_DefaultJson = 15378;
-
-        public const uint AxisInformation_Encoding_DefaultJson = 15379;
-
-        public const uint XVType_Encoding_DefaultJson = 15380;
-
-        public const uint ProgramDiagnosticDataType_Encoding_DefaultJson = 15381;
-
-        public const uint ProgramDiagnostic2DataType_Encoding_DefaultJson = 24042;
-
-        public const uint Annotation_Encoding_DefaultJson = 15382;
     }
     #endregion
 
@@ -8206,15 +7538,23 @@ namespace Opc.Ua
 
         public const uint BaseAnalogType_InstrumentRange = 17567;
 
+        public const uint BaseAnalogType_InstrumentNumberRange = 23904;
+
         public const uint BaseAnalogType_EURange = 17568;
+
+        public const uint BaseAnalogType_EUNumberRange = 23905;
 
         public const uint BaseAnalogType_EngineeringUnits = 17569;
 
         public const uint AnalogItemType_EURange = 2369;
 
+        public const uint AnalogNumberItemType_EUNumberRange = 23907;
+
         public const uint AnalogUnitType_EngineeringUnits = 17502;
 
         public const uint AnalogUnitRangeType_EngineeringUnits = 17575;
+
+        public const uint AnalogNumberUnitRangeType_EUNumberRange = 23927;
 
         public const uint TwoStateDiscreteType_FalseState = 2374;
 
@@ -15930,27 +15270,91 @@ namespace Opc.Ua
 
         public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAlias_OutputArguments = 23461;
 
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose_InputArguments = 23931;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose_OutputArguments = 23935;
+
         public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_LastChange = 32849;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory_InputArguments = 23937;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory_OutputArguments = 23959;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory_InputArguments = 23961;
+
+        public const uint AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory_OutputArguments = 23962;
 
         public const uint AliasNameCategoryType_FindAlias_InputArguments = 23463;
 
         public const uint AliasNameCategoryType_FindAlias_OutputArguments = 23464;
 
+        public const uint AliasNameCategoryType_FindAliasVerbose_InputArguments = 23964;
+
+        public const uint AliasNameCategoryType_FindAliasVerbose_OutputArguments = 23971;
+
         public const uint AliasNameCategoryType_LastChange = 32850;
+
+        public const uint AliasNameCategoryType_AddAliasesToCategory_InputArguments = 23973;
+
+        public const uint AliasNameCategoryType_AddAliasesToCategory_OutputArguments = 23974;
+
+        public const uint AliasNameCategoryType_DeleteAliasesFromCategory_InputArguments = 23976;
+
+        public const uint AliasNameCategoryType_DeleteAliasesFromCategory_OutputArguments = 23986;
+
+        public const uint AliasUpdateDataType_DataSetClassId = 24499;
+
+        public const uint AliasUpdateDataType_DataSetMetaData = 24500;
 
         public const uint Aliases_FindAlias_InputArguments = 23477;
 
         public const uint Aliases_FindAlias_OutputArguments = 23478;
 
+        public const uint Aliases_FindAliasVerbose_InputArguments = 24055;
+
+        public const uint Aliases_FindAliasVerbose_OutputArguments = 24056;
+
         public const uint Aliases_LastChange = 32852;
+
+        public const uint Aliases_AddAliasesToCategory_InputArguments = 24058;
+
+        public const uint Aliases_AddAliasesToCategory_OutputArguments = 24059;
+
+        public const uint Aliases_DeleteAliasesFromCategory_InputArguments = 24061;
+
+        public const uint Aliases_DeleteAliasesFromCategory_OutputArguments = 24062;
 
         public const uint TagVariables_FindAlias_InputArguments = 23486;
 
         public const uint TagVariables_FindAlias_OutputArguments = 23487;
 
+        public const uint TagVariables_FindAliasVerbose_InputArguments = 24064;
+
+        public const uint TagVariables_FindAliasVerbose_OutputArguments = 24065;
+
+        public const uint TagVariables_AddAliasesToCategory_InputArguments = 24067;
+
+        public const uint TagVariables_AddAliasesToCategory_OutputArguments = 24068;
+
+        public const uint TagVariables_DeleteAliasesFromCategory_InputArguments = 24070;
+
+        public const uint TagVariables_DeleteAliasesFromCategory_OutputArguments = 24071;
+
         public const uint Topics_FindAlias_InputArguments = 23495;
 
         public const uint Topics_FindAlias_OutputArguments = 23496;
+
+        public const uint Topics_FindAliasVerbose_InputArguments = 24073;
+
+        public const uint Topics_FindAliasVerbose_OutputArguments = 24074;
+
+        public const uint Topics_AddAliasesToCategory_InputArguments = 24076;
+
+        public const uint Topics_AddAliasesToCategory_OutputArguments = 24077;
+
+        public const uint Topics_DeleteAliasesFromCategory_InputArguments = 24079;
+
+        public const uint Topics_DeleteAliasesFromCategory_OutputArguments = 24080;
 
         public const uint UserManagementType_Users = 24265;
 
@@ -17168,6 +16572,8 @@ namespace Opc.Ua
 
         public const uint LogObjectType_MinimumSeverity = 19744;
 
+        public const uint LogObjectType_ReleaseContinuationPoint_InputArguments = 24373;
+
         public const uint LogRecordMask_OptionSetValues = 19750;
 
         public const uint BaseLogEventType_ConditionClassId = 19363;
@@ -17178,6 +16584,8 @@ namespace Opc.Ua
 
         public const uint BaseLogEventType_ErrorCodeNode = 19366;
 
+        public const uint BaseLogEventType_TraceContext = 24376;
+
         public const uint ServerLog_GetRecords_InputArguments = 19374;
 
         public const uint ServerLog_GetRecords_OutputArguments = 19375;
@@ -17187,6 +16595,8 @@ namespace Opc.Ua
         public const uint ServerLog_MaxStorageDuration = 19377;
 
         public const uint ServerLog_MinimumSeverity = 19751;
+
+        public const uint ServerLog_ReleaseContinuationPoint_InputArguments = 24378;
 
         public const uint IdType_EnumStrings = 7591;
 
@@ -17285,6 +16695,8 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_IdentityMappingRuleType = 15738;
 
         public const uint OpcUa_BinarySchema_CurrencyUnitType = 23514;
+
+        public const uint OpcUa_BinarySchema_NumberRange = 24340;
 
         public const uint OpcUa_BinarySchema_AnnotationDataType = 32563;
 
@@ -17466,6 +16878,12 @@ namespace Opc.Ua
 
         public const uint OpcUa_BinarySchema_AliasNameDataType = 23502;
 
+        public const uint OpcUa_BinarySchema_AliasNameVerboseDataType = 24343;
+
+        public const uint OpcUa_BinarySchema_AliasCategoryUpdateDataType = 24346;
+
+        public const uint OpcUa_BinarySchema_AliasUpdateDataType = 24349;
+
         public const uint OpcUa_BinarySchema_UserManagementDataType = 24293;
 
         public const uint OpcUa_BinarySchema_PriorityMappingEntryType = 25240;
@@ -17525,6 +16943,8 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_MdnsDiscoveryConfiguration = 12905;
 
         public const uint OpcUa_BinarySchema_SignedSoftwareCertificate = 7698;
+
+        public const uint OpcUa_BinarySchema_SignatureData = 24481;
 
         public const uint OpcUa_BinarySchema_UserIdentityToken = 7671;
 
@@ -17663,6 +17083,8 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_IdentityMappingRuleType = 15730;
 
         public const uint OpcUa_XmlSchema_CurrencyUnitType = 23522;
+
+        public const uint OpcUa_XmlSchema_NumberRange = 24356;
 
         public const uint OpcUa_XmlSchema_AnnotationDataType = 32575;
 
@@ -17844,6 +17266,12 @@ namespace Opc.Ua
 
         public const uint OpcUa_XmlSchema_AliasNameDataType = 23508;
 
+        public const uint OpcUa_XmlSchema_AliasNameVerboseDataType = 24359;
+
+        public const uint OpcUa_XmlSchema_AliasCategoryUpdateDataType = 24362;
+
+        public const uint OpcUa_XmlSchema_AliasUpdateDataType = 24365;
+
         public const uint OpcUa_XmlSchema_UserManagementDataType = 24297;
 
         public const uint OpcUa_XmlSchema_PriorityMappingEntryType = 25244;
@@ -17903,6 +17331,8 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_MdnsDiscoveryConfiguration = 12897;
 
         public const uint OpcUa_XmlSchema_SignedSoftwareCertificate = 8333;
+
+        public const uint OpcUa_XmlSchema_SignatureData = 24496;
 
         public const uint OpcUa_XmlSchema_UserIdentityToken = 8306;
 
@@ -18090,9 +17520,13 @@ namespace Opc.Ua
 
         public const uint AnalogItemType = 2368;
 
+        public const uint AnalogNumberItemType = 23906;
+
         public const uint AnalogUnitType = 17497;
 
         public const uint AnalogUnitRangeType = 17570;
+
+        public const uint AnalogNumberUnitRangeType = 23918;
 
         public const uint DiscreteItemType = 2372;
 
@@ -18265,6 +17699,8 @@ namespace Opc.Ua
         public static readonly NodeId IdentityMappingRuleType = new NodeId(Opc.Ua.DataTypes.IdentityMappingRuleType);
 
         public static readonly NodeId CurrencyUnitType = new NodeId(Opc.Ua.DataTypes.CurrencyUnitType);
+
+        public static readonly NodeId NumberRange = new NodeId(Opc.Ua.DataTypes.NumberRange);
 
         public static readonly NodeId AnnotationDataType = new NodeId(Opc.Ua.DataTypes.AnnotationDataType);
 
@@ -18509,6 +17945,12 @@ namespace Opc.Ua
         public static readonly NodeId JsonActionResponseMessage = new NodeId(Opc.Ua.DataTypes.JsonActionResponseMessage);
 
         public static readonly NodeId AliasNameDataType = new NodeId(Opc.Ua.DataTypes.AliasNameDataType);
+
+        public static readonly NodeId AliasNameVerboseDataType = new NodeId(Opc.Ua.DataTypes.AliasNameVerboseDataType);
+
+        public static readonly NodeId AliasCategoryUpdateDataType = new NodeId(Opc.Ua.DataTypes.AliasCategoryUpdateDataType);
+
+        public static readonly NodeId AliasUpdateDataType = new NodeId(Opc.Ua.DataTypes.AliasUpdateDataType);
 
         public static readonly NodeId PasswordOptionsMask = new NodeId(Opc.Ua.DataTypes.PasswordOptionsMask);
 
@@ -20506,7 +19948,19 @@ namespace Opc.Ua
 
         public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAlias = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAlias);
 
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory);
+
         public static readonly NodeId AliasNameCategoryType_FindAlias = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_FindAlias);
+
+        public static readonly NodeId AliasNameCategoryType_FindAliasVerbose = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_FindAliasVerbose);
+
+        public static readonly NodeId AliasNameCategoryType_AddAliasesToCategory = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_AddAliasesToCategory);
+
+        public static readonly NodeId AliasNameCategoryType_DeleteAliasesFromCategory = new NodeId(Opc.Ua.Methods.AliasNameCategoryType_DeleteAliasesFromCategory);
 
         public static readonly NodeId Aliases_FindAlias = new NodeId(Opc.Ua.Methods.Aliases_FindAlias);
 
@@ -20711,6 +20165,8 @@ namespace Opc.Ua
         public static readonly NodeId SerializationEntityType_ConfigureSerialization = new NodeId(Opc.Ua.Methods.SerializationEntityType_ConfigureSerialization);
 
         public static readonly NodeId LogObjectType_GetRecords = new NodeId(Opc.Ua.Methods.LogObjectType_GetRecords);
+
+        public static readonly NodeId LogObjectType_ReleaseContinuationPoint = new NodeId(Opc.Ua.Methods.LogObjectType_ReleaseContinuationPoint);
 
         public static readonly NodeId ServerLog_GetRecords = new NodeId(Opc.Ua.Methods.ServerLog_GetRecords);
     }
@@ -21468,6 +20924,8 @@ namespace Opc.Ua
 
         public static readonly NodeId CurrencyUnitType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.CurrencyUnitType_Encoding_DefaultBinary);
 
+        public static readonly NodeId NumberRange_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.NumberRange_Encoding_DefaultBinary);
+
         public static readonly NodeId AnnotationDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AnnotationDataType_Encoding_DefaultBinary);
 
         public static readonly NodeId LinearConversionDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LinearConversionDataType_Encoding_DefaultBinary);
@@ -21649,6 +21107,12 @@ namespace Opc.Ua
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultBinary);
 
         public static readonly NodeId AliasNameDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId AliasNameVerboseDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AliasNameVerboseDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId AliasCategoryUpdateDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AliasCategoryUpdateDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId AliasUpdateDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AliasUpdateDataType_Encoding_DefaultBinary);
 
         public static readonly NodeId UserManagementDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.UserManagementDataType_Encoding_DefaultBinary);
 
@@ -22176,6 +21640,8 @@ namespace Opc.Ua
 
         public static readonly NodeId CurrencyUnitType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.CurrencyUnitType_Encoding_DefaultXml);
 
+        public static readonly NodeId NumberRange_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.NumberRange_Encoding_DefaultXml);
+
         public static readonly NodeId AnnotationDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AnnotationDataType_Encoding_DefaultXml);
 
         public static readonly NodeId LinearConversionDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LinearConversionDataType_Encoding_DefaultXml);
@@ -22357,6 +21823,12 @@ namespace Opc.Ua
         public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultXml);
 
         public static readonly NodeId AliasNameDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId AliasNameVerboseDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AliasNameVerboseDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId AliasCategoryUpdateDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AliasCategoryUpdateDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId AliasUpdateDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AliasUpdateDataType_Encoding_DefaultXml);
 
         public static readonly NodeId UserManagementDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.UserManagementDataType_Encoding_DefaultXml);
 
@@ -22849,714 +22321,6 @@ namespace Opc.Ua
         public static readonly NodeId ProgramDiagnostic2DataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ProgramDiagnostic2DataType_Encoding_DefaultXml);
 
         public static readonly NodeId Annotation_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.Annotation_Encoding_DefaultXml);
-
-        public static readonly NodeId Union_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Union_Encoding_DefaultJson);
-
-        public static readonly NodeId KeyValuePair_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.KeyValuePair_Encoding_DefaultJson);
-
-        public static readonly NodeId AdditionalParametersType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AdditionalParametersType_Encoding_DefaultJson);
-
-        public static readonly NodeId EphemeralKeyType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EphemeralKeyType_Encoding_DefaultJson);
-
-        public static readonly NodeId EndpointType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EndpointType_Encoding_DefaultJson);
-
-        public static readonly NodeId BitFieldDefinition_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BitFieldDefinition_Encoding_DefaultJson);
-
-        public static readonly NodeId RationalNumber_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RationalNumber_Encoding_DefaultJson);
-
-        public static readonly NodeId Vector_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Vector_Encoding_DefaultJson);
-
-        public static readonly NodeId ThreeDVector_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ThreeDVector_Encoding_DefaultJson);
-
-        public static readonly NodeId CartesianCoordinates_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CartesianCoordinates_Encoding_DefaultJson);
-
-        public static readonly NodeId ThreeDCartesianCoordinates_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ThreeDCartesianCoordinates_Encoding_DefaultJson);
-
-        public static readonly NodeId Orientation_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Orientation_Encoding_DefaultJson);
-
-        public static readonly NodeId ThreeDOrientation_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ThreeDOrientation_Encoding_DefaultJson);
-
-        public static readonly NodeId Frame_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Frame_Encoding_DefaultJson);
-
-        public static readonly NodeId ThreeDFrame_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ThreeDFrame_Encoding_DefaultJson);
-
-        public static readonly NodeId IdentityMappingRuleType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.IdentityMappingRuleType_Encoding_DefaultJson);
-
-        public static readonly NodeId CurrencyUnitType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CurrencyUnitType_Encoding_DefaultJson);
-
-        public static readonly NodeId AnnotationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AnnotationDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId LinearConversionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LinearConversionDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId QuantityDimension_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.QuantityDimension_Encoding_DefaultJson);
-
-        public static readonly NodeId TrustListDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TrustListDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId BaseConfigurationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BaseConfigurationDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId BaseConfigurationRecordDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BaseConfigurationRecordDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId CertificateGroupDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CertificateGroupDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ConfigurationUpdateTargetType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ConfigurationUpdateTargetType_Encoding_DefaultJson);
-
-        public static readonly NodeId TransactionErrorType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransactionErrorType_Encoding_DefaultJson);
-
-        public static readonly NodeId ApplicationConfigurationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ApplicationConfigurationDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ApplicationIdentityDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ApplicationIdentityDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId EndpointDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EndpointDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ServerEndpointDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ServerEndpointDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId SecuritySettingsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SecuritySettingsDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId UserTokenSettingsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UserTokenSettingsDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ServiceCertificateDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ServiceCertificateDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId AuthorizationServiceConfigurationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AuthorizationServiceConfigurationDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DecimalDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DecimalDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DataTypeSchemaHeader_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataTypeSchemaHeader_Encoding_DefaultJson);
-
-        public static readonly NodeId DataTypeDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataTypeDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId StructureDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.StructureDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId EnumDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EnumDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId SimpleTypeDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SimpleTypeDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId UABinaryFileDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UABinaryFileDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PortableQualifiedName_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PortableQualifiedName_Encoding_DefaultJson);
-
-        public static readonly NodeId PortableNodeId_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PortableNodeId_Encoding_DefaultJson);
-
-        public static readonly NodeId UnsignedRationalNumber_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UnsignedRationalNumber_Encoding_DefaultJson);
-
-        public static readonly NodeId DataSetMetaDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataSetMetaDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId FieldMetaData_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.FieldMetaData_Encoding_DefaultJson);
-
-        public static readonly NodeId ConfigurationVersionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ConfigurationVersionDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PublishedDataSetDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedDataSetDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PublishedDataSetSourceDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedDataSetSourceDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PublishedVariableDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedVariableDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PublishedDataItemsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedDataItemsDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PublishedEventsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedEventsDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PublishedDataSetCustomSourceDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedDataSetCustomSourceDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ActionTargetDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ActionTargetDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PublishedActionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedActionDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ActionMethodDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ActionMethodDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PublishedActionMethodDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedActionMethodDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DataSetWriterDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataSetWriterDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DataSetWriterTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataSetWriterTransportDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DataSetWriterMessageDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataSetWriterMessageDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PubSubGroupDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PubSubGroupDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId WriterGroupDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.WriterGroupDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId WriterGroupTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.WriterGroupTransportDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId WriterGroupMessageDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.WriterGroupMessageDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PubSubConnectionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PubSubConnectionDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ConnectionTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ConnectionTransportDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId NetworkAddressDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.NetworkAddressDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId NetworkAddressUrlDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.NetworkAddressUrlDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ReaderGroupDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReaderGroupDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ReaderGroupTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReaderGroupTransportDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ReaderGroupMessageDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReaderGroupMessageDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DataSetReaderDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataSetReaderDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DataSetReaderTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataSetReaderTransportDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DataSetReaderMessageDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataSetReaderMessageDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId SubscribedDataSetDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SubscribedDataSetDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId TargetVariablesDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TargetVariablesDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId FieldTargetDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.FieldTargetDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId SubscribedDataSetMirrorDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SubscribedDataSetMirrorDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PubSubConfigurationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PubSubConfigurationDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId StandaloneSubscribedDataSetRefDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId StandaloneSubscribedDataSetDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.StandaloneSubscribedDataSetDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId SecurityGroupDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SecurityGroupDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PubSubKeyPushTargetDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PubSubKeyPushTargetDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PubSubConfiguration2DataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PubSubConfiguration2DataType_Encoding_DefaultJson);
-
-        public static readonly NodeId UadpWriterGroupMessageDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UadpWriterGroupMessageDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId UadpDataSetWriterMessageDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UadpDataSetWriterMessageDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId UadpDataSetReaderMessageDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UadpDataSetReaderMessageDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId JsonWriterGroupMessageDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonWriterGroupMessageDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId JsonDataSetWriterMessageDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonDataSetWriterMessageDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId JsonDataSetReaderMessageDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.JsonDataSetReaderMessageDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId QosDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.QosDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId TransmitQosDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransmitQosDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId TransmitQosPriorityDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransmitQosPriorityDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ReceiveQosDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReceiveQosDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ReceiveQosPriorityDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReceiveQosPriorityDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DatagramConnectionTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DatagramConnectionTransportDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DatagramConnectionTransport2DataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DatagramConnectionTransport2DataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DatagramWriterGroupTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DatagramWriterGroupTransportDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DatagramWriterGroupTransport2DataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DatagramWriterGroupTransport2DataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DatagramDataSetReaderTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DatagramDataSetReaderTransportDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId DtlsPubSubConnectionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DtlsPubSubConnectionDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId BrokerConnectionTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrokerConnectionTransportDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId BrokerWriterGroupTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrokerWriterGroupTransportDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId BrokerDataSetWriterTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrokerDataSetWriterTransportDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId BrokerDataSetReaderTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrokerDataSetReaderTransportDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PubSubConfigurationRefDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PubSubConfigurationRefDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PubSubConfigurationValueDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PubSubConfigurationValueDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId AliasNameDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AliasNameDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId UserManagementDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UserManagementDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId PriorityMappingEntryType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PriorityMappingEntryType_Encoding_DefaultJson);
-
-        public static readonly NodeId LldpManagementAddressTxPortType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LldpManagementAddressTxPortType_Encoding_DefaultJson);
-
-        public static readonly NodeId LldpManagementAddressType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LldpManagementAddressType_Encoding_DefaultJson);
-
-        public static readonly NodeId LldpTlvType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LldpTlvType_Encoding_DefaultJson);
-
-        public static readonly NodeId ReferenceDescriptionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReferenceDescriptionDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ReferenceListEntryDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReferenceListEntryDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId LogRecord_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LogRecord_Encoding_DefaultJson);
-
-        public static readonly NodeId LogRecordsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LogRecordsDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId SpanContextDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SpanContextDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId TraceContextDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TraceContextDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId NameValuePair_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.NameValuePair_Encoding_DefaultJson);
-
-        public static readonly NodeId RolePermissionType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RolePermissionType_Encoding_DefaultJson);
-
-        public static readonly NodeId DataTypeDefinition_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataTypeDefinition_Encoding_DefaultJson);
-
-        public static readonly NodeId StructureField_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.StructureField_Encoding_DefaultJson);
-
-        public static readonly NodeId StructureDefinition_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.StructureDefinition_Encoding_DefaultJson);
-
-        public static readonly NodeId EnumDefinition_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EnumDefinition_Encoding_DefaultJson);
-
-        public static readonly NodeId Node_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Node_Encoding_DefaultJson);
-
-        public static readonly NodeId InstanceNode_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.InstanceNode_Encoding_DefaultJson);
-
-        public static readonly NodeId TypeNode_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TypeNode_Encoding_DefaultJson);
-
-        public static readonly NodeId ObjectNode_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ObjectNode_Encoding_DefaultJson);
-
-        public static readonly NodeId ObjectTypeNode_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ObjectTypeNode_Encoding_DefaultJson);
-
-        public static readonly NodeId VariableNode_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.VariableNode_Encoding_DefaultJson);
-
-        public static readonly NodeId VariableTypeNode_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.VariableTypeNode_Encoding_DefaultJson);
-
-        public static readonly NodeId ReferenceTypeNode_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReferenceTypeNode_Encoding_DefaultJson);
-
-        public static readonly NodeId MethodNode_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.MethodNode_Encoding_DefaultJson);
-
-        public static readonly NodeId ViewNode_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ViewNode_Encoding_DefaultJson);
-
-        public static readonly NodeId DataTypeNode_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataTypeNode_Encoding_DefaultJson);
-
-        public static readonly NodeId ReferenceNode_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReferenceNode_Encoding_DefaultJson);
-
-        public static readonly NodeId Argument_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Argument_Encoding_DefaultJson);
-
-        public static readonly NodeId EnumValueType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EnumValueType_Encoding_DefaultJson);
-
-        public static readonly NodeId EnumField_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EnumField_Encoding_DefaultJson);
-
-        public static readonly NodeId OptionSet_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.OptionSet_Encoding_DefaultJson);
-
-        public static readonly NodeId TimeZoneDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TimeZoneDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ApplicationDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ApplicationDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId RequestHeader_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RequestHeader_Encoding_DefaultJson);
-
-        public static readonly NodeId ResponseHeader_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ResponseHeader_Encoding_DefaultJson);
-
-        public static readonly NodeId ServiceFault_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ServiceFault_Encoding_DefaultJson);
-
-        public static readonly NodeId SessionlessInvokeRequestType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SessionlessInvokeRequestType_Encoding_DefaultJson);
-
-        public static readonly NodeId SessionlessInvokeResponseType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SessionlessInvokeResponseType_Encoding_DefaultJson);
-
-        public static readonly NodeId FindServersRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.FindServersRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId FindServersResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.FindServersResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId ServerOnNetwork_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ServerOnNetwork_Encoding_DefaultJson);
-
-        public static readonly NodeId FindServersOnNetworkRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.FindServersOnNetworkRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId FindServersOnNetworkResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.FindServersOnNetworkResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId UserTokenPolicy_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UserTokenPolicy_Encoding_DefaultJson);
-
-        public static readonly NodeId EndpointDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EndpointDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId GetEndpointsRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.GetEndpointsRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId GetEndpointsResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.GetEndpointsResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId RegisteredServer_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RegisteredServer_Encoding_DefaultJson);
-
-        public static readonly NodeId RegisterServerRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RegisterServerRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId RegisterServerResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RegisterServerResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId DiscoveryConfiguration_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DiscoveryConfiguration_Encoding_DefaultJson);
-
-        public static readonly NodeId MdnsDiscoveryConfiguration_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.MdnsDiscoveryConfiguration_Encoding_DefaultJson);
-
-        public static readonly NodeId RegisterServer2Request_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RegisterServer2Request_Encoding_DefaultJson);
-
-        public static readonly NodeId RegisterServer2Response_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RegisterServer2Response_Encoding_DefaultJson);
-
-        public static readonly NodeId ChannelSecurityToken_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ChannelSecurityToken_Encoding_DefaultJson);
-
-        public static readonly NodeId OpenSecureChannelRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.OpenSecureChannelRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId OpenSecureChannelResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.OpenSecureChannelResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId CloseSecureChannelRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CloseSecureChannelRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId CloseSecureChannelResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CloseSecureChannelResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId SignedSoftwareCertificate_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SignedSoftwareCertificate_Encoding_DefaultJson);
-
-        public static readonly NodeId SignatureData_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SignatureData_Encoding_DefaultJson);
-
-        public static readonly NodeId CreateSessionRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CreateSessionRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId CreateSessionResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CreateSessionResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId UserIdentityToken_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UserIdentityToken_Encoding_DefaultJson);
-
-        public static readonly NodeId AnonymousIdentityToken_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AnonymousIdentityToken_Encoding_DefaultJson);
-
-        public static readonly NodeId UserNameIdentityToken_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UserNameIdentityToken_Encoding_DefaultJson);
-
-        public static readonly NodeId X509IdentityToken_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.X509IdentityToken_Encoding_DefaultJson);
-
-        public static readonly NodeId IssuedIdentityToken_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.IssuedIdentityToken_Encoding_DefaultJson);
-
-        public static readonly NodeId ActivateSessionRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ActivateSessionRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId ActivateSessionResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ActivateSessionResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId CloseSessionRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CloseSessionRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId CloseSessionResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CloseSessionResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId CancelRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CancelRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId CancelResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CancelResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId NodeAttributes_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.NodeAttributes_Encoding_DefaultJson);
-
-        public static readonly NodeId ObjectAttributes_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ObjectAttributes_Encoding_DefaultJson);
-
-        public static readonly NodeId VariableAttributes_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.VariableAttributes_Encoding_DefaultJson);
-
-        public static readonly NodeId MethodAttributes_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.MethodAttributes_Encoding_DefaultJson);
-
-        public static readonly NodeId ObjectTypeAttributes_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ObjectTypeAttributes_Encoding_DefaultJson);
-
-        public static readonly NodeId VariableTypeAttributes_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.VariableTypeAttributes_Encoding_DefaultJson);
-
-        public static readonly NodeId ReferenceTypeAttributes_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReferenceTypeAttributes_Encoding_DefaultJson);
-
-        public static readonly NodeId DataTypeAttributes_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataTypeAttributes_Encoding_DefaultJson);
-
-        public static readonly NodeId ViewAttributes_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ViewAttributes_Encoding_DefaultJson);
-
-        public static readonly NodeId GenericAttributeValue_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.GenericAttributeValue_Encoding_DefaultJson);
-
-        public static readonly NodeId GenericAttributes_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.GenericAttributes_Encoding_DefaultJson);
-
-        public static readonly NodeId AddNodesItem_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AddNodesItem_Encoding_DefaultJson);
-
-        public static readonly NodeId AddNodesResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AddNodesResult_Encoding_DefaultJson);
-
-        public static readonly NodeId AddNodesRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AddNodesRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId AddNodesResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AddNodesResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId AddReferencesItem_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AddReferencesItem_Encoding_DefaultJson);
-
-        public static readonly NodeId AddReferencesRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AddReferencesRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId AddReferencesResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AddReferencesResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteNodesItem_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteNodesItem_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteNodesRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteNodesRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteNodesResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteNodesResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteReferencesItem_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteReferencesItem_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteReferencesRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteReferencesRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteReferencesResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteReferencesResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId ViewDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ViewDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId BrowseDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrowseDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId ReferenceDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReferenceDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId BrowseResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrowseResult_Encoding_DefaultJson);
-
-        public static readonly NodeId BrowseRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrowseRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId BrowseResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrowseResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId BrowseNextRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrowseNextRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId BrowseNextResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrowseNextResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId RelativePathElement_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RelativePathElement_Encoding_DefaultJson);
-
-        public static readonly NodeId RelativePath_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RelativePath_Encoding_DefaultJson);
-
-        public static readonly NodeId BrowsePath_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrowsePath_Encoding_DefaultJson);
-
-        public static readonly NodeId BrowsePathTarget_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrowsePathTarget_Encoding_DefaultJson);
-
-        public static readonly NodeId BrowsePathResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrowsePathResult_Encoding_DefaultJson);
-
-        public static readonly NodeId TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId RegisterNodesRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RegisterNodesRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId RegisterNodesResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RegisterNodesResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId UnregisterNodesRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UnregisterNodesRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId UnregisterNodesResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UnregisterNodesResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId EndpointConfiguration_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EndpointConfiguration_Encoding_DefaultJson);
-
-        public static readonly NodeId QueryDataDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.QueryDataDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId NodeTypeDescription_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.NodeTypeDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId QueryDataSet_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.QueryDataSet_Encoding_DefaultJson);
-
-        public static readonly NodeId NodeReference_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.NodeReference_Encoding_DefaultJson);
-
-        public static readonly NodeId ContentFilterElement_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ContentFilterElement_Encoding_DefaultJson);
-
-        public static readonly NodeId ContentFilter_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ContentFilter_Encoding_DefaultJson);
-
-        public static readonly NodeId FilterOperand_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.FilterOperand_Encoding_DefaultJson);
-
-        public static readonly NodeId ElementOperand_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ElementOperand_Encoding_DefaultJson);
-
-        public static readonly NodeId LiteralOperand_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LiteralOperand_Encoding_DefaultJson);
-
-        public static readonly NodeId AttributeOperand_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AttributeOperand_Encoding_DefaultJson);
-
-        public static readonly NodeId SimpleAttributeOperand_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SimpleAttributeOperand_Encoding_DefaultJson);
-
-        public static readonly NodeId ContentFilterElementResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ContentFilterElementResult_Encoding_DefaultJson);
-
-        public static readonly NodeId ContentFilterResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ContentFilterResult_Encoding_DefaultJson);
-
-        public static readonly NodeId ParsingResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ParsingResult_Encoding_DefaultJson);
-
-        public static readonly NodeId QueryFirstRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.QueryFirstRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId QueryFirstResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.QueryFirstResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId QueryNextRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.QueryNextRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId QueryNextResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.QueryNextResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId ReadValueId_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadValueId_Encoding_DefaultJson);
-
-        public static readonly NodeId ReadRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId ReadResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryReadValueId_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryReadValueId_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryReadResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryReadResult_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryReadDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryReadDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId ReadEventDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadEventDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId ReadEventDetails2_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadEventDetails2_Encoding_DefaultJson);
-
-        public static readonly NodeId SortRuleElement_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SortRuleElement_Encoding_DefaultJson);
-
-        public static readonly NodeId ReadEventDetailsSorted_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadEventDetailsSorted_Encoding_DefaultJson);
-
-        public static readonly NodeId ReadRawModifiedDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadRawModifiedDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId ReadProcessedDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadProcessedDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId ReadAtTimeDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadAtTimeDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId ReadAnnotationDataDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadAnnotationDataDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryData_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryData_Encoding_DefaultJson);
-
-        public static readonly NodeId ModificationInfo_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ModificationInfo_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryModifiedData_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryModifiedData_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryEvent_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryEvent_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryModifiedEvent_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryModifiedEvent_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryReadRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryReadRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryReadResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryReadResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId WriteValue_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.WriteValue_Encoding_DefaultJson);
-
-        public static readonly NodeId WriteRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.WriteRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId WriteResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.WriteResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryUpdateDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryUpdateDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId UpdateDataDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UpdateDataDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId UpdateStructureDataDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UpdateStructureDataDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId UpdateEventDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.UpdateEventDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteRawModifiedDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteRawModifiedDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteAtTimeDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteAtTimeDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteEventDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteEventDetails_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryUpdateResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryUpdateResult_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryUpdateRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryUpdateRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryUpdateResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryUpdateResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId CallMethodRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CallMethodRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId CallMethodResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CallMethodResult_Encoding_DefaultJson);
-
-        public static readonly NodeId CallRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CallRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId CallResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CallResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId MonitoringFilter_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.MonitoringFilter_Encoding_DefaultJson);
-
-        public static readonly NodeId DataChangeFilter_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataChangeFilter_Encoding_DefaultJson);
-
-        public static readonly NodeId EventFilter_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EventFilter_Encoding_DefaultJson);
-
-        public static readonly NodeId AggregateConfiguration_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AggregateConfiguration_Encoding_DefaultJson);
-
-        public static readonly NodeId AggregateFilter_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AggregateFilter_Encoding_DefaultJson);
-
-        public static readonly NodeId MonitoringFilterResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.MonitoringFilterResult_Encoding_DefaultJson);
-
-        public static readonly NodeId EventFilterResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EventFilterResult_Encoding_DefaultJson);
-
-        public static readonly NodeId AggregateFilterResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AggregateFilterResult_Encoding_DefaultJson);
-
-        public static readonly NodeId MonitoringParameters_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.MonitoringParameters_Encoding_DefaultJson);
-
-        public static readonly NodeId MonitoredItemCreateRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.MonitoredItemCreateRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId MonitoredItemCreateResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.MonitoredItemCreateResult_Encoding_DefaultJson);
-
-        public static readonly NodeId CreateMonitoredItemsRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CreateMonitoredItemsRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId CreateMonitoredItemsResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CreateMonitoredItemsResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId MonitoredItemModifyRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.MonitoredItemModifyRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId MonitoredItemModifyResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.MonitoredItemModifyResult_Encoding_DefaultJson);
-
-        public static readonly NodeId ModifyMonitoredItemsRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ModifyMonitoredItemsRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId ModifyMonitoredItemsResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ModifyMonitoredItemsResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId SetMonitoringModeRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SetMonitoringModeRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId SetMonitoringModeResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SetMonitoringModeResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId SetTriggeringRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SetTriggeringRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId SetTriggeringResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SetTriggeringResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteMonitoredItemsRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteMonitoredItemsRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteMonitoredItemsResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteMonitoredItemsResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId CreateSubscriptionRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CreateSubscriptionRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId CreateSubscriptionResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.CreateSubscriptionResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId ModifySubscriptionRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ModifySubscriptionRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId ModifySubscriptionResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ModifySubscriptionResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId SetPublishingModeRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SetPublishingModeRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId SetPublishingModeResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SetPublishingModeResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId NotificationMessage_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.NotificationMessage_Encoding_DefaultJson);
-
-        public static readonly NodeId NotificationData_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.NotificationData_Encoding_DefaultJson);
-
-        public static readonly NodeId DataChangeNotification_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataChangeNotification_Encoding_DefaultJson);
-
-        public static readonly NodeId MonitoredItemNotification_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.MonitoredItemNotification_Encoding_DefaultJson);
-
-        public static readonly NodeId EventNotificationList_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EventNotificationList_Encoding_DefaultJson);
-
-        public static readonly NodeId EventFieldList_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EventFieldList_Encoding_DefaultJson);
-
-        public static readonly NodeId HistoryEventFieldList_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.HistoryEventFieldList_Encoding_DefaultJson);
-
-        public static readonly NodeId StatusChangeNotification_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.StatusChangeNotification_Encoding_DefaultJson);
-
-        public static readonly NodeId SubscriptionAcknowledgement_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SubscriptionAcknowledgement_Encoding_DefaultJson);
-
-        public static readonly NodeId PublishRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId PublishResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId RepublishRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RepublishRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId RepublishResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RepublishResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId TransferResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransferResult_Encoding_DefaultJson);
-
-        public static readonly NodeId TransferSubscriptionsRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransferSubscriptionsRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId TransferSubscriptionsResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransferSubscriptionsResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteSubscriptionsRequest_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteSubscriptionsRequest_Encoding_DefaultJson);
-
-        public static readonly NodeId DeleteSubscriptionsResponse_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DeleteSubscriptionsResponse_Encoding_DefaultJson);
-
-        public static readonly NodeId BuildInfo_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BuildInfo_Encoding_DefaultJson);
-
-        public static readonly NodeId RedundantServerDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RedundantServerDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId EndpointUrlListDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EndpointUrlListDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId NetworkGroupDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.NetworkGroupDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId SamplingIntervalDiagnosticsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SamplingIntervalDiagnosticsDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ServerDiagnosticsSummaryDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ServerDiagnosticsSummaryDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ServerStatusDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ServerStatusDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId SessionDiagnosticsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SessionDiagnosticsDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId SessionSecurityDiagnosticsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SessionSecurityDiagnosticsDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ServiceCounterDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ServiceCounterDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId StatusResult_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.StatusResult_Encoding_DefaultJson);
-
-        public static readonly NodeId SubscriptionDiagnosticsDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SubscriptionDiagnosticsDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ModelChangeStructureDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ModelChangeStructureDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId SemanticChangeStructureDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SemanticChangeStructureDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId Range_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Range_Encoding_DefaultJson);
-
-        public static readonly NodeId EUInformation_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.EUInformation_Encoding_DefaultJson);
-
-        public static readonly NodeId ComplexNumberType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ComplexNumberType_Encoding_DefaultJson);
-
-        public static readonly NodeId DoubleComplexNumberType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DoubleComplexNumberType_Encoding_DefaultJson);
-
-        public static readonly NodeId AxisInformation_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AxisInformation_Encoding_DefaultJson);
-
-        public static readonly NodeId XVType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.XVType_Encoding_DefaultJson);
-
-        public static readonly NodeId ProgramDiagnosticDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ProgramDiagnosticDataType_Encoding_DefaultJson);
-
-        public static readonly NodeId ProgramDiagnostic2DataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ProgramDiagnostic2DataType_Encoding_DefaultJson);
-
-        public static readonly NodeId Annotation_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Annotation_Encoding_DefaultJson);
     }
     #endregion
 
@@ -26304,15 +25068,23 @@ namespace Opc.Ua
 
         public static readonly NodeId BaseAnalogType_InstrumentRange = new NodeId(Opc.Ua.Variables.BaseAnalogType_InstrumentRange);
 
+        public static readonly NodeId BaseAnalogType_InstrumentNumberRange = new NodeId(Opc.Ua.Variables.BaseAnalogType_InstrumentNumberRange);
+
         public static readonly NodeId BaseAnalogType_EURange = new NodeId(Opc.Ua.Variables.BaseAnalogType_EURange);
+
+        public static readonly NodeId BaseAnalogType_EUNumberRange = new NodeId(Opc.Ua.Variables.BaseAnalogType_EUNumberRange);
 
         public static readonly NodeId BaseAnalogType_EngineeringUnits = new NodeId(Opc.Ua.Variables.BaseAnalogType_EngineeringUnits);
 
         public static readonly NodeId AnalogItemType_EURange = new NodeId(Opc.Ua.Variables.AnalogItemType_EURange);
 
+        public static readonly NodeId AnalogNumberItemType_EUNumberRange = new NodeId(Opc.Ua.Variables.AnalogNumberItemType_EUNumberRange);
+
         public static readonly NodeId AnalogUnitType_EngineeringUnits = new NodeId(Opc.Ua.Variables.AnalogUnitType_EngineeringUnits);
 
         public static readonly NodeId AnalogUnitRangeType_EngineeringUnits = new NodeId(Opc.Ua.Variables.AnalogUnitRangeType_EngineeringUnits);
+
+        public static readonly NodeId AnalogNumberUnitRangeType_EUNumberRange = new NodeId(Opc.Ua.Variables.AnalogNumberUnitRangeType_EUNumberRange);
 
         public static readonly NodeId TwoStateDiscreteType_FalseState = new NodeId(Opc.Ua.Variables.TwoStateDiscreteType_FalseState);
 
@@ -34028,27 +32800,91 @@ namespace Opc.Ua
 
         public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAlias_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAlias_OutputArguments);
 
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose_InputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_FindAliasVerbose_OutputArguments);
+
         public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_LastChange = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_LastChange);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory_InputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_AddAliasesToCategory_OutputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory_InputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_SubAliasNameCategories_Placeholder_DeleteAliasesFromCategory_OutputArguments);
 
         public static readonly NodeId AliasNameCategoryType_FindAlias_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_FindAlias_InputArguments);
 
         public static readonly NodeId AliasNameCategoryType_FindAlias_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_FindAlias_OutputArguments);
 
+        public static readonly NodeId AliasNameCategoryType_FindAliasVerbose_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_FindAliasVerbose_InputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_FindAliasVerbose_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_FindAliasVerbose_OutputArguments);
+
         public static readonly NodeId AliasNameCategoryType_LastChange = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_LastChange);
+
+        public static readonly NodeId AliasNameCategoryType_AddAliasesToCategory_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_AddAliasesToCategory_InputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_AddAliasesToCategory_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_AddAliasesToCategory_OutputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_DeleteAliasesFromCategory_InputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_DeleteAliasesFromCategory_InputArguments);
+
+        public static readonly NodeId AliasNameCategoryType_DeleteAliasesFromCategory_OutputArguments = new NodeId(Opc.Ua.Variables.AliasNameCategoryType_DeleteAliasesFromCategory_OutputArguments);
+
+        public static readonly NodeId AliasUpdateDataType_DataSetClassId = new NodeId(Opc.Ua.Variables.AliasUpdateDataType_DataSetClassId);
+
+        public static readonly NodeId AliasUpdateDataType_DataSetMetaData = new NodeId(Opc.Ua.Variables.AliasUpdateDataType_DataSetMetaData);
 
         public static readonly NodeId Aliases_FindAlias_InputArguments = new NodeId(Opc.Ua.Variables.Aliases_FindAlias_InputArguments);
 
         public static readonly NodeId Aliases_FindAlias_OutputArguments = new NodeId(Opc.Ua.Variables.Aliases_FindAlias_OutputArguments);
 
+        public static readonly NodeId Aliases_FindAliasVerbose_InputArguments = new NodeId(Opc.Ua.Variables.Aliases_FindAliasVerbose_InputArguments);
+
+        public static readonly NodeId Aliases_FindAliasVerbose_OutputArguments = new NodeId(Opc.Ua.Variables.Aliases_FindAliasVerbose_OutputArguments);
+
         public static readonly NodeId Aliases_LastChange = new NodeId(Opc.Ua.Variables.Aliases_LastChange);
+
+        public static readonly NodeId Aliases_AddAliasesToCategory_InputArguments = new NodeId(Opc.Ua.Variables.Aliases_AddAliasesToCategory_InputArguments);
+
+        public static readonly NodeId Aliases_AddAliasesToCategory_OutputArguments = new NodeId(Opc.Ua.Variables.Aliases_AddAliasesToCategory_OutputArguments);
+
+        public static readonly NodeId Aliases_DeleteAliasesFromCategory_InputArguments = new NodeId(Opc.Ua.Variables.Aliases_DeleteAliasesFromCategory_InputArguments);
+
+        public static readonly NodeId Aliases_DeleteAliasesFromCategory_OutputArguments = new NodeId(Opc.Ua.Variables.Aliases_DeleteAliasesFromCategory_OutputArguments);
 
         public static readonly NodeId TagVariables_FindAlias_InputArguments = new NodeId(Opc.Ua.Variables.TagVariables_FindAlias_InputArguments);
 
         public static readonly NodeId TagVariables_FindAlias_OutputArguments = new NodeId(Opc.Ua.Variables.TagVariables_FindAlias_OutputArguments);
 
+        public static readonly NodeId TagVariables_FindAliasVerbose_InputArguments = new NodeId(Opc.Ua.Variables.TagVariables_FindAliasVerbose_InputArguments);
+
+        public static readonly NodeId TagVariables_FindAliasVerbose_OutputArguments = new NodeId(Opc.Ua.Variables.TagVariables_FindAliasVerbose_OutputArguments);
+
+        public static readonly NodeId TagVariables_AddAliasesToCategory_InputArguments = new NodeId(Opc.Ua.Variables.TagVariables_AddAliasesToCategory_InputArguments);
+
+        public static readonly NodeId TagVariables_AddAliasesToCategory_OutputArguments = new NodeId(Opc.Ua.Variables.TagVariables_AddAliasesToCategory_OutputArguments);
+
+        public static readonly NodeId TagVariables_DeleteAliasesFromCategory_InputArguments = new NodeId(Opc.Ua.Variables.TagVariables_DeleteAliasesFromCategory_InputArguments);
+
+        public static readonly NodeId TagVariables_DeleteAliasesFromCategory_OutputArguments = new NodeId(Opc.Ua.Variables.TagVariables_DeleteAliasesFromCategory_OutputArguments);
+
         public static readonly NodeId Topics_FindAlias_InputArguments = new NodeId(Opc.Ua.Variables.Topics_FindAlias_InputArguments);
 
         public static readonly NodeId Topics_FindAlias_OutputArguments = new NodeId(Opc.Ua.Variables.Topics_FindAlias_OutputArguments);
+
+        public static readonly NodeId Topics_FindAliasVerbose_InputArguments = new NodeId(Opc.Ua.Variables.Topics_FindAliasVerbose_InputArguments);
+
+        public static readonly NodeId Topics_FindAliasVerbose_OutputArguments = new NodeId(Opc.Ua.Variables.Topics_FindAliasVerbose_OutputArguments);
+
+        public static readonly NodeId Topics_AddAliasesToCategory_InputArguments = new NodeId(Opc.Ua.Variables.Topics_AddAliasesToCategory_InputArguments);
+
+        public static readonly NodeId Topics_AddAliasesToCategory_OutputArguments = new NodeId(Opc.Ua.Variables.Topics_AddAliasesToCategory_OutputArguments);
+
+        public static readonly NodeId Topics_DeleteAliasesFromCategory_InputArguments = new NodeId(Opc.Ua.Variables.Topics_DeleteAliasesFromCategory_InputArguments);
+
+        public static readonly NodeId Topics_DeleteAliasesFromCategory_OutputArguments = new NodeId(Opc.Ua.Variables.Topics_DeleteAliasesFromCategory_OutputArguments);
 
         public static readonly NodeId UserManagementType_Users = new NodeId(Opc.Ua.Variables.UserManagementType_Users);
 
@@ -35266,6 +34102,8 @@ namespace Opc.Ua
 
         public static readonly NodeId LogObjectType_MinimumSeverity = new NodeId(Opc.Ua.Variables.LogObjectType_MinimumSeverity);
 
+        public static readonly NodeId LogObjectType_ReleaseContinuationPoint_InputArguments = new NodeId(Opc.Ua.Variables.LogObjectType_ReleaseContinuationPoint_InputArguments);
+
         public static readonly NodeId LogRecordMask_OptionSetValues = new NodeId(Opc.Ua.Variables.LogRecordMask_OptionSetValues);
 
         public static readonly NodeId BaseLogEventType_ConditionClassId = new NodeId(Opc.Ua.Variables.BaseLogEventType_ConditionClassId);
@@ -35276,6 +34114,8 @@ namespace Opc.Ua
 
         public static readonly NodeId BaseLogEventType_ErrorCodeNode = new NodeId(Opc.Ua.Variables.BaseLogEventType_ErrorCodeNode);
 
+        public static readonly NodeId BaseLogEventType_TraceContext = new NodeId(Opc.Ua.Variables.BaseLogEventType_TraceContext);
+
         public static readonly NodeId ServerLog_GetRecords_InputArguments = new NodeId(Opc.Ua.Variables.ServerLog_GetRecords_InputArguments);
 
         public static readonly NodeId ServerLog_GetRecords_OutputArguments = new NodeId(Opc.Ua.Variables.ServerLog_GetRecords_OutputArguments);
@@ -35285,6 +34125,8 @@ namespace Opc.Ua
         public static readonly NodeId ServerLog_MaxStorageDuration = new NodeId(Opc.Ua.Variables.ServerLog_MaxStorageDuration);
 
         public static readonly NodeId ServerLog_MinimumSeverity = new NodeId(Opc.Ua.Variables.ServerLog_MinimumSeverity);
+
+        public static readonly NodeId ServerLog_ReleaseContinuationPoint_InputArguments = new NodeId(Opc.Ua.Variables.ServerLog_ReleaseContinuationPoint_InputArguments);
 
         public static readonly NodeId IdType_EnumStrings = new NodeId(Opc.Ua.Variables.IdType_EnumStrings);
 
@@ -35383,6 +34225,8 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_IdentityMappingRuleType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_IdentityMappingRuleType);
 
         public static readonly NodeId OpcUa_BinarySchema_CurrencyUnitType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_CurrencyUnitType);
+
+        public static readonly NodeId OpcUa_BinarySchema_NumberRange = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_NumberRange);
 
         public static readonly NodeId OpcUa_BinarySchema_AnnotationDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AnnotationDataType);
 
@@ -35564,6 +34408,12 @@ namespace Opc.Ua
 
         public static readonly NodeId OpcUa_BinarySchema_AliasNameDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AliasNameDataType);
 
+        public static readonly NodeId OpcUa_BinarySchema_AliasNameVerboseDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AliasNameVerboseDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_AliasCategoryUpdateDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AliasCategoryUpdateDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_AliasUpdateDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AliasUpdateDataType);
+
         public static readonly NodeId OpcUa_BinarySchema_UserManagementDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_UserManagementDataType);
 
         public static readonly NodeId OpcUa_BinarySchema_PriorityMappingEntryType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PriorityMappingEntryType);
@@ -35623,6 +34473,8 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_MdnsDiscoveryConfiguration = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_MdnsDiscoveryConfiguration);
 
         public static readonly NodeId OpcUa_BinarySchema_SignedSoftwareCertificate = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_SignedSoftwareCertificate);
+
+        public static readonly NodeId OpcUa_BinarySchema_SignatureData = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_SignatureData);
 
         public static readonly NodeId OpcUa_BinarySchema_UserIdentityToken = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_UserIdentityToken);
 
@@ -35761,6 +34613,8 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_XmlSchema_IdentityMappingRuleType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_IdentityMappingRuleType);
 
         public static readonly NodeId OpcUa_XmlSchema_CurrencyUnitType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_CurrencyUnitType);
+
+        public static readonly NodeId OpcUa_XmlSchema_NumberRange = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_NumberRange);
 
         public static readonly NodeId OpcUa_XmlSchema_AnnotationDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AnnotationDataType);
 
@@ -35942,6 +34796,12 @@ namespace Opc.Ua
 
         public static readonly NodeId OpcUa_XmlSchema_AliasNameDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AliasNameDataType);
 
+        public static readonly NodeId OpcUa_XmlSchema_AliasNameVerboseDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AliasNameVerboseDataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_AliasCategoryUpdateDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AliasCategoryUpdateDataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_AliasUpdateDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AliasUpdateDataType);
+
         public static readonly NodeId OpcUa_XmlSchema_UserManagementDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_UserManagementDataType);
 
         public static readonly NodeId OpcUa_XmlSchema_PriorityMappingEntryType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PriorityMappingEntryType);
@@ -36001,6 +34861,8 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_XmlSchema_MdnsDiscoveryConfiguration = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_MdnsDiscoveryConfiguration);
 
         public static readonly NodeId OpcUa_XmlSchema_SignedSoftwareCertificate = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_SignedSoftwareCertificate);
+
+        public static readonly NodeId OpcUa_XmlSchema_SignatureData = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_SignatureData);
 
         public static readonly NodeId OpcUa_XmlSchema_UserIdentityToken = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_UserIdentityToken);
 
@@ -36188,9 +35050,13 @@ namespace Opc.Ua
 
         public static readonly NodeId AnalogItemType = new NodeId(Opc.Ua.VariableTypes.AnalogItemType);
 
+        public static readonly NodeId AnalogNumberItemType = new NodeId(Opc.Ua.VariableTypes.AnalogNumberItemType);
+
         public static readonly NodeId AnalogUnitType = new NodeId(Opc.Ua.VariableTypes.AnalogUnitType);
 
         public static readonly NodeId AnalogUnitRangeType = new NodeId(Opc.Ua.VariableTypes.AnalogUnitRangeType);
+
+        public static readonly NodeId AnalogNumberUnitRangeType = new NodeId(Opc.Ua.VariableTypes.AnalogNumberUnitRangeType);
 
         public static readonly NodeId DiscreteItemType = new NodeId(Opc.Ua.VariableTypes.DiscreteItemType);
 
@@ -36282,6 +35148,8 @@ namespace Opc.Ua
         public const string Actual = "Actual";
 
         public const string ActualSessionTimeout = "ActualSessionTimeout";
+
+        public const string AddAliasesToCategory = "AddAliasesToCategory";
 
         public const string AddApplication = "AddApplication";
 
@@ -36485,6 +35353,8 @@ namespace Opc.Ua
 
         public const string Alias_Placeholder = "<Alias>";
 
+        public const string AliasCategoryUpdateDataType = "AliasCategoryUpdateDataType";
+
         public const string Aliases = "Aliases";
 
         public const string AliasFor = "AliasFor";
@@ -36494,6 +35364,10 @@ namespace Opc.Ua
         public const string AliasNameDataType = "AliasNameDataType";
 
         public const string AliasNameType = "AliasNameType";
+
+        public const string AliasNameVerboseDataType = "AliasNameVerboseDataType";
+
+        public const string AliasUpdateDataType = "AliasUpdateDataType";
 
         public const string AllowedSubtype = "AllowedSubtype";
 
@@ -36508,6 +35382,10 @@ namespace Opc.Ua
         public const string AlwaysGeneratesEvent = "AlwaysGeneratesEvent";
 
         public const string AnalogItemType = "AnalogItemType";
+
+        public const string AnalogNumberItemType = "AnalogNumberItemType";
+
+        public const string AnalogNumberUnitRangeType = "AnalogNumberUnitRangeType";
 
         public const string AnalogUnitRangeType = "AnalogUnitRangeType";
 
@@ -37247,8 +36125,6 @@ namespace Opc.Ua
 
         public const string DefaultInstanceBrowseName = "DefaultInstanceBrowseName";
 
-        public const string DefaultJson = "Default JSON";
-
         public const string DefaultResponse = "DefaultResponse";
 
         public const string DefaultRolePermissions = "DefaultRolePermissions";
@@ -37266,6 +36142,8 @@ namespace Opc.Ua
         public const string Definition = "Definition";
 
         public const string Deletable = "Deletable";
+
+        public const string DeleteAliasesFromCategory = "DeleteAliasesFromCategory";
 
         public const string DeleteAtTimeCapability = "DeleteAtTimeCapability";
 
@@ -37483,6 +36361,8 @@ namespace Opc.Ua
 
         public const string EUInformation = "EUInformation";
 
+        public const string EUNumberRange = "EUNumberRange";
+
         public const string EURange = "EURange";
 
         public const string EventFieldList = "EventFieldList";
@@ -37584,6 +36464,8 @@ namespace Opc.Ua
         public const string FinalResultData = "FinalResultData";
 
         public const string FindAlias = "FindAlias";
+
+        public const string FindAliasVerbose = "FindAliasVerbose";
 
         public const string FindServersOnNetworkRequest = "FindServersOnNetworkRequest";
 
@@ -37942,6 +36824,8 @@ namespace Opc.Ua
         public const string InstanceNode = "InstanceNode";
 
         public const string InstrumentDiagnosticAlarmType = "InstrumentDiagnosticAlarmType";
+
+        public const string InstrumentNumberRange = "InstrumentNumberRange";
 
         public const string InstrumentRange = "InstrumentRange";
 
@@ -38585,6 +37469,8 @@ namespace Opc.Ua
 
         public const string NumberInList = "NumberInList";
 
+        public const string NumberRange = "NumberRange";
+
         public const string Numerator = "Numerator";
 
         public const string NumericRange = "NumericRange";
@@ -39066,6 +37952,8 @@ namespace Opc.Ua
         public const string RelativePath = "RelativePath";
 
         public const string RelativePathElement = "RelativePathElement";
+
+        public const string ReleaseContinuationPoint = "ReleaseContinuationPoint";
 
         public const string RemoteAgeouts = "RemoteAgeouts";
 
@@ -39772,6 +38660,8 @@ namespace Opc.Ua
         public const string TotalInformation = "TotalInformation";
 
         public const string TotalRequestCount = "TotalRequestCount";
+
+        public const string TraceContext = "TraceContext";
 
         public const string TraceContextDataType = "TraceContextDataType";
 
