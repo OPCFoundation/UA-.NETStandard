@@ -94,39 +94,25 @@ namespace Opc.Ua.Gds.Client
         public NodeId ApplicationCertificateType
             => Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
 
-        /// <summary>
-        /// Gets the application instance.
-        /// </summary>
+        /// <inheritdoc/>
         public ApplicationConfiguration Configuration { get; }
 
-        /// <summary>
-        /// Message context
-        /// </summary>
+        /// <inheritdoc/>
         public IServiceMessageContext MessageContext { get; }
 
-        /// <summary>
-        /// Gets or sets the admin credentials.
-        /// </summary>
+        /// <inheritdoc/>
         public IUserIdentity AdminCredentials { get; set; }
 
-        /// <summary>
-        /// Gets or sets the endpoint URL.
-        /// </summary>
+        /// <inheritdoc/>
         public string EndpointUrl => m_endpoint?.EndpointUrl.ToString();
 
-        /// <summary>
-        /// Raised when admin credentials are required.
-        /// </summary>
+        /// <inheritdoc/>
         public event EventHandler<AdminCredentialsRequiredEventArgs> AdminCredentialsRequired;
 
-        /// <summary>
-        /// Raised when the connection status changes.
-        /// </summary>
+        /// <inheritdoc/>
         public event EventHandler ConnectionStatusChanged;
 
-        /// <summary>
-        /// Gets or sets the preferred locales.
-        /// </summary>
+        /// <inheritdoc/>
         public ArrayOf<string> PreferredLocales { get; set; }
 
         /// <summary>
@@ -144,9 +130,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        /// <summary>
-        /// Gets the session.
-        /// </summary>
+        /// <inheritdoc/>
         public ISession Session { get; private set; }
 
         /// <summary>
@@ -183,18 +167,13 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        /// <summary>
-        /// Clears the cached <see cref="AdminCredentials"/>. Use this after
-        /// disconnecting from a server before connecting to a different one.
-        /// </summary>
+        /// <inheritdoc/>
         public void ResetCredentials()
         {
             AdminCredentials = null;
         }
 
-        /// <summary>
-        /// Occurs when keep alive occurs.
-        /// </summary>
+        /// <inheritdoc/>
         public event KeepAliveEventHandler KeepAlive;
 
         /// <summary>
@@ -246,20 +225,12 @@ namespace Opc.Ua.Gds.Client
                 GC.SuppressFinalize(this);
             }
         }
-        /// <summary>
-        /// Connects using the default endpoint.
-        /// </summary>
+        /// <inheritdoc/>
         public ValueTask ConnectAsync(CancellationToken ct = default)
         {
             return ConnectAsync(m_endpoint, ct);
         }
-        /// <summary>
-        /// Connects the specified endpoint URL.
-        /// </summary>
-        /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <param name="ct">The cancellationToken</param>
-        /// <exception cref="ArgumentNullException">endpointUrl</exception>
-        /// <exception cref="ArgumentException">endpointUrl</exception>
+        /// <inheritdoc/>
         public async ValueTask ConnectAsync(string endpointUrl, CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(endpointUrl))
@@ -315,12 +286,7 @@ namespace Opc.Ua.Gds.Client
                 "Failed to connect after {0} attempts.",
                 maxAttempts);
         }
-        /// <summary>
-        /// Connects the specified endpoint.
-        /// </summary>
-        /// <param name="endpoint">The endpoint.</param>
-        /// <param name="ct">The cancellationToken</param>
-        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
+        /// <inheritdoc/>
         public async ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
             endpoint ??= m_endpoint ?? throw new ArgumentNullException(nameof(endpoint));
@@ -353,9 +319,7 @@ namespace Opc.Ua.Gds.Client
                 "Failed to connect after {0} attempts.",
                 maxAttempts);
         }
-        /// <summary>
-        /// Disconnect the client connection.
-        /// </summary>
+        /// <inheritdoc/>
         public async ValueTask DisconnectAsync(CancellationToken ct = default)
         {
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
@@ -385,10 +349,7 @@ namespace Opc.Ua.Gds.Client
                 m_lock.Release();
             }
         }
-        /// <summary>
-        /// Gets the supported key formats.
-        /// </summary>
-        /// <exception cref="InvalidOperationException">Connection to server is not active.</exception>
+        /// <inheritdoc/>
         public async ValueTask<ArrayOf<string>> GetSupportedKeyFormatsAsync(CancellationToken ct = default)
         {
             if (AdminCredentials == null || Endpoint == null)
@@ -429,10 +390,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
-        /// <summary>
-        /// Reads the trust list.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public async ValueTask<TrustListDataType> ReadTrustListAsync(
             TrustListMasks masks = TrustListMasks.All,
             long maxTrustListSize = 0,
@@ -482,19 +440,13 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
-        /// <summary>
-        /// Updates the trust list.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public ValueTask<bool> UpdateTrustListAsync(TrustListDataType trustList, CancellationToken ct = default)
         {
             return UpdateTrustListAsync(trustList, 0, ct);
         }
 
-        /// <summary>
-        /// Updates the trust list.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public async ValueTask<bool> UpdateTrustListAsync(TrustListDataType trustList, long maxTrustListSize, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -535,9 +487,7 @@ namespace Opc.Ua.Gds.Client
                     session.NamespaceUris),
                 MessageContext.Telemetry);
         }
-        /// <summary>
-        /// Add certificate.
-        /// </summary>
+        /// <inheritdoc/>
         public async ValueTask AddCertificateAsync(X509Certificate2 certificate, bool isTrustedCertificate, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -563,9 +513,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
-        /// <summary>
-        /// Remove certificate.
-        /// </summary>
+        /// <inheritdoc/>
         public async ValueTask RemoveCertificateAsync(string thumbprint, bool isTrustedCertificate, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -617,15 +565,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
-        /// <summary>
-        /// Creates the CSR.
-        /// </summary>
-        /// <param name="certificateGroupId">The certificate group identifier.</param>
-        /// <param name="certificateTypeId">The certificate type identifier.</param>
-        /// <param name="subjectName">Name of the subject.</param>
-        /// <param name="regeneratePrivateKey">if set to <c>true</c> [regenerate private key].</param>
-        /// <param name="nonce">The nonce.</param>
-        /// <param name="ct">The cancellationtoken</param>
+        /// <inheritdoc/>
         public async ValueTask<ByteString> CreateSigningRequestAsync(
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -652,16 +592,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
-        /// <summary>
-        /// Updates the certificate.
-        /// </summary>
-        /// <param name="certificateGroupId">The group of the trust list.</param>
-        /// <param name="certificateTypeId">The type of the trust list.</param>
-        /// <param name="certificate">The certificate.</param>
-        /// <param name="privateKeyFormat">The format of the private key, PFX or PEM.</param>
-        /// <param name="privateKey">The private ky.</param>
-        /// <param name="issuerCertificates">An array containing the chain of issuer certificates.</param>
-        /// <param name="ct">The cancellationToken</param>
+        /// <inheritdoc/>
         public async ValueTask<bool> UpdateCertificateAsync(
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -690,9 +621,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
-        /// <summary>
-        /// Reads the rejected  list.
-        /// </summary>
+        /// <inheritdoc/>
         public async ValueTask<X509Certificate2Collection> GetRejectedListAsync(CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -713,9 +642,7 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
-        /// <summary>
-        /// Restarts this instance.
-        /// </summary>
+        /// <inheritdoc/>
         public async ValueTask ApplyChangesAsync(CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
