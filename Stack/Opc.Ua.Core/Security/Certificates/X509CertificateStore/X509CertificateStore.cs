@@ -181,8 +181,8 @@ namespace Opc.Ua
                     }
 
                     m_logger.LogInformation(
-                        "Added certificate {Certificate} to X509Store {Name}.",
-                        certificate,
+                        "Added certificate with thumbprint {Thumbprint} to X509Store {Name}.",
+                        certificate.Thumbprint,
                         store.Name);
                 }
             }
