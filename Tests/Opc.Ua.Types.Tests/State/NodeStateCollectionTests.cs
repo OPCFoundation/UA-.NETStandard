@@ -221,6 +221,55 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void SaveAsNodeSet2EmitsModelsForUserNamespaces()
+        {
+            const ushort customNs = 1;
+
+            var collection = new NodeStateCollection();
+            var folder = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(7001, customNs),
+                BrowseName = new QualifiedName("CustomFolder", customNs),
+                DisplayName = new LocalizedText("Custom Folder")
+            };
+            var variable = new BaseDataVariableState(folder)
+            {
+                NodeId = new NodeId(7002, customNs),
+                BrowseName = new QualifiedName("CustomVariable", customNs),
+                DisplayName = new LocalizedText("Custom Variable"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+            folder.AddChild(variable);
+            collection.Add(folder);
+            collection.Add(variable);
+
+            using var stream = new MemoryStream();
+            collection.SaveAsNodeSet2(m_context, stream);
+            Assert.That(stream.Length, Is.GreaterThan(0));
+
+            stream.Position = 0;
+            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream);
+
+            Assert.That(nodeSet.Models, Is.Not.Null, "<Models> element must be present");
+            Assert.That(nodeSet.Models, Is.Not.Empty, "<Models> must contain at least one <Model>");
+
+            Export.ModelTableEntry customModel =
+                Array.Find(nodeSet.Models, m => m.ModelUri == ApplicationUri);
+            Assert.That(customModel, Is.Not.Null, "Expected a <Model> for the custom namespace");
+            Assert.That(customModel.Version, Is.Not.Null.And.Not.Empty);
+            Assert.That(customModel.PublicationDateSpecified, Is.True);
+            Assert.That(customModel.RequiredModel, Is.Not.Null);
+            Assert.That(
+                Array.Exists(customModel.RequiredModel, r => r.ModelUri == Namespaces.OpcUa),
+                Is.True,
+                "Custom <Model> must declare the OPC UA base namespace as a <RequiredModel>");
+
+            folder.Dispose();
+            variable.Dispose();
+        }
+
+        [Test]
         public void SaveAsNodeSet2WithModel()
         {
             var collection = new NodeStateCollection();
