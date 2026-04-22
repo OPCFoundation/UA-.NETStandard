@@ -165,7 +165,8 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Stop()
         {
-            InternalStop().Wait();
+            // Stop publishers and clear IsRunning first so that no new publish operations
+            // are started while the transport is being shut down.
             lock (Lock)
             {
                 IsRunning = false;
@@ -174,6 +175,7 @@ namespace Opc.Ua.PubSub
                     publisher.Stop();
                 }
             }
+            InternalStop().Wait();
             m_logger.LogInformation("Connection '{Name}' was stopped.", PubSubConnectionConfiguration.Name);
         }
 
