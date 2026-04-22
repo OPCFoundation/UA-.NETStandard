@@ -2652,6 +2652,8 @@ namespace Opc.Ua
 
         public const uint DefaultXml = 3063;
 
+        public const uint DefaultJson = 24502;
+
         public const uint ModellingRule_Mandatory = 78;
 
         public const uint ModellingRule_Optional = 80;
@@ -5617,6 +5619,8 @@ namespace Opc.Ua
         public const uint MaxArrayLength = 11512;
 
         public const uint EngineeringUnits = 11513;
+
+        public const uint FixedSizeArray = 24501;
 
         public const uint EnumStrings = 11432;
 
@@ -20182,6 +20186,8 @@ namespace Opc.Ua
 
         public static readonly NodeId DefaultXml = new NodeId(Opc.Ua.Objects.DefaultXml);
 
+        public static readonly NodeId DefaultJson = new NodeId(Opc.Ua.Objects.DefaultJson);
+
         public static readonly NodeId ModellingRule_Mandatory = new NodeId(Opc.Ua.Objects.ModellingRule_Mandatory);
 
         public static readonly NodeId ModellingRule_Optional = new NodeId(Opc.Ua.Objects.ModellingRule_Optional);
@@ -23147,6 +23153,8 @@ namespace Opc.Ua
         public static readonly NodeId MaxArrayLength = new NodeId(Opc.Ua.Variables.MaxArrayLength);
 
         public static readonly NodeId EngineeringUnits = new NodeId(Opc.Ua.Variables.EngineeringUnits);
+
+        public static readonly NodeId FixedSizeArray = new NodeId(Opc.Ua.Variables.FixedSizeArray);
 
         public static readonly NodeId EnumStrings = new NodeId(Opc.Ua.Variables.EnumStrings);
 
@@ -36125,6 +36133,8 @@ namespace Opc.Ua
 
         public const string DefaultInstanceBrowseName = "DefaultInstanceBrowseName";
 
+        public const string DefaultJson = "Default JSON";
+
         public const string DefaultResponse = "DefaultResponse";
 
         public const string DefaultRolePermissions = "DefaultRolePermissions";
@@ -36486,6 +36496,8 @@ namespace Opc.Ua
         public const string FirstInGroupFlag = "FirstInGroupFlag";
 
         public const string FixedBase = "FixedBase";
+
+        public const string FixedSizeArray = "FixedSizeArray";
 
         public const string Float = "Float";
 

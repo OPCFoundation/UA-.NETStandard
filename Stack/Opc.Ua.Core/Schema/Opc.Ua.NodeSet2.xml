@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2026-04-15T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2026-04-20T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.07" PublicationDate="2026-04-15T00:00:00Z" ModelVersion="1.5.7" />
+    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.07" PublicationDate="2026-04-20T00:00:00Z" ModelVersion="1.5.7" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -86,14 +86,20 @@
     <Alias Alias="AlarmGroupMember">i=16362</Alias>
     <Alias Alias="AlarmSuppressionGroupMember">i=32059</Alias>
   </Aliases>
-  <UAObject NodeId="i=3062" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+  <UAObject NodeId="i=3062" BrowseName="Default Binary" SymbolicName="DefaultBinary" DesignToolOnly="true">
     <DisplayName>Default Binary</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=3063" BrowseName="Default XML" SymbolicName="DefaultXml">
+  <UAObject NodeId="i=3063" BrowseName="Default XML" SymbolicName="DefaultXml" DesignToolOnly="true">
     <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=24502" BrowseName="Default JSON" SymbolicName="DefaultJson" DesignToolOnly="true">
+    <DisplayName>Default JSON</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
     </References>
@@ -968,7 +974,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=15957</Reference>
     </References>
     <Value>
-      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-04-15T00:00:00Z</DateTime>
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-04-20T00:00:00Z</DateTime>
     </Value>
   </UAVariable>
   <UAVariable NodeId="i=15961" BrowseName="IsNamespaceSubset" ParentNodeId="i=15957" DataType="Boolean">
@@ -1145,6 +1151,12 @@
   </UAVariable>
   <UAVariable NodeId="i=11513" BrowseName="EngineeringUnits" DataType="i=887">
     <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=24501" BrowseName="FixedSizeArray" DataType="Boolean">
+    <DisplayName>FixedSizeArray</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
@@ -54898,7 +54910,7 @@
   </UAVariable>
   <UAMethod NodeId="i=23963" BrowseName="FindAliasVerbose" ParentNodeId="i=23456">
     <DisplayName>FindAliasVerbose</DisplayName>
-    <Category>AliasName Verbose</Category>
+    <Category>AliasName FindAliasVerbose</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part17/6.3.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=23964</Reference>
@@ -54988,7 +55000,7 @@
   </UAVariable>
   <UAMethod NodeId="i=23972" BrowseName="AddAliasesToCategory" ParentNodeId="i=23456">
     <DisplayName>AddAliasesToCategory</DisplayName>
-    <Category>AliasName Configuration</Category>
+    <Category>AliasName Configuration Support</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part17/6.3.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=23973</Reference>
@@ -55106,7 +55118,7 @@
   </UAVariable>
   <UAMethod NodeId="i=23975" BrowseName="DeleteAliasesFromCategory" ParentNodeId="i=23456">
     <DisplayName>DeleteAliasesFromCategory</DisplayName>
-    <Category>AliasName Configuration</Category>
+    <Category>AliasName Configuration Support</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part17/6.3.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=23976</Reference>
@@ -55204,7 +55216,7 @@
   </UADataType>
   <UADataType NodeId="i=24051" BrowseName="AliasNameVerboseDataType">
     <DisplayName>AliasNameVerboseDataType</DisplayName>
-    <Category>AliasName Verbose</Category>
+    <Category>AliasName FindAliasVerbose</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part17/7.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -55218,7 +55230,7 @@
   </UADataType>
   <UADataType NodeId="i=24052" BrowseName="AliasCategoryUpdateDataType">
     <DisplayName>AliasCategoryUpdateDataType</DisplayName>
-    <Category>AliasName Base</Category>
+    <Category>AliasName PubSub Notification</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part17/D.2.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -55230,7 +55242,7 @@
   </UADataType>
   <UADataType NodeId="i=24053" BrowseName="AliasUpdateDataType">
     <DisplayName>AliasUpdateDataType</DisplayName>
-    <Category>AliasName Base</Category>
+    <Category>AliasName PubSub Notification</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part17/D.2.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=24499</Reference>
@@ -73788,7 +73800,7 @@ ZXMueHNkIg0KICB0YXJnZXROYW1lc3BhY2U9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS8y
 MDA4LzAyL1R5cGVzLnhzZCINCiAgZWxlbWVudEZvcm1EZWZhdWx0PSJxdWFsaWZpZWQiDQo+DQog
 IDx4czphbm5vdGF0aW9uPg0KICAgIDx4czphcHBpbmZvPg0KICAgICAgPHVhOk1vZGVsIE1vZGVs
 VXJpPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvIiBWZXJzaW9uPSIxLjA1LjA3IiBQdWJs
-aWNhdGlvbkRhdGU9IjIwMjYtMDQtMTVUMDA6MDA6MDBaIiAvPg0KICAgIDwveHM6YXBwaW5mbz4N
+aWNhdGlvbkRhdGU9IjIwMjYtMDQtMjBUMDA6MDA6MDBaIiAvPg0KICAgIDwveHM6YXBwaW5mbz4N
 CiAgPC94czphbm5vdGF0aW9uPg0KICANCiAgPHhzOmVsZW1lbnQgbmFtZT0iQm9vbGVhbiIgdHlw
 ZT0ieHM6Ym9vbGVhbiIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mQm9vbGVh
 biI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iQm9vbGVhbiIg
