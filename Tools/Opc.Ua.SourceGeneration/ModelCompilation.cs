@@ -100,7 +100,12 @@ namespace Opc.Ua.SourceGeneration
                     UseUtf8StringLiterals =
                         m_compilationOptions.LanguageVersion >= LanguageVersion.CSharp11,
                     OptimizeForCompileSpeed =
-                        m_compilationOptions.OptimizationLevel == OptimizationLevel.Debug
+                        m_compilationOptions.OptimizationLevel == OptimizationLevel.Debug,
+                    OmitObjectTypeProxies = m_options.OmitObjectTypeProxies,
+                    ObjectTypeProxyNamespace =
+                        string.IsNullOrWhiteSpace(m_options.ObjectTypeProxyNamespace)
+                            ? null
+                            : m_options.ObjectTypeProxyNamespace
                 };
 
                 // Load all available nodeset files from the input

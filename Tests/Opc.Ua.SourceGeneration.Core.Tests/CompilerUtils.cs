@@ -289,27 +289,13 @@ namespace Opc.Ua.SourceGeneration
             this ImmutableArray<Diagnostic> diagnostics,
             TextWriter output,
             out int errorCount,
-            out int warnCount,
-            bool filterLinkerAndReferenceErrors = false)
+            out int warnCount)
         {
             errorCount = 0;
             warnCount = 0;
             for (int ii = 0; ii < diagnostics.Length; ii++)
             {
                 Diagnostic diag = diagnostics[ii];
-                if (filterLinkerAndReferenceErrors &&
-                    (
-                        // diag.Id == "CS0234" ||
-                        diag.Id == "CS0246" ||
-                        diag.Id == "CS1729" ||
-                        diag.Id == "CS1501" ||
-                        diag.Id == "CS0103" ||
-                        diag.Id == "CS1503"
-                    ))
-                {
-                    // ignore missing reference and symbols errors
-                    continue;
-                }
 
                 string sev;
                 int beforeAfter;
@@ -505,11 +491,15 @@ namespace Opc.Ua.SourceGeneration
                 {
                     public virtual NodeId NodeId { get; set; }
                 }
-                public interface IClientBase {}
+                public interface IClientBase
+                {
+                    IServiceMessageContext MessageContext { get; }
+                }
                 public class ClientBase : IClientBase
                 {
                     public ClientBase(ITransportChannel channel, ITelemetryContext telemetry) { }
                     public ITransportChannel TransportChannel => throw new NotSupportedException();
+                    public IServiceMessageContext MessageContext => throw new NotSupportedException();
 
                     protected static void ValidateResponse(
                         ResponseHeader? header) {}
@@ -518,6 +508,29 @@ namespace Opc.Ua.SourceGeneration
                     protected virtual void RequestCompleted(
                         IServiceRequest request, IServiceResponse response,
                         string serviceName) {}
+                }
+                public interface ISessionClient : IClientBase
+                {
+                }
+                public abstract class ObjectTypeClient
+                {
+                    protected ObjectTypeClient(
+                        ISessionClient session,
+                        NodeId objectId,
+                        ITelemetryContext telemetry)
+                    {
+                        Session = session;
+                        ObjectId = objectId;
+                        Telemetry = telemetry;
+                    }
+                    protected ISessionClient Session { get; }
+                    public NodeId ObjectId { get; }
+                    protected ITelemetryContext Telemetry { get; }
+                    protected ValueTask<ArrayOf<Variant>> CallMethodAsync(
+                        NodeId methodId,
+                        CancellationToken ct,
+                        params Variant[] args)
+                        => default;
                 }
                 public class FolderState : BaseObjectState
                 {
@@ -540,6 +553,7 @@ namespace Opc.Ua.SourceGeneration
                 public static partial class StatusCodes
                 {
                     public const uint Good = 0;
+                    public const uint BadUnexpectedError = 0x80010000u;
                 }
 
                 public static partial class DataTypes
@@ -880,6 +894,76 @@ namespace Opc.Ua.SourceGeneration
                 public class DeleteFileSystemObjectMethodState : MethodState
                 {
                     public DeleteFileSystemObjectMethodState(NodeState? parent) : base(parent) { }
+                }
+
+                public interface IClientBase
+                {
+                    IServiceMessageContext MessageContext { get; }
+                }
+                public interface ISessionClient : IClientBase
+                {
+                }
+                public abstract class ObjectTypeClient
+                {
+                    protected ObjectTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                    {
+                        Session = session;
+                        ObjectId = objectId;
+                        Telemetry = telemetry;
+                    }
+                    protected ISessionClient Session { get; }
+                    public NodeId ObjectId { get; }
+                    protected ITelemetryContext Telemetry { get; }
+                    protected System.Threading.Tasks.ValueTask<ArrayOf<Variant>> CallMethodAsync(
+                        NodeId methodId,
+                        System.Threading.CancellationToken ct,
+                        params Variant[] inputArguments)
+                    {
+                        return default;
+                    }
+                }
+                public partial class BaseObjectTypeClient : ObjectTypeClient
+                {
+                    public BaseObjectTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class FolderTypeClient : BaseObjectTypeClient
+                {
+                    public FolderTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class BaseEventTypeClient : BaseObjectTypeClient
+                {
+                    public BaseEventTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class ConditionTypeClient : BaseObjectTypeClient
+                {
+                    public ConditionTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class BaseInterfaceTypeClient : BaseObjectTypeClient
+                {
+                    public BaseInterfaceTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class FiniteStateMachineTypeClient : BaseObjectTypeClient
+                {
+                    public FiniteStateMachineTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class InstrumentDiagnosticAlarmTypeClient : BaseObjectTypeClient
+                {
+                    public InstrumentDiagnosticAlarmTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
                 }
             }
             """;

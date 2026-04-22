@@ -1,4 +1,4 @@
-﻿# Source generation for OPC UA .NET Standard Library
+# Source generation for OPC UA .NET Standard Library
 
 This project uses C# source generators to create parts of the OPC UA .NET Standard Library at compile time. 
 Source generators are a powerful feature in C# that allow developers to generate additional source code 
@@ -79,9 +79,72 @@ The following functionality will be implemented over time
 - Support for generating complex types with nested data types. If the type references other data types, these 
   must be built in or implement IEncodeable to be included.
 
+## ObjectType client proxies
+
+In addition to data type generation, the source generator emits a strongly
+typed asynchronous **client proxy** for every `ObjectType` defined in the
+processed model. Each emitted class is named `{TypeName}Client` and exposes
+the OPC UA methods declared by that ObjectType as `await`-able C# methods
+that internally translate to a `CallRequest` over an `ISessionClient`.
+
+### Inheritance and shadowing
+
+Generated proxies form an inheritance chain that mirrors the OPC UA type
+hierarchy:
+
+* If an ObjectType derives from another ObjectType, its proxy derives
+  from that parent's proxy — even when the parent lives in a different
+  assembly (e.g. `DirectoryTypeClient : Opc.Ua.FolderTypeClient`).
+* The roots of the chain (types that derive directly from
+  `BaseObjectType`) ultimately inherit from the hand-authored abstract
+  base `Opc.Ua.ObjectTypeClient`, which provides the `Session`,
+  `ObjectId`, `Telemetry` properties and the `CallMethodAsync` helper
+  used by every generated wrapper.
+* When an ObjectType declares a method with the same browse name as an
+  ancestor method but a different signature, the generated wrapper is
+  emitted with the C# `new` modifier so the derived signature shadows
+  the inherited one.
+
+The standard UA stack ships with proxies for every ObjectType in the
+core NodeSet (e.g. `FileTypeClient`, `TrustListTypeClient`,
+`ServerConfigurationTypeClient`, …) emitted into the `Opc.Ua` namespace,
+so downstream models can simply derive from them.
+
+### Output namespace
+
+By default each model emits its proxies into its **own** namespace —
+the C# prefix of the model's target namespace. For example:
+
+| Model           | Proxy namespace |
+| --------------- | --------------- |
+| Standard UA     | `Opc.Ua`        |
+| GDS             | `Opc.Ua.Gds`    |
+| Custom NodeSet  | matches the model's target namespace prefix |
+
+To redirect proxy emission to a different namespace, set the
+`ModelSourceGeneratorObjectTypeProxyNamespace` MSBuild property.
+
+### MSBuild properties
+
+The proxy generator is controlled by the following MSBuild properties on
+the consuming project:
+
+| Property | Description |
+| -------- | ----------- |
+| `ModelSourceGeneratorOmitObjectTypeProxies` | Set to `true` to suppress emission of `*TypeClient` proxies. By default proxies are emitted for every `ObjectType` in the model alongside the standard model output (constants, NodeIds, NodeStates, DataTypes, schemas). |
+| `ModelSourceGeneratorObjectTypeProxyNamespace` | Optional. Overrides the C# namespace used for the emitted proxy classes. Defaults to the model's own namespace. |
+
+Example (suppress proxy emission for a model that does not need them):
+
+```xml
+<PropertyGroup>
+  <ModelSourceGeneratorOmitObjectTypeProxies>true</ModelSourceGeneratorOmitObjectTypeProxies>
+</PropertyGroup>
+```
+
 ## Implementation details
 
-The source generator is implemented using the Roslyn API, which provides a rich set of tools for analyzing
+The source generator is implemented using the Roslyn API,which provides a rich set of tools for analyzing
 and generating C# code. The generator finds all marker attributes such as `[DataType]` in your code and
 builds the model design from it. It then processes the model design to generate the necessary C# code.
 The annotated types are grouped by namespace. Each namespace will result in a separate generated file.
