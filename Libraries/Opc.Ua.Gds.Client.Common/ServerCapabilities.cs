@@ -29,31 +29,44 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Collections.Immutable;
 
 namespace Opc.Ua.Gds.Client
 {
     /// <summary>
-    /// The set known capability identifiers.
+    /// The set of known server capability identifiers, populated from the
+    /// generated <see cref="ServerCapability"/> catalog.
     /// </summary>
-    public class ServerCapabilities : IEnumerable<ServerCapability>
+    public class ServerCapabilities : IEnumerable<ServerCapabilityInfo>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ServerCapabilities"/> class.
         /// </summary>
         public ServerCapabilities()
         {
-            Load();
-        }
+            ImmutableArray<ServerCapabilityInfo>.Builder builder
+                = ImmutableArray.CreateBuilder<ServerCapabilityInfo>();
+            var lookup = new Dictionary<string, ServerCapabilityInfo>(StringComparer.Ordinal);
 
-        public IEnumerator<ServerCapability> GetEnumerator()
-        {
-            if (m_capabilities == null)
+            foreach (KeyValuePair<string, string> entry in ServerCapability.All)
             {
-                return new List<ServerCapability>().GetEnumerator();
+                var capability = new ServerCapabilityInfo { Id = entry.Key, Description = entry.Value };
+                builder.Add(capability);
+                lookup[entry.Key] = capability;
             }
 
-            return m_capabilities.GetEnumerator();
+            m_capabilities = builder.ToImmutable();
+            m_lookup = lookup;
+        }
+
+        /// <inheritdoc/>
+        public IEnumerator<ServerCapabilityInfo> GetEnumerator()
+        {
+            ImmutableArray<ServerCapabilityInfo> capabilities = m_capabilities;
+            for (int i = 0; i < capabilities.Length; i++)
+            {
+                yield return capabilities[i];
+            }
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
@@ -62,112 +75,40 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Loads the default set of server capability identifiers.
-        /// </summary>
-        public void Load()
-        {
-            Load(null);
-        }
-
-        /// <summary>
-        /// Loads the set of server capability identifiers from the stream.
-        /// </summary>
-        /// <param name="istrm">The input stream.</param>
-        public void Load(Stream istrm)
-        {
-            var capabilities = new List<ServerCapability>();
-
-            if (istrm == null)
-            {
-                foreach (string resourceName in typeof(Ua.ObjectIds).Assembly
-                    .GetManifestResourceNames())
-                {
-                    if (resourceName.EndsWith(
-                        "ServerCapabilities.csv",
-                        StringComparison.OrdinalIgnoreCase))
-                    {
-                        istrm = typeof(Ua.ObjectIds).Assembly
-                            .GetManifestResourceStream(resourceName);
-                        break;
-                    }
-                }
-            }
-
-            if (istrm != null)
-            {
-                using var reader = new StreamReader(istrm);
-                string line = reader.ReadLine();
-
-                while (line != null)
-                {
-                    int index = line.IndexOf(',', StringComparison.Ordinal);
-
-                    if (index >= 0)
-                    {
-                        string id = line[..index].Trim();
-                        string description = line[(index + 1)..].Trim();
-                        capabilities.Add(
-                            new ServerCapability { Id = id, Description = description });
-                    }
-
-                    line = reader.ReadLine();
-                }
-            }
-
-            m_capabilities = capabilities;
-        }
-
-        /// <summary>
         /// Finds the server capability with the specified identifier.
         /// </summary>
         /// <param name="id">The identifier.</param>
         /// <returns>The server capability, if found. NULL if it does not exist.</returns>
-        public ServerCapability Find(string id)
+        public ServerCapabilityInfo Find(string id)
         {
-            if (id != null && m_capabilities != null)
+            if (id == null || m_lookup == null)
             {
-                foreach (ServerCapability capability in m_capabilities)
-                {
-                    if (capability.Id == id)
-                    {
-                        return capability;
-                    }
-                }
+                return null;
             }
 
-            return null;
+            return m_lookup.TryGetValue(id, out ServerCapabilityInfo capability) ? capability : null;
         }
 
-        private List<ServerCapability> m_capabilities;
+        private readonly ImmutableArray<ServerCapabilityInfo> m_capabilities;
+        private readonly Dictionary<string, ServerCapabilityInfo> m_lookup;
     }
 
     /// <summary>
-    /// A server capability.
+    /// A server capability entry (identifier and human-readable description).
     /// </summary>
-    public class ServerCapability : IFormattable
+    public class ServerCapabilityInfo : IFormattable
     {
         /// <summary>
         /// Gets or sets the identifier.
         /// </summary>
-        /// <value>
-        /// The identifier.
-        /// </value>
         public string Id { get; set; }
 
         /// <summary>
         /// Gets or sets the description.
         /// </summary>
-        /// <value>
-        /// The description.
-        /// </value>
         public string Description { get; set; }
 
-        /// <summary>
-        /// Returns a <see cref="string" /> that represents this instance.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string" /> that represents this instance.
-        /// </returns>
+        /// <inheritdoc/>
         public override string ToString()
         {
             return ToString(null, null);
@@ -178,9 +119,6 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="format">The format. Must be null.</param>
         /// <param name="formatProvider">The format provider.</param>
-        /// <returns>
-        /// A <see cref="string" /> that represents this instance.
-        /// </returns>
         /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -191,45 +129,5 @@ namespace Opc.Ua.Gds.Client
 
             return string.Format(formatProvider, "[{0}] {1}", Id, Description);
         }
-
-        /// <summary>
-        /// No information is available.
-        /// </summary>
-        public const string NoInformation = "NA";
-
-        /// <summary>
-        /// The server supports live data.
-        /// </summary>
-        public const string LiveData = "DA";
-
-        /// <summary>
-        /// The server supports alarms and conditions
-        /// </summary>
-        public const string AlarmsAndConditions = "AC";
-
-        /// <summary>
-        /// The server supports historical data.
-        /// </summary>
-        public const string HistoricalData = "HD";
-
-        /// <summary>
-        /// The server supports historical events.
-        /// </summary>
-        public const string HistoricalEvents = "HE";
-
-        /// <summary>
-        /// The server is a global discovery server.
-        /// </summary>
-        public const string GlobalDiscoveryServer = "GDS";
-
-        /// <summary>
-        /// The server is a local discovery server.
-        /// </summary>
-        public const string LocalDiscoveryServer = "LDS";
-
-        /// <summary>
-        /// The server supports the device integration (DI) information model.
-        /// </summary>
-        public const string DI = "DI";
     }
 }

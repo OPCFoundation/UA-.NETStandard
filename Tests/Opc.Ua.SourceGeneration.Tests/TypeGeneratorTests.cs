@@ -465,11 +465,7 @@ namespace TestApp.Incremental
             outputB.GetDiagnostics().Check(
                 TestContext.Out,
                 out int errors,
-                out int warnings,
-                filterLinkerAndReferenceErrors: true);
-            errors -= outputB.GetDiagnostics()
-                .Count(d => d.Id == "CS0234" &&
-                    d.Severity == DiagnosticSeverity.Error);
+                out int warnings);
             Assert.That(errors, Is.Zero,
                 $"Final incremental compilation produced {errors} errors");
         }
@@ -512,14 +508,7 @@ namespace TestApp.Incremental
             outputCompilation.GetDiagnostics().Check(
                 TestContext.Out,
                 out int errors,
-                out int warnings,
-                filterLinkerAndReferenceErrors: true);
-
-            // Filter CS0234 (namespace member not found) which occurs
-            // because the test stubs don't include Opc.Ua.Utils
-            errors -= outputCompilation.GetDiagnostics()
-                .Count(d => d.Id == "CS0234" &&
-                    d.Severity == DiagnosticSeverity.Error);
+                out int warnings);
 
             if (!expectErrors)
             {

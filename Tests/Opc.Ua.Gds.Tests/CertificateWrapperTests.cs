@@ -210,51 +210,9 @@ namespace Opc.Ua.Gds.Tests
         public void CloneCreatesCopyWithSameCertificate()
         {
             var wrapper = new CertificateWrapper { Certificate = m_testCertificate };
-            var clone = (CertificateWrapper)wrapper.Clone();
+            CertificateWrapper clone = wrapper.Clone();
             Assert.That(clone, Is.Not.SameAs(wrapper));
             Assert.That(clone.Certificate, Is.SameAs(wrapper.Certificate));
-        }
-
-        [Test]
-        public void EncodeThrowsNotImplementedException()
-        {
-            var wrapper = new CertificateWrapper();
-            Assert.Throws<NotImplementedException>(() => wrapper.Encode(null));
-        }
-
-        [Test]
-        public void DecodeThrowsNotImplementedException()
-        {
-            var wrapper = new CertificateWrapper();
-            Assert.Throws<NotImplementedException>(() => wrapper.Decode(null));
-        }
-
-        [Test]
-        public void IsEqualThrowsNotImplementedException()
-        {
-            var wrapper = new CertificateWrapper();
-            Assert.Throws<NotImplementedException>(() => wrapper.IsEqual(null));
-        }
-
-        [Test]
-        public void TypeIdReturnsNodeIdNull()
-        {
-            var wrapper = new CertificateWrapper();
-            Assert.That(wrapper.TypeId, Is.EqualTo(NodeId.Null));
-        }
-
-        [Test]
-        public void BinaryEncodingIdReturnsNodeIdNull()
-        {
-            var wrapper = new CertificateWrapper();
-            Assert.That(wrapper.BinaryEncodingId, Is.EqualTo(NodeId.Null));
-        }
-
-        [Test]
-        public void XmlEncodingIdReturnsNodeIdNull()
-        {
-            var wrapper = new CertificateWrapper();
-            Assert.That(wrapper.XmlEncodingId, Is.EqualTo(NodeId.Null));
         }
 
         [Test]
