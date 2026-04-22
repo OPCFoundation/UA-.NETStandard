@@ -64,6 +64,46 @@ namespace Opc.Ua.SourceGeneration
         /// -rc
         /// </summary>
         public bool ReleaseCandidate { get; init; } = true;
+
+        /// <summary>
+        /// When <c>true</c>, also emits a <c>{Namespace}NodeManager</c>
+        /// (a <c>partial class</c> deriving from
+        /// <c>Opc.Ua.Server.AsyncCustomNodeManager</c>) and a matching
+        /// <c>{Namespace}NodeManagerFactory</c> implementing
+        /// <c>Opc.Ua.Server.INodeManagerFactory</c>.
+        /// <para>
+        /// The generated manager exposes a
+        /// <c>partial void Configure(INodeManagerBuilder builder)</c>
+        /// extensibility hook that user code can implement in a sibling
+        /// partial to wire callbacks via the fluent
+        /// <c>Opc.Ua.Server.Fluent</c> API.
+        /// </para>
+        /// </summary>
+        public bool GenerateNodeManager { get; init; }
+
+        /// <summary>
+        /// Optional override for the namespace of the generated
+        /// <c>NodeManager</c> partial. When set, the generator emits
+        /// <c>partial class {NodeManagerClassName}</c> in this namespace
+        /// instead of using the design file <c>Prefix</c>. Used by the
+        /// <c>[NodeManager]</c> attribute discovery path.
+        /// </summary>
+        public string NodeManagerNamespace { get; init; }
+
+        /// <summary>
+        /// Optional override for the class name of the generated
+        /// <c>NodeManager</c> partial. Defaults to
+        /// <c>{Prefix}NodeManager</c>. Used by the <c>[NodeManager]</c>
+        /// attribute discovery path.
+        /// </summary>
+        public string NodeManagerClassName { get; init; }
+
+        /// <summary>
+        /// Whether to also emit the <c>{ClassName}Factory</c>. Defaults
+        /// to <c>true</c>. Set to <c>false</c> when the consumer wants
+        /// to author the factory by hand.
+        /// </summary>
+        public bool EmitNodeManagerFactory { get; init; } = true;
     }
 
     /// <summary>

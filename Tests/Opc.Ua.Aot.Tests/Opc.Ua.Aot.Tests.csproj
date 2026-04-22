@@ -21,6 +21,9 @@
     <ProjectReference Include="..\..\Applications\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
+    <ProjectReference Include="..\..\Applications\MinimalBoilerServer\MinimalBoilerServer.csproj">
+      <Aliases>boilersample</Aliases>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Update="Quickstarts.ReferenceServer.Config.xml">

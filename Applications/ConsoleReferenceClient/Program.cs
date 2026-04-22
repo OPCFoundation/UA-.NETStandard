@@ -131,6 +131,13 @@ namespace Quickstarts.ConsoleReferenceClient
             {
                 Description = "Export all fetched nodes into Nodeset2 xml per default"
             };
+            var exportNamespaceOption = new Option<string[]>("--namespace", "--ns")
+            {
+                Description =
+                    "Restrict --export to nodes whose namespace URI is in the supplied list. " +
+                    "Repeat the option to add more, e.g. --namespace http://opcfoundation.org/UA/Boiler/ " +
+                    "--namespace urn:other. When omitted, all non-OPC-UA-base namespaces are exported."
+            };
             var fetchAllOption = new Option<bool>("--fetchall", "--fa")
             {
                 Description = "Fetch all nodes"
@@ -183,6 +190,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 managedBrowseAllOption,
                 browseAllOption,
                 exportOption,
+                exportNamespaceOption,
                 fetchAllOption,
                 jsonOption,
                 verboseOption,
@@ -226,6 +234,10 @@ namespace Quickstarts.ConsoleReferenceClient
                     parseResult.GetValue(managedBrowseAllOption);
                 bool browseall = parseResult.GetValue(browseAllOption);
                 bool exportNodes = parseResult.GetValue(exportOption);
+                string[] exportNamespacesRaw = parseResult.GetValue(exportNamespaceOption);
+                HashSet<string> exportNamespaces = exportNamespacesRaw is { Length: > 0 }
+                    ? new HashSet<string>(exportNamespacesRaw, StringComparer.OrdinalIgnoreCase)
+                    : null;
                 bool fetchall = parseResult.GetValue(fetchAllOption);
                 bool jsonvalues = parseResult.GetValue(jsonOption);
                 bool verbose = parseResult.GetValue(verboseOption);
@@ -530,6 +542,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                                 uaClient.Session,
                                                 allNodes,
                                                 Environment.CurrentDirectory,
+                                                exportNamespaces,
                                                 cancellationToken)
                                             .ConfigureAwait(false);
                                     }

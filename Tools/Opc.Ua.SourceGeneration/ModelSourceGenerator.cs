@@ -75,15 +75,25 @@ namespace Opc.Ua.SourceGeneration
                 context.CompilationProvider
                     .Select((c, _) => ReferencedModelDependencyScanner.Scan(c));
 
+            IncrementalValueProvider<ImmutableArray<NodeManagerAttributeDiscovery>> nodeManagerBindings =
+                context.SyntaxProvider.ForAttributeWithMetadataName(
+                    "Opc.Ua.Server.Fluent.NodeManagerAttribute",
+                    static (node, ct) => NodeManagerAttributeDiscovery.Handles(node, ct),
+                    static (ctx, ct) => NodeManagerAttributeDiscovery.Create(ctx, ct))
+                .Where(static m => m is not null)
+                .Collect();
+
             context.RegisterSourceOutput(
                 inputFiles
                     .Combine(identiferFile)
                     .Combine(options)
                     .Combine(settings)
-                    .Combine(referencedModels),
+                    .Combine(referencedModels)
+                    .Combine(nodeManagerBindings),
                 (context, combination) => new ModelCompilation(
                     context,
-                    combination.Left.Left.Left.Left,
+                    combination.Left.Left.Left.Left.Left,
+                    combination.Left.Left.Left.Left.Right,
                     combination.Left.Left.Left.Right,
                     combination.Left.Left.Right,
                     combination.Left.Right,

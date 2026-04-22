@@ -197,6 +197,49 @@ namespace Opc.Ua
                 nodeSet.Export(context, this[ii], true);
             }
 
+            // Emit a <Models> block with one <Model> per user namespace referenced by the
+            // exported nodes. The source generator (and other consumers) require the Models
+            // element to identify the namespace(s) declared by the NodeSet file.
+            if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length > 0)
+            {
+                DateTime publicationDate = lastModified?.ToUniversalTime() ?? DateTime.UtcNow;
+                string modelVersion = string.IsNullOrEmpty(version) ? "1.0.0" : version;
+
+                // Each user namespace declares the OPC UA base namespace as a required
+                // model and any other user namespaces that are referenced by this export.
+                var models = new Export.ModelTableEntry[nodeSet.NamespaceUris.Length];
+                for (int ii = 0; ii < nodeSet.NamespaceUris.Length; ii++)
+                {
+                    string modelUri = nodeSet.NamespaceUris[ii];
+                    var requiredModels = new List<Export.ModelTableEntry>
+                    {
+                        new() { ModelUri = Namespaces.OpcUa }
+                    };
+
+                    for (int jj = 0; jj < nodeSet.NamespaceUris.Length; jj++)
+                    {
+                        if (jj != ii)
+                        {
+                            requiredModels.Add(new Export.ModelTableEntry
+                            {
+                                ModelUri = nodeSet.NamespaceUris[jj]
+                            });
+                        }
+                    }
+
+                    models[ii] = new Export.ModelTableEntry
+                    {
+                        ModelUri = modelUri,
+                        Version = modelVersion,
+                        PublicationDate = publicationDate,
+                        PublicationDateSpecified = true,
+                        RequiredModel = [.. requiredModels]
+                    };
+                }
+
+                nodeSet.Models = models;
+            }
+
             nodeSet.Write(ostrm);
         }
 

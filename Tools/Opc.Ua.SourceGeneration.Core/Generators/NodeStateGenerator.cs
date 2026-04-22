@@ -1484,15 +1484,26 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return null;
                 }
+                // Real instance children of a top-level (non-typed) parent belong in
+                // the always-emitted list so they materialize for the actual instance,
+                // not only when the node is treated as a type template.
+                if (node.Parent != null && node.Parent.Parent == null && node.Parent.InstanceOf == null)
+                {
+                    return null;
+                }
             }
 
             // Otherwise only add mandatory children - all others are created on demand
             else if (instance.ModellingRule != ModellingRule.Mandatory)
             {
-                return null;
+                // Exception: real instance children of a top-level (non-typed) parent.
+                if (!(node.Parent != null && node.Parent.Parent == null && node.Parent.InstanceOf == null))
+                {
+                    return null;
+                }
             }
 
-            string forInstanceVariableValue = node.Parent?.InstanceOf != null ? "true" : "forInstance";
+            string forInstanceVariableValue = (node.Parent?.InstanceOf != null || node.Parent?.Parent == null) ? "true" : "forInstance";
             if (node.Parent != null && IsInAddressSpace(node.Parent))
             {
                 switch (node.Parent.Design)
