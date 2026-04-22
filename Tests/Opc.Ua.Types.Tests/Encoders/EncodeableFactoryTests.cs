@@ -62,7 +62,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         /// <summary>
         /// Change when adding more IEncodeable
         /// </summary>
-        private const int kNumberOfBootstrapEncodeableTypes = 24;
+        private const int kNumberOfBootstrapEncodeableTypes = 18;
         private const int kNumberOfBootstrapFactoryEntries = kNumberOfBootstrapEncodeableTypes * 4;
         public static readonly NodeId ReadRequestEncoding = new(631);
 
