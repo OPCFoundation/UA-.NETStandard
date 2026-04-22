@@ -217,7 +217,8 @@ namespace Opc.Ua.SourceGeneration
         /// <returns></returns>
         public List<string> GetDesignFileListForModel(
             string modelUri,
-            out NodesetFile nodeset)
+            out NodesetFile nodeset,
+            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null)
         {
             if (!m_nodesets.TryGetValue(modelUri, out nodeset))
             {
@@ -225,7 +226,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             Dictionary<string, NodesetFile> dependencies = [];
-            if (!CollectDependencies(nodeset, dependencies))
+            if (!CollectDependencies(nodeset, dependencies, referencedModels))
             {
                 return null;
             }
@@ -244,7 +245,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private bool CollectDependencies(
             NodesetFile target,
-            Dictionary<string, NodesetFile> dependencies)
+            Dictionary<string, NodesetFile> dependencies,
+            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels)
         {
             if (target.NodeSet.NamespaceUris == null)
             {
@@ -260,6 +262,19 @@ namespace Opc.Ua.SourceGeneration
 
                 if (!m_nodesets.TryGetValue(ns, out NodesetFile nodeset))
                 {
+                    if (referencedModels != null && referencedModels.ContainsKey(ns))
+                    {
+                        // Dependency is supplied by a referenced assembly's
+                        // generated code; not present in AdditionalFiles is
+                        // expected. Skip without erroring.
+                        m_logger.LogInformation(
+                            "NodeSet ({ModelUri}) dependency ({Namespace}) " +
+                            "satisfied by referenced assembly.",
+                            target.Info.ModelUri,
+                            ns);
+                        continue;
+                    }
+
                     m_logger.LogError(
                         "NodeSet ({ModelUri}) dependency is missing ({Namespace}).",
                         target.Info.ModelUri,
@@ -284,7 +299,7 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 dependencies[ns] = nodeset;
-                if (!CollectDependencies(nodeset, dependencies))
+                if (!CollectDependencies(nodeset, dependencies, referencedModels))
                 {
                     return false;
                 }

@@ -439,8 +439,15 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(error);
                 }
 
-                // clear failed authentication attempts on successful activation.
-                ClearFailedAuthentication(clientKey);
+                // Clear failed authentication attempts on successful activation,
+                // but only for non-anonymous identities. An anonymous login must not
+                // reset the lockout counter that was accumulated from failed
+                // username/certificate attempts — otherwise an attacker can reset the
+                // counter by interleaving anonymous logins between password guesses.
+                if (newIdentity is not (null or AnonymousIdentityTokenHandler))
+                {
+                    ClearFailedAuthentication(clientKey);
+                }
 
                 // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
                 effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,48 +27,40 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-using Opc.Ua.Schema.Model;
-
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Interface for generator context to enable testing and dependency injection.
+    /// Templates used by <see cref="ModelDependencyGenerator"/> to emit the
+    /// per-assembly <c>[assembly: Opc.Ua.ModelDependencyAttribute(...)]</c>
+    /// closure file that downstream source-generator consumers scan to
+    /// discover referenced models without re-walking AdditionalFiles.
     /// </summary>
-    public interface IGeneratorContext
+    internal static class ModelDependencyTemplates
     {
         /// <summary>
-        /// File system to use for file operations.
+        /// File shell. Hosts the shared code header followed by one Entry
+        /// template invocation per unique model dependency.
         /// </summary>
-        IFileSystem FileSystem { get; }
+        public static readonly TemplateString File = TemplateString.Parse(
+            $$"""
+            {{Tokens.CodeHeader}}
+
+            // Lists every OPC UA model the assembly emits or transitively consumes.
+            // Generated from the model design and the closure of referenced assemblies.
+
+            {{Tokens.ListOfModelDependencies}}
+            """);
 
         /// <summary>
-        /// Output folder for generated files.
+        /// One assembly-attribute line. The Version and PublicationDate
+        /// replacements are pre-formatted by the generator as either the
+        /// literal token <c>null</c> or a quoted string, so that the template
+        /// itself does not need to encode that decision.
         /// </summary>
-        string OutputFolder { get; }
+        public static readonly TemplateString Entry = TemplateString.Parse(
+            $$"""
+            [assembly: global::Opc.Ua.ModelDependencyAttribute("{{Tokens.ModelUri}}", "{{Tokens.Prefix}}", {{Tokens.ModelVersion}}, {{Tokens.ModelPublicationDate}})]
 
-        /// <summary>
-        /// Model design validator.
-        /// </summary>
-        IModelDesign ModelDesign { get; }
-
-        /// <summary>
-        /// Telemetry context for logging.
-        /// </summary>
-        ITelemetryContext Telemetry { get; }
-
-        /// <summary>
-        /// Generator options.
-        /// </summary>
-        GeneratorOptions Options { get; }
-
-        /// <summary>
-        /// Models that referenced assemblies have already generated, keyed
-        /// by model URI. Used to skip locally generating models a referenced
-        /// assembly already provides and to satisfy transitive nodeset
-        /// dependencies without requiring the consumer to re-add every
-        /// upstream <c>&lt;AdditionalFiles&gt;</c> entry.
-        /// </summary>
-        IReadOnlyDictionary<string, ModelDependencyReference> ReferencedModels { get; }
+            """);
     }
 }

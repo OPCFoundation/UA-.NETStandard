@@ -1995,5 +1995,161 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var b = new NodeId(42u, 0);
             Assert.That(a.CompareTo(b), Is.Zero);
         }
+
+        private const string ParseLongFormKnownNamespace= "http://opcfoundation.org/UA/Test/";
+        private const string ParseLongFormUnknownNamespace = "http://opcfoundation.org/UA/Unknown/";
+
+        private static NamespaceTable BuildParseLongFormNamespaces()
+        {
+            var table = new NamespaceTable();
+            table.Append(ParseLongFormKnownNamespace);
+            return table;
+        }
+
+        private static uint GetParseLongFormUInt(NodeId id)
+        {
+            Assert.That(id.TryGetIdentifier(out uint v), Is.True);
+            return v;
+        }
+
+        private static string GetParseLongFormString(NodeId id)
+        {
+            Assert.That(id.TryGetIdentifier(out string v), Is.True);
+            return v;
+        }
+
+        private static Guid GetParseLongFormGuid(NodeId id)
+        {
+            Assert.That(id.TryGetIdentifier(out Guid v), Is.True);
+            return v;
+        }
+
+        private static ByteString GetParseLongFormBytes(NodeId id)
+        {
+            Assert.That(id.TryGetIdentifier(out ByteString v), Is.True);
+            return v;
+        }
+
+        [Test]
+        public void ParseLongFormThrowsWhenTableIsNull()
+        {
+            Assert.That(
+                () => NodeId.ParseLongForm("i=42", null),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void ParseLongFormReturnsNullForNullText()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            NodeId result = NodeId.ParseLongForm(null, table);
+            Assert.That(result, Is.EqualTo(NodeId.Null));
+        }
+
+        [Test]
+        public void ParseLongFormReturnsNullForEmptyText()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            NodeId result = NodeId.ParseLongForm(string.Empty, table);
+            Assert.That(result, Is.EqualTo(NodeId.Null));
+        }
+
+        [Test]
+        public void ParseLongFormBareNumericIdentifier()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            NodeId result = NodeId.ParseLongForm("i=42", table);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)42));
+        }
+
+        [Test]
+        public void ParseLongFormResolvesKnownNamespaceUriNumeric()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            NodeId result = NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};i=99", table);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)99));
+        }
+
+        [Test]
+        public void ParseLongFormResolvesKnownNamespaceUriString()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            NodeId result = NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};s=Tag1", table);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormString(result), Is.EqualTo("Tag1"));
+        }
+
+        [Test]
+        public void ParseLongFormResolvesKnownNamespaceUriGuid()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            var guid = new Guid("12345678-1234-1234-1234-1234567890AB");
+            NodeId result = NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};g={guid}", table);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormGuid(result), Is.EqualTo(guid));
+        }
+
+        [Test]
+        public void ParseLongFormResolvesKnownNamespaceUriOpaque()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            byte[] bytes = [1, 2, 3, 4];
+            string base64 = Convert.ToBase64String(bytes);
+            NodeId result = NodeId.ParseLongForm(
+                $"nsu={ParseLongFormKnownNamespace};b={base64}", table);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormBytes(result), Is.EqualTo((ByteString)bytes));
+        }
+
+        [Test]
+        public void ParseLongFormThrowsForUnresolvedNamespaceUri()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            Assert.That(
+                () => NodeId.ParseLongForm($"nsu={ParseLongFormUnknownNamespace};i=1", table),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void ParseLongFormThrowsForMalformedTypedIdentifier()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            Assert.That(
+                () => NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};i=notanumber", table),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void ParseFallbackToStringIdentifierRecoversMalformedTypedIdentifier()
+        {
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            context.NamespaceUris = table;
+            NodeId result = NodeId.Parse(
+                context,
+                $"nsu={ParseLongFormKnownNamespace};i=notanumber",
+                new NodeIdParsingOptions
+                {
+                    RequireResolvedUris = true,
+                    FallbackToStringIdentifier = true
+                });
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormString(result), Is.EqualTo("i=notanumber"));
+        }
+
+        [Test]
+        public void ParseLongFormNamespaceIndexPrefixUsesNamespaceTable()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            NodeId result = NodeId.ParseLongForm("ns=1;i=7", table);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)7));
+        }
     }
 }
