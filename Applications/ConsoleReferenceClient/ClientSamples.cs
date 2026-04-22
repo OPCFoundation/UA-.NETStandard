@@ -1599,11 +1599,20 @@ namespace Quickstarts
 
         /// <summary>
         /// Exports nodes to separate NodeSet2 XML files, one per namespace.
-        /// Excludes OPC Foundation companion specifications (namespaces starting with http://opcfoundation.org/UA/).
         /// </summary>
+        /// <remarks>
+        /// When <paramref name="targetNamespaces"/> is supplied and non-empty, only nodes whose
+        /// namespace URI is in the set are exported. Otherwise, all namespaces except the OPC UA
+        /// base namespace (<see cref="Namespaces.OpcUa"/>) are exported, which includes any
+        /// companion specifications hosted by the server.
+        /// </remarks>
         /// <param name="session">The session to use for exporting.</param>
         /// <param name="nodes">The list of nodes to export.</param>
         /// <param name="outputDirectory">The directory where NodeSet2 XML files will be saved.</param>
+        /// <param name="targetNamespaces">
+        /// Optional set of namespace URIs to include. When null or empty, all namespaces except
+        /// the OPC UA base namespace are exported.
+        /// </param>
         /// <param name="cancellationToken">Optional cancellation token.</param>
         /// <returns>A dictionary mapping namespace URI to the file path of the exported NodeSet2 file.</returns>
         /// <exception cref="ArgumentNullException">Thrown when session, nodes, or outputDirectory is null.</exception>
@@ -1612,6 +1621,7 @@ namespace Quickstarts
             ISession session,
             IList<INode> nodes,
             string outputDirectory,
+            IReadOnlyCollection<string> targetNamespaces = null,
             CancellationToken cancellationToken = default)
         {
             if (session == null)
@@ -1627,27 +1637,41 @@ namespace Quickstarts
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(outputDirectory));
             }
 
+            HashSet<string> targetSet = targetNamespaces is { Count: > 0 }
+                ? new HashSet<string>(targetNamespaces, StringComparer.OrdinalIgnoreCase)
+                : null;
+
             m_logger.LogInformation(
-                "Exporting {Count} nodes to separate NodeSet2 files per namespace in {Directory}...",
+                "Exporting {Count} nodes to separate NodeSet2 files per namespace in {Directory} (filter: {Filter})...",
                 nodes.Count,
-                outputDirectory);
+                outputDirectory,
+                targetSet != null ? string.Join(",", targetSet) : "all non-OPC-UA-base");
 
             var stopwatch = Stopwatch.StartNew();
 
             // Ensure output directory exists
             Directory.CreateDirectory(outputDirectory);
 
-            // Group nodes by namespace, excluding OPC Foundation companion specs
+            // Group nodes by namespace, applying the requested filter.
             var nodesByNamespace = nodes
                 .Where(node => node.NodeId.NamespaceIndex > 0) // Skip namespace 0 (OPC UA base)
                 .GroupBy(node => node.NodeId.NamespaceIndex)
                 .Where(group =>
                 {
                     string namespaceUri = session.NamespaceUris.GetString(group.Key);
-                    // Exclude OPC Foundation companion specifications
-                    return
-                        !string.IsNullOrEmpty(namespaceUri) &&
-                        !namespaceUri.StartsWith(Namespaces.OpcUa, StringComparison.OrdinalIgnoreCase);
+                    if (string.IsNullOrEmpty(namespaceUri))
+                    {
+                        return false;
+                    }
+
+                    if (targetSet != null)
+                    {
+                        // Caller asked for a specific set of namespaces.
+                        return targetSet.Contains(namespaceUri);
+                    }
+
+                    // Default: exclude only the OPC UA base namespace; include companion specs.
+                    return !string.Equals(namespaceUri, Namespaces.OpcUa, StringComparison.OrdinalIgnoreCase);
                 })
                 .ToDictionary(
                     group => group.Key,

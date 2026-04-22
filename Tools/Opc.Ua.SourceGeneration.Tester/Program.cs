@@ -72,7 +72,7 @@ namespace Opc.Ua.SourceGeneration.Tester
                     Targets = [file],
                     Dependencies = dependencies,
                     IdentifierFilePath = csvFile,
-                    Options = new DesignFileOptions()
+                    Options = new DesignFileOptions { GenerateNodeManager = true }
                 }, fs, output, new Telemetry());
                 Console.WriteLine($"{Path.GetFileNameWithoutExtension(file)} design build completed.");
             }

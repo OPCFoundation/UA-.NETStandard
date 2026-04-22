@@ -103,7 +103,9 @@ namespace Opc.Ua.SourceGeneration
                     ModelPublicationDate = provider.GlobalOptions.GetString(
                         nameof(DesignFileOptions.ModelPublicationDate)),
                     ReleaseCandidate = provider.GlobalOptions.GetBool(
-                        nameof(DesignFileOptions.ReleaseCandidate))
+                        nameof(DesignFileOptions.ReleaseCandidate)),
+                    GenerateNodeManager = provider.GlobalOptions.GetBool(
+                        nameof(DesignFileOptions.GenerateNodeManager))
                 },
                 Exclude = provider.GlobalOptions.GetStrings(nameof(Exclude)),
                 UseAllowSubtypes = provider.GlobalOptions.GetBool(nameof(UseAllowSubtypes)),
