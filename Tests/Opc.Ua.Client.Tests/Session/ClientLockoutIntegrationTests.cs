@@ -202,7 +202,9 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            using (var successIdentity = new UserIdentity())
+            // A successful non-anonymous login resets the lockout counter.
+            // Anonymous logins do not reset the counter to prevent lockout bypass.
+            using (var successIdentity = new UserIdentity("user1", System.Text.Encoding.UTF8.GetBytes("password")))
             using (ISession successSession = await m_clientFixture.SessionFactory.CreateAsync(
                 m_clientFixture.Config,
                 configuredEndpoint,
@@ -237,7 +239,8 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            using (var successIdentity = new UserIdentity())
+            // A successful non-anonymous login after failures proves the counter was reset.
+            using (var successIdentity = new UserIdentity("user1", System.Text.Encoding.UTF8.GetBytes("password")))
             using (ISession successSession = await m_clientFixture.SessionFactory.CreateAsync(
                 m_clientFixture.Config,
                 configuredEndpoint,

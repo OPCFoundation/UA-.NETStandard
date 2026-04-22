@@ -233,110 +233,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new NodeId from a long-form text representation, resolving
-        /// the namespace URI against the supplied <see cref="NamespaceTable"/>.
-        /// Use this overload when you know the caller is starting with a long form.
-        /// </summary>
-        /// <remarks>
-        /// Accepted forms:
-        /// <list type="bullet">
-        ///   <item><c>&lt;id&gt;</c> (bare identifier; equivalent to namespace 0)</item>
-        ///   <item><c>ns=N;&lt;id&gt;</c> (numeric namespace index)</item>
-        ///   <item><c>nsu=&lt;escaped-uri&gt;;&lt;id&gt;</c> (namespace URI, resolved via <paramref name="namespaceTable"/>)</item>
-        /// </list>
-        /// The <c>&lt;id&gt;</c> portion may be typed (<c>i=N</c>/<c>s=X</c>/<c>g=GUID</c>/<c>b=BASE64</c>)
-        /// or a bare token, which is treated as a string identifier.
-        /// </remarks>
-        /// <param name="text">The long-form NodeId text.</param>
-        /// <param name="namespaceTable">Namespace table used to resolve the URI to an index.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="namespaceTable"/> is null.</exception>
-        /// <exception cref="ServiceResultException">The text cannot be parsed or the URI is not in the table.</exception>
-        public NodeId(string text, NamespaceTable namespaceTable)
-        {
-            if (namespaceTable == null)
-            {
-                throw new ArgumentNullException(nameof(namespaceTable));
-            }
-
-            if (!TryParseLongForm(namespaceTable, text, out NodeId value, out NodeIdParseError error))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdInvalid,
-                    "Cannot parse long-form node id text: '{0}' Error: {1}",
-                    text,
-                    error);
-            }
-
-            this = value;
-        }
-
-        /// <summary>
-        /// Parses a long-form NodeId text using the supplied <see cref="NamespaceTable"/>.
-        /// See <see cref="NodeId(string, NamespaceTable)"/> for accepted forms.
-        /// Strips the <c>nsu=&lt;uri&gt;;</c> prefix (if any) and delegates the rest to
-        /// <see cref="TryParse(string, out NodeId, out NodeIdParseError)"/>, which is the
-        /// authoritative source for <c>ns=</c>/<c>i=</c>/<c>s=</c>/<c>g=</c>/<c>b=</c> handling
-        /// and for the lenient "treat unrecognised text as a string identifier" fallback
-        /// carried forward from the original stack's Parse method.
-        /// </summary>
-        internal static bool TryParseLongForm(
-            NamespaceTable namespaceTable,
-            string text,
-            out NodeId value,
-            out NodeIdParseError error)
-        {
-            error = NodeIdParseError.None;
-            value = Null;
-
-            if (string.IsNullOrEmpty(text))
-            {
-                return true;
-            }
-
-            string remainder = text;
-            int namespaceIndex = 0;
-
-            if (text.StartsWith("nsu=", StringComparison.Ordinal))
-            {
-                int separator = text.IndexOf(';', 4);
-                if (separator < 0)
-                {
-                    error = NodeIdParseError.InvalidNamespaceFormat;
-                    return false;
-                }
-
-                string uri = CoreUtils.UnescapeUri(text.AsSpan(4, separator - 4));
-                namespaceIndex = namespaceTable.GetIndex(uri);
-                if (namespaceIndex < 0)
-                {
-                    error = NodeIdParseError.NoNamespaceMapping;
-                    return false;
-                }
-                remainder = text[(separator + 1)..];
-            }
-
-            // Delegate the identifier-portion parsing to the existing TryParse. It handles
-            // all typed identifier prefixes (i=/s=/g=/b=/ns=) and, per the original stack's
-            // Parse, falls back to treating unrecognised text as a string identifier -
-            // matching the historical behaviour the caller may rely on.
-            if (!TryParse(remainder, out NodeId parsed, out error))
-            {
-                // TryParse rejected the remainder outright (e.g. malformed "i=notanumber").
-                // Fall back to the lenient "treat as string identifier" rule that the older
-                // stack's Parse applied at the bottom of its switch.
-                parsed = new NodeId(remainder, 0);
-                error = NodeIdParseError.None;
-            }
-
-            // Stamp the namespace index extracted from the nsu= prefix. Preserve an
-            // explicit ns= in the remainder if one was specified.
-            value = parsed.NamespaceIndex == 0 && namespaceIndex != 0
-                ? parsed.WithNamespaceIndex((ushort)namespaceIndex)
-                : parsed;
-            return true;
-        }
-
-        /// <summary>
         /// Initializes a node identifier with a namespace index.
         /// Throws an exception if the identifier type is not supported.
         /// </summary>
@@ -367,6 +263,48 @@ namespace Opc.Ua
                         nameof(value));
             }
             m_inner.NamespaceIdx = namespaceIndex;
+        }
+
+        /// <summary>
+        /// Creates a new NodeId from a long-form text representation, resolving
+        /// the namespace URI against the supplied <see cref="NamespaceTable"/>.
+        /// Use this overload when you know the caller is starting with a long form.
+        /// </summary>
+        /// <remarks>
+        /// Accepted forms:
+        /// <list type="bullet">
+        ///   <item><c>&lt;id&gt;</c> (bare identifier; equivalent to namespace 0)</item>
+        ///   <item><c>ns=N;&lt;id&gt;</c> (numeric namespace index)</item>
+        ///   <item><c>nsu=&lt;escaped-uri&gt;;&lt;id&gt;</c> (namespace URI,
+        ///   resolved via <paramref name="namespaceTable"/>)</item>
+        /// </list>
+        /// The <c>&lt;id&gt;</c> portion may be typed
+        /// (<c>i=N</c>/<c>s=X</c>/<c>g=GUID</c>/<c>b=BASE64</c>)
+        /// or a bare token, which is treated as a string identifier.
+        /// </remarks>
+        /// <param name="text">The long-form NodeId text.</param>
+        /// <param name="namespaceTable">Namespace table used to resolve the URI to
+        /// an index.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="namespaceTable"/> is null.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The text cannot be parsed or the URI is not in the table.</exception>
+        public static NodeId ParseLongForm(
+            string text,
+            NamespaceTable namespaceTable)
+        {
+            if (namespaceTable == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceTable));
+            }
+
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
+            context.NamespaceUris = namespaceTable;
+
+            return Parse(
+                context,
+                text,
+                new NodeIdParsingOptions { RequireResolvedUris = true });
         }
 
         /// <summary>
@@ -425,6 +363,12 @@ namespace Opc.Ua
             }
 
             int namespaceIndex = 0;
+            // Captured to support the legacy ParseLongForm fallback (opt-in via
+            // NodeIdParsingOptions.FallbackToStringIdentifier). The fallback wraps
+            // the whole post-nsu= remainder (with the nsu-derived namespace index)
+            // when the typed identifier parser fails.
+            int nsuNamespaceIndex = 0;
+            string postNsuRemainder = text;
 
             if (text.StartsWith("nsu=", StringComparison.Ordinal))
             {
@@ -448,7 +392,9 @@ namespace Opc.Ua
                     return false;
                 }
 
+                nsuNamespaceIndex = namespaceIndex;
                 text = text[(index + 1)..];
+                postNsuRemainder = text;
             }
 
             if (text.StartsWith("ns=", StringComparison.Ordinal))
@@ -475,15 +421,17 @@ namespace Opc.Ua
                 text = text[(index + 1)..];
             }
 
+            NodeIdParseError typedError = NodeIdParseError.InvalidIdentifier;
+
             if (text.Length >= 2)
             {
                 char idType = text[0];
-                text = text[2..];
+                string idText = text[2..];
 
                 switch (idType)
                 {
                     case 'i':
-                        if (uint.TryParse(text, out uint number))
+                        if (uint.TryParse(idText, out uint number))
                         {
                             value = new NodeId(number, (ushort)namespaceIndex);
                             return true;
@@ -491,9 +439,9 @@ namespace Opc.Ua
 
                         break;
                     case 's':
-                        if (!string.IsNullOrWhiteSpace(text))
+                        if (!string.IsNullOrWhiteSpace(idText))
                         {
-                            value = new NodeId(text, (ushort)namespaceIndex);
+                            value = new NodeId(idText, (ushort)namespaceIndex);
                             return true;
                         }
 
@@ -501,7 +449,7 @@ namespace Opc.Ua
                     case 'b':
                         try
                         {
-                            value = new NodeId(ByteString.FromBase64(text), (ushort)namespaceIndex);
+                            value = new NodeId(ByteString.FromBase64(idText), (ushort)namespaceIndex);
                             return true;
                         }
                         catch
@@ -511,7 +459,7 @@ namespace Opc.Ua
 
                         break;
                     case 'g':
-                        if (Guid.TryParse(text, out Guid guid))
+                        if (Guid.TryParse(idText, out Guid guid))
                         {
                             value = new NodeId(guid, (ushort)namespaceIndex);
                             return true;
@@ -519,12 +467,22 @@ namespace Opc.Ua
 
                         break;
                     default:
-                        error = NodeIdParseError.InvalidIdentifierType;
-                        return false;
+                        typedError = NodeIdParseError.InvalidIdentifierType;
+                        break;
                 }
             }
 
-            error = NodeIdParseError.InvalidIdentifier;
+            // Typed identifier parsing failed. Fall back to wrapping the post-nsu=
+            // remainder as a string identifier when the caller opts in. This
+            // preserves the legacy ParseLongForm shape but is OFF by default so
+            // existing Parse(IServiceMessageContext, ...) callers stay strict.
+            if (options?.FallbackToStringIdentifier == true)
+            {
+                value = new NodeId(postNsuRemainder, (ushort)nsuNamespaceIndex);
+                return true;
+            }
+
+            error = typedError;
             return false;
         }
 
@@ -1782,6 +1740,39 @@ namespace Opc.Ua
         /// The mapping from serialized server indexes to the indexes used in the context.
         /// </summary>
         public ushort[] ServerMappings { get; set; }
+
+        /// <summary>
+        /// When TRUE, an <c>nsu=</c> or <c>svu=</c> URI that cannot be resolved
+        /// against the relevant table (and is not added because
+        /// <see cref="UpdateTables"/> is FALSE) causes the parser to fail with
+        /// <c>BadNodeIdInvalid</c> instead of silently returning an absolute
+        /// <see cref="ExpandedNodeId"/> that carries the unresolved URI string.
+        /// <para>
+        /// Default is FALSE so that existing callers of
+        /// <see cref="NodeId.Parse(IServiceMessageContext, string, NodeIdParsingOptions)"/>
+        /// and
+        /// <see cref="ExpandedNodeId.Parse(IServiceMessageContext, string, NodeIdParsingOptions)"/>
+        /// retain their current lenient behavior. The
+        /// <c>ParseLongForm</c> wrappers set this to TRUE.
+        /// </para>
+        /// </summary>
+        public bool RequireResolvedUris { get; set; }
+
+        /// <summary>
+        /// When TRUE, if the identifier portion of the input cannot be parsed
+        /// as a typed identifier (<c>i=</c>/<c>s=</c>/<c>g=</c>/<c>b=</c>),
+        /// the remainder following any <c>nsu=</c> prefix is wrapped as a
+        /// string identifier instead of failing the parse. This preserves the
+        /// historical lenient behavior of the original
+        /// <see cref="NodeId.ParseLongForm"/> implementation for callers that
+        /// explicitly need it.
+        /// <para>
+        /// Default is FALSE so the <c>ParseLongForm</c> wrappers and
+        /// <see cref="NodeId.Parse(IServiceMessageContext, string, NodeIdParsingOptions)"/>
+        /// remain strict (<c>nsu=&lt;uri&gt;;i=notanumber</c> throws).
+        /// </para>
+        /// </summary>
+        public bool FallbackToStringIdentifier { get; set; }
     }
 
     /// <summary>

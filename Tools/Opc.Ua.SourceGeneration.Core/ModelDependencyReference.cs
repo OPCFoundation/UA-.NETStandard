@@ -33,11 +33,14 @@ namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
     /// Information read from a referenced assembly's
-    /// <c>OpcUaModelDependencyAttribute</c>. Value-type equatable so the
+    /// <see cref="ModelDependencyAttribute"/>. Value-type equatable so the
     /// incremental source-generator cache keys behave correctly.
     /// </summary>
-    internal readonly struct ModelDependencyReference : IEquatable<ModelDependencyReference>
+    public readonly struct ModelDependencyReference : IEquatable<ModelDependencyReference>
     {
+        /// <summary>
+        /// Create a reference.
+        /// </summary>
         public ModelDependencyReference(
             string assemblyName,
             string modelUri,
@@ -51,6 +54,11 @@ namespace Opc.Ua.SourceGeneration
             Version = version ?? string.Empty;
             PublicationDate = publicationDate ?? string.Empty;
         }
+
+        /// <summary>
+        /// Returns true when the entry has both a model URI and a C# prefix.
+        /// </summary>
+        public bool IsValid => ModelUri.Length != 0 && Prefix.Length != 0;
 
         /// <summary>The assembly the attribute was read from.</summary>
         public string AssemblyName { get; }
@@ -70,11 +78,12 @@ namespace Opc.Ua.SourceGeneration
         /// <inheritdoc/>
         public bool Equals(ModelDependencyReference other)
         {
-            return string.Equals(AssemblyName, other.AssemblyName, StringComparison.Ordinal)
-                && string.Equals(ModelUri, other.ModelUri, StringComparison.Ordinal)
-                && string.Equals(Prefix, other.Prefix, StringComparison.Ordinal)
-                && string.Equals(Version, other.Version, StringComparison.Ordinal)
-                && string.Equals(PublicationDate, other.PublicationDate, StringComparison.Ordinal);
+            return
+                string.Equals(AssemblyName, other.AssemblyName, StringComparison.Ordinal) &&
+                string.Equals(ModelUri, other.ModelUri, StringComparison.Ordinal) &&
+                string.Equals(Prefix, other.Prefix, StringComparison.Ordinal) &&
+                string.Equals(Version, other.Version, StringComparison.Ordinal) &&
+                string.Equals(PublicationDate, other.PublicationDate, StringComparison.Ordinal);
         }
 
         /// <inheritdoc/>
@@ -97,11 +106,13 @@ namespace Opc.Ua.SourceGeneration
             }
         }
 
+        /// <inheritdoc/>
         public static bool operator ==(ModelDependencyReference left, ModelDependencyReference right)
         {
             return left.Equals(right);
         }
 
+        /// <inheritdoc/>
         public static bool operator !=(ModelDependencyReference left, ModelDependencyReference right)
         {
             return !left.Equals(right);

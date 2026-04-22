@@ -8,6 +8,8 @@
     <CompilerVisibleProperty Include="ModelSourceGeneratorModelPublicationDate" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorReleaseCandidate" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorPublicDataTypeExtensions" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorOmitObjectTypeProxies" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorObjectTypeProxyNamespace" />
   </ItemGroup>
   <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorVersion" />

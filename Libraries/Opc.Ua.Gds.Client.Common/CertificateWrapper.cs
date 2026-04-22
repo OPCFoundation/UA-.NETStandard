@@ -35,7 +35,7 @@ using Opc.Ua.Security.Certificates;
 namespace Opc.Ua.Gds.Client
 {
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class CertificateWrapper : IFormattable, IEncodeable
+    public sealed class CertificateWrapper : IFormattable
     {
         public Certificate Certificate { get; set; }
 
@@ -251,28 +251,7 @@ namespace Opc.Ua.Gds.Client
             return SubjectName;
         }
 
-        public ExpandedNodeId TypeId => NodeId.Null;
-
-        public ExpandedNodeId BinaryEncodingId => NodeId.Null;
-
-        public ExpandedNodeId XmlEncodingId => NodeId.Null;
-
-        public void Encode(IEncoder encoder)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Decode(IDecoder decoder)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool IsEqual(IEncodeable encodeable)
-        {
-            throw new NotImplementedException();
-        }
-
-        public object Clone()
+        public CertificateWrapper Clone()
         {
             return new CertificateWrapper { Certificate = Certificate };
         }

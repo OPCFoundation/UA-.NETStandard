@@ -3674,12 +3674,35 @@ namespace Opc.Ua.Client
             m_logger.LogTrace("PUBLISH #{RequestHandle} RECEIVED", requestHeader.RequestHandle);
             CoreClientUtils.EventLog.PublishStop((int)requestHeader.RequestHandle);
 
+            // Bail out early if the session has been disposed — any access to
+            // m_reconnectLock or rescheduling a publish would either throw
+            // ObjectDisposedException or keep the session "alive" indefinitely.
+            if (Disposed)
+            {
+                return;
+            }
+
             try
             {
                 // gate entry if transfer/reactivate is busy
-                m_reconnectLock.Wait();
+                try
+                {
+                    m_reconnectLock.Wait();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Session was disposed while this publish completion was in flight.
+                    return;
+                }
                 bool reconnecting = Reconnecting;
-                m_reconnectLock.Release();
+                try
+                {
+                    m_reconnectLock.Release();
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
 
                 // complete publish.
                 PublishResponse response = task.Result;
@@ -3931,6 +3954,11 @@ namespace Opc.Ua.Client
         /// </summary>
         private void QueueBeginPublish()
         {
+            if (Disposed)
+            {
+                return;
+            }
+
             int requestCount = GoodPublishRequestCount;
 
             int minPublishRequestCount = GetDesiredPublishRequestCount(false);

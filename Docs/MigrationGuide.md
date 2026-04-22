@@ -50,6 +50,11 @@
       - [Property type changes](#property-type-changes)
       - [`IUserIdentity` on `SessionOptions` is now computed](#iuseridentity-on-sessionoptions-is-now-computed)
       - [Encoding format is not guaranteed backward compatible](#encoding-format-is-not-guaranteed-backward-compatible)
+    - [Other Breaking Changes](#other-breaking-changes)
+      - [Boolean default values in source-generated data types](#boolean-default-values-in-source-generated-data-types)
+    - [GDS Client API modernization](#gds-client-api-modernization)
+      - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
+      - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
     - [Certificate Management](#certificate-management)
       - [Certificate and CertificateCollection wrapper types](#certificate-and-certificatecollection-wrapper-types)
       - [CertificateManager and segregated interfaces](#certificatemanager-and-segregated-interfaces)
@@ -721,8 +726,6 @@ public partial record class SessionOptions
 }
 ```
 
-When migrating code that previously set `Identity` directly, no code changes are required — the property still accepts `IUserIdentity`. However, if you were serializing session state manually, note that only `IdentityToken` round-trips through encode/decode.
-
 #### Encoding format is not guaranteed backward compatible
 
 The encoding format for session state has changed. Existing persisted session state files **cannot** be loaded by the new `SessionConfiguration.Create()` method. Handle restore failures and re-persist the new session state.
@@ -803,6 +806,69 @@ To suppress `CS0618` warnings while migrating, add at the top of affected files:
 ```csharp
 #pragma warning disable CS0618 // Obsolete API usage during migration
 ```
+
+### GDS Client API modernization
+
+The `Opc.Ua.Gds.Client.Common` package has undergone a significant cleanup. Two breaking changes affect almost every consumer of the GDS / LDS / Server-Push client APIs.
+
+#### `Task` → `ValueTask` on GDS client interfaces
+
+**Breaking Change**: All asynchronous methods on `IGlobalDiscoveryServerClient`, `ILocalDiscoveryServerClient`, and `IServerPushConfigurationClient` (and their concrete implementations) now return `ValueTask` / `ValueTask<T>` instead of `Task` / `Task<T>`.
+
+**Rationale**: Many GDS operations complete synchronously when a session is already established. Returning `ValueTask` avoids the per-call `Task` allocation on those fast paths and keeps the surface consistent with the rest of the modernized client stack.
+
+**Impact**: Pure `await` callers require **no change** — `await` works identically on `Task` and `ValueTask`. However, two patterns require a small adjustment.
+
+| Pattern | Old (`Task`) | New (`ValueTask`) |
+|---|---|---|
+| `await` on the return value | works | works (no change) |
+| Block synchronously via `.Result` / `.Wait()` | works | use `.AsTask().Result` / `.AsTask().Wait()` |
+| Combine results with `Task.WhenAll` / `Task.WhenAny` | works | call `.AsTask()` first |
+| Await the same return value more than once | works | **not supported** — call `.AsTask()` first |
+
+> **Important**: A `ValueTask` may be awaited only once and the underlying value source must not be observed after the operation has completed. If you need to await a result more than once, fan it out across multiple consumers, or pass it to anything other than a single `await`, materialize it via `.AsTask()` first.
+
+```csharp
+// Before
+Task<NodeId> registration = gds.RegisterApplicationAsync(application, ct);
+NodeId id = await registration;
+await Task.WhenAll(registration, otherTask);          // worked
+
+// After
+ValueTask<NodeId> registration = gds.RegisterApplicationAsync(application, ct);
+NodeId id = await registration;                       // unchanged
+
+// Multi-await / Task.WhenAll: materialize first
+Task<NodeId> asTask = gds.RegisterApplicationAsync(application, ct).AsTask();
+await Task.WhenAll(asTask, otherTask);
+```
+
+#### Removal of obsolete GDS APIs
+
+**Breaking Change**: All `[Obsolete]` synchronous wrappers, APM (`Begin*`/`End*`) methods, and other deprecated members have been removed from the GDS client surface.
+
+**Affected APIs (non-exhaustive)**:
+
+- All synchronous wrappers on `GlobalDiscoveryServerClient` (~25 methods such as `FindApplication`, `RegisterApplication`, `StartNewKeyPairRequest`, …) — use the corresponding `*Async` overload returning `ValueTask`/`ValueTask<T>`.
+- All synchronous wrappers on `ServerPushConfigurationClient` (~14 methods such as `UpdateCertificate`, `ReadTrustList`, `ApplyChanges`, …) — use the `*Async` overload.
+- APM (`Begin*` / `End*`) overloads on `LocalDiscoveryServerClient` (e.g. `BeginFindServers` / `EndFindServers`) — use the `*Async` overload.
+- The capability identifier constants are now source-generated as `Opc.Ua.ServerCapability` (singular, e.g. `ServerCapability.GDS`, `ServerCapability.LDS`, `ServerCapability.DA`). The `[Obsolete] public const string` shims previously exposed on the value-type `ServerCapability` class (now `ServerCapabilityInfo` in `Opc.Ua.Gds.Client`) have been removed. The runtime `ServerCapabilities.csv` parsing path (which never actually loaded — the resource was not embedded) has been replaced by the generated dictionary `ServerCapability.All`. The instance enumerable previously named `ServerCapabilityCatalog` is now `Opc.Ua.Gds.Client.ServerCapabilities` and its `Find` returns `ServerCapabilityInfo`.
+- `RegisteredApplication` is now a `sealed record`; the obsolete extension methods that wrapped its property access have been removed — use the record properties directly.
+- `CertificateWrapper` is now `sealed` and no longer implements `IEncodeable`; remove any code that treated it as an encodeable.
+
+**Migration**:
+
+```csharp
+// Before
+var apps = gds.FindApplication(uri);                       // sync wrapper
+var caps = ServerCapability.GlobalDiscoveryServer;         // obsolete shim
+
+// After
+var apps = await gds.FindApplicationAsync(uri, ct);
+var caps = ServerCapability.GDS;
+```
+
+If you currently rely on a `[Obsolete]` member, switch to the `Async` equivalent and apply the `ValueTask` migration notes above. If a particular API has no direct replacement, the migration is described inline in the XML doc comment of the replacement member.
 
 ## Migrating from 1.05.377 to 1.05.378
 

@@ -71,15 +71,20 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<CompilationOptions> settings =
                 context.CompilationProvider
                     .Select((c, _) => CompilationOptions.From(c));
+            IncrementalValueProvider<ImmutableArray<ModelDependencyReference>> referencedModels =
+                context.CompilationProvider
+                    .Select((c, _) => ReferencedModelDependencyScanner.Scan(c));
 
             context.RegisterSourceOutput(
                 inputFiles
                     .Combine(identiferFile)
                     .Combine(options)
-                    .Combine(settings),
+                    .Combine(settings)
+                    .Combine(referencedModels),
                 (context, combination) => new ModelCompilation(
                     context,
-                    combination.Left.Left.Left,
+                    combination.Left.Left.Left.Left,
+                    combination.Left.Left.Left.Right,
                     combination.Left.Left.Right,
                     combination.Left.Right,
                     combination.Right,

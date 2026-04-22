@@ -85,7 +85,7 @@ namespace Opc.Ua.SourceGeneration
                 .WithUpdatedAnalyzerConfigOptions(options)
                 ;
             GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
-            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(7));
+            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(9));
         }
 
         [Theory]
@@ -117,7 +117,7 @@ namespace Opc.Ua.SourceGeneration
                 .WithUpdatedAnalyzerConfigOptions(options)
                 ;
             GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
-            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(14));
+            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(18));
         }
 
         [Theory]
@@ -152,8 +152,8 @@ namespace Opc.Ua.SourceGeneration
                 ;
 
             // There will be 120 errors due to missing Opc.Ua dll reference
-            GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation, true);
-            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(6));
+            GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
+            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(8));
 
             string testDataXmlSchema = ValidateXmlSchema(languageVersion, generatorResult);
             Assert.That(testDataXmlSchema,
@@ -213,8 +213,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static GeneratorRunResult GenerateAndCompile(
             GeneratorDriver driver,
-            CSharpCompilation compilation,
-            bool filterLinkerAndReferenceErrors = false)
+            CSharpCompilation compilation)
         {
             // Run it
             driver = driver.RunGeneratorsAndUpdateCompilation(
@@ -228,8 +227,7 @@ namespace Opc.Ua.SourceGeneration
             outputCompilation.GetDiagnostics().Check(
                 TestContext.Out,
                 out int errors,
-                out int warnings,
-                filterLinkerAndReferenceErrors);
+                out int warnings);
 
             Assert.That(errors, Is.Zero, $"Compilation produced {errors} errors");
 #if NETFRAMEWORK

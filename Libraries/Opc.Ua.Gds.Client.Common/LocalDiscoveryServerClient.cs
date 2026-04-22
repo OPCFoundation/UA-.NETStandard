@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Gds.Client
 {
     public class LocalDiscoveryServerClient
+        : ILocalDiscoveryServerClient, IAsyncDisposable
     {
         /// <summary>
         /// Create local discovery client
@@ -45,6 +46,10 @@ namespace Opc.Ua.Gds.Client
             ApplicationConfiguration configuration,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
             ApplicationConfiguration = configuration;
             DiagnosticsMasks = diagnosticsMasks;
             MessageContext = configuration.CreateMessageContext();
@@ -78,13 +83,13 @@ namespace Opc.Ua.Gds.Client
 
         public int DefaultOperationTimeout { get; set; }
 
-        public Task<ArrayOf<ApplicationDescription>> FindServersAsync(
+        public ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(
             CancellationToken ct = default)
         {
             return FindServersAsync(null, null, ct);
         }
 
-        public async Task<ArrayOf<ApplicationDescription>> FindServersAsync(
+        public async ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(
             string endpointUrl,
             string endpointTransportProfileUri,
             CancellationToken ct = default)
@@ -103,129 +108,12 @@ namespace Opc.Ua.Gds.Client
 
             return response.Servers;
         }
-
-        [Obsolete("Use FindServersAsync instead.")]
-        public ArrayOf<ApplicationDescription> FindServers()
-        {
-            IAsyncResult result = BeginFindServers(null, null, null, default, default, null, null);
-            return EndFindServers(result);
-        }
-
-        [Obsolete("Use FindServersAsync instead.")]
-        public ArrayOf<ApplicationDescription> FindServers(
-            string endpointUrl,
-            string endpointTransportProfileUri)
-        {
-            IAsyncResult result = BeginFindServers(
-                endpointUrl,
-                endpointTransportProfileUri,
-                null,
-                default,
-                default,
-                null,
-                null);
-            return EndFindServers(result);
-        }
-
-        [Obsolete("Use FindServersAsync instead.")]
-        public IAsyncResult BeginFindServers(
-            AsyncCallback callback,
-            object callbackData)
-        {
-            return BeginFindServers(null, null, null, default, default, callback, callbackData);
-        }
-
-        [Obsolete("Use FindServersAsync instead.")]
-        public IAsyncResult BeginFindServers(
-            string endpointUrl,
-            string endpointTransportProfileUri,
-            string actualEndpointUrl,
-            ArrayOf<string> preferredLocales,
-            ArrayOf<string> serverUris,
-            AsyncCallback callback,
-            object callbackData)
-        {
-            DiscoveryClient client = CreateClientAsync(endpointUrl, endpointTransportProfileUri).GetAwaiter().GetResult();
-
-            var data = new FindServersData(callback, callbackData, client.OperationTimeout)
-            {
-                DiscoveryClient = client
-            };
-
-            data.InnerResult = client.BeginFindServers(
-                null,
-                actualEndpointUrl ?? endpointUrl,
-                preferredLocales.IsEmpty ? PreferredLocales : preferredLocales,
-                serverUris,
-                OnFindServersComplete,
-                data);
-
-            return data;
-        }
-
-        [Obsolete("Use FindServersAsync instead.")]
-        public ArrayOf<ApplicationDescription> EndFindServers(IAsyncResult result)
-        {
-            if (result is not FindServersData data)
-            {
-                throw new ArgumentException(
-                    "Did not pass the correct IAsyncResult to end method.",
-                    nameof(result));
-            }
-
-            try
-            {
-                if (!data.WaitForComplete())
-                {
-                    throw new TimeoutException();
-                }
-
-                return data.Servers;
-            }
-            finally
-            {
-                data.DiscoveryClient.CloseAsync().GetAwaiter().GetResult();
-            }
-        }
-
-        [Obsolete("Use FindServersAsync instead.")]
-        private class FindServersData : AsyncResultBase
-        {
-            public FindServersData(AsyncCallback callback, object callbackData, int timeout)
-                : base(callback, callbackData, timeout)
-            {
-            }
-
-            public DiscoveryClient DiscoveryClient;
-            public ArrayOf<ApplicationDescription> Servers;
-        }
-
-        [Obsolete("Use FindServersAsync instead.")]
-        private void OnFindServersComplete(IAsyncResult result)
-        {
-            var data = result.AsyncState as FindServersData;
-
-            try
-            {
-                data.DiscoveryClient
-                    .EndFindServers(result, out ArrayOf<ApplicationDescription> servers);
-
-                data.Servers = servers;
-                data.OperationCompleted();
-            }
-            catch (Exception e)
-            {
-                data.Exception = e;
-                data.OperationCompleted();
-            }
-        }
-
-        public Task<ArrayOf<EndpointDescription>> GetEndpointsAsync(string endpointUrl, CancellationToken ct = default)
+        public ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(string endpointUrl, CancellationToken ct = default)
         {
             return GetEndpointsAsync(endpointUrl, null, ct);
         }
 
-        public async Task<ArrayOf<EndpointDescription>> GetEndpointsAsync(
+        public async ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
             string endpointUrl,
             string endpointTransportProfileUri,
             CancellationToken ct = default)
@@ -242,110 +130,7 @@ namespace Opc.Ua.Gds.Client
 
             return response.Endpoints;
         }
-
-        [Obsolete("Use GetEndpointsAsync instead.")]
-        public ArrayOf<EndpointDescription> GetEndpoints(string endpointUrl)
-        {
-            IAsyncResult result = BeginGetEndpoints(endpointUrl, null, null, null);
-            return EndGetEndpoints(result);
-        }
-
-        [Obsolete("Use GetEndpointsAsync instead.")]
-        public ArrayOf<EndpointDescription> GetEndpoints(
-            string endpointUrl,
-            string endpointTransportProfileUri)
-        {
-            IAsyncResult result = BeginGetEndpoints(
-                endpointUrl,
-                endpointTransportProfileUri,
-                null,
-                null);
-            return EndGetEndpoints(result);
-        }
-
-        [Obsolete("Use GetEndpointsAsync instead.")]
-        public IAsyncResult BeginGetEndpoints(
-            string endpointUrl,
-            string endpointTransportProfileUri,
-            AsyncCallback callback,
-            object callbackData)
-        {
-            DiscoveryClient client = CreateClientAsync(endpointUrl, endpointTransportProfileUri).GetAwaiter().GetResult();
-
-            var data = new GetEndpointsData(callback, callbackData, client.OperationTimeout)
-            {
-                DiscoveryClient = client
-            };
-
-            data.InnerResult = client.BeginGetEndpoints(
-                null,
-                endpointUrl,
-                [.. PreferredLocales],
-                default,
-                OnGetEndpointsComplete,
-                data);
-
-            return data;
-        }
-
-        [Obsolete("Use GetEndpointsAsync instead.")]
-        public ArrayOf<EndpointDescription> EndGetEndpoints(IAsyncResult result)
-        {
-            if (result is not GetEndpointsData data)
-            {
-                throw new ArgumentException(
-                    "Did not pass the correct IAsyncResult to end method.",
-                    nameof(result));
-            }
-
-            try
-            {
-                if (!data.WaitForComplete())
-                {
-                    throw new TimeoutException();
-                }
-
-                return data.Endpoints;
-            }
-            finally
-            {
-                data.DiscoveryClient.CloseAsync().GetAwaiter().GetResult();
-            }
-        }
-
-        [Obsolete("Use GetEndpointsAsync instead.")]
-        private class GetEndpointsData : AsyncResultBase
-        {
-            public GetEndpointsData(AsyncCallback callback, object callbackData, int timeout)
-                : base(callback, callbackData, timeout)
-            {
-            }
-
-            public DiscoveryClient DiscoveryClient;
-            public ArrayOf<EndpointDescription> Endpoints;
-        }
-
-        [Obsolete("Use GetEndpointsAsync instead.")]
-        private void OnGetEndpointsComplete(IAsyncResult result)
-        {
-            var data = result.AsyncState as GetEndpointsData;
-
-            try
-            {
-                data.DiscoveryClient
-                    .EndGetEndpoints(result, out ArrayOf<EndpointDescription> endpoints);
-
-                data.Endpoints = endpoints;
-                data.OperationCompleted();
-            }
-            catch (Exception e)
-            {
-                data.Exception = e;
-                data.OperationCompleted();
-            }
-        }
-
-        public Task<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
+        public ValueTask<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
             CancellationToken ct = default)
@@ -359,7 +144,7 @@ namespace Opc.Ua.Gds.Client
                 ct);
         }
 
-        public async Task<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
+        public async ValueTask<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
             string endpointUrl,
             string endpointTransportProfileUri,
             uint startingRecordId,
@@ -378,156 +163,6 @@ namespace Opc.Ua.Gds.Client
 
             return (response.Servers, response.LastCounterResetTime);
         }
-
-        [Obsolete("Use FindServersOnNetworkAsync instead.")]
-        public ArrayOf<ServerOnNetwork> FindServersOnNetwork(
-            uint startingRecordId,
-            uint maxRecordsToReturn,
-            out DateTime lastCounterResetTime)
-        {
-            IAsyncResult result = BeginFindServersOnNetwork(
-                null,
-                null,
-                startingRecordId,
-                maxRecordsToReturn,
-                default,
-                null,
-                null);
-            return EndFindServersOnNetwork(result, out lastCounterResetTime);
-        }
-
-        [Obsolete("Use FindServersOnNetworkAsync instead.")]
-        public ArrayOf<ServerOnNetwork> FindServersOnNetwork(
-            string endpointUrl,
-            string endpointTransportProfileUri,
-            uint startingRecordId,
-            uint maxRecordsToReturn,
-            ArrayOf<string> serverCapabilityFilters,
-            out DateTime lastCounterResetTime)
-        {
-            IAsyncResult result = BeginFindServersOnNetwork(
-                endpointUrl,
-                endpointTransportProfileUri,
-                startingRecordId,
-                maxRecordsToReturn,
-                serverCapabilityFilters,
-                null,
-                null);
-            return EndFindServersOnNetwork(result, out lastCounterResetTime);
-        }
-
-        [Obsolete("Use FindServersOnNetworkAsync instead.")]
-        public IAsyncResult BeginFindServersOnNetwork(
-            uint startingRecordId,
-            uint maxRecordsToReturn,
-            AsyncCallback callback,
-            object callbackData)
-        {
-            return BeginFindServersOnNetwork(
-                null,
-                null,
-                startingRecordId,
-                maxRecordsToReturn,
-                default,
-                callback,
-                callbackData);
-        }
-
-        [Obsolete("Use FindServersOnNetworkAsync instead.")]
-        public IAsyncResult BeginFindServersOnNetwork(
-            string endpointUrl,
-            string endpointTransportProfileUri,
-            uint startingRecordId,
-            uint maxRecordsToReturn,
-            ArrayOf<string> serverCapabilityFilters,
-            AsyncCallback callback,
-            object callbackData)
-        {
-            DiscoveryClient client = CreateClientAsync(endpointUrl, endpointTransportProfileUri).GetAwaiter().GetResult();
-
-            var data = new FindServersOnNetworkData(callback, callbackData, client.OperationTimeout)
-            {
-                DiscoveryClient = client
-            };
-
-            data.InnerResult = client.BeginFindServersOnNetwork(
-                null,
-                startingRecordId,
-                maxRecordsToReturn,
-                serverCapabilityFilters,
-                OnFindServersOnNetworkComplete,
-                data);
-
-            return data;
-        }
-
-        [Obsolete("Use FindServersOnNetworkAsync instead.")]
-        public ArrayOf<ServerOnNetwork> EndFindServersOnNetwork(
-            IAsyncResult result,
-            out DateTime lastCounterResetTime)
-        {
-            if (result is not FindServersOnNetworkData data)
-            {
-                throw new ArgumentException(
-                    "Did not pass the correct IAsyncResult to end method.",
-                    nameof(result));
-            }
-
-            try
-            {
-                if (!data.WaitForComplete())
-                {
-                    throw new TimeoutException();
-                }
-
-                lastCounterResetTime = data.LastCounterResetTime;
-                return data.Servers;
-            }
-            finally
-            {
-                data.DiscoveryClient.CloseAsync().GetAwaiter().GetResult();
-            }
-        }
-
-        [Obsolete("Use FindServersOnNetworkAsync instead.")]
-        private class FindServersOnNetworkData : AsyncResultBase
-        {
-            public FindServersOnNetworkData(
-                AsyncCallback callback,
-                object callbackData,
-                int timeout)
-                : base(callback, callbackData, timeout)
-            {
-            }
-
-            public DiscoveryClient DiscoveryClient;
-            public DateTime LastCounterResetTime;
-            public ArrayOf<ServerOnNetwork> Servers;
-        }
-
-        [Obsolete("Use FindServersOnNetworkAsync instead.")]
-        private void OnFindServersOnNetworkComplete(IAsyncResult result)
-        {
-            var data = result.AsyncState as FindServersOnNetworkData;
-
-            try
-            {
-                data.DiscoveryClient.EndFindServersOnNetwork(
-                    result,
-                    out DateTimeUtc lastCounterResetTime,
-                    out ArrayOf<ServerOnNetwork> servers);
-
-                data.LastCounterResetTime = (DateTime)lastCounterResetTime;
-                data.Servers = servers;
-                data.OperationCompleted();
-            }
-            catch (Exception e)
-            {
-                data.Exception = e;
-                data.OperationCompleted();
-            }
-        }
-
         protected virtual Task<DiscoveryClient> CreateClientAsync(
             string endpointUrl,
             string endpointTransportProfileUri,
@@ -558,6 +193,28 @@ namespace Opc.Ua.Gds.Client
                 ct);
         }
 
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            if (m_disposed)
+            {
+                return default;
+            }
+            m_disposed = true;
+            try
+            {
+                m_disposeCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            m_disposeCts.Dispose();
+            GC.SuppressFinalize(this);
+            return default;
+        }
+
+        private readonly CancellationTokenSource m_disposeCts = new();
+        private bool m_disposed;
         private const string kDefaultUrl = "opc.tcp://localhost:4840";
     }
 }

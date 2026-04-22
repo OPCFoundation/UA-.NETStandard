@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Formatter;
@@ -65,6 +66,9 @@ namespace Opc.Ua.PubSub.Transport
         private MqttClientOptions m_publisherMqttClientOptions;
         private MqttClientOptions m_subscriberMqttClientOptions;
         private readonly List<MqttMetadataPublisher> m_metaDataPublishers = [];
+
+        // Cancellation token source used to cancel the reconnect handler when the connection is stopped.
+        private CancellationTokenSource m_stopCts;
 
         /// <summary>
         /// Gets the host name or IP address of the broker.
@@ -252,7 +256,7 @@ namespace Opc.Ua.PubSub.Transport
         public override async Task<bool> PublishNetworkMessageAsync(UaNetworkMessage networkMessage)
         {
             MqttClient publisherClient = m_publisherMqttClient;
-            if (networkMessage == null || publisherClient == null)
+            if (!IsRunning || networkMessage == null || publisherClient == null)
             {
                 return false;
             }
@@ -439,6 +443,15 @@ namespace Opc.Ua.PubSub.Transport
             int nrOfPublishers = Publishers.Count;
             int nrOfSubscribers = GetAllDataSetReaders().Count;
 
+            // Create a fresh cancellation token source for reconnect handling.
+            CancellationToken stopToken;
+            lock (Lock)
+            {
+                m_stopCts?.Dispose();
+                m_stopCts = new CancellationTokenSource();
+                stopToken = m_stopCts.Token;
+            }
+
             //publisher initialization
             if (nrOfPublishers > 0)
             {
@@ -448,7 +461,8 @@ namespace Opc.Ua.PubSub.Transport
                             m_reconnectIntervalSeconds,
                             m_publisherMqttClientOptions,
                             null,
-                            m_logger)
+                            m_logger,
+                            ct: stopToken)
                         .ConfigureAwait(false);
             }
 
@@ -496,7 +510,8 @@ namespace Opc.Ua.PubSub.Transport
                             m_subscriberMqttClientOptions,
                             ProcessMqttMessage,
                             m_logger,
-                            topics)
+                            topics,
+                            stopToken)
                         .ConfigureAwait(false);
             }
 
@@ -518,6 +533,10 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         protected override async Task InternalStop()
         {
+            // Cancel the reconnect handler before disconnecting so the disconnect event
+            // does not attempt to reconnect after an intentional stop.
+            m_stopCts?.Cancel();
+
             IMqttClient publisherMqttClient = m_publisherMqttClient;
             IMqttClient subscriberMqttClient = m_subscriberMqttClient;
 
