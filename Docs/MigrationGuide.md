@@ -3,11 +3,13 @@
 - [Migration Guide](#migration-guide)
   - [Migrating from 1.5.378 to 1.6.x](#migrating-from-15378-to-16x)
     - [Source Generation](#source-generation)
+      - [Default value of boolean properties in source-generated data types is now false](#default-value-of-boolean-properties-in-source-generated-data-types-is-now-false)
       - [Project Structure](#project-structure)
     - [Improved Type safety](#improved-type-safety)
       - [Several built in types are now immutable value types](#several-built-in-types-are-now-immutable-value-types)
       - [ByteString](#bytestring)
       - [ArrayOf and MatrixOf](#arrayof-and-matrixof)
+        - [Configuration collection types removed](#configuration-collection-types-removed)
       - [DateTimeUtc](#datetimeutc)
       - [QualifiedName and LocalizedText](#qualifiedname-and-localizedtext)
       - [StatusCode](#statuscode)
@@ -17,48 +19,38 @@
         - [Replacement of all use of System.Object in generated code and API](#replacement-of-all-use-of-systemobject-in-generated-code-and-api)
       - [XmlElement](#xmlelement)
       - [EnumValue to represent the enumeration built in type](#enumvalue-to-represent-the-enumeration-built-in-type)
+      - [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
       - [Other Data Types](#other-data-types)
       - [Obsoleted APIs and replacements](#obsoleted-apis-and-replacements)
       - [APIs permanently removed](#apis-permanently-removed)
-    - [Encoders and Decoders](#encoders-and-decoders)
-    - [Node States](#node-states)
-      - [Generics and Typed BaseVariableState and BaseVariableTypeState](#generics-and-typed-basevariablestate-and-basevariabletypestate)
-      - [Predefined node processing](#predefined-node-processing)
-    - [User Identity Token Handlers](#user-identity-token-handlers)
-    - [Serialization and Configuration](#serialization-and-configuration)
-      - [Data Contract Serializer support removed](#data-contract-serializer-support-removed)
-      - [Default value of boolean properties in source-generated data types is now false](#default-value-of-boolean-properties-in-source-generated-data-types-is-now-false)
-      - [DataContract to DataType migration](#datacontract-to-datatype-migration)
-      - [Configuration collection types removed](#configuration-collection-types-removed)
-      - [DataContractSerializer replaced](#datacontractserializer-replaced)
-      - [Newtonsoft.Json removed from Opc.Ua.Core](#newtonsoftjson-removed-from-opcuacore)
-      - [ParseExtension/UpdateExtension signature changed](#parseextensionupdateextension-signature-changed)
-    - [NodeState Cloning and Lifecycle](#nodestate-cloning-and-lifecycle)
-      - [Clone() replaced with CreateCopy()](#clone-replaced-with-createcopy)
-      - [BaseVariableState Read/Write helpers removed](#basevariablestate-readwrite-helpers-removed)
-      - [OnAfterCreate gains CancellationToken](#onaftercreate-gains-cancellationtoken)
-    - [Encodeable Factory and Type System](#encodeable-factory-and-type-system)
+    - [Encodeable Factory and Complex Type System](#encodeable-factory-and-complex-type-system)
       - [IType hierarchy](#itype-hierarchy)
       - [IEncodeableTypeLookup changes](#iencodeabletypelookup-changes)
       - [IEncodeableFactoryBuilder changes](#iencodeablefactorybuilder-changes)
       - [EncodeableFactory.GlobalFactory removed](#encodeablefactoryglobalfactory-removed)
-      - [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
-    - [Complex Types](#complex-types)
       - [ComplexTypes moved to Opc.Ua.Client assembly](#complextypes-moved-to-opcuaclient-assembly)
       - [OptionSet DataType support](#optionset-datatype-support)
-    - [Session and Browser State Persistence](#session-and-browser-state-persistence)
-      - [Property type changes](#property-type-changes)
-      - [`IUserIdentity` on `SessionOptions` is now computed](#iuseridentity-on-sessionoptions-is-now-computed)
-      - [Encoding format is not guaranteed backward compatible](#encoding-format-is-not-guaranteed-backward-compatible)
-    - [Other Breaking Changes](#other-breaking-changes)
-      - [Boolean default values in source-generated data types](#boolean-default-values-in-source-generated-data-types)
-    - [GDS Client API modernization](#gds-client-api-modernization)
-      - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
-      - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
+    - [Encoders and Decoders](#encoders-and-decoders)
+    - [Node States](#node-states)
+      - [Generics and Typed BaseVariableState and BaseVariableTypeState](#generics-and-typed-basevariablestate-and-basevariabletypestate)
+      - [Predefined node processing](#predefined-node-processing)
+      - [NodeState Cloning and Lifecycle](#nodestate-cloning-and-lifecycle)
+        - [Clone() replaced with CreateCopy()](#clone-replaced-with-createcopy)
+        - [BaseVariableState Read/Write helpers removed](#basevariablestate-readwrite-helpers-removed)
+        - [OnAfterCreate gains CancellationToken](#onaftercreate-gains-cancellationtoken)
+    - [User Identity Token Handlers](#user-identity-token-handlers)
+    - [Configuration](#configuration)
+      - [Data Contract Serializer support removed](#data-contract-serializer-support-removed)
+      - [Newtonsoft.Json removed from Opc.Ua.Core](#newtonsoftjson-removed-from-opcuacore)
+      - [ParseExtension/UpdateExtension signature changed](#parseextensionupdateextension-signature-changed)
+      - [Session and Browser State Persistence](#session-and-browser-state-persistence)
     - [Certificate Management](#certificate-management)
       - [Certificate and CertificateCollection wrapper types](#certificate-and-certificatecollection-wrapper-types)
       - [CertificateManager and segregated interfaces](#certificatemanager-and-segregated-interfaces)
       - [Obsoleted certificate APIs](#obsoleted-certificate-apis)
+    - [GDS Client API modernization](#gds-client-api-modernization)
+      - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
+      - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
   - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
     - [Asynchronous as default](#asynchronous-as-default)
     - [Observability](#observability)
@@ -80,7 +72,7 @@ Version 1.6 introduces a major architectural change from pre-generated code file
 
 ### Source Generation
 
-Instead of generating code for OPC UA design files using the [ModelCompiler](https://github.com/OPCFoundation/UA-ModelCompiler), this version of the stack uses [Source Generators](https://learn.microsoft.com/dotnet/csharp/roslyn-sdk/#source-generators) to generate code behind for your project. Input into the source generator can be NodeSet2.xml files or ModelDesign.xml files (the same that ModelCompiler consumes). Source generators are Roslyn analyzers, that are called by the Roslyn compiler and emit code during the build process.
+Instead of generating code for OPC UA design files using the [ModelCompiler](https://github.com/OPCFoundation/UA-ModelCompiler), this version of the stack uses [Source Generators](https://learn.microsoft.com/dotnet/csharp/roslyn-sdk/#source-generators) to generate code behind for your project. Input into the source generator can be NodeSet2.xml files or ModelDesign.xml files (the same that ModelCompiler consumes). Example projects are provided in the Applications folder. Source generators are Roslyn analyzers, that are called by the Roslyn compiler and emit code during the build process.
 
 **Model compiler generated csharp code is not supported in this version!**
 
@@ -108,7 +100,45 @@ Code generation during compilation also allows not just emitting code ahead of t
 
 The stack itself uses source generators to generate the core opc ua code. Therefore all pre-generated code files (`Generated/` folders) have been removed and are now generated at build time. As a result of using source generators to generate the stack code all `*.nodeset2.xml` files previously included as embedded zip have been removed. Also, all `*.Types.xsd` and `*.Types.bsd` files are now included as string resource instead of embedded resources. If you need access to these, use the new `Schemas.XmlAsStream` and `Schemas.BinaryAsStream` APIs in the node manager namespace which produce a utf8 stream. Alternatively you can use the existing ModelCompiler tool to generate these files.
 
-When you encounter slower build times use incremental compilation and avoid changes to code in Opc.Ua and Opc.Ua.Core project. In addition you can change your builds to only build for your target framework using the dotnet `-f <tfm>` command line option.
+When you encounter slower build times use incremental compilation and avoid changes to code in Opc.Ua and Opc.Ua.Core project. In addition you can change your builds to only build for your target framework using the dotnet `-f <tfm>` command line option, e.g. `-f net10`.
+
+#### Default value of boolean properties in source-generated data types is now false
+
+**Breaking Change**: Boolean properties on source-generated data types now correctly default to `false` instead of `true`.
+
+Generated code produced by the model compiler contained a bug because it inverted the default value for boolean fields in generated data types. Boolean fields without an explicit `<DefaultValue>` in the model design XML were initialized to `true` instead of `false` as expected and defined in Part 6. This has been fixed.
+
+**Impact**: Any code that creates instances of source-generated data types and relies on boolean properties being `true` by default must now explicitly set those properties to `true`. This primarily affects PubSub configuration types:
+
+| Type | Property | Old Default | New Default |
+|---|---|---|---|
+| `PubSubConfigurationDataType` | `Enabled` | `true` | `false` |
+| `PubSubConnectionDataType` | `Enabled` | `true` | `false` |
+| `WriterGroupDataType` | `Enabled` | `true` | `false` |
+| `ReaderGroupDataType` | `Enabled` | `true` | `false` |
+| `DataSetWriterDataType` | `Enabled` | `true` | `false` |
+| `DataSetReaderDataType` | `Enabled` | `true` | `false` |
+| `PublishedDataSetCustomSourceDataType` | `CyclicDataSet` | `true` | `false` |
+
+Other affected types include all source-generated structures with boolean fields (e.g., `AggregateConfiguration.TreatUncertainAsBad`, `MonitoringParameters.DiscardOldest`, `CreateSubscriptionRequest.PublishingEnabled`) as well as 
+some hand-written types in `Opc.Ua.Types` (such as `BrowseDescription`, `RelativePathElement`).
+
+**Migration**: Add explicit initialization where your code depends on `true` as the default:
+
+```csharp
+// Before (relied on incorrect true default)
+var connection = new PubSubConnectionDataType
+{
+    Name = "MyConnection"
+};
+
+// After (explicitly set Enabled)
+var connection = new PubSubConnectionDataType
+{
+    Enabled = true,
+    Name = "MyConnection"
+};
+```
 
 #### Project Structure
 
@@ -188,6 +218,10 @@ Note that equality operators and methods now compare the content of the Array an
     var first = !c.IsEmpty ? c[0] : default;
     ArrayOf<int> i = c.ConvertAll(v => (int)v);
 ```
+
+##### Configuration collection types removed
+
+All `List<T>`-based collection wrappers for configuration types have been removed and replaced with `ArrayOf<T>`: `ServerSecurityPolicyCollection`, `TransportConfigurationCollection`, `SamplingRateGroupCollection`, `ReverseConnectClientCollection`, `ReverseConnectClientEndpointCollection`, `ServerRegistrationCollection`, `CertificateIdentifierCollection`, `CertificateGroupConfigurationCollection`, `OAuth2ServerSettingsCollection`, `OAuth2CredentialCollection`.
 
 #### DateTimeUtc
 
@@ -287,6 +321,10 @@ Variant v = new Variant(EnumValue.From(MyEnum.Value)); // or
 Variant v = Variant.From(MyEnum.Value);
 ```
 
+#### ExtensionObject array helpers changed
+
+`ExtensionObject.ToArray(object, Type)` and `ToList<T>(object)` removed. Use `extensionObjects.GetStructuresOf<T>()` or `ExtensionObject.ToArray<T>(ArrayOf<ExtensionObject>)`.
+
 #### Other Data Types
 
 All generated data types implementing `IEncodeable` are now equality comparable using `==` and `!=` and implement `IEquatable<T>`. Equality defaults to the `IsEqual` implementation of the `IEncodeable` interface. In addition `ToString()` and `GetHashCode()` are implemented making all generated data types effectively equivalent to `record` classes with the exception of supporting `with` expressions.
@@ -343,6 +381,47 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - new `Variant(byte[])` -> use `Variant.From(ByteString)` or `new Variant(ByteString)` or `Variant.From(ArrayOf<byte>)` or `new Variant(ArrayOf<byte>)`
 - Session `Call/CallAsync(param object[])` -> use `Call/CallAsync(param Variant[])`
 - `byte[]` as ByteString -> use `ByteString`
+
+### Encodeable Factory and Complex Type System
+
+#### IType hierarchy
+
+New type abstraction layer: `IType` (base) with `IBuiltInType`, `IEnumeratedType` (new), and `IEncodeableType` (now extends `IType`). Many APIs return `IType` instead of `Type`:
+
+- `TypeInfo.GetSystemType(ExpandedNodeId, IEncodeableTypeLookup)` → returns `IType` (was `Type`). Use `.Type` property to get the CLR `Type`.
+- The overload `TypeInfo.GetSystemType(BuiltInType, int valueRank)` was removed.
+
+#### IEncodeableTypeLookup changes
+
+- `TryGetEncodeableType<T>()` removed.
+- Added: `TryGetEnumeratedType(ExpandedNodeId, out IEnumeratedType?)`, `TryGetType(XmlQualifiedName, out IType?)`.
+
+#### IEncodeableFactoryBuilder changes
+
+- `AddEncodeableType(ExpandedNodeId, Type)` → renamed to `AddType(ExpandedNodeId, Type)`.
+- Added: `AddEnumeratedType(IEnumeratedType)`, `AddEnumeratedType(ExpandedNodeId, IEnumeratedType)`.
+- `AddEncodeableType(Type)` and `AddEncodeableTypes(Assembly)` now have AOT annotations (`[DynamicallyAccessedMembers]`, `[RequiresUnreferencedCode]`).
+
+#### EncodeableFactory.GlobalFactory removed
+
+The `[Obsolete]` static `EncodeableFactory.GlobalFactory` was removed. `EncodeableFactory.Create()` renamed to `Fork()`. Use `ServiceMessageContext.Factory` instead.
+
+#### ComplexTypes moved to Opc.Ua.Client assembly
+
+Core complex type interfaces and default (non-reflection-emit) implementations moved from `Opc.Ua.Client.ComplexTypes` to `Libraries/Opc.Ua.Client/ComplexTypes/`.
+Namespace remains `Opc.Ua.Client.ComplexTypes`. If you used the default constructors without specifying the builder, and want to use the Reflection.Emit based type builders,
+you need to change your code to call `ComplexTypeSystem.Create(...)` instead of `new ComplexTypeSystem(...)` which now uses the new default builder not supporting Reflection.Emit.
+
+#### OptionSet DataType support
+
+Concrete Structure-backed sub-types of the abstract `OptionSet` DataType (`i=12755`) are now automatically registered by the default `ComplexTypeSystem` builder with a new runtime class `Opc.Ua.Encoders.OptionSet` (in `Stack/Opc.Ua.Types`). Bit-field metadata is resolved from `DataTypeDefinition` (`EnumDefinition`) or, as a fallback, synthesized from the `OptionSetValues` property (`LocalizedText[]`).
+
+Impact on existing code:
+
+- **Source-breaking for custom `IComplexTypeBuilder` implementations**: a new member `AddOptionSetType(QualifiedName, ExpandedNodeId, ExpandedNodeId, ExpandedNodeId, ExpandedNodeId, EnumDefinition)` was added to `IComplexTypeBuilder`. Custom implementations must provide it.
+- The Reflection.Emit builder in `Opc.Ua.Client.ComplexTypes` throws `NotSupportedException` from `AddOptionSetType`; callers relying on the Reflection.Emit path for OptionSet sub-types should switch to the default builder (`new ComplexTypeSystem(session)`).
+- No wire-format changes: encoders/decoders continue to route through `IEncodeableFactory` → `IEncodeableType.CreateInstance`, which now yields `Opc.Ua.Encoders.OptionSet` for registered sub-types.
+- UInteger-backed OptionSet DataTypes remain treated as their underlying unsigned integer in a `Variant` (unchanged).
 
 ### Encoders and Decoders
 
@@ -425,6 +504,47 @@ Example guidance (mirrors BoilerNodeManager): the node passed to `AddBehaviorToP
 
 See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more information.
 
+#### NodeState Cloning and Lifecycle
+
+##### Clone() replaced with CreateCopy()
+
+`NodeState.Clone()` is now a concrete method that calls `CreateCopy()` + `CopyTo()`. The new `protected abstract NodeState CreateCopy()` must be overridden by all direct NodeState subclasses.
+
+```csharp
+// Before
+public override object Clone()
+{
+    var clone = new MyNodeState(Parent);
+    CopyTo(clone);
+    return clone;
+}
+
+// After
+protected override NodeState CreateCopy()
+{
+    return new MyNodeState(Parent);
+}
+```
+
+If you had custom deep-copy logic beyond what `CopyTo()` does, override `CopyTo()` instead.
+
+##### BaseVariableState Read/Write helpers removed
+
+The `protected ServiceResult Read(object, ref object)` and `protected object Write(object)` methods were removed.
+Use the `CopyPolicy` property or the new `CopyOnWrite` bool directly with `CoreUtils.Clone()` for copy-on-read/write semantics.
+
+##### OnAfterCreate gains CancellationToken
+
+`OnAfterCreate(ISystemContext, NodeState)` now has an optional `CancellationToken ct = default` parameter.
+Existing overrides compile (source-compatible) but are **binary-incompatible** — pre-compiled assemblies won't match at runtime.
+
+```csharp
+protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
+{
+    base.OnAfterCreate(context, node, ct);
+}
+```
+
 ### User Identity Token Handlers
 
 **Breaking Change**: Identity tokens no longer perform cryptographic operations directly. New handler pattern introduced for better security and lifetime management.
@@ -497,11 +617,11 @@ See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more info
 
 3. **Available token handlers**:
    - `AnonymousIdentityTokenHandler`
-   - `UserNameIdentityTokenHandler`  
+   - `UserNameIdentityTokenHandler`
    - `X509IdentityTokenHandler`
    - `IssuedIdentityTokenHandler`
 
-### Serialization and Configuration
+### Configuration
 
 #### Data Contract Serializer support removed
 
@@ -509,47 +629,11 @@ Because **Data Contract serialization** is not AOT compliant and does not suppor
 
 > Generated Data types still support DataContract based serialization, however, consider this a deprecated feature.
 
-#### Default value of boolean properties in source-generated data types is now false
-
-**Breaking Change**: Boolean properties on source-generated data types now correctly default to `false` instead of `true`.
-
-Generated code produced by the model compiler contained a bug because it inverted the default value for boolean fields in generated data types. Boolean fields without an explicit `<DefaultValue>` in the model design XML were initialized to `true` instead of `false` as expected and defined in Part 6. This has been fixed.
-
-**Impact**: Any code that creates instances of source-generated data types and relies on boolean properties being `true` by default must now explicitly set those properties to `true`. This primarily affects PubSub configuration types:
-
-| Type | Property | Old Default | New Default |
-|---|---|---|---|
-| `PubSubConfigurationDataType` | `Enabled` | `true` | `false` |
-| `PubSubConnectionDataType` | `Enabled` | `true` | `false` |
-| `WriterGroupDataType` | `Enabled` | `true` | `false` |
-| `ReaderGroupDataType` | `Enabled` | `true` | `false` |
-| `DataSetWriterDataType` | `Enabled` | `true` | `false` |
-| `DataSetReaderDataType` | `Enabled` | `true` | `false` |
-| `PublishedDataSetCustomSourceDataType` | `CyclicDataSet` | `true` | `false` |
-
-Other affected types include all source-generated structures with boolean fields (e.g., `AggregateConfiguration.TreatUncertainAsBad`, `MonitoringParameters.DiscardOldest`, `CreateSubscriptionRequest.PublishingEnabled`) as well as 
-some hand-written types in `Opc.Ua.Types` (such as `BrowseDescription`, `RelativePathElement`).
-
-**Migration**: Add explicit initialization where your code depends on `true` as the default:
-
-```csharp
-// Before (relied on incorrect true default)
-var connection = new PubSubConnectionDataType
-{
-    Name = "MyConnection"
-};
-
-// After (explicitly set Enabled)
-var connection = new PubSubConnectionDataType
-{
-    Enabled = true,
-    Name = "MyConnection"
-};
-```
-
-#### DataContract to DataType migration
-
 All configuration DTO classes (`ApplicationConfiguration`, `ServerConfiguration`, `TraceConfiguration`, `TransportConfiguration`, `ServerSecurityPolicy`, `OAuth2ServerSettings`, `OAuth2Credential`, `GlobalDiscoveryServerConfiguration`, `CertificateGroupConfiguration`, `BrowserOptions`, etc.) migrated from `[DataContract]`/`[DataMember]` to source-generated `[DataType]`/`[DataTypeField]` attributes and are now `partial` classes.
+
+- `ApplicationConfiguration.LoadWithNoValidation` uses `XmlParser`/`IEncodeable.Decode()`. Existing XML config files should remain loadable.
+- Browser and session state persistence switched from XML to OPC UA Binary encoding. **Old persisted files cannot be loaded** — delete and re-save.
+- `SecuredApplication` uses `SecuredApplicationEncoding` helpers instead of `DataContractSerializer`.
 
 **Change code as follows:**
 
@@ -557,20 +641,6 @@ All configuration DTO classes (`ApplicationConfiguration`, `ServerConfiguration`
 - Add the `partial` keyword to any subclass of these configuration types.
 - Custom configuration extension types must implement `IEncodeable` (the `[DataType]` source generator handles this automatically for `partial` classes).
 - Code using reflection to inspect `[DataContract]`/`[DataMember]` attributes must switch to `[DataType]`/`[DataTypeField]`.
-
-#### Configuration collection types removed
-
-All `List<T>`-based collection wrappers for configuration types have been removed and replaced with `ArrayOf<T>`: `ServerSecurityPolicyCollection`, `TransportConfigurationCollection`, `SamplingRateGroupCollection`, `ReverseConnectClientCollection`, `ReverseConnectClientEndpointCollection`, `ServerRegistrationCollection`, `CertificateIdentifierCollection`, `CertificateGroupConfigurationCollection`, `OAuth2ServerSettingsCollection`, `OAuth2CredentialCollection`.
-
-See the [ArrayOf and MatrixOf](#arrayof-and-matrixof) section for migration guidance on using `ArrayOf<T>`.
-
-#### DataContractSerializer replaced
-
-`DataContractSerializer` has been removed from config loading and persistence paths:
-
-- `ApplicationConfiguration.LoadWithNoValidation` uses `XmlParser`/`IEncodeable.Decode()`. Existing XML config files should remain loadable.
-- Browser and session state persistence switched from XML to OPC UA Binary encoding. **Old persisted files cannot be loaded** — delete and re-save.
-- `SecuredApplication` uses `SecuredApplicationEncoding` helpers instead of `DataContractSerializer`.
 
 #### Newtonsoft.Json removed from Opc.Ua.Core
 
@@ -594,95 +664,7 @@ var config = configuration.ParseExtension<MyConfig>(
     decoder => { var c = new MyConfig(); c.Decode(decoder); return c; });
 ```
 
-### NodeState Cloning and Lifecycle
-
-#### Clone() replaced with CreateCopy()
-
-`NodeState.Clone()` is now a concrete method that calls `CreateCopy()` + `CopyTo()`. The new `protected abstract NodeState CreateCopy()` must be overridden by all direct NodeState subclasses.
-
-```csharp
-// Before
-public override object Clone()
-{
-    var clone = new MyNodeState(Parent);
-    CopyTo(clone);
-    return clone;
-}
-
-// After
-protected override NodeState CreateCopy()
-{
-    return new MyNodeState(Parent);
-}
-```
-
-If you had custom deep-copy logic beyond what `CopyTo()` does, override `CopyTo()` instead.
-
-#### BaseVariableState Read/Write helpers removed
-
-The `protected ServiceResult Read(object, ref object)` and `protected object Write(object)` methods were removed.
-Use the `CopyPolicy` property or the new `CopyOnWrite` bool directly with `CoreUtils.Clone()` for copy-on-read/write semantics.
-
-#### OnAfterCreate gains CancellationToken
-
-`OnAfterCreate(ISystemContext, NodeState)` now has an optional `CancellationToken ct = default` parameter.
-Existing overrides compile (source-compatible) but are **binary-incompatible** — pre-compiled assemblies won't match at runtime.
-
-```csharp
-protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
-{
-    base.OnAfterCreate(context, node, ct);
-}
-```
-
-### Encodeable Factory and Type System
-
-#### IType hierarchy
-
-New type abstraction layer: `IType` (base) with `IBuiltInType`, `IEnumeratedType` (new), and `IEncodeableType` (now extends `IType`). Many APIs return `IType` instead of `Type`:
-
-- `TypeInfo.GetSystemType(ExpandedNodeId, IEncodeableTypeLookup)` → returns `IType` (was `Type`). Use `.Type` property to get the CLR `Type`.
-- The overload `TypeInfo.GetSystemType(BuiltInType, int valueRank)` was removed.
-
-#### IEncodeableTypeLookup changes
-
-- `TryGetEncodeableType<T>()` removed.
-- Added: `TryGetEnumeratedType(ExpandedNodeId, out IEnumeratedType?)`, `TryGetType(XmlQualifiedName, out IType?)`.
-
-#### IEncodeableFactoryBuilder changes
-
-- `AddEncodeableType(ExpandedNodeId, Type)` → renamed to `AddType(ExpandedNodeId, Type)`.
-- Added: `AddEnumeratedType(IEnumeratedType)`, `AddEnumeratedType(ExpandedNodeId, IEnumeratedType)`.
-- `AddEncodeableType(Type)` and `AddEncodeableTypes(Assembly)` now have AOT annotations (`[DynamicallyAccessedMembers]`, `[RequiresUnreferencedCode]`).
-
-#### EncodeableFactory.GlobalFactory removed
-
-The `[Obsolete]` static `EncodeableFactory.GlobalFactory` was removed. `EncodeableFactory.Create()` renamed to `Fork()`. Use `ServiceMessageContext.Factory` instead.
-
-#### ExtensionObject array helpers changed
-
-`ExtensionObject.ToArray(object, Type)` and `ToList<T>(object)` removed. Use `extensionObjects.GetStructuresOf<T>()` or `ExtensionObject.ToArray<T>(ArrayOf<ExtensionObject>)`.
-
-### Complex Types
-
-#### ComplexTypes moved to Opc.Ua.Client assembly
-
-Core complex type interfaces and default (non-reflection-emit) implementations moved from `Opc.Ua.Client.ComplexTypes` to `Libraries/Opc.Ua.Client/ComplexTypes/`.
-Namespace remains `Opc.Ua.Client.ComplexTypes`. If you used the default constructors without specifying the builder, and want to use the Reflection.Emit based type builders,
-you need to change your code to call `ComplexTypeSystem.Create(...)` instead of `new ComplexTypeSystem(...)` which now uses the new default builder not supporting Reflection.Emit.
-
-#### OptionSet DataType support
-
-Concrete Structure-backed sub-types of the abstract `OptionSet` DataType (`i=12755`) are now automatically registered by the default `ComplexTypeSystem` builder with a new runtime class `Opc.Ua.Encoders.OptionSet` (in `Stack/Opc.Ua.Types`). Bit-field metadata is resolved from `DataTypeDefinition` (`EnumDefinition`) or, as a fallback, synthesized from the `OptionSetValues` property (`LocalizedText[]`).
-
-Impact on existing code:
-
-- **Source-breaking for custom `IComplexTypeBuilder` implementations**: a new member `AddOptionSetType(QualifiedName, ExpandedNodeId, ExpandedNodeId, ExpandedNodeId, ExpandedNodeId, EnumDefinition)` was added to `IComplexTypeBuilder`. Custom implementations must provide it.
-- The Reflection.Emit builder in `Opc.Ua.Client.ComplexTypes` throws `NotSupportedException` from `AddOptionSetType`; callers relying on the Reflection.Emit path for OptionSet sub-types should switch to the default builder (`new ComplexTypeSystem(session)`).
-- No wire-format changes: encoders/decoders continue to route through `IEncodeableFactory` → `IEncodeableType.CreateInstance`, which now yields `Opc.Ua.Encoders.OptionSet` for registered sub-types.
-- UInteger-backed OptionSet DataTypes remain treated as their underlying unsigned integer in a `Variant` (unchanged).
-
-### Session and Browser State Persistence
+#### Session and Browser State Persistence
 
 **Breaking Change**: Persistence switched from `DataContractSerializer` XML to `IEncoder` and `IDecoder`. `BrowserState`, `SessionState`, `SessionOptions`, `SubscriptionState`, and `MonitoredItemState` are annotated with `[DataType]` and use the standard `Encode`/`Decode` methods generated by the source generator.
 
@@ -692,43 +674,7 @@ To register the state types with the encodeable factory:
 context.Factory.Builder.AddOpcUaClientDataTypes();
 ```
 
-#### Property type changes
-
-The following property types have changed to use the new stack value types:
-
-| Class | Property | Old Type | New Type |
-|---|---|---|---|
-| `SessionState` | `ServerNonce` | `byte[]?` | `ByteString` |
-| `SessionState` | `ClientNonce` | `byte[]?` | `ByteString` |
-| `SessionState` | `ServerEccEphemeralKey` | `byte[]?` | `ByteString` |
-| `SessionState` | `Timestamp` | `DateTime` | `DateTimeUtc` |
-| `SessionState` | `Subscriptions` | `SubscriptionStateCollection?` | `ArrayOf<SubscriptionState>` |
-| `SubscriptionState` | `MonitoredItems` | `MonitoredItemStateCollection` | `ArrayOf<MonitoredItemState>` |
-| `SubscriptionState` | `Timestamp` | `DateTime` | `DateTimeUtc` |
-
-#### `IUserIdentity` on `SessionOptions` is now computed
-
-`SessionOptions.Identity` (`IUserIdentity?`) is no longer a serialized field. It is a computed property backed by `UserIdentityToken? IdentityToken`, which is the actual serialized field:
-
-```csharp
-public partial record class SessionOptions
-{
-    // Serialized field
-    [DataTypeField(Order = 2, StructureHandling = StructureHandling.ExtensionObject)]
-    public UserIdentityToken? IdentityToken { get; set; }
-
-    // Computed — not serialized
-    public IUserIdentity? Identity
-    {
-        get => IdentityToken != null ? new UserIdentity(IdentityToken) : null;
-        set => IdentityToken = value?.TokenHandler?.Token;
-    }
-}
-```
-
-#### Encoding format is not guaranteed backward compatible
-
-The encoding format for session state has changed. Existing persisted session state files **cannot** be loaded by the new `SessionConfiguration.Create()` method. Handle restore failures and re-persist the new session state.
+> The encoding format for session state has changed. Existing persisted session state files **cannot** be loaded by the new `SessionConfiguration.Create()` method. Handle restore failures and re-persist the new session state.
 
 ### Certificate Management
 
