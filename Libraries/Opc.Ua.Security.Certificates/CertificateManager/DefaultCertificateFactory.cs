@@ -80,7 +80,7 @@ namespace Opc.Ua.Security.Certificates
             string subjectName,
             IReadOnlyList<string>? domainNames = null)
         {
-            var builder = CertificateBuilder.Create(subjectName);
+            ICertificateBuilder builder = CertificateBuilder.Create(subjectName);
 
             if (applicationUri != null || (domainNames != null && domainNames.Count > 0))
             {
@@ -132,7 +132,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             // Collect domain names from the existing certificate.
-            var domainNameList = domainNames != null
+            List<string> domainNameList = domainNames != null
                 ? new List<string>(domainNames)
                 : new List<string>();
 

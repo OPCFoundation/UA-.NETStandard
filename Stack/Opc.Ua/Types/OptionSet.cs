@@ -212,7 +212,7 @@ namespace Opc.Ua.Encoders
         /// <inheritdoc/>
         public override string ToString()
         {
-            var sb = new StringBuilder(XmlName?.Name ?? "OptionSet").Append(" {");
+            StringBuilder sb = new StringBuilder(XmlName?.Name ?? "OptionSet").Append(" {");
             bool first = true;
             foreach (string name in GetSetFieldNames())
             {

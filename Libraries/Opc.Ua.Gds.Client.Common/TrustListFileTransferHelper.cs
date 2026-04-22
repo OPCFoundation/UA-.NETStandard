@@ -160,7 +160,7 @@ namespace Opc.Ua.Gds.Client
                         break;
                     }
 
-                    var slice = new byte[bytesRead];
+                    byte[] slice = new byte[bytesRead];
                     Buffer.BlockCopy(rentedBuffer, 0, slice, 0, bytesRead);
                     await trustListClient.WriteAsync(
                         fileHandle,

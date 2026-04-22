@@ -1228,13 +1228,9 @@ namespace Opc.Ua.Bindings
             using var responseStream = new ArraySegmentStream(chunksToProcess);
             IServiceResponse response = BinaryDecoder.DecodeMessage<IServiceResponse>(
                 responseStream,
-                Quotas.MessageContext);
-            if (response == null)
-            {
-                throw ServiceResultException.Create(
+                Quotas.MessageContext) ?? throw ServiceResultException.Create(
                     StatusCodes.BadStructureMissing,
                     "Could not parse response body.");
-            }
             return response;
         }
 

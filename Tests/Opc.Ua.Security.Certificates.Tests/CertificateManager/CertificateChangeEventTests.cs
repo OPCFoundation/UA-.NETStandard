@@ -42,7 +42,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void RecordEqualityWorks()
         {
-            var trustList = TrustListIdentifier.Peers;
+            TrustListIdentifier trustList = TrustListIdentifier.Peers;
             var certType = new NodeId(1);
 
             var a = new CertificateChangeEvent(
@@ -76,7 +76,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void KindValuesExist()
         {
-            var values = Enum.GetValues(typeof(CertificateChangeKind));
+            Array values = Enum.GetValues(typeof(CertificateChangeKind));
             Assert.That(values, Has.Length.GreaterThanOrEqualTo(5));
 
             Assert.That(
@@ -104,7 +104,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void PropertiesMatchConstructorArgs()
         {
-            var trustList = TrustListIdentifier.Https;
+            TrustListIdentifier trustList = TrustListIdentifier.Https;
             var certType = new NodeId(42);
 
             using Certificate oldCert = CertificateBuilder

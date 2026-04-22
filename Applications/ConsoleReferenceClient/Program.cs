@@ -249,7 +249,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 bool enableDurableSubscriptions =
                     parseResult.GetValue(durableSubscriptionOption);
                 var serverUrl = new Uri(parseResult.GetValue(serverUrlArgument));
-                var testallEndpoints = parseResult.GetValue(testallEndpointsOption);
+                bool testallEndpoints = parseResult.GetValue(testallEndpointsOption);
 
                 ReverseConnectManager reverseConnectManager = null;
                 using var telemetry = new ConsoleTelemetry();

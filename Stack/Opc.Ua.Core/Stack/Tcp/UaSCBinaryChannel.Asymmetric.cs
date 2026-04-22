@@ -1336,7 +1336,6 @@ namespace Opc.Ua.Bindings
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA256);
                 default:
-                case AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1:
                     return Rsa_Encrypt(
                         dataToEncrypt,
                         headerToCopy,
@@ -1391,21 +1390,18 @@ namespace Opc.Ua.Bindings
                         headerToCopy,
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA1);
-                default:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.RSA_DH_AesGcm:
-                case SecurityPolicies.RSA_DH_ChaChaPoly:
-                    return Rsa_Decrypt(
-                        dataToDecrypt,
-                        headerToCopy,
-                        receiverCertificate,
-                        RsaUtils.Padding.OaepSHA256);
                 case SecurityPolicies.Basic128Rsa15:
                     return Rsa_Decrypt(
                         dataToDecrypt,
                         headerToCopy,
                         receiverCertificate,
                         RsaUtils.Padding.Pkcs1);
+                default:
+                    return Rsa_Decrypt(
+                        dataToDecrypt,
+                        headerToCopy,
+                        receiverCertificate,
+                        RsaUtils.Padding.OaepSHA256);
             }
         }
 

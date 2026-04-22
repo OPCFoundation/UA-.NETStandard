@@ -211,7 +211,10 @@ namespace Opc.Ua
         /// <summary>
         /// No caching on this platform.
         /// </summary>
-        public Certificate? TryGet(string thumbprint) => null;
+        public Certificate? TryGet(string thumbprint)
+        {
+            return null;
+        }
 
         /// <summary>
         /// No caching on this platform.

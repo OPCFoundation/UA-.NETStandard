@@ -499,16 +499,11 @@ namespace Opc.Ua
             }
 
             // get the info object.
-            SecurityPolicyInfo info = GetInfo(securityPolicyUri);
-
             // unsupported policy.
-            if (info == null)
-            {
-                throw ServiceResultException.Create(
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ?? throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
-            }
 
             // check if asymmetric encryption is possible.
             if (info.AsymmetricEncryptionAlgorithm != AsymmetricEncryptionAlgorithm.None)
@@ -581,16 +576,11 @@ namespace Opc.Ua
             }
 
             // get the info object.
-            SecurityPolicyInfo info = GetInfo(securityPolicyUri);
-
             // unsupported policy.
-            if (info == null)
-            {
-                throw ServiceResultException.Create(
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ?? throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
-            }
 
             // check if asymmetric encryption is possible.
             if (info.AsymmetricEncryptionAlgorithm != AsymmetricEncryptionAlgorithm.None)
@@ -673,16 +663,11 @@ namespace Opc.Ua
             }
 
             // get the info object.
-            SecurityPolicyInfo info = GetInfo(securityPolicyUri);
-
             // unsupported policy.
-            if (info == null)
-            {
-                throw ServiceResultException.Create(
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ?? throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
-            }
 
             // create the data to sign.
             byte[] dataToSign = info.SecureChannelEnhancements
@@ -788,16 +773,11 @@ namespace Opc.Ua
             }
 
             // get the info object.
-            SecurityPolicyInfo info = GetInfo(securityPolicyUri);
-
             // unsupported policy.
-            if (info == null)
-            {
-                throw ServiceResultException.Create(
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ?? throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
-            }
 
             // create the data to sign.
             byte[] dataToVerify = info.SecureChannelEnhancements

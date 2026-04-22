@@ -341,7 +341,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendAsyncReturnsBadRequestForWrongContentTypeAsync()
         {
-            using var listener = CreatePartiallyOpenedListener();
+            using HttpsTransportListener listener = CreatePartiallyOpenedListener();
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = "text/xml";
@@ -356,7 +356,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendAsyncReturnsBadRequestForBufferLengthMismatchAsync()
         {
-            using var listener = CreatePartiallyOpenedListener();
+            using HttpsTransportListener listener = CreatePartiallyOpenedListener();
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = "application/octet-stream";
@@ -373,7 +373,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendAsyncReturnsInternalServerErrorForInvalidBodyAsync()
         {
-            using var listener = CreatePartiallyOpenedListener();
+            using HttpsTransportListener listener = CreatePartiallyOpenedListener();
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = "application/octet-stream";
@@ -390,7 +390,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendAsyncWritesErrorMessageForWrongContentTypeAsync()
         {
-            using var listener = CreatePartiallyOpenedListener();
+            using HttpsTransportListener listener = CreatePartiallyOpenedListener();
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = "text/html";

@@ -338,12 +338,14 @@ namespace Opc.Ua.Server
 
                 m_userTokenNonce = Nonce.CreateNonce(m_userTokenSecurityPolicyUri);
 
-                var key = new EphemeralKeyType { PublicKey = m_userTokenNonce.Data.ToByteString() };
-
-                key.Signature = CryptoUtils.Sign(
-                    new ArraySegment<byte>(m_userTokenNonce.Data),
-                    m_serverCertificate,
-                    m_userTokenSecurityPolicyUri).ToByteString();
+                var key = new EphemeralKeyType
+                {
+                    PublicKey = m_userTokenNonce.Data.ToByteString(),
+                    Signature = CryptoUtils.Sign(
+                        new ArraySegment<byte>(m_userTokenNonce.Data),
+                        m_serverCertificate,
+                        m_userTokenSecurityPolicyUri).ToByteString()
+                };
 
                 return key;
             }
@@ -494,7 +496,7 @@ namespace Opc.Ua.Server
                             StatusCodes.BadApplicationSignatureInvalid);
                     }
 
-                    var securityPolicy = SecurityPolicies.GetInfo(EndpointDescription.SecurityPolicyUri);
+                    SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(EndpointDescription.SecurityPolicyUri);
 
                     byte[] dataToSign = securityPolicy.GetClientSignatureData(
                         context.ChannelContext.ChannelThumbprint,
@@ -928,14 +930,10 @@ namespace Opc.Ua.Server
 
                 policy = EndpointDescription.FindUserTokenPolicy(
                     newToken.PolicyId,
-                    EndpointDescription.SecurityPolicyUri);
-                if (policy == null)
-                {
-                    throw ServiceResultException.Create(
+                    EndpointDescription.SecurityPolicyUri) ?? throw ServiceResultException.Create(
                         StatusCodes.BadUserAccessDenied,
                         "User token policy not supported.",
                         "Opc.Ua.Server.Session.ValidateUserIdentityToken");
-                }
 
                 UserIdentityToken userToken;
                 switch (policy.TokenType)
@@ -988,14 +986,9 @@ namespace Opc.Ua.Server
             // find the user token policy.
             policy = EndpointDescription.FindUserTokenPolicy(
                 token.Token.PolicyId,
-                EndpointDescription.SecurityPolicyUri);
-
-            if (policy == null)
-            {
-                throw ServiceResultException.Create(
+                EndpointDescription.SecurityPolicyUri) ?? throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenInvalid,
                     "User token policy not supported.");
-            }
 
             token.UpdatePolicy(policy);
 
@@ -1012,15 +1005,10 @@ namespace Opc.Ua.Server
                 // decrypt the token.
                 if (m_serverCertificate == null)
                 {
-                    m_serverCertificate = CertificateFactory.Create(
-                        EndpointDescription.ServerCertificate);
-
                     // check for valid certificate.
-                    if (m_serverCertificate == null)
-                    {
-                        throw ServiceResultException.ConfigurationError(
+                    m_serverCertificate = CertificateFactory.Create(
+                        EndpointDescription.ServerCertificate) ?? throw ServiceResultException.ConfigurationError(
                             "ApplicationCertificate cannot be found.");
-                    }
                 }
 
                 try
@@ -1045,7 +1033,7 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+                    SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
                     byte[] dataToSign = securityPolicy.GetUserTokenSignatureData(
                         context.ChannelContext.ChannelThumbprint,

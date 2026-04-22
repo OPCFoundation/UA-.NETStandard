@@ -196,7 +196,7 @@ namespace Opc.Ua
         {
             if (providers != null)
             {
-                foreach (var provider in providers)
+                foreach (ICertificateStoreProvider provider in providers)
                 {
                     if (provider.StoreTypeName == storeTypeName)
                     {

@@ -112,17 +112,15 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The concatenated DER-encoded certificate data.</returns>
         public byte[] GetEncodedChainBlob()
         {
-            using (var stream = new MemoryStream())
+            using var stream = new MemoryStream();
+            stream.Write(Certificate.RawData, 0, Certificate.RawData.Length);
+
+            foreach (Certificate issuer in IssuerChain)
             {
-                stream.Write(Certificate.RawData, 0, Certificate.RawData.Length);
-
-                foreach (Certificate issuer in IssuerChain)
-                {
-                    stream.Write(issuer.RawData, 0, issuer.RawData.Length);
-                }
-
-                return stream.ToArray();
+                stream.Write(issuer.RawData, 0, issuer.RawData.Length);
             }
+
+            return stream.ToArray();
         }
 
         /// <inheritdoc/>

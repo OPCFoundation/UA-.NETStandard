@@ -357,14 +357,10 @@ namespace Opc.Ua.Server.Fluent
                     "NodeId is null or empty.");
             }
 
-            NodeState node = m_nodeIdResolver(nodeId);
-            if (node == null)
-            {
-                throw ServiceResultException.Create(
+            NodeState node = m_nodeIdResolver(nodeId) ?? throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
                     "NodeId '{0}' did not resolve to a predefined node.",
                     nodeId);
-            }
 
             return node;
         }

@@ -216,13 +216,9 @@ namespace Quickstarts
                                 cts.Token);
                             connection = await m_reverseConnectManager
                                 .WaitForConnectionAsync(new Uri(serverUrl), null, linkedCTS.Token)
-                                .ConfigureAwait(false);
-                            if (connection == null)
-                            {
-                                throw new ServiceResultException(
+                                .ConfigureAwait(false) ?? throw new ServiceResultException(
                                     StatusCodes.BadTimeout,
                                     "Waiting for a reverse connection timed out.");
-                            }
                             if (endpointDescription == null)
                             {
                                 Console.WriteLine("Discover reverse connection endpoints....");

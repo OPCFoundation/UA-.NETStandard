@@ -61,7 +61,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateErrorByIndex_WithDiagnostics_SetsDiagnosticInfo()
         {
-            var context = CreateContext(DiagnosticsMasks.OperationAll);
+            OperationContext context = CreateContext(DiagnosticsMasks.OperationAll);
             var diagnosticInfos = new List<DiagnosticInfo> { null, null };
 
             uint code = ServerUtils.CreateError(
@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateErrorByIndex_WithoutDiagnostics_LeavesNull()
         {
-            var context = CreateContext(DiagnosticsMasks.None);
+            OperationContext context = CreateContext(DiagnosticsMasks.None);
             var diagnosticInfos = new List<DiagnosticInfo> { null };
 
             uint code = ServerUtils.CreateError(
@@ -88,7 +88,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateErrorAppend_WithDiagnostics_AddsResultAndDiagnostic()
         {
-            var context = CreateContext(DiagnosticsMasks.OperationAll);
+            OperationContext context = CreateContext(DiagnosticsMasks.OperationAll);
             var results = new List<StatusCode>();
             var diagnosticInfos = new List<DiagnosticInfo>();
 
@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateErrorAppend_WithoutDiagnostics_ReturnsFalse()
         {
-            var context = CreateContext(DiagnosticsMasks.None);
+            OperationContext context = CreateContext(DiagnosticsMasks.None);
             var results = new List<StatusCode>();
             var diagnosticInfos = new List<DiagnosticInfo>();
 
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateErrorAtIndex_WithDiagnostics_SetsAtPosition()
         {
-            var context = CreateContext(DiagnosticsMasks.OperationAll);
+            OperationContext context = CreateContext(DiagnosticsMasks.OperationAll);
             var results = new List<StatusCode> { StatusCodes.Good, StatusCodes.Good };
             var diagnosticInfos = new List<DiagnosticInfo> { null, null };
 
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateErrorAtIndex_WithoutDiagnostics_ReturnsFalse()
         {
-            var context = CreateContext(DiagnosticsMasks.None);
+            OperationContext context = CreateContext(DiagnosticsMasks.None);
             var results = new List<StatusCode> { StatusCodes.Good };
             var diagnosticInfos = new List<DiagnosticInfo> { null };
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateSuccess_AddsGoodStatusCode()
         {
-            var context = CreateContext(DiagnosticsMasks.None);
+            OperationContext context = CreateContext(DiagnosticsMasks.None);
             var results = new List<StatusCode>();
             var diagnosticInfos = new List<DiagnosticInfo>();
 
@@ -166,7 +166,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateSuccess_WithDiagnostics_AddsNullDiagnostic()
         {
-            var context = CreateContext(DiagnosticsMasks.OperationAll);
+            OperationContext context = CreateContext(DiagnosticsMasks.OperationAll);
             var results = new List<StatusCode>();
             var diagnosticInfos = new List<DiagnosticInfo>();
 
@@ -181,7 +181,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateDiagnosticInfoCollection_WithDiagnostics_ReturnsCollection()
         {
-            var context = CreateContext(DiagnosticsMasks.OperationAll);
+            OperationContext context = CreateContext(DiagnosticsMasks.OperationAll);
             var errors = new List<ServiceResult>
             {
                 ServiceResult.Good,
@@ -202,7 +202,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateDiagnosticInfoCollection_WithoutDiagnostics_ReturnsNull()
         {
-            var context = CreateContext(DiagnosticsMasks.None);
+            OperationContext context = CreateContext(DiagnosticsMasks.None);
             var errors = new List<ServiceResult>
             {
                 new ServiceResult(StatusCodes.BadNodeIdInvalid)
@@ -217,7 +217,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateStatusCodeCollection_AllGood_ReturnsGoodCodes()
         {
-            var context = CreateContext(DiagnosticsMasks.None);
+            OperationContext context = CreateContext(DiagnosticsMasks.None);
             var errors = new List<ServiceResult>
             {
                 ServiceResult.Good,
@@ -235,7 +235,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateStatusCodeCollection_WithErrors_ReturnsErrorCodes()
         {
-            var context = CreateContext(DiagnosticsMasks.None);
+            OperationContext context = CreateContext(DiagnosticsMasks.None);
             var errors = new List<ServiceResult>
             {
                 ServiceResult.Good,
@@ -254,7 +254,7 @@ namespace Opc.Ua.Server.Tests
         public void CreateDiagnosticInfo_WithNullError_ReturnsNull()
         {
             var serverMock = new Mock<IServerInternal>();
-            var context = CreateContext(DiagnosticsMasks.OperationAll);
+            OperationContext context = CreateContext(DiagnosticsMasks.OperationAll);
 
             DiagnosticInfo result = ServerUtils.CreateDiagnosticInfo(
                 serverMock.Object, context, null, m_logger);
@@ -268,7 +268,7 @@ namespace Opc.Ua.Server.Tests
             var serverMock = new Mock<IServerInternal>();
             using var resourceMgr = new ResourceManager(new ApplicationConfiguration());
             serverMock.Setup(s => s.ResourceManager).Returns(resourceMgr);
-            var context = CreateContext(DiagnosticsMasks.ServiceLocalizedText);
+            OperationContext context = CreateContext(DiagnosticsMasks.ServiceLocalizedText);
 
             var error = new ServiceResult(StatusCodes.BadNodeIdInvalid);
 
@@ -282,7 +282,7 @@ namespace Opc.Ua.Server.Tests
         public void CreateDiagnosticInfo_WithoutServiceLocalizedText_SkipsTranslation()
         {
             var serverMock = new Mock<IServerInternal>();
-            var context = CreateContext(DiagnosticsMasks.OperationSymbolicId);
+            OperationContext context = CreateContext(DiagnosticsMasks.OperationSymbolicId);
 
             var error = new ServiceResult(StatusCodes.BadNodeIdInvalid);
 

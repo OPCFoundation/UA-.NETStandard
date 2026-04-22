@@ -109,7 +109,7 @@ namespace Opc.Ua
 
             manager.MapFromSecurityConfiguration(securityConfiguration);
 
-            foreach (var (id, trustedPath, issuerPath) in options.AdditionalTrustLists)
+            foreach ((TrustListIdentifier? id, string? trustedPath, string? issuerPath) in options.AdditionalTrustLists)
             {
                 manager.RegisterTrustList(id, trustedPath, issuerPath);
             }

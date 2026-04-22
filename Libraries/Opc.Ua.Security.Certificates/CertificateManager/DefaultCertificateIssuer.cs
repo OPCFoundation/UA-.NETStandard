@@ -46,7 +46,7 @@ namespace Opc.Ua.Security.Certificates
             ICertificateBuilder builder,
             Certificate issuerCertificate)
         {
-            var issuerBuilder = ((ICertificateBuilderSetIssuer)builder)
+            ICertificateBuilderIssuer issuerBuilder = ((ICertificateBuilderSetIssuer)builder)
                 .SetIssuer(issuerCertificate);
 
             if (X509PfxUtils.IsECDsaSignature(issuerCertificate))

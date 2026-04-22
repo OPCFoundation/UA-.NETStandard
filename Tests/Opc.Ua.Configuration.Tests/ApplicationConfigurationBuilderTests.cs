@@ -780,7 +780,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsServer([EndpointUrl])
                 .AddUnsecurePolicyNone();
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.EqualTo(1));
             Assert.That(policies[0].SecurityMode, Is.EqualTo(MessageSecurityMode.None));
         }
@@ -795,7 +795,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsServer([EndpointUrl])
                 .AddUnsecurePolicyNone(false);
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.EqualTo(0));
         }
 
@@ -809,7 +809,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsServer([EndpointUrl])
                 .AddSignPolicies();
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.GreaterThan(0));
             Assert.That(
                 policies.ToList().All(p => p.SecurityMode >= MessageSecurityMode.Sign),
@@ -826,7 +826,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsServer([EndpointUrl])
                 .AddSignPolicies(false);
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.EqualTo(0));
         }
 
@@ -840,7 +840,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsServer([EndpointUrl])
                 .AddSignAndEncryptPolicies();
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.GreaterThan(0));
             Assert.That(
                 policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.SignAndEncrypt),
@@ -857,7 +857,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsServer([EndpointUrl])
                 .AddSignAndEncryptPolicies(false);
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.EqualTo(0));
         }
 
@@ -871,7 +871,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsServer([EndpointUrl])
                 .AddEccSignPolicies();
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.GreaterThan(0));
             Assert.That(
                 policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.Sign),
@@ -888,7 +888,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsServer([EndpointUrl])
                 .AddEccSignAndEncryptPolicies();
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.GreaterThan(0));
             Assert.That(
                 policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.SignAndEncrypt),
@@ -905,7 +905,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsServer([EndpointUrl])
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.EqualTo(1));
             Assert.That(policies[0].SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
             Assert.That(policies[0].SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
@@ -958,7 +958,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256)
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.EqualTo(1));
         }
 
@@ -973,7 +973,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddUserTokenPolicy(UserTokenType.Anonymous)
                 .AddUserTokenPolicy(UserTokenType.UserName);
 
-            var tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
+            ArrayOf<UserTokenPolicy> tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
             Assert.That(tokenPolicies.Count, Is.EqualTo(2));
         }
 
@@ -991,7 +991,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AsServer([EndpointUrl])
                 .AddUserTokenPolicy(policy);
 
-            var tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
+            ArrayOf<UserTokenPolicy> tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
             Assert.That(tokenPolicies.Count, Is.EqualTo(1));
         }
 

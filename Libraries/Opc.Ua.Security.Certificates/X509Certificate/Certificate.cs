@@ -268,7 +268,10 @@ namespace Opc.Ua.Security.Certificates
         public string SerialNumber => X509.SerialNumber;
 
         /// <inheritdoc/>
-        public byte[] GetSerialNumber() => X509.GetSerialNumber();
+        public byte[] GetSerialNumber()
+        {
+            return X509.GetSerialNumber();
+        }
 
         /// <inheritdoc/>
         public HashAlgorithmName HashAlgorithmName =>
@@ -355,7 +358,10 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>
         /// The RSA private key, or <c>null</c> if none is present.
         /// </returns>
-        public RSA? GetRSAPrivateKey() => X509.GetRSAPrivateKey();
+        public RSA? GetRSAPrivateKey()
+        {
+            return X509.GetRSAPrivateKey();
+        }
 
         /// <summary>
         /// Gets the RSA public key from the certificate.
@@ -364,7 +370,10 @@ namespace Opc.Ua.Security.Certificates
         /// The RSA public key, or <c>null</c> if the certificate does
         /// not use an RSA key.
         /// </returns>
-        public RSA? GetRSAPublicKey() => X509.GetRSAPublicKey();
+        public RSA? GetRSAPublicKey()
+        {
+            return X509.GetRSAPublicKey();
+        }
 
         /// <summary>
         /// Gets the ECDsa private key from the certificate, if available.
@@ -372,7 +381,10 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>
         /// The ECDsa private key, or <c>null</c> if none is present.
         /// </returns>
-        public ECDsa? GetECDsaPrivateKey() => X509.GetECDsaPrivateKey();
+        public ECDsa? GetECDsaPrivateKey()
+        {
+            return X509.GetECDsaPrivateKey();
+        }
 
         /// <summary>
         /// Gets the ECDsa public key from the certificate.
@@ -381,7 +393,10 @@ namespace Opc.Ua.Security.Certificates
         /// The ECDsa public key, or <c>null</c> if the certificate does
         /// not use an ECDsa key.
         /// </returns>
-        public ECDsa? GetECDsaPublicKey() => X509.GetECDsaPublicKey();
+        public ECDsa? GetECDsaPublicKey()
+        {
+            return X509.GetECDsaPublicKey();
+        }
 
         /// <summary>
         /// Creates a new <see cref="Certificate"/> by combining this
@@ -413,7 +428,10 @@ namespace Opc.Ua.Security.Certificates
         /// Gets the key algorithm OID as a string.
         /// </summary>
         /// <returns>The key algorithm OID.</returns>
-        public string GetKeyAlgorithm() => X509.GetKeyAlgorithm();
+        public string GetKeyAlgorithm()
+        {
+            return X509.GetKeyAlgorithm();
+        }
 
         /// <summary>
         /// Gets name information from the certificate subject or issuer.

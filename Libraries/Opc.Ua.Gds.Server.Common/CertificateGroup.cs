@@ -589,11 +589,7 @@ namespace Opc.Ua.Gds.Server
             {
                 throw new ArgumentException("Cannot create an empty Crl for non-CA certificate!");
             }
-            ICertificateStore store = storeIdentifier.OpenStore(telemetry);
-            if (store == null)
-            {
-                throw new ArgumentException("Invalid store path/type");
-            }
+            ICertificateStore store = storeIdentifier.OpenStore(telemetry) ?? throw new ArgumentException("Invalid store path/type");
             try
             {
                 X509CRLCollection certCACrl = await store.EnumerateCRLsAsync(caCertificate, false, ct)

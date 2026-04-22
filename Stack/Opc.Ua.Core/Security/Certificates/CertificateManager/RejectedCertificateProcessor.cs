@@ -77,9 +77,11 @@ namespace Opc.Ua
         public ValueTask EnqueueAsync(
             CertificateCollection chain,
             CancellationToken ct = default)
-            => m_channel.Writer.TryWrite(chain)
-                ? default
-                : m_channel.Writer.WriteAsync(chain, ct);
+        {
+            return m_channel.Writer.TryWrite(chain)
+                        ? default
+                        : m_channel.Writer.WriteAsync(chain, ct);
+        }
 
         /// <summary>
         /// Completes the channel and waits for all queued items to be
@@ -93,7 +95,7 @@ namespace Opc.Ua
 
         private async Task ProcessAsync()
         {
-            await foreach (var chain in m_channel.Reader.ReadAllAsync()
+            await foreach (CertificateCollection? chain in m_channel.Reader.ReadAllAsync()
                 .ConfigureAwait(false))
             {
                 try
@@ -104,7 +106,7 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    using var store = m_trustListManager
+                    using ICertificateStore store = m_trustListManager
                         .OpenTrustedStore(TrustListIdentifier.Rejected);
                     await store.AddRejectedAsync(
                         chain, m_maxRejectedCertificates)

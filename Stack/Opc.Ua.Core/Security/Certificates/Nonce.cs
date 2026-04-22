@@ -235,8 +235,10 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(RSADiffieHellmanGroup group)
         {
-            var nonce = new Nonce();
-            nonce.m_rsadh = RSADiffieHellman.Create(group);
+            var nonce = new Nonce
+            {
+                m_rsadh = RSADiffieHellman.Create(group)
+            };
             nonce.Data = nonce.m_rsadh.GetNonce();
             return nonce;
         }
@@ -268,9 +270,11 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
             {
-                var nonce = new Nonce();
-                nonce.m_rsadh = RSADiffieHellman.Create(nonceData);
-                nonce.Data = nonceData;
+                var nonce = new Nonce
+                {
+                    m_rsadh = RSADiffieHellman.Create(nonceData),
+                    Data = nonceData
+                };
                 return nonce;
             }
 

@@ -87,8 +87,8 @@ namespace Opc.Ua
         {
             try
             {
-                var certs = m_getCertificates();
-                foreach (var entry in certs)
+                IReadOnlyList<CertificateEntry> certs = m_getCertificates();
+                foreach (CertificateEntry entry in certs)
                 {
                     if (entry.IsNearExpiry(m_expiryThreshold) &&
                         m_alreadyNotified.Add(entry.Certificate.Thumbprint))
@@ -118,9 +118,15 @@ namespace Opc.Ua
         /// Resets notifications so already-notified certificates can be
         /// re-checked (e.g., after a certificate update).
         /// </summary>
-        public void Reset() => m_alreadyNotified.Clear();
+        public void Reset()
+        {
+            m_alreadyNotified.Clear();
+        }
 
         /// <inheritdoc/>
-        public void Dispose() => m_timer.Dispose();
+        public void Dispose()
+        {
+            m_timer.Dispose();
+        }
     }
 }

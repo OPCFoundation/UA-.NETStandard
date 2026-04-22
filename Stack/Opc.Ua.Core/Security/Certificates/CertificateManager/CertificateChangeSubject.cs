@@ -57,7 +57,7 @@ namespace Opc.Ua
         {
             IObserver<CertificateChangeEvent>[] snapshot;
             lock (m_lock) { snapshot = [.. m_observers]; }
-            foreach (var observer in snapshot)
+            foreach (IObserver<CertificateChangeEvent> observer in snapshot)
             {
                 observer.OnNext(evt);
             }
@@ -70,7 +70,7 @@ namespace Opc.Ua
         {
             IObserver<CertificateChangeEvent>[] snapshot;
             lock (m_lock) { snapshot = [.. m_observers]; m_observers.Clear(); }
-            foreach (var observer in snapshot)
+            foreach (IObserver<CertificateChangeEvent> observer in snapshot)
             {
                 observer.OnCompleted();
             }

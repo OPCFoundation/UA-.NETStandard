@@ -1365,7 +1365,7 @@ namespace Opc.Ua.Client
                     m_preferredLocales = preferredLocales;
                 }
 
-                var header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri!);
+                RequestHeader? header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri!);
 
                 // activate session.
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
@@ -1511,19 +1511,13 @@ namespace Opc.Ua.Client
             UserTokenPolicy identityPolicy =
                 m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenHandler.Token.PolicyId,
-                    securityPolicyUri);
-
-            if (identityPolicy == null)
-            {
-                identityPolicy =
-                    m_endpoint.Description.FindUserTokenPolicy(
+                    securityPolicyUri) ?? m_endpoint.Description.FindUserTokenPolicy(
                         identity.TokenType,
                         identity.IssuedTokenType,
                         securityPolicyUri)
                     ?? throw ServiceResultException.Create(
                         StatusCodes.BadIdentityTokenInvalid,
                         "Endpoint does not support the user identity type provided.");
-            }
 
             // select the security policy for the user token.
             string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
@@ -2611,14 +2605,9 @@ namespace Opc.Ua.Client
 
                 m_logger.LogInformation("Session RE-ACTIVATING {SessionId}.", SessionId);
 
-                var header = CreateRequestHeaderForActivateSession(
+                RequestHeader? header = CreateRequestHeaderForActivateSession(
                     securityPolicy,
-                    tokenSecurityPolicyUri!);
-
-                if (header == null)
-                {
-                    header = new RequestHeader();
-                }
+                    tokenSecurityPolicyUri!) ?? new RequestHeader();
 
                 header.TimeoutHint = kReconnectTimeout;
 
@@ -4746,12 +4735,8 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityPolicyUri,
                     m_telemetry,
                     ct)
-                    .ConfigureAwait(false);
-                if (m_instanceCertificate == null)
-                {
-                    throw ServiceResultException.ConfigurationError(
+                    .ConfigureAwait(false) ?? throw ServiceResultException.ConfigurationError(
                         "The client configuration does not specify an application instance certificate.");
-                }
                 m_effectiveEndpoint = m_endpoint;
                 m_instanceCertificateChain = null; // Reload the chain too
             }
@@ -5002,19 +4987,21 @@ namespace Opc.Ua.Client
 
             m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
 
-            var securityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
             if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
-                var parameters = new AdditionalParametersType();
-                parameters.Parameters =
-                [
-                    new KeyValuePair
-                    {
-                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
-                        Value = userTokenSecurityPolicyUri
-                    }
-                ];
+                var parameters = new AdditionalParametersType
+                {
+                    Parameters =
+                    [
+                        new KeyValuePair
+                        {
+                            Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                            Value = userTokenSecurityPolicyUri
+                        }
+                    ]
+                };
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
 
                 m_logger.LogWarning("Request EphemeralKey for {Policy}.", userTokenSecurityPolicyUri);
@@ -5032,7 +5019,7 @@ namespace Opc.Ua.Client
 
             if (!string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
-                var userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+                SecurityPolicyInfo userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
                 if (userTokenSecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                 {

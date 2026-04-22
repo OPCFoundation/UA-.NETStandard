@@ -51,6 +51,9 @@ namespace Opc.Ua.Security.Certificates
         public static readonly TrustListIdentifier Rejected = new("Rejected");
 
         /// <inheritdoc/>
-        public override string ToString() => Name;
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 }

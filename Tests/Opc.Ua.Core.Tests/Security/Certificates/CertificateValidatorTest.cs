@@ -280,7 +280,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             certValidator.CertificateValidation += approver.OnCertificateValidation;
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
-                using var publicKey = CertificateFactory.Create(cert.RawData);
+                using Certificate publicKey = CertificateFactory.Create(cert.RawData);
                 await certValidator.ValidateAsync(publicKey, CancellationToken.None).ConfigureAwait(false);
             }
             // count certs written to rejected store
@@ -395,7 +395,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 foreach (Certificate cert in m_appCerts)
                 {
                     var certs = new CertificateCollection([cert]);
-                    foreach (var c in m_caChain) certs.Add(c);
+                    foreach (Certificate c in m_caChain) certs.Add(c);
                     ServiceResultException serviceResultException =
                         Assert.ThrowsAsync<ServiceResultException>(async () =>
                             await certValidator.ValidateAsync(certs, CancellationToken.None).ConfigureAwait(false));
@@ -408,7 +408,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 foreach (Certificate cert in m_notYetValidAppCerts)
                 {
                     var certs = new CertificateCollection([cert]);
-                    foreach (var c in m_caChain) certs.Add(c);
+                    foreach (Certificate c in m_caChain) certs.Add(c);
                     ServiceResultException serviceResultException =
                         Assert.ThrowsAsync<ServiceResultException>(async () =>
                             await certValidator.ValidateAsync(certs, CancellationToken.None).ConfigureAwait(false));

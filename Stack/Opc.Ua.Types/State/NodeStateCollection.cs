@@ -509,14 +509,10 @@ namespace Opc.Ua
             {
                 // try to load from app directory
                 var file = new FileInfo(resourcePath);
-                istrm = file.OpenRead();
-                if (istrm == null)
-                {
-                    throw ServiceResultException.Create(
+                istrm = file.OpenRead() ?? throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Could not load nodes from resource: {0}",
                         resourcePath);
-                }
             }
 
             LoadFromXml(context, istrm, updateTables);
@@ -552,14 +548,10 @@ namespace Opc.Ua
             {
                 // try to load from app directory
                 var file = new FileInfo(resourcePath);
-                istrm = file.OpenRead();
-                if (istrm == null)
-                {
-                    throw ServiceResultException.Create(
+                istrm = file.OpenRead() ?? throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Could not load nodes from resource: {0}",
                         resourcePath);
-                }
             }
 
             LoadFromBinary(context, istrm, updateTables);

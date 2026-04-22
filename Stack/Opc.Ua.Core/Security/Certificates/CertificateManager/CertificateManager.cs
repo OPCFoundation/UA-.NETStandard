@@ -103,7 +103,7 @@ namespace Opc.Ua
                 new X509StoreProvider()
             ];
 
-            var threshold = expiryWarningThreshold ?? TimeSpan.FromDays(14);
+            TimeSpan threshold = expiryWarningThreshold ?? TimeSpan.FromDays(14);
             m_lifecycleMonitor = new CertificateLifecycleMonitor(
                 m_changeSubject,
                 () => m_applicationCertificates,
@@ -244,7 +244,7 @@ namespace Opc.Ua
         {
             foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicyUri))
             {
-                var entry = GetApplicationCertificate(certType);
+                CertificateEntry? entry = GetApplicationCertificate(certType);
                 if (entry != null)
                 {
                     return entry;
@@ -257,7 +257,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public byte[] GetEncodedChainBlob(string securityPolicyUri)
         {
-            var entry = GetInstanceCertificate(securityPolicyUri);
+            CertificateEntry? entry = GetInstanceCertificate(securityPolicyUri);
             return entry?.GetEncodedChainBlob() ?? [];
         }
 
@@ -277,11 +277,11 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             m_applicationCertificates.Clear();
-            var appCerts = securityConfiguration.ApplicationCertificates;
+            ArrayOf<CertificateIdentifier> appCerts = securityConfiguration.ApplicationCertificates;
             for (int i = 0; i < appCerts.Count; i++)
             {
-                var certId = appCerts[i];
-                var certificate = await certId.FindAsync(true, applicationUri, m_telemetry, ct)
+                CertificateIdentifier certId = appCerts[i];
+                Certificate certificate = await certId.FindAsync(true, applicationUri, m_telemetry, ct)
                     .ConfigureAwait(false);
                 if (certificate != null)
                 {

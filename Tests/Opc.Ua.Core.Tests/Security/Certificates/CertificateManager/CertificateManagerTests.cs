@@ -248,7 +248,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var manager = new CertificateManager(m_telemetry);
             CertificateChangeEvent received = null;
 
-            using var subscription = manager.CertificateChanges.Subscribe(
+            using IDisposable subscription = manager.CertificateChanges.Subscribe(
                 new TestObserver<CertificateChangeEvent>(evt => received = evt));
 
             using Certificate cert = CertificateBuilder
@@ -334,7 +334,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             public void OnCompleted() { }
             public void OnError(Exception error) { }
-            public void OnNext(T value) => onNext(value);
+            public void OnNext(T value)
+            {
+                onNext(value);
+            }
         }
 
         #endregion

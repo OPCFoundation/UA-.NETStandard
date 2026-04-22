@@ -346,12 +346,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (endpoint == null)
             {
-                endpoint = m_endpoint;
-
-                if (endpoint == null)
-                {
-                    throw new ArgumentNullException(nameof(endpoint));
-                }
+                endpoint = m_endpoint ?? throw new ArgumentNullException(nameof(endpoint));
             }
 
             int maxAttempts = m_options.MaxConnectAttempts;

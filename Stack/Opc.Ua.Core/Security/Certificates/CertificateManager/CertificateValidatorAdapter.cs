@@ -59,7 +59,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async Task ValidateAsync(Certificate certificate, CancellationToken ct)
         {
-            var result = await m_inner.ValidateAsync(certificate, ct: ct).ConfigureAwait(false);
+            CertificateValidationResult result = await m_inner.ValidateAsync(certificate, ct: ct).ConfigureAwait(false);
             if (!result.IsValid)
             {
                 throw new ServiceResultException(result.StatusCode);
@@ -69,7 +69,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async Task ValidateAsync(CertificateCollection certificateChain, CancellationToken ct)
         {
-            var result = await m_inner.ValidateAsync(certificateChain, ct: ct).ConfigureAwait(false);
+            CertificateValidationResult result = await m_inner.ValidateAsync(certificateChain, ct: ct).ConfigureAwait(false);
             if (!result.IsValid)
             {
                 throw new ServiceResultException(result.StatusCode);

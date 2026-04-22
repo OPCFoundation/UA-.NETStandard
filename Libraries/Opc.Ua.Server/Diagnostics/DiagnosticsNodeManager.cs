@@ -796,7 +796,7 @@ namespace Opc.Ua.Server
             try
             {
                 tempSessionNode = new SessionDiagnosticsObjectState(null);
-                var sessionNode = tempSessionNode;
+                SessionDiagnosticsObjectState sessionNode = tempSessionNode;
 
                 // create a new instance and assign ids.
                 nodeId = await CreateNodeAsync(
@@ -946,7 +946,7 @@ namespace Opc.Ua.Server
                 }
 
                 tempDiagnosticsNode = new SubscriptionDiagnosticsState(null);
-                var diagnosticsNode = tempDiagnosticsNode;
+                SubscriptionDiagnosticsState diagnosticsNode = tempDiagnosticsNode;
 
                 // create a new instance and assign ids.
                 nodeId = await CreateNodeAsync(
@@ -1202,7 +1202,7 @@ namespace Opc.Ua.Server
                     NodeId = aggregateId,
                     BrowseName = new QualifiedName(aggregateName, aggregateId.NamespaceIndex)
                 };
-                var state = tempState;
+                FolderState state = tempState;
                 state.DisplayName = LocalizedText.From(state.BrowseName.Name);
                 state.WriteMask = AttributeWriteMask.None;
                 state.UserWriteMask = AttributeWriteMask.None;
@@ -1257,7 +1257,7 @@ namespace Opc.Ua.Server
                     NodeId = modellingRuleId,
                     BrowseName = new QualifiedName(modellingRuleName, modellingRuleId.NamespaceIndex)
                 };
-                var state = tempState;
+                FolderState state = tempState;
                 state.DisplayName = LocalizedText.From(state.BrowseName.Name);
                 state.WriteMask = AttributeWriteMask.None;
                 state.UserWriteMask = AttributeWriteMask.None;
