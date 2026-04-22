@@ -133,7 +133,7 @@ namespace Opc.Ua.SourceGeneration
                     OutputFolder = outputDir,
                     ModelDesign = modelDesign,
                     Telemetry = telemetry,
-                    Options = options
+                    Options = options,
                     ReferencedModels = referencedModels
                 },
                 validateSchemas: false,

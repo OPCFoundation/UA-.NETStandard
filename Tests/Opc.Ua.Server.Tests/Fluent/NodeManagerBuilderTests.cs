@@ -95,8 +95,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             return (builder, root, var1, method);
         }
 
-        // ---------- Resolve ----------
-
         [Test]
         public void NodeByPathReturnsBuilderForResolvedNode()
         {
@@ -158,8 +156,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
         }
 
-        // ---------- Seal ----------
-
         [Test]
         public void NodeAfterSealThrowsBadInvalidState()
         {
@@ -170,8 +166,6 @@ namespace Opc.Ua.Server.Tests.Fluent
                 () => b.Node("Root/Var1"));
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
         }
-
-        // ---------- As<T> ----------
 
         [Test]
         public void AsCastSucceedsForCompatibleType()
@@ -193,8 +187,6 @@ namespace Opc.Ua.Server.Tests.Fluent
                 () => b.Node("Root/Var1").As<MethodState>());
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
         }
-
-        // ---------- Variable callbacks ----------
 
         [Test]
         public void OnSimpleReadAssignsHandlerToVariable()
@@ -235,8 +227,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConfigurationError));
         }
 
-        // ---------- Method callbacks ----------
-
         [Test]
         public void OnCallAssignsHandlerToMethod()
         {
@@ -257,8 +247,6 @@ namespace Opc.Ua.Server.Tests.Fluent
                 () => b.Node(v.NodeId).OnCall((c, m, oid, a, o) => ServiceResult.Good));
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
         }
-
-        // ---------- OnEvent guard ----------
 
         [Test]
         public void OnEventThrowsWhenSlotAlreadyAssigned()
@@ -283,8 +271,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(root.OnReportEvent, Is.Not.Null);
         }
 
-        // ---------- ConditionRefresh wiring ----------
-
         [Test]
         public void OnConditionRefreshWiresToNodeStateSlot()
         {
@@ -305,8 +291,6 @@ namespace Opc.Ua.Server.Tests.Fluent
                 () => b.Node("Root").OnConditionRefresh((c, n, evts) => { }));
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConfigurationError));
         }
-
-        // ---------- Dispatcher: HistoryRead ----------
 
         [Test]
         public void DispatcherTryHandleHistoryReadReturnsFalseWhenNoHandler()
@@ -364,8 +348,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConfigurationError));
         }
 
-        // ---------- Dispatcher: HistoryUpdate ----------
-
         [Test]
         public void DispatcherTryHandleHistoryUpdateReturnsFalseWhenNoHandler()
         {
@@ -402,8 +384,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(handled, Is.True);
             Assert.That(calls, Is.EqualTo(1));
         }
-
-        // ---------- Dispatcher: lifecycle / monitored item ----------
 
         [Test]
         public void DispatcherNotifyNodeAddedInvokesRegisteredHandler()
@@ -448,8 +428,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConfigurationError));
         }
 
-        // ---------- Null handler arguments ----------
-
         [Test]
         public void OnSimpleReadWithNullHandlerThrowsArgumentNullException()
         {
@@ -467,8 +445,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.Throws<ArgumentNullException>(
                 () => b.Node("Root/Var1").OnNodeAdded(null));
         }
-
-        // ---------- NodeFromTypeId ----------
 
         private static NodeManagerBuilder CreateBuilderWithTypeIndex(
             IReadOnlyDictionary<NodeId, IReadOnlyList<NodeState>> byType)

@@ -92,7 +92,8 @@ namespace Opc.Ua.SourceGeneration
                     .Combine(nodeManagerBindings),
                 (context, combination) => new ModelCompilation(
                     context,
-                    combination.Left.Left.Left.Left,
+                    combination.Left.Left.Left.Left.Left,
+                    combination.Left.Left.Left.Left.Right,
                     combination.Left.Left.Left.Right,
                     combination.Left.Left.Right,
                     combination.Left.Right,
