@@ -389,6 +389,31 @@ namespace Opc.Ua.SourceGeneration
                 serverApiGenerator.Emit();
                 var endpointsGenerator = new EndpointsGenerator(generatorContext);
                 endpointsGenerator.Emit();
+                // Emit ObjectType client proxies for every standard UA
+                // ObjectType so downstream model proxies (e.g. GDS) can
+                // derive from them. Proxies are emitted into the model's
+                // own namespace (Opc.Ua for the standard NodeSet) — no
+                // namespace override. Suppressed when the consumer opts
+                // out via OmitObjectTypeProxies.
+                if (!options.OmitObjectTypeProxies)
+                {
+                    var stackProxyContext = new GeneratorContext
+                    {
+                        FileSystem = generatorContext.FileSystem,
+                        OutputFolder = generatorContext.OutputFolder,
+                        ModelDesign = generatorContext.ModelDesign,
+                        Telemetry = generatorContext.Telemetry,
+                        Options = new GeneratorOptions
+                        {
+                            OptimizeForCompileSpeed = options.OptimizeForCompileSpeed,
+                            Exclusions = options.Exclusions,
+                            Cancellation = options.Cancellation,
+                            UseUtf8StringLiterals = options.UseUtf8StringLiterals
+                        }
+                    };
+                    var stackProxyGenerator = new ObjectTypeProxyGenerator(stackProxyContext);
+                    stackProxyGenerator.Emit();
+                }
             }
 
             if ((generatorType & StackGenerationType.Models) != 0)
@@ -397,6 +422,8 @@ namespace Opc.Ua.SourceGeneration
                 attributesGenerator.Emit();
                 var statusCodesGenerator = new StatusCodesGenerator(generatorContext);
                 statusCodesGenerator.Emit();
+                var serverCapabilitiesGenerator = new ServerCapabilitiesGenerator(generatorContext);
+                serverCapabilitiesGenerator.Emit();
 
                 Generate(generatorContext, !options.OptimizeForCompileSpeed);
             }
@@ -446,6 +473,12 @@ namespace Opc.Ua.SourceGeneration
                     OverrideClassName = designOptions.NodeManagerClassName,
                     EmitFactory = designOptions.EmitNodeManagerFactory
                 }.Emit();
+            }
+
+            if (context.Options?.OmitObjectTypeProxies != true)
+            {
+                var objectTypeProxyGenerator = new ObjectTypeProxyGenerator(context);
+                objectTypeProxyGenerator.Emit();
             }
         }
     }

@@ -53,6 +53,36 @@ namespace Opc.Ua.SourceGeneration
         public IReadOnlyList<string> Exclude { get; set; }
 
         /// <summary>
+        /// Opt out of <see cref="ObjectTypeProxyGenerator"/>. By
+        /// default the source generator emits a typed asynchronous
+        /// client wrapper (<c>{TypeName}Client</c>) for every
+        /// <c>ObjectType</c> in the model — including types without
+        /// methods, so downstream models can derive from the emitted
+        /// proxies. Each generated proxy inherits from the proxy of its
+        /// parent ObjectType (forming a chain that mirrors the OPC UA
+        /// type hierarchy and ultimately roots at the hand-authored
+        /// <c>Opc.Ua.ObjectTypeClient</c> base). Methods that share a
+        /// name with an ancestor method are emitted with the C#
+        /// <c>new</c> modifier so the derived signature shadows the
+        /// ancestor. Set this to <c>true</c> to suppress proxy
+        /// emission. Surfaced from MSBuild via the
+        /// <c>ModelSourceGeneratorOmitObjectTypeProxies</c> property.
+        /// </summary>
+        public bool OmitObjectTypeProxies { get; set; }
+
+        /// <summary>
+        /// Optional override for the C# namespace used by classes emitted
+        /// by the <see cref="ObjectTypeProxyGenerator"/>. By default
+        /// proxies are emitted into the model's own namespace (i.e. the
+        /// C# prefix of the model's target namespace) — for example the
+        /// standard UA NodeSet emits into <c>Opc.Ua</c>. Set this option
+        /// to redirect proxy emission into a different namespace.
+        /// Surfaced from MSBuild via the
+        /// <c>ModelSourceGeneratorObjectTypeProxyNamespace</c> property.
+        /// </summary>
+        public string ObjectTypeProxyNamespace { get; set; }
+
+        /// <summary>
         /// Get options from options provider
         /// </summary>
         /// <param name="provider"></param>
@@ -78,7 +108,11 @@ namespace Opc.Ua.SourceGeneration
                         nameof(DesignFileOptions.GenerateNodeManager))
                 },
                 Exclude = provider.GlobalOptions.GetStrings(nameof(Exclude)),
-                UseAllowSubtypes = provider.GlobalOptions.GetBool(nameof(UseAllowSubtypes))
+                UseAllowSubtypes = provider.GlobalOptions.GetBool(nameof(UseAllowSubtypes)),
+                OmitObjectTypeProxies = provider.GlobalOptions.GetBool(
+                    nameof(OmitObjectTypeProxies)),
+                ObjectTypeProxyNamespace = provider.GlobalOptions.GetString(
+                    nameof(ObjectTypeProxyNamespace))
             };
         }
     }

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -40,7 +39,8 @@ namespace Opc.Ua.Gds.Client
     /// <summary>
     /// A class that provides access to a Global Discovery Server.
     /// </summary>
-    public class GlobalDiscoveryServerClient : IDisposable
+    public class GlobalDiscoveryServerClient
+        : IGlobalDiscoveryServerClient, IAsyncDisposable, IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class.
@@ -54,8 +54,29 @@ namespace Opc.Ua.Gds.Client
             IUserIdentity adminUserIdentity = null,
             ISessionFactory sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
+            : this(configuration, options: null, adminUserIdentity, sessionFactory, diagnosticsMasks)
         {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class
+        /// with the supplied <see cref="GdsClientOptions"/>.
+        /// </summary>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="options">Client options. Defaults are used when null.</param>
+        /// <param name="adminUserIdentity">The user identity for the administrator.</param>
+        /// <param name="sessionFactory">Used to create session to the server.</param>
+        /// <param name="diagnosticsMasks">Return diagnostics to use for all requests.</param>
+        public GlobalDiscoveryServerClient(
+            ApplicationConfiguration configuration,
+            GdsClientOptions options,
+            IUserIdentity adminUserIdentity = null,
+            ISessionFactory sessionFactory = null,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
+        {
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
             Configuration = configuration;
+            m_options = options ?? new GdsClientOptions();
             MessageContext = configuration.CreateMessageContext();
             m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
             m_sessionFactory = sessionFactory ??
@@ -63,66 +84,65 @@ namespace Opc.Ua.Gds.Client
                 {
                     ReturnDiagnostics = diagnosticsMasks
                 };
-            // preset admin
             AdminCredentials = adminUserIdentity;
         }
 
-        /// <summary>
-        /// 1MB default max trust list size
-        /// </summary>
-        private const int kDefaultMaxTrustListSize = 1 * 1024 * 1024;
-
-        /// <summary>
-        /// Gets the application.
-        /// </summary>
+        /// <inheritdoc/>
         public ApplicationConfiguration Configuration { get; }
 
-        /// <summary>
-        /// Message context
-        /// </summary>
+        /// <inheritdoc/>
         public IServiceMessageContext MessageContext { get; }
 
-        /// <summary>
-        /// Gets or sets the admin credentials.
-        /// </summary>
+        /// <inheritdoc/>
         public IUserIdentity AdminCredentials { get; set; }
 
-        /// <summary>
-        /// Gets or sets the endpoint URL.
-        /// </summary>
+        /// <inheritdoc/>
         public string EndpointUrl => m_endpoint?.EndpointUrl.ToString();
 
-        /// <summary>
-        /// Gets or sets the preferred locales.
-        /// </summary>
+        /// <inheritdoc/>
         public ArrayOf<string> PreferredLocales { get; set; }
 
         /// <inheritdoc/>
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
 
-        /// <summary>
-        /// Called when the client is disposed
-        /// </summary>
-        /// <param name="disposing"></param>
-        protected virtual void Dispose(bool disposing)
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
         {
-            if (disposing && !m_disposed)
+            if (m_disposed)
             {
-                m_disposed = true;
-                m_lock.Wait();
+                return;
+            }
+            m_disposed = true;
+            try
+            {
+                m_disposeCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            try
+            {
+                await m_lock.WaitAsync().ConfigureAwait(false);
                 try
                 {
                     Session?.Dispose();
+                    Session = null;
+                    m_directory = null;
+                    m_certificateDirectory = null;
                 }
                 finally
                 {
                     m_lock.Release();
-                    m_lock.Dispose();
                 }
+            }
+            finally
+            {
+                m_lock.Dispose();
+                m_disposeCts.Dispose();
+                GC.SuppressFinalize(this);
             }
         }
 
@@ -136,44 +156,46 @@ namespace Opc.Ua.Gds.Client
         {
             get
             {
-                m_lock.Wait();
-                try
-                {
-                    return Session != null && Session.Connected;
-                }
-                finally
-                {
-                    m_lock.Release();
-                }
+                ISession session = Session;
+                return session is { Connected: true };
             }
         }
 
-        /// <summary>
-        /// Gets the session.
-        /// </summary>
+        /// <inheritdoc/>
         public ISession Session { get; private set; }
 
         /// <summary>
-        /// Gets the endpoint.
+        /// Typed proxy for methods declared on the DirectoryType ObjectType
+        /// (Find/Get/Query/Register/Unregister/UpdateApplication). Constructed
+        /// after a successful connect and cleared on disconnect/dispose.
         /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
+        public DirectoryTypeClient Directory => m_directory;
+
+        /// <summary>
+        /// Typed proxy for methods declared on the CertificateDirectoryType
+        /// ObjectType (StartNewKeyPairRequest/StartSigningRequest/FinishRequest/
+        /// RevokeCertificate/GetCertificate*/GetTrustList/CheckRevocationStatus).
+        /// Constructed after a successful connect and cleared on disconnect/dispose.
+        /// </summary>
+        public CertificateDirectoryTypeClient CertificateDirectory => m_certificateDirectory;
+
+        private DirectoryTypeClient m_directory;
+
+        private CertificateDirectoryTypeClient m_certificateDirectory;
+
+        /// <summary>
+        /// Gets the endpoint. The setter is write-once: an endpoint may be
+        /// assigned only before the first connect and only when not already
+        /// connected. Use <see cref="ResetCredentials"/> to clear the admin
+        /// credentials after a successful disconnect.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"/>
         public ConfiguredEndpoint Endpoint
         {
             get
             {
-                m_lock.Wait();
-                try
-                {
-                    if (Session != null && Session.ConfiguredEndpoint != null)
-                    {
-                        return Session.ConfiguredEndpoint;
-                    }
-                    return m_endpoint;
-                }
-                finally
-                {
-                    m_lock.Release();
-                }
+                ISession session = Session;
+                return session?.ConfiguredEndpoint ?? m_endpoint;
             }
             set
             {
@@ -183,39 +205,17 @@ namespace Opc.Ua.Gds.Client
                         "Session must be closed before changing endpoint.");
                 }
 
-                if (value == null ||
-                    m_endpoint == null ||
-                    value.EndpointUrl != m_endpoint.EndpointUrl)
-                {
-                    AdminCredentials = null;
-                }
-
                 m_endpoint = value;
             }
         }
 
-        /// <summary>
-        ///  Returns list of servers known to the LDS, excluding GDS servers.
-        /// </summary>
-        /// <param name="lds">The LDS to use.</param>
-        /// <returns>
-        /// TRUE if successful; FALSE otherwise.
-        /// </returns>
-        [Obsolete("Use GetDefaultServerUrlsAsync instead.")]
-        public List<string> GetDefaultServerUrls(LocalDiscoveryServerClient lds)
+        /// <inheritdoc/>
+        public void ResetCredentials()
         {
-            return GetDefaultServerUrlsAsync(lds).GetAwaiter().GetResult();
+            AdminCredentials = null;
         }
-
-        /// <summary>
-        ///  Returns list of servers known to the LDS, excluding GDS servers.
-        /// </summary>
-        /// <param name="lds">The LDS to use.</param>
-        /// <param name="ct"> The cancellationToken.</param>
-        /// <returns>
-        /// Whatever urls were found.
-        /// </returns>
-        public async Task<List<string>> GetDefaultServerUrlsAsync(
+        /// <inheritdoc/>
+        public async ValueTask<List<string>> GetDefaultServerUrlsAsync(
             LocalDiscoveryServerClient lds,
             CancellationToken ct = default)
         {
@@ -234,8 +234,8 @@ namespace Opc.Ua.Gds.Client
                 {
                     // ignore GDS and LDS servers
                     var set = server.ServerCapabilities.ToList();
-                    if (set.Contains(ServerCapability.GlobalDiscoveryServer) ||
-                        set.Contains(ServerCapability.LocalDiscoveryServer))
+                    if (set.Contains(ServerCapability.GDS) ||
+                        set.Contains(ServerCapability.LDS))
                     {
                         continue;
                     }
@@ -249,29 +249,8 @@ namespace Opc.Ua.Gds.Client
 
             return serverUrls;
         }
-
-        /// <summary>
-        /// Returns list of GDS servers known to the LDS.
-        /// </summary>
-        /// <param name="lds">The LDS to use.</param>
-        /// <returns>
-        /// Whatever urls were found.
-        /// </returns>
-        [Obsolete("Use GetDefaultGdsUrlsAsync instead.")]
-        public List<string> GetDefaultGdsUrls(LocalDiscoveryServerClient lds)
-        {
-            return GetDefaultGdsUrlsAsync(lds).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Returns list of GDS servers known to the LDS.
-        /// </summary>
-        /// <param name="lds">The LDS to use.</param>
-        /// <param name="ct"> The cancellationToken.</param>
-        /// <returns>
-        /// Whatever urls were found.
-        /// </returns>
-        public async Task<List<string>> GetDefaultGdsUrlsAsync(
+        /// <inheritdoc/>
+        public async ValueTask<List<string>> GetDefaultGdsUrlsAsync(
             LocalDiscoveryServerClient lds,
             CancellationToken ct = default)
         {
@@ -288,7 +267,7 @@ namespace Opc.Ua.Gds.Client
 
                 foreach (ServerOnNetwork server in servers)
                 {
-                    if (server.ServerCapabilities.ToList().Contains(ServerCapability.GlobalDiscoveryServer))
+                    if (server.ServerCapabilities.ToList().Contains(ServerCapability.GDS))
                     {
                         gdsUrls.Add(server.DiscoveryUrl);
                     }
@@ -301,44 +280,13 @@ namespace Opc.Ua.Gds.Client
 
             return gdsUrls;
         }
-
-        /// <summary>
-        /// Connects using the default endpoint.
-        /// </summary>
-        [Obsolete("Use ConnectAsync instead.")]
-        public void Connect()
-        {
-            ConnectAsync(m_endpoint).Wait();
-        }
-
-        /// <summary>
-        /// Connects using the default endpoint.
-        /// </summary>
-        public Task ConnectAsync(CancellationToken ct = default)
+        /// <inheritdoc/>
+        public ValueTask ConnectAsync(CancellationToken ct = default)
         {
             return ConnectAsync(m_endpoint, ct);
         }
-
-        /// <summary>
-        /// Connects the specified endpoint URL.
-        /// </summary>
-        /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <exception cref="ArgumentNullException">endpointUrl</exception>
-        /// <exception cref="ArgumentException">endpointUrl</exception>
-        [Obsolete("Use ConnectAsync instead.")]
-        public Task Connect(string endpointUrl)
-        {
-            return ConnectAsync(endpointUrl);
-        }
-
-        /// <summary>
-        /// Connects the specified endpoint URL.
-        /// </summary>
-        /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <param name="ct">The cancellationToken</param>
-        /// <exception cref="ArgumentNullException">endpointUrl</exception>
-        /// <exception cref="ArgumentException">endpointUrl</exception>
-        public async Task ConnectAsync(string endpointUrl, CancellationToken ct = default)
+        /// <inheritdoc/>
+        public async ValueTask ConnectAsync(string endpointUrl, CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(endpointUrl))
             {
@@ -352,8 +300,10 @@ namespace Opc.Ua.Gds.Client
                     nameof(endpointUrl));
             }
 
-            const int maxAttempts = 5;
-            for (int attempt = 0; ; attempt++)
+            int maxAttempts = m_options.MaxConnectAttempts;
+            int backoffMs = (int)m_options.ConnectBackoff.TotalMilliseconds;
+            ServiceResultException lastException = null;
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
                 try
                 {
@@ -374,44 +324,26 @@ namespace Opc.Ua.Gds.Client
                     return;
                 }
                 catch (ServiceResultException e) when (
-                (
                     e.StatusCode == StatusCodes.BadServerHalted ||
                     e.StatusCode == StatusCodes.BadSecureChannelClosed ||
-                    e.StatusCode == StatusCodes.BadNoCommunication
-                ) &&
-                attempt < maxAttempts)
+                    e.StatusCode == StatusCodes.BadNoCommunication)
                 {
-                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
-                    await Task.Delay(1000, ct).ConfigureAwait(false);
+                    lastException = e;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying...", attempt + 1);
+                    if (attempt + 1 < maxAttempts)
+                    {
+                        await Task.Delay(backoffMs, ct).ConfigureAwait(false);
+                    }
                 }
             }
+            throw lastException ?? ServiceResultException.Create(
+                StatusCodes.BadNoCommunication,
+                "Failed to connect after {0} attempts.",
+                maxAttempts);
         }
-
-        /// <summary>
-        /// Connects the specified endpoint.
-        /// </summary>
-        /// <param name="endpoint">The endpoint.</param>
-        [Obsolete("Use ConnectAsync instead.")]
-        public Task Connect(ConfiguredEndpoint endpoint)
+        /// <inheritdoc/>
+        public async ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
-            return ConnectAsync(endpoint);
-        }
-
-        /// <summary>
-        /// Connects the specified endpoint.
-        /// </summary>
-        /// <param name="endpoint">The endpoint.</param>
-        /// <param name="ct">The cancellationToken</param>
-        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
-        public async Task ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
-        {
-            if (endpoint != null &&
-                m_endpoint != null &&
-                endpoint.EndpointUrl != m_endpoint.EndpointUrl)
-            {
-                AdminCredentials = null;
-            }
-
             if (endpoint == null)
             {
                 endpoint = m_endpoint;
@@ -422,8 +354,10 @@ namespace Opc.Ua.Gds.Client
                 }
             }
 
-            const int maxAttempts = 5;
-            for (int attempt = 0; ; attempt++)
+            int maxAttempts = m_options.MaxConnectAttempts;
+            int backoffMs = (int)m_options.ConnectBackoff.TotalMilliseconds;
+            ServiceResultException lastException = null;
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
                 try
                 {
@@ -431,38 +365,33 @@ namespace Opc.Ua.Gds.Client
                     return;
                 }
                 catch (ServiceResultException e) when (
-                (
                     e.StatusCode == StatusCodes.BadServerHalted ||
                     e.StatusCode == StatusCodes.BadSecureChannelClosed ||
-                    e.StatusCode == StatusCodes.BadNoCommunication
-                ) &&
-                attempt < maxAttempts)
+                    e.StatusCode == StatusCodes.BadNoCommunication)
                 {
-                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
-                    await Task.Delay(1000, ct).ConfigureAwait(false);
+                    lastException = e;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying...", attempt + 1);
+                    if (attempt + 1 < maxAttempts)
+                    {
+                        await Task.Delay(backoffMs, ct).ConfigureAwait(false);
+                    }
                 }
             }
+            throw lastException ?? ServiceResultException.Create(
+                StatusCodes.BadNoCommunication,
+                "Failed to connect after {0} attempts.",
+                maxAttempts);
         }
-
-        /// <summary>
-        /// Disconnect the client connection.
-        /// </summary>
-        [Obsolete("Use DisconnectAsync instead.")]
-        public void Disconnect()
-        {
-            DisconnectAsync().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Disconnect the client connection.
-        /// </summary>
-        public async Task DisconnectAsync(CancellationToken ct = default)
+        /// <inheritdoc/>
+        public async ValueTask DisconnectAsync(CancellationToken ct = default)
         {
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 ISession session = Session;
                 Session = null;
+                m_directory = null;
+                m_certificateDirectory = null;
 
                 if (session == null)
                 {
@@ -484,28 +413,56 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private async void Session_KeepAliveAsync(ISession session, KeepAliveEventArgs e)
+        private void Session_KeepAliveAsync(ISession session, KeepAliveEventArgs e)
         {
-            if (ServiceResult.IsBad(e.Status) && !m_disposed)
+            if (m_disposed)
             {
-                await m_lock.WaitAsync().ConfigureAwait(false);
+                return;
+            }
+
+            // Re-raise the public KeepAlive event synchronously on the same callback
+            // thread to preserve original ordering for subscribers.
+            try
+            {
+                KeepAlive?.Invoke(session, e);
+            }
+            catch (Exception exception)
+            {
+                m_logger.LogError(exception, "Subscriber threw in KeepAlive handler.");
+            }
+
+            if (!ServiceResult.IsBad(e.Status))
+            {
+                return;
+            }
+
+            // Bad keep-alive: schedule async cleanup without blocking the keep-alive
+            // callback thread. Errors are logged; we never throw out of fire-and-forget.
+            _ = Task.Run(async () =>
+            {
                 try
                 {
-                    if (session == Session)
+                    await m_lock.WaitAsync().ConfigureAwait(false);
+                    try
                     {
-                        Session.Dispose();
-                        Session = null;
+                        if (ReferenceEquals(session, Session))
+                        {
+                            Session.Dispose();
+                            Session = null;
+                            m_directory = null;
+                            m_certificateDirectory = null;
+                        }
+                    }
+                    finally
+                    {
+                        m_lock.Release();
                     }
                 }
                 catch (Exception ex)
                 {
                     m_logger.LogError(ex, "Error during KeepAlive handling.");
                 }
-                finally
-                {
-                    m_lock.Release();
-                }
-            }
+            });
         }
 
         private void Session_SessionClosing(object sender, EventArgs e)
@@ -513,92 +470,27 @@ namespace Opc.Ua.Gds.Client
             m_logger.LogInformation("The GDS Client session is closing.");
         }
 
-        /// <summary>
-        /// Occurs when keep alive occurs.
-        /// </summary>
+        /// <inheritdoc/>
         public event KeepAliveEventHandler KeepAlive;
 
         /// <summary>
         /// Occurs when the server status changes.
         /// </summary>
+#pragma warning disable CS0067
         public event MonitoredItemNotificationEventHandler ServerStatusChanged;
-
-        /// <summary>
-        /// Finds the applications with the specified application uri.
-        /// </summary>
-        /// <param name="applicationUri">The application URI.</param>
-        /// <returns>The matching application.</returns>
-        [Obsolete("Use FindApplicationAsync instead.")]
-        public ArrayOf<ApplicationRecordDataType> FindApplication(string applicationUri)
-        {
-            return FindApplicationAsync(applicationUri).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Finds the applications with the specified application uri.
-        /// </summary>
-        /// <param name="applicationUri">The application URI.</param>
-        /// <param name="ct"> The cancellationToken.</param>
-        /// <returns>The matching application.</returns>
-        public async Task<ArrayOf<ApplicationRecordDataType>> FindApplicationAsync(
+#pragma warning restore CS0067
+        /// <inheritdoc/>
+        public async ValueTask<ArrayOf<ApplicationRecordDataType>> FindApplicationAsync(
             string applicationUri,
             CancellationToken ct = default)
         {
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    MethodIds.Directory_FindApplications,
-                    session.NamespaceUris),
-                ct,
-                applicationUri).ConfigureAwait(false);
-
-            if (outputArguments.Count > 0)
-            {
-                return outputArguments[0].GetStructureArray<ApplicationRecordDataType>();
-            }
-
-            return default;
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            return await m_directory.FindApplicationsAsync(
+                applicationUri ?? string.Empty,
+                ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Queries the GDS for any servers matching the criteria.
-        /// </summary>
-        /// <param name="maxRecordsToReturn">The max records to return.</param>
-        /// <param name="applicationName">The filter applied to the application name.</param>
-        /// <param name="applicationUri">The filter applied to the application uri.</param>
-        /// <param name="productUri">The filter applied to the product uri.</param>
-        /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
-        /// <returns>A enumarator used to access the results.</returns>
-        [Obsolete("Use QueryServersAsync instead.")]
-        public ArrayOf<ServerOnNetwork> QueryServers(
-            uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            string productUri,
-            ArrayOf<string> serverCapabilities)
-        {
-            return QueryServersAsync(
-                0,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                productUri,
-                serverCapabilities).GetAwaiter().GetResult().servers;
-        }
-
-        /// <summary>
-        /// Queries the GDS for any servers matching the criteria.
-        /// </summary>
-        /// <param name="maxRecordsToReturn">The max records to return.</param>
-        /// <param name="applicationName">The filter applied to the application name.</param>
-        /// <param name="applicationUri">The filter applied to the application uri.</param>
-        /// <param name="productUri">The filter applied to the product uri.</param>
-        /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
-        /// <param name="ct"> The cancellationToken.</param>
-        /// <returns>A enumarator used to access the results.</returns>
-        public async Task<ArrayOf<ServerOnNetwork>> QueryServersAsync(
+        /// <inheritdoc/>
+        public async ValueTask<ArrayOf<ServerOnNetwork>> QueryServersAsync(
             uint maxRecordsToReturn,
             string applicationName,
             string applicationUri,
@@ -615,84 +507,8 @@ namespace Opc.Ua.Gds.Client
                 serverCapabilities,
                 ct).ConfigureAwait(false)).servers;
         }
-
-        /// <summary>
-        /// Queries the GDS for any servers matching the criteria.
-        /// </summary>
-        /// <param name="startingRecordId">The id of the first record to return.</param>
-        /// <param name="maxRecordsToReturn">The max records to return.</param>
-        /// <param name="applicationName">The filter applied to the application name.</param>
-        /// <param name="applicationUri">The filter applied to the application uri.</param>
-        /// <param name="productUri">The filter applied to the product uri.</param>
-        /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
-        /// <returns>A enumerator used to access the results.</returns>
-        [Obsolete("Use QueryServersAsync instead.")]
-        public ArrayOf<ServerOnNetwork> QueryServers(
-            uint startingRecordId,
-            uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            string productUri,
-            ArrayOf<string> serverCapabilities)
-        {
-            (ArrayOf<ServerOnNetwork> servers, _) = QueryServersAsync(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                productUri,
-                serverCapabilities)
-                .GetAwaiter().GetResult();
-
-            return servers;
-        }
-
-        /// <summary>
-        /// Queries the GDS for any servers matching the criteria.
-        /// </summary>
-        /// <param name="startingRecordId">The id of the first record to return.</param>
-        /// <param name="maxRecordsToReturn">The max records to return.</param>
-        /// <param name="applicationName">The filter applied to the application name.</param>
-        /// <param name="applicationUri">The filter applied to the application uri.</param>
-        /// <param name="productUri">The filter applied to the product uri.</param>
-        /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
-        /// <param name="lastCounterResetTime">The time when the counter was last changed.</param>
-        /// <returns>A enumerator used to access the results.</returns>
-        [Obsolete("Use QueryServersAsync instead.")]
-        public ArrayOf<ServerOnNetwork> QueryServers(
-            uint startingRecordId,
-            uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            string productUri,
-            ArrayOf<string> serverCapabilities,
-            out DateTimeUtc lastCounterResetTime)
-        {
-            (ArrayOf<ServerOnNetwork> servers, lastCounterResetTime) = QueryServersAsync(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                productUri,
-                serverCapabilities)
-                .GetAwaiter().GetResult();
-
-            return servers;
-        }
-
-        /// <summary>
-        /// Queries the GDS for any servers matching the criteria.
-        /// </summary>
-        /// <param name="startingRecordId">The id of the first record to return.</param>
-        /// <param name="maxRecordsToReturn">The max records to return.</param>
-        /// <param name="applicationName">The filter applied to the application name.</param>
-        /// <param name="applicationUri">The filter applied to the application uri.</param>
-        /// <param name="productUri">The filter applied to the product uri.</param>
-        /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
-        /// <param name="ct">The cancellationToken</param>
-        /// <returns>A enumerator used to access the results.
-        /// The time when the counter was last changed.</returns>
-        public async Task<(ArrayOf<ServerOnNetwork> servers, DateTimeUtc lastCounterResetTime)> QueryServersAsync(
+        /// <inheritdoc/>
+        public async ValueTask<(ArrayOf<ServerOnNetwork> servers, DateTimeUtc lastCounterResetTime)> QueryServersAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -701,70 +517,17 @@ namespace Opc.Ua.Gds.Client
             ArrayOf<string> serverCapabilities,
             CancellationToken ct = default)
         {
-            DateTimeUtc lastCounterResetTime = DateTimeUtc.MinValue;
-
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(MethodIds.Directory_QueryServers, session.NamespaceUris),
-                ct,
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            (DateTimeUtc lastCounterResetTime, ArrayOf<ServerOnNetwork> servers) = await m_directory.QueryServersAsync(
                 startingRecordId,
                 maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                productUri,
-                Variant.From(serverCapabilities)).ConfigureAwait(false);
-
-            ArrayOf<ServerOnNetwork> servers = default;
-
-            if (outputArguments.Count >= 2)
-            {
-                lastCounterResetTime = (DateTimeUtc)outputArguments[0];
-                servers = outputArguments[1].GetStructureArray<ServerOnNetwork>();
-            }
-
+                applicationName ?? string.Empty,
+                applicationUri ?? string.Empty,
+                productUri ?? string.Empty,
+                serverCapabilities,
+                ct).ConfigureAwait(false);
             return (servers, lastCounterResetTime);
         }
-
-        /// <summary>
-        /// Queries the GDS for any servers matching the criteria.
-        /// </summary>
-        /// <param name="startingRecordId">The id of the first record to return.</param>
-        /// <param name="maxRecordsToReturn">The max records to return.</param>
-        /// <param name="applicationName">The filter applied to the application name.</param>
-        /// <param name="applicationUri">The filter applied to the application uri.</param>
-        /// <param name="applicationType">The filter applied to the application uri.</param>
-        /// <param name="productUri">The filter applied to the product uri.</param>
-        /// <param name="serverCapabilities">The filter applied to the server capabilities.</param>
-        /// <param name="lastCounterResetTime">The time when the counter was last changed.</param>
-        /// <param name="nextRecordId">The id of the next record.</param>
-        /// <returns>A enumerator used to access the results.</returns>
-        [Obsolete("Use QueryApplicationsAsync instead.")]
-        public ArrayOf<ApplicationDescription> QueryApplications(
-            uint startingRecordId,
-            uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            uint applicationType,
-            string productUri,
-            ArrayOf<string> serverCapabilities,
-            out DateTimeUtc lastCounterResetTime,
-            out uint nextRecordId)
-        {
-            (ArrayOf<ApplicationDescription> applications, lastCounterResetTime, nextRecordId) = QueryApplicationsAsync(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                applicationType,
-                productUri,
-                serverCapabilities)
-                .GetAwaiter().GetResult();
-
-            return applications;
-        }
-
         /// <summary>
         /// Queries the GDS for any servers matching the criteria.
         /// </summary>
@@ -779,11 +542,10 @@ namespace Opc.Ua.Gds.Client
         /// <returns>A enumerator used to access the results.
         /// The time when the counter was last changed.
         /// The id of the next record.</returns>
-        public async Task<(
+        public async ValueTask<(
             ArrayOf<ApplicationDescription> applications,
             DateTimeUtc lastCounterResetTime,
-            uint nextRecordId)>
-            QueryApplicationsAsync(
+            uint nextRecordId)> QueryApplicationsAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -793,134 +555,35 @@ namespace Opc.Ua.Gds.Client
             ArrayOf<string> serverCapabilities,
             CancellationToken ct = default)
         {
-            DateTimeUtc lastCounterResetTime = DateTimeUtc.MinValue;
-            uint nextRecordId = 0;
-
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    MethodIds.Directory_QueryApplications,
-                    session.NamespaceUris),
-                ct,
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                applicationType,
-                productUri,
-                Variant.From(serverCapabilities)).ConfigureAwait(false);
-
-            ArrayOf<ApplicationDescription> applications = default;
-
-            if (outputArguments.Count >= 3)
-            {
-                lastCounterResetTime = (DateTimeUtc)outputArguments[0];
-                nextRecordId = (uint)outputArguments[1];
-                applications = outputArguments[2].GetStructureArray<ApplicationDescription>();
-            }
-
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            (DateTimeUtc lastCounterResetTime, uint nextRecordId, ArrayOf<ApplicationDescription> applications) =
+                await m_directory.QueryApplicationsAsync(
+                    startingRecordId,
+                    maxRecordsToReturn,
+                    applicationName ?? string.Empty,
+                    applicationUri ?? string.Empty,
+                    applicationType,
+                    productUri ?? string.Empty,
+                    serverCapabilities,
+                    ct).ConfigureAwait(false);
             return (applications, lastCounterResetTime, nextRecordId);
         }
-
-        /// <summary>
-        /// Get the application record.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <returns>The application record for the specified application id.</returns>
-        [Obsolete("Use GetApplicationAsync instead.")]
-        public ApplicationRecordDataType GetApplication(NodeId applicationId)
-        {
-            return GetApplicationAsync(applicationId).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Get the application record.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="ct">The cancellationToken</param>
-        /// <returns>The application record for the specified application id.</returns>
-        public async Task<ApplicationRecordDataType> GetApplicationAsync(
+        /// <inheritdoc/>
+        public async ValueTask<ApplicationRecordDataType> GetApplicationAsync(
             NodeId applicationId,
             CancellationToken ct = default)
         {
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(MethodIds.Directory_GetApplication, session.NamespaceUris),
-                ct,
-                applicationId).ConfigureAwait(false);
-
-            if (outputArguments.Count >= 1 &&
-                outputArguments[0].TryGetStructure(out ApplicationRecordDataType applicationRecord))
-            {
-                return applicationRecord;
-            }
-
-            return null;
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            return await m_directory.GetApplicationAsync(applicationId, ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Registers the application.
-        /// </summary>
-        /// <param name="application">The application.</param>
-        /// <returns>The application id assigned to the application.</returns>
-        [Obsolete("Use RegisterApplicationAsync instead.")]
-        public NodeId RegisterApplication(ApplicationRecordDataType application)
-        {
-            return RegisterApplicationAsync(application).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Registers the application.
-        /// </summary>
-        /// <param name="application">The application.</param>
-        /// <param name="ct">The cancellationToken</param>
-        /// <returns>The application id assigned to the application.</returns>
-        public async Task<NodeId> RegisterApplicationAsync(
+        /// <inheritdoc/>
+        public async ValueTask<NodeId> RegisterApplicationAsync(
             ApplicationRecordDataType application,
             CancellationToken ct = default)
         {
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    MethodIds.Directory_RegisterApplication,
-                    session.NamespaceUris),
-                ct,
-                Variant.FromStructure(application)).ConfigureAwait(false);
-
-            if (outputArguments.Count >= 1 && outputArguments[0].TryGet(out NodeId nodeId))
-            {
-                return nodeId;
-            }
-            return default;
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            return await m_directory.RegisterApplicationAsync(application, ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Returns the Certificates assigned to Application and associated with the CertificateGroup.
-        /// </summary>
-        /// <param name="applicationId">The identifier assigned to the Application by the GDS.</param>
-        /// <param name="certificateGroupId">An identifier for the CertificateGroup that the Certificates belong to.
-        ///If null, the CertificateManager shall return the Certificates for all CertificateGroups assigned to the Application.</param>
-        /// <param name="certificateTypeIds">The CertificateTypes that currently have a Certificate assigned.
-        /// The length of this list is the same as the length as certificates list.</param>
-        /// <param name="certificates">A list of DER encoded Certificates assigned to Application.
-        /// This list only includes Certificates that are currently valid.</param>
-        [Obsolete("Use GetCertificatesAsync instead")]
-        public void GetCertificates(
-            NodeId applicationId,
-            NodeId certificateGroupId,
-            out ArrayOf<NodeId> certificateTypeIds,
-            out ArrayOf<ByteString> certificates)
-        {
-            (certificateTypeIds, certificates) = GetCertificatesAsync(applicationId, certificateGroupId)
-                .GetAwaiter().GetResult();
-        }
-
         /// <summary>
         /// Returns the Certificates assigned to Application and associated with the CertificateGroup.
         /// </summary>
@@ -932,215 +595,45 @@ namespace Opc.Ua.Gds.Client
         /// The length of this list is the same as the length as certificates list.
         /// A list of DER encoded Certificates assigned to Application.
         /// This list only includes Certificates that are currently valid.</returns>
-        public async Task<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(
+        public async ValueTask<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(
             NodeId applicationId,
             NodeId certificateGroupId,
             CancellationToken ct = default)
         {
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    MethodIds.CertificateDirectoryType_GetCertificates,
-                    session.NamespaceUris),
-                ct,
-                applicationId,
-                certificateGroupId).ConfigureAwait(false);
-
-            ArrayOf<NodeId> certificateTypeIds = [];
-            ArrayOf<ByteString> certificates = [];
-            if (outputArguments.Count >= 2)
-            {
-                certificateTypeIds = outputArguments[0].GetNodeIdArray();
-                certificates = outputArguments[1].GetByteStringArray();
-            }
-            return (certificateTypeIds, certificates);
-        }
-
-        /// <summary>
-        /// Checks the provided certificate for validity
-        /// </summary>
-        /// <param name="certificate">The DER encoded form of the Certificate to check.</param>
-        /// <param name="certificateStatus">The first error encountered when validating the Certificate.</param>
-        /// <param name="validityTime">When the result expires and should be rechecked. DateTime.MinValue if this is unknown.</param>
-        [Obsolete("Use CheckRevocationStatusAsync instead")]
-        public void CheckRevocationStatus(
-            ByteString certificate,
-            out StatusCode certificateStatus,
-            out DateTimeUtc validityTime)
-        {
-            (certificateStatus, validityTime) = CheckRevocationStatusAsync(certificate).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Checks the provided certificate for validity
-        /// </summary>
-        /// <param name="certificate">The DER encoded form of the Certificate to check.</param>
-        /// <param name="ct">The cancellationToken</param>
-        /// <returns>The first error encountered when validating the Certificate.
-        /// When the result expires and should be rechecked. DateTime.MinValue if this is unknown.</returns>
-        public async Task<(StatusCode certificateStatus, DateTimeUtc validityTime)> CheckRevocationStatusAsync(
-            ByteString certificate,
-            CancellationToken ct = default)
-        {
-            StatusCode certificateStatus = StatusCodes.Good;
-            DateTimeUtc validityTime = DateTimeUtc.MinValue;
-
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    MethodIds.CertificateDirectoryType_CheckRevocationStatus,
-                    session.NamespaceUris
-                ),
-                ct,
-                certificate).ConfigureAwait(false);
-
-            if (outputArguments.Count >= 2)
-            {
-                certificateStatus = (StatusCode)outputArguments[0];
-                validityTime = (DateTimeUtc)outputArguments[1];
-            }
-            return (certificateStatus, validityTime);
-        }
-
-        /// <summary>
-        /// Updates the application.
-        /// </summary>
-        /// <param name="application">The application.</param>
-        [Obsolete("Use UpdateApplicationAsync instead.")]
-        public void UpdateApplication(ApplicationRecordDataType application)
-        {
-            UpdateApplicationAsync(application).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Updates the application.
-        /// </summary>
-        /// <param name="application">The application.</param>
-        /// <param name="ct">The cancellationToken</param>
-        public async Task UpdateApplicationAsync(ApplicationRecordDataType application, CancellationToken ct = default)
-        {
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    MethodIds.Directory_UpdateApplication,
-                    session.NamespaceUris),
-                ct,
-                Variant.FromStructure(application)).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Unregisters the application.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        [Obsolete("Use UnregisterApplicationAsync instead.")]
-        public void UnregisterApplication(NodeId applicationId)
-        {
-            UnregisterApplicationAsync(applicationId).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Unregisters the application.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="ct">The cancellationToken</param>
-        public async Task UnregisterApplicationAsync(NodeId applicationId, CancellationToken ct = default)
-        {
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    MethodIds.Directory_UnregisterApplication,
-                    session.NamespaceUris),
-                ct,
-                applicationId).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Revokes a Certificate issued to the Application by the CertificateManager
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificate">The certificate to revoke</param>
-        [Obsolete("Use RevokeCertificateAsync instead.")]
-        public void RevokeCertificate(NodeId applicationId, ByteString certificate)
-        {
-            RevokeCertificateAsync(applicationId, certificate).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Revokes a Certificate issued to the Application by the CertificateManager
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificate">The certificate to revoke</param>
-        /// <param name="ct">The cancellationToken</param>
-        public async Task RevokeCertificateAsync(NodeId applicationId, ByteString certificate, CancellationToken ct = default)
-        {
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    MethodIds.CertificateDirectoryType_RevokeCertificate,
-                    session.NamespaceUris),
-                ct,
-                applicationId,
-                certificate).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Requests a new certificate.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">The authority.</param>
-        /// <param name="certificateTypeId">Type of the certificate.</param>
-        /// <param name="subjectName">Name of the subject.</param>
-        /// <param name="domainNames">The domain names.</param>
-        /// <param name="privateKeyFormat">The private key format (PEM or PFX).</param>
-        /// <param name="privateKeyPassword">The private key password.</param>
-        /// <returns>
-        /// The id for the request which is used to check when it is approved.
-        /// </returns>
-        [Obsolete("Use StartNewKeyPairRequestAsync instead.")]
-        public NodeId StartNewKeyPairRequest(
-            NodeId applicationId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
-            string subjectName,
-            ArrayOf<string> domainNames,
-            string privateKeyFormat,
-            char[] privateKeyPassword)
-        {
-            return StartNewKeyPairRequestAsync(
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            return await m_certificateDirectory.GetCertificatesAsync(
                 applicationId,
                 certificateGroupId,
-                certificateTypeId,
-                subjectName,
-                domainNames,
-                privateKeyFormat,
-                privateKeyPassword).GetAwaiter().GetResult();
+                ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Requests a new certificate.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">The authority.</param>
-        /// <param name="certificateTypeId">Type of the certificate.</param>
-        /// <param name="subjectName">Name of the subject.</param>
-        /// <param name="domainNames">The domain names.</param>
-        /// <param name="privateKeyFormat">The private key format (PEM or PFX).</param>
-        /// <param name="privateKeyPassword">The private key password.</param>
-        /// <param name="ct">The cancellationToken</param>
-        /// <returns>
-        /// The id for the request which is used to check when it is approved.
-        /// </returns>
-        public async Task<NodeId> StartNewKeyPairRequestAsync(
+        /// <inheritdoc/>
+        public async ValueTask<(StatusCode certificateStatus, DateTimeUtc validityTime)> CheckRevocationStatusAsync(
+            ByteString certificate,
+            CancellationToken ct = default)
+        {
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            return await m_certificateDirectory.CheckRevocationStatusAsync(certificate, ct).ConfigureAwait(false);
+        }
+        /// <inheritdoc/>
+        public async ValueTask UpdateApplicationAsync(ApplicationRecordDataType application, CancellationToken ct = default)
+        {
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            await m_directory.UpdateApplicationAsync(application, ct).ConfigureAwait(false);
+        }
+        /// <inheritdoc/>
+        public async ValueTask UnregisterApplicationAsync(NodeId applicationId, CancellationToken ct = default)
+        {
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            await m_directory.UnregisterApplicationAsync(applicationId, ct).ConfigureAwait(false);
+        }
+        /// <inheritdoc/>
+        public async ValueTask RevokeCertificateAsync(NodeId applicationId, ByteString certificate, CancellationToken ct = default)
+        {
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            await m_certificateDirectory.RevokeCertificateAsync(applicationId, certificate, ct).ConfigureAwait(false);
+        }
+        /// <inheritdoc/>
+        public async ValueTask<NodeId> StartNewKeyPairRequestAsync(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -1150,111 +643,33 @@ namespace Opc.Ua.Gds.Client
             char[] privateKeyPassword,
             CancellationToken ct = default)
         {
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    MethodIds.Directory_StartNewKeyPairRequest,
-                    session.NamespaceUris),
-                ct,
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            return await m_certificateDirectory.StartNewKeyPairRequestAsync(
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
                 subjectName,
-                Variant.From(domainNames),
+                domainNames,
                 privateKeyFormat,
-                new string(privateKeyPassword)).ConfigureAwait(false);
-
-            if (outputArguments.Count >= 1 && outputArguments[0].TryGet(out NodeId nodeId))
-            {
-                return nodeId;
-            }
-
-            return default;
+                new string(privateKeyPassword),
+                ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Signs the certificate.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">The group of the trust list.</param>
-        /// <param name="certificateTypeId">The type of the trust list.</param>
-        /// <param name="certificateRequest">The certificate signing request (CSR).</param>
-        /// <returns>The id for the request which is used to check when it is approved.</returns>
-        [Obsolete("Use StartSigningRequestAsync instead.")]
-        public NodeId StartSigningRequest(
-            NodeId applicationId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
-            ByteString certificateRequest)
-        {
-            return StartSigningRequestAsync(
-                applicationId,
-                certificateGroupId,
-                certificateTypeId,
-                certificateRequest).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Signs the certificate.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">The group of the trust list.</param>
-        /// <param name="certificateTypeId">The type of the trust list.</param>
-        /// <param name="certificateRequest">The certificate signing request (CSR).</param>
-        /// <param name="ct">The cancellationToken</param>
-        /// <returns>The id for the request which is used to check when it is approved.</returns>
-        public async Task<NodeId> StartSigningRequestAsync(
+        /// <inheritdoc/>
+        public async ValueTask<NodeId> StartSigningRequestAsync(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             ByteString certificateRequest,
             CancellationToken ct = default)
         {
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    MethodIds.Directory_StartSigningRequest,
-                    session.NamespaceUris),
-                ct,
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            return await m_certificateDirectory.StartSigningRequestAsync(
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
-                certificateRequest).ConfigureAwait(false);
-
-            if (outputArguments.Count >= 1 && outputArguments[0].TryGet(out NodeId nodeId))
-            {
-                return nodeId;
-            }
-
-            return default;
+                certificateRequest,
+                ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Checks the request status.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="requestId">The request id.</param>
-        /// <param name="privateKey">The private key.</param>
-        /// <param name="issuerCertificates">The issuer certificates.</param>
-        /// <returns>The public key.</returns>
-        [Obsolete("Use FinishRequestAsync instead.")]
-        public ByteString FinishRequest(
-            NodeId applicationId,
-            NodeId requestId,
-            out ByteString privateKey,
-            out ArrayOf<ByteString> issuerCertificates)
-        {
-            (ByteString publicKey, ByteString privateKeyResult, ArrayOf<ByteString> issuerCertificatesResult) =
-                FinishRequestAsync(applicationId, requestId).GetAwaiter().GetResult();
-            privateKey = privateKeyResult;
-            issuerCertificates = issuerCertificatesResult;
-            return publicKey;
-        }
-
         /// <summary>
         /// Checks the request status.
         /// </summary>
@@ -1262,264 +677,78 @@ namespace Opc.Ua.Gds.Client
         /// <param name="requestId">The request id.</param>
         /// <param name="ct">The cancellationToken</param>
         /// <returns>The public key.The private key.The issuer certificates.</returns>
-        public async Task<(ByteString publicKey, ByteString privateKey, ArrayOf<ByteString> issuerCertificates)> FinishRequestAsync(
+        public async ValueTask<(ByteString publicKey, ByteString privateKey, ArrayOf<ByteString> issuerCertificates)> FinishRequestAsync(
             NodeId applicationId,
             NodeId requestId,
             CancellationToken ct = default)
         {
-            ByteString privateKey = default;
-            ArrayOf<ByteString> issuerCertificates = default;
-
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(MethodIds.Directory_FinishRequest, session.NamespaceUris),
-                ct,
-                applicationId,
-                requestId).ConfigureAwait(false);
-
-            ByteString certificate = default;
-
-            if (outputArguments.Count >= 1)
-            {
-                certificate = outputArguments[0].GetByteString();
-            }
-
-            if (outputArguments.Count >= 2)
-            {
-                privateKey = outputArguments[1].GetByteString();
-            }
-
-            if (outputArguments.Count >= 3)
-            {
-                issuerCertificates = outputArguments[2].GetByteStringArray();
-            }
-
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            (ByteString certificate, ByteString privateKey, ArrayOf<ByteString> issuerCertificates) =
+                await m_certificateDirectory.FinishRequestAsync(applicationId, requestId, ct).ConfigureAwait(false);
             return (certificate, privateKey, issuerCertificates);
         }
-
-        /// <summary>
-        /// Gets the certificate groups.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        [Obsolete("Use GetCertificateGroupsAsync instead.")]
-        public ArrayOf<NodeId> GetCertificateGroups(NodeId applicationId)
+        /// <inheritdoc/>
+        public async ValueTask<ArrayOf<NodeId>> GetCertificateGroupsAsync(NodeId applicationId, CancellationToken ct = default)
         {
-            return GetCertificateGroupsAsync(applicationId).GetAwaiter().GetResult();
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            return await m_certificateDirectory.GetCertificateGroupsAsync(applicationId, ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Gets the certificate groups.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="ct">The cancellationToken</param>
-        public async Task<ArrayOf<NodeId>> GetCertificateGroupsAsync(NodeId applicationId, CancellationToken ct = default)
+        /// <inheritdoc/>
+        public async ValueTask<NodeId> GetTrustListAsync(NodeId applicationId, NodeId certificateGroupId, CancellationToken ct = default)
         {
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    MethodIds.Directory_GetCertificateGroups,
-                    session.NamespaceUris),
-                ct,
-                applicationId).ConfigureAwait(false);
-
-            if (outputArguments.Count >= 1 && outputArguments[0].TryGet(out ArrayOf<NodeId> nodeIds))
-            {
-                return nodeIds;
-            }
-
-            return default;
-        }
-
-        /// <summary>
-        /// Gets the trust lists method.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">Type of the trust list.</param>
-        [Obsolete("Use GetTrustListAsync instead.")]
-        public NodeId GetTrustList(NodeId applicationId, NodeId certificateGroupId)
-        {
-            return GetTrustListAsync(applicationId, certificateGroupId).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Gets the trust lists method.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">Type of the trust list.</param>
-        /// <param name="ct">The cancellationToken</param>
-        public async Task<NodeId> GetTrustListAsync(NodeId applicationId, NodeId certificateGroupId, CancellationToken ct = default)
-        {
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(MethodIds.Directory_GetTrustList, session.NamespaceUris),
-                ct,
-                applicationId,
-                certificateGroupId).ConfigureAwait(false);
-
-            if (outputArguments.Count >= 1 && outputArguments[0].TryGet(out NodeId nodeId))
-            {
-                return nodeId;
-            }
-
-            return default;
-        }
-
-        /// <summary>
-        /// Gets the certificate status.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">Group of the trust list.</param>
-        /// <param name="certificateTypeId">Type of the trust list.</param>
-        [Obsolete("Use GetCertificateStatusAsync instead.")]
-        public bool GetCertificateStatus(
-            NodeId applicationId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId)
-        {
-            return GetCertificateStatusAsync(
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            return await m_certificateDirectory.GetTrustListAsync(
                 applicationId,
                 certificateGroupId,
-                certificateTypeId).GetAwaiter().GetResult();
+                ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Gets the certificate status.
-        /// </summary>
-        /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">Group of the trust list.</param>
-        /// <param name="certificateTypeId">Type of the trust list.</param>
-        /// <param name="ct">The cancellationToken</param>
-        public async Task<bool> GetCertificateStatusAsync(
+        /// <inheritdoc/>
+        public async ValueTask<bool> GetCertificateStatusAsync(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             CancellationToken ct = default)
         {
-            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(
-                    MethodIds.Directory_GetCertificateStatus,
-                    session.NamespaceUris),
-                ct,
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            return await m_certificateDirectory.GetCertificateStatusAsync(
                 applicationId,
                 certificateGroupId,
-                certificateTypeId).ConfigureAwait(false);
-
-            if (outputArguments.Count >= 1 && outputArguments[0].TryGet(out bool result))
-            {
-                return result;
-            }
-
-            return false;
+                certificateTypeId,
+                ct).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Reads the trust list.
-        /// </summary>
-        [Obsolete("Use ReadTrustListAsync instead.")]
-        public TrustListDataType ReadTrustList(NodeId trustListId)
-        {
-            return ReadTrustListAsync(trustListId).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Reads the trust list.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public Task<TrustListDataType> ReadTrustListAsync(NodeId trustListId, CancellationToken ct = default)
+        /// <inheritdoc/>
+        public ValueTask<TrustListDataType> ReadTrustListAsync(NodeId trustListId, CancellationToken ct = default)
         {
             return ReadTrustListAsync(trustListId, 0, ct);
         }
 
-        /// <summary>
-        /// Reads the trust list.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public async Task<TrustListDataType> ReadTrustListAsync(
+        /// <inheritdoc/>
+        public async ValueTask<TrustListDataType> ReadTrustListAsync(
             NodeId trustListId,
             long maxTrustListSize,
             CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            ArrayOf<Variant> outputArguments = await session.CallAsync(
-                trustListId,
-                Ua.MethodIds.FileType_Open,
-                ct,
-                (byte)OpenFileMode.Read).ConfigureAwait(false);
+            long sizeLimit = maxTrustListSize == 0 ? m_options.MaxTrustListSize : maxTrustListSize;
+            int chunkSize = Math.Max(m_options.FileTransferChunkSize, 4096);
 
-            uint fileHandle = (uint)outputArguments[0];
-            using var ostrm = new MemoryStream();
+            var file = new FileTypeClient(session, trustListId, MessageContext.Telemetry);
+            uint fileHandle = await file.OpenAsync((byte)OpenFileMode.Read, ct).ConfigureAwait(false);
             try
             {
-                // Use a reasonable maximum size limit for trust lists
-                if (maxTrustListSize == 0)
-                {
-                    maxTrustListSize = kDefaultMaxTrustListSize;
-                }
-
-                long totalBytesRead = 0;
-
-                while (true)
-                {
-                    const int length = 4096;
-
-                    outputArguments = await session.CallAsync(
-                        trustListId,
-                        Ua.MethodIds.FileType_Read,
-                        ct,
-                        fileHandle,
-                        length).ConfigureAwait(false);
-
-                    ByteString bytes = (ByteString)outputArguments[0];
-
-                    // Validate total size before writing
-                    totalBytesRead += bytes.Length;
-                    if (totalBytesRead > maxTrustListSize)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingLimitsExceeded,
-                            "Trust list size exceeds maximum allowed size of {0} bytes",
-                            maxTrustListSize);
-                    }
-
-                    ostrm.Write(bytes.ToArray(), 0, bytes.Length);
-
-                    if (length != bytes.Length)
-                    {
-                        break;
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                throw;
+                return await TrustListFileTransferHelper.ReadAsync(
+                    file,
+                    fileHandle,
+                    session.MessageContext,
+                    sizeLimit,
+                    chunkSize,
+                    ct).ConfigureAwait(false);
             }
             finally
             {
-                await session.CallAsync(
-                    trustListId,
-                    Ua.MethodIds.FileType_Close,
-                    ct,
-                    fileHandle).ConfigureAwait(false);
+                await file.CloseAsync(fileHandle, ct).ConfigureAwait(false);
             }
-
-            ostrm.Position = 0;
-
-            var trustList = new TrustListDataType();
-            using (var decoder = new BinaryDecoder(ostrm, session.MessageContext))
-            {
-                trustList.Decode(decoder);
-            }
-            return trustList;
         }
 
         /// <summary>
@@ -1535,6 +764,8 @@ namespace Opc.Ua.Gds.Client
             {
                 Session?.Dispose();
                 Session = null;
+                m_directory = null;
+                m_certificateDirectory = null;
 
                 Session = await m_sessionFactory.CreateAsync(
                     Configuration,
@@ -1542,7 +773,7 @@ namespace Opc.Ua.Gds.Client
                     updateBeforeConnect,
                     false,
                     Configuration.ApplicationName,
-                    60000,
+                    (uint)m_options.SessionTimeout.TotalMilliseconds,
                     AdminCredentials,
                     PreferredLocales,
                     ct)
@@ -1550,17 +781,23 @@ namespace Opc.Ua.Gds.Client
 
                 Session.SessionClosing += Session_SessionClosing;
                 Session.KeepAlive += Session_KeepAliveAsync;
-                Session.KeepAlive += KeepAlive;
-
-                // TODO: implement, suppress warning/error
-                if (ServerStatusChanged != null)
-                {
-                }
 
                 if (!Session.Factory.ContainsEncodeableType(DataTypeIds.ApplicationRecordDataType))
                 {
                     Session.Factory.Builder.AddOpcUaGds().Commit();
                 }
+
+                NodeId directoryNodeId = ExpandedNodeId.ToNodeId(
+                    ObjectIds.Directory,
+                    Session.NamespaceUris);
+                m_directory = new DirectoryTypeClient(
+                    Session,
+                    directoryNodeId,
+                    MessageContext.Telemetry);
+                m_certificateDirectory = new CertificateDirectoryTypeClient(
+                    Session,
+                    directoryNodeId,
+                    MessageContext.Telemetry);
 
                 m_endpoint = Session.ConfiguredEndpoint;
                 m_logger.LogInformation("Connected to {EndpointUrl}.", EndpointUrl);
@@ -1601,6 +838,8 @@ namespace Opc.Ua.Gds.Client
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ISessionFactory m_sessionFactory;
         private readonly ILogger m_logger;
+        private readonly GdsClientOptions m_options;
+        private readonly CancellationTokenSource m_disposeCts = new();
         private ConfiguredEndpoint m_endpoint;
         private bool m_disposed;
     }

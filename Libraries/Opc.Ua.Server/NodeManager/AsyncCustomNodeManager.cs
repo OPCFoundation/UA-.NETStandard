@@ -920,6 +920,50 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Searches for a method in the ObjectType hierarchy of an instance node.
+        /// Per OPC UA spec Part 4 section 5.12.2.2, the ObjectType of the Object or a super type
+        /// of that ObjectType may be the source of a HasComponent reference to the method.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="typeDefinitionId">The TypeDefinitionId of the object instance.</param>
+        /// <param name="methodId">The NodeId of the method to find.</param>
+        /// <returns>The found method state, or null if not found.</returns>
+        private MethodState FindMethodInTypeHierarchy(ISystemContext context, NodeId typeDefinitionId, NodeId methodId)
+        {
+            // A limit to prevent infinite loops in case of a circular type hierarchy in malformed address spaces.
+            const int maxHierarchyDepth = 100;
+            int depth = 0;
+            NodeId typeId = typeDefinitionId;
+
+            while (!typeId.IsNull && depth++ < maxHierarchyDepth)
+            {
+                NodeState typeNode = FindPredefinedNode<NodeState>(typeId);
+                if (typeNode != null)
+                {
+                    MethodState method = typeNode.FindMethod(context, methodId);
+                    if (method != null)
+                    {
+                        return method;
+                    }
+
+                    // check for loose coupling via the type node.
+                    if (typeNode.ReferenceExists(ReferenceTypeIds.HasComponent, false, methodId))
+                    {
+                        method = FindPredefinedNode<MethodState>(methodId);
+                        if (method != null)
+                        {
+                            return method;
+                        }
+                    }
+                }
+
+                typeId = Server.TypeTree.FindSuperType(typeId);
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
         public virtual ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
@@ -3204,6 +3248,14 @@ namespace Opc.Ua.Server
                     {
                         method = FindPredefinedNode<MethodState>(
                             methodToCall.MethodId);
+                    }
+
+                    // Per OPC UA spec Part 4 section 5.12.2.2: the ObjectType of the Object
+                    // or a super type of that ObjectType may also be the source of a HasComponent
+                    // reference to the method.
+                    if (method == null && source is BaseInstanceState instanceState)
+                    {
+                        method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
                     }
 
                     if (method == null)

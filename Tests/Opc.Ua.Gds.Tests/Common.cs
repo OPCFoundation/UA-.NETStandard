@@ -190,7 +190,7 @@ namespace Opc.Ua.Gds.Tests
         {
             var serverCapabilities = new List<string>();
             int capabilities = RandomSource.NextInt32(8);
-            foreach (ServerCapability cap in m_serverCapabilities)
+            foreach (ServerCapabilityInfo cap in m_serverCapabilities)
             {
                 if (RandomSource.NextInt32(100) > 50)
                 {
