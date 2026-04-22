@@ -97,7 +97,7 @@ namespace Opc.Ua.Security.Certificates
         {
             X509 = X509CertificateLoader.LoadCertificate(rawData);
 #if DEBUG
-            s_allocationTracker.AddOrUpdate(this, new CertificateAllocationInfo(
+            s_allocationTracker.Add(this, new CertificateAllocationInfo(
                 new System.Diagnostics.StackTrace(true).ToString(),
                 X509?.Thumbprint));
 #endif
@@ -112,7 +112,7 @@ namespace Opc.Ua.Security.Certificates
         {
             X509 = X509CertificateLoader.LoadCertificate(rawData);
 #if DEBUG
-            s_allocationTracker.AddOrUpdate(this, new CertificateAllocationInfo(
+            s_allocationTracker.Add(this, new CertificateAllocationInfo(
                 new System.Diagnostics.StackTrace(true).ToString(),
                 X509?.Thumbprint));
 #endif
@@ -129,7 +129,7 @@ namespace Opc.Ua.Security.Certificates
         {
             X509 = X509CertificateLoader.LoadCertificateFromFile(fileName);
 #if DEBUG
-            s_allocationTracker.AddOrUpdate(this, new CertificateAllocationInfo(
+            s_allocationTracker.Add(this, new CertificateAllocationInfo(
                 new System.Diagnostics.StackTrace(true).ToString(),
                 X509?.Thumbprint));
 #endif
@@ -151,7 +151,7 @@ namespace Opc.Ua.Security.Certificates
             X509 = X509CertificateLoader.LoadPkcs12(
                 rawData, password, keyStorageFlags);
 #if DEBUG
-            s_allocationTracker.AddOrUpdate(this, new CertificateAllocationInfo(
+            s_allocationTracker.Add(this, new CertificateAllocationInfo(
                 new System.Diagnostics.StackTrace(true).ToString(),
                 X509?.Thumbprint));
 #endif
@@ -173,7 +173,7 @@ namespace Opc.Ua.Security.Certificates
             X509 = X509CertificateLoader.LoadPkcs12FromFile(
                 fileName, password, keyStorageFlags);
 #if DEBUG
-            s_allocationTracker.AddOrUpdate(this, new CertificateAllocationInfo(
+            s_allocationTracker.Add(this, new CertificateAllocationInfo(
                 new System.Diagnostics.StackTrace(true).ToString(),
                 X509?.Thumbprint));
 #endif
@@ -191,7 +191,7 @@ namespace Opc.Ua.Security.Certificates
             X509 = certificate ??
                 throw new ArgumentNullException(nameof(certificate));
 #if DEBUG
-            s_allocationTracker.AddOrUpdate(this, new CertificateAllocationInfo(
+            s_allocationTracker.Add(this, new CertificateAllocationInfo(
                 new System.Diagnostics.StackTrace(true).ToString(),
                 X509?.Thumbprint));
 #endif
@@ -512,7 +512,9 @@ namespace Opc.Ua.Security.Certificates
         /// Detects leaked certificates that were never disposed.
         /// Only compiled in DEBUG builds.
         /// </summary>
+#pragma warning disable CA1063 // Implement IDisposable Correctly
         ~Certificate()
+#pragma warning restore CA1063 // Implement IDisposable Correctly
         {
             if (m_refCount > 0)
             {

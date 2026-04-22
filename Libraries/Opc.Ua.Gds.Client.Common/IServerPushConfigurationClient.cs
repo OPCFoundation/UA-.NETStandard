@@ -28,10 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -132,7 +132,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>Adds a certificate to the trust list.</summary>
         /// <remarks>Calls the <c>AddCertificate</c> method on <c>TrustListType</c> (OPC 10000-12 §7.8.7).</remarks>
         ValueTask AddCertificateAsync(
-            X509Certificate2 certificate,
+            Certificate certificate,
             bool isTrustedCertificate,
             CancellationToken ct = default);
 
@@ -145,7 +145,7 @@ namespace Opc.Ua.Gds.Client
 
         /// <summary>Lists the rejected certificates.</summary>
         /// <remarks>Calls the <c>GetRejectedList</c> method on <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.6).</remarks>
-        ValueTask<X509Certificate2Collection> GetRejectedListAsync(CancellationToken ct = default);
+        ValueTask<CertificateCollection> GetRejectedListAsync(CancellationToken ct = default);
 
         /// <summary>Creates a certificate signing request.</summary>
         /// <remarks>Calls the <c>CreateSigningRequest</c> method on <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.4).</remarks>
