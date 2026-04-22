@@ -178,7 +178,7 @@ namespace Opc.Ua.Gds
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationRecordDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ApplicationRecordDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)

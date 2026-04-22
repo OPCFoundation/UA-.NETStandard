@@ -1236,7 +1236,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void Builder_AddEncodeableTypes_HandlesJsonEncodingSuffixParsing()
         {
             // This test verifies the JSON encoding suffix parsing logic in AddEncodeableTypes
-            // The method looks for fields ending with "_Encoding_DefaultJson" in ObjectIds classes
+            // The method looks for fields ending with "_Encoding_DefaultBinary" in ObjectIds classes
 
             // Arrange
             IEncodeableFactory factory = EncodeableFactory.Create();

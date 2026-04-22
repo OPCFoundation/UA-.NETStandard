@@ -112,7 +112,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     {
                         System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> t
                     = await nodeResolver
-                            .LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson)
+                            .LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultXml)
                             .ConfigureAwait(false);
                     });
             Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);

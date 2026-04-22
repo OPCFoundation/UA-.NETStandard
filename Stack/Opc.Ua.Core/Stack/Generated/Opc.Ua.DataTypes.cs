@@ -233,7 +233,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Union_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.Union;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -489,7 +489,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.KeyValuePair_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.KeyValuePair;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -678,7 +678,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AdditionalParametersType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AdditionalParametersType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -798,7 +798,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EphemeralKeyType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.EphemeralKeyType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -939,7 +939,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EndpointType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.EndpointType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -1157,7 +1157,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BitFieldDefinition_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BitFieldDefinition;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -1356,7 +1356,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RationalNumber_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RationalNumber;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -1525,7 +1525,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Vector_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.Vector;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -1707,7 +1707,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ThreeDVector_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ThreeDVector;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -1885,7 +1885,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CartesianCoordinates_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CartesianCoordinates;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2067,7 +2067,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ThreeDCartesianCoordinates_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ThreeDCartesianCoordinates;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -2245,7 +2245,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Orientation_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.Orientation;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2427,7 +2427,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ThreeDOrientation_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ThreeDOrientation;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -2605,7 +2605,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Frame_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.Frame;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2805,7 +2805,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ThreeDFrame_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ThreeDFrame;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -3172,7 +3172,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.IdentityMappingRuleType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.IdentityMappingRuleType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3372,7 +3372,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CurrencyUnitType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CurrencyUnitType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3566,7 +3566,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NumberRange_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.NumberRange;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3758,7 +3758,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AnnotationDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AnnotationDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3963,7 +3963,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LinearConversionDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.LinearConversionDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -4284,7 +4284,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QuantityDimension_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.QuantityDimension;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -4720,7 +4720,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TrustListDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.TrustListDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -4932,7 +4932,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BaseConfigurationDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BaseConfigurationDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -5129,7 +5129,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BaseConfigurationRecordDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BaseConfigurationRecordDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -5355,7 +5355,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.CertificateGroupDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.CertificateGroupDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -5553,7 +5553,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ConfigurationUpdateTargetType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ConfigurationUpdateTargetType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -5827,7 +5827,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransactionErrorType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.TransactionErrorType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -6147,7 +6147,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationConfigurationDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ApplicationConfigurationDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -6394,7 +6394,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationIdentityDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ApplicationIdentityDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -6608,7 +6608,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EndpointDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.EndpointDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -6877,7 +6877,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ServerEndpointDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ServerEndpointDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -7114,7 +7114,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.SecuritySettingsDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.SecuritySettingsDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -7339,7 +7339,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UserTokenSettingsDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.UserTokenSettingsDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -7576,7 +7576,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServiceCertificateDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ServiceCertificateDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -7791,7 +7791,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.AuthorizationServiceConfigurationDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.AuthorizationServiceConfigurationDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -7984,7 +7984,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DecimalDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DecimalDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -8177,7 +8177,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeSchemaHeader_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DataTypeSchemaHeader;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -8371,7 +8371,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeDescription_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DataTypeDescription;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -8560,7 +8560,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.StructureDescription_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.StructureDescription;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -8756,7 +8756,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EnumDescription_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.EnumDescription;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -8944,7 +8944,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.SimpleTypeDescription_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.SimpleTypeDescription;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -9153,7 +9153,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UABinaryFileDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.UABinaryFileDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -9346,7 +9346,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PortableQualifiedName_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PortableQualifiedName;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -9530,7 +9530,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PortableNodeId_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PortableNodeId;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -9714,7 +9714,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UnsignedRationalNumber_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.UnsignedRationalNumber;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -10033,7 +10033,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DataSetMetaDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DataSetMetaDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -10326,7 +10326,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FieldMetaData_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.FieldMetaData;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -10567,7 +10567,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ConfigurationVersionDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ConfigurationVersionDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -10814,7 +10814,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataSetDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PublishedDataSetDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -10998,7 +10998,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PublishedDataSetSourceDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -11233,7 +11233,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishedVariableDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PublishedVariableDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -11452,7 +11452,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataItemsDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.PublishedDataItemsDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -11669,7 +11669,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedEventsDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.PublishedEventsDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -11854,7 +11854,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.PublishedDataSetCustomSourceDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -12045,7 +12045,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActionTargetDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ActionTargetDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -12260,7 +12260,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedActionDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.PublishedActionDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -12527,7 +12527,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActionMethodDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ActionMethodDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -12716,7 +12716,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedActionMethodDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.PublishedActionMethodDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -13059,7 +13059,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetWriterDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DataSetWriterDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -13263,7 +13263,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DataSetWriterTransportDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -13422,7 +13422,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetWriterMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DataSetWriterMessageDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -13662,7 +13662,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubGroupDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PubSubGroupDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -13953,7 +13953,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.WriterGroupDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.WriterGroupDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -14161,7 +14161,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriterGroupTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.WriterGroupTransportDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -14320,7 +14320,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriterGroupMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.WriterGroupMessageDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -14589,7 +14589,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConnectionDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PubSubConnectionDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -14793,7 +14793,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ConnectionTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ConnectionTransportDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -14959,7 +14959,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NetworkAddressDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.NetworkAddressDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -15130,7 +15130,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.NetworkAddressUrlDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.NetworkAddressUrlDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -15334,7 +15334,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReaderGroupDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReaderGroupDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -15512,7 +15512,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReaderGroupTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ReaderGroupTransportDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -15671,7 +15671,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReaderGroupMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ReaderGroupMessageDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -16004,7 +16004,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetReaderDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DataSetReaderDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -16248,7 +16248,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DataSetReaderTransportDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -16407,7 +16407,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetReaderMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DataSetReaderMessageDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -16566,7 +16566,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SubscribedDataSetDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SubscribedDataSetDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -16745,7 +16745,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.TargetVariablesDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.TargetVariablesDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -16968,7 +16968,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FieldTargetDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.FieldTargetDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -17269,7 +17269,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.SubscribedDataSetMirrorDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -17491,7 +17491,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfigurationDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PubSubConfigurationDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -17672,7 +17672,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.StandaloneSubscribedDataSetRefDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -17897,7 +17897,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.StandaloneSubscribedDataSetDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -18190,7 +18190,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SecurityGroupDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SecurityGroupDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -18517,7 +18517,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubKeyPushTargetDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PubSubKeyPushTargetDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -18854,7 +18854,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfiguration2DataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.PubSubConfiguration2DataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -19289,7 +19289,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.UadpWriterGroupMessageDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -19599,7 +19599,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.UadpDataSetWriterMessageDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -19853,7 +19853,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.UadpDataSetReaderMessageDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -20162,7 +20162,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.JsonWriterGroupMessageDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -20446,7 +20446,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.JsonDataSetWriterMessageDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -20629,7 +20629,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.JsonDataSetReaderMessageDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -20802,7 +20802,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QosDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.QosDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -20961,7 +20961,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.TransmitQosDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.TransmitQosDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21131,7 +21131,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.TransmitQosPriorityDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.TransmitQosPriorityDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21299,7 +21299,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReceiveQosDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReceiveQosDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21469,7 +21469,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReceiveQosPriorityDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReceiveQosPriorityDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21644,7 +21644,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DatagramConnectionTransportDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21843,7 +21843,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DatagramConnectionTransport2DataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -22041,7 +22041,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DatagramWriterGroupTransportDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -22253,7 +22253,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DatagramWriterGroupTransport2DataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -22472,7 +22472,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DatagramDataSetReaderTransportDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -22707,7 +22707,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DtlsPubSubConnectionDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DtlsPubSubConnectionDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -22906,7 +22906,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.BrokerConnectionTransportDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -23195,7 +23195,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.BrokerWriterGroupTransportDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -23425,7 +23425,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.BrokerDataSetWriterTransportDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -23657,7 +23657,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.BrokerDataSetReaderTransportDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -23988,7 +23988,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfigurationRefDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PubSubConfigurationRefDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -24203,7 +24203,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfigurationValueDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PubSubConfigurationValueDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -24585,7 +24585,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.JsonNetworkMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -24815,7 +24815,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.JsonDataSetMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -25046,7 +25046,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.JsonDataSetMetaDataMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -25259,7 +25259,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.JsonApplicationDescriptionMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -25462,7 +25462,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.JsonServerEndpointsMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -25647,7 +25647,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.JsonStatusMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -25834,7 +25834,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.JsonPubSubConnectionMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -26090,7 +26090,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.JsonActionMetaDataMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -26292,7 +26292,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.JsonActionResponderMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -26488,7 +26488,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.JsonActionNetworkMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -26733,7 +26733,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.JsonActionRequestMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -26996,7 +26996,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.JsonActionResponseMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -27184,7 +27184,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AliasNameDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AliasNameDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -27410,7 +27410,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AliasNameVerboseDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AliasNameVerboseDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -27617,7 +27617,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AliasCategoryUpdateDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AliasCategoryUpdateDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -27814,7 +27814,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AliasUpdateDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AliasUpdateDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -28191,7 +28191,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserManagementDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.UserManagementDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -29388,7 +29388,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PriorityMappingEntryType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PriorityMappingEntryType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -29614,7 +29614,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.LldpManagementAddressTxPortType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -29834,7 +29834,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpManagementAddressType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.LldpManagementAddressType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -30028,7 +30028,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpTlvType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.LldpTlvType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -30334,7 +30334,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceDescriptionDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ReferenceDescriptionDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -30536,7 +30536,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceListEntryDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ReferenceListEntryDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -30815,7 +30815,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LogRecord_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.LogRecord;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -31043,7 +31043,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LogRecordsDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.LogRecordsDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -31222,7 +31222,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SpanContextDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SpanContextDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -31406,7 +31406,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.TraceContextDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.TraceContextDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -31594,7 +31594,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NameValuePair_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.NameValuePair;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -32188,7 +32188,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RolePermissionType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RolePermissionType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -32357,7 +32357,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeDefinition_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DataTypeDefinition;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -32610,7 +32610,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.StructureField_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.StructureField;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -32848,7 +32848,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.StructureDefinition;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -33051,7 +33051,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.EnumDefinition;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -33345,7 +33345,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Node_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.Node;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -33559,7 +33559,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.InstanceNode_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.InstanceNode;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -33663,7 +33663,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.TypeNode_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.TypeNode;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -33774,7 +33774,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectNode_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ObjectNode;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -33890,7 +33890,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectTypeNode_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ObjectTypeNode;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -34083,7 +34083,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableNode_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.VariableNode;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -34284,7 +34284,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableTypeNode_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.VariableTypeNode;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -34436,7 +34436,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceTypeNode_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReferenceTypeNode;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -34570,7 +34570,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.MethodNode_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.MethodNode;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -34699,7 +34699,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ViewNode_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ViewNode;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -34828,7 +34828,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeNode_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DataTypeNode;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -34965,7 +34965,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceNode_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ReferenceNode;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -35191,7 +35191,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Argument_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.Argument;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -35398,7 +35398,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EnumValueType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.EnumValueType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -35579,7 +35579,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EnumField_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.EnumField;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -35762,7 +35762,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.OptionSet_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.OptionSet;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -35946,7 +35946,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TimeZoneDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.TimeZoneDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -36206,7 +36206,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationDescription_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ApplicationDescription;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -36455,7 +36455,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RequestHeader_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RequestHeader;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -36650,7 +36650,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ResponseHeader_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ResponseHeader;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -36800,7 +36800,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServiceFault_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ServiceFault;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -36983,7 +36983,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SessionlessInvokeRequestType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -37157,7 +37157,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SessionlessInvokeResponseType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -37342,7 +37342,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FindServersRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.FindServersRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -37503,7 +37503,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FindServersResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.FindServersResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -37657,7 +37657,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServerOnNetwork_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ServerOnNetwork;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -37893,7 +37893,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.FindServersOnNetworkRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -38062,7 +38062,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FindServersOnNetworkResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.FindServersOnNetworkResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -38321,7 +38321,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserTokenPolicy_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.UserTokenPolicy;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -38594,7 +38594,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EndpointDescription_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.EndpointDescription;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -38863,7 +38863,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.GetEndpointsRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.GetEndpointsRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -39024,7 +39024,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.GetEndpointsResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.GetEndpointsResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -39223,7 +39223,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisteredServer_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RegisteredServer;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -39463,7 +39463,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterServerRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RegisterServerRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -39593,7 +39593,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterServerResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RegisterServerResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -39698,7 +39698,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DiscoveryConfiguration_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DiscoveryConfiguration;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -39826,7 +39826,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.MdnsDiscoveryConfiguration_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.MdnsDiscoveryConfiguration;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -40002,7 +40002,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterServer2Request_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RegisterServer2Request;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -40179,7 +40179,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterServer2Response_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RegisterServer2Response;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -40342,7 +40342,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ChannelSecurityToken_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ChannelSecurityToken;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -40522,7 +40522,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.OpenSecureChannelRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.OpenSecureChannelRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -40709,7 +40709,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.OpenSecureChannelResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.OpenSecureChannelResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -40849,7 +40849,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CloseSecureChannelRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CloseSecureChannelRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -40974,7 +40974,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CloseSecureChannelResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CloseSecureChannelResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -41094,7 +41094,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SignedSoftwareCertificate_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SignedSoftwareCertificate;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -41278,7 +41278,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SignatureData_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SignatureData;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -41485,7 +41485,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateSessionRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CreateSessionRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -41761,7 +41761,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateSessionResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CreateSessionResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -41918,7 +41918,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserIdentityToken_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.UserIdentityToken;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -42023,7 +42023,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.AnonymousIdentityToken_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.AnonymousIdentityToken;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -42150,7 +42150,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UserNameIdentityToken_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.UserNameIdentityToken;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -42276,7 +42276,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.X509IdentityToken_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.X509IdentityToken;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -42400,7 +42400,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.IssuedIdentityToken_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.IssuedIdentityToken;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -42626,7 +42626,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActivateSessionRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ActivateSessionRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -42826,7 +42826,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActivateSessionResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ActivateSessionResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -42974,7 +42974,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CloseSessionRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CloseSessionRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -43104,7 +43104,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CloseSessionResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CloseSessionResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -43237,7 +43237,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CancelRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CancelRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -43375,7 +43375,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CancelResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CancelResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -43640,7 +43640,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NodeAttributes_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.NodeAttributes;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -43772,7 +43772,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectAttributes_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ObjectAttributes;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -43957,7 +43957,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableAttributes_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.VariableAttributes;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -44116,7 +44116,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.MethodAttributes_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.MethodAttributes;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -44237,7 +44237,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectTypeAttributes_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ObjectTypeAttributes;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -44398,7 +44398,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableTypeAttributes_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.VariableTypeAttributes;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -44550,7 +44550,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceTypeAttributes_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReferenceTypeAttributes;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -44676,7 +44676,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeAttributes_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DataTypeAttributes;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -44800,7 +44800,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ViewAttributes_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ViewAttributes;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -44929,7 +44929,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.GenericAttributeValue_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.GenericAttributeValue;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -45118,7 +45118,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.GenericAttributes_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.GenericAttributes;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -45282,7 +45282,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddNodesItem_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AddNodesItem;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -45491,7 +45491,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddNodesResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AddNodesResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -45701,7 +45701,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddNodesRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AddNodesRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -45873,7 +45873,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddNodesResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AddNodesResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -46035,7 +46035,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddReferencesItem_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AddReferencesItem;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -46265,7 +46265,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddReferencesRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AddReferencesRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -46437,7 +46437,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddReferencesResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AddReferencesResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -46567,7 +46567,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteNodesItem_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteNodesItem;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -46777,7 +46777,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteNodesRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteNodesRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -46949,7 +46949,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteNodesResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteNodesResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -47103,7 +47103,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteReferencesItem_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteReferencesItem;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -47328,7 +47328,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteReferencesRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteReferencesRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -47500,7 +47500,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteReferencesResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteReferencesResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -47753,7 +47753,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ViewDescription_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ViewDescription;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -47915,7 +47915,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseDescription_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BrowseDescription;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -48200,7 +48200,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceDescription_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ReferenceDescription;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -48430,7 +48430,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BrowseResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -48674,7 +48674,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BrowseRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -48856,7 +48856,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BrowseResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -49020,7 +49020,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseNextRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BrowseNextRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -49197,7 +49197,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseNextResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BrowseNextResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -49343,7 +49343,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RelativePathElement_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RelativePathElement;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -49542,7 +49542,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RelativePath_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RelativePath;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -49675,7 +49675,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowsePath_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BrowsePath;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -49859,7 +49859,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowsePathTarget_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BrowsePathTarget;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -50056,7 +50056,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowsePathResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BrowsePathResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -50266,7 +50266,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.TranslateBrowsePathsToNodeIdsRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -50438,7 +50438,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.TranslateBrowsePathsToNodeIdsResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -50594,7 +50594,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterNodesRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RegisterNodesRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -50745,7 +50745,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterNodesResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RegisterNodesResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -50896,7 +50896,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UnregisterNodesRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.UnregisterNodesRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -51026,7 +51026,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UnregisterNodesResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.UnregisterNodesResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -51202,7 +51202,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EndpointConfiguration_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.EndpointConfiguration;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -51442,7 +51442,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryDataDescription_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.QueryDataDescription;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -51652,7 +51652,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NodeTypeDescription_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.NodeTypeDescription;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -51927,7 +51927,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryDataSet_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.QueryDataSet;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -52145,7 +52145,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NodeReference_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.NodeReference;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -52352,7 +52352,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ContentFilterElement_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ContentFilterElement;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -52541,7 +52541,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ContentFilter_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ContentFilter;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -52705,7 +52705,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FilterOperand_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.FilterOperand;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -52812,7 +52812,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ElementOperand_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ElementOperand;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -52928,7 +52928,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.LiteralOperand_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.LiteralOperand;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -53089,7 +53089,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.AttributeOperand_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.AttributeOperand;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -53262,7 +53262,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.SimpleAttributeOperand_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.SimpleAttributeOperand;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -53494,7 +53494,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ContentFilterElementResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ContentFilterElementResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -53709,7 +53709,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ContentFilterResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ContentFilterResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -53868,7 +53868,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ParsingResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ParsingResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -54141,7 +54141,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryFirstRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.QueryFirstRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -54383,7 +54383,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryFirstResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.QueryFirstResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -54549,7 +54549,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryNextRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.QueryNextRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -54713,7 +54713,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryNextResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.QueryNextResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -54885,7 +54885,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReadValueId_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ReadValueId;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -55121,7 +55121,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReadRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ReadRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -55303,7 +55303,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReadResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ReadResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -55449,7 +55449,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadValueId_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryReadValueId;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -55651,7 +55651,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryReadResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -55825,7 +55825,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryReadDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -55969,7 +55969,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadEventDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReadEventDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -56100,7 +56100,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadEventDetails2_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReadEventDetails2;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -56254,7 +56254,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SortRuleElement_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SortRuleElement;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -56443,7 +56443,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadEventDetailsSorted_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReadEventDetailsSorted;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -56591,7 +56591,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadRawModifiedDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReadRawModifiedDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -56785,7 +56785,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadProcessedDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReadProcessedDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -56942,7 +56942,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadAtTimeDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReadAtTimeDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -57076,7 +57076,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.ReadAnnotationDataDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -57205,7 +57205,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryData_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryData;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -57333,7 +57333,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModificationInfo_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ModificationInfo;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -57527,7 +57527,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.HistoryModifiedData_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryModifiedData;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -57656,7 +57656,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryEvent_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryEvent;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -57781,7 +57781,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.HistoryModifiedEvent_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryModifiedEvent;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -57955,7 +57955,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryReadRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -58142,7 +58142,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryReadResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -58288,7 +58288,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriteValue_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.WriteValue;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -58508,7 +58508,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriteRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.WriteRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -58680,7 +58680,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriteResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.WriteResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -58795,7 +58795,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryUpdateDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryUpdateDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -58977,7 +58977,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UpdateDataDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.UpdateDataDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -59132,7 +59132,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UpdateStructureDataDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.UpdateStructureDataDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -59308,7 +59308,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UpdateEventDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.UpdateEventDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -59463,7 +59463,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DeleteRawModifiedDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteRawModifiedDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -59615,7 +59615,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DeleteAtTimeDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteAtTimeDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -59757,7 +59757,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DeleteEventDetails_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteEventDetails;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -59920,7 +59920,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryUpdateResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryUpdateResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -60135,7 +60135,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryUpdateRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryUpdateRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -60307,7 +60307,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryUpdateResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryUpdateResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -60458,7 +60458,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CallMethodRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CallMethodRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -60702,7 +60702,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CallMethodResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CallMethodResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -60922,7 +60922,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CallRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CallRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -61094,7 +61094,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CallResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CallResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -61269,7 +61269,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoringFilter_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.MonitoringFilter;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -61392,7 +61392,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DataChangeFilter_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DataChangeFilter;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -61552,7 +61552,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EventFilter_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.EventFilter;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -61705,7 +61705,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AggregateConfiguration_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AggregateConfiguration;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -61874,7 +61874,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.AggregateFilter_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.AggregateFilter;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -61998,7 +61998,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoringFilterResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.MonitoringFilterResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -62160,7 +62160,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EventFilterResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.EventFilterResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -62315,7 +62315,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.AggregateFilterResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.AggregateFilterResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -62473,7 +62473,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoringParameters_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.MonitoringParameters;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -62647,7 +62647,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemCreateRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.MonitoredItemCreateRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -62860,7 +62860,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemCreateResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.MonitoredItemCreateResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -63101,7 +63101,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateMonitoredItemsRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CreateMonitoredItemsRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -63283,7 +63283,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateMonitoredItemsResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CreateMonitoredItemsResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -63426,7 +63426,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemModifyRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.MonitoredItemModifyRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -63626,7 +63626,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemModifyResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.MonitoredItemModifyResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -63862,7 +63862,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModifyMonitoredItemsRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ModifyMonitoredItemsRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -64044,7 +64044,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModifyMonitoredItemsResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ModifyMonitoredItemsResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -64216,7 +64216,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetMonitoringModeRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SetMonitoringModeRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -64398,7 +64398,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetMonitoringModeResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SetMonitoringModeResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -64591,7 +64591,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetTriggeringRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SetTriggeringRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -64820,7 +64820,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetTriggeringResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SetTriggeringResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -64994,7 +64994,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteMonitoredItemsRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteMonitoredItemsRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -65171,7 +65171,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteMonitoredItemsResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteMonitoredItemsResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -65354,7 +65354,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateSubscriptionRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CreateSubscriptionRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -65541,7 +65541,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateSubscriptionResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.CreateSubscriptionResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -65734,7 +65734,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModifySubscriptionRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ModifySubscriptionRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -65913,7 +65913,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModifySubscriptionResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ModifySubscriptionResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -66082,7 +66082,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetPublishingModeRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SetPublishingModeRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -66259,7 +66259,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetPublishingModeResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SetPublishingModeResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -66410,7 +66410,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NotificationMessage_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.NotificationMessage;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -66525,7 +66525,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NotificationData_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.NotificationData;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -66666,7 +66666,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DataChangeNotification_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.DataChangeNotification;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -66795,7 +66795,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemNotification_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.MonitoredItemNotification;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -66984,7 +66984,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EventNotificationList_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.EventNotificationList;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -67121,7 +67121,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EventFieldList_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.EventFieldList;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -67310,7 +67310,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryEventFieldList_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.HistoryEventFieldList;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -67489,7 +67489,7 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.StatusChangeNotification_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.StatusChangeNotification;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -67618,7 +67618,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SubscriptionAcknowledgement_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SubscriptionAcknowledgement;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -67828,7 +67828,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PublishRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -68058,7 +68058,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.PublishResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -68229,7 +68229,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RepublishRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RepublishRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -68385,7 +68385,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RepublishResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RepublishResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -68523,7 +68523,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransferResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.TransferResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -68741,7 +68741,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransferSubscriptionsRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.TransferSubscriptionsRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -68918,7 +68918,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.TransferSubscriptionsResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -69074,7 +69074,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteSubscriptionsRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteSubscriptionsRequest;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -69246,7 +69246,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteSubscriptionsResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DeleteSubscriptionsResponse;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -69408,7 +69408,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BuildInfo_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.BuildInfo;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -69625,7 +69625,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RedundantServerDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RedundantServerDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -69819,7 +69819,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EndpointUrlListDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.EndpointUrlListDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -70011,7 +70011,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NetworkGroupDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.NetworkGroupDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -70211,7 +70211,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SamplingIntervalDiagnosticsDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -70485,7 +70485,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ServerDiagnosticsSummaryDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -70705,7 +70705,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServerStatusDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ServerStatusDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -71581,7 +71581,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionDiagnosticsDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SessionDiagnosticsDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -72039,7 +72039,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SessionSecurityDiagnosticsDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -72258,7 +72258,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServiceCounterDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ServiceCounterDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -72383,7 +72383,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.StatusResult_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.StatusResult;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -72799,7 +72799,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SubscriptionDiagnosticsDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -73162,7 +73162,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModelChangeStructureDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ModelChangeStructureDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -73351,7 +73351,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.SemanticChangeStructureDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -73535,7 +73535,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Range_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.Range;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -73735,7 +73735,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EUInformation_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.EUInformation;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -74008,7 +74008,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ComplexNumberType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ComplexNumberType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -74192,7 +74192,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DoubleComplexNumberType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.DoubleComplexNumberType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -74439,7 +74439,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AxisInformation_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.AxisInformation;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -74638,7 +74638,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.XVType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.XVType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -74925,7 +74925,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ProgramDiagnosticDataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -75222,7 +75222,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ProgramDiagnostic2DataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.ProgramDiagnostic2DataType;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -75405,7 +75405,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Annotation_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => Opc.Ua.ExpandedNodeId.Null;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.Annotation;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
