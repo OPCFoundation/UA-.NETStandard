@@ -201,7 +201,14 @@ namespace Opc.Ua.Client
             try
             {
                 m_messageWorkerEvent.Set();
-                workerCts?.Cancel();
+                try
+                {
+                    workerCts?.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // workerCts may already have been disposed during teardown — ignore.
+                }
                 await workerTask.ConfigureAwait(false);
             }
             catch (Exception e)
@@ -210,7 +217,14 @@ namespace Opc.Ua.Client
             }
             finally
             {
-                workerCts?.Dispose();
+                try
+                {
+                    workerCts?.Dispose();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // already disposed.
+                }
             }
         }
 
@@ -230,9 +244,11 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
-                m_publishTimer?.Dispose();
-                m_messageWorkerCts?.Dispose();
-
+                // ResetPublishTimerAndWorkerState() owns disposing m_publishTimer and
+                // m_messageWorkerCts. Disposing them here first caused races where
+                // ResetPublishTimerAndWorkerStateAsync would observe a disposed CTS
+                // and throw ObjectDisposedException from Cancel(), which left the
+                // publish worker stuck and surfaced as a test hang.
                 ResetPublishTimerAndWorkerState();
 
                 m_disposed = true;

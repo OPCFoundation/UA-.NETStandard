@@ -195,11 +195,11 @@ namespace Opc.Ua.SourceGeneration
         /// <inheritdoc/>
         public bool Equals(SemVer other)
         {
-            return HasValue == other.HasValue
-                && Major == other.Major
-                && Minor == other.Minor
-                && Patch == other.Patch
-                && IsPrerelease == other.IsPrerelease;
+            return HasValue == other.HasValue &&
+                Major == other.Major &&
+                Minor == other.Minor &&
+                Patch == other.Patch &&
+                IsPrerelease == other.IsPrerelease;
         }
 
         /// <inheritdoc/>

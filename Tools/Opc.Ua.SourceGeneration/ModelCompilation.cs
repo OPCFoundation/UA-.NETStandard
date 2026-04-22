@@ -58,6 +58,7 @@ namespace Opc.Ua.SourceGeneration
             ImmutableArray<AdditionalText> identifierFiles,
             ModelCompilationOptions options,
             CompilationOptions compilationOptions,
+            ImmutableArray<ModelDependencyReference> referencedModels,
             ImmutableArray<NodeManagerAttributeDiscovery> nodeManagerBindings,
             ILogger logger)
         {
@@ -67,6 +68,7 @@ namespace Opc.Ua.SourceGeneration
             m_options = options;
             m_compilationOptions = compilationOptions;
             m_nodeManagerBindings = nodeManagerBindings;
+            m_referencedModels = referencedModels;
             m_telemetry = SourceGeneratorTelemetry.Create(logger, m_context);
         }
 
@@ -155,12 +157,20 @@ namespace Opc.Ua.SourceGeneration
                                 message));
                     };
 
+
+                // Reduce referenced model attributes to a single dictionary by
+                // model URI (with tie-break on highest version+publication date)
+                // so the downstream generators can apply override resolution.
+                System.Collections.Generic.IReadOnlyDictionary<string, ModelDependencyReference>
+                    referencedModels = BuildReferencedModelMap();
+
                 nodesets.GenerateCode(
                     sourceFiles.WithFallback(vfs),
                     string.Empty,
                     m_telemetry,
                     generatorOptions,
                     m_options.UseAllowSubtypes,
+                    referencedModels,
                     bindings.Count > 0 ? bindings : null,
                     bindings.Count > 0 ? reportBinding : null);
 
@@ -178,6 +188,7 @@ namespace Opc.Ua.SourceGeneration
                     generatorOptions,
                     m_options.UseAllowSubtypes,
                     [.. m_identifierFiles.Select(i => i.Path)],
+                    referencedModels,
                     bindings.Count > 0 ? bindings : null,
                     bindings.Count > 0 ? reportBinding : null);
 
@@ -218,11 +229,69 @@ namespace Opc.Ua.SourceGeneration
             return true;
         }
 
+        /// <summary>
+        /// Group the referenced-assembly attributes by model URI; when more
+        /// than one assembly contributes the same URI, prefer the entry with
+        /// the highest <c>(Version, PublicationDate)</c> lexicographic tuple
+        /// per the contract on <see cref="ModelDependencyAttribute"/>.
+        /// </summary>
+        private System.Collections.Generic.IReadOnlyDictionary<string, ModelDependencyReference>
+            BuildReferencedModelMap()
+        {
+            if (m_referencedModels.IsDefaultOrEmpty)
+            {
+                return ImmutableDictionary<string, ModelDependencyReference>.Empty;
+            }
+            var map = new System.Collections.Generic.Dictionary<string, ModelDependencyReference>(
+                StringComparer.Ordinal);
+            foreach (ModelDependencyReference candidate in m_referencedModels)
+            {
+                if (!candidate.IsValid)
+                {
+                    continue;
+                }
+                if (!map.TryGetValue(candidate.ModelUri, out ModelDependencyReference existing))
+                {
+                    map[candidate.ModelUri] = candidate;
+                    continue;
+                }
+                int cmp = string.CompareOrdinal(candidate.Version, existing.Version);
+                if (cmp == 0)
+                {
+                    cmp = string.CompareOrdinal(
+                        candidate.PublicationDate, existing.PublicationDate);
+                }
+                if (cmp > 0)
+                {
+                    m_context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.ModelDependencyTieBreak,
+                            Location.None,
+                            candidate.ModelUri,
+                            candidate.AssemblyName,
+                            existing.AssemblyName));
+                    map[candidate.ModelUri] = candidate;
+                }
+                else if (cmp < 0)
+                {
+                    m_context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.ModelDependencyTieBreak,
+                            Location.None,
+                            existing.ModelUri,
+                            existing.AssemblyName,
+                            candidate.AssemblyName));
+                }
+            }
+            return map;
+        }
+
         private readonly SourceProductionContext m_context;
         private readonly ImmutableArray<(AdditionalText, NodesetFileOptions)> m_input;
         private readonly ImmutableArray<AdditionalText> m_identifierFiles;
         private readonly ModelCompilationOptions m_options;
         private readonly CompilationOptions m_compilationOptions;
+        private readonly ImmutableArray<ModelDependencyReference> m_referencedModels;
         private readonly ImmutableArray<NodeManagerAttributeDiscovery> m_nodeManagerBindings;
         private readonly SourceGeneratorTelemetry m_telemetry;
     }

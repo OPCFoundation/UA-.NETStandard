@@ -32,10 +32,4 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Types\Opc.Ua.Types.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <!-- Needed for ReferenceMetadataScanner to read OpcUaModelDependency
-         attributes from referenced assemblies via PEReader. Part of the BCL
-         on net5+ but needs an explicit package reference on netstandard. -->
-    <PackageReference Include="System.Reflection.Metadata" />
-  </ItemGroup>
 </Project>

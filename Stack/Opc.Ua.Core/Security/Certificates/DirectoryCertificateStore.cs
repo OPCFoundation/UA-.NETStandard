@@ -1095,7 +1095,19 @@ namespace Opc.Ua
                     !m_privateKeySubdir.Exists ||
                     m_privateKeySubdir.LastWriteTimeUtc < m_lastDirectoryCheck))
             {
-                return m_certificates;
+                // Cross-validate cache using actual file count. The directory
+                // LastWriteTimeUtc on Windows can be stale across DirectoryInfo
+                // instances (and across processes) when another handle modifies
+                // the directory, so a successful Refresh() does not guarantee a
+                // current value. Comparing the cached entry count to the
+                // current file count detects external changes without re-parsing
+                // every certificate file in the common (unchanged) case.
+                int onDiskCount = m_certificateSubdir.GetFiles(kCertSearchString).Length
+                    + m_certificateSubdir.GetFiles(kPemCertSearchString).Length;
+                if (onDiskCount == m_certificates.Count)
+                {
+                    return m_certificates;
+                }
             }
 
             ClearCertificates();

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -60,5 +62,11 @@ namespace Opc.Ua.SourceGeneration
         /// Generator options
         /// </summary>
         public required GeneratorOptions Options { get; init; }
+
+        /// <summary>
+        /// Models supplied by referenced assemblies.
+        /// </summary>
+        public IReadOnlyDictionary<string, ModelDependencyReference> ReferencedModels { get; init; }
+            = ImmutableDictionary<string, ModelDependencyReference>.Empty;
     }
 }

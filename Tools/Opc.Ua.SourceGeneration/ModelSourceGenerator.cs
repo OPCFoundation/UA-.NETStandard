@@ -71,6 +71,9 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<CompilationOptions> settings =
                 context.CompilationProvider
                     .Select((c, _) => CompilationOptions.From(c));
+            IncrementalValueProvider<ImmutableArray<ModelDependencyReference>> referencedModels =
+                context.CompilationProvider
+                    .Select((c, _) => ReferencedModelDependencyScanner.Scan(c));
 
             IncrementalValueProvider<ImmutableArray<NodeManagerAttributeDiscovery>> nodeManagerBindings =
                 context.SyntaxProvider.ForAttributeWithMetadataName(
@@ -85,6 +88,7 @@ namespace Opc.Ua.SourceGeneration
                     .Combine(identiferFile)
                     .Combine(options)
                     .Combine(settings)
+                    .Combine(referencedModels)
                     .Combine(nodeManagerBindings),
                 (context, combination) => new ModelCompilation(
                     context,
