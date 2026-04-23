@@ -54,7 +54,8 @@ namespace Opc.Ua.SourceGeneration
         public IEnumerable<Resource> Emit()
         {
             Namespace target = m_context.ModelDesign.TargetNamespace;
-            if (target == null || string.IsNullOrEmpty(target.Value) ||
+            if (target == null ||
+                string.IsNullOrEmpty(target.Value) ||
                 string.IsNullOrEmpty(target.Prefix))
             {
                 return [];
@@ -100,10 +101,10 @@ namespace Opc.Ua.SourceGeneration
 
             // Re-emit dependencies declared on the model (transitive closure).
             // Skip the OpcUa root namespace (always implicit) and skip self.
-            Namespace[] namespaces = m_context.ModelDesign.Namespaces ?? [];
-            foreach (Namespace ns in namespaces)
+            foreach (Namespace ns in m_context.ModelDesign.Namespaces ?? [])
             {
-                if (ns == null || string.IsNullOrEmpty(ns.Value) ||
+                if (ns == null ||
+                    string.IsNullOrEmpty(ns.Value) ||
                     string.IsNullOrEmpty(ns.Prefix))
                 {
                     continue;

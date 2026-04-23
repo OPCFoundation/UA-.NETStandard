@@ -87,8 +87,7 @@ namespace Opc.Ua
         {
             try
             {
-                IReadOnlyList<CertificateEntry> certs = m_getCertificates();
-                foreach (CertificateEntry entry in certs)
+                foreach (CertificateEntry entry in m_getCertificates())
                 {
                     if (entry.IsNearExpiry(m_expiryThreshold) &&
                         m_alreadyNotified.Add(entry.Certificate.Thumbprint))

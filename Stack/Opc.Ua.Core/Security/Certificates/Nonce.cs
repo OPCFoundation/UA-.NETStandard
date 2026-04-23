@@ -270,12 +270,11 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
             {
-                var nonce = new Nonce
+                return new Nonce
                 {
                     m_rsadh = RSADiffieHellman.Create(nonceData),
                     Data = nonceData
                 };
-                return nonce;
             }
 
             switch (securityPolicy.EphemeralKeyAlgorithm)

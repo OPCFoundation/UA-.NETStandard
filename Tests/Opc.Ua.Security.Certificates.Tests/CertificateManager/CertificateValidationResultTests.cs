@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {

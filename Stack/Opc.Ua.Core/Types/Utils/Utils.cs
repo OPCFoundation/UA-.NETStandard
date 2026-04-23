@@ -1623,8 +1623,9 @@ namespace Opc.Ua
                 return new XmlQualifiedName(type.Name, typeId.NamespaceUri);
             }
 
-            return qname ?? throw new ArgumentException(
-                "Cannot determine XML name for type " + type.Name);
+            return qname ??
+                throw new ArgumentException(
+                    "Cannot determine XML name for type " + type.Name);
         }
 
         private static readonly DateTime s_baseDateTime = new(

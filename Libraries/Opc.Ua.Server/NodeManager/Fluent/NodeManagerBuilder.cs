@@ -357,17 +357,16 @@ namespace Opc.Ua.Server.Fluent
                     "NodeId is null or empty.");
             }
 
-            NodeState node = m_nodeIdResolver(nodeId) ?? throw ServiceResultException.Create(
+            return m_nodeIdResolver(nodeId) ??
+                throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
                     "NodeId '{0}' did not resolve to a predefined node.",
                     nodeId);
-
-            return node;
         }
 
         private NodeState ResolveByTypeDefinition(NodeId typeDefinitionId, QualifiedName browseName)
         {
-            if (typeDefinitionId == null || typeDefinitionId.IsNull)
+            if (typeDefinitionId.IsNull)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdInvalid,
@@ -385,7 +384,7 @@ namespace Opc.Ua.Server.Fluent
                     typeDefinitionId);
             }
 
-            if (browseName == null)
+            if (browseName.IsNull)
             {
                 if (candidates.Count > 1)
                 {

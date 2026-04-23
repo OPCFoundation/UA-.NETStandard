@@ -673,7 +673,8 @@ namespace Opc.Ua.Server
                                             m_configuration.ApplicationUri,
                                             Server.Telemetry,
                                             ct)
-                                        .ConfigureAwait(false) ?? throw new ServiceResultException(
+                                        .ConfigureAwait(false) ??
+                                        throw new ServiceResultException(
                                             StatusCodes.BadSecurityChecksFailed,
                                             "A private key was not found");
                                     exportableKey = X509Utils.CreateCopyWithPrivateKey(
@@ -972,7 +973,8 @@ namespace Opc.Ua.Server
                                            m_configuration.ApplicationUri,
                                            Server.Telemetry,
                                            cancellationToken)
-                    .ConfigureAwait(false) ?? throw ServiceResultException.Create(StatusCodes.BadInternalError, "Failed to load private key");
+                    .ConfigureAwait(false) ??
+                    throw ServiceResultException.Create(StatusCodes.BadInternalError, "Failed to load private key");
             }
 
             m_logger.LogInformation(

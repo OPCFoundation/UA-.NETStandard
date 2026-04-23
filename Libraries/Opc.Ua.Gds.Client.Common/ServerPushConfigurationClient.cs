@@ -281,10 +281,11 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
             }
-            throw lastException ?? ServiceResultException.Create(
-                StatusCodes.BadNoCommunication,
-                "Failed to connect after {0} attempts.",
-                maxAttempts);
+            throw lastException ??
+                ServiceResultException.Create(
+                    StatusCodes.BadNoCommunication,
+                    "Failed to connect after {0} attempts.",
+                    maxAttempts);
         }
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
@@ -314,10 +315,11 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
             }
-            throw lastException ?? ServiceResultException.Create(
-                StatusCodes.BadNoCommunication,
-                "Failed to connect after {0} attempts.",
-                maxAttempts);
+            throw lastException ??
+                ServiceResultException.Create(
+                    StatusCodes.BadNoCommunication,
+                    "Failed to connect after {0} attempts.",
+                    maxAttempts);
         }
         /// <inheritdoc/>
         public async ValueTask DisconnectAsync(CancellationToken ct = default)

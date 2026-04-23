@@ -31,7 +31,6 @@ extern alias boilersample;
 
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
-using Opc.Ua.Configuration;
 using Opc.Ua.Server;
 using TUnit.Core.Interfaces;
 

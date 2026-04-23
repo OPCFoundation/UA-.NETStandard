@@ -47,9 +47,9 @@ namespace Opc.Ua
         public bool SupportsStorePath(string storePath)
         {
             return !string.IsNullOrEmpty(storePath) &&
-                   !storePath.StartsWith(
-                       "X509Store:",
-                       StringComparison.OrdinalIgnoreCase);
+                !storePath.StartsWith(
+                    "X509Store:",
+                    StringComparison.OrdinalIgnoreCase);
         }
 
         /// <inheritdoc/>

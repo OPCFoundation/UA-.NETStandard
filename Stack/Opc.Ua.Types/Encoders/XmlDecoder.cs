@@ -1998,7 +1998,8 @@ namespace Opc.Ua
             {
                 var enums = new List<EnumValue>();
 
-                XmlQualifiedName xmlName = Peek(XmlNodeType.Element) ?? throw ServiceResultException.Create(
+                XmlQualifiedName xmlName = Peek(XmlNodeType.Element) ??
+                    throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Unable to read field {0} in function {1}: The enumerated array does not contain any elements.",
                         fieldName,

@@ -444,8 +444,7 @@ namespace Opc.Ua
                 Type systemType,
                 Dictionary<string, ExpandedNodeId>? unboundTypeIds)
             {
-                IType? type = ReflectionBasedType.From(systemType);
-                switch (type)
+                switch (ReflectionBasedType.From(systemType))
                 {
                     case IEncodeableType encodeableType:
                         AddEncodeableType(encodeableType, unboundTypeIds);

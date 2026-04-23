@@ -98,10 +98,11 @@ namespace Opc.Ua
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_logger = telemetry.CreateLogger<CertificateManager>();
             m_maxRejectedCertificates = maxRejectedCertificates;
-            m_storeProviders = storeProviders?.ToList() ?? [
-                new DirectoryStoreProvider(),
-                new X509StoreProvider()
-            ];
+            m_storeProviders = storeProviders?.ToList() ??
+                [
+                    new DirectoryStoreProvider(),
+                    new X509StoreProvider()
+                    ];
 
             TimeSpan threshold = expiryWarningThreshold ?? TimeSpan.FromDays(14);
             m_lifecycleMonitor = new CertificateLifecycleMonitor(
@@ -450,8 +451,9 @@ namespace Opc.Ua
             if (trustList == null) throw new ArgumentNullException(nameof(trustList));
             if (data == null) throw new ArgumentNullException(nameof(data));
 
-            if ((masks & (TrustListMasks.TrustedCertificates |
-                          TrustListMasks.TrustedCrls)) != 0)
+            if ((masks &
+                (TrustListMasks.TrustedCertificates |
+                    TrustListMasks.TrustedCrls)) != 0)
             {
                 using ICertificateStore store = OpenTrustedStore(trustList);
 
@@ -480,8 +482,9 @@ namespace Opc.Ua
                 }
             }
 
-            if ((masks & (TrustListMasks.IssuerCertificates |
-                          TrustListMasks.IssuerCrls)) != 0)
+            if ((masks &
+                (TrustListMasks.IssuerCertificates |
+                    TrustListMasks.IssuerCrls)) != 0)
             {
                 ICertificateStore? issuerStore = OpenIssuerStore(trustList);
                 if (issuerStore != null)

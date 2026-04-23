@@ -815,9 +815,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void INodeNodeIdReturnsExpandedNodeId()
         {
-            var node = new Node { NodeId = new NodeId(8930) };
-
-            INode iNode = node;
+            INode iNode = new Node { NodeId = new NodeId(8930) };
 
             Assert.That(iNode.NodeId, Is.EqualTo(new ExpandedNodeId(new NodeId(8930))));
         }

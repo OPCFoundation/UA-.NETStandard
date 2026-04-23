@@ -338,7 +338,7 @@ namespace Opc.Ua.Server
 
                 m_userTokenNonce = Nonce.CreateNonce(m_userTokenSecurityPolicyUri);
 
-                var key = new EphemeralKeyType
+                return new EphemeralKeyType
                 {
                     PublicKey = m_userTokenNonce.Data.ToByteString(),
                     Signature = CryptoUtils.Sign(
@@ -346,8 +346,6 @@ namespace Opc.Ua.Server
                         m_serverCertificate,
                         m_userTokenSecurityPolicyUri).ToByteString()
                 };
-
-                return key;
             }
         }
 
@@ -930,7 +928,8 @@ namespace Opc.Ua.Server
 
                 policy = EndpointDescription.FindUserTokenPolicy(
                     newToken.PolicyId,
-                    EndpointDescription.SecurityPolicyUri) ?? throw ServiceResultException.Create(
+                    EndpointDescription.SecurityPolicyUri) ??
+                    throw ServiceResultException.Create(
                         StatusCodes.BadUserAccessDenied,
                         "User token policy not supported.",
                         "Opc.Ua.Server.Session.ValidateUserIdentityToken");
@@ -986,7 +985,8 @@ namespace Opc.Ua.Server
             // find the user token policy.
             policy = EndpointDescription.FindUserTokenPolicy(
                 token.Token.PolicyId,
-                EndpointDescription.SecurityPolicyUri) ?? throw ServiceResultException.Create(
+                EndpointDescription.SecurityPolicyUri) ??
+                throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenInvalid,
                     "User token policy not supported.");
 
@@ -1007,7 +1007,8 @@ namespace Opc.Ua.Server
                 {
                     // check for valid certificate.
                     m_serverCertificate = CertificateFactory.Create(
-                        EndpointDescription.ServerCertificate) ?? throw ServiceResultException.ConfigurationError(
+                        EndpointDescription.ServerCertificate) ??
+                        throw ServiceResultException.ConfigurationError(
                             "ApplicationCertificate cannot be found.");
                 }
 

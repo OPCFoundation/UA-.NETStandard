@@ -1511,13 +1511,14 @@ namespace Opc.Ua.Client
             UserTokenPolicy identityPolicy =
                 m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenHandler.Token.PolicyId,
-                    securityPolicyUri) ?? m_endpoint.Description.FindUserTokenPolicy(
-                        identity.TokenType,
-                        identity.IssuedTokenType,
-                        securityPolicyUri)
+                    securityPolicyUri) ??
+                m_endpoint.Description.FindUserTokenPolicy(
+                    identity.TokenType,
+                    identity.IssuedTokenType,
+                    securityPolicyUri)
                     ?? throw ServiceResultException.Create(
-                        StatusCodes.BadIdentityTokenInvalid,
-                        "Endpoint does not support the user identity type provided.");
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Endpoint does not support the user identity type provided.");
 
             // select the security policy for the user token.
             string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
@@ -2607,7 +2608,8 @@ namespace Opc.Ua.Client
 
                 RequestHeader? header = CreateRequestHeaderForActivateSession(
                     securityPolicy,
-                    tokenSecurityPolicyUri!) ?? new RequestHeader();
+                    tokenSecurityPolicyUri!) ??
+                    new RequestHeader();
 
                 header.TimeoutHint = kReconnectTimeout;
 
@@ -4735,7 +4737,8 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityPolicyUri,
                     m_telemetry,
                     ct)
-                    .ConfigureAwait(false) ?? throw ServiceResultException.ConfigurationError(
+                    .ConfigureAwait(false) ??
+                    throw ServiceResultException.ConfigurationError(
                         "The client configuration does not specify an application instance certificate.");
                 m_effectiveEndpoint = m_endpoint;
                 m_instanceCertificateChain = null; // Reload the chain too

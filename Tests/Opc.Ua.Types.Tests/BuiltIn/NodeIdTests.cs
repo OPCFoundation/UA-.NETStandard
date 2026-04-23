@@ -2129,8 +2129,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseFallbackToStringIdentifierRecoversMalformedTypedIdentifier()
         {
             ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
-            NamespaceTable table = BuildParseLongFormNamespaces();
-            context.NamespaceUris = table;
+            context.NamespaceUris = BuildParseLongFormNamespaces();
             NodeId result = NodeId.Parse(
                 context,
                 $"nsu={ParseLongFormKnownNamespace};i=notanumber",

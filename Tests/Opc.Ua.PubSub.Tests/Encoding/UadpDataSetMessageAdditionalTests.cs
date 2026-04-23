@@ -434,14 +434,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     .ToArray()
             };
 
-            var reader = new DataSetReaderDataType
+            return new DataSetReaderDataType
             {
                 Enabled = true,
                 DataSetMetaData = metaData,
                 MessageSettings = new ExtensionObject(
                     new UadpDataSetReaderMessageDataType())
             };
-            return reader;
         }
     }
 }

@@ -1058,7 +1058,8 @@ namespace Opc.Ua.Bindings
                 CloseSecureChannelRequest request =
                     BinaryDecoder.DecodeMessage<CloseSecureChannelRequest>(
                         closeRequestStream,
-                        Quotas.MessageContext) ?? throw ServiceResultException.Create(
+                        Quotas.MessageContext) ??
+                    throw ServiceResultException.Create(
                         StatusCodes.BadStructureMissing,
                         "Could not parse CloseSecureChannel request body.");
 

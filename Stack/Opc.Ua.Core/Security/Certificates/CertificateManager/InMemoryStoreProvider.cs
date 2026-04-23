@@ -47,9 +47,9 @@ namespace Opc.Ua
         public bool SupportsStorePath(string storePath)
         {
             return !string.IsNullOrEmpty(storePath) &&
-                   storePath.StartsWith(
-                       "InMemory:",
-                       StringComparison.OrdinalIgnoreCase);
+                storePath.StartsWith(
+                    "InMemory:",
+                    StringComparison.OrdinalIgnoreCase);
         }
 
         /// <inheritdoc/>

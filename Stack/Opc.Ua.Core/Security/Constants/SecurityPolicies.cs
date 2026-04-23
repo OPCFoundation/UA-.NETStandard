@@ -500,7 +500,8 @@ namespace Opc.Ua
 
             // get the info object.
             // unsupported policy.
-            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ?? throw ServiceResultException.Create(
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
+                throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
@@ -577,7 +578,8 @@ namespace Opc.Ua
 
             // get the info object.
             // unsupported policy.
-            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ?? throw ServiceResultException.Create(
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
+                throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
@@ -664,7 +666,8 @@ namespace Opc.Ua
 
             // get the info object.
             // unsupported policy.
-            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ?? throw ServiceResultException.Create(
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
+                throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
@@ -774,7 +777,8 @@ namespace Opc.Ua
 
             // get the info object.
             // unsupported policy.
-            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ?? throw ServiceResultException.Create(
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
+                throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);

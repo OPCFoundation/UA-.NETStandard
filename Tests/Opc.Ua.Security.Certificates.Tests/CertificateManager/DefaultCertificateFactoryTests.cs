@@ -29,8 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 
 namespace Opc.Ua.Security.Certificates.Tests

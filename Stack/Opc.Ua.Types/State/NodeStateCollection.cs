@@ -509,7 +509,8 @@ namespace Opc.Ua
             {
                 // try to load from app directory
                 var file = new FileInfo(resourcePath);
-                istrm = file.OpenRead() ?? throw ServiceResultException.Create(
+                istrm = file.OpenRead() ??
+                    throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Could not load nodes from resource: {0}",
                         resourcePath);
@@ -548,7 +549,8 @@ namespace Opc.Ua
             {
                 // try to load from app directory
                 var file = new FileInfo(resourcePath);
-                istrm = file.OpenRead() ?? throw ServiceResultException.Create(
+                istrm = file.OpenRead() ??
+                    throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Could not load nodes from resource: {0}",
                         resourcePath);

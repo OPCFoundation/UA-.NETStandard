@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Linq;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;

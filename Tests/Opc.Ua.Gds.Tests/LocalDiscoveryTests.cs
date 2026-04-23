@@ -115,8 +115,7 @@ namespace Opc.Ua.Gds.Tests
         {
             var appConfig = new ApplicationConfiguration();
             var client = new LocalDiscoveryServerClient(appConfig);
-            ArrayOf<string> newLocales = s_frenchGermanLocales;
-            client.PreferredLocales = newLocales;
+            client.PreferredLocales = (ArrayOf<string>)s_frenchGermanLocales;
             Assert.That(client.PreferredLocales.ToList(), Does.Contain("fr-FR"));
             Assert.That(client.PreferredLocales.ToList(), Does.Contain("de-DE"));
         }

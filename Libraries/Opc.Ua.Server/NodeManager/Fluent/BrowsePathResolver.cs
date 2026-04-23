@@ -93,7 +93,8 @@ namespace Opc.Ua.Server.Fluent
 
             List<QualifiedName> segments = ParseSegments(browsePath, defaultNamespaceIndex);
 
-            NodeState current = rootResolver(segments[0]) ?? throw ServiceResultException.Create(
+            NodeState current = rootResolver(segments[0]) ??
+                throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
                     "Browse path '{0}' did not resolve: root segment '{1}' not found.",
                     browsePath,
@@ -101,14 +102,13 @@ namespace Opc.Ua.Server.Fluent
 
             for (int i = 1; i < segments.Count; i++)
             {
-                BaseInstanceState child = current.FindChild(context, segments[i]) ?? throw ServiceResultException.Create(
+                current = current.FindChild(context, segments[i]) ??
+                    throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdUnknown,
                         "Browse path '{0}' did not resolve: segment '{1}' not found under '{2}'.",
                         browsePath,
                         segments[i],
                         current.BrowseName);
-
-                current = child;
             }
 
             return current;

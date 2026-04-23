@@ -75,12 +75,18 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             string appType = "Server_0")
         {
             return
-@"<?xml version=""1.0"" encoding=""utf-8""?>
+                @"<?xml version=""1.0"" encoding=""utf-8""?>
 <ApplicationConfiguration xmlns=""http://opcfoundation.org/UA/SDK/Configuration.xsd""
     xmlns:ua=""http://opcfoundation.org/UA/2008/02/Types.xsd"">
-  <ApplicationName>" + appName + @"</ApplicationName>
-  <ApplicationUri>" + appUri + @"</ApplicationUri>
-  <ApplicationType>" + appType + @"</ApplicationType>
+  <ApplicationName>" +
+                appName +
+                @"</ApplicationName>
+  <ApplicationUri>" +
+                appUri +
+                @"</ApplicationUri>
+  <ApplicationType>" +
+                appType +
+                @"</ApplicationType>
   <SecurityConfiguration>
     <ApplicationCertificates />
     <TrustedIssuerCertificates>

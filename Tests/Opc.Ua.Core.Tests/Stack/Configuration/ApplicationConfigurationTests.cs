@@ -254,12 +254,10 @@ namespace Opc.Ua.Core.Tests
         public void TransportConfigurationsGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry);
-            ArrayOf<TransportConfiguration> transports =
-                new List<TransportConfiguration>
+            config.TransportConfigurations = new List<TransportConfiguration>
                 {
                     new("opc.tcp", typeof(object))
                 }.ToArrayOf();
-            config.TransportConfigurations = transports;
             Assert.That(config.TransportConfigurations.Count, Is.EqualTo(1));
         }
 
@@ -286,8 +284,7 @@ namespace Opc.Ua.Core.Tests
         public void TraceConfigurationGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry);
-            var trace = new TraceConfiguration { OutputFilePath = "trace.log" };
-            config.TraceConfiguration = trace;
+            config.TraceConfiguration = new TraceConfiguration { OutputFilePath = "trace.log" };
             Assert.That(config.TraceConfiguration, Is.Not.Null);
             Assert.That(config.TraceConfiguration.OutputFilePath, Is.EqualTo("trace.log"));
         }
