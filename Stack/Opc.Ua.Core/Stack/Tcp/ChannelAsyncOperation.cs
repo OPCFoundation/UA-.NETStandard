@@ -262,8 +262,11 @@ namespace Opc.Ua.Bindings
 #else
                     if (timeout != int.MaxValue || ct != default)
                     {
-                        Task completedTask = await Task.WhenAny(m_tcs.Task, Task.Delay(timeout, ct))
+                        CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        Task delay = Task.Delay(timeout, cts.Token);
+                        Task completedTask = await Task.WhenAny(m_tcs.Task, delay)
                             .ConfigureAwait(false);
+                        cts.Cancel();	// Always cancel the (possibly infinite) timeout
                         if (m_tcs.Task == completedTask)
                         {
                             if (!m_tcs.Task.Result)
