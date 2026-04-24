@@ -244,32 +244,43 @@ namespace Opc.Ua.Client
             // checks the domains in the certificate.
             if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
             {
-                configuration.CertificateValidator?.ValidateDomains(
-                    CertificateFactory.Create(endpoint.Description.ServerCertificate),
-                    endpoint);
+                using Certificate certificate = CertificateFactory.Create(endpoint.Description.ServerCertificate);
+                configuration.CertificateValidator?.ValidateDomains(certificate, endpoint);
             }
 
             Certificate? clientCertificate = null;
             CertificateCollection? clientCertificateChain = null;
-            if (endpointDescription.SecurityPolicyUri is not null and not SecurityPolicies.None)
+            try
             {
-                clientCertificate = await Session.LoadInstanceCertificateAsync(
-                    configuration,
-                    endpointDescription.SecurityPolicyUri,
-                    messageContext.Telemetry,
-                    ct).ConfigureAwait(false);
-                clientCertificateChain = await Session.LoadCertificateChainAsync(
-                    configuration,
-                    clientCertificate,
-                    ct).ConfigureAwait(false);
-            }
+                if (endpointDescription.SecurityPolicyUri is not null and not SecurityPolicies.None)
+                {
+                    clientCertificate = await Session.LoadInstanceCertificateAsync(
+                        configuration,
+                        endpointDescription.SecurityPolicyUri,
+                        messageContext.Telemetry,
+                        ct).ConfigureAwait(false);
+                    clientCertificateChain = await Session.LoadCertificateChainAsync(
+                        configuration,
+                        clientCertificate,
+                        ct).ConfigureAwait(false);
+                }
 
-            // initialize the channel which will be created with the server.
-            if (connection != null)
-            {
+                // initialize the channel which will be created with the server.
+                if (connection != null)
+                {
+                    return await UaChannelBase.CreateUaBinaryChannelAsync(
+                        configuration,
+                        connection,
+                        endpointDescription,
+                        endpointConfiguration,
+                        clientCertificate,
+                        clientCertificateChain,
+                        messageContext,
+                        ct).ConfigureAwait(false);
+                }
+
                 return await UaChannelBase.CreateUaBinaryChannelAsync(
                     configuration,
-                    connection,
                     endpointDescription,
                     endpointConfiguration,
                     clientCertificate,
@@ -277,15 +288,11 @@ namespace Opc.Ua.Client
                     messageContext,
                     ct).ConfigureAwait(false);
             }
-
-            return await UaChannelBase.CreateUaBinaryChannelAsync(
-                configuration,
-                endpointDescription,
-                endpointConfiguration,
-                clientCertificate,
-                clientCertificateChain,
-                messageContext,
-                ct).ConfigureAwait(false);
+            finally
+            {
+                clientCertificateChain?.Dispose();
+                clientCertificate?.Dispose();
+            }
         }
 
         /// <inheritdoc/>

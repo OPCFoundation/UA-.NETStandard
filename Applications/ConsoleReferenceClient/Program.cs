@@ -775,11 +775,11 @@ namespace Quickstarts.ConsoleReferenceClient
         {
             CertificateIdentifier userCertificateIdentifier = null;
 
-            CertificateCollection userCertificatesWithMatchingThumbprint =
+            using CertificateCollection certificates =
                 await trustedUserCertificates.GetCertificatesAsync(telemetry, ct).ConfigureAwait(false);
             // get user certificate with matching thumbprint
-            userCertificatesWithMatchingThumbprint =
-                userCertificatesWithMatchingThumbprint.Find(X509FindType.FindByThumbprint, thumbprint, false);
+            using CertificateCollection userCertificatesWithMatchingThumbprint =
+                certificates.Find(X509FindType.FindByThumbprint, thumbprint, false);
 
             // create Certificate Identifier
             if (userCertificatesWithMatchingThumbprint.Count == 1)

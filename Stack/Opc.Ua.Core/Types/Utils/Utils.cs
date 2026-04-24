@@ -1798,7 +1798,7 @@ namespace Opc.Ua
             int length = certificateData.Length;
             while (offset < length)
             {
-                Certificate certificate;
+                Certificate certificate = null;
                 try
                 {
                     ReadOnlyMemory<byte> certBlob = certificateData[offset..];
@@ -1811,6 +1811,8 @@ namespace Opc.Ua
                     }
 #endif
                     certificate = CertificateFactory.Create(certBlob);
+                    certificateChain.Add(certificate);
+                    offset += certificate.RawData.Length;
                 }
                 catch (Exception e)
                 {
@@ -1819,9 +1821,10 @@ namespace Opc.Ua
                         "Could not parse DER encoded form of a X509 certificate.",
                         e);
                 }
-
-                certificateChain.Add(certificate);
-                offset += certificate.RawData.Length;
+                finally
+                {
+                    certificate?.Dispose();
+                }
             }
 
             return certificateChain;

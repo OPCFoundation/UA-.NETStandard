@@ -38,19 +38,23 @@ namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
     /// A collection of <see cref="Certificate"/> objects that owns
-    /// its elements and implements <see cref="IDisposable"/>.
+    /// its elements and implements <see cref="IDisposable"/>. The collection
+    /// manages the lifecycle of the certificates it contains, disposing them
+    /// when they are removed from the collection or when the collection
+    /// itself is disposed. When a certificate is added to the collection,
+    /// the collection takes ownership by incrementing the reference count
+    /// of the certificate. It is therefore simple to use the collection using
+    /// a using pattern, and to share certificates between collections by
+    /// adding the same certificate instance to multiple collections.
     /// </summary>
     public class CertificateCollection : IList<Certificate>, IDisposable
     {
-        private readonly List<Certificate> m_certificates;
-        private bool m_disposed;
-
         /// <summary>
         /// Initializes a new empty <see cref="CertificateCollection"/>.
         /// </summary>
         public CertificateCollection()
         {
-            m_certificates = new List<Certificate>();
+            m_certificates = [];
         }
 
         /// <summary>
@@ -76,8 +80,16 @@ namespace Opc.Ua.Security.Certificates
         /// </param>
         public CertificateCollection(IEnumerable<Certificate> certificates)
         {
-            m_certificates = new List<Certificate>(
-                certificates ?? throw new ArgumentNullException(nameof(certificates)));
+            if (certificates == null)
+            {
+                throw new ArgumentNullException(nameof(certificates));
+            }
+
+            m_certificates = [];
+            foreach (Certificate cert in certificates)
+            {
+                Add(cert);
+            }
         }
 
         /// <summary>
@@ -94,6 +106,8 @@ namespace Opc.Ua.Security.Certificates
         /// A new <see cref="CertificateCollection"/> owning the
         /// certificates.
         /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="collection"/> is <c>null</c>.</exception>
         public static CertificateCollection From(
             X509Certificate2Collection collection)
         {
@@ -172,7 +186,6 @@ namespace Opc.Ua.Security.Certificates
                             findValue?.ToString(),
                             StringComparison.OrdinalIgnoreCase),
                         validOnly);
-
                 case X509FindType.FindBySubjectDistinguishedName:
                     return FindByMatch(
                         c => string.Equals(
@@ -180,7 +193,6 @@ namespace Opc.Ua.Security.Certificates
                             findValue?.ToString(),
                             StringComparison.OrdinalIgnoreCase),
                         validOnly);
-
                 case X509FindType.FindBySerialNumber:
                     return FindByMatch(
                         c => string.Equals(
@@ -188,7 +200,6 @@ namespace Opc.Ua.Security.Certificates
                             findValue?.ToString(),
                             StringComparison.OrdinalIgnoreCase),
                         validOnly);
-
                 default:
                     return FindByX509Collection(
                         findType, findValue, validOnly);
@@ -242,7 +253,7 @@ namespace Opc.Ua.Security.Certificates
         public void Add(Certificate item)
         {
             ThrowIfDisposed();
-            m_certificates.Add(item);
+            m_certificates.Add(item.AddRef());
         }
 
         /// <summary>
@@ -256,7 +267,7 @@ namespace Opc.Ua.Security.Certificates
         public void Insert(int index, Certificate item)
         {
             ThrowIfDisposed();
-            m_certificates.Insert(index, item);
+            m_certificates.Insert(index, item.AddRef());
         }
 
         /// <summary>
@@ -270,7 +281,12 @@ namespace Opc.Ua.Security.Certificates
         public bool Remove(Certificate item)
         {
             ThrowIfDisposed();
-            return m_certificates.Remove(item);
+            if (m_certificates.Remove(item))
+            {
+                item.Dispose();
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -282,7 +298,9 @@ namespace Opc.Ua.Security.Certificates
         public void RemoveAt(int index)
         {
             ThrowIfDisposed();
+            Certificate cert = m_certificates[index];
             m_certificates.RemoveAt(index);
+            cert.Dispose();
         }
 
         /// <summary>
@@ -321,7 +339,12 @@ namespace Opc.Ua.Security.Certificates
         public void Clear()
         {
             ThrowIfDisposed();
+            Certificate[] certificates = [.. m_certificates];
             m_certificates.Clear();
+            foreach (Certificate cert in certificates)
+            {
+                cert.Dispose();
+            }
         }
 
         /// <summary>
@@ -337,6 +360,10 @@ namespace Opc.Ua.Security.Certificates
         {
             ThrowIfDisposed();
             m_certificates.CopyTo(array, arrayIndex);
+            foreach (Certificate cert in array)
+            {
+                cert.AddRef();
+            }
         }
 
         /// <summary>
@@ -373,13 +400,12 @@ namespace Opc.Ua.Security.Certificates
         public CertificateCollection AddRef()
         {
             ThrowIfDisposed();
-
+            var copy = new CertificateCollection(Count);
             foreach (Certificate cert in m_certificates)
             {
-                cert?.AddRef();
+                copy.Add(cert);
             }
-
-            return this;
+            return copy;
         }
 
         /// <summary>
@@ -420,16 +446,15 @@ namespace Opc.Ua.Security.Certificates
         /// Throws an <see cref="ObjectDisposedException"/> if the
         /// collection has been disposed.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         private void ThrowIfDisposed()
         {
 #if NET8_0_OR_GREATER
-            ObjectDisposedException.ThrowIf(
-                m_disposed, this);
+            ObjectDisposedException.ThrowIf(m_disposed, this);
 #else
             if (m_disposed)
             {
-                throw new ObjectDisposedException(
-                    nameof(CertificateCollection));
+                throw new ObjectDisposedException(nameof(CertificateCollection));
             }
 #endif
         }
@@ -458,7 +483,7 @@ namespace Opc.Ua.Security.Certificates
                     continue;
                 }
 
-                result.m_certificates.Add(cert.AddRef());
+                result.Add(cert);
             }
 
             return result;
@@ -496,11 +521,14 @@ namespace Opc.Ua.Security.Certificates
             {
                 if (thumbprints.Contains(cert.Thumbprint))
                 {
-                    result.m_certificates.Add(cert.AddRef());
+                    result.Add(cert);
                 }
             }
 
             return result;
         }
+
+        private readonly List<Certificate> m_certificates;
+        private bool m_disposed;
     }
 }

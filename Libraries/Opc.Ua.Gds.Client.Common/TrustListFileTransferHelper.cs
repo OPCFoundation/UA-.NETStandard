@@ -59,8 +59,16 @@ namespace Opc.Ua.Gds.Client
             int chunkSize,
             CancellationToken ct)
         {
-            if (file == null) throw new ArgumentNullException(nameof(file));
-            if (messageContext == null) throw new ArgumentNullException(nameof(messageContext));
+            if (file == null)
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
+
+            if (messageContext == null)
+            {
+                throw new ArgumentNullException(nameof(messageContext));
+            }
+
             if (chunkSize <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(chunkSize));
@@ -121,9 +129,21 @@ namespace Opc.Ua.Gds.Client
             int chunkSize,
             CancellationToken ct)
         {
-            if (trustListClient == null) throw new ArgumentNullException(nameof(trustListClient));
-            if (trustList == null) throw new ArgumentNullException(nameof(trustList));
-            if (messageContext == null) throw new ArgumentNullException(nameof(messageContext));
+            if (trustListClient == null)
+            {
+                throw new ArgumentNullException(nameof(trustListClient));
+            }
+
+            if (trustList == null)
+            {
+                throw new ArgumentNullException(nameof(trustList));
+            }
+
+            if (messageContext == null)
+            {
+                throw new ArgumentNullException(nameof(messageContext));
+            }
+
             if (chunkSize <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(chunkSize));

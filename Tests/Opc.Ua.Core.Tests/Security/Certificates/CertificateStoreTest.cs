@@ -699,7 +699,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             var collection = new CertificateCollection();
-            foreach (Certificate c in testCertificatesCollection) collection.Add(c);
+            foreach (Certificate c in testCertificatesCollection)
+            {
+                collection.Add(c);
+            }
 
             // Test that searching by thumbprint works
             Certificate resultThumbprint = CertificateIdentifier.Find(
@@ -814,7 +817,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
 
             var collectionWithCASigned = new CertificateCollection();
-            foreach (Certificate c in testCertificatesCollection) collectionWithCASigned.Add(c);
+            foreach (Certificate c in testCertificatesCollection)
+            {
+                collectionWithCASigned.Add(c);
+            }
+
             collectionWithCASigned.Add(caSignedCert);
 
             // Test that CA-signed certificate is picked over self-signed even with shorter remaining validity

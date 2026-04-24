@@ -395,7 +395,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 foreach (Certificate cert in m_appCerts)
                 {
                     var certs = new CertificateCollection([cert]);
-                    foreach (Certificate c in m_caChain) certs.Add(c);
+                    foreach (Certificate c in m_caChain)
+                    {
+                        certs.Add(c);
+                    }
+
                     ServiceResultException serviceResultException =
                         Assert.ThrowsAsync<ServiceResultException>(async () =>
                             await certValidator.ValidateAsync(certs, CancellationToken.None).ConfigureAwait(false));
@@ -408,7 +412,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 foreach (Certificate cert in m_notYetValidAppCerts)
                 {
                     var certs = new CertificateCollection([cert]);
-                    foreach (Certificate c in m_caChain) certs.Add(c);
+                    foreach (Certificate c in m_caChain)
+                    {
+                        certs.Add(c);
+                    }
+
                     ServiceResultException serviceResultException =
                         Assert.ThrowsAsync<ServiceResultException>(async () =>
                             await certValidator.ValidateAsync(certs, CancellationToken.None).ConfigureAwait(false));

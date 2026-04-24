@@ -1140,7 +1140,7 @@ namespace Opc.Ua.Client
 
             if (certificateData.Length > 0)
             {
-                CertificateCollection serverCertificateChain = Utils.ParseCertificateChainBlob(
+                using CertificateCollection serverCertificateChain = Utils.ParseCertificateChainBlob(
                     certificateData,
                     m_telemetry);
 
@@ -4066,7 +4066,7 @@ namespace Opc.Ua.Client
                 try
                 {
                     // verify for certificate chain in endpoint.
-                    CertificateCollection serverCertificateChain =
+                    using CertificateCollection serverCertificateChain =
                         Utils.ParseCertificateChainBlob(
                             m_endpoint.Description.ServerCertificate,
                             m_telemetry);
@@ -4792,14 +4792,22 @@ namespace Opc.Ua.Client
             if (configuration.SecurityConfiguration.SendCertificateChain)
             {
                 clientCertificateChain = new CertificateCollection { clientCertificate };
-                List<CertificateIdentifier> issuers = [];
-                await configuration
-                    .CertificateValidator.GetIssuersAsync(clientCertificate, issuers, ct)
-                    .ConfigureAwait(false);
-
-                for (int i = 0; i < issuers.Count; i++)
+                try
                 {
-                    clientCertificateChain.Add(issuers[i].Certificate);
+                    List<CertificateIdentifier> issuers = [];
+                    await configuration
+                        .CertificateValidator.GetIssuersAsync(clientCertificate, issuers, ct)
+                        .ConfigureAwait(false);
+
+                    for (int i = 0; i < issuers.Count; i++)
+                    {
+                        clientCertificateChain.Add(issuers[i].Certificate);
+                    }
+                }
+                catch
+                {
+                    clientCertificateChain.Dispose();
+                    throw;
                 }
             }
             return clientCertificateChain;

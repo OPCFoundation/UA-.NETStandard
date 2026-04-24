@@ -74,7 +74,11 @@ namespace Opc.Ua.Gds.Client
             ISessionFactory sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
             Configuration = configuration;
             m_options = options ?? new GdsClientOptions();
             MessageContext = configuration.CreateMessageContext();

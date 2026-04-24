@@ -302,9 +302,9 @@ namespace Quickstarts
         {
             CertificateTrustList store = m_configuration.SecurityConfiguration.TrustedUserCertificates;
             // get user certificate with matching thumbprint
-            CertificateCollection certificates =
+            using CertificateCollection certificates =
                 await store.GetCertificatesAsync(m_telemetry, ct).ConfigureAwait(false);
-            Certificate hit = certificates
+            using Certificate hit = certificates
                 .Find(X509FindType.FindByThumbprint, thumbprint, false)
                 .FirstOrDefault();
 

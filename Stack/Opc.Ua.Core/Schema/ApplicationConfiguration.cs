@@ -1780,7 +1780,7 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier(Certificate certificate)
         {
-            Certificate = certificate;
+            Certificate = certificate.AddRef(); // TODO: Needs to be disposable
         }
 
         /// <summary>

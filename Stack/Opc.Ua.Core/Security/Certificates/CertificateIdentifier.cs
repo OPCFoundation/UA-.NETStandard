@@ -273,7 +273,7 @@ namespace Opc.Ua
             // check if the entire certificate has been specified.
             if (m_certificate != null && (!needPrivateKey || m_certificate.HasPrivateKey))
             {
-                certificate = m_certificate;
+                certificate = m_certificate.AddRef();
             }
             else
             {
@@ -285,7 +285,7 @@ namespace Opc.Ua
                     return null;
                 }
 
-                CertificateCollection collection = await store.EnumerateAsync(ct)
+                using CertificateCollection collection = await store.EnumerateAsync(ct)
                     .ConfigureAwait(false);
 
                 certificate = Find(
@@ -475,7 +475,7 @@ namespace Opc.Ua
             // Return in priority order: valid > expired > not-yet-valid
             if (bestValid != null)
             {
-                return bestValid;
+                return bestValid.AddRef();
             }
 
             if (bestExpired != null && bestNotYetValid != null)
@@ -484,17 +484,17 @@ namespace Opc.Ua
                 // Prioritize CA-signed over self-signed
                 if (bestNotYetValidIsCASigned && !bestExpiredIsCASigned)
                 {
-                    return bestNotYetValid;
+                    return bestNotYetValid.AddRef();
                 }
                 if (bestExpiredIsCASigned && !bestNotYetValidIsCASigned)
                 {
-                    return bestExpired;
+                    return bestExpired.AddRef();
                 }
                 // If both have same CA-signed status, pick the soonest to become valid
-                return bestNotYetValidTime < bestExpiredTime ? bestNotYetValid : bestExpired;
+                return bestNotYetValidTime < bestExpiredTime ? bestNotYetValid.AddRef() : bestExpired.AddRef();
             }
 
-            return bestExpired ?? bestNotYetValid;
+            return bestExpired?.AddRef() ?? bestNotYetValid?.AddRef();
         }
 
         /// <summary>
@@ -543,14 +543,14 @@ namespace Opc.Ua
                     {
                         if (string.IsNullOrEmpty(subjectName))
                         {
-                            return certificate;
+                            return certificate.AddRef();
                         }
 
                         List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
 
                         if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
                         {
-                            return certificate;
+                            return certificate.AddRef();
                         }
                     }
                 }
@@ -616,7 +616,7 @@ namespace Opc.Ua
                 // If no "CN=" specified than a fuzzy match is allowed
                 else
                 {
-                    CertificateCollection fuzzyMatches = collection.Find(
+                    using CertificateCollection fuzzyMatches = collection.Find(
                         X509FindType.FindBySubjectName,
                         subjectName,
                         false);
@@ -999,7 +999,7 @@ namespace Opc.Ua
             ArrayOf<CertificateIdentifier> certificates,
             ITelemetryContext telemetry)
         {
-            m_certificates = new List<CertificateIdentifier>(certificates.ToArray() ?? []);
+            m_certificates = certificates.ToList();
             m_telemetry = telemetry;
         }
 
