@@ -290,19 +290,47 @@ namespace Opc.Ua.Mcp.Tools
             Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
-                Variant[] args = inputArguments?.Select(a => new Variant(a)).ToArray() ?? [];
+                var inputArgs = new List<Variant>();
+                if (inputArguments != null)
+                {
+                    foreach (string arg in inputArguments)
+                    {
+                        inputArgs.Add(new Variant(arg));
+                    }
+                }
 
-                ArrayOf<Variant> outputArgs = await session.CallAsync(
-                    OpcUaJsonHelper.ParseNodeId(objectId),
-                    OpcUaJsonHelper.ParseNodeId(methodId),
-                    ct,
-                    args).ConfigureAwait(false);
+                var request = new CallMethodRequest
+                {
+                    ObjectId = OpcUaJsonHelper.ParseNodeId(objectId),
+                    MethodId = OpcUaJsonHelper.ParseNodeId(methodId),
+                    InputArguments = inputArgs.ToArray(),
+                };
+
+                CallResponse response = await session.CallAsync(
+                    null,
+                    new CallMethodRequest[] { request },
+                    ct).ConfigureAwait(false);
+
+                CallMethodResult result = response.Results[0];
+
+                if (StatusCode.IsBad(result.StatusCode))
+                {
+                    return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
+                    {
+                        ["error"] = true,
+                        ["statusCode"] = result.StatusCode.SymbolicId,
+                        ["message"] = $"Method call failed: {result.StatusCode}",
+                        ["inputArgumentResults"] = result.InputArgumentResults.ToArray()?
+                            .Select(s => s.SymbolicId).ToList(),
+                    });
+                }
 
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {
                     ["objectId"] = objectId,
                     ["methodId"] = methodId,
-                    ["outputArguments"] = outputArgs.ToArray()!.Select(v => OpcUaJsonHelper.VariantToObject(v)).ToList()
+                    ["outputArguments"] = result.OutputArguments.ToArray()?
+                        .Select(v => OpcUaJsonHelper.VariantToObject(v)).ToList() ?? [],
                 });
             }
             catch (ServiceResultException ex)
