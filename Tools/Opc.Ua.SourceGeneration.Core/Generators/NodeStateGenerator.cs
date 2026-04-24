@@ -1513,7 +1513,7 @@ namespace Opc.Ua.SourceGeneration
                             "state.AddChild(Create{0}(context, state, forInstance: {1}));",
                             instance.SymbolicId.Name,
                             forInstanceVariableValue);
-                        break;
+                        return null;
                     case InstanceDesign parentInstance:
                         if (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
                             IsBuiltInProperty(node))
