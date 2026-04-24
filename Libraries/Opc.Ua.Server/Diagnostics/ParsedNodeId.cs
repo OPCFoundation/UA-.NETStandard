@@ -41,6 +41,7 @@ namespace Opc.Ua.Server
     /// for the Root Node. The ComponentPath is constructed from the SymbolicNames
     /// of one or more children of the Root Node.
     /// </remarks>
+    [Obsolete("Will be removed in a future version")]
     public class ParsedNodeId
     {
         /// <summary>

@@ -4344,6 +4344,7 @@ namespace Opc.Ua.Server
             {
                 result.FilterToUse = deadbandFilter;
                 result.StatusCode = StatusCodes.Good;
+                return result;
             }
 
             // deadband filters can only be used for numeric values.
