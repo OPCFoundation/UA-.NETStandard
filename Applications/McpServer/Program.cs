@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CommandLine;
@@ -36,8 +35,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ModelContextProtocol.AspNetCore;
-using ModelContextProtocol.Server;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
 
@@ -86,7 +83,8 @@ return await rootCommand.Parse(args).InvokeAsync().ConfigureAwait(false);
 
 static async Task RunStdioServerAsync(CancellationToken ct)
 {
-    Console.Error.WriteLine("Starting MCP server with stdio transport...");
+    await Console.Error.WriteLineAsync(
+        "Starting MCP server with stdio transport...").ConfigureAwait(false);
 
     HostApplicationBuilder builder = Host.CreateApplicationBuilder();
     ConfigureLogging(builder.Logging);
@@ -105,7 +103,8 @@ static async Task RunStdioServerAsync(CancellationToken ct)
 
 static async Task RunSseServerAsync(int port, CancellationToken ct)
 {
-    Console.Error.WriteLine($"Starting MCP server with HTTP/SSE transport on port {port}...");
+    await Console.Error.WriteLineAsync(
+        $"Starting MCP server with HTTP/SSE transport on port {port}...").ConfigureAwait(false);
 
     WebApplicationBuilder builder = WebApplication.CreateBuilder();
     ConfigureLogging(builder.Logging);

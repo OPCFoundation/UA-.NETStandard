@@ -195,10 +195,7 @@ namespace Opc.Ua.Mcp
                 endpointConfiguration,
                 ct: ct).ConfigureAwait(false);
 
-            ArrayOf<EndpointDescription> endpoints = await client.GetEndpointsAsync(default, ct)
-                .ConfigureAwait(false);
-
-            return endpoints;
+            return await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -639,7 +636,7 @@ namespace Opc.Ua.Mcp
             if (session != null)
             {
                 // Update the session in the dictionary with a new SessionInfo
-                var updated = new SessionInfo
+                m_sessions[info.Name] = new SessionInfo
                 {
                     Name = info.Name,
                     Session = session,
@@ -648,7 +645,6 @@ namespace Opc.Ua.Mcp
                     ReconnectHandler = info.ReconnectHandler,
                     ConnectedAt = info.ConnectedAt
                 };
-                m_sessions[info.Name] = updated;
                 m_logger.LogInformation(
                     "Session '{Name}' reconnected. SessionId={SessionId}",
                     info.Name,
