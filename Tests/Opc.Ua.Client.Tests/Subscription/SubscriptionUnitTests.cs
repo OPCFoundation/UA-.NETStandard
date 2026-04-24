@@ -42,6 +42,22 @@ namespace Opc.Ua.Client.Tests
     [Parallelizable]
     public class SubscriptionUnitTests
     {
+        private const PublishStateChangedMask kSessionNotConnected = PublishStateChangedMask.Stopped | PublishStateChangedMask.SessionNotConnected;
+
+        public record KeepAliveTestDataProvider(PublishStateChangedMask ExpectedPublishState) : IFormattable
+        {
+            public bool SessionConnected { get; init; }
+            public bool SessionReconnecting { get; init; }
+            public bool SessionKeepAliveStopped { get; init; }
+            public string ToString(string format, IFormatProvider formatProvider)
+            {
+                return $"Connected={SessionConnected}, " +
+                    $"reconnecting={SessionReconnecting}, " +
+                    $"keepAlive={SessionKeepAliveStopped}. " +
+                    $"Expected status:{ExpectedPublishState}";
+            }
+        }
+
         private sealed class SubscriptionContainer : IDisposable
         {
             private readonly CancellationTokenRegistration m_tokedCancellation;
@@ -73,28 +89,31 @@ namespace Opc.Ua.Client.Tests
             return Task.Delay(Subscription.RepublishMessageTimeout + 100, ct);
         }
 
-        private static ISession BuildSessionMock(Func<uint, uint, bool> republishHandler)
+        private static ISession BuildSessionMock(Func<uint, uint, bool> republishHandler = null, Action<Mock<ISession>> setup = null)
         {
             uint subscriptionIdSeed = 0u;
 
             var session = new Mock<ISession>();
-            session
-                .Setup(x => x.RepublishAsync(It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync<uint, uint, CancellationToken, ISession, (bool, ServiceResult)>((
-                    subscriptionId,
-                    sequenceNumber,
-                    ct) =>
-                {
-                    if (subscriptionId > subscriptionIdSeed)
+            if (republishHandler is not null)
+            {
+                session
+                    .Setup(x => x.RepublishAsync(It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync<uint, uint, CancellationToken, ISession, (bool, ServiceResult)>((
+                        subscriptionId,
+                        sequenceNumber,
+                        ct) =>
                     {
-                        return (true, StatusCodes.BadSubscriptionIdInvalid);
-                    }
-                    if (republishHandler(subscriptionId, sequenceNumber))
-                    {
-                        return (true, ServiceResult.Good);
-                    }
-                    return (true, StatusCodes.BadMessageNotAvailable);
-                });
+                        if (subscriptionId > subscriptionIdSeed)
+                        {
+                            return (true, StatusCodes.BadSubscriptionIdInvalid);
+                        }
+                        if (republishHandler(subscriptionId, sequenceNumber))
+                        {
+                            return (true, ServiceResult.Good);
+                        }
+                        return (true, StatusCodes.BadMessageNotAvailable);
+                    });
+            }
             session
                 .Setup(x => x
                     .CreateSubscriptionAsync(
@@ -149,6 +168,7 @@ namespace Opc.Ua.Client.Tests
                             StatusCodes.Good)],
                         DiagnosticInfos = [.. subscriptionIds.ConvertAll(_ => new DiagnosticInfo())]
                     });
+            setup?.Invoke(session);
             return session.Object;
         }
 
@@ -349,6 +369,49 @@ namespace Opc.Ua.Client.Tests
             {
                 Assert.That(subscription.Notifications, Is.EquivalentTo(messages.Skip(1)));
             }
+        }
+
+        [DatapointSource]
+        public IEnumerable<KeepAliveTestDataProvider> SubscriptionKeepAliveValues()
+        {
+            yield return new(PublishStateChangedMask.Stopped) { SessionConnected = true, SessionReconnecting = false, SessionKeepAliveStopped = false };
+
+            yield return new(kSessionNotConnected) { SessionConnected = false, SessionReconnecting = false, SessionKeepAliveStopped = false };
+            yield return new(kSessionNotConnected) { SessionConnected = false, SessionReconnecting = true, SessionKeepAliveStopped = false };
+            yield return new(kSessionNotConnected) { SessionConnected = false, SessionReconnecting = false, SessionKeepAliveStopped = true };
+            yield return new(kSessionNotConnected) { SessionConnected = false, SessionReconnecting = true, SessionKeepAliveStopped = true };
+
+            yield return new(kSessionNotConnected) { SessionConnected = true, SessionReconnecting = true, SessionKeepAliveStopped = false };
+            yield return new(kSessionNotConnected) { SessionConnected = true, SessionReconnecting = true, SessionKeepAliveStopped = true };
+
+            yield return new(kSessionNotConnected) { SessionConnected = true, SessionReconnecting = false, SessionKeepAliveStopped = true };
+        }
+
+        [Theory]
+        [CancelAfter(Subscription.MinKeepAliveTimerInterval * 10)]
+        public async Task RespectsStateOfSessionDuringKeepAliveCalls(KeepAliveTestDataProvider testData, CancellationToken ct)
+        {
+            var keepAliveCompleted = new TaskCompletionSource<PublishStateChangedMask>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void KeepAliveHasTriggered(Subscription x, PublishStateChangedEventArgs y) => keepAliveCompleted.TrySetResult(y.Status);
+            ISession session = BuildSessionMock(
+                setup: mock =>
+                {
+                    mock.Setup(x => x.Connected).Returns(testData.SessionConnected);
+                    mock.Setup(x => x.Reconnecting).Returns(testData.SessionReconnecting);
+                    mock.Setup(x => x.KeepAliveStopped).Returns(testData.SessionKeepAliveStopped);
+                });
+
+            using var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { PublishingEnabled = true })
+            {
+                Session = session
+            };
+            subscription.PublishStatusChanged += KeepAliveHasTriggered;
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            await Task.WhenAny(keepAliveCompleted.Task, Task.Delay(-1, ct)).ConfigureAwait(false);
+
+            Assert.That(keepAliveCompleted.Task.Result, Is.EqualTo(testData.ExpectedPublishState));
         }
     }
 }
