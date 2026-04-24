@@ -364,7 +364,26 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Disposes all owned <see cref="Certificate"/> objects and
+        /// Increments the reference count of every certificate in this
+        /// collection. Call when transferring shared ownership to another
+        /// lifecycle owner. Each owner independently calls
+        /// <see cref="Dispose()"/>.
+        /// </summary>
+        /// <returns>This collection, for fluent usage.</returns>
+        public CertificateCollection AddRef()
+        {
+            ThrowIfDisposed();
+
+            foreach (Certificate cert in m_certificates)
+            {
+                cert?.AddRef();
+            }
+
+            return this;
+        }
+
+        /// <summary>
+        /// Releases the resources used by the collection and
         /// clears the collection.
         /// </summary>
         public void Dispose()
@@ -439,7 +458,7 @@ namespace Opc.Ua.Security.Certificates
                     continue;
                 }
 
-                result.m_certificates.Add(cert);
+                result.m_certificates.Add(cert.AddRef());
             }
 
             return result;
@@ -477,7 +496,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 if (thumbprints.Contains(cert.Thumbprint))
                 {
-                    result.m_certificates.Add(cert);
+                    result.m_certificates.Add(cert.AddRef());
                 }
             }
 

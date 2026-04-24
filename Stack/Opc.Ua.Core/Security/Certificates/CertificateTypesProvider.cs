@@ -162,7 +162,9 @@ namespace Opc.Ua.Security.Certificates
                     certificate.Thumbprint,
                     out Tuple<CertificateCollection, byte[]> certificateChainTuple))
             {
-                return certificateChainTuple.Item1;
+                // Return a new collection with AddRef'd members so the
+                // caller can dispose independently without invalidating the cache.
+                return CloneWithAddRef(certificateChainTuple.Item1);
             }
 
             // load certificate chain.
@@ -179,13 +181,17 @@ namespace Opc.Ua.Security.Certificates
 
             byte[] certificateChainRaw = Utils.CreateCertificateChainBlob(certificateChain);
 
+            // AddRef the chain so the cache owns one set of references.
+            certificateChain.AddRef();
+
             // update cached values
             m_certificateChain[certificate.Thumbprint]
                 = new Tuple<CertificateCollection, byte[]>(
                 certificateChain,
                 certificateChainRaw);
 
-            return certificateChain;
+            // Return a caller-owned copy so disposing it does not affect the cache.
+            return CloneWithAddRef(certificateChain);
         }
 
         /// <summary>
@@ -203,7 +209,9 @@ namespace Opc.Ua.Security.Certificates
                     certificate.Thumbprint,
                     out Tuple<CertificateCollection, byte[]> certificateChainTuple))
             {
-                return certificateChainTuple.Item1;
+                // Return a new collection with AddRef'd members so the
+                // caller can dispose independently without invalidating the cache.
+                return CloneWithAddRef(certificateChainTuple.Item1);
             }
 
             return null;
@@ -218,6 +226,22 @@ namespace Opc.Ua.Security.Certificates
             m_securityConfiguration = securityConfiguration;
             m_certificateChain.Clear();
             //ToDo intialize internal CertificateValidator after Certificate Update to clear cache of old application certificates
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="CertificateCollection"/> containing
+        /// AddRef'd copies of the certificates in the source collection.
+        /// The caller owns the returned collection and may dispose it
+        /// independently of the source.
+        /// </summary>
+        private static CertificateCollection CloneWithAddRef(CertificateCollection source)
+        {
+            var result = new CertificateCollection(source.Count);
+            foreach (Certificate cert in source)
+            {
+                result.Add(cert.AddRef());
+            }
+            return result;
         }
 
         private readonly CertificateValidator m_certificateValidator;

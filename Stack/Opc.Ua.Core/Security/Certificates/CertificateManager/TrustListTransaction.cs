@@ -79,7 +79,11 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             ThrowIfDisposedOrCommitted();
-            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+
             m_addTrusted.Add(certificate);
             return Task.CompletedTask;
         }
@@ -90,7 +94,11 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             ThrowIfDisposedOrCommitted();
-            if (thumbprint == null) throw new ArgumentNullException(nameof(thumbprint));
+            if (thumbprint == null)
+            {
+                throw new ArgumentNullException(nameof(thumbprint));
+            }
+
             m_removeTrusted.Add(thumbprint);
             return Task.CompletedTask;
         }
@@ -101,7 +109,11 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             ThrowIfDisposedOrCommitted();
-            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+
             m_addIssuer.Add(certificate);
             return Task.CompletedTask;
         }
@@ -112,7 +124,11 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             ThrowIfDisposedOrCommitted();
-            if (thumbprint == null) throw new ArgumentNullException(nameof(thumbprint));
+            if (thumbprint == null)
+            {
+                throw new ArgumentNullException(nameof(thumbprint));
+            }
+
             m_removeIssuer.Add(thumbprint);
             return Task.CompletedTask;
         }
@@ -121,7 +137,11 @@ namespace Opc.Ua
         public Task AddCrlAsync(X509CRL crl, CancellationToken ct = default)
         {
             ThrowIfDisposedOrCommitted();
-            if (crl == null) throw new ArgumentNullException(nameof(crl));
+            if (crl == null)
+            {
+                throw new ArgumentNullException(nameof(crl));
+            }
+
             m_addCrls.Add(crl);
             return Task.CompletedTask;
         }
@@ -130,7 +150,11 @@ namespace Opc.Ua
         public Task RemoveCrlAsync(X509CRL crl, CancellationToken ct = default)
         {
             ThrowIfDisposedOrCommitted();
-            if (crl == null) throw new ArgumentNullException(nameof(crl));
+            if (crl == null)
+            {
+                throw new ArgumentNullException(nameof(crl));
+            }
+
             m_removeCrls.Add(crl);
             return Task.CompletedTask;
         }
@@ -205,7 +229,10 @@ namespace Opc.Ua
 
         private void ThrowIfDisposedOrCommitted()
         {
-            if (m_disposed) throw new ObjectDisposedException(GetType().FullName);
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(GetType().FullName);
+            }
 
             if (m_committed)
             {

@@ -62,8 +62,9 @@ namespace Opc.Ua.Security.Certificates
             CertificateCollection issuerChain,
             NodeId certificateType)
         {
-            Certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
+            Certificate = certificate?.AddRef() ?? throw new ArgumentNullException(nameof(certificate));
             IssuerChain = issuerChain ?? throw new ArgumentNullException(nameof(issuerChain));
+            IssuerChain.AddRef();
             CertificateType = certificateType;
         }
 

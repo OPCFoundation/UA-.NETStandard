@@ -99,10 +99,10 @@ namespace Opc.Ua
             m_logger = telemetry.CreateLogger<CertificateManager>();
             m_maxRejectedCertificates = maxRejectedCertificates;
             m_storeProviders = storeProviders?.ToList() ??
-                [
-                    new DirectoryStoreProvider(),
-                    new X509StoreProvider()
-                    ];
+            [
+                new DirectoryStoreProvider(),
+                new X509StoreProvider()
+            ];
 
             TimeSpan threshold = expiryWarningThreshold ?? TimeSpan.FromDays(14);
             m_lifecycleMonitor = new CertificateLifecycleMonitor(
@@ -125,7 +125,10 @@ namespace Opc.Ua
             string trustedStorePath,
             string? issuerStorePath = null)
         {
-            if (trustList == null) throw new ArgumentNullException(nameof(trustList));
+            if (trustList == null)
+            {
+                throw new ArgumentNullException(nameof(trustList));
+            }
 
             if (string.IsNullOrEmpty(trustedStorePath))
             {
@@ -177,7 +180,10 @@ namespace Opc.Ua
             TrustListIdentifier trustList,
             CancellationToken ct = default)
         {
-            if (trustList == null) throw new ArgumentNullException(nameof(trustList));
+            if (trustList == null)
+            {
+                throw new ArgumentNullException(nameof(trustList));
+            }
 
             if (!m_trustLists.ContainsKey(trustList))
             {
@@ -196,7 +202,10 @@ namespace Opc.Ua
         /// <param name="config">The security configuration to map from.</param>
         public void MapFromSecurityConfiguration(SecurityConfiguration config)
         {
-            if (config == null) throw new ArgumentNullException(nameof(config));
+            if (config == null)
+            {
+                throw new ArgumentNullException(nameof(config));
+            }
 
             if (config.TrustedPeerCertificates != null)
             {
@@ -277,12 +286,18 @@ namespace Opc.Ua
             string? applicationUri = null,
             CancellationToken ct = default)
         {
+            // Dispose existing entries before clearing the list.
+            foreach (CertificateEntry oldEntry in m_applicationCertificates)
+            {
+                oldEntry.Dispose();
+            }
+
             m_applicationCertificates.Clear();
             ArrayOf<CertificateIdentifier> appCerts = securityConfiguration.ApplicationCertificates;
             for (int i = 0; i < appCerts.Count; i++)
             {
                 CertificateIdentifier certId = appCerts[i];
-                Certificate certificate = await certId.FindAsync(true, applicationUri, m_telemetry, ct)
+                using Certificate certificate = await certId.FindAsync(true, applicationUri, m_telemetry, ct)
                     .ConfigureAwait(false);
                 if (certificate != null)
                 {
@@ -326,7 +341,7 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             return ValidateAsync(
-                new CertificateCollection { certificate },
+                new CertificateCollection { certificate.AddRef() },
                 trustList,
                 ct: ct);
         }
@@ -338,14 +353,14 @@ namespace Opc.Ua
             CertificateCollection? issuerChain = null,
             CancellationToken ct = default)
         {
-            Certificate? oldCert = null;
+            CertificateEntry? oldEntry = null;
 
             // Find and replace the existing entry.
             for (int i = 0; i < m_applicationCertificates.Count; i++)
             {
                 if (m_applicationCertificates[i].CertificateType == certificateType)
                 {
-                    oldCert = m_applicationCertificates[i].Certificate;
+                    oldEntry = m_applicationCertificates[i];
                     m_applicationCertificates[i] = new CertificateEntry(
                         newCertificate,
                         issuerChain ?? new CertificateCollection(),
@@ -355,7 +370,7 @@ namespace Opc.Ua
             }
 
             // If not found, add a new entry.
-            if (oldCert == null)
+            if (oldEntry == null)
             {
                 m_applicationCertificates.Add(new CertificateEntry(
                     newCertificate,
@@ -374,9 +389,13 @@ namespace Opc.Ua
                 CertificateChangeKind.ApplicationCertificateUpdated,
                 TrustListIdentifier.Peers,
                 certificateType,
-                oldCert,
+                oldEntry?.Certificate,
                 newCertificate,
                 issuerChain));
+
+            // Dispose the old entry after notification so observers
+            // can still read the old certificate during the callback.
+            oldEntry?.Dispose();
 
             return Task.CompletedTask;
         }
@@ -397,7 +416,10 @@ namespace Opc.Ua
             TrustListMasks masks = TrustListMasks.All,
             CancellationToken ct = default)
         {
-            if (trustList == null) throw new ArgumentNullException(nameof(trustList));
+            if (trustList == null)
+            {
+                throw new ArgumentNullException(nameof(trustList));
+            }
 
             var data = new TrustListData();
 
@@ -448,12 +470,18 @@ namespace Opc.Ua
             TrustListMasks masks = TrustListMasks.All,
             CancellationToken ct = default)
         {
-            if (trustList == null) throw new ArgumentNullException(nameof(trustList));
-            if (data == null) throw new ArgumentNullException(nameof(data));
+            if (trustList == null)
+            {
+                throw new ArgumentNullException(nameof(trustList));
+            }
 
-            if ((masks &
-                (TrustListMasks.TrustedCertificates |
-                    TrustListMasks.TrustedCrls)) != 0)
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+
+            if (((int)masks &
+                ((int)TrustListMasks.TrustedCertificates | (int)TrustListMasks.TrustedCrls)) != 0)
             {
                 using ICertificateStore store = OpenTrustedStore(trustList);
 
@@ -482,9 +510,8 @@ namespace Opc.Ua
                 }
             }
 
-            if ((masks &
-                (TrustListMasks.IssuerCertificates |
-                    TrustListMasks.IssuerCrls)) != 0)
+            if (((int)masks &
+                ((int)TrustListMasks.IssuerCertificates | (int)TrustListMasks.IssuerCrls)) != 0)
             {
                 ICertificateStore? issuerStore = OpenIssuerStore(trustList);
                 if (issuerStore != null)
@@ -570,6 +597,13 @@ namespace Opc.Ua
                 m_peerValidator = null;
                 m_userValidator = null;
                 m_httpsValidator = null;
+
+                foreach (CertificateEntry entry in m_applicationCertificates)
+                {
+                    entry.Dispose();
+                }
+
+                m_applicationCertificates.Clear();
 
                 m_trustLists.Clear();
                 m_disposed = true;

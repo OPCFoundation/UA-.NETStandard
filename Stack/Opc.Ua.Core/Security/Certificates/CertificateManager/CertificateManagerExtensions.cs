@@ -96,8 +96,15 @@ namespace Opc.Ua
             ITelemetryContext telemetry,
             Action<CertificateManagerOptions>? configure = null)
         {
-            if (securityConfiguration == null) throw new ArgumentNullException(nameof(securityConfiguration));
-            if (telemetry == null) throw new ArgumentNullException(nameof(telemetry));
+            if (securityConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(securityConfiguration));
+            }
+
+            if (telemetry == null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
 
             var options = new CertificateManagerOptions();
             configure?.Invoke(options);

@@ -137,9 +137,17 @@ namespace Opc.Ua.Security.Certificates.Tests
             var certType = new NodeId(12345);
 
             var entry = new CertificateEntry(cert, chain, certType);
+
+            // CertificateEntry AddRefs both cert and chain, so dispose
+            // the caller's references first.
+            cert.Dispose();
+            chain.Dispose();
+
+            // Entry still holds the last ref; disposing the entry
+            // should release the underlying certificates.
             entry.Dispose();
 
-            // After dispose, accessing RawData on the cert should throw
+            // After both refs are disposed, accessing RawData should throw
             Assert.That(() => cert.RawData, Throws.Exception);
         }
 

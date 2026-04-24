@@ -864,6 +864,74 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
         #endregion
 
+        #region Ownership Transfer Tests
+
+        [Test]
+        public void CertificateEntryOwnsIndependentRefs()
+        {
+            Certificate cert = CertificateBuilder
+                .Create("CN=EntryTest")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            var chain = new CertificateCollection();
+
+            var entry = new CertificateEntry(
+                cert, chain, new NodeId(0));
+
+            // Caller disposes their references — entry still holds AddRef'd refs
+            cert.Dispose();
+            chain.Dispose();
+
+            // Entry's certificate should still be alive
+            Assert.That(entry.Certificate.Thumbprint, Is.Not.Null);
+            Assert.That(entry.Certificate.Subject, Is.Not.Null);
+
+            // Entry dispose cleans up
+            entry.Dispose();
+        }
+
+        [Test]
+        public void FindReturnsIndependentlyDisposableCollection()
+        {
+            using var source = new CertificateCollection();
+            Certificate cert = CreateTestCertificate("CN=FindTest");
+            source.Add(cert);
+
+            CertificateCollection found = source.Find(
+                X509FindType.FindByThumbprint,
+                cert.Thumbprint,
+                false);
+
+            // Dispose the found collection (contains AddRef'd copy)
+            found.Dispose();
+
+            // Source's cert should still be alive
+            Assert.That(source[0].Thumbprint, Is.Not.Null);
+        }
+
+        [Test]
+        public void AddRefIncreasesAllMemberRefCounts()
+        {
+            Certificate cert1 = CreateTestCertificate("CN=Ref1");
+            Certificate cert2 = CreateTestCertificate("CN=Ref2");
+            var collection = new CertificateCollection { cert1, cert2 };
+
+            collection.AddRef();
+
+            // Dispose the collection — decrements each member once
+            collection.Dispose();
+
+            // Members should still be alive (extra ref from AddRef)
+            Assert.That(cert1.Thumbprint, Is.Not.Null);
+            Assert.That(cert2.Thumbprint, Is.Not.Null);
+
+            // Final cleanup
+            cert1.Dispose();
+            cert2.Dispose();
+        }
+
+        #endregion
+
 #if DEBUG
         #region Leak Detection Finalizer Tests
 
