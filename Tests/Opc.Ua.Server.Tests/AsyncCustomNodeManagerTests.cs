@@ -3190,7 +3190,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task ValidateMonitoringFilterAsyncDataChangeFilterDeadbandNoneOnNumericVariableReturnsBadFilterNotAllowedAsync()
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterDeadbandNoneOnNumericVariableReturnsSuccessAsync()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             SetupNumericTypeTree();
@@ -3207,7 +3207,7 @@ namespace Opc.Ua.Server.Tests
                 10,
                 filter).ConfigureAwait(false);
 
-            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadFilterNotAllowed));
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
