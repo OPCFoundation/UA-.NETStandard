@@ -345,7 +345,7 @@ namespace Opc.Ua.Client.Tests
                     // release all allocated continuation points.
                     foreach (BrowseResult current in results)
                     {
-                        if (current != null && current.ContinuationPoint.Length > 0)
+                        if (current != null && !current.ContinuationPoint.IsEmpty)
                         {
                             ContinuationPoint cp = context.Session
                                 .RestoreContinuationPoint(current.ContinuationPoint);
@@ -386,7 +386,7 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // check for continuation point.
-                if (result.ContinuationPoint.Length > 0)
+                if (!result.ContinuationPoint.IsEmpty)
                 {
                     continuationPointsAssigned++;
                 }

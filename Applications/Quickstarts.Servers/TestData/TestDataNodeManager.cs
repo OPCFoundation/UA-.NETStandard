@@ -509,7 +509,7 @@ namespace TestData
             List<DataValue> dataValues = [];
 
             HistoryDataReader reader;
-            if (nodeToRead.ContinuationPoint.Length > 0)
+            if (!nodeToRead.ContinuationPoint.IsEmpty)
             {
                 // restore the continuation point.
                 reader = RestoreDataReader(serverContext, nodeToRead.ContinuationPoint);
