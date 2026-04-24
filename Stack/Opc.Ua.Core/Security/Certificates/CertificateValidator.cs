@@ -35,6 +35,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Redaction;
@@ -188,6 +189,8 @@ namespace Opc.Ua
             }
 
             m_rejectedCertificateStore = null;
+            m_rejectedWriter?.Dispose();
+            m_rejectedWriter = null;
             if (rejectedCertificateStore != null)
             {
                 m_rejectedCertificateStore = new CertificateStoreIdentifier(
@@ -196,6 +199,7 @@ namespace Opc.Ua
                     StoreType = rejectedCertificateStore.StoreType,
                     ValidationOptions = rejectedCertificateStore.ValidationOptions
                 };
+                m_rejectedWriter = new RejectedCertificateWriter(this, m_logger);
             }
         }
 
@@ -515,19 +519,8 @@ namespace Opc.Ua
 
                 if (updateStore)
                 {
-                    // update the rejected store; use LongRunning so the task gets a dedicated
-                    // thread immediately instead of waiting for a thread-pool thread to become
-                    // free.  isMaintenance=true ensures the semaphore wait never times out so
-                    // that configuration-driven changes are always honoured.
-                    _ = Task.Factory.StartNew(
-                        async () =>
-                        {
-                            using var empty = new CertificateCollection();
-                            await SaveCertificatesAsync(empty, isMaintenance: true).ConfigureAwait(false);
-                        },
-                        CancellationToken.None,
-                        TaskCreationOptions.LongRunning,
-                        TaskScheduler.Default);
+                    // enqueue a maintenance request to trim the rejected store
+                    m_rejectedWriter?.Enqueue(new CertificateCollection(), isMaintenance: true);
                 }
             }
         }
@@ -808,13 +801,7 @@ namespace Opc.Ua
                 {
                     rejectedChain.Add(c);
                 }
-                _ = Task.Run(async () =>
-                {
-                    using (rejectedChain)
-                    {
-                        await SaveCertificatesAsync(rejectedChain).ConfigureAwait(false);
-                    }
-                });
+                m_rejectedWriter?.Enqueue(rejectedChain);
 
                 LogInnerServiceResults(LogLevel.Information, se.Result.InnerResult);
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
@@ -883,13 +870,7 @@ namespace Opc.Ua
                 {
                     rejectedChain2.Add(c);
                 }
-                _ = Task.Run(async () =>
-                {
-                    using (rejectedChain2)
-                    {
-                        await SaveCertificatesAsync(rejectedChain2).ConfigureAwait(false);
-                    }
-                });
+                m_rejectedWriter?.Enqueue(rejectedChain2);
 
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
             }
@@ -929,23 +910,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Saves the certificate in the rejected certificate store.
-        /// </summary>
-        private async Task SaveCertificateAsync(
-            Certificate certificate,
-            CancellationToken ct = default)
-        {
-            using var chain = new CertificateCollection { certificate };
-            await SaveCertificatesAsync(chain, ct: ct).ConfigureAwait(false);
-        }
-
-        /// <summary>
         /// Saves the certificate chain in the rejected certificate store.
-        /// Times out after 5 seconds waiting to gracefully reduce high CPU load,
-        /// unless <paramref name="isMaintenance"/> is <c>true</c> in which case it
-        /// waits indefinitely so that configuration-driven changes are always honoured.
+        /// Called by the <see cref="RejectedCertificateWriter"/> on its
+        /// dedicated processing task to serialize access to the store.
         /// </summary>
-        private async Task SaveCertificatesAsync(
+        private async Task SaveCertificatesInternalAsync(
             CertificateCollection certificateChain,
             bool isMaintenance = false,
             CancellationToken ct = default)
@@ -966,7 +935,7 @@ namespace Opc.Ua
                     .ConfigureAwait(false))
                 {
                     m_logger.LogTrace(
-                        "SaveCertificatesAsync: Timed out waiting, skip job to reduce CPU load.");
+                        "SaveCertificatesInternalAsync: Timed out waiting, skip job to reduce CPU load.");
                     return;
                 }
 
@@ -1841,8 +1810,7 @@ namespace Opc.Ua
                             "Certificate {Certificate} rejected. Reason={ServiceResult}.",
                             serverCertificate,
                             Redact.Create(serviceResult));
-                        _ = Task.Run(async () => await SaveCertificateAsync(serverCertificate)
-                            .ConfigureAwait(false));
+                        m_rejectedWriter?.Enqueue(new CertificateCollection { serverCertificate });
                     }
 
                     throw serviceResult;
@@ -1883,7 +1851,7 @@ namespace Opc.Ua
                         "Certificate {Certificate} rejected. Reason={ServiceResult}.",
                         serverCertificate,
                         Redact.Create(serviceResult));
-                    _ = Task.Run(async () => await SaveCertificateAsync(serverCertificate).ConfigureAwait(false));
+                    m_rejectedWriter?.Enqueue(new CertificateCollection { serverCertificate });
 
                     throw new ServiceResultException(serviceResult);
                 }
@@ -2261,6 +2229,122 @@ namespace Opc.Ua
         private ushort m_minimumCertificateKeySize;
         private bool m_useValidatedCertificates;
         private int m_maxRejectedCertificates;
+        private RejectedCertificateWriter m_rejectedWriter;
+
+        /// <summary>
+        /// Returns a Task that completes when all currently-enqueued
+        /// rejected certificate writes have been processed.
+        /// </summary>
+        public Task WaitForRejectedCertificatesDrainAsync()
+        {
+            return m_rejectedWriter?.WaitForDrainAsync() ?? Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Serializes rejected certificate writes through a bounded channel
+        /// and a dedicated long-running processing task.
+        /// </summary>
+        private sealed class RejectedCertificateWriter : IDisposable
+        {
+            private readonly Channel<WriteRequest> m_channel;
+            private readonly Task m_processingTask;
+            private readonly CertificateValidator m_validator;
+            private readonly ILogger m_logger;
+            private TaskCompletionSource<bool> m_drainTcs = CreateCompletedTcs();
+
+            public RejectedCertificateWriter(
+                CertificateValidator validator,
+                ILogger logger)
+            {
+                m_validator = validator;
+                m_logger = logger;
+                m_channel = Channel.CreateBounded<WriteRequest>(
+                    new BoundedChannelOptions(64)
+                    {
+                        FullMode = BoundedChannelFullMode.DropOldest,
+                        SingleReader = true
+                    });
+                m_processingTask = Task.Factory.StartNew(
+                    ProcessAsync,
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default).Unwrap();
+            }
+
+            /// <summary>
+            /// Enqueues a certificate chain to be saved to the rejected store.
+            /// The collection is owned by the writer after this call.
+            /// </summary>
+            public void Enqueue(
+                CertificateCollection chain,
+                bool isMaintenance = false)
+            {
+                var tcs = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                if (!m_channel.Writer.TryWrite(
+                    new WriteRequest(chain, isMaintenance, tcs)))
+                {
+                    chain.Dispose();
+                    m_logger.LogTrace(
+                        "Rejected certificate write queue full, dropping oldest.");
+                }
+
+                Interlocked.Exchange(ref m_drainTcs, tcs);
+            }
+
+            /// <summary>
+            /// Returns a Task that completes when the most recently
+            /// enqueued write has been processed.
+            /// </summary>
+            public Task WaitForDrainAsync()
+            {
+                return Volatile.Read(ref m_drainTcs).Task;
+            }
+
+            private async Task ProcessAsync()
+            {
+                await foreach (WriteRequest request in
+                    m_channel.Reader.ReadAllAsync().ConfigureAwait(false))
+                {
+                    try
+                    {
+                        await m_validator.SaveCertificatesInternalAsync(
+                            request.Chain,
+                            request.IsMaintenance).ConfigureAwait(false);
+                        request.Completion.TrySetResult(true);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogDebug(
+                            ex, "Failed to write rejected certificate.");
+                        request.Completion.TrySetResult(false);
+                    }
+                    finally
+                    {
+                        request.Chain.Dispose();
+                    }
+                }
+            }
+
+            public void Dispose()
+            {
+                m_channel.Writer.TryComplete();
+                m_processingTask.Wait(TimeSpan.FromSeconds(5));
+            }
+
+            private readonly record struct WriteRequest(
+                CertificateCollection Chain,
+                bool IsMaintenance,
+                TaskCompletionSource<bool> Completion);
+
+            private static TaskCompletionSource<bool> CreateCompletedTcs()
+            {
+                var tcs = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                tcs.SetResult(true);
+                return tcs;
+            }
+        }
     }
 
     /// <summary>

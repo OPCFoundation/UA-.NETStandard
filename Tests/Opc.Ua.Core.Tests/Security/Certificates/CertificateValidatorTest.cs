@@ -357,7 +357,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         serviceResultException.Message);
                 }
 
-                await Task.Delay(1000).ConfigureAwait(false);
+                await certValidator.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
                 Assert.That(
                     await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false),
                     Has.Count.EqualTo(m_appSelfSignedCerts.Count));
@@ -390,7 +390,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             certValidator.MaxRejectedCertificates = kNumberOfRejectCertsHistory;
             try
             {
-                await Task.Delay(1000).ConfigureAwait(false);
+                await certValidator.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
 
                 foreach (Certificate cert in m_appCerts)
                 {
@@ -426,7 +426,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         serviceResultException.Message);
                 }
 
-                await Task.Delay(1000).ConfigureAwait(false);
+                await certValidator.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
                 Assert.That(
                     m_caChain.Length + kNumberOfRejectCertsHistory + 1,
@@ -443,7 +443,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         serviceResultException.Message);
                 }
 
-                await Task.Delay(1000).ConfigureAwait(false);
+                await certValidator.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
                 Assert.That(certificates, Has.Count.LessThanOrEqualTo(kNumberOfRejectCertsHistory));
 
@@ -463,28 +463,26 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         serviceResultException.Message);
                 }
 
-                await Task.Delay(1000).ConfigureAwait(false);
+                await certValidator.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
                 Assert.That(certificates, Has.Count.LessThanOrEqualTo(kNumberOfRejectCertsHistory));
 
                 // test setter if overflow certs are not deleted
                 certValidator.MaxRejectedCertificates = 300;
-                await Task.Delay(1000).ConfigureAwait(false);
+                await certValidator.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
                 Assert.That(certificates, Has.Count.LessThanOrEqualTo(kNumberOfRejectCertsHistory));
 
                 // test setter if overflow certs are deleted
                 certValidator.MaxRejectedCertificates = 3;
-                // Allow pending background SaveCertificatesAsync tasks to drain
-                // before polling (they hold m_semaphore and can delay the cleanup task).
-                await Task.Delay(2000).ConfigureAwait(false);
+                await certValidator.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
                 certificates = await WaitForRejectedStoreCountAsync(
                     validator, count => count <= 3, TimeSpan.FromSeconds(60)).ConfigureAwait(false);
                 Assert.That(certificates, Has.Count.LessThanOrEqualTo(3));
 
                 // test setter if allcerts are deleted
                 certValidator.MaxRejectedCertificates = -1;
-                await Task.Delay(2000).ConfigureAwait(false);
+                await certValidator.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
                 certificates = await WaitForRejectedStoreCountAsync(
                     validator, count => count == 0, TimeSpan.FromSeconds(60)).ConfigureAwait(false);
                 Assert.That(certificates, Is.Empty);
@@ -504,8 +502,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         Is.EqualTo(StatusCodes.BadCertificateUntrusted),
                         serviceResultException.Message);
                 }
-                // Allow pending background tasks to complete before polling.
-                await Task.Delay(2000).ConfigureAwait(false);
+                await certValidator.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
                 certificates = await WaitForRejectedStoreCountAsync(
                     validator, count => count == 0, TimeSpan.FromSeconds(60)).ConfigureAwait(false);
                 Assert.That(certificates, Is.Empty);
