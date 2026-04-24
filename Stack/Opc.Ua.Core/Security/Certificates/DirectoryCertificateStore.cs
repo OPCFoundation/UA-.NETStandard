@@ -263,10 +263,9 @@ namespace Opc.Ua
                 }
 
                 m_lastDirectoryCheck = DateTime.MinValue;
-                m_cache.Set(certificate.Thumbprint, certificate);
                 m_logger.LogDebug(
                     Utils.TraceMasks.Security,
-                    "Certificate {Thumbprint} added to store and cache.",
+                    "Certificate {Thumbprint} added to store.",
                     certificate.Thumbprint);
             }
             catch (Exception ex)

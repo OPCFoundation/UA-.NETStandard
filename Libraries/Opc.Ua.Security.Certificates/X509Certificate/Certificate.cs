@@ -438,11 +438,6 @@ namespace Opc.Ua.Security.Certificates
                 return true;
             }
 
-            if (other.HasPrivateKey != HasPrivateKey)
-            {
-                return false;
-            }
-
             return string.Equals(
                 Thumbprint, other.Thumbprint,
                 StringComparison.OrdinalIgnoreCase);
@@ -457,9 +452,7 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return HashCode.Combine(
-                StringComparer.OrdinalIgnoreCase.GetHashCode(Thumbprint),
-                HasPrivateKey);
+            return StringComparer.OrdinalIgnoreCase.GetHashCode(Thumbprint);
         }
 
         /// <inheritdoc/>
