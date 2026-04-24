@@ -299,7 +299,7 @@ namespace Opc.Ua.Gds.Server
                 configuration.ApplicationCertificatesStorePath);
             using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
             {
-                CertificateCollection matchingCerts = applicationsStore
+                using CertificateCollection matchingCerts = applicationsStore
                     .FindByThumbprintAsync(applicationInstanceCertificate.Thumbprint)
                     .Result;
 

@@ -341,7 +341,7 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             return ValidateAsync(
-                new CertificateCollection { certificate.AddRef() },
+                new CertificateCollection { certificate },
                 trustList,
                 ct: ct);
         }

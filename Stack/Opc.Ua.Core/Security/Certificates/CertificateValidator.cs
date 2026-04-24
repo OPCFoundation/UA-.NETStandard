@@ -520,7 +520,11 @@ namespace Opc.Ua
                     // free.  isMaintenance=true ensures the semaphore wait never times out so
                     // that configuration-driven changes are always honoured.
                     _ = Task.Factory.StartNew(
-                        async () => await SaveCertificatesAsync(new CertificateCollection(), isMaintenance: true).ConfigureAwait(false),
+                        async () =>
+                        {
+                            using var empty = new CertificateCollection();
+                            await SaveCertificatesAsync(empty, isMaintenance: true).ConfigureAwait(false);
+                        },
                         CancellationToken.None,
                         TaskCreationOptions.LongRunning,
                         TaskScheduler.Default);
@@ -529,9 +533,10 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task ValidateAsync(Certificate certificate, CancellationToken ct)
+        public async Task ValidateAsync(Certificate certificate, CancellationToken ct)
         {
-            return ValidateAsync(new CertificateCollection { certificate }, ct);
+            var chain = new CertificateCollection { certificate };
+            await ValidateAsync(chain, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -758,12 +763,13 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate.</param>
         /// <param name="issuers">The issuers.</param>
         /// <param name="ct"></param>
-        public Task<bool> GetIssuersAsync(
+        public async Task<bool> GetIssuersAsync(
             Certificate certificate,
             List<CertificateIdentifier> issuers,
             CancellationToken ct = default)
         {
-            return GetIssuersAsync(new CertificateCollection { certificate }, issuers, ct);
+            using var chain = new CertificateCollection { certificate };
+            return await GetIssuersAsync(chain, issuers, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -797,7 +803,18 @@ namespace Opc.Ua
                     se.Result);
 
                 // save the chain in rejected store to allow to add certs to a trusted or issuer store
-                _ = Task.Run(async () => await SaveCertificatesAsync(chain).ConfigureAwait(false));
+                var rejectedChain = new CertificateCollection();
+                foreach (Certificate c in chain)
+                {
+                    rejectedChain.Add(c);
+                }
+                _ = Task.Run(async () =>
+                {
+                    using (rejectedChain)
+                    {
+                        await SaveCertificatesAsync(rejectedChain).ConfigureAwait(false);
+                    }
+                });
 
                 LogInnerServiceResults(LogLevel.Information, se.Result.InnerResult);
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
@@ -861,7 +878,18 @@ namespace Opc.Ua
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
 
                 // save the chain in rejected store to allow to add cert to a trusted or issuer store
-                _ = Task.Run(async () => await SaveCertificatesAsync(chain).ConfigureAwait(false));
+                var rejectedChain2 = new CertificateCollection();
+                foreach (Certificate c in chain)
+                {
+                    rejectedChain2.Add(c);
+                }
+                _ = Task.Run(async () =>
+                {
+                    using (rejectedChain2)
+                    {
+                        await SaveCertificatesAsync(rejectedChain2).ConfigureAwait(false);
+                    }
+                });
 
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
             }
@@ -903,11 +931,12 @@ namespace Opc.Ua
         /// <summary>
         /// Saves the certificate in the rejected certificate store.
         /// </summary>
-        private Task SaveCertificateAsync(
+        private async Task SaveCertificateAsync(
             Certificate certificate,
             CancellationToken ct = default)
         {
-            return SaveCertificatesAsync(new CertificateCollection { certificate }, ct: ct);
+            using var chain = new CertificateCollection { certificate };
+            await SaveCertificatesAsync(chain, ct: ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1012,7 +1041,7 @@ namespace Opc.Ua
                     {
                         try
                         {
-                            CertificateCollection trusted = await store
+                            using CertificateCollection trusted = await store
                                 .FindByThumbprintAsync(certificate.Thumbprint, ct)
                                 .ConfigureAwait(false);
 
@@ -1171,7 +1200,7 @@ namespace Opc.Ua
                         return (null, null);
                     }
 
-                    CertificateCollection certificates = await store.EnumerateAsync(ct)
+                    using CertificateCollection certificates = await store.EnumerateAsync(ct)
                         .ConfigureAwait(false);
 
                     for (int ii = 0; ii < certificates.Count; ii++)
@@ -1322,6 +1351,11 @@ namespace Opc.Ua
                 .ConfigureAwait(false);
 
             ServiceResult sresult = PopulateSresultWithValidationErrors(validationErrors);
+
+            foreach (Certificate key in validationErrors.Keys)
+            {
+                key.Dispose();
+            }
 
             // setup policy chain
             var policy = new X509ChainPolicy

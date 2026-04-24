@@ -396,6 +396,10 @@ namespace Opc.Ua.Client
                 m_reconnectLock.Dispose();
                 m_eccServerEphemeralKey?.Dispose();
                 m_eccServerEphemeralKey = null;
+                m_instanceCertificate?.Dispose();
+                m_instanceCertificate = null;
+                m_serverCertificate?.Dispose();
+                m_serverCertificate = null;
             }
 
             base.Dispose(disposing);

@@ -193,11 +193,11 @@ namespace Opc.Ua
                 {
                     if (entry.CertificateWithPrivateKey != null)
                     {
-                        certificates.Add(entry.CertificateWithPrivateKey.AddRef());
+                        certificates.Add(entry.CertificateWithPrivateKey);
                     }
                     else if (entry.Certificate != null)
                     {
-                        certificates.Add(entry.Certificate.AddRef());
+                        certificates.Add(entry.Certificate);
                     }
                 }
 
@@ -502,11 +502,11 @@ namespace Opc.Ua
                 {
                     if (entry.CertificateWithPrivateKey != null)
                     {
-                        certificates.Add(entry.CertificateWithPrivateKey.AddRef());
+                        certificates.Add(entry.CertificateWithPrivateKey);
                     }
                     else
                     {
-                        certificates.Add(entry.Certificate.AddRef());
+                        certificates.Add(entry.Certificate);
                     }
                 }
 
@@ -619,7 +619,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        var certificatesInFile = new CertificateCollection();
+                        CertificateCollection certificatesInFile;
                         if (file.Extension
                             .Equals(kPemExtension, StringComparison.OrdinalIgnoreCase))
                         {
@@ -629,11 +629,13 @@ namespace Opc.Ua
                         }
                         else
                         {
+                            certificatesInFile = new CertificateCollection();
                             certificatesInFile.Add(
                                 Certificate.From(
                                     X509CertificateLoader.LoadCertificateFromFile(file.FullName)));
                         }
 
+                        using (certificatesInFile)
                         foreach (Certificate cert in certificatesInFile)
                         {
                             Certificate certificate = cert;
@@ -1150,13 +1152,17 @@ namespace Opc.Ua
             {
                 try
                 {
-                    var certificatesInFile = new CertificateCollection();
+                    using var certificatesInFile = new CertificateCollection();
                     if (file.Extension
                         .Equals(kPemExtension, StringComparison.OrdinalIgnoreCase))
                     {
-                        certificatesInFile = CertificateCollection.From(
+                        X509Certificate2Collection pemCerts =
                             PEMReader.ImportPublicKeysFromPEM(
-                                File.ReadAllBytes(file.FullName)));
+                                File.ReadAllBytes(file.FullName));
+                        foreach (X509Certificate2 pemCert in pemCerts)
+                        {
+                            certificatesInFile.Add(Certificate.From(pemCert));
+                        }
                     }
                     else
                     {
@@ -1259,6 +1265,11 @@ namespace Opc.Ua
         /// </summary>
         private void ClearCertificates()
         {
+            foreach (Entry entry in m_certificates.Values)
+            {
+                entry.Certificate?.Dispose();
+                entry.CertificateWithPrivateKey?.Dispose();
+            }
             m_certificates.Clear();
         }
 

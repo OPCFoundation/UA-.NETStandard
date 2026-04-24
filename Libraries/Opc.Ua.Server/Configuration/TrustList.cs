@@ -222,7 +222,7 @@ namespace Opc.Ua.Server
 
                     if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
                     {
-                        CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
+                        using CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
                             .ConfigureAwait(false);
                         trustList.TrustedCertificates = trustList.TrustedCertificates.AddItems(
                             certificates
@@ -253,7 +253,7 @@ namespace Opc.Ua.Server
 
                     if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
                     {
-                        CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
+                        using CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
                             .ConfigureAwait(false);
                         trustList.IssuerCertificates = trustList.IssuerCertificates.AddItems(certificates
                             .Select(certificate => certificate.RawData.ToByteString()));
@@ -581,14 +581,14 @@ namespace Opc.Ua.Server
                 strm = m_strm;
             }
 
+            CertificateCollection issuerCertificates = null;
+            CertificateCollection trustedCertificates = null;
             try
             {
                 TrustListDataType trustList = DecodeTrustListData(context, strm);
                 int masks = (int)trustList.SpecifiedLists;
 
-                CertificateCollection issuerCertificates = null;
                 X509CRLCollection issuerCrls = null;
-                CertificateCollection trustedCertificates = null;
                 X509CRLCollection trustedCrls = null;
 
                 // test integrity of all CRLs
@@ -661,6 +661,9 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                issuerCertificates?.Dispose();
+                trustedCertificates?.Dispose();
+
                 lock (m_lock)
                 {
                     m_sessionId = default;
@@ -860,7 +863,7 @@ namespace Opc.Ua.Server
                             "Failed to open certificate store.");
                     }
 
-                    CertificateCollection certCollection = await store
+                    using CertificateCollection certCollection = await store
                         .FindByThumbprintAsync(thumbprint, cancellationToken)
                         .ConfigureAwait(false);
 
@@ -1032,7 +1035,7 @@ namespace Opc.Ua.Server
                             "Failed to open certificate store.");
                     }
 
-                    CertificateCollection storeCerts = await store.EnumerateAsync(cancellationToken)
+                    using CertificateCollection storeCerts = await store.EnumerateAsync(cancellationToken)
                         .ConfigureAwait(false);
                     foreach (Certificate cert in storeCerts)
                     {

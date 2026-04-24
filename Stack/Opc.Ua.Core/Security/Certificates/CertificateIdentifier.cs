@@ -42,7 +42,7 @@ namespace Opc.Ua
     /// <summary>
     /// The identifier for an X509 certificate.
     /// </summary>
-    public partial class CertificateIdentifier : IOpenStore, IFormattable
+    public partial class CertificateIdentifier : IOpenStore, IFormattable, IDisposable
     {
         /// <summary>
         /// Formats the value of the current instance using the specified format.
@@ -151,7 +151,12 @@ namespace Opc.Ua
             get => m_certificate;
             set
             {
-                m_certificate = value;
+                if (!ReferenceEquals(m_certificate, value))
+                {
+                    m_certificate?.Dispose();
+                    m_certificate = value;
+                }
+
                 if (m_certificate != null)
                 {
                     CertificateType = GetCertificateType(m_certificate);
@@ -207,6 +212,7 @@ namespace Opc.Ua
                 if (store?.SupportsLoadPrivateKey == true)
                 {
                     char[] password = passwordProvider?.GetPassword(this);
+                    Certificate oldCertificate = m_certificate;
                     m_certificate = await store
                         .LoadPrivateKeyAsync(
                             Thumbprint,
@@ -229,6 +235,11 @@ namespace Opc.Ua
                                 password,
                                 ct)
                             .ConfigureAwait(false);
+                    }
+
+                    if (!ReferenceEquals(oldCertificate, m_certificate))
+                    {
+                        oldCertificate?.Dispose();
                     }
 
                     return m_certificate;
@@ -305,6 +316,11 @@ namespace Opc.Ua
                             "Loaded a certificate with private key from store {StoreType}. " +
                             "Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).",
                             StoreType);
+                    }
+
+                    if (!ReferenceEquals(m_certificate, certificate))
+                    {
+                        m_certificate?.Dispose();
                     }
 
                     m_certificate = certificate;
@@ -535,9 +551,9 @@ namespace Opc.Ua
             // find by thumbprint.
             if (!string.IsNullOrEmpty(thumbprint))
             {
-                collection = collection.Find(X509FindType.FindByThumbprint, thumbprint, false);
+                using CertificateCollection thumbprintMatches = collection.Find(X509FindType.FindByThumbprint, thumbprint, false);
 
-                foreach (Certificate certificate in collection)
+                foreach (Certificate certificate in thumbprintMatches)
                 {
                     if (!needPrivateKey || certificate.HasPrivateKey)
                     {
@@ -844,6 +860,26 @@ namespace Opc.Ua
             Certificate certificate = m_certificate;
             m_certificate = null;
             certificate?.Dispose();
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Releases unmanaged and optionally managed resources.
+        /// </summary>
+        /// <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_certificate?.Dispose();
+                m_certificate = null;
+            }
         }
 
         /// <summary>

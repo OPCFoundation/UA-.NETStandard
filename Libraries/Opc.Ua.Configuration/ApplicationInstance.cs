@@ -1087,7 +1087,7 @@ namespace Opc.Ua.Configuration
                 try
                 {
                     // check if it already exists.
-                    CertificateCollection existingCertificates = await store
+                    using CertificateCollection existingCertificates = await store
                         .FindByThumbprintAsync(certificate.Thumbprint, ct)
                         .ConfigureAwait(false);
 
@@ -1104,7 +1104,7 @@ namespace Opc.Ua.Configuration
                         certificate.Subject);
 
                     // check for old certificate.
-                    CertificateCollection certificates = await store.EnumerateAsync(ct)
+                    using CertificateCollection certificates = await store.EnumerateAsync(ct)
                         .ConfigureAwait(false);
 
                     for (int ii = 0; ii < certificates.Count; ii++)

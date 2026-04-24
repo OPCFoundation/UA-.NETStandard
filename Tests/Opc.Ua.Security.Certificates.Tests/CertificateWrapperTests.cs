@@ -824,6 +824,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             collection.Add(cert1);
             collection.Add(cert2);
 
+            // Dispose the caller's refs (Add already AddRef'd for the collection)
+            cert1.Dispose();
+            cert2.Dispose();
+
+            // Now the collection is the sole owner
             collection.Dispose();
 
             // After disposal, accessing inner cert properties throws

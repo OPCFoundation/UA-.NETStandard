@@ -239,7 +239,7 @@ namespace Opc.Ua.Security.Certificates
             var result = new CertificateCollection(source.Count);
             foreach (Certificate cert in source)
             {
-                result.Add(cert.AddRef());
+                result.Add(cert);
             }
             return result;
         }

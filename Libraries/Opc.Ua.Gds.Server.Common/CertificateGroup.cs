@@ -146,7 +146,7 @@ namespace Opc.Ua.Gds.Server
             ICertificateStore store = AuthoritiesStore.OpenStore(m_telemetry);
             try
             {
-                CertificateCollection certificates = await store.EnumerateAsync(ct)
+                using CertificateCollection certificates = await store.EnumerateAsync(ct)
                     .ConfigureAwait(false);
                 foreach (Certificate certificate in certificates)
                 {
@@ -521,18 +521,19 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// load the authority signing key.
         /// </summary>
-        public virtual Task<Certificate> LoadSigningKeyAsync(
+        public virtual async Task<Certificate> LoadSigningKeyAsync(
             Certificate signingCertificate,
             char[] signingKeyPassword,
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
-            var certIdentifier = new CertificateIdentifier(signingCertificate)
+            using var certIdentifier = new CertificateIdentifier(signingCertificate)
             {
                 StorePath = AuthoritiesStore.StorePath,
                 StoreType = AuthoritiesStore.StoreType
             };
-            return certIdentifier.LoadPrivateKeyAsync(signingKeyPassword, null, telemetry, ct);
+            return await certIdentifier.LoadPrivateKeyAsync(signingKeyPassword, null, telemetry, ct)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -705,7 +706,7 @@ namespace Opc.Ua.Gds.Server
                         StatusCodes.BadCertificateInvalid,
                         "Cannot find issuer certificate in store.");
 
-                var certCAIdentifier = new CertificateIdentifier(certCA)
+                using var certCAIdentifier = new CertificateIdentifier(certCA)
                 {
                     StorePath = store.StorePath,
                     StoreType = store.StoreType
@@ -731,7 +732,7 @@ namespace Opc.Ua.Gds.Server
                 X509CRLCollection certCACrl = await store.EnumerateCRLsAsync(certCA, false, ct)
                     .ConfigureAwait(false);
 
-                var certificateCollection = new CertificateCollection
+                using var certificateCollection = new CertificateCollection
                 {
                     certificate
                 };
@@ -808,13 +809,13 @@ namespace Opc.Ua.Gds.Server
                         "Unable to update authority certificate in stores");
                 }
 
-                CertificateCollection certificates = await authorityStore.EnumerateAsync(ct)
+                using CertificateCollection certificates = await authorityStore.EnumerateAsync(ct)
                     .ConfigureAwait(false);
                 foreach (Certificate certificate in certificates)
                 {
                     if (X509Utils.CompareDistinguishedName(certificate.Subject, SubjectName))
                     {
-                        CertificateCollection certs = await trustedOrIssuerStore
+                        using CertificateCollection certs = await trustedOrIssuerStore
                             .FindByThumbprintAsync(certificate.Thumbprint, ct)
                             .ConfigureAwait(false);
                         if (certs.Count == 0)

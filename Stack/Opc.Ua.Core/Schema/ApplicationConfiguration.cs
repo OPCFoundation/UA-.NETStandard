@@ -1956,10 +1956,12 @@ namespace Opc.Ua
             {
                 if (value == null || value.Length == 0)
                 {
+                    m_certificate?.Dispose();
                     m_certificate = null;
                     return;
                 }
 
+                m_certificate?.Dispose();
                 m_certificate = CertificateFactory.Create(value);
                 m_subjectName = m_certificate.Subject;
                 m_thumbprint = m_certificate.Thumbprint;

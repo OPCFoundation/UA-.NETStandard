@@ -897,6 +897,9 @@ namespace Opc.Ua.Server
                         issuerStore?.Close();
                     }
 
+                    updateCertificate.IssuerCollection?.Dispose();
+                    updateCertificate.IssuerCollection = null;
+
                     Server.ReportCertificateUpdatedAuditEvent(
                         context,
                         objectId,
@@ -1135,7 +1138,7 @@ namespace Opc.Ua.Server
             {
                 if (store != null)
                 {
-                    CertificateCollection collection = store.EnumerateAsync().Result;
+                    using CertificateCollection collection = store.EnumerateAsync().Result;
                     var rawList = new List<ByteString>();
                     foreach (Certificate cert in collection)
                     {
