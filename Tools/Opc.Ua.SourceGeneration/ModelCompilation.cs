@@ -144,19 +144,17 @@ namespace Opc.Ua.SourceGeneration
                     bindingByPayload[discovery.Binding] = discovery;
                 }
 
-                Action<NodeManagerAttributeBinding, string> reportBinding =
-                    (binding, message) =>
-                    {
-                        Location loc = bindingByPayload.TryGetValue(binding, out var d) && d != null
-                            ? d.Location
-                            : Location.None;
-                        m_context.ReportDiagnostic(
-                            Diagnostic.Create(
-                                SourceGenerator.NodeManagerBindingError,
-                                loc,
-                                message));
-                    };
-
+                void reportBinding(NodeManagerAttributeBinding binding, string message)
+                {
+                    Location loc = bindingByPayload.TryGetValue(binding, out NodeManagerAttributeDiscovery d) && d != null
+                        ? d.Location
+                        : Location.None;
+                    m_context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.NodeManagerBindingError,
+                            loc,
+                            message));
+                }
 
                 // Reduce referenced model attributes to a single dictionary by
                 // model URI (with tie-break on highest version+publication date)

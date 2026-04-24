@@ -232,9 +232,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return "<unspecified>";
             }
-            string core = Major.ToString(CultureInfo.InvariantCulture) + "." +
-                          Minor.ToString(CultureInfo.InvariantCulture) + "." +
-                          Patch.ToString(CultureInfo.InvariantCulture);
+            string core = Major.ToString(CultureInfo.InvariantCulture) +
+                "." +
+                Minor.ToString(CultureInfo.InvariantCulture) +
+                "." +
+                Patch.ToString(CultureInfo.InvariantCulture);
             return IsPrerelease ? core + "-pre" : core;
         }
 

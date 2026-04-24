@@ -5,7 +5,7 @@
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <Exclude>[coverlet.*.tests?]*,[*]Coverlet.Core*,[Opc.Ua.*.Tests]*</Exclude>
+          <Exclude>[coverlet.*.tests?]*,[*]Coverlet.Core*,[Opc.Ua.*.Tests]*,[*]Opc.Ua.Mcp*</Exclude>
           <!-- [Assembly-Filter]Type-Filter -->
           <Include></Include>
           <!-- [Assembly-Filter]Type-Filter -->

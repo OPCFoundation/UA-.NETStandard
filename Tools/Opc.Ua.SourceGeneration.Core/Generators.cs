@@ -153,9 +153,13 @@ namespace Opc.Ua.SourceGeneration
                                 : "(no selector)";
                         reportBindingDiagnostic(
                             binding,
-                            "[NodeManager] on '" + binding.TargetNamespace + "." +
+                            "[NodeManager] on '" +
+                            binding.TargetNamespace +
+                            "." +
                             binding.TargetClassName +
-                            "' did not match any model design (" + selector + ").");
+                            "' did not match any model design (" +
+                            selector +
+                            ").");
                     }
                 }
             }
@@ -200,7 +204,9 @@ namespace Opc.Ua.SourceGeneration
                     string.Equals(b.Design, designName, StringComparison.OrdinalIgnoreCase));
             }
             // 3) single-design / single-binding fallback
-            if (match == null && totalDesigns == 1 && bindings.Count == 1 &&
+            if (match == null &&
+                totalDesigns == 1 &&
+                bindings.Count == 1 &&
                 string.IsNullOrEmpty(bindings[0].NamespaceUri) &&
                 string.IsNullOrEmpty(bindings[0].Design))
             {
@@ -220,7 +226,9 @@ namespace Opc.Ua.SourceGeneration
             {
                 reportBindingDiagnostic(
                     match,
-                    "[NodeManager] on '" + match.TargetNamespace + "." +
+                    "[NodeManager] on '" +
+                    match.TargetNamespace +
+                    "." +
                     match.TargetClassName +
                     "' has no NamespaceUri/Design selector but the project " +
                     "contains multiple designs. Specify NamespaceUri to " +
@@ -365,9 +373,13 @@ namespace Opc.Ua.SourceGeneration
                                 : "(no selector)";
                         reportBindingDiagnostic(
                             binding,
-                            "[NodeManager] on '" + binding.TargetNamespace + "." +
+                            "[NodeManager] on '" +
+                            binding.TargetNamespace +
+                            "." +
                             binding.TargetClassName +
-                            "' did not match any model design (" + selector + ").");
+                            "' did not match any model design (" +
+                            selector +
+                            ").");
                     }
                 }
             }
