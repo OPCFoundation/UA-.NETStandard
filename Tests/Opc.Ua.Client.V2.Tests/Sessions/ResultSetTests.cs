@@ -1,16 +1,17 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using System.Collections.Generic;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Sessions
 {
-    using System.Collections.Generic;
-    using Xunit;
-
+    [TestFixture]
     public sealed class ResultSetTests
     {
-        [Fact]
+        [Test]
         public void ResultSetConstructorShouldInitializeProperties()
         {
             // Arrange
@@ -21,19 +22,19 @@ namespace Opc.Ua.Client.Sessions
             var resultSet = new ResultSet<int>(results, errors);
 
             // Assert
-            Assert.Equal(results, resultSet.Results);
-            Assert.Equal(errors, resultSet.Errors);
+            Assert.That(resultSet.Results, Is.EqualTo(results));
+            Assert.That(resultSet.Errors, Is.EqualTo(errors));
         }
 
-        [Fact]
+        [Test]
         public void ResultSetEmptyShouldReturnEmptyResultSet()
         {
             // Act
             var emptyResultSet = ResultSet.Empty<int>();
 
             // Assert
-            Assert.Empty(emptyResultSet.Results);
-            Assert.Empty(emptyResultSet.Errors);
+            Assert.That(emptyResultSet.Results, Is.Empty);
+            Assert.That(emptyResultSet.Errors, Is.Empty);
         }
     }
 }

@@ -1,61 +1,62 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using Microsoft.Extensions.Logging;
+using Moq;
+using Opc.Ua.Client.Nodes;
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Opc.Ua;
+using System.Xml;
+using System.Linq;
+
 namespace Opc.Ua.Client.Nodes.TypeSystem
 {
-    using FluentAssertions;
-    using Microsoft.Extensions.Logging;
-    using Moq;
-    using Opc.Ua.Client.Nodes;
-    using System;
-    using System.Collections.Generic;
-    using System.Reflection;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using Xunit;
-    using Opc.Ua;
-    using System.Xml;
-    using System.Linq;
-
+    [TestFixture]
     public class DataTypeDescriptionResolverTests
     {
-        public DataTypeDescriptionResolverTests()
+        [SetUp]
+        public void SetUp()
         {
-            _nodeCacheMock = new Mock<INodeCache>();
-            _contextMock = new Mock<IServiceMessageContext>();
-            _loggerMock = new Mock<ILogger<DataTypeDescriptionResolver>>();
-            _dataTypeSystemsMock = new Mock<IDataTypeSystemManager>();
-            _factoryMock = new Mock<IEncodeableFactory>();
-            _contextMock.Setup(c => c.Factory).Returns(_factoryMock.Object);
-            _contextMock.Setup(c => c.NamespaceUris).Returns(new NamespaceTable());
+            m_nodeCacheMock = new Mock<INodeCache>();
+            m_contextMock = new Mock<IServiceMessageContext>();
+            m_loggerMock = new Mock<ILogger<DataTypeDescriptionResolver>>();
+            m_dataTypeSystemsMock = new Mock<IDataTypeSystemManager>();
+            m_factoryMock = new Mock<IEncodeableFactory>();
+            m_contextMock.Setup(c => c.Factory).Returns(m_factoryMock.Object);
+            m_contextMock.Setup(c => c.NamespaceUris).Returns(new NamespaceTable());
         }
 
-        [Fact]
+        [Test]
         public void GetInstanceIdShoudlBeInstanceIdOfFactory()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
-            _factoryMock.Setup(x => x.InstanceId).Returns(4).Verifiable(Times.Once);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
+            m_factoryMock.Setup(x => x.InstanceId).Returns(4).Verifiable(Times.Once);
 
             // Act
-            sut.InstanceId.Should().Be(4);
+            Assert.That(sut.InstanceId, Is.EqualTo(4));
 
             // Assert
-            _factoryMock.Verify();
+            m_factoryMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public void GetEncodeableTypesShouldReturnAllEncodeableTypesOfFactory()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var type = typeof(StructureValue);
             var typeId = ExpandedNodeId.Parse("i=1024");
-            _factoryMock.Setup(x => x.EncodeableTypes).Returns(new Dictionary<ExpandedNodeId, Type>
+            m_factoryMock.Setup(x => x.EncodeableTypes).Returns(new Dictionary<ExpandedNodeId, Type>
             {
                 [typeId] = type
             }).Verifiable(Times.Once);
@@ -64,32 +65,32 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var encodeableTypes = sut.EncodeableTypes;
 
             // Assert
-            encodeableTypes.Should().ContainSingle().Which.Key.Should().Be(typeId);
-            encodeableTypes.Should().ContainSingle().Which.Value.Should().Be(type);
-            _factoryMock.Verify();
+            Assert.That(encodeableTypes, Has.Exactly(1).Items).Assert.That(Which.Key, Is.EqualTo(typeId));
+            Assert.That(encodeableTypes, Has.Exactly(1).Items).Assert.That(Which.Value, Is.EqualTo(type));
+            m_factoryMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public void AddEncodeableTypeShouldAddTypeToFactory()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var systemType = typeof(StructureValue);
 
             // Act
             sut.AddEncodeableType(systemType);
 
             // Assert
-            _factoryMock.Verify(f => f.AddEncodeableType(systemType), Times.Once);
+            m_factoryMock.Verify(f => f.AddEncodeableType(systemType), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void AddEncodeableTypeShouldAddTypeWithEncodingIdToFactory()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var systemType = typeof(StructureValue);
             var encodingId = ExpandedNodeId.Parse("i=1024");
 
@@ -97,75 +98,75 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             sut.AddEncodeableType(encodingId, systemType);
 
             // Assert
-            _contextMock.Verify(c => c.Factory.AddEncodeableType(encodingId, systemType), Times.Once);
+            m_contextMock.Verify(c => c.Factory.AddEncodeableType(encodingId, systemType), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void AddEncodeableTypesShouldAddAssemblyToFactory()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var assembly = typeof(StructureValue).Assembly;
 
             // Act
             sut.AddEncodeableTypes(assembly);
 
             // Assert
-            _contextMock.Verify(c => c.Factory.AddEncodeableTypes(assembly), Times.Once);
+            m_contextMock.Verify(c => c.Factory.AddEncodeableTypes(assembly), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void AddEncodeableTypesShouldAddSystemTypesToFactory()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var systemTypes = new List<Type> { typeof(StructureValue), typeof(EnumValue) };
 
             // Act
             sut.AddEncodeableTypes(systemTypes);
 
             // Assert
-            _contextMock.Verify(c => c.Factory.AddEncodeableTypes(systemTypes), Times.Once);
+            m_contextMock.Verify(c => c.Factory.AddEncodeableTypes(systemTypes), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void AddEncodeableTypesWithAssemblyShouldAddTypesToFactory()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var assembly = Assembly.GetExecutingAssembly();
 
             // Act
             sut.AddEncodeableTypes(assembly);
 
             // Assert
-            _factoryMock.Verify(f => f.AddEncodeableTypes(assembly), Times.Once);
+            m_factoryMock.Verify(f => f.AddEncodeableTypes(assembly), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void AddEncodeableTypesWithSystemTypesShouldAddTypesToFactory()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var systemTypes = new List<Type> { typeof(StructureValue), typeof(EnumValue) };
 
             // Act
             sut.AddEncodeableTypes(systemTypes);
 
             // Assert
-            _factoryMock.Verify(f => f.AddEncodeableTypes(systemTypes), Times.Once);
+            m_factoryMock.Verify(f => f.AddEncodeableTypes(systemTypes), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void AddEncodeableTypeWithEncodingIdShouldAddTypeToFactory()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var encodingId = ExpandedNodeId.Parse("i=1004");
             var systemType = typeof(StructureValue);
 
@@ -173,65 +174,65 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             sut.AddEncodeableType(encodingId, systemType);
 
             // Assert
-            _factoryMock.Verify(f => f.AddEncodeableType(encodingId, systemType), Times.Once);
+            m_factoryMock.Verify(f => f.AddEncodeableType(encodingId, systemType), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void CloneShouldCreateShallowCopy()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var clone = sut.Clone();
 
             // Assert
-            clone.Should().BeOfType<DataTypeDescriptionResolver>();
-            clone.Should().NotBeSameAs(sut);
+            Assert.That(clone, Is.TypeOf<DataTypeDescriptionResolver>());
+            Assert.That(clone, Is.Not.SameAs(sut));
         }
 
-        [Fact]
+        [Test]
         public async Task GetDataTypeAsyncShouldReturnDataTypeNodeWhenNodeIsDataTypeNodeAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1021");
             var dataTypeNode = new DataTypeNode { NodeId = typeId };
-            _nodeCacheMock.Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+            m_nodeCacheMock.Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
 
             // Act
             var result = await sut.GetDataTypeAsync(typeId, CancellationToken.None);
 
             // Assert
-            result.Should().Be(dataTypeNode);
-            _nodeCacheMock.Verify(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(result, Is.EqualTo(dataTypeNode));
+            m_nodeCacheMock.Verify(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public async Task GetDataTypeAsyncShouldReturnDataTypeNodeWhenNodeIsEncodingNodeAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var encodingVariableId = NodeId.Parse("i=1026");
             var variableNode = new VariableNode { NodeId = encodingVariableId, DataType = DataTypeIds.String };
             var dataTypeId = NodeId.Parse("i=1028");
             var dataTypeNode = new DataTypeNode { NodeId = dataTypeId };
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     encodingVariableId,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(variableNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     encodingVariableId,
                     ReferenceTypeIds.HasEncoding,
                     true, false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([dataTypeNode]);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     dataTypeId,
                     It.IsAny<CancellationToken>()))
@@ -241,34 +242,34 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.GetDataTypeAsync(encodingVariableId, CancellationToken.None);
 
             // Assert
-            result.Should().Be(dataTypeNode);
-            _nodeCacheMock
+            Assert.That(result, Is.EqualTo(dataTypeNode));
+            m_nodeCacheMock
                 .Verify(nc => nc.GetNodeAsync(
                     It.IsAny<NodeId>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Verify(nc => nc.GetReferencesAsync(
                     encodingVariableId, ReferenceTypeIds.HasEncoding, true, false,
                     It.IsAny<CancellationToken>()), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public async Task GetDataTypeAsyncShouldReturnDataTypeNodeWhenNodeIsVariableNodeAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1022");
             var dataTypeId = NodeId.Parse("i=1023");
             var variableNode = new VariableNode { NodeId = typeId, DataType = dataTypeId };
             var dataTypeNode = new DataTypeNode { NodeId = dataTypeId };
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(variableNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(dataTypeId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
@@ -280,32 +281,32 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.GetDataTypeAsync(typeId, CancellationToken.None);
 
             // Assert
-            result.Should().Be(dataTypeNode);
-            _nodeCacheMock
+            Assert.That(result, Is.EqualTo(dataTypeNode));
+            m_nodeCacheMock
                 .Verify(nc => nc.GetNodeAsync(
                     It.IsAny<NodeId>(),
                     It.IsAny<CancellationToken>()),
                     Times.Exactly(2));
         }
 
-        [Fact]
+        [Test]
         public async Task GetDataTypeAsyncShouldReturnDataTypeNodeWhenNodeIsVariableTypeNodeAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1024");
             var dataTypeId = NodeId.Parse("i=1025");
             var variableTypeNode = new VariableTypeNode { NodeId = typeId, DataType = dataTypeId };
             var dataTypeNode = new DataTypeNode { NodeId = dataTypeId };
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(variableTypeNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(dataTypeId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
@@ -318,25 +319,25 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.GetDataTypeAsync(typeId, CancellationToken.None);
 
             // Assert
-            result.Should().Be(dataTypeNode);
-            _nodeCacheMock
+            Assert.That(result, Is.EqualTo(dataTypeNode));
+            m_nodeCacheMock
                 .Verify(nc => nc.GetNodeAsync(
                     It.IsAny<NodeId>(),
                     It.IsAny<CancellationToken>()),
                     Times.Exactly(2));
-            _nodeCacheMock.Verify();
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetDataTypeAsyncShouldReturnNullWhenNodeIsNotDataTypeNodeOrVariableNodeOrVariableTypeNodeAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1029");
             var node = new Node { NodeId = typeId };
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(node);
 
@@ -344,20 +345,20 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.GetDataTypeAsync(typeId, CancellationToken.None);
 
             // Assert
-            result.Should().BeNull();
-            _nodeCacheMock
+            Assert.That(result, Is.Null);
+            m_nodeCacheMock
                 .Verify(nc => nc.GetNodeAsync(
                     It.IsAny<NodeId>(),
                     It.IsAny<CancellationToken>()),
                     Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDescriptionShouldReturnDescriptionWhenTypeIsKnown()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1011");
             var structureDescription = StructureDescription.Create(sut, typeId,
                 new StructureDefinition(), new XmlQualifiedName(),
@@ -369,30 +370,30 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetDataTypeDescription(typeId);
 
             // Assert
-            result.Should().BeEquivalentTo(structureDescription);
+            Assert.That(result, Is.EqualTo(structureDescription));
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDescriptionShouldReturnNullWhenTypeIsUnknown()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1012");
 
             // Act
             var result = sut.GetDataTypeDescription(typeId);
 
             // Assert
-            result.Should().BeNull();
+            Assert.That(result, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public async Task GetDataTypeDescriptionAsyncShouldLoadAndReturnDescriptionWhenTypeIsUnknownAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1030");
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
@@ -408,10 +409,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
@@ -428,20 +429,20 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.GetDataTypeDescriptionAsync(typeId, CancellationToken.None);
 
             // Assert
-            result.Should().NotBeNull();
-            _nodeCacheMock
+            Assert.That(result, Is.Not.Null);
+            m_nodeCacheMock
                 .Verify(nc => nc.GetNodeAsync(
                     It.IsAny<NodeId>(),
                     It.IsAny<CancellationToken>()),
                     Times.Once);
         }
 
-        [Fact]
+        [Test]
         public async Task GetDataTypeDescriptionAsyncShouldLoadTypeFromServerWhenTypeIsUnknownAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1019");
             var structureDefinition = new StructureDefinition
             {
@@ -454,9 +455,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
 
-            _nodeCacheMock.Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+            m_nodeCacheMock.Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
-            _nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
+            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     It.IsAny<NodeId>(),
                     It.IsAny<bool>(),
@@ -468,10 +469,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.GetDataTypeDescriptionAsync(typeId, CancellationToken.None);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Should().BeAssignableTo<StructureDescription>();
-            _nodeCacheMock.Verify(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()), Times.Once);
-            _nodeCacheMock.Verify(nc => nc.GetReferencesAsync(
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Is.AssignableFrom<StructureDescription>());
+            m_nodeCacheMock.Verify(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()), Times.Once);
+            m_nodeCacheMock.Verify(nc => nc.GetReferencesAsync(
                 It.IsAny<NodeId>(),
                 It.IsAny<NodeId>(),
                 It.IsAny<bool>(),
@@ -479,12 +480,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 It.IsAny<CancellationToken>()), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public async Task GetDataTypeDescriptionAsyncShouldReturnDescriptionWhenTypeIsKnownAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1007");
             var structureDescription = StructureDescription.Create(sut, typeId, new StructureDefinition(),
                 new XmlQualifiedName(), ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null, false);
@@ -495,30 +496,30 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.GetDataTypeDescriptionAsync(typeId, CancellationToken.None);
 
             // Assert
-            result.Should().BeEquivalentTo(structureDescription);
+            Assert.That(result, Is.EqualTo(structureDescription));
         }
 
-        [Fact]
+        [Test]
         public async Task GetDataTypeDescriptionAsyncShouldReturnNullWhenTypeIsUnknownAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1008");
 
             // Act
             var result = await sut.GetDataTypeDescriptionAsync(typeId, CancellationToken.None);
 
             // Assert
-            result.Should().BeNull();
+            Assert.That(result, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public async Task GetDefinitionsAsyncShouldReturnAllDependentDefinitions1Async()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1017");
             var dependentTypeId = NodeId.Parse("i=1018");
             var structureDefinition = new StructureDefinition
@@ -544,16 +545,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.GetDefinitionsAsync(typeId, CancellationToken.None);
 
             // Assert
-            result.Should().ContainKey(typeId);
-            result.Should().ContainKey(dependentTypeId);
+            Assert.That(result, Does.ContainKey(typeId));
+            Assert.That(result, Does.ContainKey(dependentTypeId));
         }
 
-        [Fact]
+        [Test]
         public async Task GetDefinitionsAsyncShouldReturnAllDependentDefinitions2Async()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1017");
             var dependentTypeId = NodeId.Parse("i=1018");
             var structureDefinition = new StructureDefinition
@@ -575,16 +576,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.GetDefinitionsAsync(typeId, CancellationToken.None);
 
             // Assert
-            result.Should().ContainKey(typeId);
-            result.Should().ContainKey(dependentTypeId);
+            Assert.That(result, Does.ContainKey(typeId));
+            Assert.That(result, Does.ContainKey(dependentTypeId));
         }
 
-        [Fact]
+        [Test]
         public void GetEnumDescriptionShouldLoadAndReturnDescriptionWhenEnumIsUnknown()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1028");
             var dataTypeNode = new DataTypeNode
             {
@@ -595,10 +596,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
@@ -615,16 +616,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetEnumDescription(typeId);
 
             // Assert
-            result.Should().NotBeNull();
-            _nodeCacheMock.Verify(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(result, Is.Not.Null);
+            m_nodeCacheMock.Verify(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void GetEnumDescriptionShouldReturnEnumDescriptionWhenTypeIsKnown()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1006");
             var enumDescription = new EnumDescription(typeId, new EnumDefinition(), new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null, false);
@@ -635,15 +636,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetEnumDescription(typeId);
 
             // Assert
-            result.Should().BeEquivalentTo(enumDescription);
+            Assert.That(result, Is.EqualTo(enumDescription));
         }
 
-        [Fact]
+        [Test]
         public void GetStructureDescriptionShouldLoadAndReturnDescriptionWhenStructureIsUnknown()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-               _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+               m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1026");
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
@@ -662,10 +663,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
@@ -682,20 +683,20 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetStructureDescription(typeId);
 
             // Assert
-            result.Should().NotBeNull();
-            _nodeCacheMock
+            Assert.That(result, Is.Not.Null);
+            m_nodeCacheMock
                 .Verify(nc => nc.GetNodeAsync(
                     It.IsAny<NodeId>(),
                     It.IsAny<CancellationToken>()),
                     Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void GetStructureDescriptionShouldReturnStructureDescriptionWhenTypeIsKnown()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1005");
             var structureDescription = StructureDescription.Create(sut, typeId, new StructureDefinition(),
                 new XmlQualifiedName(), ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null, false);
@@ -706,30 +707,30 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetStructureDescription(typeId);
 
             // Assert
-            result.Should().BeEquivalentTo(structureDescription);
+            Assert.That(result, Is.EqualTo(structureDescription));
         }
 
-        [Fact]
+        [Test]
         public void GetSystemTypeShouldReturnNullWhenTypeIsUnknown()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1023");
 
             // Act
             var result = sut.GetSystemType(typeId);
 
             // Assert
-            result.Should().BeNull();
+            Assert.That(result, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void GetSystemTypeShouldReturnEnumValueTypeWhenTypeIsEnum()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1002");
             sut.Add(typeId, new EnumDefinition(), ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null,
                 new XmlQualifiedName(), false);
@@ -739,15 +740,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetSystemType(typeId);
 
             // Assert
-            result.Should().Be(expected);
+            Assert.That(result, Is.EqualTo(expected));
         }
 
-        [Fact]
+        [Test]
         public void GetSystemTypeShouldReturnEnumValueTypeWhenTypeIsKnownEnum()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1022");
             sut.Add(typeId, new EnumDefinition(), ExpandedNodeId.Null, ExpandedNodeId.Null,
                 ExpandedNodeId.Null, new XmlQualifiedName("TestEnum"), false);
@@ -757,15 +758,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetSystemType(typeId);
 
             // Assert
-            result.Should().Be(expected);
+            Assert.That(result, Is.EqualTo(expected));
         }
 
-        [Fact]
+        [Test]
         public void GetSystemTypeShouldReturnStructureValueTypeWhenTypeIsKnownStructure()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1021");
             var expected = typeof(StructureValue);
             sut.Add(typeId, new StructureDefinition(), ExpandedNodeId.Null, ExpandedNodeId.Null,
@@ -775,15 +776,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetSystemType(typeId);
 
             // Assert
-            result.Should().Be(expected);
+            Assert.That(result, Is.EqualTo(expected));
         }
 
-        [Fact]
+        [Test]
         public void GetSystemTypeShouldReturnStructureValueTypeWhenTypeIsStructure()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = ExpandedNodeId.Parse("i=1001");
             sut.Add(typeId, new StructureDefinition(), ExpandedNodeId.Null, ExpandedNodeId.Null,
                 ExpandedNodeId.Null, new XmlQualifiedName(), false);
@@ -793,15 +794,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetSystemType(typeId);
 
             // Assert
-            result.Should().Be(expected);
+            Assert.That(result, Is.EqualTo(expected));
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadAllDataTypeAsyncShouldLoadUnknownTypesAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1009");
             var structureDefinition = new StructureDefinition
             {
@@ -819,7 +820,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 BrowseName = "MyRecursiveStruct",
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
-            _nodeCacheMock
+            m_nodeCacheMock
                 .SetupSequence(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -829,7 +830,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .Returns(new ValueTask<IReadOnlyList<INode>>([dataTypeNode]))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([dataTypeNode]))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([]));
-            _nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
+            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
                     false,
@@ -842,19 +843,19 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.PreloadAllDataTypeAsync(CancellationToken.None);
 
             // Assert
-            result.Should().BeTrue();
+            Assert.That(result, Is.True);
             var added = sut.GetStructureDescription(typeId);
-            added.Should().NotBeNull();
-            added!.StructureDefinition.Should().BeEquivalentTo(structureDefinition);
-            _nodeCacheMock.Verify();
+            Assert.That(added, Is.Not.Null);
+            added!.Assert.That(StructureDefinition, Is.EqualTo(structureDefinition));
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadAllDataTypeAsyncReturnsFalseIfDataTypesAreMissingAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, null, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, null, m_loggerMock.Object);
 
             var typeId = NodeId.Parse("i=1009");
             var badDefinition = new StructureDefinition
@@ -867,7 +868,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 BrowseName = "BadDataType",
                 DataTypeDefinition = new ExtensionObject(badDefinition)
             };
-            _nodeCacheMock
+            m_nodeCacheMock
                 .SetupSequence(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -876,7 +877,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([dataTypeNode]))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([]));
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
@@ -890,21 +891,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.PreloadAllDataTypeAsync(CancellationToken.None);
 
             // Assert
-            result.Should().BeFalse();
+            Assert.That(result, Is.False);
             var added = sut.GetStructureDescription(typeId);
-            added.Should().BeNull();
-            _nodeCacheMock.Verify();
+            Assert.That(added, Is.Null);
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadAllDataTypeAsyncShouldNotLoadAnyDataTypesThatAreAlreadyKnownAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
-            _contextMock.Setup(c => c.Factory).Returns(new EncodeableFactory()); // Could just mock GetSystemType
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
+            m_contextMock.Setup(c => c.Factory).Returns(new EncodeableFactory()); // Could just mock GetSystemType
             var dataTypeNode = new DataTypeNode { NodeId = DataTypeIds.ReadAnnotationDataDetails };
-            _nodeCacheMock
+            m_nodeCacheMock
                 .SetupSequence(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -919,16 +920,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.PreloadAllDataTypeAsync(CancellationToken.None);
 
             // Assert
-            result.Should().BeTrue();
-            _nodeCacheMock.Verify();
+            Assert.That(result, Is.True);
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadAllDataTypeAsyncShouldPreloadAllDataTypesAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var baseTypeId = DataTypeIds.BaseDataType;
             var structureDefinition1 = new StructureDefinition
             {
@@ -955,7 +956,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var xmlEncodingId = NodeId.Parse("i=1018");
             var jsonEncodingId = NodeId.Parse("i=1019");
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .SetupSequence(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -964,7 +965,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([dataTypeNode1, dataTypeNode2])
                 .ReturnsAsync([]);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
@@ -981,8 +982,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.PreloadAllDataTypeAsync(CancellationToken.None);
 
             // Assert
-            result.Should().BeTrue();
-            _nodeCacheMock
+            Assert.That(result, Is.True);
+            m_nodeCacheMock
                 .Verify(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -992,12 +993,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     Times.AtLeast(2));
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncShouldHandleRecursiveDataTypesAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1016");
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
@@ -1018,10 +1019,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     new NodeId[] { typeId },
                     new NodeId[] { ReferenceTypeIds.HasSubtype },
@@ -1029,7 +1030,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([]);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
@@ -1050,18 +1051,18 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var description = sut.GetStructureDescription(typeId);
 
             // Assert
-            description.Should().NotBeNull();
-            Assert.NotNull(description);
-            description.BinaryEncodingId.Should().Be(binaryEncodingId);
-            description.JsonEncodingId.Should().Be(jsonEncodingId);
-            description.XmlEncodingId.Should().Be(xmlEncodingId);
+            Assert.That(description, Is.Not.Null);
+            Assert.That(description, Is.Not.Null);
+            Assert.That(description.BinaryEncodingId, Is.EqualTo(binaryEncodingId));
+            Assert.That(description.JsonEncodingId, Is.EqualTo(jsonEncodingId));
+            Assert.That(description.XmlEncodingId, Is.EqualTo(xmlEncodingId));
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Verify(nc => nc.GetNodeAsync(
                     typeId,
                     It.IsAny<CancellationToken>()),
                     Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Verify(nc => nc.GetReferencesAsync(
                     new NodeId[] { typeId },
                     new NodeId[] { ReferenceTypeIds.HasSubtype },
@@ -1071,12 +1072,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     Times.Once);
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncShouldLoadEnumDataTypeWhenTypeIsUnknownAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1009");
             var enumDefinition = new EnumDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
@@ -1087,11 +1088,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 BrowseName = "MyEnum",
                 DataTypeDefinition = new ExtensionObject(enumDefinition)
             };
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            _nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
+            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
                     new NodeId[] { typeId },
                     new NodeId[] { ReferenceTypeIds.HasSubtype },
                     false,
@@ -1099,7 +1100,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
-            _nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
+            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
                     false,
@@ -1117,21 +1118,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var enumDescription = sut.GetDataTypeDescription(typeId);
-            enumDescription.Should().BeOfType<EnumDescription>().Which.EnumDefinition.Should().Be(enumDefinition);
-            Assert.NotNull(enumDescription);
-            enumDescription.BinaryEncodingId.Should().Be(binaryEncodingId);
-            enumDescription.JsonEncodingId.Should().Be(jsonEncodingId);
-            enumDescription.XmlEncodingId.Should().Be(ExpandedNodeId.Null);
+            Assert.That(enumDescription, Is.TypeOf<EnumDescription>()).Assert.That(Which.EnumDefinition, Is.EqualTo(enumDefinition));
+            Assert.That(enumDescription, Is.Not.Null);
+            Assert.That(enumDescription.BinaryEncodingId, Is.EqualTo(binaryEncodingId));
+            Assert.That(enumDescription.JsonEncodingId, Is.EqualTo(jsonEncodingId));
+            Assert.That(enumDescription.XmlEncodingId, Is.EqualTo(ExpandedNodeId.Null));
 
-            _nodeCacheMock.Verify();
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncShouldLoadStructureDataTypeWhenTypeIsUnknownAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1009");
             var structureDefinition = new StructureDefinition
             {
@@ -1149,11 +1150,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 BrowseName = "MyRecursiveStruct",
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            _nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
+            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
                     new NodeId[] { typeId },
                     new NodeId[] { ReferenceTypeIds.HasSubtype },
                     false,
@@ -1161,7 +1162,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
-            _nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
+            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
                     false,
@@ -1174,15 +1175,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, true, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncShouldLoadSubTypesWhenIncludeSubTypesIsTrueAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1013");
             var subTypeId = NodeId.Parse("i=1014");
             var structureDefinition = new StructureDefinition
@@ -1213,11 +1214,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(subTypeStructureDefinition)
             };
 
-            _nodeCacheMock.Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
+            m_nodeCacheMock.Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
-            _nodeCacheMock.Setup(nc => nc.GetNodeAsync(subTypeId, It.IsAny<CancellationToken>()))
+            m_nodeCacheMock.Setup(nc => nc.GetNodeAsync(subTypeId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(subTypeNode);
-            _nodeCacheMock.SetupSequence(nc => nc.GetReferencesAsync(
+            m_nodeCacheMock.SetupSequence(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     new NodeId[] { ReferenceTypeIds.HasSubtype },
                     false,
@@ -1225,7 +1226,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([subTypeNode])
                 .ReturnsAsync([]);
-            _nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
+            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     false,
@@ -1237,15 +1238,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, true, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncShouldNotLoadKnownTypeAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
 
             var typeId = NodeId.Parse("i=1009");
             var dataTypeNode = new DataTypeNode
@@ -1253,26 +1254,26 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 NodeId = typeId,
                 BrowseName = "AlreadyKnown"
             };
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            _factoryMock.Setup(f => f.GetSystemType(typeId)).Returns(typeof(StructureValue));
+            m_factoryMock.Setup(f => f.GetSystemType(typeId)).Returns(typeof(StructureValue));
 
             // Act
             await sut.PreloadDataTypeAsync(typeId, false, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
-            _factoryMock.Verify();
+            m_nodeCacheMock.Verify();
+            m_factoryMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncShouldNotLoadSubTypesWhenIncludeSubTypesIsFalseAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1015");
             var structureDefinition = new StructureDefinition
             {
@@ -1291,10 +1292,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
@@ -1308,11 +1309,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, false, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Verify(nc => nc.GetNodeAsync(
                     typeId,
                     It.IsAny<CancellationToken>()), Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Verify(nc => nc.GetReferencesAsync(
                     new NodeId[] { typeId },
                     new NodeId[] { ReferenceTypeIds.HasSubtype },
@@ -1321,40 +1322,40 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()), Times.Never);
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncShouldNotLoadUnknownTypesWithSubtypesAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
 
             // Act
             await sut.PreloadDataTypeAsync(DataTypeIds.ReadAnnotationDataDetails, true, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncShouldNotLoadUnknownTypesWithoutSubtypesAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
 
             // Act
             await sut.PreloadDataTypeAsync(DataTypeIds.ReadAnnotationDataDetails, false, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncShouldPreloadDataTypeOfVariableAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1031");
             var dataTypeNode = new DataTypeNode
             {
@@ -1368,13 +1369,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataType = typeId
             };
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .SetupSequence(nc => nc.GetNodeAsync(
                     It.IsAny<NodeId>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(variable)
                 .ReturnsAsync(dataTypeNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
@@ -1382,7 +1383,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([]);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
@@ -1395,16 +1396,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, false, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncShouldPreloadDataTypeOfVariableAndSkipKnownFieldDataTypesAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
-            _factoryMock.Setup(e => e.GetSystemType(DataTypeIds.ReadValueId)).Returns(typeof(ReadValueId));
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
+            m_factoryMock.Setup(e => e.GetSystemType(DataTypeIds.ReadValueId)).Returns(typeof(ReadValueId));
             var typeId = NodeId.Parse("i=1031");
             var structureDefinition = new StructureDefinition
             {
@@ -1421,13 +1422,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 NodeId = NodeId.Parse("i=1032"),
                 DataType = typeId
             };
-            _nodeCacheMock
+            m_nodeCacheMock
                 .SetupSequence(nc => nc.GetNodeAsync(
                     It.IsAny<NodeId>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(variable)
                 .ReturnsAsync(dataTypeNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
@@ -1436,7 +1437,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
@@ -1450,15 +1451,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, false, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncShouldPreloadSubTypesWhenIncludeSubTypesIsTrueAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1032");
             var subTypeId = NodeId.Parse("i=1033");
             var structureDefinition = new StructureDefinition
@@ -1490,17 +1491,17 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     It.Is<NodeId>(id => id == typeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     subTypeId,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(subTypeNode);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .SetupSequence(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -1509,7 +1510,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([subTypeNode])
                 .ReturnsAsync([]);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
@@ -1526,7 +1527,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, true, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Verify(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -1536,12 +1537,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     Times.Exactly(2));
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncShouldPreloadSubTypesWhenStructureCanContainThemAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1032");
             var subTypeId = NodeId.Parse("i=1033");
             var structureDefinition = new StructureDefinition
@@ -1575,13 +1576,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     It.Is<NodeId>(id => id == typeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Exactly(5));
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.Is<IReadOnlyList<NodeId>>(i => i.Count == 1 && i.Contains(typeId)),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -1590,7 +1591,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([subTypeNode])
                 .Verifiable(Times.Exactly(4));
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.Is<IReadOnlyList<NodeId>>(i => !i.Contains(typeId)),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -1599,7 +1600,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Exactly(4));
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     ReferenceTypeIds.HasEncoding,
@@ -1616,15 +1617,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, false, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadDataTypeAsyncDoesNotAddMalformedTypesAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, null, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, null, m_loggerMock.Object);
 
             var typeId = NodeId.Parse("i=1009");
             var badDefinition = new StructureDefinition
@@ -1637,13 +1638,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 BrowseName = "BadDataType",
                 DataTypeDefinition = new ExtensionObject(badDefinition)
             };
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     It.Is<NodeId>(id => id == typeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -1652,7 +1653,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([]))
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
@@ -1667,16 +1668,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var added = sut.GetDataTypeDescription(typeId);
-            added.Should().BeNull();
-            _nodeCacheMock.Verify();
+            Assert.That(added, Is.Null);
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadStructureDataTypeAsyncShouldFallbackToLegacyTypeSystemIfDataTypeIsNotReadableAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
 
             var typeId = NodeId.Parse("i=1009");
             var dataTypeNode = new DataTypeNode
@@ -1688,13 +1689,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var xmlDefinition = new StructureDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     It.Is<NodeId>(id => id == typeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -1703,7 +1704,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([]))
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
@@ -1716,7 +1717,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultBinary,
                     typeId,
@@ -1724,7 +1725,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .ReturnsAsync(new DictionaryDataTypeDefinition(binaryDefinition,
                     new XmlQualifiedName(), binaryEncodingId))
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultXml,
                     typeId,
@@ -1737,25 +1738,25 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, true, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
-            _dataTypeSystemsMock.Verify();
+            m_nodeCacheMock.Verify();
+            m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            type.Should().BeOfType<StructureDescription.Structure>()
-                .Which.StructureDefinition.Should().Be(binaryDefinition);
+            Assert.That(type, Is.TypeOf<StructureDescription.Structure>())
+                .Assert.That(Which.StructureDefinition, Is.EqualTo(binaryDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            binary.Should().BeOfType<StructureDescription.Structure>()
-                .Which.StructureDefinition.Should().Be(binaryDefinition);
+            Assert.That(binary, Is.TypeOf<StructureDescription.Structure>())
+                .Assert.That(Which.StructureDefinition, Is.EqualTo(binaryDefinition));
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            xml.Should().BeOfType<StructureDescription.Structure>()
-                .Which.StructureDefinition.Should().Be(xmlDefinition);
+            Assert.That(xml, Is.TypeOf<StructureDescription.Structure>())
+                .Assert.That(Which.StructureDefinition, Is.EqualTo(xmlDefinition));
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadStructureDataTypeAsyncShouldFallbackToLegacyTypeSystemIfDataTypeIsNotReadableJustBinaryAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
 
             var typeId = NodeId.Parse("i=1009");
             var dataTypeNode = new DataTypeNode
@@ -1766,13 +1767,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var binaryDefinition = new StructureDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     It.Is<NodeId>(id => id == typeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -1781,7 +1782,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([]))
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
@@ -1794,7 +1795,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultBinary,
                     typeId,
@@ -1802,7 +1803,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .ReturnsAsync(new DictionaryDataTypeDefinition(binaryDefinition,
                     new XmlQualifiedName(), binaryEncodingId))
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultXml,
                     typeId,
@@ -1814,25 +1815,25 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, true, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
-            _dataTypeSystemsMock.Verify();
+            m_nodeCacheMock.Verify();
+            m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            type.Should().BeOfType<StructureDescription.Structure>()
-                .Which.StructureDefinition.Should().Be(binaryDefinition);
+            Assert.That(type, Is.TypeOf<StructureDescription.Structure>())
+                .Assert.That(Which.StructureDefinition, Is.EqualTo(binaryDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            binary.Should().BeOfType<StructureDescription.Structure>()
-                .Which.StructureDefinition.Should().Be(binaryDefinition);
+            Assert.That(binary, Is.TypeOf<StructureDescription.Structure>())
+                .Assert.That(Which.StructureDefinition, Is.EqualTo(binaryDefinition));
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            xml.Should().BeOfType<StructureDescription.Structure>()
-                .Which.StructureDefinition.Should().Be(binaryDefinition);
+            Assert.That(xml, Is.TypeOf<StructureDescription.Structure>())
+                .Assert.That(Which.StructureDefinition, Is.EqualTo(binaryDefinition));
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadStructureDataTypeAsyncShouldFallbackToLegacyTypeSystemIfDataTypeIsNotReadableJustXmlAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
 
             var typeId = NodeId.Parse("i=1009");
             var dataTypeNode = new DataTypeNode
@@ -1843,13 +1844,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var xmlDefinition = new StructureDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     It.Is<NodeId>(id => id == typeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -1858,7 +1859,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([]))
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
@@ -1871,7 +1872,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultXml,
                     typeId,
@@ -1879,7 +1880,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .ReturnsAsync(new DictionaryDataTypeDefinition(xmlDefinition,
                     new XmlQualifiedName(), binaryEncodingId))
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultBinary,
                     typeId,
@@ -1891,25 +1892,25 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, true, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
-            _dataTypeSystemsMock.Verify();
+            m_nodeCacheMock.Verify();
+            m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            type.Should().BeOfType<StructureDescription.Structure>()
-                .Which.StructureDefinition.Should().Be(xmlDefinition);
+            Assert.That(type, Is.TypeOf<StructureDescription.Structure>())
+                .Assert.That(Which.StructureDefinition, Is.EqualTo(xmlDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            binary.Should().BeOfType<StructureDescription.Structure>()
-                .Which.StructureDefinition.Should().Be(xmlDefinition);
+            Assert.That(binary, Is.TypeOf<StructureDescription.Structure>())
+                .Assert.That(Which.StructureDefinition, Is.EqualTo(xmlDefinition));
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            xml.Should().BeOfType<StructureDescription.Structure>()
-                .Which.StructureDefinition.Should().Be(xmlDefinition);
+            Assert.That(xml, Is.TypeOf<StructureDescription.Structure>())
+                .Assert.That(Which.StructureDefinition, Is.EqualTo(xmlDefinition));
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadEnumDataTypeAsyncShouldFallbackToLegacyTypeSystemIfDataTypeIsNotReadableAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
 
             var typeId = NodeId.Parse("i=1009");
             var dataTypeNode = new DataTypeNode
@@ -1921,13 +1922,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var xmlDefinition = new EnumDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     It.Is<NodeId>(id => id == typeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -1936,7 +1937,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([]))
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
@@ -1949,7 +1950,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultBinary,
                     typeId,
@@ -1957,7 +1958,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .ReturnsAsync(new DictionaryDataTypeDefinition(binaryDefinition,
                     new XmlQualifiedName(), binaryEncodingId))
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultXml,
                     typeId,
@@ -1970,25 +1971,25 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, true, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
-            _dataTypeSystemsMock.Verify();
+            m_nodeCacheMock.Verify();
+            m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            type.Should().BeOfType<EnumDescription>()
-                .Which.EnumDefinition.Should().Be(binaryDefinition);
+            Assert.That(type, Is.TypeOf<EnumDescription>())
+                .Assert.That(Which.EnumDefinition, Is.EqualTo(binaryDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            binary.Should().BeOfType<EnumDescription>()
-                .Which.EnumDefinition.Should().Be(binaryDefinition);
+            Assert.That(binary, Is.TypeOf<EnumDescription>())
+                .Assert.That(Which.EnumDefinition, Is.EqualTo(binaryDefinition));
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            xml.Should().BeOfType<EnumDescription>()
-                .Which.EnumDefinition.Should().Be(xmlDefinition);
+            Assert.That(xml, Is.TypeOf<EnumDescription>())
+                .Assert.That(Which.EnumDefinition, Is.EqualTo(xmlDefinition));
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadEnumDataTypeAsyncShouldFallbackToLegacyTypeSystemIfDataTypeIsNotReadableJustBinaryAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
 
             var typeId = NodeId.Parse("i=1009");
             var dataTypeNode = new DataTypeNode
@@ -1999,13 +2000,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var binaryDefinition = new EnumDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     It.Is<NodeId>(id => id == typeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -2014,7 +2015,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([]))
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
@@ -2027,7 +2028,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultBinary,
                     typeId,
@@ -2035,7 +2036,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .ReturnsAsync(new DictionaryDataTypeDefinition(binaryDefinition,
                     new XmlQualifiedName(), binaryEncodingId))
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultXml,
                     typeId,
@@ -2047,25 +2048,25 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, true, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
-            _dataTypeSystemsMock.Verify();
+            m_nodeCacheMock.Verify();
+            m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            type.Should().BeOfType<EnumDescription>()
-                .Which.EnumDefinition.Should().Be(binaryDefinition);
+            Assert.That(type, Is.TypeOf<EnumDescription>())
+                .Assert.That(Which.EnumDefinition, Is.EqualTo(binaryDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            binary.Should().BeOfType<EnumDescription>()
-                .Which.EnumDefinition.Should().Be(binaryDefinition);
+            Assert.That(binary, Is.TypeOf<EnumDescription>())
+                .Assert.That(Which.EnumDefinition, Is.EqualTo(binaryDefinition));
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            xml.Should().BeOfType<EnumDescription>()
-                .Which.EnumDefinition.Should().Be(binaryDefinition);
+            Assert.That(xml, Is.TypeOf<EnumDescription>())
+                .Assert.That(Which.EnumDefinition, Is.EqualTo(binaryDefinition));
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadEnumDataTypeAsyncShouldFallbackToLegacyTypeSystemIfDataTypeIsNotReadableJustXmlAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
 
             var typeId = NodeId.Parse("i=1009");
             var dataTypeNode = new DataTypeNode
@@ -2076,13 +2077,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var xmlDefinition = new EnumDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     It.Is<NodeId>(id => id == typeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -2091,7 +2092,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([]))
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
@@ -2104,7 +2105,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultXml,
                     typeId,
@@ -2112,7 +2113,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .ReturnsAsync(new DictionaryDataTypeDefinition(xmlDefinition,
                     new XmlQualifiedName(), binaryEncodingId))
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultBinary,
                     typeId,
@@ -2124,25 +2125,25 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, true, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
-            _dataTypeSystemsMock.Verify();
+            m_nodeCacheMock.Verify();
+            m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            type.Should().BeOfType<EnumDescription>()
-                .Which.EnumDefinition.Should().Be(xmlDefinition);
+            Assert.That(type, Is.TypeOf<EnumDescription>())
+                .Assert.That(Which.EnumDefinition, Is.EqualTo(xmlDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            binary.Should().BeOfType<EnumDescription>()
-                .Which.EnumDefinition.Should().Be(xmlDefinition);
+            Assert.That(binary, Is.TypeOf<EnumDescription>())
+                .Assert.That(Which.EnumDefinition, Is.EqualTo(xmlDefinition));
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            xml.Should().BeOfType<EnumDescription>()
-                .Which.EnumDefinition.Should().Be(xmlDefinition);
+            Assert.That(xml, Is.TypeOf<EnumDescription>())
+                .Assert.That(Which.EnumDefinition, Is.EqualTo(xmlDefinition));
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadEnumDataTypeAsyncShouldFallbackToLegacyTypeSystemUsesXmlDefinitionEvenWithoutXmlEncodingIdAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
 
             var typeId = NodeId.Parse("i=1009");
             var dataTypeNode = new DataTypeNode
@@ -2152,13 +2153,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             };
             var xmlDefinition = new EnumDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     It.Is<NodeId>(id => id == typeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -2167,7 +2168,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([]))
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
@@ -2179,7 +2180,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId }
                 ])
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultXml,
                     typeId,
@@ -2187,7 +2188,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .ReturnsAsync(new DictionaryDataTypeDefinition(xmlDefinition,
                     new XmlQualifiedName(), binaryEncodingId))
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultBinary,
                     typeId,
@@ -2199,22 +2200,22 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, true, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
-            _dataTypeSystemsMock.Verify();
+            m_nodeCacheMock.Verify();
+            m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            type.Should().BeOfType<EnumDescription>()
-                .Which.EnumDefinition.Should().Be(xmlDefinition);
+            Assert.That(type, Is.TypeOf<EnumDescription>())
+                .Assert.That(Which.EnumDefinition, Is.EqualTo(xmlDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            binary.Should().BeOfType<EnumDescription>()
-                .Which.EnumDefinition.Should().Be(xmlDefinition);
+            Assert.That(binary, Is.TypeOf<EnumDescription>())
+                .Assert.That(Which.EnumDefinition, Is.EqualTo(xmlDefinition));
         }
 
-        [Fact]
+        [Test]
         public async Task PreloadEnumDataTypeAsyncShouldFallbackToLegacyTypeSystemAndFinallyFailWithUnknownTypeAsync()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
 
             var typeId = NodeId.Parse("i=1009");
             var dataTypeNode = new DataTypeNode
@@ -2224,13 +2225,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             };
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(
                     It.Is<NodeId>(id => id == typeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
@@ -2239,7 +2240,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IReadOnlyList<INode>>([]))
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     typeId,
                     ReferenceTypeIds.HasEncoding,
@@ -2252,14 +2253,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultXml,
                     typeId,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync((DictionaryDataTypeDefinition?)null)
                 .Verifiable(Times.Once);
-            _dataTypeSystemsMock
+            m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
                     BrowseNames.DefaultBinary,
                     typeId,
@@ -2271,22 +2272,22 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.PreloadDataTypeAsync(typeId, true, CancellationToken.None);
 
             // Assert
-            _nodeCacheMock.Verify();
-            _dataTypeSystemsMock.Verify();
+            m_nodeCacheMock.Verify();
+            m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            type.Should().BeNull();
+            Assert.That(type, Is.Null);
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            binary.Should().BeNull();
+            Assert.That(binary, Is.Null);
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            xml.Should().BeNull();
+            Assert.That(xml, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDefinitionShouldReturnEnumDefinitionWhenBodyIsEnumDefinitionWithValidFields()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var enumFields = new EnumFieldCollection
             {
                 new EnumField { Name = "Value1", Value = 1 },
@@ -2303,15 +2304,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetDataTypeDefinition(dataTypeNode);
 
             // Assert
-            result.Should().Be(enumDefinition);
+            Assert.That(result, Is.EqualTo(enumDefinition));
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDefinitionShouldReturnEnumDefinitionWhenBodyIsEnumDefinitionWithEmptyFields()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var enumDefinition = new EnumDefinition { Fields = [] };
             var dataTypeNode = new DataTypeNode
             {
@@ -2323,15 +2324,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetDataTypeDefinition(dataTypeNode);
 
             // Assert
-            result.Should().Be(enumDefinition);
+            Assert.That(result, Is.EqualTo(enumDefinition));
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDefinitionShouldReturnEnumDefinitionWhenBodyIsEnumDefinitionWithDuplicateFieldNames()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var enumFields = new EnumFieldCollection
             {
                 new EnumField { Name = "Duplicate", Value = 1 },
@@ -2348,15 +2349,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetDataTypeDefinition(dataTypeNode);
 
             // Assert
-            result.Should().Be(enumDefinition);
+            Assert.That(result, Is.EqualTo(enumDefinition));
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDefinitionShouldReturnStructureDefinitionWhenBodyIsStructureDefinitionWithValidFields()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var structureFields = new StructureFieldCollection
             {
                 new StructureField { Name = "Field1", DataType = new NodeId(2), ValueRank = ValueRanks.Scalar },
@@ -2377,15 +2378,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetDataTypeDefinition(dataTypeNode);
 
             // Assert
-            result.Should().Be(structureDefinition);
+            Assert.That(result, Is.EqualTo(structureDefinition));
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDefinitionShouldReturnStructureDefinitionWhenBodyIsStructureDefinitionWithEmptyFields()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var structureDefinition = new StructureDefinition
             {
                 Fields = [],
@@ -2401,15 +2402,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetDataTypeDefinition(dataTypeNode);
 
             // Assert
-            result.Should().Be(structureDefinition);
+            Assert.That(result, Is.EqualTo(structureDefinition));
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDefinitionShouldReturnNullWhenStructureDefinitionHasInvalidStructureType()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var structureDefinition = new StructureDefinition
             {
                 StructureType = (StructureType)999, // Invalid structure type
@@ -2425,15 +2426,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetDataTypeDefinition(dataTypeNode);
 
             // Assert
-            result.Should().BeNull();
+            Assert.That(result, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDefinitionShouldReturnNullWhenStructureDefinitionFieldHasMissingName()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var structureFields = new StructureFieldCollection
             {
                 new StructureField { Name = null, DataType = new NodeId(2), ValueRank = ValueRanks.Scalar }
@@ -2453,15 +2454,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetDataTypeDefinition(dataTypeNode);
 
             // Assert
-            result.Should().BeNull();
+            Assert.That(result, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDefinitionShouldReturnNullWhenStructureDefinitionFieldHasMissingDataType()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var structureFields = new StructureFieldCollection
             {
                 new StructureField { Name = "Field1", DataType = NodeId.Null, ValueRank = ValueRanks.Scalar }
@@ -2481,15 +2482,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetDataTypeDefinition(dataTypeNode);
 
             // Assert
-            result.Should().BeNull();
+            Assert.That(result, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDefinitionShouldReturnStructureDefinitionWhenBodyIsStructureDefinitionWithDuplicateFieldNames()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var structureFields = new StructureFieldCollection
             {
                 new StructureField { Name = "Duplicate", DataType = new NodeId(2), ValueRank = ValueRanks.Scalar },
@@ -2506,15 +2507,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetDataTypeDefinition(dataTypeNode);
 
             // Assert
-            result.Should().Be(structureDefinition);
+            Assert.That(result, Is.EqualTo(structureDefinition));
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDefinitionShouldReturnNullWhenDataTypeDefinitionIsNull()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = new NodeId(1),
@@ -2525,15 +2526,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetDataTypeDefinition(dataTypeNode);
 
             // Assert
-            result.Should().BeNull();
+            Assert.That(result, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDefinitionShouldReturnNullWhenDataTypeDefinitionBodyIsNull()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = new NodeId(1),
@@ -2544,15 +2545,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = sut.GetDataTypeDefinition(dataTypeNode);
 
             // Assert
-            result.Should().BeNull();
+            Assert.That(result, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void GetDataTypeDefinitionShouldThrowExceptionWhenBodyIsUnsupportedType()
         {
             // Arrange
             var sut = new DataTypeDescriptionResolver(
-                _nodeCacheMock.Object, _contextMock.Object, _dataTypeSystemsMock.Object, _loggerMock.Object);
+                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var unsupportedDefinition = new ReadValueId(); // Unsupported type
             var dataTypeNode = new DataTypeNode
             {
@@ -2564,14 +2565,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Action act = () => sut.GetDataTypeDefinition(dataTypeNode);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*Data type definition information provided by server is not valid*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*Data type definition information provided by server is not valid*"));
         }
 
-        private readonly Mock<IServiceMessageContext> _contextMock;
-        private readonly Mock<IDataTypeSystemManager> _dataTypeSystemsMock;
-        private readonly Mock<IEncodeableFactory> _factoryMock;
-        private readonly Mock<ILogger<DataTypeDescriptionResolver>> _loggerMock;
-        private readonly Mock<INodeCache> _nodeCacheMock;
+        private Mock<IServiceMessageContext> m_contextMock;
+        private Mock<IDataTypeSystemManager> m_dataTypeSystemsMock;
+        private Mock<IEncodeableFactory> m_factoryMock;
+        private Mock<ILogger<DataTypeDescriptionResolver>> m_loggerMock;
+        private Mock<INodeCache> m_nodeCacheMock;
     }
 }

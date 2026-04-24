@@ -1,24 +1,24 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using Moq;
+using System;
+using System.Collections.Generic;
+using System.Xml;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Nodes.TypeSystem
 {
-    using FluentAssertions;
-    using Moq;
-    using System;
-    using System.Collections.Generic;
-    using System.Xml;
-    using Xunit;
-
+    [TestFixture]
     public class StructureDescriptionTests
     {
-        private readonly Mock<IDataTypeDescriptionResolver> _mockedTypeSystem;
+        private readonly Mock<IDataTypeDescriptionResolver> m_mockedTypeSystem;
 
-        public StructureDescriptionTests() => _mockedTypeSystem = new Mock<IDataTypeDescriptionResolver>();
+        public StructureDescriptionTests() => m_mockedTypeSystem = new Mock<IDataTypeDescriptionResolver>();
 
-        [Fact]
+        [Test]
         public void StructureDescriptionDecodeJsonShouldReturnValues()
         {
             // Arrange
@@ -34,7 +34,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             };
 
             var structureDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -44,14 +44,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = structureDescription.Decode(jsonDecoder);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Should().HaveCount(2);
-            Assert.NotNull(result);
-            result[0].Should().Be(1);
-            result[1].Should().Be(2);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result[0], Is.EqualTo(1));
+            Assert.That(result[1], Is.EqualTo(2));
         }
 
-        [Fact]
+        [Test]
         public void StructureDescriptionDecodeShouldReturnValues()
         {
             // Arrange
@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             };
 
             var structureDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -77,14 +77,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = structureDescription.Decode(binaryDecoder);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Should().HaveCount(2);
-            Assert.NotNull(result);
-            result[0].Should().Be(1);
-            result[1].Should().Be(2);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result[0], Is.EqualTo(1));
+            Assert.That(result[1], Is.EqualTo(2));
         }
 
-        [Fact]
+        [Test]
         public void StructureDescriptionEncodeJsonShouldEncodeValuesInReversibleEncoding()
         {
             // Arrange
@@ -99,7 +99,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var structureDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -111,11 +111,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().Contain("\"Field1\":1");
-            json.Should().Contain("\"Field2\":2");
+            Assert.That(json, Does.Contain("\"Field1\":1"));
+            Assert.That(json, Does.Contain("\"Field2\":2"));
         }
 
-        [Fact]
+        [Test]
         public void StructureDescriptionEncodeShouldEncodeValues()
         {
             // Arrange
@@ -130,7 +130,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var structureDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -142,10 +142,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var encodedBytes = binaryEncoder.CloseAndReturnBuffer();
-            encodedBytes.Should().Equal([1, 0, 0, 0, 2, 0, 0, 0]);
+            Assert.That(encodedBytes, Is.EqualTo([1, 0, 0, 0, 2, 0, 0, 0]));
         }
 
-        [Fact]
+        [Test]
         public void StructureDescriptionEncodeWithInvalidValuesShouldThrowException()
         {
             // Arrange
@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var structureDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -171,11 +171,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Action act = () => structureDescription.Encode(binaryEncoder, values);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Not enough values for all fields.");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Not enough values for all fields."));
         }
 
-        [Fact]
+        [Test]
         public void StructureDescriptionNullInstanceShouldThrowExceptionOnDecode()
         {
             // Arrange
@@ -185,11 +185,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Action act = () => nullStructureDescription.Decode(null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Data type not found");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Data type not found"));
         }
 
-        [Fact]
+        [Test]
         public void StructureDescriptionNullInstanceShouldThrowExceptionOnEncode()
         {
             // Arrange
@@ -199,11 +199,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Action act = () => nullStructureDescription.Encode(null!, null);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Data type not found");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Data type not found"));
         }
 
-        [Fact]
+        [Test]
         public void StructureWithOptionalFieldsDecodeJsonShouldReturnValues()
         {
             // Arrange
@@ -218,7 +218,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -228,15 +228,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = structureWithOptionalFieldsDescription.Decode(jsonDecoder);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Should().HaveCount(3);
-            Assert.NotNull(result);
-            result[0].Should().Be(1u);
-            result[1].Should().BeNull();
-            result[2].Should().Be(2);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Has.Count.EqualTo(3));
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result[0], Is.EqualTo(1u));
+            Assert.That(result[1], Is.Null);
+            Assert.That(result[2], Is.EqualTo(2));
         }
 
-        [Fact]
+        [Test]
         public void StructureWithOptionalFieldsDecodeShouldReturnValues()
         {
             // Arrange
@@ -251,7 +251,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -261,15 +261,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = structureWithOptionalFieldsDescription.Decode(binaryDecoder);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Should().HaveCount(3);
-            Assert.NotNull(result);
-            result[0].Should().Be(1u);
-            result[1].Should().BeNull();
-            result[2].Should().Be(2);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Has.Count.EqualTo(3));
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result[0], Is.EqualTo(1u));
+            Assert.That(result[1], Is.Null);
+            Assert.That(result[2], Is.EqualTo(2));
         }
 
-        [Fact]
+        [Test]
         public void StructureWithOptionalFieldsDecodeWithMissingEncodingMaskShouldThrowException()
         {
             // Arrange
@@ -284,7 +284,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -294,11 +294,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Action act = () => structureWithOptionalFieldsDescription.Decode(binaryDecoder);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
+            Assert.Throws<ServiceResultException>(() => act());
                 .Which.Message.Contains("end of stream", StringComparison.InvariantCulture);
         }
 
-        [Fact]
+        [Test]
         public void StructureWithOptionalFieldsEncodeJsonShouldEncodeValuesInNonReversibleEncoding()
         {
             // Arrange
@@ -313,7 +313,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -325,11 +325,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().NotContain("\"EncodingMask\":1");
-            json.Should().Contain("\"Field2\":2");
+            Assert.That(json, Does.Not.Contain("\"EncodingMask\":1"));
+            Assert.That(json, Does.Contain("\"Field2\":2"));
         }
 
-        [Fact]
+        [Test]
         public void StructureWithOptionalFieldsEncodeJsonShouldEncodeValuesInReversibleEncoding()
         {
             // Arrange
@@ -344,7 +344,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -356,11 +356,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().Contain("\"EncodingMask\":1");
-            json.Should().Contain("\"Field2\":2");
+            Assert.That(json, Does.Contain("\"EncodingMask\":1"));
+            Assert.That(json, Does.Contain("\"Field2\":2"));
         }
 
-        [Fact]
+        [Test]
         public void StructureWithOptionalFieldsEncodeJsonWithMissingEncodingMaskShouldThrowException()
         {
             // Arrange
@@ -375,7 +375,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -386,11 +386,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Action act = () => structureWithOptionalFieldsDescription.Encode(jsonEncoder, values);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Encoding mask missing or less values than expected");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Encoding mask missing or less values than expected"));
         }
 
-        [Fact]
+        [Test]
         public void StructureWithOptionalFieldsEncodeShouldEncodeValues()
         {
             // Arrange
@@ -405,7 +405,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -417,10 +417,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var encodedBytes = binaryEncoder.CloseAndReturnBuffer();
-            encodedBytes.Should().Equal([1, 0, 0, 0, 2, 0, 0, 0]);
+            Assert.That(encodedBytes, Is.EqualTo([1, 0, 0, 0, 2, 0, 0, 0]));
         }
 
-        [Fact]
+        [Test]
         public void StructureWithOptionalFieldsEncodeWithMissingEncodingMaskShouldThrowException()
         {
             // Arrange
@@ -435,7 +435,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -446,11 +446,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Action act = () => structureWithOptionalFieldsDescription.Encode(binaryEncoder, values);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Encoding mask missing or less values than expected");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Encoding mask missing or less values than expected"));
         }
 
-        [Fact]
+        [Test]
         public void UnionDescriptionDecodeJsonShouldReturnValues()
         {
             // Arrange
@@ -467,18 +467,18 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName("ssss"), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            unionDescription.StructureDefinition.StructureType.Should().Be(StructureType.Union);
-            unionDescription.XmlName.Name.Should().Be("ssss");
-            unionDescription.BinaryEncodingId.Should().Be(ExpandedNodeId.Null);
-            unionDescription.JsonEncodingId.Should().Be(ExpandedNodeId.Null);
-            unionDescription.XmlEncodingId.Should().Be(ExpandedNodeId.Null);
-            unionDescription.TypeId.Should().Be(new ExpandedNodeId(333));
-            unionDescription.IsAbstract.Should().BeFalse();
-            unionDescription.FieldsCanHaveSubtypedValues.Should().BeFalse();
+            Assert.That(unionDescription.StructureDefinition.StructureType, Is.EqualTo(StructureType.Union));
+            Assert.That(unionDescription.XmlName.Name, Is.EqualTo("ssss"));
+            Assert.That(unionDescription.BinaryEncodingId, Is.EqualTo(ExpandedNodeId.Null));
+            Assert.That(unionDescription.JsonEncodingId, Is.EqualTo(ExpandedNodeId.Null));
+            Assert.That(unionDescription.XmlEncodingId, Is.EqualTo(ExpandedNodeId.Null));
+            Assert.That(unionDescription.TypeId, Is.EqualTo(new ExpandedNodeId(333)));
+            Assert.That(unionDescription.IsAbstract, Is.False);
+            Assert.That(unionDescription.FieldsCanHaveSubtypedValues, Is.False);
 
             var jsonDecoder = new JsonDecoder("""{"SwitchField": 1, "Value": 3}""", new ServiceMessageContext());
 
@@ -486,14 +486,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = unionDescription.Decode(jsonDecoder);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Should().HaveCount(2);
-            Assert.NotNull(result);
-            result[0].Should().Be(1u);
-            result[1].Should().Be(3u);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result[0], Is.EqualTo(1u));
+            Assert.That(result[1], Is.EqualTo(3u));
         }
 
-        [Fact]
+        [Test]
         public void UnionDescriptionDecodeJsonWithNullValueShouldReturnNull()
         {
             // Arrange
@@ -508,7 +508,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -518,14 +518,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = unionDescription.Decode(jsonDecoder);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Should().HaveCount(2);
-            Assert.NotNull(result);
-            result[0].Should().Be(0u);
-            result[1].Should().BeNull();
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result[0], Is.EqualTo(0u));
+            Assert.That(result[1], Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void UnionDescriptionDecodeShouldReturnValues()
         {
             // Arrange
@@ -542,18 +542,18 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName("ssss"), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            unionDescription.StructureDefinition.StructureType.Should().Be(StructureType.UnionWithSubtypedValues);
-            unionDescription.XmlName.Name.Should().Be("ssss");
-            unionDescription.BinaryEncodingId.Should().Be(ExpandedNodeId.Null);
-            unionDescription.JsonEncodingId.Should().Be(ExpandedNodeId.Null);
-            unionDescription.XmlEncodingId.Should().Be(ExpandedNodeId.Null);
-            unionDescription.TypeId.Should().Be(new ExpandedNodeId(333));
-            unionDescription.IsAbstract.Should().BeFalse();
-            unionDescription.FieldsCanHaveSubtypedValues.Should().BeTrue();
+            Assert.That(unionDescription.StructureDefinition.StructureType, Is.EqualTo(StructureType.UnionWithSubtypedValues));
+            Assert.That(unionDescription.XmlName.Name, Is.EqualTo("ssss"));
+            Assert.That(unionDescription.BinaryEncodingId, Is.EqualTo(ExpandedNodeId.Null));
+            Assert.That(unionDescription.JsonEncodingId, Is.EqualTo(ExpandedNodeId.Null));
+            Assert.That(unionDescription.XmlEncodingId, Is.EqualTo(ExpandedNodeId.Null));
+            Assert.That(unionDescription.TypeId, Is.EqualTo(new ExpandedNodeId(333)));
+            Assert.That(unionDescription.IsAbstract, Is.False);
+            Assert.That(unionDescription.FieldsCanHaveSubtypedValues, Is.True);
 
             var binaryDecoder = new BinaryDecoder([1, 0, 0, 0, 3, 0, 0, 0], new ServiceMessageContext());
 
@@ -561,14 +561,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = unionDescription.Decode(binaryDecoder);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Should().HaveCount(2);
-            Assert.NotNull(result);
-            result[0].Should().Be(1u);
-            result[1].Should().Be(3u);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result[0], Is.EqualTo(1u));
+            Assert.That(result[1], Is.EqualTo(3u));
         }
 
-        [Fact]
+        [Test]
         public void UnionDescriptionDecodeWithInvalidSwitchFieldShouldThrowException()
         {
             // Arrange
@@ -583,7 +583,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -593,11 +593,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Action act = () => unionDescription.Decode(binaryDecoder);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Union selector out of range");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Union selector out of range"));
         }
 
-        [Fact]
+        [Test]
         public void UnionDescriptionDecodeWithNullValueShouldReturnNull()
         {
             // Arrange
@@ -612,7 +612,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -622,14 +622,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = unionDescription.Decode(binaryDecoder);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Should().HaveCount(2);
-            Assert.NotNull(result);
-            result[0].Should().Be(0u);
-            result[1].Should().BeNull();
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result[0], Is.EqualTo(0u));
+            Assert.That(result[1], Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void UnionDescriptionEncodeJsonShouldEncodeValuesInNonReversibleEncoding()
         {
             // Arrange
@@ -646,7 +646,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -658,11 +658,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().NotContain("\"SwitchField\":1");
-            json.Should().Contain("\"Field2\":3");
+            Assert.That(json, Does.Not.Contain("\"SwitchField\":1"));
+            Assert.That(json, Does.Contain("\"Field2\":3"));
         }
 
-        [Fact]
+        [Test]
         public void UnionDescriptionEncodeJsonShouldEncodeValuesInReversibleEncoding()
         {
             // Arrange
@@ -679,7 +679,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -691,11 +691,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().Contain("\"SwitchField\":1");
-            json.Should().Contain("\"Value\":3");
+            Assert.That(json, Does.Contain("\"SwitchField\":1"));
+            Assert.That(json, Does.Contain("\"Value\":3"));
         }
 
-        [Fact]
+        [Test]
         public void UnionDescriptionEncodeJsonWithInvalidSwitchFieldShouldThrowException()
         {
             // Arrange
@@ -710,7 +710,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -721,11 +721,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Action act = () => unionDescription.Encode(jsonEncoder, values);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Union selector out of range");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Union selector out of range"));
         }
 
-        [Fact]
+        [Test]
         public void UnionDescriptionEncodeJsonWithNullValueShouldEncodeCorrectlyWithNonReversibleEncoding()
         {
             // Arrange
@@ -740,7 +740,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -752,10 +752,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().Be("{null}");
+            Assert.That(json, Is.EqualTo("{null}"));
         }
 
-        [Fact]
+        [Test]
         public void UnionDescriptionEncodeJsonWithNullValueShouldEncodeCorrectlyWithReversibleEncoding()
         {
             // Arrange
@@ -770,7 +770,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -782,10 +782,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().Be("""{"SwitchField":0}""");
+            Assert.That(json, Is.EqualTo("""{"SwitchField":0}"""));
         }
 
-        [Fact]
+        [Test]
         public void UnionDescriptionEncodeShouldEncodeValues()
         {
             // Arrange
@@ -802,7 +802,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -814,10 +814,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var encodedBytes = binaryEncoder.CloseAndReturnBuffer();
-            encodedBytes.Should().Equal([1, 0, 0, 0, 3, 0, 0, 0]);
+            Assert.That(encodedBytes, Is.EqualTo([1, 0, 0, 0, 3, 0, 0, 0]));
         }
 
-        [Fact]
+        [Test]
         public void UnionDescriptionEncodeWithInvalidSwitchFieldShouldThrowException()
         {
             // Arrange
@@ -832,7 +832,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -843,10 +843,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Action act = () => unionDescription.Encode(binaryEncoder, values);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Union selector out of range");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Union selector out of range"));
         }
-        [Fact]
+        [Test]
         public void UnionDescriptionEncodeWithNullValueShouldEncodeCorrectly()
         {
             // Arrange
@@ -861,7 +861,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 Fields = new StructureFieldCollection(structureFields)
             };
             var unionDescription = StructureDescription.Create(
-                _mockedTypeSystem.Object, new ExpandedNodeId(333),
+                m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -873,7 +873,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var encodedBytes = binaryEncoder.CloseAndReturnBuffer();
-            encodedBytes.Should().Equal([0, 0, 0, 0]);
+            Assert.That(encodedBytes, Is.EqualTo([0, 0, 0, 0]));
         }
     }
 }

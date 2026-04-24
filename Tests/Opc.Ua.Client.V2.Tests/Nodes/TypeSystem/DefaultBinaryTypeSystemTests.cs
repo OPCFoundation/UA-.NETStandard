@@ -1,75 +1,76 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using Moq;
+using Opc.Ua;
+using Opc.Ua.Schema.Binary;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using NUnit.Framework;
+using System.Xml;
+using System.Threading.Tasks;
+using System.Text;
+
 namespace Opc.Ua.Client.Nodes.TypeSystem
 {
-    using FluentAssertions;
-    using Moq;
-    using Opc.Ua;
-    using Opc.Ua.Schema.Binary;
-    using Microsoft.Extensions.Logging;
-    using System;
-    using System.Collections.Generic;
-    using System.Threading;
-    using Xunit;
-    using System.Xml;
-    using System.Threading.Tasks;
-    using System.Text;
-
+    [TestFixture]
     public sealed class DefaultBinaryTypeSystemTests
     {
-        private readonly Mock<INodeCache> _nodeCacheMock;
-        private readonly Mock<IServiceMessageContext> _contextMock;
-        private readonly Mock<ILogger<DefaultBinaryTypeSystem>> _loggerMock;
+        private Mock<INodeCache> m_nodeCacheMock;
+        private Mock<IServiceMessageContext> m_contextMock;
+        private Mock<ILogger<DefaultBinaryTypeSystem>> m_loggerMock;
 
-        public DefaultBinaryTypeSystemTests()
+        [SetUp]
+        public void SetUp()
         {
-            _nodeCacheMock = new Mock<INodeCache>();
-            _loggerMock = new Mock<ILogger<DefaultBinaryTypeSystem>>();
-            _contextMock = new Mock<IServiceMessageContext>();
-            _contextMock.Setup(c => c.NamespaceUris).Returns(new NamespaceTable());
+            m_nodeCacheMock = new Mock<INodeCache>();
+            m_loggerMock = new Mock<ILogger<DefaultBinaryTypeSystem>>();
+            m_contextMock = new Mock<IServiceMessageContext>();
+            m_contextMock.Setup(c => c.NamespaceUris).Returns(new NamespaceTable());
         }
 
-        [Fact]
+        [Test]
         public void TypeSystemIdShouldReturnCorrectValue()
         {
-            var sut = new DefaultBinaryTypeSystem(_nodeCacheMock.Object,
-                _contextMock.Object, _loggerMock.Object);
+            var sut = new DefaultBinaryTypeSystem(m_nodeCacheMock.Object,
+                m_contextMock.Object, m_loggerMock.Object);
 
             // Act
             var typeSystemId = sut.TypeSystemId;
 
             // Assert
-            typeSystemId.Should().BeEquivalentTo(Objects.OPCBinarySchema_TypeSystem);
+            Assert.That(typeSystemId, Is.EqualTo(Objects.OPCBinarySchema_TypeSystem));
         }
 
-        [Fact]
+        [Test]
         public void TypeSystemNameShouldReturnCorrectValue()
         {
-            var sut = new DefaultBinaryTypeSystem(_nodeCacheMock.Object,
-                _contextMock.Object, _loggerMock.Object);
+            var sut = new DefaultBinaryTypeSystem(m_nodeCacheMock.Object,
+                m_contextMock.Object, m_loggerMock.Object);
             // Act
             var typeSystemName = sut.TypeSystemName;
 
             // Assert
-            typeSystemName.Should().BeEquivalentTo((QualifiedName)BrowseNames.OPCBinarySchema_TypeSystem);
+            Assert.That(typeSystemName, Is.EqualTo((QualifiedName))BrowseNames.OPCBinarySchema_TypeSystem);
         }
 
-        [Fact]
+        [Test]
         public void EncodingNameShouldReturnCorrectValue()
         {
-            var sut = new DefaultBinaryTypeSystem(_nodeCacheMock.Object,
-               _contextMock.Object, _loggerMock.Object);
+            var sut = new DefaultBinaryTypeSystem(m_nodeCacheMock.Object,
+               m_contextMock.Object, m_loggerMock.Object);
             // Act
             var encodingName = sut.EncodingName;
 
             // Assert
-            encodingName.Should().BeEquivalentTo((QualifiedName)BrowseNames.DefaultBinary);
+            Assert.That(encodingName, Is.EqualTo((QualifiedName))BrowseNames.DefaultBinary);
         }
 
-        [Fact]
+        [Test]
         public void ToStructureDefinitionShouldThrowWhenFieldHasIsLengthInBytesOrTerminator()
         {
             // Arrange
@@ -100,11 +101,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 structuredType, defaultEncodingId, typeDictionary, namespaceUris, dataTypeNodeId);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*The structure definition uses a Terminator or LengthInBytes, which are not supported.*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*The structure definition uses a Terminator or LengthInBytes, which are not supported.*"));
         }
 
-        [Fact]
+        [Test]
         public void ToStructureDefinitionShouldThrowWhenStructureIsUnionAndHasBitField()
         {
             // Arrange
@@ -140,11 +141,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 structuredType, defaultEncodingId, typeDictionary, namespaceUris, dataTypeNodeId);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*The structure definition combines a Union and a bit filed, both of which are not supported in a single structure.*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*The structure definition combines a Union and a bit filed, both of which are not supported in a single structure.*"));
         }
 
-        [Fact]
+        [Test]
         public void ToStructureDefinitionShouldThrowWhenOptionalBitsNot32()
         {
             // Arrange
@@ -181,11 +182,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 structuredType, defaultEncodingId, typeDictionary, namespaceUris, dataTypeNodeId);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*Bitwise option selectors must have 32 bits.*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*Bitwise option selectors must have 32 bits.*"));
         }
 
-        [Fact]
+        [Test]
         public void ToStructureDefinitionShouldThrowWhenArrayLengthFieldDoesNotPrecedeArray()
         {
             // Arrange
@@ -221,11 +222,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 structuredType, defaultEncodingId, typeDictionary, namespaceUris, dataTypeNodeId);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*The length field must precede the type field of an array.*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*The length field must precede the type field of an array.*"));
         }
 
-        [Fact]
+        [Test]
         public void ToStructureDefinitionShouldThrowWhenUnionSwitchFieldNotFirstField()
         {
             // Arrange
@@ -261,11 +262,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 structuredType, defaultEncodingId, typeDictionary, namespaceUris, dataTypeNodeId);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*The switch field for SwitchField does not exist*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*The switch field for SwitchField does not exist*"));
         }
 
-        [Fact]
+        [Test]
         public void ToStructureDefinitionShouldThrowWhenSwitchFieldDoesNotExist()
         {
             // Arrange
@@ -302,11 +303,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 structuredType, defaultEncodingId, typeDictionary, namespaceUris, dataTypeNodeId);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*The switch field for NonExistentSwitchField does not exist.*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*The switch field for NonExistentSwitchField does not exist.*"));
         }
 
-        [Fact]
+        [Test]
         public void ToStructureDefinitionShouldThrowWhenUnionFieldOrderIsIncorrect()
         {
             // Arrange
@@ -349,11 +350,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 structuredType, defaultEncodingId, typeDictionary, namespaceUris, dataTypeNodeId);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*The switch field of a union must be the first field in the complex type.*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*The switch field of a union must be the first field in the complex type.*"));
         }
 
-        [Fact]
+        [Test]
         public void ToStructureDefinitionShouldHandleNestedTypesSuccessfully()
         {
             // Arrange
@@ -401,12 +402,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 structuredType, defaultEncodingId, typeDictionary, namespaceUris, parentTypeNodeId);
 
             // Assert
-            result.Fields.Should().HaveCount(1);
-            result.Fields[0].Name.Should().Be("NestedField");
-            result.Fields[0].DataType.Should().Be(ExpandedNodeId.ToNodeId(nestedTypeNodeId, namespaceUris));
+            Assert.That(result.Fields, Has.Count.EqualTo(1));
+            Assert.That(result.Fields[0].Name, Is.EqualTo("NestedField"));
+            Assert.That(result.Fields[0].DataType, Is.EqualTo(ExpandedNodeId.ToNodeId(nestedTypeNodeId, namespaceUris)));
         }
 
-        [Fact]
+        [Test]
         public void ToStructureDefinitionWithValidStructuredTypeShouldReturnCorrectStructureDefinition()
         {
             // Arrange
@@ -447,16 +448,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 defaultEncodingId, typeDictionary, namespaceTable, dataTypeNodeId);
 
             // Assert
-            structureDefinition.Should().NotBeNull();
-            structureDefinition.StructureType.Should().Be(StructureType.Structure);
-            structureDefinition.Fields.Should().HaveCount(2);
-            structureDefinition.Fields[0].Name.Should().Be("Field1");
-            structureDefinition.Fields[0].DataType.Should().Be(DataTypeIds.String);
-            structureDefinition.Fields[1].Name.Should().Be("Field2");
-            structureDefinition.Fields[1].DataType.Should().Be(DataTypeIds.Int32);
+            Assert.That(structureDefinition, Is.Not.Null);
+            Assert.That(structureDefinition.StructureType, Is.EqualTo(StructureType.Structure));
+            Assert.That(structureDefinition.Fields, Has.Count.EqualTo(2));
+            Assert.That(structureDefinition.Fields[0].Name, Is.EqualTo("Field1"));
+            Assert.That(structureDefinition.Fields[0].DataType, Is.EqualTo(DataTypeIds.String));
+            Assert.That(structureDefinition.Fields[1].Name, Is.EqualTo("Field2"));
+            Assert.That(structureDefinition.Fields[1].DataType, Is.EqualTo(DataTypeIds.Int32));
         }
 
-        [Fact]
+        [Test]
         public void ToStructureDefinitionWithUnionTypeShouldReturnUnionStructureDefinition()
         {
             // Arrange
@@ -508,20 +509,20 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 dataTypeNodeId);
 
             // Assert
-            structureDefinition.Should().NotBeNull();
-            structureDefinition.StructureType.Should().Be(StructureType.Union);
-            structureDefinition.Fields.Should().HaveCount(2);
-            structureDefinition.Fields[0].Name.Should().Be("Field1");
-            structureDefinition.Fields[0].DataType.Should().Be(DataTypeIds.Double);
-            structureDefinition.Fields[1].Name.Should().Be("Field2");
-            structureDefinition.Fields[1].DataType.Should().Be(DataTypeIds.String);
+            Assert.That(structureDefinition, Is.Not.Null);
+            Assert.That(structureDefinition.StructureType, Is.EqualTo(StructureType.Union));
+            Assert.That(structureDefinition.Fields, Has.Count.EqualTo(2));
+            Assert.That(structureDefinition.Fields[0].Name, Is.EqualTo("Field1"));
+            Assert.That(structureDefinition.Fields[0].DataType, Is.EqualTo(DataTypeIds.Double));
+            Assert.That(structureDefinition.Fields[1].Name, Is.EqualTo("Field2"));
+            Assert.That(structureDefinition.Fields[1].DataType, Is.EqualTo(DataTypeIds.String));
         }
 
-        [Fact]
+        [Test]
         public void ToStructureDefinitionWithInvalidStructureShouldThrowException()
         {
-            var sut = new DefaultBinaryTypeSystem(_nodeCacheMock.Object,
-            _contextMock.Object, _loggerMock.Object);
+            var sut = new DefaultBinaryTypeSystem(m_nodeCacheMock.Object,
+            m_contextMock.Object, m_loggerMock.Object);
             // Arrange
             var structuredType = new StructuredType
             {
@@ -556,11 +557,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 defaultEncodingId, typeDictionary, namespaceTable, dataTypeNodeId);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*Terminator or LengthInBytes, which are not supported.*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*Terminator or LengthInBytes, which are not supported.*"));
         }
 
-        [Fact]
+        [Test]
         public void ToEnumDefinitionWithValidEnumeratedTypeShouldReturnCorrectEnumDefinition()
         {
             // Arrange
@@ -579,28 +580,28 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var enumDefinition = DefaultBinaryTypeSystem.ToEnumDefinition(enumeratedType);
 
             // Assert
-            enumDefinition.Should().NotBeNull();
-            enumDefinition.Fields.Should().HaveCount(3);
+            Assert.That(enumDefinition, Is.Not.Null);
+            Assert.That(enumDefinition.Fields, Has.Count.EqualTo(3));
 
-            enumDefinition.Fields[0].Name.Should().Be("Value1");
-            enumDefinition.Fields[0].Value.Should().Be(0);
+            Assert.That(enumDefinition.Fields[0].Name, Is.EqualTo("Value1"));
+            Assert.That(enumDefinition.Fields[0].Value, Is.EqualTo(0));
 
-            enumDefinition.Fields[1].Name.Should().Be("Value2");
-            enumDefinition.Fields[1].Value.Should().Be(1);
+            Assert.That(enumDefinition.Fields[1].Name, Is.EqualTo("Value2"));
+            Assert.That(enumDefinition.Fields[1].Value, Is.EqualTo(1));
 
-            enumDefinition.Fields[2].Name.Should().Be("Value3");
-            enumDefinition.Fields[2].Value.Should().Be(2);
+            Assert.That(enumDefinition.Fields[2].Name, Is.EqualTo("Value3"));
+            Assert.That(enumDefinition.Fields[2].Value, Is.EqualTo(2));
         }
 
-        [Fact]
+        [Test]
         public async Task GetDataTypeDefinitionAsyncWithUnknownDataTypeShouldReturnNullAsync()
         {
             // Arrange
-            var sut = new DefaultBinaryTypeSystem(_nodeCacheMock.Object,
-                _contextMock.Object, _loggerMock.Object);
+            var sut = new DefaultBinaryTypeSystem(m_nodeCacheMock.Object,
+                m_contextMock.Object, m_loggerMock.Object);
             var dataTypeId = ExpandedNodeId.Parse("i=9999");
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.Is<NodeId>(nodeId => nodeId.Identifier.Equals(9999u)),
                     ReferenceTypeIds.HasProperty,
@@ -613,19 +614,19 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = await sut.GetDataTypeDefinitionAsync(dataTypeId, CancellationToken.None);
 
             // Assert
-            result.Should().BeNull();
-            _nodeCacheMock.Verify();
+            Assert.That(result, Is.Null);
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task LoadAsyncShouldNotThrowWhenNoDictionariesAreFoundInTypeSystemAsync()
         {
             // Arrange
-            var sut = new DefaultBinaryTypeSystem(_nodeCacheMock.Object,
-                _contextMock.Object, _loggerMock.Object);
+            var sut = new DefaultBinaryTypeSystem(m_nodeCacheMock.Object,
+                m_contextMock.Object, m_loggerMock.Object);
             var ct = CancellationToken.None;
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     It.IsAny<NodeId>(),
                     It.IsAny<NodeId>(),
@@ -639,16 +640,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Func<Task> act = async () => await sut.LoadAsync(ct);
 
             // Assert
-            await act.Should().NotThrowAsync();
-            _nodeCacheMock.Verify();
+            Assert.DoesNotThrowAsync(async () => await act());
+            m_nodeCacheMock.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task LoadAsyncShouldLoadNoTypeDefinitionsFromZeroLengthDictionaryAndNotThrowAsync()
         {
             // Arrange
-            var sut = new DefaultBinaryTypeSystem(_nodeCacheMock.Object,
-                _contextMock.Object, _loggerMock.Object);
+            var sut = new DefaultBinaryTypeSystem(m_nodeCacheMock.Object,
+                m_contextMock.Object, m_loggerMock.Object);
             var ct = CancellationToken.None;
             var dictionaryNodeId = new NodeId(123);
 
@@ -669,7 +670,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             var dictionaryContent = new DataValue(Array.Empty<byte>());
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     sut.TypeSystemId,
                     ReferenceTypeIds.HasComponent,
@@ -678,13 +679,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     ct))
                 .ReturnsAsync([dictionaryNode])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetValuesAsync(
                     new List<NodeId> { dictionaryNodeId },
                     ct))
                 .ReturnsAsync([dictionaryContent])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     dictionaryNodeId,
                     ReferenceTypeIds.HasProperty,
@@ -692,7 +693,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     ct))
                 .ReturnsAsync([nsNode])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetValueAsync(
                     nsNode.NodeId,
                     ct))
@@ -703,16 +704,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             await sut.LoadAsync(ct);
 
             // Assert
-            _nodeCacheMock.Verify();
-            sut.TypeCount.Should().Be(0);
+            m_nodeCacheMock.Verify();
+            Assert.That(sut.TypeCount, Is.EqualTo(0));
         }
 
-        [Fact]
+        [Test]
         public async Task LoadAsyncShouldLoadTypeDefinitionsFromMachineryAndGmsDictionariesAsync()
         {
             // Arrange
-            var sut = new DefaultBinaryTypeSystem(_nodeCacheMock.Object,
-                _contextMock.Object, _loggerMock.Object);
+            var sut = new DefaultBinaryTypeSystem(m_nodeCacheMock.Object,
+                m_contextMock.Object, m_loggerMock.Object);
             var ct = CancellationToken.None;
             var machineryDictionaryId = new NodeId(123);
             var machineryDictionary = new VariableNode
@@ -747,7 +748,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             };
             var gms = new DataValue(Encoding.UTF8.GetBytes(GmsTypeSystem));
 
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     sut.TypeSystemId,
                     ReferenceTypeIds.HasComponent,
@@ -756,13 +757,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     ct))
                 .ReturnsAsync([machineryDictionary, gmsDictionary])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetValuesAsync(
                     new List<NodeId> { machineryDictionaryId, gmsDictionaryId },
                     ct))
                 .ReturnsAsync([machinary, gms])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     machineryDictionaryId,
                     ReferenceTypeIds.HasProperty,
@@ -770,7 +771,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     ct))
                 .ReturnsAsync([machineryNsNode])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     gmsDictionaryId,
                     ReferenceTypeIds.HasProperty,
@@ -778,19 +779,19 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     ct))
                 .ReturnsAsync([gmsNsNode])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetValueAsync(
                     machineryNsNode.NodeId,
                     ct))
                 .ReturnsAsync(new DataValue(machineryNsNode.Value))
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetValueAsync(
                     gmsNsNode.NodeId,
                     ct))
                 .ReturnsAsync(new DataValue(gmsNsNode.Value))
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     gmsDictionaryId,
                     ReferenceTypeIds.HasComponent,
@@ -804,7 +805,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new VariableNode { BrowseName = "Description2", NodeId = new NodeId(15) }
                 ])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetValuesAsync(
                     new NodeId[] { new(13), new(14), new(15) },
                     ct))
@@ -815,7 +816,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new ("ToolAlignmentState")
                 ])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     new NodeId[] { new(13), new(14), new(15) },
                     new NodeId[] { ReferenceTypeIds.HasDescription },
@@ -829,7 +830,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new VariableNode { BrowseName = BrowseNames.DefaultBinary, NodeId = new NodeId(18) }
                 ])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     new NodeId[] { new(16), new(17), new(18) },
                     new NodeId[] { ReferenceTypeIds.HasEncoding },
@@ -843,7 +844,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new DataTypeNode { BrowseName = "ToolAlignmentState", NodeId = new NodeId(21) }
                 ])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     machineryDictionaryId,
                     ReferenceTypeIds.HasComponent,
@@ -857,7 +858,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new VariableNode { BrowseName = "Description2", NodeId = new NodeId(5) }
                 ])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetValuesAsync(
                     new NodeId[] { new(3), new(4), new(5) },
                     ct))
@@ -868,7 +869,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new ("ResultTransferOptionsDataType")
                 ])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     new NodeId[] { new(3), new(4), new(5) },
                     new NodeId[] { ReferenceTypeIds.HasDescription },
@@ -882,7 +883,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     new VariableNode { BrowseName = BrowseNames.DefaultBinary, NodeId = new NodeId(8) }
                 ])
                 .Verifiable(Times.Once);
-            _nodeCacheMock
+            m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
                     new NodeId[] { new(6), new(7), new(8) },
                     new NodeId[] { ReferenceTypeIds.HasEncoding },
@@ -912,32 +913,32 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var toolAlignmentState1 = await sut.GetDataTypeDefinitionAsync(new NodeId(21), default);
 
             // Assert
-            _nodeCacheMock.Verify();
-            sut.TypeCount.Should().Be(12);
-            processingTimesDataType1.Should().NotBeNull().And
-                .Subject.Should().Be(processingTimesDataType2);
-            resultDataType1.Should().NotBeNull().And
-                .Subject.Should().Be(resultDataType2);
-            resultTransferOptionsDataType1.Should().NotBeNull().And
-                .Subject.Should().Be(resultTransferOptionsDataType2);
-            processingTimesDataType1!.Definition!.Should().BeOfType<StructureDefinition>()
-                .Which.Fields.Should().HaveCount(4);
-            processingTimesDataType1!.Definition!.Should().BeOfType<StructureDefinition>()
-                .Which.StructureType.Should().Be(StructureType.StructureWithOptionalFields);
-            resultDataType1!.Definition!.Should().BeOfType<StructureDefinition>()
-                .Which.Fields.Should().HaveCount(3);
-            resultDataType1!.Definition!.Should().BeOfType<StructureDefinition>()
-                .Which.StructureType.Should().Be(StructureType.Structure);
-            resultTransferOptionsDataType1!.Definition!.Should().BeOfType<StructureDefinition>()
-                .Which.Fields.Should().HaveCount(1);
-            resultTransferOptionsDataType1!.Definition!.Should().BeOfType<StructureDefinition>()
-                .Which.StructureType.Should().Be(StructureType.Structure);
-            toolAlignmentState1!.Definition!.Should().BeOfType<EnumDefinition>()
-                .Which.Fields.Should().HaveCount(3);
-            toleranceLimitEnum1!.Definition!.Should().BeOfType<EnumDefinition>()
-                .Which.Fields.Should().HaveCount(3);
-            measurementReasonEnum1!.Definition!.Should().BeOfType<EnumDefinition>()
-                .Which.Fields.Should().HaveCount(6);
+            m_nodeCacheMock.Verify();
+            Assert.That(sut.TypeCount, Is.EqualTo(12));
+            Assert.That(processingTimesDataType1, Is.Not.Null).And
+                .Assert.That(Subject, Is.EqualTo(processingTimesDataType2));
+            Assert.That(resultDataType1, Is.Not.Null).And
+                .Assert.That(Subject, Is.EqualTo(resultDataType2));
+            Assert.That(resultTransferOptionsDataType1, Is.Not.Null).And
+                .Assert.That(Subject, Is.EqualTo(resultTransferOptionsDataType2));
+            Assert.That(processingTimesDataType1!.Definition!, Is.TypeOf<StructureDefinition>());
+                .Assert.That(Which.Fields, Has.Count.EqualTo(4));
+            Assert.That(processingTimesDataType1!.Definition!, Is.TypeOf<StructureDefinition>());
+                .Assert.That(Which.StructureType, Is.EqualTo(StructureType.StructureWithOptionalFields));
+            Assert.That(resultDataType1!.Definition!, Is.TypeOf<StructureDefinition>());
+                .Assert.That(Which.Fields, Has.Count.EqualTo(3));
+            Assert.That(resultDataType1!.Definition!, Is.TypeOf<StructureDefinition>());
+                .Assert.That(Which.StructureType, Is.EqualTo(StructureType.Structure));
+            Assert.That(resultTransferOptionsDataType1!.Definition!, Is.TypeOf<StructureDefinition>());
+                .Assert.That(Which.Fields, Has.Count.EqualTo(1));
+            Assert.That(resultTransferOptionsDataType1!.Definition!, Is.TypeOf<StructureDefinition>());
+                .Assert.That(Which.StructureType, Is.EqualTo(StructureType.Structure));
+            Assert.That(toolAlignmentState1!.Definition!, Is.TypeOf<EnumDefinition>());
+                .Assert.That(Which.Fields, Has.Count.EqualTo(3));
+            Assert.That(toleranceLimitEnum1!.Definition!, Is.TypeOf<EnumDefinition>());
+                .Assert.That(Which.Fields, Has.Count.EqualTo(3));
+            Assert.That(measurementReasonEnum1!.Definition!, Is.TypeOf<EnumDefinition>());
+                .Assert.That(Which.Fields, Has.Count.EqualTo(6));
         }
 
         public const string GmsTypeSystem = """

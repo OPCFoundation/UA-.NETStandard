@@ -1,55 +1,56 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.Metrics;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Moq;
+using Opc.Ua.Client.Services;
+using Opc.Ua.Client.Subscriptions;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Sessions
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics.Metrics;
-    using System.Linq;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using FluentAssertions;
-    using Microsoft.Extensions.Logging;
-    using Microsoft.Extensions.Options;
-    using Moq;
-    using Opc.Ua.Client.Services;
-    using Opc.Ua.Client.Subscriptions;
-    using Xunit;
-
+    [TestFixture]
     public sealed class SessionBaseTests
     {
-        public SessionBaseTests()
+        [SetUp]
+        public void SetUp()
         {
-            _mockChannel = new Mock<ITransportChannel>();
-            _mockObservability = new Mock<ITelemetryContext>();
-            _mockMeterFactory = new Mock<IMeterFactory>();
-            _mockObservability.Setup(o => o.MeterFactory)
-                .Returns(_mockMeterFactory.Object);
-            _mockMeterFactory.Setup(o => o.Create(It.IsAny<MeterOptions>()))
+            m_mockChannel = new Mock<ITransportChannel>();
+            m_mockObservability = new Mock<ITelemetryContext>();
+            m_mockMeterFactory = new Mock<IMeterFactory>();
+            m_mockObservability.Setup(o => o.MeterFactory)
+                .Returns(m_mockMeterFactory.Object);
+            m_mockMeterFactory.Setup(o => o.Create(It.IsAny<MeterOptions>()))
                 .Returns(new Meter("TestMeter"));
-            _mockLogger = new Mock<ILogger<SessionBase>>();
-            _mockObservability.Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
-                .Returns(_mockLogger.Object);
-            _mockTimeProvider = new Mock<TimeProvider>();
-            _mockTimer = new Mock<ITimer>();
-            _mockTimeProvider
+            m_mockLogger = new Mock<ILogger<SessionBase>>();
+            m_mockObservability.Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
+                .Returns(m_mockLogger.Object);
+            m_mockTimeProvider = new Mock<TimeProvider>();
+            m_mockTimer = new Mock<ITimer>();
+            m_mockTimeProvider
                 .Setup(t => t.CreateTimer(
                     It.IsAny<TimerCallback>(),
                     It.IsAny<object>(),
                     It.IsAny<TimeSpan>(),
                     It.IsAny<TimeSpan>()))
-                .Returns(_mockTimer.Object);
-            _mockObservability
-                .Setup(o => o.TimeProvider).Returns(_mockTimeProvider.Object);
-            _options = new SessionCreateOptions
+                .Returns(m_mockTimer.Object);
+            m_mockObservability
+                .Setup(o => o.TimeProvider).Returns(m_mockTimeProvider.Object);
+            m_options = new SessionCreateOptions
             {
                 SessionName = "TestSession",
-                Channel = _mockChannel.Object
+                Channel = m_mockChannel.Object
             };
-            _configuration = new ApplicationConfiguration
+            m_configuration = new ApplicationConfiguration
             {
                 ClientConfiguration = new ClientConfiguration
                 {
@@ -58,13 +59,13 @@ namespace Opc.Ua.Client.Sessions
             };
         }
 
-        [Fact]
+        [Test]
         public async Task FetchOperationLimitsAsyncShouldFetchAllOperationLimitsAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var dataValues = new DataValueCollection
@@ -98,7 +99,7 @@ namespace Opc.Ua.Client.Sessions
                 new DataValue(new Variant(27000u))
             };
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -117,50 +118,50 @@ namespace Opc.Ua.Client.Sessions
             await sut.FetchOperationLimitsAsync(ct);
 
             // Assert
-            sut.OperationLimits.MaxNodesPerRead.Should().Be(1000);
-            sut.OperationLimits.MaxNodesPerHistoryReadData.Should().Be(2000);
-            sut.OperationLimits.MaxNodesPerHistoryReadEvents.Should().Be(3000);
-            sut.OperationLimits.MaxNodesPerWrite.Should().Be(4000);
-            sut.OperationLimits.MaxNodesPerHistoryUpdateData.Should().Be(5000);
-            sut.OperationLimits.MaxNodesPerHistoryUpdateEvents.Should().Be(6000);
-            sut.OperationLimits.MaxNodesPerMethodCall.Should().Be(7000);
-            sut.OperationLimits.MaxNodesPerBrowse.Should().Be(8000);
-            sut.OperationLimits.MaxNodesPerRegisterNodes.Should().Be(9000);
-            sut.OperationLimits.MaxNodesPerNodeManagement.Should().Be(10000);
-            sut.OperationLimits.MaxMonitoredItemsPerCall.Should().Be(11000);
-            sut.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds.Should().Be(12000);
-            sut.OperationLimits.MaxBrowseContinuationPoints.Should().Be(13000);
-            sut.OperationLimits.MaxHistoryContinuationPoints.Should().Be(14000);
-            sut.OperationLimits.MaxQueryContinuationPoints.Should().Be(15000);
-            sut.OperationLimits.MaxStringLength.Should().Be(16000);
-            sut.OperationLimits.MaxArrayLength.Should().Be(17000);
-            sut.OperationLimits.MaxByteStringLength.Should().Be(18000);
-            sut.OperationLimits.MinSupportedSampleRate.Should().Be(19000.0);
-            sut.OperationLimits.MaxSessions.Should().Be(20000);
-            sut.OperationLimits.MaxSubscriptions.Should().Be(21000);
-            sut.OperationLimits.MaxMonitoredItems.Should().Be(22000);
-            sut.OperationLimits.MaxMonitoredItemsPerSubscription.Should().Be(23000);
-            sut.OperationLimits.MaxMonitoredItemsQueueSize.Should().Be(24000);
-            sut.OperationLimits.MaxSubscriptionsPerSession.Should().Be(25000);
-            sut.OperationLimits.MaxWhereClauseParameters.Should().Be(26000);
-            sut.OperationLimits.MaxSelectClauseParameters.Should().Be(27000);
+            Assert.That(sut.OperationLimits.MaxNodesPerRead, Is.EqualTo(1000));
+            Assert.That(sut.OperationLimits.MaxNodesPerHistoryReadData, Is.EqualTo(2000));
+            Assert.That(sut.OperationLimits.MaxNodesPerHistoryReadEvents, Is.EqualTo(3000));
+            Assert.That(sut.OperationLimits.MaxNodesPerWrite, Is.EqualTo(4000));
+            Assert.That(sut.OperationLimits.MaxNodesPerHistoryUpdateData, Is.EqualTo(5000));
+            Assert.That(sut.OperationLimits.MaxNodesPerHistoryUpdateEvents, Is.EqualTo(6000));
+            Assert.That(sut.OperationLimits.MaxNodesPerMethodCall, Is.EqualTo(7000));
+            Assert.That(sut.OperationLimits.MaxNodesPerBrowse, Is.EqualTo(8000));
+            Assert.That(sut.OperationLimits.MaxNodesPerRegisterNodes, Is.EqualTo(9000));
+            Assert.That(sut.OperationLimits.MaxNodesPerNodeManagement, Is.EqualTo(10000));
+            Assert.That(sut.OperationLimits.MaxMonitoredItemsPerCall, Is.EqualTo(11000));
+            Assert.That(sut.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, Is.EqualTo(12000));
+            Assert.That(sut.OperationLimits.MaxBrowseContinuationPoints, Is.EqualTo(13000));
+            Assert.That(sut.OperationLimits.MaxHistoryContinuationPoints, Is.EqualTo(14000));
+            Assert.That(sut.OperationLimits.MaxQueryContinuationPoints, Is.EqualTo(15000));
+            Assert.That(sut.OperationLimits.MaxStringLength, Is.EqualTo(16000));
+            Assert.That(sut.OperationLimits.MaxArrayLength, Is.EqualTo(17000));
+            Assert.That(sut.OperationLimits.MaxByteStringLength, Is.EqualTo(18000));
+            Assert.That(sut.OperationLimits.MinSupportedSampleRate, Is.EqualTo(19000.0));
+            Assert.That(sut.OperationLimits.MaxSessions, Is.EqualTo(20000));
+            Assert.That(sut.OperationLimits.MaxSubscriptions, Is.EqualTo(21000));
+            Assert.That(sut.OperationLimits.MaxMonitoredItems, Is.EqualTo(22000));
+            Assert.That(sut.OperationLimits.MaxMonitoredItemsPerSubscription, Is.EqualTo(23000));
+            Assert.That(sut.OperationLimits.MaxMonitoredItemsQueueSize, Is.EqualTo(24000));
+            Assert.That(sut.OperationLimits.MaxSubscriptionsPerSession, Is.EqualTo(25000));
+            Assert.That(sut.OperationLimits.MaxWhereClauseParameters, Is.EqualTo(26000));
+            Assert.That(sut.OperationLimits.MaxSelectClauseParameters, Is.EqualTo(27000));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchOperationLimitsAsyncShouldHandleEmptyResponseAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var dataValues = new DataValueCollection();
             var diagnosticInfos = new DiagnosticInfoCollection();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -175,18 +176,18 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.FetchOperationLimitsAsync(ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchOperationLimitsAsyncShouldHandlePartialDataAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var dataValues = new DataValueCollection
@@ -196,7 +197,7 @@ namespace Opc.Ua.Client.Sessions
                 new DataValue(new Variant(3000u))
             };
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -215,18 +216,18 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.FetchOperationLimitsAsync(ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchOperationLimitsAsyncShouldHandleErrorsAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var dataValues = new DataValueCollection
@@ -236,7 +237,7 @@ namespace Opc.Ua.Client.Sessions
 
             var diagnosticInfos = new DiagnosticInfoCollection();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -251,18 +252,18 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.FetchOperationLimitsAsync(ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchOperationLimitsAsyncShouldThrowWhenInvalidDataTypesAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var dataValues = new DataValueCollection
@@ -272,7 +273,7 @@ namespace Opc.Ua.Client.Sessions
 
             var diagnosticInfos = new DiagnosticInfoCollection();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -287,21 +288,21 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.FetchOperationLimitsAsync(ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchOperationLimitsAsyncShouldHandleTimeoutAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = new CancellationTokenSource(100).Token; // Set a short timeout
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -312,24 +313,24 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.FetchOperationLimitsAsync(ct);
 
             // Assert
-            await act.Should().ThrowAsync<TaskCanceledException>();
+            Assert.ThrowsAsync<TaskCanceledException>(async () => await act());
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNamespaceTablesAsyncShouldFetchAndUpdateTablesAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(new Variant([Opc.Ua.Namespaces.OpcUa, "http://namespace2"]));
             var serverArray = new DataValue(new Variant(["http://server1", "http://server2"]));
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -344,19 +345,19 @@ namespace Opc.Ua.Client.Sessions
             await sut.FetchNamespaceTablesAsync(ct);
 
             // Assert
-            sut.NamespaceUris.ToArray().Should().BeEquivalentTo([Opc.Ua.Namespaces.OpcUa, "http://namespace2"]);
-            sut.ServerUris.ToArray().Should().BeEquivalentTo(["http://server1", "http://server2"]);
+            Assert.That(sut.NamespaceUris.ToArray(), Is.EqualTo([Opc.Ua.Namespaces.OpcUa, "http://namespace2"]));
+            Assert.That(sut.ServerUris.ToArray(), Is.EqualTo(["http://server1", "http://server2"]));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNamespaceTablesAsyncShouldFetchAndUpdateTablesAndLogDifferences1Async()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var namespaceArray1 = new DataValue(new Variant([Opc.Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
@@ -364,7 +365,7 @@ namespace Opc.Ua.Client.Sessions
             var namespaceArray2 = new DataValue(new Variant([Opc.Ua.Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
             var serverArray2 = new DataValue(new Variant(["http://server1", "http://server2", "http://server3"]));
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -383,26 +384,26 @@ namespace Opc.Ua.Client.Sessions
             await sut.FetchNamespaceTablesAsync(ct);
 
             // Assert
-            sut.NamespaceUris.ToArray().Should().BeEquivalentTo([Opc.Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]);
-            sut.ServerUris.ToArray().Should().BeEquivalentTo(["http://server1", "http://server2"]);
+            Assert.That(sut.NamespaceUris.ToArray(), Is.EqualTo([Opc.Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
+            Assert.That(sut.ServerUris.ToArray(), Is.EqualTo(["http://server1", "http://server2"]));
 
             // Act
             await sut.FetchNamespaceTablesAsync(ct);
 
             // Assert
-            sut.NamespaceUris.ToArray().Should().BeEquivalentTo([Opc.Ua.Namespaces.OpcUa, "http://namespace3", "http://namespace2"]);
-            sut.ServerUris.ToArray().Should().BeEquivalentTo(["http://server1", "http://server2", "http://server3"]);
+            Assert.That(sut.NamespaceUris.ToArray(), Is.EqualTo([Opc.Ua.Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
+            Assert.That(sut.ServerUris.ToArray(), Is.EqualTo(["http://server1", "http://server2", "http://server3"]));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNamespaceTablesAsyncShouldFetchAndUpdateTablesAndLogDifferences2Async()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var namespaceArray1 = new DataValue(new Variant([Opc.Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
@@ -410,7 +411,7 @@ namespace Opc.Ua.Client.Sessions
             var namespaceArray2 = new DataValue(new Variant([Opc.Ua.Namespaces.OpcUa, "http://namespace3"]));
             var serverArray2 = new DataValue(new Variant(["http://server1"]));
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -429,32 +430,32 @@ namespace Opc.Ua.Client.Sessions
             await sut.FetchNamespaceTablesAsync(ct);
 
             // Assert
-            sut.NamespaceUris.ToArray().Should().BeEquivalentTo([Opc.Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]);
-            sut.ServerUris.ToArray().Should().BeEquivalentTo(["http://server1", "http://server2"]);
+            Assert.That(sut.NamespaceUris.ToArray(), Is.EqualTo([Opc.Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
+            Assert.That(sut.ServerUris.ToArray(), Is.EqualTo(["http://server1", "http://server2"]));
 
             // Act
             await sut.FetchNamespaceTablesAsync(ct);
 
             // Assert
-            sut.NamespaceUris.ToArray().Should().BeEquivalentTo([Opc.Ua.Namespaces.OpcUa, "http://namespace3"]);
-            sut.ServerUris.ToArray().Should().BeEquivalentTo(["http://server1"]);
+            Assert.That(sut.NamespaceUris.ToArray(), Is.EqualTo([Opc.Ua.Namespaces.OpcUa, "http://namespace3"]));
+            Assert.That(sut.ServerUris.ToArray(), Is.EqualTo(["http://server1"]));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNamespaceTablesAsyncShouldHandlePartialSuccessAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(new Variant([Opc.Ua.Namespaces.OpcUa, "http://namespace2"]));
             var serverArray = new DataValue(StatusCodes.BadUnexpectedError);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -469,25 +470,25 @@ namespace Opc.Ua.Client.Sessions
             await sut.FetchNamespaceTablesAsync(ct);
 
             // Assert
-            sut.NamespaceUris.ToArray().Should().BeEquivalentTo([Opc.Ua.Namespaces.OpcUa, "http://namespace2"]);
-            sut.ServerUris.ToArray().Should().BeEmpty();
+            Assert.That(sut.NamespaceUris.ToArray(), Is.EqualTo([Opc.Ua.Namespaces.OpcUa, "http://namespace2"]));
+            Assert.That(sut.ServerUris.ToArray(), Is.Empty);
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNamespaceTablesAsyncShouldThrowInCaseOfBadResponseAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(new Variant([Opc.Ua.Namespaces.OpcUa, "http://namespace2"]));
             var serverArray = new DataValue(new Variant(["http://server1", "http://server2"]));
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -504,25 +505,25 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadUnexpectedError);
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNamespaceTablesAsyncShouldThrowWhenNamespaceArrayCouldNotBeRetrievedAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(StatusCodes.BadUnexpectedError);
             var serverArray = new DataValue(StatusCodes.BadUnexpectedError);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -537,25 +538,25 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.FetchNamespaceTablesAsync(ct);
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadUnexpectedError);
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNamespaceTablesAsyncShoulThrowWhenEmptyResponseAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var dataValues = new DataValueCollection();
             var diagnosticInfos = new DiagnosticInfoCollection();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -570,25 +571,25 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.FetchNamespaceTablesAsync(ct);
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadUnexpectedError);
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNamespaceTablesAsyncShouldThrowWhenInvalidDataTypesForNamespaceTableAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(new Variant(12345));
             var serverArray = new DataValue(new Variant(67890));
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -604,25 +605,25 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadTypeMismatch);
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNamespaceTablesAsyncShouldThrowWhenInvalidDataTypeForServerUrlsAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(new Variant([Opc.Ua.Namespaces.OpcUa, "http://namespace2"]));
             var serverArray = new DataValue(new Variant(67890));
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -638,24 +639,24 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadTypeMismatch);
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PingServerAsyncShouldReturnTrueOnSuccessfulPingAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var serverState = new DataValue(new Variant(ServerState.Running));
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -670,22 +671,22 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.PingServerAsync(ct);
 
             // Assert
-            result.Should().BeTrue();
-            _mockChannel.Verify();
+            Assert.That(result, Is.True);
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PingServerAsyncShouldReturnFalseInCaseOfInvalidServerStateAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var serverState = new DataValue(new Variant("InvalidState"));
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -700,21 +701,21 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.PingServerAsync(ct);
 
             // Assert
-            result.Should().BeFalse();
-            _mockChannel.Verify();
+            Assert.That(result, Is.False);
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PingServerAsyncShouldThrowWhenCancellationTokenCancelledAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     cts.Token))
@@ -725,20 +726,20 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.PingServerAsync(cts.Token);
 
             // Assert
-            await act.Should().ThrowAsync<OperationCanceledException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<OperationCanceledException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PingServerAsyncShouldNotThrowWhenCancellationTokenNotCancelledAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     ct))
@@ -749,29 +750,29 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.PingServerAsync(ct);
 
             // Assert
-            result.Should().BeFalse();
-            _mockChannel.Verify();
+            Assert.That(result, Is.False);
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PingServerAsyncShouldHandleNoCommunicationButInGuardBandAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadNoCommunication))
                 .Verifiable(Times.Once);
-            _mockTimeProvider
+            m_mockTimeProvider
                 .Setup(t => t.TimestampFrequency)
                 .Returns(1000);
-            _mockTimeProvider
+            m_mockTimeProvider
                 .Setup(t => t.GetTimestamp())
                 .Returns(-10000000L);
 
@@ -779,29 +780,29 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.PingServerAsync(ct);
 
             // Assert
-            result.Should().BeTrue();
-            _mockChannel.Verify();
+            Assert.That(result, Is.True);
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PingServerAsyncShouldHandleNoCommunicationOutsideGuardBandAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadNoCommunication))
                 .Verifiable(Times.Once);
-            _mockTimeProvider
+            m_mockTimeProvider
                 .Setup(t => t.TimestampFrequency)
                 .Returns(1000);
-            _mockTimeProvider
+            m_mockTimeProvider
                 .Setup(t => t.GetTimestamp())
                 .Returns(10000000L);
 
@@ -809,20 +810,20 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.PingServerAsync(ct);
 
             // Assert
-            result.Should().BeFalse();
-            _mockChannel.Verify();
+            Assert.That(result, Is.False);
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task PingServerAsyncShouldHandleOtherErrorsAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -833,21 +834,21 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.PingServerAsync(ct);
 
             // Assert
-            result.Should().BeFalse();
-            _mockChannel.Verify();
+            Assert.That(result, Is.False);
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task CloseAsyncShouldCloseSessionAndChannelSuccessfullyAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CloseSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -857,7 +858,7 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask)
                 .Verifiable(Times.Once);
@@ -866,17 +867,17 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.CloseAsync(true, true, ct);
 
             // Assert
-            result.Should().Be(ServiceResult.Good);
-            _mockChannel.Verify();
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task CloseAsyncShouldHandleAlreadyClosedSessionAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             sut.Dispose();
@@ -885,27 +886,27 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.CloseAsync(true, true, ct);
 
             // Assert
-            result.Should().Be(ServiceResult.Good);
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
         }
 
-        [Fact]
+        [Test]
         public async Task CloseAsyncShouldHandleErrorsDuringCloseAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CloseSessionRequest>(),
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadUnexpectedError))
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask)
                 .Verifiable(Times.Once);
@@ -914,21 +915,21 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.CloseAsync(true, true, ct);
 
             // Assert
-            result.StatusCode.Should().Be(StatusCodes.BadUnexpectedError);
-            _mockChannel.Verify();
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task CloseAsyncShouldCloseSessionWithoutDeletingSubscriptionsAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CloseSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -938,7 +939,7 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask)
                 .Verifiable(Times.Once);
@@ -947,21 +948,21 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.CloseAsync(true, false, ct);
 
             // Assert
-            result.Should().Be(ServiceResult.Good);
-            _mockChannel.Verify();
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task CloseAsyncShouldHandleChannelErrorsAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CloseSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -971,7 +972,7 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadUnexpectedError))
                 .Verifiable(Times.Once);
@@ -980,21 +981,21 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.CloseAsync(true, true, ct);
 
             // Assert
-            result.Should().Be(ServiceResult.Good);
-            _mockChannel.Verify();
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task CloseAsyncShouldCloseSessionSuccessfullyAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CloseSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1004,7 +1005,7 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask)
                 .Verifiable(Times.Once);
@@ -1013,27 +1014,27 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.CloseAsync(ct);
 
             // Assert
-            result.Should().Be(StatusCodes.Good);
-            _mockChannel.Verify();
+            Assert.That(result, Is.EqualTo(StatusCodes.Good));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task CloseAsyncShouldHandleErrorsDuringCloseSessionAsync()
         {
             // Arrange
-            var sut = new TestSessionBase(_configuration,
+            var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CloseSessionRequest>(),
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadUnexpectedError))
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask)
                 .Verifiable(Times.Once);
@@ -1042,15 +1043,15 @@ namespace Opc.Ua.Client.Sessions
             var result = await sut.CloseAsync(ct);
 
             // Assert
-            result.Should().Be(StatusCodes.BadUnexpectedError);
-            _mockChannel.Verify();
+            Assert.That(result, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ReconnectAsyncShouldReconnectSuccessfullyAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1061,20 +1062,20 @@ namespace Opc.Ua.Client.Sessions
                         new UserTokenPolicy()
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
             var serverNonce = new byte[] { 1, 2, 3, 4 };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.Reconnect(It.IsAny<ITransportWaitingConnection>()))
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
             .Setup(c => c.SupportedFeatures)
                 .Returns(TransportChannelFeatures.Reconnect);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ActivateSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1090,15 +1091,15 @@ namespace Opc.Ua.Client.Sessions
             await sut.ReconnectAsync(ct);
 
             // Assert
-            sut._serverNonce.Should().BeEquivalentTo(serverNonce);
-            _mockChannel.Verify();
+            Assert.That(sut._serverNonce, Is.EqualTo(serverNonce));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ReconnectAsyncShouldHandleReconnectFailureAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1109,15 +1110,15 @@ namespace Opc.Ua.Client.Sessions
                         new UserTokenPolicy()
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.Reconnect(It.IsAny<ITransportWaitingConnection>()))
                 .Throws(new ServiceResultException(StatusCodes.BadUnexpectedError))
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SupportedFeatures)
                 .Returns(TransportChannelFeatures.Reconnect);
 
@@ -1125,16 +1126,16 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.ReconnectAsync(ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>()
-                .WithMessage("*BadUnexpectedError*");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("*BadUnexpectedError*"));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ReconnectAsyncShouldHandleNoSupportedFeaturesAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1145,11 +1146,11 @@ namespace Opc.Ua.Client.Sessions
                         new UserTokenPolicy()
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SupportedFeatures)
                 .Returns(TransportChannelFeatures.None);
 
@@ -1159,15 +1160,15 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.ReconnectAsync(ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ReconnectAsyncShouldHandleCancellationAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1178,14 +1179,14 @@ namespace Opc.Ua.Client.Sessions
                         new UserTokenPolicy()
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.Reconnect(It.IsAny<ITransportWaitingConnection>()))
                 .Throws(new TaskCanceledException())
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SupportedFeatures)
                 .Returns(TransportChannelFeatures.Reconnect);
 
@@ -1193,15 +1194,15 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.ReconnectAsync(default);
 
             // Assert
-            await act.Should().ThrowAsync<TaskCanceledException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<TaskCanceledException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ReconnectAsyncShouldHandleServerResponseWithNullNonceAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1212,17 +1213,17 @@ namespace Opc.Ua.Client.Sessions
                         new UserTokenPolicy()
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.Reconnect(It.IsAny<ITransportWaitingConnection>()))
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SupportedFeatures)
                 .Returns(TransportChannelFeatures.Reconnect);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ActivateSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1238,14 +1239,14 @@ namespace Opc.Ua.Client.Sessions
             await sut.ReconnectAsync(ct);
 
             // Assert
-            sut._serverNonce.Should().NotBeNull().And.BeEmpty();
-            _mockChannel.Verify();
+            Assert.That(sut._serverNonce, Is.Not.Null).And.BeEmpty();
+            m_mockChannel.Verify();
         }
-        [Fact]
+        [Test]
         public async Task ReconnectAsyncShouldThrowWithIncompatibleIdentityAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1260,7 +1261,7 @@ namespace Opc.Ua.Client.Sessions
                         }
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
@@ -1268,16 +1269,16 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.ReconnectAsync(ct);
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadUserAccessDenied);
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ReconnectAsyncShouldThrowWithBadActivationResponseAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1288,17 +1289,17 @@ namespace Opc.Ua.Client.Sessions
                         new UserTokenPolicy()
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.Reconnect(It.IsAny<ITransportWaitingConnection>()))
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SupportedFeatures)
                 .Returns(TransportChannelFeatures.Reconnect);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ActivateSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1314,16 +1315,16 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.ReconnectAsync(ct);
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadSessionNotActivated);
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ReconnectAsyncShouldThrowWhenTimingOutAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1334,17 +1335,17 @@ namespace Opc.Ua.Client.Sessions
                         new UserTokenPolicy()
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             sut.SetConnected();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.Reconnect(It.IsAny<ITransportWaitingConnection>()))
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SupportedFeatures)
                 .Returns(TransportChannelFeatures.Reconnect);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ActivateSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1355,12 +1356,12 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.ReconnectAsync(ct);
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadTimeout);
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task OpenAsyncShouldOpenSessionSuccessfullyAsync()
         {
             // Arrange
@@ -1374,15 +1375,15 @@ namespace Opc.Ua.Client.Sessions
                     new UserTokenPolicy()
                 ]
             };
-            _options = _options with { EnableComplexTypePreloading = false };
-            await using var sut = new TestSessionBase(_configuration,
+            m_options = m_options with { EnableComplexTypePreloading = false };
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, ep),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
             var serverNonce = new byte[] { 1, 2, 3, 4 };
             var authToken = NodeId.Parse("s=cookie");
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CreateSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1395,7 +1396,7 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<ActivateSessionRequest>(r => r.RequestHeader.AuthenticationToken == authToken),
                     It.IsAny<CancellationToken>()))
@@ -1408,7 +1409,7 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Read limit
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<ReadRequest>(r => r.NodesToRead.Count == 1),
                     It.IsAny<CancellationToken>()))
@@ -1423,7 +1424,7 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Operation limits
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<ReadRequest>(r => r.NodesToRead.Count == 27),
                     It.IsAny<CancellationToken>()))
@@ -1437,7 +1438,7 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Namespaces
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<ReadRequest>(r => r.NodesToRead.Count == 2),
                     It.IsAny<CancellationToken>()))
@@ -1456,11 +1457,11 @@ namespace Opc.Ua.Client.Sessions
             await sut.OpenAsync(ct);
 
             // Assert
-            sut._serverNonce.Should().BeEquivalentTo(new byte[] { 1, 2, 3, 4 });
-            _mockChannel.Verify();
+            Assert.That(sut._serverNonce, Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task OpenAsyncShouldHandleCreateSessionSuccessButActivationErrorAsync()
         {
             // Arrange
@@ -1474,15 +1475,15 @@ namespace Opc.Ua.Client.Sessions
                     new UserTokenPolicy()
                 ]
             };
-            _options = _options with { EnableComplexTypePreloading = false };
-            await using var sut = new TestSessionBase(_configuration,
+            m_options = m_options with { EnableComplexTypePreloading = false };
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, ep),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
             var serverNonce = new byte[] { 1, 2, 3, 4 };
             var authToken = NodeId.Parse("s=cookie");
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CreateSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1495,7 +1496,7 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<ActivateSessionRequest>(r => r.RequestHeader.AuthenticationToken == authToken),
                     It.IsAny<CancellationToken>()))
@@ -1508,7 +1509,7 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CloseSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1518,7 +1519,7 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask)
                 .Verifiable(Times.Once);
@@ -1527,12 +1528,12 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.OpenAsync(CancellationToken.None);
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadSessionNotActivated);
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task OpenAsyncShouldHandleCreateSessionSuccessButActivationErrorAndThenCloseAlsoFailsAsync()
         {
             // Arrange
@@ -1546,15 +1547,15 @@ namespace Opc.Ua.Client.Sessions
                     new UserTokenPolicy()
                 ]
             };
-            _options = _options with { EnableComplexTypePreloading = false };
-            await using var sut = new TestSessionBase(_configuration,
+            m_options = m_options with { EnableComplexTypePreloading = false };
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, ep),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
             var serverNonce = new byte[] { 1, 2, 3, 4 };
             var authToken = NodeId.Parse("s=cookie");
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CreateSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1567,7 +1568,7 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<ActivateSessionRequest>(r => r.RequestHeader.AuthenticationToken == authToken),
                     It.IsAny<CancellationToken>()))
@@ -1580,7 +1581,7 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CloseSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1590,7 +1591,7 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(StatusCodes.BadNotConnected))
                 .Verifiable(Times.Once);
@@ -1599,16 +1600,16 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.OpenAsync(CancellationToken.None);
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadSessionNotActivated);
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task OpenAsyncShouldHandleSessionOpeningFailureAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1619,9 +1620,9 @@ namespace Opc.Ua.Client.Sessions
                         new UserTokenPolicy()
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CreateSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1632,16 +1633,16 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.OpenAsync(CancellationToken.None);
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadUnexpectedError);
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task OpenAsyncShouldHandleBadSecurityPolicyAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1652,22 +1653,22 @@ namespace Opc.Ua.Client.Sessions
                         new UserTokenPolicy()
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
 
             // Act
             Func<Task> act = async () => await sut.OpenAsync(default);
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadSecurityPolicyRejected);
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task OpenAsyncShouldHandleBadIdentityTokenPolicyAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1682,22 +1683,22 @@ namespace Opc.Ua.Client.Sessions
                         }
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
 
             // Act
             Func<Task> act = async () => await sut.OpenAsync(default);
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadUserAccessDenied);
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task OpenAsyncShouldHandleCancellationAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1708,9 +1709,9 @@ namespace Opc.Ua.Client.Sessions
                         new UserTokenPolicy()
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CreateSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1721,15 +1722,15 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.OpenAsync(default);
 
             // Assert
-            await act.Should().ThrowAsync<OperationCanceledException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<OperationCanceledException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task OpenAsyncShouldHandleInvalidServerResponseAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -1740,10 +1741,10 @@ namespace Opc.Ua.Client.Sessions
                 new UserTokenPolicy()
                     ]
                 }),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CreateSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1758,11 +1759,11 @@ namespace Opc.Ua.Client.Sessions
             Func<Task> act = async () => await sut.OpenAsync(ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task OpenAsyncShouldHandleComplexTypeLoadingDisabledAsync()
         {
             // Arrange
@@ -1776,15 +1777,15 @@ namespace Opc.Ua.Client.Sessions
                     new UserTokenPolicy()
                 ]
             };
-            _options = _options with { EnableComplexTypePreloading = false };
-            await using var sut = new TestSessionBase(_configuration,
+            m_options = m_options with { EnableComplexTypePreloading = false };
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, ep),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
             var serverNonce = new byte[] { 1, 2, 3, 4 };
             var authToken = NodeId.Parse("s=cookie");
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<CreateSessionRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1797,7 +1798,7 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .Verifiable(Times.Once);
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<ActivateSessionRequest>(r => r.RequestHeader.AuthenticationToken == authToken),
                     It.IsAny<CancellationToken>()))
@@ -1810,7 +1811,7 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Read limit
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<ReadRequest>(r => r.NodesToRead.Count == 1),
                     It.IsAny<CancellationToken>()))
@@ -1825,7 +1826,7 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Operation limits
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<ReadRequest>(r => r.NodesToRead.Count == 27),
                     It.IsAny<CancellationToken>()))
@@ -1839,7 +1840,7 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Namespaces
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<ReadRequest>(r => r.NodesToRead.Count == 2),
                     It.IsAny<CancellationToken>()))
@@ -1858,17 +1859,17 @@ namespace Opc.Ua.Client.Sessions
             await sut.OpenAsync(ct);
 
             // Assert
-            sut._serverNonce.Should().BeEquivalentTo(new byte[] { 1, 2, 3, 4 });
-            _mockChannel.Verify();
+            Assert.That(sut._serverNonce, Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task BrowseAsyncShouldHandleWhenBrowseNextResultCollectionIsEmptyAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var nodeIds = new[]
@@ -1878,7 +1879,7 @@ namespace Opc.Ua.Client.Sessions
                 new NodeId("ns=1;s=ChildNode3")
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     ct))
@@ -1898,7 +1899,7 @@ namespace Opc.Ua.Client.Sessions
                     DiagnosticInfos = []
                 })
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest),
                     ct))
@@ -1935,20 +1936,20 @@ namespace Opc.Ua.Client.Sessions
             }
 
             // Assert
-            results.Should().HaveCount(2);
-            results[0].Result.References.Should().ContainSingle(r => r.NodeId == nodeIds[0]);
-            results[1].Result.References.Should().BeEmpty();
-            results[1].Result.StatusCode.Should().Be(StatusCodes.BadNoData);
-            _mockChannel.Verify();
+            Assert.That(results, Has.Count.EqualTo(2));
+            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[0]));
+            Assert.That(results[1].Result.References, Is.Empty);
+            Assert.That(results[1].Result.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task BrowseAsyncShouldHandleContinuationPointsSuccessfullyAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var nodeIds = new[]
@@ -1958,7 +1959,7 @@ namespace Opc.Ua.Client.Sessions
                 new NodeId("ns=1;s=ChildNode3")
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     ct))
@@ -1978,7 +1979,7 @@ namespace Opc.Ua.Client.Sessions
                     DiagnosticInfos = []
                 })
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest),
                     ct))
@@ -2032,20 +2033,20 @@ namespace Opc.Ua.Client.Sessions
             }
 
             // Assert
-            results.Should().HaveCount(3);
-            results[0].Result.References.Should().ContainSingle(r => r.NodeId == nodeIds[0]);
-            results[1].Result.References.Should().ContainSingle(r => r.NodeId == nodeIds[1]);
-            results[2].Result.References.Should().ContainSingle(r => r.NodeId == nodeIds[2]);
-            _mockChannel.Verify();
+            Assert.That(results, Has.Count.EqualTo(3));
+            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[0]));
+            Assert.That(results[1].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[1]));
+            Assert.That(results[2].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[2]));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task BrowseAsyncShouldHandleNullContinuationPointsSuccessfullyAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var nodeIds = new[]
@@ -2055,7 +2056,7 @@ namespace Opc.Ua.Client.Sessions
                 new NodeId("ns=1;s=ChildNode3")
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     ct))
@@ -2075,7 +2076,7 @@ namespace Opc.Ua.Client.Sessions
                     DiagnosticInfos = []
                 })
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest),
                     ct))
@@ -2116,21 +2117,21 @@ namespace Opc.Ua.Client.Sessions
             }
 
             // Assert
-            results.Should().HaveCount(2);
-            results[0].Result.References.Should().ContainSingle(r => r.NodeId == nodeIds[0]);
-            results[1].Result.References.Count.Should().Be(2);
-            results[1].Result.References[0].NodeId.Should().Be(nodeIds[1]);
-            results[1].Result.References[1].NodeId.Should().Be(nodeIds[2]);
-            _mockChannel.Verify();
+            Assert.That(results, Has.Count.EqualTo(2));
+            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[0]));
+            Assert.That(results[1].Result.References.Count, Is.EqualTo(2));
+            Assert.That(results[1].Result.References[0].NodeId, Is.EqualTo(nodeIds[1]));
+            Assert.That(results[1].Result.References[1].NodeId, Is.EqualTo(nodeIds[2]));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task BrowseAsyncShouldHandleWhenBrowseResultCollectionIsEmptyAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var nodeIds = new[]
@@ -2140,7 +2141,7 @@ namespace Opc.Ua.Client.Sessions
                 new NodeId("ns=1;s=ChildNode3")
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     ct))
@@ -2177,19 +2178,19 @@ namespace Opc.Ua.Client.Sessions
             }
 
             // Assert
-            results.Should().HaveCount(1);
-            results[0].Result.References.Should().BeEmpty();
-            results[0].Result.StatusCode.Should().Be(StatusCodes.BadNoData);
-            _mockChannel.Verify();
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(results[0].Result.References, Is.Empty);
+            Assert.That(results[0].Result.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task BrowseAsyncShouldHandleBrowseNextCancelledAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var nodeIds = new[]
@@ -2199,7 +2200,7 @@ namespace Opc.Ua.Client.Sessions
                 new NodeId("ns=1;s=ChildNode3")
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     ct))
@@ -2219,13 +2220,13 @@ namespace Opc.Ua.Client.Sessions
                     DiagnosticInfos = []
                 })
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest && !((BrowseNextRequest)r).ReleaseContinuationPoints),
                     ct))
                 .ThrowsAsync(new OperationCanceledException())
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest && ((BrowseNextRequest)r).ReleaseContinuationPoints),
                     ct))
@@ -2254,19 +2255,19 @@ namespace Opc.Ua.Client.Sessions
             };
 
             // Assert
-            await act.Should().ThrowAsync<OperationCanceledException>();
-            results.Should().HaveCount(1);
-            results[0].Result.References.Should().ContainSingle(r => r.NodeId == nodeIds[0]);
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<OperationCanceledException>(async () => await act());
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[0]));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task BrowseAsyncShouldHandleBrowseNextWithBadResponseAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
             var nodeIds = new[]
@@ -2276,7 +2277,7 @@ namespace Opc.Ua.Client.Sessions
                 new NodeId("ns=1;s=ChildNode3")
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     ct))
@@ -2296,7 +2297,7 @@ namespace Opc.Ua.Client.Sessions
                     DiagnosticInfos = []
                 })
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest && !((BrowseNextRequest)r).ReleaseContinuationPoints),
                     ct))
@@ -2308,7 +2309,7 @@ namespace Opc.Ua.Client.Sessions
                     }
                 })
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest && ((BrowseNextRequest)r).ReleaseContinuationPoints),
                     ct))
@@ -2337,20 +2338,20 @@ namespace Opc.Ua.Client.Sessions
             };
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadUnexpectedError);
-            results.Should().HaveCount(1);
-            results[0].Result.References.Should().ContainSingle(r => r.NodeId == nodeIds[0]);
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[0]));
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task BrowseAsyncShouldHandleContinuationPointsWithErrorsAsync()
         {
             // Arrange
-            await using var sut = new TestSessionBase(_configuration,
+            await using var sut = new TestSessionBase(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
 
             var ct = CancellationToken.None;
 
@@ -2361,7 +2362,7 @@ namespace Opc.Ua.Client.Sessions
                 new NodeId("ns=1;s=ChildNode3")
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     ct))
@@ -2381,7 +2382,7 @@ namespace Opc.Ua.Client.Sessions
                     DiagnosticInfos = []
                 })
                 .Verifiable(Times.Once);
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest),
                     ct))
@@ -2416,11 +2417,11 @@ namespace Opc.Ua.Client.Sessions
                 results.Add(result);
             }
             // Assert
-            results.Should().HaveCount(2);
-            results[0].Result.References.Should().ContainSingle(r => r.NodeId == new NodeId("ns=1;s=ChildNode1"));
-            results[1].Result.References.Should().BeEmpty();
-            results[1].Result.StatusCode.Should().Be(StatusCodes.BadUnexpectedError);
-            _mockChannel.Verify();
+            Assert.That(results, Has.Count.EqualTo(2));
+            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == new NodeId("ns=1;s=ChildNode1")));
+            Assert.That(results[1].Result.References, Is.Empty);
+            Assert.That(results[1].Result.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            m_mockChannel.Verify();
         }
 
         private sealed class TestSessionBase : SessionBase
@@ -2442,20 +2443,20 @@ namespace Opc.Ua.Client.Sessions
             }
 
             protected override IManagedSubscription CreateSubscription(ISubscriptionNotificationHandler handler,
-                IOptionsMonitor<SubscriptionOptions> _options, IMessageAckQueue queue,
+                IOptionsMonitor<SubscriptionOptions> m_options, IMessageAckQueue queue,
                 ITelemetryContext telemetry)
             {
                 throw new NotImplementedException();
             }
         }
 
-        private readonly Mock<ITransportChannel> _mockChannel;
-        private readonly Mock<ITelemetryContext> _mockObservability;
-        private readonly Mock<ILogger<SessionBase>> _mockLogger;
-        private readonly Mock<IMeterFactory> _mockMeterFactory;
-        private readonly Mock<TimeProvider> _mockTimeProvider;
-        private readonly Mock<ITimer> _mockTimer;
-        private readonly ApplicationConfiguration _configuration;
-        private SessionCreateOptions _options;
+        private Mock<ITransportChannel> m_mockChannel;
+        private Mock<ITelemetryContext> m_mockObservability;
+        private Mock<ILogger<SessionBase>> m_mockLogger;
+        private Mock<IMeterFactory> m_mockMeterFactory;
+        private Mock<TimeProvider> m_mockTimeProvider;
+        private Mock<ITimer> m_mockTimer;
+        private ApplicationConfiguration m_configuration;
+        private SessionCreateOptions m_options;
     }
 }

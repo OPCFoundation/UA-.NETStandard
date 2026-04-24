@@ -1,46 +1,47 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Nito.AsyncEx;
+using Opc.Ua.Client.Services;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Subscriptions
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using FluentAssertions;
-    using Microsoft.Extensions.Logging;
-    using Moq;
-    using Nito.AsyncEx;
-    using Opc.Ua.Client.Services;
-    using Xunit;
-
+    [TestFixture]
     public sealed class MessageProcessorTests
     {
-        public MessageProcessorTests()
+        [SetUp]
+        public void SetUp()
         {
-            _mockCompletion = new Mock<IMessageAckQueue>();
-            _mockObservability = new Mock<ITelemetryContext>();
-            _mockTimeProvider = new Mock<TimeProvider>();
-            _mockServices = new Mock<ISubscriptionServiceSet>();
-            _mockLogger = new Mock<ILogger<Subscription>>();
-            _mockObservability.Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
-                .Returns(_mockLogger.Object);
-            _mockObservability.Setup(o => o.TimeProvider).Returns(_mockTimeProvider.Object);
+            m_mockCompletion = new Mock<IMessageAckQueue>();
+            m_mockObservability = new Mock<ITelemetryContext>();
+            m_mockTimeProvider = new Mock<TimeProvider>();
+            m_mockServices = new Mock<ISubscriptionServiceSet>();
+            m_mockLogger = new Mock<ILogger<Subscription>>();
+            m_mockObservability.Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
+                .Returns(m_mockLogger.Object);
+            m_mockObservability.Setup(o => o.TimeProvider).Returns(m_mockTimeProvider.Object);
         }
 
-        [Fact]
+        [Test]
         public async Task DisposeAsyncShouldCompleteMessageWriterAndCancelTokenAsync()
         {
             // Arrange
-            var sut = new TestMessageProcessor(_mockServices.Object,
-                _mockCompletion.Object, _mockObservability.Object)
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_mockCompletion.Object, m_mockObservability.Object)
             {
                 Id = 3
             };
-            _mockCompletion
+            m_mockCompletion
                 .Setup(c => c.CompleteAsync(
                     It.Is<uint>(i => i == 3),
                     It.IsAny<CancellationToken>()))
@@ -51,11 +52,11 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.DisposeAsync();
 
             // Assert
-            sut.PublishState.Should().Be(PublishState.Completed);
-            _mockCompletion.Verify();
+            Assert.That(sut.PublishState, Is.EqualTo(PublishState.Completed));
+            m_mockCompletion.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task OnPublishReceivedKeepAliveShouldDispatchKeepAliveAsync()
         {
             // Arrange
@@ -65,8 +66,8 @@ namespace Opc.Ua.Client.Subscriptions
             };
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
             var stringTable = new List<string> { "test" };
-            await using var sut = new TestMessageProcessor(_mockServices.Object,
-                _mockCompletion.Object, _mockObservability.Object)
+            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_mockCompletion.Object, m_mockObservability.Object)
             {
                 Id = 3
             };
@@ -76,10 +77,10 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.KeepAliveNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1));
 
             // Assert
-            sut.KeepAliveNotificationReceived.IsSet.Should().BeTrue();
-            sut.AvailableInRetransmissionQueue.Should().BeEquivalentTo(availableSequenceNumbers);
-            sut.LastSequenceNumberProcessed.Should().Be(3);
-            sut.DataChangeNotificationReceived.IsSet.Should().BeFalse();
+            Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
+            Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
+            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(3));
+            Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.False);
 
             // Arrange
             sut.KeepAliveNotificationReceived.Reset();
@@ -104,21 +105,21 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.DataChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1));
 
             // Assert
-            sut.AvailableInRetransmissionQueue.Should().BeEquivalentTo(availableSequenceNumbers);
-            sut.DataChangeNotificationReceived.IsSet.Should().BeTrue();
-            sut.KeepAliveNotificationReceived.IsSet.Should().BeFalse();
-            sut.LastSequenceNumberProcessed.Should().Be(4);
+            Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
+            Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.True);
+            Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.False);
+            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(4));
         }
 
-        [Fact]
+        [Test]
         public async Task ProcessMessageAsyncShouldRepublishMissingMessagesAsync()
         {
             // Arrange
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
             var stringTable = new List<string> { "test" };
 
-            await using var sut = new TestMessageProcessor(_mockServices.Object,
-                _mockCompletion.Object, _mockObservability.Object)
+            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_mockCompletion.Object, m_mockObservability.Object)
             {
                 Id = 2
             };
@@ -128,7 +129,7 @@ namespace Opc.Ua.Client.Subscriptions
                 SequenceNumber = 1
             }, availableSequenceNumbers, stringTable);
 
-            _mockServices
+            m_mockServices
                 .Setup(c => c.RepublishAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<uint>(id => id == sut.Id),
@@ -171,14 +172,14 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.EventNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1));
 
             // Assert
-            sut.EventNotificationReceived.IsSet.Should().BeTrue();
-            sut.KeepAliveNotificationReceived.IsSet.Should().BeTrue();
-            sut.DataChangeNotificationReceived.IsSet.Should().BeTrue();
+            Assert.That(sut.EventNotificationReceived.IsSet, Is.True);
+            Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
+            Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.True);
 
-            _mockServices.Verify();
+            m_mockServices.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ProcessReceivedMessagesAsyncShouldProcessMessagesInOrderAsync()
         {
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
@@ -194,8 +195,8 @@ namespace Opc.Ua.Client.Subscriptions
             Random.Shared.Shuffle(messages);
 #pragma warning restore CA5394 // Do not use insecure randomness
 
-            await using var sut = new TestMessageProcessor(_mockServices.Object,
-                _mockCompletion.Object, _mockObservability.Object)
+            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_mockCompletion.Object, m_mockObservability.Object)
             {
                 Id = 3
             };
@@ -214,21 +215,21 @@ namespace Opc.Ua.Client.Subscriptions
             // Act
             await Task.Delay(10);
 
-            sut.ReceivedSequenceNumbers.Should().BeEquivalentTo(
-                Enumerable.Range(1, 100).Select(i => (uint)i));
-            sut.AvailableInRetransmissionQueue.Should().BeEquivalentTo(availableSequenceNumbers);
-            sut.DataChangeNotificationReceived.IsSet.Should().BeFalse();
-            sut.KeepAliveNotificationReceived.IsSet.Should().BeTrue();
-            sut.LastSequenceNumberProcessed.Should().Be(100);
+            Assert.That(sut.ReceivedSequenceNumbers, Is.EqualTo(
+                Enumerable.Range(1, 100)).Select(i => (uint)i));
+            Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
+            Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.False);
+            Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
+            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(100));
         }
-        [Fact]
+        [Test]
         public async Task ReceivingTransferStatusUpdateShouldUpdatePublishStateAsync()
         {
             // Arrange
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
             var stringTable = new List<string> { "test" };
-            await using var sut = new TestMessageProcessor(_mockServices.Object,
-                _mockCompletion.Object, _mockObservability.Object)
+            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_mockCompletion.Object, m_mockObservability.Object)
             {
                 Id = 3
             };
@@ -248,10 +249,10 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1));
 
             // Assert
-            sut.StatusChangeNotificationReceived.IsSet.Should().BeTrue();
-            sut.ReceivedSequenceNumbers.Should().Contain(3);
-            sut.LastSequenceNumberProcessed.Should().Be(3);
-            sut.PublishState.Should().Be(PublishState.Transferred);
+            Assert.That(sut.StatusChangeNotificationReceived.IsSet, Is.True);
+            Assert.That(sut.ReceivedSequenceNumbers, Does.Contain(3));
+            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(3));
+            Assert.That(sut.PublishState, Is.EqualTo(PublishState.Transferred));
 
             sut.StatusChangeNotificationReceived.Reset();
 
@@ -270,10 +271,10 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1));
 
             // Assert
-            sut.StatusChangeNotificationReceived.IsSet.Should().BeTrue();
-            sut.ReceivedSequenceNumbers.Should().Contain(4);
-            sut.LastSequenceNumberProcessed.Should().Be(4);
-            sut.PublishState.Should().Be(PublishState.Timeout);
+            Assert.That(sut.StatusChangeNotificationReceived.IsSet, Is.True);
+            Assert.That(sut.ReceivedSequenceNumbers, Does.Contain(4));
+            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(4));
+            Assert.That(sut.PublishState, Is.EqualTo(PublishState.Timeout));
         }
 
         private sealed class TestMessageProcessor : MessageProcessor
@@ -366,10 +367,10 @@ namespace Opc.Ua.Client.Subscriptions
                 await WaitAsync();
             }
         }
-        private readonly Mock<IMessageAckQueue> _mockCompletion;
-        private readonly Mock<ILogger<Subscription>> _mockLogger;
-        private readonly Mock<ITelemetryContext> _mockObservability;
-        private readonly Mock<ISubscriptionServiceSet> _mockServices;
-        private readonly Mock<TimeProvider> _mockTimeProvider;
+        private Mock<IMessageAckQueue> m_mockCompletion;
+        private Mock<ILogger<Subscription>> m_mockLogger;
+        private Mock<ITelemetryContext> m_mockObservability;
+        private Mock<ISubscriptionServiceSet> m_mockServices;
+        private Mock<TimeProvider> m_mockTimeProvider;
     }
 }

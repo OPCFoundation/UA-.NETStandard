@@ -1,41 +1,42 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using System;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Moq;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
-    using System;
-    using System.Threading.Tasks;
-    using FluentAssertions;
-    using Microsoft.Extensions.Logging;
-    using Moq;
-    using Xunit;
-
+    [TestFixture]
     public sealed class MonitoredItemTests
     {
-        public MonitoredItemTests()
+        [SetUp]
+        public void SetUp()
         {
-            _mockContext = new Mock<IMonitoredItemContext>();
-            _options = OptionsFactory.Create<MonitoredItemOptions>();
-            _mockLogger = new Mock<ILogger<MonitoredItem>>();
+            m_mockContext = new Mock<IMonitoredItemContext>();
+            m_options = OptionsFactory.Create<MonitoredItemOptions>();
+            m_mockLogger = new Mock<ILogger<MonitoredItem>>();
         }
 
-        [Fact]
+        [Test]
         public void ServerIdShouldGet()
         {
             // Arrange
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(_mockContext.Object,
-               _options, _mockLogger.Object);
+            var sut = new TestMonitoredItem(m_mockContext.Object,
+               m_options, m_mockLogger.Object);
             const uint serverId = 123u;
 
             // Act
-            sut.TryGetPendingChange(out var change).Should().BeTrue();
-            Assert.NotNull(change);
+            Assert.That(sut.TryGetPendingChange(out var change), Is.True);
+            Assert.That(change, Is.Not.Null);
             change.SetCreateResult(new MonitoredItemCreateRequest
             {
                 MonitoringMode = MonitoringMode.Sampling,
@@ -55,66 +56,66 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }, 0, [], new ResponseHeader());
 
             // Assert
-            sut.ServerId.Should().Be(serverId);
-            sut.Created.Should().BeTrue();
+            Assert.That(sut.ServerId, Is.EqualTo(serverId));
+            Assert.That(sut.Created, Is.True);
         }
 
-        [Fact]
+        [Test]
         public void CreatedShouldReturnFalseWhenServerIdIsNotSet()
         {
             // Act
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(_mockContext.Object,
-              _options, _mockLogger.Object);
+            var sut = new TestMonitoredItem(m_mockContext.Object,
+              m_options, m_mockLogger.Object);
             var result = sut.Created;
 
             // Assert
-            result.Should().BeFalse();
+            Assert.That(result, Is.False);
         }
 
-        [Fact]
+        [Test]
         public void SetMonitoringModeShouldNotifyItemChangeResultWhenStatusCodeIsBad()
         {
             // Arrange
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 MonitoringMode = MonitoringMode.Sampling,
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(_mockContext.Object,
-                _options, _mockLogger.Object);
+            var sut = new TestMonitoredItem(m_mockContext.Object,
+                m_options, m_mockLogger.Object);
 
             // Act
-            sut.TryGetPendingChange(out var change).Should().BeTrue();
-            Assert.NotNull(change);
+            Assert.That(sut.TryGetPendingChange(out var change), Is.True);
+            Assert.That(change, Is.Not.Null);
             change.SetMonitoringModeResult(MonitoringMode.Sampling, StatusCodes.Bad,
                 0, [], new ResponseHeader());
 
             // Assert
-            _mockContext.Verify(s => s.NotifyItemChangeResult(sut, 1,
-                _options.CurrentValue,
+            m_mockContext.Verify(s => s.NotifyItemChangeResult(sut, 1,
+                m_options.CurrentValue,
                 It.Is<ServiceResult>(s => s.StatusCode == StatusCodes.Bad),
                 false, null),
                 Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void CreateShouldNotifyItemChangeResultWhenStatusCodeIsBad()
         {
             // Arrange
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(_mockContext.Object,
-               _options, _mockLogger.Object);
+            var sut = new TestMonitoredItem(m_mockContext.Object,
+               m_options, m_mockLogger.Object);
 
             // Act
-            sut.TryGetPendingChange(out var change).Should().BeTrue();
-            Assert.NotNull(change);
+            Assert.That(sut.TryGetPendingChange(out var change), Is.True);
+            Assert.That(change, Is.Not.Null);
             change.SetCreateResult(new MonitoredItemCreateRequest
             {
                 MonitoringMode = MonitoringMode.Sampling,
@@ -131,28 +132,28 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }, 0, [], new ResponseHeader());
 
             // Assert
-            _mockContext.Verify(s => s.NotifyItemChangeResult(sut, 1,
-                _options.CurrentValue,
+            m_mockContext.Verify(s => s.NotifyItemChangeResult(sut, 1,
+                m_options.CurrentValue,
                 It.Is<ServiceResult>(s => s.StatusCode == StatusCodes.Bad),
                 false, null),
                 Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void CreateShouldNotifyItemChangeResultWithFilterResult()
         {
             // Arrange
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(_mockContext.Object,
-               _options, _mockLogger.Object);
+            var sut = new TestMonitoredItem(m_mockContext.Object,
+               m_options, m_mockLogger.Object);
             var filterResult = new EventFilterResult();
 
             // Act
-            sut.TryGetPendingChange(out var change).Should().BeTrue();
-            Assert.NotNull(change);
+            Assert.That(sut.TryGetPendingChange(out var change), Is.True);
+            Assert.That(change, Is.Not.Null);
             change.SetCreateResult(new MonitoredItemCreateRequest
             {
                 MonitoringMode = MonitoringMode.Sampling,
@@ -170,29 +171,29 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }, 0, [], new ResponseHeader());
 
             // Assert
-            _mockContext.Verify(s => s.NotifyItemChangeResult(sut, 0,
-                _options.CurrentValue, ServiceResult.Good, true,
+            m_mockContext.Verify(s => s.NotifyItemChangeResult(sut, 0,
+                m_options.CurrentValue, ServiceResult.Good, true,
                 It.Is<MonitoringFilterResult>(o => Utils.IsEqual(o, filterResult))),
                 Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void CurrentMonitoringModeShouldSetAndGet()
         {
             // Arrange
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 MonitoringMode = MonitoringMode.Reporting,
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(_mockContext.Object,
-                _options, _mockLogger.Object);
+            var sut = new TestMonitoredItem(m_mockContext.Object,
+                m_options, m_mockLogger.Object);
 
-            sut.CurrentMonitoringMode.Should().NotBe(MonitoringMode.Sampling);
+            Assert.That(sut.CurrentMonitoringMode, Is.Not.EqualTo(MonitoringMode.Sampling));
 
             // Act
-            sut.TryGetPendingChange(out var change).Should().BeTrue();
-            Assert.NotNull(change);
+            Assert.That(sut.TryGetPendingChange(out var change), Is.True);
+            Assert.That(change, Is.Not.Null);
             change.SetCreateResult(new MonitoredItemCreateRequest
             {
                 MonitoringMode = MonitoringMode.Sampling,
@@ -209,48 +210,48 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }, 0, [], new ResponseHeader());
 
             // Assert
-            sut.CurrentMonitoringMode.Should().Be(MonitoringMode.Sampling);
+            Assert.That(sut.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Sampling));
         }
 
-        [Fact]
+        [Test]
         public void CurrentMonitoringModeShouldUpdate()
         {
             // Arrange
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 MonitoringMode = MonitoringMode.Sampling,
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(_mockContext.Object,
-                _options, _mockLogger.Object);
+            var sut = new TestMonitoredItem(m_mockContext.Object,
+                m_options, m_mockLogger.Object);
 
-            sut.CurrentMonitoringMode.Should().NotBe(MonitoringMode.Sampling);
+            Assert.That(sut.CurrentMonitoringMode, Is.Not.EqualTo(MonitoringMode.Sampling));
 
             // Act
-            sut.TryGetPendingChange(out var change).Should().BeTrue();
-            Assert.NotNull(change);
+            Assert.That(sut.TryGetPendingChange(out var change), Is.True);
+            Assert.That(change, Is.Not.Null);
             change.SetMonitoringModeResult(MonitoringMode.Sampling, StatusCodes.Good,
                 0, [], new ResponseHeader());
 
             // Assert
-            sut.CurrentMonitoringMode.Should().Be(MonitoringMode.Sampling);
+            Assert.That(sut.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Sampling));
         }
 
-        [Fact]
+        [Test]
         public void CurrentSamplingIntervalShouldSetAndGet()
         {
             // Arrange
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(_mockContext.Object,
-               _options, _mockLogger.Object);
+            var sut = new TestMonitoredItem(m_mockContext.Object,
+               m_options, m_mockLogger.Object);
             var currentSamplingInterval = TimeSpan.FromMilliseconds(500);
 
             // Act
-            sut.TryGetPendingChange(out var change).Should().BeTrue();
-            Assert.NotNull(change);
+            Assert.That(sut.TryGetPendingChange(out var change), Is.True);
+            Assert.That(change, Is.Not.Null);
             change.SetCreateResult(new MonitoredItemCreateRequest
             {
                 MonitoringMode = MonitoringMode.Sampling,
@@ -268,24 +269,24 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }, 0, [], new ResponseHeader());
 
             // Assert
-            sut.CurrentSamplingInterval.Should().Be(currentSamplingInterval);
+            Assert.That(sut.CurrentSamplingInterval, Is.EqualTo(currentSamplingInterval));
         }
 
-        [Fact]
+        [Test]
         public void CurrentQueueSizeShouldSetAndGet()
         {
             // Arrange
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(_mockContext.Object,
-               _options, _mockLogger.Object);
+            var sut = new TestMonitoredItem(m_mockContext.Object,
+               m_options, m_mockLogger.Object);
             const uint currentQueueSize = 5u;
 
             // Act
-            sut.TryGetPendingChange(out var change).Should().BeTrue();
-            Assert.NotNull(change);
+            Assert.That(sut.TryGetPendingChange(out var change), Is.True);
+            Assert.That(change, Is.Not.Null);
             change.SetCreateResult(new MonitoredItemCreateRequest
             {
                 MonitoringMode = MonitoringMode.Sampling,
@@ -303,59 +304,59 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }, 0, [], new ResponseHeader());
 
             // Assert
-            sut.CurrentQueueSize.Should().Be(currentQueueSize);
+            Assert.That(sut.CurrentQueueSize, Is.EqualTo(currentQueueSize));
         }
 
-        [Fact]
+        [Test]
         public void ClientHandleShouldGet()
         {
             // Act
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(_mockContext.Object,
-               _options, _mockLogger.Object);
+            var sut = new TestMonitoredItem(m_mockContext.Object,
+               m_options, m_mockLogger.Object);
             var result = sut.ClientHandle;
 
             // Assert
-            result.Should().NotBe(0);
+            Assert.That(result, Is.Not.EqualTo(0));
         }
 
-        [Fact]
+        [Test]
         public async Task DisposeShouldCallRemoveItemOnSubscriptionAsync()
         {
             // Act
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(_mockContext.Object,
-              _options, _mockLogger.Object);
+            var sut = new TestMonitoredItem(m_mockContext.Object,
+              m_options, m_mockLogger.Object);
             await sut.DisposeAsync();
 
             // Assert
-            _mockContext.Verify(s => s.NotifyItemChange(sut, true), Times.Once);
+            m_mockContext.Verify(s => s.NotifyItemChange(sut, true), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public async Task DisposeCanBeCalledTwiceWithoutExceptionAsync()
         {
             // Act
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(_mockContext.Object,
-              _options, _mockLogger.Object);
+            var sut = new TestMonitoredItem(m_mockContext.Object,
+              m_options, m_mockLogger.Object);
             await sut.DisposeAsync();
             await sut.DisposeAsync();
 
             // Assert
-            _mockContext.Verify(s => s.NotifyItemChange(sut, true), Times.Once);
+            m_mockContext.Verify(s => s.NotifyItemChange(sut, true), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void OnSubscriptionStateChangeShouldAdjustQueueSizeWhenAutoSetQueueSizeIsTrue()
         {
             // Arrange
@@ -377,12 +378,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.FromMilliseconds(500));
 
             // Assert
-            monitoredItem.TryGetPendingChange(out var change).Should().BeTrue();
-            Assert.NotNull(change?.Create);
-            change.Create.RequestedParameters.QueueSize.Should().Be(6); // (500 / 100) + 1 = 6
+            Assert.That(monitoredItem.TryGetPendingChange(out var change), Is.True);
+            Assert.That(change?.Create, Is.Not.Null);
+            Assert.That(change.Create.RequestedParameters.QueueSize, Is.EqualTo(6)); // (500 / 100) + 1 = 6
         }
 
-        [Fact]
+        [Test]
         public void OnSubscriptionStateChangeShouldNotAdjustQueueSizeWhenAutoSetQueueSizeIsFalse()
         {
             // Arrange
@@ -404,10 +405,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.FromMilliseconds(500));
 
             // Assert
-            monitoredItem.TryGetPendingChange(out var change).Should().BeFalse();
+            Assert.That(monitoredItem.TryGetPendingChange(out var change), Is.False);
         }
 
-        [Fact]
+        [Test]
         public void OnSubscriptionStateChangeShouldNotAdjustQueueSizeWhenPublishingIntervalIsZero()
         {
             // Arrange
@@ -429,10 +430,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.Zero);
 
             // Assert
-            monitoredItem.TryGetPendingChange(out var change).Should().BeFalse();
+            Assert.That(monitoredItem.TryGetPendingChange(out var change), Is.False);
         }
 
-        [Fact]
+        [Test]
         public void OnSubscriptionStateChangeShouldNotAdjustQueueSizeWhenSamplingIntervalIsZero()
         {
             // Arrange
@@ -454,10 +455,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.FromMilliseconds(500));
 
             // Assert
-            monitoredItem.TryGetPendingChange(out var change).Should().BeFalse();
+            Assert.That(monitoredItem.TryGetPendingChange(out var change), Is.False);
         }
 
-        [Fact]
+        [Test]
         public void OnSubscriptionStateChangeShouldNotAdjustQueueSizeWhenSamplingIntervalIsNegative()
         {
             // Arrange
@@ -479,10 +480,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.FromMilliseconds(500));
 
             // Assert
-            monitoredItem.TryGetPendingChange(out var change).Should().BeFalse();
+            Assert.That(monitoredItem.TryGetPendingChange(out var change), Is.False);
         }
 
-        [Fact]
+        [Test]
         public void ToStringShouldReturnExpectedString()
         {
             // Arrange
@@ -501,7 +502,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var result = monitoredItem.ToString();
 
             // Assert
-            result.Should().Be($"Test#{monitoredItem.ClientHandle}|0 (TestItem)");
+            Assert.That(result, Is.EqualTo($"Test#{monitoredItem.ClientHandle}|0 (TestItem))");
         }
 
         private sealed class TestMonitoredItem : MonitoredItem
@@ -517,8 +518,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
         }
 
-        private readonly Mock<IMonitoredItemContext> _mockContext;
-        private readonly OptionsMonitor<MonitoredItemOptions> _options;
-        private readonly Mock<ILogger<MonitoredItem>> _mockLogger;
+        private Mock<IMonitoredItemContext> m_mockContext;
+        private OptionsMonitor<MonitoredItemOptions> m_options;
+        private Mock<ILogger<MonitoredItem>> m_mockLogger;
     }
 }

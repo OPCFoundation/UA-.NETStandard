@@ -1,203 +1,204 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using Moq;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Nodes.Obsolete
 {
-    using FluentAssertions;
-    using Moq;
-    using System;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using Xunit;
-
+    [TestFixture]
     public class TypeTreeTests
     {
-        private readonly TypeTree _typeTree;
+        private TypeTree m_typeTree;
 
-        public TypeTreeTests()
+        [SetUp]
+        public void SetUp()
         {
             var nodeCacheMock = new Mock<INodeCache>();
-            _typeTree = new TypeTree(nodeCacheMock.Object);
+            m_typeTree = new TypeTree(nodeCacheMock.Object);
         }
 
-        [Fact]
+        [Test]
         public void FindSuperTypeWithExpandedNodeIdShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.FindSuperType(new ExpandedNodeId("test", 0));
+            Action act = () => m_typeTree.FindSuperType(new ExpandedNodeId("test", 0));
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*FindSuperType deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*FindSuperType deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void FindSuperTypeWithNodeIdShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.FindSuperType(new NodeId("test", 0));
+            Action act = () => m_typeTree.FindSuperType(new NodeId("test", 0));
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*FindSuperType deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*FindSuperType deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public async Task FindSuperTypeAsyncWithExpandedNodeIdShouldThrowNotSupportedAsync()
         {
             // Act
-            Func<Task> act = async () => await _typeTree.FindSuperTypeAsync(new ExpandedNodeId("test", 0), CancellationToken.None);
+            Func<Task> act = async () => await m_typeTree.FindSuperTypeAsync(new ExpandedNodeId("test", 0), CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>()
-                .WithMessage("*FindSuperTypeAsync deprecated*");
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("*FindSuperTypeAsync deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public async Task FindSuperTypeAsyncWithNodeIdShouldThrowNotSupportedAsync()
         {
             // Act
-            Func<Task> act = async () => await _typeTree.FindSuperTypeAsync(new NodeId("test", 0), CancellationToken.None);
+            Func<Task> act = async () => await m_typeTree.FindSuperTypeAsync(new NodeId("test", 0), CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>()
-                .WithMessage("*FindSuperTypeAsync deprecated*");
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("*FindSuperTypeAsync deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void IsTypeOfWithExpandedNodeIdShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.IsTypeOf(new ExpandedNodeId("test", 0), new ExpandedNodeId("test", 0));
+            Action act = () => m_typeTree.IsTypeOf(new ExpandedNodeId("test", 0), new ExpandedNodeId("test", 0));
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*IsTypeOf deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*IsTypeOf deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void IsTypeOfWithNodeIdShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.IsTypeOf(new NodeId("test", 0), new NodeId("test", 0));
+            Action act = () => m_typeTree.IsTypeOf(new NodeId("test", 0), new NodeId("test", 0));
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*IsTypeOf deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*IsTypeOf deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void IsKnownWithExpandedNodeIdShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.IsKnown(new ExpandedNodeId("test", 0));
+            Action act = () => m_typeTree.IsKnown(new ExpandedNodeId("test", 0));
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*IsKnown deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*IsKnown deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void IsKnownWithNodeIdShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.IsKnown(new NodeId());
+            Action act = () => m_typeTree.IsKnown(new NodeId());
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*IsKnown deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*IsKnown deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void FindSubTypesShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.FindSubTypes(new ExpandedNodeId("test", 0));
+            Action act = () => m_typeTree.FindSubTypes(new ExpandedNodeId("test", 0));
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*FindSubTypes deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*FindSubTypes deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void FindReferenceTypeNameShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.FindReferenceTypeName(new NodeId("test", 0));
+            Action act = () => m_typeTree.FindReferenceTypeName(new NodeId("test", 0));
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*FindReferenceTypeName deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*FindReferenceTypeName deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void FindReferenceTypeShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.FindReferenceType(new QualifiedName("test", 0));
+            Action act = () => m_typeTree.FindReferenceType(new QualifiedName("test", 0));
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*FindReferenceType deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*FindReferenceType deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void IsEncodingOfShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.IsEncodingOf(new ExpandedNodeId("test", 0),
+            Action act = () => m_typeTree.IsEncodingOf(new ExpandedNodeId("test", 0),
                 new ExpandedNodeId("test", 0));
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*IsEncodingOf deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*IsEncodingOf deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void IsEncodingForWithExtensionObjectShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.IsEncodingFor(new NodeId("test", 0),
+            Action act = () => m_typeTree.IsEncodingFor(new NodeId("test", 0),
                 new ExtensionObject(new ExpandedNodeId("test", 0), new ReadAtTimeDetails()));
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*IsEncodingFor deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*IsEncodingFor deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void IsEncodingForWithObjectShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.IsEncodingFor(new NodeId("test", 0), new object());
+            Action act = () => m_typeTree.IsEncodingFor(new NodeId("test", 0), new object());
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*IsEncodingFor deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*IsEncodingFor deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void FindDataTypeIdWithExpandedNodeIdShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.FindDataTypeId(new ExpandedNodeId("test", 0));
+            Action act = () => m_typeTree.FindDataTypeId(new ExpandedNodeId("test", 0));
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*FindDataTypeId deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*FindDataTypeId deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void FindDataTypeIdWithNodeIdShouldThrowNotSupported()
         {
             // Act
-            Action act = () => _typeTree.FindDataTypeId(new NodeId());
+            Action act = () => m_typeTree.FindDataTypeId(new NodeId());
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*FindDataTypeId deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*FindDataTypeId deprecated*"));
         }
     }
 }

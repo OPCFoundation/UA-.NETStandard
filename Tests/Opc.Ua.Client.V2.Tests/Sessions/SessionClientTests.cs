@@ -1,56 +1,61 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Moq;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Sessions
 {
-    using System;
-    using System.Diagnostics;
-    using System.IO;
-    using System.Linq;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using FluentAssertions;
-    using Microsoft.Extensions.Logging;
-    using Moq;
-    using Xunit;
-
-    public class RequestHeaderData : TheoryData<XunitSerializableEncodeable<RequestHeader>>
+    public class RequestHeaderData : IEnumerable
     {
-        public RequestHeaderData()
+        public IEnumerator GetEnumerator()
         {
-            Add(new XunitSerializableEncodeable<RequestHeader>(null));
-            Add(new XunitSerializableEncodeable<RequestHeader>(new RequestHeader()));
-            Add(new XunitSerializableEncodeable<RequestHeader>(new RequestHeader { AuditEntryId = "audit-entry-id" }));
+            yield return new TestCaseData(new EncodeableTestData<RequestHeader>(null));
+            yield return new TestCaseData(new EncodeableTestData<RequestHeader>(new RequestHeader()));
+            yield return new TestCaseData(new EncodeableTestData<RequestHeader>(new RequestHeader { AuditEntryId = "audit-entry-id" }));
         }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
-    public sealed class SessionClientTests : IDisposable
+    [TestFixture]
+    public sealed class SessionClientTests
     {
-        public SessionClientTests()
+        [SetUp]
+        public void SetUp()
         {
-            _mockObservability = new Mock<ITelemetryContext>();
-            _mockChannel = new Mock<ITransportChannel>();
-            _mockLogger = new Mock<ILogger<SessionClient>>();
+            m_mockObservability = new Mock<ITelemetryContext>();
+            m_mockChannel = new Mock<ITransportChannel>();
+            m_mockLogger = new Mock<ILogger<SessionClient>>();
 
-            _mockObservability.Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
-                .Returns(_mockLogger.Object);
+            m_mockObservability.Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
+                .Returns(m_mockLogger.Object);
 
-            _sessionServices = new TestSessionServices(_mockObservability.Object,
-                _mockChannel.Object);
+            m_sessionServices = new TestSessionServices(m_mockObservability.Object,
+                m_mockChannel.Object);
         }
 
-        /// <inheritdoc/>
-        public void Dispose()
+        [TearDown]
+        public void TearDown()
         {
-            _sessionServices.Dispose();
+            m_sessionServices.Dispose();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ActivateSessionAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
             var requestHeader = header.Value;
@@ -61,7 +66,7 @@ namespace Opc.Ua.Client.Sessions
             var userTokenSignature = new SignatureData();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ActivateSessionRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -69,21 +74,21 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.ActivateSessionAsync(requestHeader,
+            var response = await m_sessionServices.ActivateSessionAsync(requestHeader,
                 clientSignature, clientSoftwareCertificates, localeIds,
                 userIdentityToken, userTokenSignature, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ActivateSessionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -95,7 +100,7 @@ namespace Opc.Ua.Client.Sessions
             var userTokenSignature = new SignatureData();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ActivateSessionRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -109,19 +114,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.ActivateSessionAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.ActivateSessionAsync(requestHeader,
                 clientSignature, clientSoftwareCertificates, localeIds,
                 userIdentityToken, userTokenSignature, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ActivateSessionAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -133,7 +138,7 @@ namespace Opc.Ua.Client.Sessions
             var userTokenSignature = new SignatureData();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ActivateSessionRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -141,19 +146,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.ActivateSessionAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.ActivateSessionAsync(requestHeader,
                 clientSignature, clientSoftwareCertificates, localeIds,
                 userIdentityToken, userTokenSignature, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddNodesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -162,9 +168,9 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Repeat(new AddNodesItem(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is AddNodesRequest),
                     It.IsAny<CancellationToken>()))
@@ -180,19 +186,19 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.AddNodesAsync(requestHeader, nodesToAdd, ct);
+            var response = await m_sessionServices.AddNodesAsync(requestHeader, nodesToAdd, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddNodesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -200,9 +206,9 @@ namespace Opc.Ua.Client.Sessions
             var nodesToAdd = new AddNodesItemCollection(Enumerable.Repeat(new AddNodesItem(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is AddNodesRequest),
                     It.IsAny<CancellationToken>()))
@@ -220,17 +226,17 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.AddNodesAsync(requestHeader, nodesToAdd, ct);
+            Func<Task> act = async () => await m_sessionServices.AddNodesAsync(requestHeader, nodesToAdd, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddNodesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -238,7 +244,7 @@ namespace Opc.Ua.Client.Sessions
             var nodesToAdd = new AddNodesItemCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is AddNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -246,20 +252,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.AddNodesAsync(requestHeader,
+            var response = await m_sessionServices.AddNodesAsync(requestHeader,
                 nodesToAdd, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -267,7 +273,7 @@ namespace Opc.Ua.Client.Sessions
             var nodesToAdd = new AddNodesItemCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is AddNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -281,18 +287,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.AddNodesAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.AddNodesAsync(requestHeader,
                 nodesToAdd, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -300,7 +306,7 @@ namespace Opc.Ua.Client.Sessions
             var nodesToAdd = new AddNodesItemCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is AddNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -308,18 +314,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.AddNodesAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.AddNodesAsync(requestHeader,
                 nodesToAdd, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddNodesAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -327,7 +334,7 @@ namespace Opc.Ua.Client.Sessions
             var nodesToAdd = new AddNodesItemCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is AddNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -339,18 +346,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.AddNodesAsync(requestHeader, nodesToAdd, ct);
+            var response = await m_sessionServices.AddNodesAsync(requestHeader, nodesToAdd, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddReferencesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -359,9 +366,9 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Repeat(new AddReferencesItem(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is AddReferencesRequest),
                     It.IsAny<CancellationToken>()))
@@ -377,19 +384,19 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.AddReferencesAsync(requestHeader, referencesToAdd, ct);
+            var response = await m_sessionServices.AddReferencesAsync(requestHeader, referencesToAdd, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddReferencesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -397,9 +404,9 @@ namespace Opc.Ua.Client.Sessions
             var referencesToAdd = new AddReferencesItemCollection(Enumerable.Repeat(new AddReferencesItem(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is AddReferencesRequest),
                     It.IsAny<CancellationToken>()))
@@ -417,17 +424,17 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.AddReferencesAsync(requestHeader, referencesToAdd, ct);
+            Func<Task> act = async () => await m_sessionServices.AddReferencesAsync(requestHeader, referencesToAdd, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddReferencesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -435,7 +442,7 @@ namespace Opc.Ua.Client.Sessions
             var referencesToAdd = new AddReferencesItemCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is AddReferencesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -443,20 +450,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.AddReferencesAsync(requestHeader,
+            var response = await m_sessionServices.AddReferencesAsync(requestHeader,
                 referencesToAdd, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddReferencesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -464,7 +471,7 @@ namespace Opc.Ua.Client.Sessions
             var referencesToAdd = new AddReferencesItemCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is AddReferencesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -478,18 +485,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.AddReferencesAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.AddReferencesAsync(requestHeader,
                 referencesToAdd, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddReferencesAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -497,7 +504,7 @@ namespace Opc.Ua.Client.Sessions
             var referencesToAdd = new AddReferencesItemCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is AddReferencesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -505,18 +512,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.AddReferencesAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.AddReferencesAsync(requestHeader,
                 referencesToAdd, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddReferencesAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -524,7 +532,7 @@ namespace Opc.Ua.Client.Sessions
             var referencesToAdd = new AddReferencesItemCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is AddReferencesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -536,18 +544,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.AddReferencesAsync(requestHeader, referencesToAdd, ct);
+            var response = await m_sessionServices.AddReferencesAsync(requestHeader, referencesToAdd, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -558,9 +566,9 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Repeat(new BrowseDescription(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.IsAny<CancellationToken>()))
@@ -576,20 +584,20 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.BrowseAsync(requestHeader, view,
+            var response = await m_sessionServices.BrowseAsync(requestHeader, view,
                 requestedMaxReferencesPerNode, nodesToBrowse, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldContainTraceContextInRequestHeaderAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -599,7 +607,7 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Repeat(new BrowseDescription(), 5).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
 
             ActivitySource.AddActivityListener(new ActivityListener
             {
@@ -608,12 +616,12 @@ namespace Opc.Ua.Client.Sessions
                 SampleUsingParentId = (ref ActivityCreationOptions<string> options) => ActivitySamplingResult.AllData
             });
             var activitySource = new ActivitySource("TestActivitySource");
-            activitySource.HasListeners().Should().BeTrue();
-            _mockObservability.Setup(o => o.ActivitySource).Returns(activitySource);
+            Assert.That(activitySource.HasListeners(), Is.True);
+            m_mockObservability.Setup(o => o.ActivitySource).Returns(activitySource);
 
             using var activity = activitySource.StartActivity("TestActivity");
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.IsAny<CancellationToken>()))
@@ -628,26 +636,26 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
+            var response = await m_sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
 
             // Assert
-            response.Should().NotBeNull();
+            Assert.That(response, Is.Not.Null);
             if (requestHeader != null)
             {
-                requestHeader.AdditionalHeader.Should().NotBeNull();
+                Assert.That(requestHeader.AdditionalHeader, Is.Not.Null);
                 var additionalParameters = requestHeader.AdditionalHeader.Body as AdditionalParametersType;
-                additionalParameters.Should().NotBeNull();
-                Assert.NotNull(additionalParameters);
-                additionalParameters.Parameters.Should().Contain(p => p.Key == "traceparent");
+                Assert.That(additionalParameters, Is.Not.Null);
+                Assert.That(additionalParameters, Is.Not.Null);
+                Assert.That(additionalParameters.Parameters, Does.Contain(p => p.Key == "traceparent"));
             }
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Once);
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldContainTraceContextInRequestHeaderWhenBatchedAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -657,7 +665,7 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Repeat(new BrowseDescription(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
 
             ActivitySource.AddActivityListener(new ActivityListener
             {
@@ -666,13 +674,13 @@ namespace Opc.Ua.Client.Sessions
                 SampleUsingParentId = (ref ActivityCreationOptions<string> options) => ActivitySamplingResult.AllData
             });
             var activitySource = new ActivitySource("TestActivitySource");
-            activitySource.HasListeners().Should().BeTrue();
-            _mockObservability.Setup(o => o.ActivitySource).Returns(activitySource);
-            _mockObservability.Setup(o => o.ActivitySource).Returns(activitySource);
+            Assert.That(activitySource.HasListeners(), Is.True);
+            m_mockObservability.Setup(o => o.ActivitySource).Returns(activitySource);
+            m_mockObservability.Setup(o => o.ActivitySource).Returns(activitySource);
 
             using var activity = activitySource.StartActivity("TestActivity");
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.IsAny<CancellationToken>()))
@@ -688,26 +696,26 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
+            var response = await m_sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
 
             // Assert
-            response.Should().NotBeNull();
+            Assert.That(response, Is.Not.Null);
             if (requestHeader != null)
             {
-                requestHeader.AdditionalHeader.Should().NotBeNull();
+                Assert.That(requestHeader.AdditionalHeader, Is.Not.Null);
                 var additionalParameters = requestHeader.AdditionalHeader.Body as AdditionalParametersType;
-                additionalParameters.Should().NotBeNull();
-                Assert.NotNull(additionalParameters);
-                additionalParameters.Parameters.Should().Contain(p => p.Key == "traceparent");
+                Assert.That(additionalParameters, Is.Not.Null);
+                Assert.That(additionalParameters, Is.Not.Null);
+                Assert.That(additionalParameters.Parameters, Does.Contain(p => p.Key == "traceparent"));
             }
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -717,10 +725,10 @@ namespace Opc.Ua.Client.Sessions
             var nodesToBrowse = new BrowseDescriptionCollection(Enumerable.Repeat(new BrowseDescription(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
-            _sessionServices.TraceActivityUsingLogger = true;
+            m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
+            m_sessionServices.TraceActivityUsingLogger = true;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.IsAny<CancellationToken>()))
@@ -740,19 +748,19 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.BrowseAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.BrowseAsync(requestHeader,
                 view, requestedMaxReferencesPerNode, nodesToBrowse, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldHandleDiagnosticInfosCorrectlyAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -762,7 +770,7 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Repeat(new BrowseDescription(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
 
             var diagnosticInfo1 = new DiagnosticInfo
             {
@@ -781,7 +789,7 @@ namespace Opc.Ua.Client.Sessions
                 InnerDiagnosticInfo = diagnosticInfo1
             };
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.IsAny<CancellationToken>()))
@@ -801,25 +809,25 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.BrowseAsync(requestHeader,
+            var response = await m_sessionServices.BrowseAsync(requestHeader,
                 view, 0, nodesToBrowse, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            response.DiagnosticInfos.Count.Should().Be(15);
-            response.DiagnosticInfos[0].SymbolicId.Should().Be(1);
-            response.DiagnosticInfos[10].SymbolicId.Should().Be(5);
-            response.DiagnosticInfos[10].InnerDiagnosticInfo.Should().NotBeNull();
-            response.DiagnosticInfos[10].InnerDiagnosticInfo.SymbolicId.Should().Be(1);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(15));
+            Assert.That(response.DiagnosticInfos[0].SymbolicId, Is.EqualTo(1));
+            Assert.That(response.DiagnosticInfos[10].SymbolicId, Is.EqualTo(5));
+            Assert.That(response.DiagnosticInfos[10].InnerDiagnosticInfo, Is.Not.Null);
+            Assert.That(response.DiagnosticInfos[10].InnerDiagnosticInfo.SymbolicId, Is.EqualTo(1));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldHandleEmptyDiagnosticInfosCorrectlyAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -829,9 +837,9 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Repeat(new BrowseDescription(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.IsAny<CancellationToken>()))
@@ -849,21 +857,21 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.BrowseAsync(requestHeader,
+            var response = await m_sessionServices.BrowseAsync(requestHeader,
                 view, 0, nodesToBrowse, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            response.DiagnosticInfos.Count.Should().Be(0);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(0));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldHandleEmptyStringTablesInDiagnosticInfosAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -873,7 +881,7 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Repeat(new BrowseDescription(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
 
             var diagnosticInfo1 = new DiagnosticInfo
             {
@@ -883,7 +891,7 @@ namespace Opc.Ua.Client.Sessions
                 LocalizedText = 4
             };
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.IsAny<CancellationToken>()))
@@ -911,28 +919,28 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
+            var response = await m_sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            response.DiagnosticInfos.Count.Should().Be(15);
-            response.ResponseHeader.StringTable.Count.Should().Be(0);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(15));
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.EqualTo(0));
 
             // Verify that the indexes in the diagnostic infos are correctly updated
-            response.DiagnosticInfos[0].SymbolicId.Should().Be(1);
-            response.DiagnosticInfos[0].NamespaceUri.Should().Be(2);
-            response.DiagnosticInfos[0].Locale.Should().Be(3);
-            response.DiagnosticInfos[0].LocalizedText.Should().Be(4);
+            Assert.That(response.DiagnosticInfos[0].SymbolicId, Is.EqualTo(1));
+            Assert.That(response.DiagnosticInfos[0].NamespaceUri, Is.EqualTo(2));
+            Assert.That(response.DiagnosticInfos[0].Locale, Is.EqualTo(3));
+            Assert.That(response.DiagnosticInfos[0].LocalizedText, Is.EqualTo(4));
 
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldHandleMixedDiagnosticInfosCorrectlyAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -942,7 +950,7 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Repeat(new BrowseDescription(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
 
             var diagnosticInfo1 = new DiagnosticInfo
             {
@@ -952,7 +960,7 @@ namespace Opc.Ua.Client.Sessions
                 LocalizedText = 4
             };
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.IsAny<CancellationToken>()))
@@ -971,21 +979,21 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
+            var response = await m_sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            response.DiagnosticInfos.Count.Should().Be(15);
-            response.DiagnosticInfos[0].SymbolicId.Should().Be(1);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(15));
+            Assert.That(response.DiagnosticInfos[0].SymbolicId, Is.EqualTo(1));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldRecombineStringTablesInDiagnosticInfos1Async(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -995,7 +1003,7 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Range(0, 15).Select(_ => new BrowseDescription()));
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
 
             static DiagnosticInfo diagnosticInfo() => new()
             {
@@ -1005,7 +1013,7 @@ namespace Opc.Ua.Client.Sessions
                 LocalizedText = 4
             };
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.IsAny<CancellationToken>()))
@@ -1033,35 +1041,34 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
+            var response = await m_sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            response.DiagnosticInfos.Count.Should().Be(15);
-            response.ResponseHeader.StringTable.Count.Should().Be(8);
-            response.ResponseHeader.StringTable.Should()
-                .ContainInOrder("String1", "String2", "String3", "String4", "String5", "String6", "String7", "String8");
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(15));
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.EqualTo(8));
+            Assert.That(response.ResponseHeader.StringTable, Is.EqualTo(new[] { "String1", "String2", "String3", "String4", "String5", "String6", "String7", "String8" }));
 
             // Verify that the indexes in the diagnostic infos are correctly updated
-            response.DiagnosticInfos[0].SymbolicId.Should().Be(1);
-            response.DiagnosticInfos[0].NamespaceUri.Should().Be(2);
-            response.DiagnosticInfos[0].Locale.Should().Be(3);
-            response.DiagnosticInfos[0].LocalizedText.Should().Be(4);
+            Assert.That(response.DiagnosticInfos[0].SymbolicId, Is.EqualTo(1));
+            Assert.That(response.DiagnosticInfos[0].NamespaceUri, Is.EqualTo(2));
+            Assert.That(response.DiagnosticInfos[0].Locale, Is.EqualTo(3));
+            Assert.That(response.DiagnosticInfos[0].LocalizedText, Is.EqualTo(4));
 
-            response.DiagnosticInfos[10].SymbolicId.Should().Be(5);
-            response.DiagnosticInfos[10].NamespaceUri.Should().Be(6);
-            response.DiagnosticInfos[10].Locale.Should().Be(7);
-            response.DiagnosticInfos[10].LocalizedText.Should().Be(8);
+            Assert.That(response.DiagnosticInfos[10].SymbolicId, Is.EqualTo(5));
+            Assert.That(response.DiagnosticInfos[10].NamespaceUri, Is.EqualTo(6));
+            Assert.That(response.DiagnosticInfos[10].Locale, Is.EqualTo(7));
+            Assert.That(response.DiagnosticInfos[10].LocalizedText, Is.EqualTo(8));
 
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldRecombineStringTablesInDiagnosticInfos2Async(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1071,7 +1078,7 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Range(0, 15).Select(_ => new BrowseDescription()));
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
 
             DiagnosticInfo diagnosticInfo1() => new()
             {
@@ -1089,7 +1096,7 @@ namespace Opc.Ua.Client.Sessions
                 LocalizedText = 4
             };
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.IsAny<CancellationToken>()))
@@ -1117,35 +1124,34 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
+            var response = await m_sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            response.DiagnosticInfos.Count.Should().Be(15);
-            response.ResponseHeader.StringTable.Count.Should().Be(8);
-            response.ResponseHeader.StringTable.Should()
-                .ContainInOrder("String1", "String2", "String3", "String4", "String5", "String6", "String7", "String8");
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(15));
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.EqualTo(8));
+            Assert.That(response.ResponseHeader.StringTable, Is.EqualTo(new[] { "String1", "String2", "String3", "String4", "String5", "String6", "String7", "String8" }));
 
             // Verify that the indexes in the diagnostic infos are correctly updated
-            response.DiagnosticInfos[0].SymbolicId.Should().Be(1);
-            response.DiagnosticInfos[0].NamespaceUri.Should().Be(2);
-            response.DiagnosticInfos[0].Locale.Should().Be(3);
-            response.DiagnosticInfos[0].LocalizedText.Should().Be(4);
+            Assert.That(response.DiagnosticInfos[0].SymbolicId, Is.EqualTo(1));
+            Assert.That(response.DiagnosticInfos[0].NamespaceUri, Is.EqualTo(2));
+            Assert.That(response.DiagnosticInfos[0].Locale, Is.EqualTo(3));
+            Assert.That(response.DiagnosticInfos[0].LocalizedText, Is.EqualTo(4));
 
-            response.DiagnosticInfos[10].SymbolicId.Should().Be(5);
-            response.DiagnosticInfos[10].NamespaceUri.Should().Be(6);
-            response.DiagnosticInfos[10].Locale.Should().Be(7);
-            response.DiagnosticInfos[10].LocalizedText.Should().Be(8);
+            Assert.That(response.DiagnosticInfos[10].SymbolicId, Is.EqualTo(5));
+            Assert.That(response.DiagnosticInfos[10].NamespaceUri, Is.EqualTo(6));
+            Assert.That(response.DiagnosticInfos[10].Locale, Is.EqualTo(7));
+            Assert.That(response.DiagnosticInfos[10].LocalizedText, Is.EqualTo(8));
 
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldRecombineStringTablesInDiagnosticInfos3Async(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1155,7 +1161,7 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Range(0, 15).Select(_ => new BrowseDescription()));
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
 
             DiagnosticInfo diagnosticInfo1() => new()
             {
@@ -1174,7 +1180,7 @@ namespace Opc.Ua.Client.Sessions
                 InnerDiagnosticInfo = diagnosticInfo1()
             };
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.IsAny<CancellationToken>()))
@@ -1202,38 +1208,38 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
+            var response = await m_sessionServices.BrowseAsync(requestHeader, view, 0, nodesToBrowse, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            response.DiagnosticInfos.Count.Should().Be(15);
-            response.ResponseHeader.StringTable.Count.Should().Be(6);
-            response.ResponseHeader.StringTable.Should().ContainInOrder("String1", "String2", "String1", "String2", "String3", "String4");
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(15));
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.EqualTo(6));
+            Assert.That(response.ResponseHeader.StringTable, Is.EqualTo(new[] { "String1", "String2", "String1", "String2", "String3", "String4" }));
 
             // Verify that the indexes in the diagnostic infos are correctly updated
-            response.DiagnosticInfos[0].SymbolicId.Should().Be(1);
-            response.DiagnosticInfos[0].NamespaceUri.Should().Be(2);
-            response.DiagnosticInfos[0].Locale.Should().Be(1);
-            response.DiagnosticInfos[0].LocalizedText.Should().Be(2);
+            Assert.That(response.DiagnosticInfos[0].SymbolicId, Is.EqualTo(1));
+            Assert.That(response.DiagnosticInfos[0].NamespaceUri, Is.EqualTo(2));
+            Assert.That(response.DiagnosticInfos[0].Locale, Is.EqualTo(1));
+            Assert.That(response.DiagnosticInfos[0].LocalizedText, Is.EqualTo(2));
 
-            response.DiagnosticInfos[10].SymbolicId.Should().Be(3);
-            response.DiagnosticInfos[10].NamespaceUri.Should().Be(4);
-            response.DiagnosticInfos[10].Locale.Should().Be(5);
-            response.DiagnosticInfos[10].LocalizedText.Should().Be(6);
-            response.DiagnosticInfos[10].InnerDiagnosticInfo.Should().NotBeNull();
-            response.DiagnosticInfos[10].InnerDiagnosticInfo.SymbolicId.Should().Be(3);
-            response.DiagnosticInfos[10].InnerDiagnosticInfo.NamespaceUri.Should().Be(4);
-            response.DiagnosticInfos[10].InnerDiagnosticInfo.Locale.Should().Be(3);
-            response.DiagnosticInfos[10].InnerDiagnosticInfo.LocalizedText.Should().Be(4);
+            Assert.That(response.DiagnosticInfos[10].SymbolicId, Is.EqualTo(3));
+            Assert.That(response.DiagnosticInfos[10].NamespaceUri, Is.EqualTo(4));
+            Assert.That(response.DiagnosticInfos[10].Locale, Is.EqualTo(5));
+            Assert.That(response.DiagnosticInfos[10].LocalizedText, Is.EqualTo(6));
+            Assert.That(response.DiagnosticInfos[10].InnerDiagnosticInfo, Is.Not.Null);
+            Assert.That(response.DiagnosticInfos[10].InnerDiagnosticInfo.SymbolicId, Is.EqualTo(3));
+            Assert.That(response.DiagnosticInfos[10].InnerDiagnosticInfo.NamespaceUri, Is.EqualTo(4));
+            Assert.That(response.DiagnosticInfos[10].InnerDiagnosticInfo.Locale, Is.EqualTo(3));
+            Assert.That(response.DiagnosticInfos[10].InnerDiagnosticInfo.LocalizedText, Is.EqualTo(4));
 
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1243,7 +1249,7 @@ namespace Opc.Ua.Client.Sessions
             var nodesToBrowse = new BrowseDescriptionCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1251,20 +1257,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.BrowseAsync(requestHeader, view,
+            var response = await m_sessionServices.BrowseAsync(requestHeader, view,
                 requestedMaxReferencesPerNode, nodesToBrowse, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1274,7 +1280,7 @@ namespace Opc.Ua.Client.Sessions
             var nodesToBrowse = new BrowseDescriptionCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1288,18 +1294,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.BrowseAsync(requestHeader, view,
+            Func<Task> act = async () => await m_sessionServices.BrowseAsync(requestHeader, view,
                 requestedMaxReferencesPerNode, nodesToBrowse, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1309,7 +1315,7 @@ namespace Opc.Ua.Client.Sessions
             var nodesToBrowse = new BrowseDescriptionCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1317,18 +1323,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.BrowseAsync(requestHeader, view,
+            Func<Task> act = async () => await m_sessionServices.BrowseAsync(requestHeader, view,
                 requestedMaxReferencesPerNode, nodesToBrowse, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1338,7 +1345,7 @@ namespace Opc.Ua.Client.Sessions
             var nodesToBrowse = new BrowseDescriptionCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1350,18 +1357,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.BrowseAsync(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, ct);
+            var response = await m_sessionServices.BrowseAsync(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseNextAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1371,9 +1378,9 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Repeat(Array.Empty<byte>(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxBrowseContinuationPoints = 10;
+            m_sessionServices.OperationLimits.MaxBrowseContinuationPoints = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest),
                     It.IsAny<CancellationToken>()))
@@ -1389,20 +1396,20 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.BrowseNextAsync(requestHeader,
+            var response = await m_sessionServices.BrowseNextAsync(requestHeader,
                 releaseContinuationPoints, continuationPoints, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseNextAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1411,9 +1418,9 @@ namespace Opc.Ua.Client.Sessions
             var continuationPoints = new ByteStringCollection(Enumerable.Repeat(Array.Empty<byte>(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxBrowseContinuationPoints = 10;
+            m_sessionServices.OperationLimits.MaxBrowseContinuationPoints = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest),
                     It.IsAny<CancellationToken>()))
@@ -1431,19 +1438,19 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.BrowseNextAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.BrowseNextAsync(requestHeader,
                 releaseContinuationPoints, continuationPoints, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseNextAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1452,7 +1459,7 @@ namespace Opc.Ua.Client.Sessions
             var continuationPoints = new ByteStringCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1460,20 +1467,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.BrowseNextAsync(requestHeader,
+            var response = await m_sessionServices.BrowseNextAsync(requestHeader,
                 releaseContinuationPoints, continuationPoints, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseNextAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1482,7 +1489,7 @@ namespace Opc.Ua.Client.Sessions
             var continuationPoints = new ByteStringCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1496,18 +1503,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.BrowseNextAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.BrowseNextAsync(requestHeader,
                 releaseContinuationPoints, continuationPoints, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseNextAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1516,7 +1523,7 @@ namespace Opc.Ua.Client.Sessions
             var continuationPoints = new ByteStringCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1524,18 +1531,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.BrowseNextAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.BrowseNextAsync(requestHeader,
                 releaseContinuationPoints, continuationPoints, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseNextAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1544,7 +1552,7 @@ namespace Opc.Ua.Client.Sessions
             var continuationPoints = new ByteStringCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is BrowseNextRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1556,19 +1564,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.BrowseNextAsync(requestHeader,
+            var response = await m_sessionServices.BrowseNextAsync(requestHeader,
                 releaseContinuationPoints, continuationPoints, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CallAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1577,9 +1585,9 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Repeat(new CallMethodRequest(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerMethodCall = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerMethodCall = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CallRequest),
                     It.IsAny<CancellationToken>()))
@@ -1595,19 +1603,19 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.CallAsync(requestHeader, methodsToCall, ct);
+            var response = await m_sessionServices.CallAsync(requestHeader, methodsToCall, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CallAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1615,9 +1623,9 @@ namespace Opc.Ua.Client.Sessions
             var methodsToCall = new CallMethodRequestCollection(Enumerable.Repeat(new CallMethodRequest(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxNodesPerMethodCall = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerMethodCall = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CallRequest),
                     It.IsAny<CancellationToken>()))
@@ -1635,19 +1643,19 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.CallAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.CallAsync(requestHeader,
                 methodsToCall, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CallAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1655,7 +1663,7 @@ namespace Opc.Ua.Client.Sessions
             var methodsToCall = new CallMethodRequestCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CallRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1663,20 +1671,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.CallAsync(requestHeader,
+            var response = await m_sessionServices.CallAsync(requestHeader,
                 methodsToCall, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CallAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1684,7 +1692,7 @@ namespace Opc.Ua.Client.Sessions
             var methodsToCall = new CallMethodRequestCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CallRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1698,18 +1706,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.CallAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.CallAsync(requestHeader,
                 methodsToCall, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CallAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1717,7 +1725,7 @@ namespace Opc.Ua.Client.Sessions
             var methodsToCall = new CallMethodRequestCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CallRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1725,18 +1733,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.CallAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.CallAsync(requestHeader,
                 methodsToCall, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CallAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1744,7 +1753,7 @@ namespace Opc.Ua.Client.Sessions
             var methodsToCall = new CallMethodRequestCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CallRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1756,18 +1765,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.CallAsync(requestHeader, methodsToCall, ct);
+            var response = await m_sessionServices.CallAsync(requestHeader, methodsToCall, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CancelAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1775,7 +1784,7 @@ namespace Opc.Ua.Client.Sessions
             const uint requestHandle = 1u;
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CancelRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1783,20 +1792,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.CancelAsync(requestHeader,
+            var response = await m_sessionServices.CancelAsync(requestHeader,
                 requestHandle, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CancelAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1804,7 +1813,7 @@ namespace Opc.Ua.Client.Sessions
             const uint requestHandle = 1u;
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CancelRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1818,18 +1827,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.CancelAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.CancelAsync(requestHeader,
                 requestHandle, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CancelAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1837,7 +1846,7 @@ namespace Opc.Ua.Client.Sessions
             const uint requestHandle = 1u;
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CancelRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1845,18 +1854,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.CancelAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.CancelAsync(requestHeader,
                 requestHandle, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CloseSessionAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1864,7 +1874,7 @@ namespace Opc.Ua.Client.Sessions
             const bool deleteSubscriptions = true;
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CloseSessionRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1872,20 +1882,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.CloseSessionAsync(requestHeader,
+            var response = await m_sessionServices.CloseSessionAsync(requestHeader,
                 deleteSubscriptions, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CloseSessionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1893,7 +1903,7 @@ namespace Opc.Ua.Client.Sessions
             const bool deleteSubscriptions = true;
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CloseSessionRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1907,18 +1917,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.CloseSessionAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.CloseSessionAsync(requestHeader,
                 deleteSubscriptions, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CloseSessionAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1926,7 +1936,7 @@ namespace Opc.Ua.Client.Sessions
             const bool deleteSubscriptions = true;
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CloseSessionRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -1934,18 +1944,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.CloseSessionAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.CloseSessionAsync(requestHeader,
                 deleteSubscriptions, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateMonitoredItemsAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1956,9 +1967,9 @@ namespace Opc.Ua.Client.Sessions
                 Enumerable.Repeat(new MonitoredItemCreateRequest(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
+            m_sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CreateMonitoredItemsRequest),
                     It.IsAny<CancellationToken>()))
@@ -1974,20 +1985,20 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.CreateMonitoredItemsAsync(requestHeader,
+            var response = await m_sessionServices.CreateMonitoredItemsAsync(requestHeader,
                 subscriptionId, timestampsToReturn, itemsToCreate, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateMonitoredItemsAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -1997,9 +2008,9 @@ namespace Opc.Ua.Client.Sessions
             var itemsToCreate = new MonitoredItemCreateRequestCollection(Enumerable.Repeat(new MonitoredItemCreateRequest(), 15).ToList());
             var ct = CancellationToken.None;
 
-            _sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
+            m_sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CreateMonitoredItemsRequest),
                     It.IsAny<CancellationToken>()))
@@ -2017,18 +2028,18 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.CreateMonitoredItemsAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.CreateMonitoredItemsAsync(requestHeader,
                 subscriptionId, timestampsToReturn, itemsToCreate, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateMonitoredItemsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2038,7 +2049,7 @@ namespace Opc.Ua.Client.Sessions
             var itemsToCreate = new MonitoredItemCreateRequestCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CreateMonitoredItemsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2046,20 +2057,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.CreateMonitoredItemsAsync(requestHeader,
+            var response = await m_sessionServices.CreateMonitoredItemsAsync(requestHeader,
                 subscriptionId, timestampsToReturn, itemsToCreate, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateMonitoredItemsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2069,7 +2080,7 @@ namespace Opc.Ua.Client.Sessions
             var itemsToCreate = new MonitoredItemCreateRequestCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CreateMonitoredItemsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2083,18 +2094,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.CreateMonitoredItemsAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.CreateMonitoredItemsAsync(requestHeader,
                 subscriptionId, timestampsToReturn, itemsToCreate, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateMonitoredItemsAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2104,7 +2115,7 @@ namespace Opc.Ua.Client.Sessions
             var itemsToCreate = new MonitoredItemCreateRequestCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CreateMonitoredItemsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2112,18 +2123,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.CreateMonitoredItemsAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.CreateMonitoredItemsAsync(requestHeader,
                 subscriptionId, timestampsToReturn, itemsToCreate, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateMonitoredItemsAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2133,7 +2145,7 @@ namespace Opc.Ua.Client.Sessions
             var itemsToCreate = new MonitoredItemCreateRequestCollection();
             var ct = CancellationToken.None;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CreateMonitoredItemsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2145,19 +2157,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.CreateMonitoredItemsAsync(requestHeader, subscriptionId,
+            var response = await m_sessionServices.CreateMonitoredItemsAsync(requestHeader, subscriptionId,
                 timestampsToReturn, itemsToCreate, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateSubscriptionAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2170,7 +2182,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CreateSubscriptionRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2178,21 +2190,21 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.CreateSubscriptionAsync(requestHeader,
+            var response = await m_sessionServices.CreateSubscriptionAsync(requestHeader,
                 requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount,
                 maxNotificationsPerPublish, publishingEnabled, priority, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateSubscriptionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2205,7 +2217,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CreateSubscriptionRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2219,19 +2231,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.CreateSubscriptionAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.CreateSubscriptionAsync(requestHeader,
                 requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount,
                 maxNotificationsPerPublish, publishingEnabled, priority, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateSubscriptionAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2244,7 +2256,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is CreateSubscriptionRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2252,19 +2264,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.CreateSubscriptionAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.CreateSubscriptionAsync(requestHeader,
                 requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount,
                 maxNotificationsPerPublish, publishingEnabled, priority, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteMonitoredItemsAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2273,9 +2286,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
+            m_sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteMonitoredItemsRequest),
                     It.IsAny<CancellationToken>()))
@@ -2291,20 +2304,20 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.DeleteMonitoredItemsAsync(requestHeader,
+            var response = await m_sessionServices.DeleteMonitoredItemsAsync(requestHeader,
                 subscriptionId, monitoredItemIds, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteMonitoredItemsAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2313,9 +2326,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
+            m_sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteMonitoredItemsRequest),
                     It.IsAny<CancellationToken>()))
@@ -2333,19 +2346,19 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.DeleteMonitoredItemsAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.DeleteMonitoredItemsAsync(requestHeader,
                 subscriptionId, monitoredItemIds, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteMonitoredItemsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2354,7 +2367,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteMonitoredItemsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2362,20 +2375,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.DeleteMonitoredItemsAsync(
+            var response = await m_sessionServices.DeleteMonitoredItemsAsync(
                 requestHeader, subscriptionId, monitoredItemIds, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteMonitoredItemsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2384,7 +2397,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteMonitoredItemsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2398,18 +2411,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.DeleteMonitoredItemsAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.DeleteMonitoredItemsAsync(requestHeader,
                 subscriptionId, monitoredItemIds, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteMonitoredItemsAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2418,7 +2431,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteMonitoredItemsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2426,18 +2439,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.DeleteMonitoredItemsAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.DeleteMonitoredItemsAsync(requestHeader,
                 subscriptionId, monitoredItemIds, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteNodesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2446,9 +2460,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteNodesRequest),
                     It.IsAny<CancellationToken>()))
@@ -2464,19 +2478,19 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.DeleteNodesAsync(requestHeader, nodesToDelete, ct);
+            var response = await m_sessionServices.DeleteNodesAsync(requestHeader, nodesToDelete, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteNodesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2484,9 +2498,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteNodesRequest),
                     It.IsAny<CancellationToken>()))
@@ -2504,18 +2518,18 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.DeleteNodesAsync(requestHeader, nodesToDelete, ct);
+            Func<Task> act = async () => await m_sessionServices.DeleteNodesAsync(requestHeader, nodesToDelete, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteNodesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2523,7 +2537,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2531,20 +2545,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.DeleteNodesAsync(requestHeader,
+            var response = await m_sessionServices.DeleteNodesAsync(requestHeader,
                 nodesToDelete, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2552,7 +2566,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2566,18 +2580,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.DeleteNodesAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.DeleteNodesAsync(requestHeader,
                 nodesToDelete, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2585,7 +2599,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2593,18 +2607,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.DeleteNodesAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.DeleteNodesAsync(requestHeader,
                 nodesToDelete, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteNodesAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2612,7 +2627,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2624,18 +2639,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.DeleteNodesAsync(requestHeader, nodesToDelete, ct);
+            var response = await m_sessionServices.DeleteNodesAsync(requestHeader, nodesToDelete, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteReferencesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2644,9 +2659,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteReferencesRequest),
                     It.IsAny<CancellationToken>()))
@@ -2662,19 +2677,19 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.DeleteReferencesAsync(requestHeader, referencesToDelete, ct);
+            var response = await m_sessionServices.DeleteReferencesAsync(requestHeader, referencesToDelete, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteReferencesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2682,9 +2697,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteReferencesRequest),
                     It.IsAny<CancellationToken>()))
@@ -2702,17 +2717,17 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.DeleteReferencesAsync(requestHeader, referencesToDelete, ct);
+            Func<Task> act = async () => await m_sessionServices.DeleteReferencesAsync(requestHeader, referencesToDelete, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteReferencesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2720,7 +2735,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteReferencesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2728,20 +2743,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.DeleteReferencesAsync(requestHeader,
+            var response = await m_sessionServices.DeleteReferencesAsync(requestHeader,
                 referencesToDelete, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteReferencesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2749,7 +2764,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteReferencesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2763,18 +2778,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.DeleteReferencesAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.DeleteReferencesAsync(requestHeader,
                 referencesToDelete, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteReferencesAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2782,7 +2797,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteReferencesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2790,18 +2805,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.DeleteReferencesAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.DeleteReferencesAsync(requestHeader,
                 referencesToDelete, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteReferencesAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2809,7 +2825,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteReferencesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2821,18 +2837,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.DeleteReferencesAsync(requestHeader, referencesToDelete, ct);
+            var response = await m_sessionServices.DeleteReferencesAsync(requestHeader, referencesToDelete, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteSubscriptionsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2840,7 +2856,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteSubscriptionsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2848,20 +2864,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.DeleteSubscriptionsAsync(
+            var response = await m_sessionServices.DeleteSubscriptionsAsync(
                 requestHeader, subscriptionIds, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteSubscriptionsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2869,7 +2885,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteSubscriptionsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2883,18 +2899,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.DeleteSubscriptionsAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.DeleteSubscriptionsAsync(requestHeader,
                 subscriptionIds, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteSubscriptionsAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2902,7 +2918,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is DeleteSubscriptionsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -2910,18 +2926,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.DeleteSubscriptionsAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.DeleteSubscriptionsAsync(requestHeader,
                 subscriptionIds, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryReadAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2933,9 +2950,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerHistoryReadData = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerHistoryReadData = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is HistoryReadRequest),
                     It.IsAny<CancellationToken>()))
@@ -2951,20 +2968,20 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.HistoryReadAsync(requestHeader,
+            var response = await m_sessionServices.HistoryReadAsync(requestHeader,
                 historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryReadAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -2975,9 +2992,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerHistoryReadEvents = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerHistoryReadEvents = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is HistoryReadRequest),
                     It.IsAny<CancellationToken>()))
@@ -2995,18 +3012,18 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.HistoryReadAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.HistoryReadAsync(requestHeader,
                 historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryReadAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3017,7 +3034,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is HistoryReadRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3025,21 +3042,21 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.HistoryReadAsync(requestHeader,
+            var response = await m_sessionServices.HistoryReadAsync(requestHeader,
                 historyReadDetails, timestampsToReturn, releaseContinuationPoints,
                 nodesToRead, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryReadAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3050,7 +3067,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is HistoryReadRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3064,19 +3081,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.HistoryReadAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.HistoryReadAsync(requestHeader,
                 historyReadDetails, timestampsToReturn, releaseContinuationPoints,
                 nodesToRead, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryReadAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3087,7 +3104,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is HistoryReadRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3095,19 +3112,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.HistoryReadAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.HistoryReadAsync(requestHeader,
                 historyReadDetails, timestampsToReturn, releaseContinuationPoints,
                 nodesToRead, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryReadAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3118,7 +3136,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is HistoryReadRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3130,19 +3148,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.HistoryReadAsync(requestHeader, historyReadDetails,
+            var response = await m_sessionServices.HistoryReadAsync(requestHeader, historyReadDetails,
                 timestampsToReturn, releaseContinuationPoints, nodesToRead, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryUpdateAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3150,9 +3168,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerHistoryUpdateData = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerHistoryUpdateData = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is HistoryUpdateRequest),
                     It.IsAny<CancellationToken>()))
@@ -3166,18 +3184,18 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.HistoryUpdateAsync(requestHeader, historyUpdateDetails, ct);
+            var response = await m_sessionServices.HistoryUpdateAsync(requestHeader, historyUpdateDetails, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryUpdateAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3186,9 +3204,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerHistoryUpdateEvents = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerHistoryUpdateEvents = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is HistoryUpdateRequest),
                     It.IsAny<CancellationToken>()))
@@ -3206,17 +3224,17 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.HistoryUpdateAsync(requestHeader, historyUpdateDetails, ct);
+            Func<Task> act = async () => await m_sessionServices.HistoryUpdateAsync(requestHeader, historyUpdateDetails, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryUpdateAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3224,7 +3242,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is HistoryUpdateRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3232,20 +3250,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.HistoryUpdateAsync(requestHeader,
+            var response = await m_sessionServices.HistoryUpdateAsync(requestHeader,
                 historyUpdateDetails, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryUpdateAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3253,7 +3271,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is HistoryUpdateRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3267,18 +3285,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.HistoryUpdateAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.HistoryUpdateAsync(requestHeader,
                 historyUpdateDetails, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryUpdateAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3286,7 +3304,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is HistoryUpdateRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3294,18 +3312,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.HistoryUpdateAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.HistoryUpdateAsync(requestHeader,
                 historyUpdateDetails, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryUpdateAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3313,7 +3332,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is HistoryUpdateRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3325,18 +3344,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.HistoryUpdateAsync(requestHeader, historyUpdateDetails, ct);
+            var response = await m_sessionServices.HistoryUpdateAsync(requestHeader, historyUpdateDetails, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifyMonitoredItemsAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3347,9 +3366,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
+            m_sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ModifyMonitoredItemsRequest),
                     It.IsAny<CancellationToken>()))
@@ -3365,20 +3384,20 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.ModifyMonitoredItemsAsync(requestHeader, subscriptionId,
+            var response = await m_sessionServices.ModifyMonitoredItemsAsync(requestHeader, subscriptionId,
                 timestampsToReturn, itemsToModify, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifyMonitoredItemsAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3388,9 +3407,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
+            m_sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ModifyMonitoredItemsRequest),
                     It.IsAny<CancellationToken>()))
@@ -3408,18 +3427,18 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.ModifyMonitoredItemsAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.ModifyMonitoredItemsAsync(requestHeader,
                 subscriptionId, timestampsToReturn, itemsToModify, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifyMonitoredItemsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3429,7 +3448,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ModifyMonitoredItemsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3437,20 +3456,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.ModifyMonitoredItemsAsync(requestHeader,
+            var response = await m_sessionServices.ModifyMonitoredItemsAsync(requestHeader,
                 subscriptionId, timestampsToReturn, itemsToModify, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifyMonitoredItemsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3460,7 +3479,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ModifyMonitoredItemsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3474,18 +3493,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.ModifyMonitoredItemsAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.ModifyMonitoredItemsAsync(requestHeader,
                 subscriptionId, timestampsToReturn, itemsToModify, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifyMonitoredItemsAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3495,7 +3514,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ModifyMonitoredItemsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3503,18 +3522,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.ModifyMonitoredItemsAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.ModifyMonitoredItemsAsync(requestHeader,
                 subscriptionId, timestampsToReturn, itemsToModify, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifyMonitoredItemsAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3524,7 +3544,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ModifyMonitoredItemsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3536,19 +3556,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.ModifyMonitoredItemsAsync(requestHeader, subscriptionId,
+            var response = await m_sessionServices.ModifyMonitoredItemsAsync(requestHeader, subscriptionId,
                 timestampsToReturn, itemsToModify, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifySubscriptionAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3561,7 +3581,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ModifySubscriptionRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3569,21 +3589,21 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.ModifySubscriptionAsync(requestHeader,
+            var response = await m_sessionServices.ModifySubscriptionAsync(requestHeader,
                 subscriptionId, requestedPublishingInterval, requestedLifetimeCount,
                 requestedMaxKeepAliveCount, maxNotificationsPerPublish, priority, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifySubscriptionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3596,7 +3616,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ModifySubscriptionRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3610,19 +3630,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.ModifySubscriptionAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.ModifySubscriptionAsync(requestHeader,
                 subscriptionId, requestedPublishingInterval, requestedLifetimeCount,
                 requestedMaxKeepAliveCount, maxNotificationsPerPublish, priority, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifySubscriptionAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3635,7 +3655,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ModifySubscriptionRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3643,19 +3663,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.ModifySubscriptionAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.ModifySubscriptionAsync(requestHeader,
                 subscriptionId, requestedPublishingInterval, requestedLifetimeCount,
                 requestedMaxKeepAliveCount, maxNotificationsPerPublish, priority, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task PublishAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3663,7 +3684,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is PublishRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3671,20 +3692,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.PublishAsync(requestHeader,
+            var response = await m_sessionServices.PublishAsync(requestHeader,
                 subscriptionAcknowledgements, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task PublishAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3692,7 +3713,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is PublishRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3706,18 +3727,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.PublishAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.PublishAsync(requestHeader,
                 subscriptionAcknowledgements, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task PublishAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3725,7 +3746,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is PublishRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3733,18 +3754,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.PublishAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.PublishAsync(requestHeader,
                 subscriptionAcknowledgements, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task QueryFirstAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3756,7 +3778,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is QueryFirstRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3764,20 +3786,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.QueryFirstAsync(requestHeader,
+            var response = await m_sessionServices.QueryFirstAsync(requestHeader,
                 view, nodeTypes, filter, maxDataSetsToReturn, maxReferencesToReturn, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task QueryFirstAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3789,7 +3811,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is QueryFirstRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3803,18 +3825,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.QueryFirstAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.QueryFirstAsync(requestHeader,
                 view, nodeTypes, filter, maxDataSetsToReturn, maxReferencesToReturn, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task QueryFirstAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3826,7 +3848,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is QueryFirstRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3834,18 +3856,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.QueryFirstAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.QueryFirstAsync(requestHeader,
                 view, nodeTypes, filter, maxDataSetsToReturn, maxReferencesToReturn, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task QueryNextAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3854,7 +3877,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is QueryNextRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3862,20 +3885,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.QueryNextAsync(requestHeader,
+            var response = await m_sessionServices.QueryNextAsync(requestHeader,
                 releaseContinuationPoint, continuationPoint, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task QueryNextAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3884,7 +3907,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is QueryNextRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3898,18 +3921,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.QueryNextAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.QueryNextAsync(requestHeader,
                 releaseContinuationPoint, continuationPoint, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task QueryNextAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3918,7 +3941,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is QueryNextRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -3926,18 +3949,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.QueryNextAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.QueryNextAsync(requestHeader,
                 releaseContinuationPoint, continuationPoint, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ReadAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3948,9 +3972,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerRead = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerRead = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ReadRequest),
                     It.IsAny<CancellationToken>()))
@@ -3966,20 +3990,20 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.ReadAsync(requestHeader, maxAge,
+            var response = await m_sessionServices.ReadAsync(requestHeader, maxAge,
                 timestampsToReturn, nodesToRead, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ReadAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -3989,9 +4013,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerRead = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerRead = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ReadRequest),
                     It.IsAny<CancellationToken>()))
@@ -4009,18 +4033,18 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.ReadAsync(requestHeader, maxAge,
+            Func<Task> act = async () => await m_sessionServices.ReadAsync(requestHeader, maxAge,
                 timestampsToReturn, nodesToRead, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ReadAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4030,7 +4054,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ReadRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4038,20 +4062,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.ReadAsync(requestHeader,
+            var response = await m_sessionServices.ReadAsync(requestHeader,
                 maxAge, timestampsToReturn, nodesToRead, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ReadAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4061,7 +4085,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ReadRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4075,18 +4099,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.ReadAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.ReadAsync(requestHeader,
                 maxAge, timestampsToReturn, nodesToRead, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ReadAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4096,7 +4120,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ReadRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4104,18 +4128,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.ReadAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.ReadAsync(requestHeader,
                 maxAge, timestampsToReturn, nodesToRead, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ReadAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4125,7 +4150,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is ReadRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4137,19 +4162,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.ReadAsync(requestHeader, maxAge,
+            var response = await m_sessionServices.ReadAsync(requestHeader, maxAge,
                 timestampsToReturn, nodesToRead, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RegisterNodesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4157,9 +4182,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerRegisterNodes = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerRegisterNodes = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is RegisterNodesRequest),
                     It.IsAny<CancellationToken>()))
@@ -4173,18 +4198,18 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.RegisterNodesAsync(requestHeader, nodesToRegister, ct);
+            var response = await m_sessionServices.RegisterNodesAsync(requestHeader, nodesToRegister, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.RegisteredNodeIds.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.RegisteredNodeIds.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RegisterNodesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4192,9 +4217,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerRegisterNodes = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerRegisterNodes = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is RegisterNodesRequest),
                     It.IsAny<CancellationToken>()))
@@ -4212,18 +4237,18 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.RegisterNodesAsync(requestHeader, nodesToRegister, ct);
+            Func<Task> act = async () => await m_sessionServices.RegisterNodesAsync(requestHeader, nodesToRegister, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RegisterNodesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4231,7 +4256,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is RegisterNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4239,20 +4264,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.RegisterNodesAsync(
+            var response = await m_sessionServices.RegisterNodesAsync(
                 requestHeader, nodesToRegister, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RegisterNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4260,7 +4285,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is RegisterNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4274,18 +4299,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.RegisterNodesAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.RegisterNodesAsync(requestHeader,
                 nodesToRegister, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RegisterNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4293,7 +4318,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is RegisterNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4301,18 +4326,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.RegisterNodesAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.RegisterNodesAsync(requestHeader,
                 nodesToRegister, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RepublishAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4321,7 +4347,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is RepublishRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4329,20 +4355,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.RepublishAsync(requestHeader,
+            var response = await m_sessionServices.RepublishAsync(requestHeader,
                 subscriptionId, retransmitSequenceNumber, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RepublishAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4351,7 +4377,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is RepublishRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4365,18 +4391,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.RepublishAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.RepublishAsync(requestHeader,
                 subscriptionId, retransmitSequenceNumber, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RepublishAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4385,7 +4411,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is RepublishRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4393,18 +4419,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.RepublishAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.RepublishAsync(requestHeader,
                 subscriptionId, retransmitSequenceNumber, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetMonitoringModeAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4414,9 +4441,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
+            m_sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetMonitoringModeRequest),
                     It.IsAny<CancellationToken>()))
@@ -4432,20 +4459,20 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.SetMonitoringModeAsync(requestHeader, subscriptionId,
+            var response = await m_sessionServices.SetMonitoringModeAsync(requestHeader, subscriptionId,
                 monitoringMode, monitoredItemIds, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetMonitoringModeAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4455,9 +4482,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
+            m_sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetMonitoringModeRequest),
                     It.IsAny<CancellationToken>()))
@@ -4475,19 +4502,19 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.SetMonitoringModeAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.SetMonitoringModeAsync(requestHeader,
                 subscriptionId, monitoringMode, monitoredItemIds, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetMonitoringModeAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4497,7 +4524,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetMonitoringModeRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4505,20 +4532,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.SetMonitoringModeAsync(requestHeader,
+            var response = await m_sessionServices.SetMonitoringModeAsync(requestHeader,
                 subscriptionId, monitoringMode, monitoredItemIds, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetMonitoringModeAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4528,7 +4555,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetMonitoringModeRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4542,18 +4569,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.SetMonitoringModeAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.SetMonitoringModeAsync(requestHeader,
                 subscriptionId, monitoringMode, monitoredItemIds, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetMonitoringModeAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4563,7 +4590,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetMonitoringModeRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4571,18 +4598,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.SetMonitoringModeAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.SetMonitoringModeAsync(requestHeader,
                 subscriptionId, monitoringMode, monitoredItemIds, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetMonitoringModeAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4592,7 +4620,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetMonitoringModeRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4604,19 +4632,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.SetMonitoringModeAsync(requestHeader,
+            var response = await m_sessionServices.SetMonitoringModeAsync(requestHeader,
                 subscriptionId, monitoringMode, monitoredItemIds, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetPublishingModeAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4625,7 +4653,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetPublishingModeRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4633,20 +4661,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.SetPublishingModeAsync(requestHeader,
+            var response = await m_sessionServices.SetPublishingModeAsync(requestHeader,
                 publishingEnabled, subscriptionIds, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetPublishingModeAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4655,7 +4683,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetPublishingModeRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4669,18 +4697,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.SetPublishingModeAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.SetPublishingModeAsync(requestHeader,
                 publishingEnabled, subscriptionIds, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetPublishingModeAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4689,7 +4717,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetPublishingModeRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4697,18 +4725,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.SetPublishingModeAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.SetPublishingModeAsync(requestHeader,
                 publishingEnabled, subscriptionIds, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetTriggeringAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4719,9 +4748,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
+            m_sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetTriggeringRequest),
                     It.IsAny<CancellationToken>()))
@@ -4744,21 +4773,21 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.SetTriggeringAsync(requestHeader,
+            var response = await m_sessionServices.SetTriggeringAsync(requestHeader,
                 subscriptionId, triggeringItemId, linksToAdd, linksToRemove, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.AddResults.Count.Should().Be(15);
-            response.RemoveResults.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.AddResults.Count, Is.EqualTo(15));
+            Assert.That(response.RemoveResults.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(3));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetTriggeringAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4769,9 +4798,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
+            m_sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetTriggeringRequest),
                     It.IsAny<CancellationToken>()))
@@ -4789,19 +4818,19 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.SetTriggeringAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.SetTriggeringAsync(requestHeader,
                 subscriptionId, triggeringItemId, linksToAdd, linksToRemove, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetTriggeringAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4812,7 +4841,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetTriggeringRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4820,20 +4849,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.SetTriggeringAsync(requestHeader,
+            var response = await m_sessionServices.SetTriggeringAsync(requestHeader,
                 subscriptionId, triggeringItemId, linksToAdd, linksToRemove, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetTriggeringAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4844,7 +4873,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetTriggeringRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4858,18 +4887,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.SetTriggeringAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.SetTriggeringAsync(requestHeader,
                 subscriptionId, triggeringItemId, linksToAdd, linksToRemove, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetTriggeringAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4880,7 +4909,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetTriggeringRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4888,18 +4917,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.SetTriggeringAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.SetTriggeringAsync(requestHeader,
                 subscriptionId, triggeringItemId, linksToAdd, linksToRemove, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetTriggeringAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4910,7 +4940,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is SetTriggeringRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4924,21 +4954,21 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.SetTriggeringAsync(requestHeader, subscriptionId,
+            var response = await m_sessionServices.SetTriggeringAsync(requestHeader, subscriptionId,
                 triggeringItemId, linksToAdd, linksToRemove, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.AddResults.Should().HaveCount(1);
-            response.AddDiagnosticInfos.Should().HaveCount(1);
-            response.RemoveResults.Should().HaveCount(1);
-            response.RemoveDiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.AddResults, Has.Count.EqualTo(1));
+            Assert.That(response.AddDiagnosticInfos, Has.Count.EqualTo(1));
+            Assert.That(response.RemoveResults, Has.Count.EqualTo(1));
+            Assert.That(response.RemoveDiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TransferSubscriptionsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4947,7 +4977,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is TransferSubscriptionsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4955,20 +4985,20 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.TransferSubscriptionsAsync(
+            var response = await m_sessionServices.TransferSubscriptionsAsync(
                 requestHeader, subscriptionIds, sendInitialValues, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TransferSubscriptionsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -4977,7 +5007,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is TransferSubscriptionsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -4991,18 +5021,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.TransferSubscriptionsAsync(
+            Func<Task> act = async () => await m_sessionServices.TransferSubscriptionsAsync(
                 requestHeader, subscriptionIds, sendInitialValues, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TransferSubscriptionsAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5011,7 +5041,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is TransferSubscriptionsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -5019,18 +5049,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.TransferSubscriptionsAsync(
+            Func<Task> act = async () => await m_sessionServices.TransferSubscriptionsAsync(
                 requestHeader, subscriptionIds, sendInitialValues, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TransferSubscriptionsAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5039,7 +5070,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is TransferSubscriptionsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -5051,19 +5082,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.TransferSubscriptionsAsync(requestHeader,
+            var response = await m_sessionServices.TransferSubscriptionsAsync(requestHeader,
                 subscriptionIds, sendInitialValues, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TranslateBrowsePathsToNodeIdsAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5071,9 +5102,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is TranslateBrowsePathsToNodeIdsRequest),
                     It.IsAny<CancellationToken>()))
@@ -5087,18 +5118,18 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.TranslateBrowsePathsToNodeIdsAsync(requestHeader, browsePaths, ct);
+            var response = await m_sessionServices.TranslateBrowsePathsToNodeIdsAsync(requestHeader, browsePaths, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TranslateBrowsePathsToNodeIdsAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5106,9 +5137,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is TranslateBrowsePathsToNodeIdsRequest),
                     It.IsAny<CancellationToken>()))
@@ -5126,16 +5157,16 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.TranslateBrowsePathsToNodeIdsAsync(requestHeader, browsePaths, ct);
+            Func<Task> act = async () => await m_sessionServices.TranslateBrowsePathsToNodeIdsAsync(requestHeader, browsePaths, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
-        public async Task TranslateBrowsePathsToNodeIdsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(XunitSerializableEncodeable<RequestHeader> header)
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
+        public async Task TranslateBrowsePathsToNodeIdsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5143,7 +5174,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is TranslateBrowsePathsToNodeIdsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -5151,17 +5182,17 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.TranslateBrowsePathsToNodeIdsAsync(
+            var response = await m_sessionServices.TranslateBrowsePathsToNodeIdsAsync(
                 requestHeader, browsePaths, ct);
 
             // Assert
-            response.Should().NotBeNull();
+            Assert.That(response, Is.Not.Null);
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TranslateBrowsePathsToNodeIdsAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5169,7 +5200,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is TranslateBrowsePathsToNodeIdsRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -5181,17 +5212,17 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.TranslateBrowsePathsToNodeIdsAsync(requestHeader, browsePaths, ct);
+            var response = await m_sessionServices.TranslateBrowsePathsToNodeIdsAsync(requestHeader, browsePaths, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
-        public async Task UnregisterNodesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(XunitSerializableEncodeable<RequestHeader> header)
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
+        public async Task UnregisterNodesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5199,9 +5230,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerRegisterNodes = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerRegisterNodes = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is UnregisterNodesRequest),
                     It.IsAny<CancellationToken>()))
@@ -5209,16 +5240,16 @@ namespace Opc.Ua.Client.Sessions
                 .ReturnsAsync(new UnregisterNodesResponse());
 
             // Act
-            var response = await _sessionServices.UnregisterNodesAsync(requestHeader, nodesToUnregister, ct);
+            var response = await m_sessionServices.UnregisterNodesAsync(requestHeader, nodesToUnregister, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.That(response, Is.Not.Null);
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
-        public async Task UnregisterNodesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(XunitSerializableEncodeable<RequestHeader> header)
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
+        public async Task UnregisterNodesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5226,9 +5257,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerRegisterNodes = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerRegisterNodes = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is UnregisterNodesRequest),
                     It.IsAny<CancellationToken>()))
@@ -5242,16 +5273,16 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.UnregisterNodesAsync(requestHeader, nodesToUnregister, ct);
+            Func<Task> act = async () => await m_sessionServices.UnregisterNodesAsync(requestHeader, nodesToUnregister, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
-        public async Task UnregisterNodesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(XunitSerializableEncodeable<RequestHeader> header)
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
+        public async Task UnregisterNodesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5259,7 +5290,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is UnregisterNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -5267,19 +5298,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.UnregisterNodesAsync(
+            var response = await m_sessionServices.UnregisterNodesAsync(
                 requestHeader, nodesToUnregister, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
-        public async Task UnregisterNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(XunitSerializableEncodeable<RequestHeader> header)
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
+        public async Task UnregisterNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5287,7 +5318,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is UnregisterNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -5301,18 +5332,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.UnregisterNodesAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.UnregisterNodesAsync(requestHeader,
                 nodesToUnregister, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task UnregisterNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5320,7 +5351,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is UnregisterNodesRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -5328,17 +5359,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.UnregisterNodesAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.UnregisterNodesAsync(requestHeader,
                 nodesToUnregister, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
-        public async Task WriteAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(XunitSerializableEncodeable<RequestHeader> header)
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
+        public async Task WriteAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5346,9 +5378,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerWrite = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerWrite = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is WriteRequest),
                     It.IsAny<CancellationToken>()))
@@ -5364,18 +5396,18 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            var response = await _sessionServices.WriteAsync(requestHeader, nodesToWrite, ct);
+            var response = await m_sessionServices.WriteAsync(requestHeader, nodesToWrite, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Count.Should().Be(15);
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results.Count, Is.EqualTo(15));
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
-        public async Task WriteAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(XunitSerializableEncodeable<RequestHeader> header)
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
+        public async Task WriteAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5383,9 +5415,9 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _sessionServices.OperationLimits.MaxNodesPerWrite = 10;
+            m_sessionServices.OperationLimits.MaxNodesPerWrite = 10;
 
-            _mockChannel
+            m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is WriteRequest),
                     It.IsAny<CancellationToken>()))
@@ -5403,16 +5435,16 @@ namespace Opc.Ua.Client.Sessions
                 });
 
             // Act
-            Func<Task> act = async () => await _sessionServices.WriteAsync(requestHeader, nodesToWrite, ct);
+            Func<Task> act = async () => await m_sessionServices.WriteAsync(requestHeader, nodesToWrite, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
-        public async Task WriteAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(XunitSerializableEncodeable<RequestHeader> header)
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
+        public async Task WriteAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5420,7 +5452,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is WriteRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -5428,19 +5460,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.WriteAsync(requestHeader,
+            var response = await m_sessionServices.WriteAsync(requestHeader,
                 nodesToWrite, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            requestHeader?.RequestHandle.Should().NotBe(0);
-            requestHeader?.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-            _mockChannel.Verify();
+            Assert.That(response, Is.Not.Null);
+            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
-        public async Task WriteAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(XunitSerializableEncodeable<RequestHeader> header)
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
+        public async Task WriteAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5448,7 +5480,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is WriteRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -5462,18 +5494,18 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.WriteAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.WriteAsync(requestHeader,
                 nodesToWrite, ct);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
-            _mockChannel.Verify();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task WriteAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5481,7 +5513,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is WriteRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -5489,18 +5521,19 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            Func<Task> act = async () => await _sessionServices.WriteAsync(requestHeader,
+            Func<Task> act = async () => await m_sessionServices.WriteAsync(requestHeader,
                 nodesToWrite, ct);
 
             // Assert
-            await act.Should().ThrowAsync<IOException>().WithMessage("Test exception");
-            _mockChannel.Verify();
+            var ex = Assert.ThrowsAsync<IOException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("Test exception"));
+            m_mockChannel.Verify();
         }
 
-        [Theory]
-        [ClassData(typeof(RequestHeaderData))]
+        
+        [TestCaseSource(typeof(RequestHeaderData))]
         public async Task WriteAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
-            XunitSerializableEncodeable<RequestHeader> header)
+            EncodeableTestData<RequestHeader> header)
         {
             // Arrange
 
@@ -5508,7 +5541,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<IServiceRequest>(r => r is WriteRequest),
                     It.Is<CancellationToken>(t => t == ct)))
@@ -5520,12 +5553,12 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
 
             // Act
-            var response = await _sessionServices.WriteAsync(requestHeader, nodesToWrite, ct);
+            var response = await m_sessionServices.WriteAsync(requestHeader, nodesToWrite, ct);
 
             // Assert
-            response.Should().NotBeNull();
-            response.Results.Should().HaveCount(1);
-            response.DiagnosticInfos.Should().HaveCount(1);
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
         private sealed class TestSessionServices : Opc.Ua.Client.Sessions.SessionClient
@@ -5534,9 +5567,9 @@ namespace Opc.Ua.Client.Sessions
                 : base(telemetry, channel) => AttachChannel(channel);
         }
 
-        private readonly Mock<ITransportChannel> _mockChannel;
-        private readonly Mock<ILogger<SessionClient>> _mockLogger;
-        private readonly Mock<ITelemetryContext> _mockObservability;
-        private readonly TestSessionServices _sessionServices;
+        private Mock<ITransportChannel> m_mockChannel;
+        private Mock<ILogger<SessionClient>> m_mockLogger;
+        private Mock<ITelemetryContext> m_mockObservability;
+        private TestSessionServices m_sessionServices;
     }
 }

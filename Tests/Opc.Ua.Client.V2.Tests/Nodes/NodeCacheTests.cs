@@ -1,23 +1,23 @@
-﻿// ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+// ------------------------------------------------------------
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using Moq;
+using Opc.Ua.Client.Sessions;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Nodes
 {
-    using FluentAssertions;
-    using Moq;
-    using Opc.Ua.Client.Sessions;
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using Xunit;
-
+    [TestFixture]
     public sealed class NodeCacheTests
     {
-        [Fact]
+        [Test]
         public async Task FetchRemainingNodesAsyncShouldHandleErrorsAsync()
         {
             // Arrange
@@ -41,11 +41,11 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetNodesAsync([id], default);
 
             // Assert
-            Assert.Single(result);
+            Assert.That(result, Has.Exactly(1).Items);
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetBuiltInTypeAsyncShouldHandleUnknownTypeAsync()
         {
             // Arrange
@@ -65,11 +65,11 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetBuiltInTypeAsync(datatypeId, default);
 
             // Assert
-            Assert.Equal(BuiltInType.Null, result);
+            Assert.That(result, Is.EqualTo(BuiltInType.Null));
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetBuiltInTypeAsyncShouldReturnBuiltInTypeAsync()
         {
             // Arrange
@@ -81,10 +81,10 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetBuiltInTypeAsync(datatypeId, default);
 
             // Assert
-            Assert.Equal(BuiltInType.Int32, result);
+            Assert.That(result, Is.EqualTo(BuiltInType.Int32));
         }
 
-        [Fact]
+        [Test]
         public async Task GetNodeAsyncShouldHandleEmptyListAsync()
         {
             // Arrange
@@ -95,10 +95,10 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetNodesAsync([], default);
 
             // Assert
-            Assert.Empty(result);
+            Assert.That(result, Is.Empty);
         }
 
-        [Fact]
+        [Test]
         public async Task GetNodeAsyncShouldReturnNodeFromCacheAsync()
         {
             // Arrange
@@ -119,12 +119,12 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetNodeAsync(id, default);
 
             // Assert
-            Assert.Equal(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             result = await nodeCache.GetNodeAsync(id, default);
-            Assert.Equal(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
-        [Fact]
+        [Test]
         public async Task GetNodeTestAsync()
         {
             var expected = new Node();
@@ -142,15 +142,15 @@ namespace Opc.Ua.Client.Nodes
             var nodeCache = new NodeCache(context.Object);
 
             var result = await nodeCache.GetNodeAsync(id, default);
-            Assert.Equal(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             result = await nodeCache.GetNodeAsync(id, default);
-            Assert.Equal(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             result = await nodeCache.GetNodeAsync(id, default);
-            Assert.Equal(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetNodeThrowsTestAsync()
         {
             var expected = new Node();
@@ -176,7 +176,7 @@ namespace Opc.Ua.Client.Nodes
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetNodeWithBrowsePathAsyncShouldHandleInvalidBrowsePathAsync()
         {
             // Arrange
@@ -204,11 +204,11 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default);
 
             // Assert
-            Assert.Null(result);
+            Assert.That(result, Is.Null);
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetNodeWithBrowsePathAsyncShouldReturnNodeAsync()
         {
             // Arrange
@@ -264,18 +264,18 @@ namespace Opc.Ua.Client.Nodes
                 browsePath, default);
 
             // Assert
-            Assert.Equal(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
 
             // Act
             result = await nodeCache.GetNodeWithBrowsePathAsync(id,
                 browsePath, default);
 
             // Assert
-            Assert.Equal(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetNodeWithBrowsePathAsyncShouldReturnNodeWithMultipleElementsAsync()
         {
             // Arrange
@@ -373,17 +373,17 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetNodeWithBrowsePathAsync(rootId, browsePath, default);
 
             // Assert
-            Assert.Equal(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
 
             // Act
             result = await nodeCache.GetNodeWithBrowsePathAsync(rootId, browsePath, default);
 
             // Assert
-            Assert.Equal(expected, result);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetReferencesAsyncShouldHandleEmptyListOfNodeIdsAsync()
         {
             // Arrange
@@ -394,10 +394,10 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetReferencesAsync([], [], false, false, default);
 
             // Assert
-            Assert.Empty(result);
+            Assert.That(result, Is.Empty);
         }
 
-        [Fact]
+        [Test]
         public async Task GetReferencesAsyncShouldReturnReferencesFromCacheAsync()
         {
             // Arrange
@@ -451,8 +451,8 @@ namespace Opc.Ua.Client.Nodes
                 referenceTypeId, false, false, default);
 
             // Assert
-            Assert.Single(result1);
-            Assert.Empty(result2);
+            Assert.That(result1, Has.Exactly(1).Items);
+            Assert.That(result2, Is.Empty);
             // Act
             result1 = await nodeCache.GetReferencesAsync(id,
                 referenceTypeId, true, false, default);
@@ -460,12 +460,12 @@ namespace Opc.Ua.Client.Nodes
                 referenceTypeId, false, false, default);
 
             // Assert
-            Assert.Single(result1);
-            Assert.Empty(result2);
+            Assert.That(result1, Has.Exactly(1).Items);
+            Assert.That(result2, Is.Empty);
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetReferencesAsyncWithMoreThanOneSubtypeShouldReturnReferencesFromCacheAsync()
         {
             // Arrange
@@ -569,8 +569,8 @@ namespace Opc.Ua.Client.Nodes
                 referenceTypeId, false, true, default);
 
             // Assert
-            Assert.Single(result1);
-            Assert.Empty(result2);
+            Assert.That(result1, Has.Exactly(1).Items);
+            Assert.That(result2, Is.Empty);
             // Act
             result1 = await nodeCache.GetReferencesAsync(id,
                 referenceTypeId, true, true, default);
@@ -578,12 +578,12 @@ namespace Opc.Ua.Client.Nodes
                 referenceTypeId, false, true, default);
 
             // Assert
-            Assert.Single(result1);
-            Assert.Empty(result2);
+            Assert.That(result1, Has.Exactly(1).Items);
+            Assert.That(result2, Is.Empty);
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetReferencesAsyncWithSubtypesShouldReturnReferencesFromCacheAsync()
         {
             // Arrange
@@ -644,8 +644,8 @@ namespace Opc.Ua.Client.Nodes
                 referenceTypeId, false, true, default);
 
             // Assert
-            Assert.Single(result1);
-            Assert.Empty(result2);
+            Assert.That(result1, Has.Exactly(1).Items);
+            Assert.That(result2, Is.Empty);
             // Act
             result1 = await nodeCache.GetReferencesAsync(id,
                 referenceTypeId, true, true, default);
@@ -653,12 +653,12 @@ namespace Opc.Ua.Client.Nodes
                 referenceTypeId, false, true, default);
 
             // Assert
-            Assert.Single(result1);
-            Assert.Empty(result2);
+            Assert.That(result1, Has.Exactly(1).Items);
+            Assert.That(result2, Is.Empty);
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetSuperTypeAsyncShouldHandleNoSupertypeAsync()
         {
             // Arrange
@@ -678,11 +678,11 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetSuperTypeAsync(typeId, default);
 
             // Assert
-            Assert.Equal(NodeId.Null, result);
+            Assert.That(result, Is.EqualTo(NodeId.Null));
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetSuperTypeAsyncShouldReturnSuperTypeAsync()
         {
             // Arrange
@@ -712,17 +712,17 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetSuperTypeAsync(subTypeId, default);
 
             // Assert
-            Assert.Equal(superTypeId, result);
+            Assert.That(result, Is.EqualTo(superTypeId));
 
             // Act
             result = await nodeCache.GetSuperTypeAsync(subTypeId, default);
             // Assert
-            Assert.Equal(superTypeId, result);
+            Assert.That(result, Is.EqualTo(superTypeId));
 
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetValueAsyncShouldHandleErrorsAsync()
         {
             // Arrange
@@ -742,11 +742,11 @@ namespace Opc.Ua.Client.Nodes
             Func<Task> act = async () => await nodeCache.GetValueAsync(id, default);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetValueAsyncShouldReturnValueFromCacheAsync()
         {
             // Arrange
@@ -767,12 +767,12 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetValueAsync(id, default);
 
             // Assert
-            result.Should().BeEquivalentTo(expected);
+            Assert.That(result, Is.EqualTo(expected));
             result = await nodeCache.GetValueAsync(id, default);
-            result.Should().BeEquivalentTo(expected);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
-        [Fact]
+        [Test]
         public async Task GetValuesAsyncShouldHandleErrorsAsync()
         {
             // Arrange
@@ -796,13 +796,13 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetValuesAsync(ids, default);
 
             // Assert
-            result.Should().HaveCount(2);
-            result[0].StatusCode.Should().Be(StatusCodes.BadUnexpectedError);
-            result[1].StatusCode.Should().Be(StatusCodes.Good);
+            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(result[0].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(result[1].StatusCode, Is.EqualTo(StatusCodes.Good));
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetValuesAsyncShouldReturnValuesFromCacheAsync()
         {
             // Arrange
@@ -831,14 +831,14 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetValuesAsync(ids, default);
 
             // Assert
-            result.Should().BeEquivalentTo(expected);
+            Assert.That(result, Is.EqualTo(expected));
 
             result = await nodeCache.GetValuesAsync(ids, default);
-            result.Should().BeEquivalentTo(expected);
+            Assert.That(result, Is.EqualTo(expected));
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task GetValuesAsyncShouldReturnValuesFromCacheButHonorStatusOfReadAsync()
         {
             // Arrange
@@ -867,9 +867,9 @@ namespace Opc.Ua.Client.Nodes
             var result = await nodeCache.GetValuesAsync(ids, default);
 
             // Assert
-            result[0].Should().BeEquivalentTo(expected[0]);
-            result[1].StatusCode.Should().Be(StatusCodes.Bad);
-            result[1].Value.Should().BeEquivalentTo(expected[1].Value);
+            Assert.That(result[0], Is.EqualTo(expected[0]));
+            Assert.That(result[1].StatusCode, Is.EqualTo(StatusCodes.Bad));
+            Assert.That(result[1].Value, Is.EqualTo(expected[1].Value));
 
             context
                 .Setup(c => c.FetchValuesAsync(
@@ -886,7 +886,7 @@ namespace Opc.Ua.Client.Nodes
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public void IsTypeOfShouldHandleNoReferences()
         {
             // Arrange
@@ -907,11 +907,11 @@ namespace Opc.Ua.Client.Nodes
             var result = nodeCache.IsTypeOf(subTypeId, superTypeId);
 
             // Assert
-            Assert.False(result);
+            Assert.That(result, Is.False);
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public void IsTypeOfShouldReturnTrueForSuperType()
         {
             // Arrange
@@ -941,17 +941,17 @@ namespace Opc.Ua.Client.Nodes
             var result = nodeCache.IsTypeOf(subTypeId, superTypeId);
 
             // Assert
-            Assert.True(result);
+            Assert.That(result, Is.True);
 
             // Act
             result = nodeCache.IsTypeOf(subTypeId, superTypeId);
 
             // Assert
-            Assert.True(result);
+            Assert.That(result, Is.True);
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task LoadTypeHierarchyAyncShouldHandleNoSubtypesAsync()
         {
             // Arrange
@@ -973,7 +973,7 @@ namespace Opc.Ua.Client.Nodes
             context.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task LoadTypeHierarchyAyncShouldLoadTypeHierarchyAsync()
         {
             // Arrange

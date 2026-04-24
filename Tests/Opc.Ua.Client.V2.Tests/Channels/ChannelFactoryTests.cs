@@ -1,99 +1,100 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using Moq;
+using Opc.Ua.Bindings;
+using Opc.Ua.Client.Certificates;
+using System;
+using System.Net;
+using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client
 {
-    using FluentAssertions;
-    using Moq;
-    using Opc.Ua.Bindings;
-    using Opc.Ua.Client.Certificates;
-    using System;
-    using System.Net;
-    using System.Net.Sockets;
-    using System.Security.Cryptography.X509Certificates;
-    using Xunit;
-
+    [TestFixture]
     public sealed class ChannelFactoryTests
     {
-        public ChannelFactoryTests()
+        [SetUp]
+        public void SetUp()
         {
-            _observabilityMock = new Mock<ITelemetryContext>();
-            _timeProviderMock = new Mock<TimeProvider>();
-            _transportChannelMock = new Mock<ITransportChannel>();
-            _transportWaitingConnectionMock = new Mock<ITransportWaitingConnection>();
-            _serviceMessageContextMock = new Mock<IServiceMessageContext>();
-            _configuration = new ApplicationConfiguration();
-            _observabilityMock.Setup(o => o.TimeProvider).Returns(_timeProviderMock.Object);
-            _socketMock = new Mock<IMessageSocket>();
-            _socketFactoryMock = new Mock<IMessageSocketFactory>();
-            _socketFactoryMock
+            m_observabilityMock = new Mock<ITelemetryContext>();
+            m_timeProviderMock = new Mock<TimeProvider>();
+            m_transportChannelMock = new Mock<ITransportChannel>();
+            m_transportWaitingConnectionMock = new Mock<ITransportWaitingConnection>();
+            m_serviceMessageContextMock = new Mock<IServiceMessageContext>();
+            m_configuration = new ApplicationConfiguration();
+            m_observabilityMock.Setup(o => o.TimeProvider).Returns(m_timeProviderMock.Object);
+            m_socketMock = new Mock<IMessageSocket>();
+            m_socketFactoryMock = new Mock<IMessageSocketFactory>();
+            m_socketFactoryMock
                 .Setup(s => s.Create(
                     It.IsAny<IMessageSink>(),
                     It.IsAny<BufferManager>(),
                     It.IsAny<int>()))
-                .Returns(_socketMock.Object);
-            _transportWaitingConnectionMock.Setup(c => c.Handle).Returns(_socketMock.Object);
+                .Returns(m_socketMock.Object);
+            m_transportWaitingConnectionMock.Setup(c => c.Handle).Returns(m_socketMock.Object);
         }
 
-        [Fact]
+        [Test]
         public void CreateChannelShouldCreateChannelWithConnection()
         {
             // Arrange
-            var sut = new ChannelFactory(_configuration, _observabilityMock.Object);
+            var sut = new ChannelFactory(m_configuration, m_observabilityMock.Object);
             var serverCertificate = new X500DistinguishedName("CN=server").CreateSelfSignedCertificate();
             var clientCertificate = new X500DistinguishedName("CN=client").CreateSelfSignedCertificate();
             var clientCertificateChain = new X509Certificate2Collection();
 
             // Act
             var channel = sut.CreateChannel(GetTestEndpoint(serverCertificate),
-                _serviceMessageContextMock.Object, clientCertificate, clientCertificateChain,
-                _transportWaitingConnectionMock.Object);
+                m_serviceMessageContextMock.Object, clientCertificate, clientCertificateChain,
+                m_transportWaitingConnectionMock.Object);
 
             // Assert
-            channel.Should().NotBeNull();
+            Assert.That(channel, Is.Not.Null);
         }
 
-        [Fact]
+        [Test]
         public void CreateChannelShouldCreateChannelWithoutConnection()
         {
             // Arrange
-            var sut = new ChannelFactory(_configuration, _observabilityMock.Object);
+            var sut = new ChannelFactory(m_configuration, m_observabilityMock.Object);
             var serverCertificate = new X500DistinguishedName("CN=server").CreateSelfSignedCertificate();
             var clientCertificate = new X500DistinguishedName("CN=client").CreateSelfSignedCertificate();
             var clientCertificateChain = new X509Certificate2Collection();
 
             // Act
             var channel = sut.CreateChannel(GetTestEndpoint(serverCertificate),
-                _serviceMessageContextMock.Object, clientCertificate, clientCertificateChain);
+                m_serviceMessageContextMock.Object, clientCertificate, clientCertificateChain);
 
             // Assert
-            channel.Should().NotBeNull();
+            Assert.That(channel, Is.Not.Null);
         }
 
-        [Fact]
+        [Test]
         public void CloseChannelShouldDisposeChannel()
         {
             // Arrange
-            var sut = new ChannelFactory(_configuration, _observabilityMock.Object);
-            _transportChannelMock
+            var sut = new ChannelFactory(m_configuration, m_observabilityMock.Object);
+            m_transportChannelMock
                     .SetupAdd(c => c.OnTokenActivated += It.IsAny<ChannelTokenActivatedEventHandler>())
                 .Verifiable(Times.Once);
 
             // Act
-            sut.CloseChannel(_transportChannelMock.Object);
+            sut.CloseChannel(m_transportChannelMock.Object);
 
             // Assert
-            _transportChannelMock.VerifyRemove(c => c.OnTokenActivated -= It.IsAny<ChannelTokenActivatedEventHandler>(), Times.Once);
-            _transportChannelMock.Verify(c => c.Dispose(), Times.Once);
+            m_transportChannelMock.VerifyRemove(c => c.OnTokenActivated -= It.IsAny<ChannelTokenActivatedEventHandler>(), Times.Once);
+            m_transportChannelMock.Verify(c => c.Dispose(), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void OnChannelTokenActivatedShouldInvokeOnDiagnosticsButWithoutEndpointsForNonTcpChannels()
         {
             // Arrange
-            var sut = new ChannelFactory(_configuration, _observabilityMock.Object);
+            var sut = new ChannelFactory(m_configuration, m_observabilityMock.Object);
             var token = new ChannelToken
             {
                 ChannelId = 123,
@@ -108,7 +109,7 @@ namespace Opc.Ua.Client
                 ServerSigningKey = [16, 17, 18]
             };
             var transportChannel = Mock.Of<ITransportChannel>();
-            _timeProviderMock.Setup(tp => tp.GetUtcNow()).Returns(DateTimeOffset.UtcNow);
+            m_timeProviderMock.Setup(tp => tp.GetUtcNow()).Returns(DateTimeOffset.UtcNow);
             ChannelDiagnostic? diagnostic = null;
             sut.OnDiagnostics += (ch, diag) => diagnostic = diag;
 
@@ -116,24 +117,24 @@ namespace Opc.Ua.Client
             sut.OnChannelTokenActivated(transportChannel, token, null);
 
             // Assert
-            diagnostic.Should().NotBeNull();
-            diagnostic!.ChannelId.Should().Be(token.ChannelId);
-            diagnostic.TokenId.Should().Be(token.TokenId);
-            diagnostic.CreatedAt.Should().Be(token.CreatedAt);
-            diagnostic.Lifetime.Should().Be(TimeSpan.FromMilliseconds(token.Lifetime));
-            diagnostic.Client.Should().NotBeNull();
-            diagnostic.Server.Should().NotBeNull();
-            diagnostic.RemoteIpAddress.Should().BeNull();
-            diagnostic.RemotePort.Should().BeNull();
-            diagnostic.LocalIpAddress.Should().BeNull();
-            diagnostic.LocalPort.Should().BeNull();
+            Assert.That(diagnostic, Is.Not.Null);
+            diagnostic!.Assert.That(ChannelId, Is.EqualTo(token.ChannelId));
+            Assert.That(diagnostic.TokenId, Is.EqualTo(token.TokenId));
+            Assert.That(diagnostic.CreatedAt, Is.EqualTo(token.CreatedAt));
+            Assert.That(diagnostic.Lifetime, Is.EqualTo(TimeSpan.FromMilliseconds(token.Lifetime)));
+            Assert.That(diagnostic.Client, Is.Not.Null);
+            Assert.That(diagnostic.Server, Is.Not.Null);
+            Assert.That(diagnostic.RemoteIpAddress, Is.Null);
+            Assert.That(diagnostic.RemotePort, Is.Null);
+            Assert.That(diagnostic.LocalIpAddress, Is.Null);
+            Assert.That(diagnostic.LocalPort, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void OnChannelTokenActivatedShouldInvokeOnDiagnostics()
         {
             // Arrange
-            var sut = new ChannelFactory(_configuration, _observabilityMock.Object);
+            var sut = new ChannelFactory(m_configuration, m_observabilityMock.Object);
             var token = new ChannelToken
             {
                 ChannelId = 123,
@@ -148,7 +149,7 @@ namespace Opc.Ua.Client
                 ServerSigningKey = [16, 17, 18]
             };
             var transportChannel = CreateUaSCUaBinaryTransportChannel(out var remoteEndPoint, out var localEndPoint);
-            _timeProviderMock.Setup(tp => tp.GetUtcNow()).Returns(DateTimeOffset.UtcNow);
+            m_timeProviderMock.Setup(tp => tp.GetUtcNow()).Returns(DateTimeOffset.UtcNow);
             ChannelDiagnostic? diagnostic = null;
             sut.OnDiagnostics += (ch, diag) => diagnostic = diag;
 
@@ -156,24 +157,24 @@ namespace Opc.Ua.Client
             sut.OnChannelTokenActivated(transportChannel, token, null);
 
             // Assert
-            diagnostic.Should().NotBeNull();
-            diagnostic!.ChannelId.Should().Be(token.ChannelId);
-            diagnostic.TokenId.Should().Be(token.TokenId);
-            diagnostic.CreatedAt.Should().Be(token.CreatedAt);
-            diagnostic.Lifetime.Should().Be(TimeSpan.FromMilliseconds(token.Lifetime));
-            diagnostic.Client.Should().NotBeNull();
-            diagnostic.Server.Should().NotBeNull();
-            diagnostic.RemoteIpAddress.Should().Be(remoteEndPoint.Address);
-            diagnostic.RemotePort.Should().Be(remoteEndPoint.Port);
-            diagnostic.LocalIpAddress.Should().Be(localEndPoint.Address);
-            diagnostic.LocalPort.Should().Be(localEndPoint.Port);
+            Assert.That(diagnostic, Is.Not.Null);
+            diagnostic!.Assert.That(ChannelId, Is.EqualTo(token.ChannelId));
+            Assert.That(diagnostic.TokenId, Is.EqualTo(token.TokenId));
+            Assert.That(diagnostic.CreatedAt, Is.EqualTo(token.CreatedAt));
+            Assert.That(diagnostic.Lifetime, Is.EqualTo(TimeSpan.FromMilliseconds(token.Lifetime)));
+            Assert.That(diagnostic.Client, Is.Not.Null);
+            Assert.That(diagnostic.Server, Is.Not.Null);
+            Assert.That(diagnostic.RemoteIpAddress, Is.EqualTo(remoteEndPoint.Address));
+            Assert.That(diagnostic.RemotePort, Is.EqualTo(remoteEndPoint.Port));
+            Assert.That(diagnostic.LocalIpAddress, Is.EqualTo(localEndPoint.Address));
+            Assert.That(diagnostic.LocalPort, Is.EqualTo(localEndPoint.Port));
         }
 
-        [Fact]
+        [Test]
         public void OnChannelTokenActivatedWithMissingVectorShouldInvokeOnDiagnostics()
         {
             // Arrange
-            var sut = new ChannelFactory(_configuration, _observabilityMock.Object);
+            var sut = new ChannelFactory(m_configuration, m_observabilityMock.Object);
             var token = new ChannelToken
             {
                 ChannelId = 123,
@@ -188,7 +189,7 @@ namespace Opc.Ua.Client
                 ServerSigningKey = [16, 17, 18]
             };
             var transportChannel = CreateUaSCUaBinaryTransportChannel(out var remoteEndPoint, out var localEndPoint);
-            _timeProviderMock.Setup(tp => tp.GetUtcNow()).Returns(DateTimeOffset.UtcNow);
+            m_timeProviderMock.Setup(tp => tp.GetUtcNow()).Returns(DateTimeOffset.UtcNow);
             ChannelDiagnostic? diagnostic = null;
             sut.OnDiagnostics += (ch, diag) => diagnostic = diag;
 
@@ -196,20 +197,20 @@ namespace Opc.Ua.Client
             sut.OnChannelTokenActivated(transportChannel, token, null);
 
             // Assert
-            diagnostic.Should().NotBeNull();
-            diagnostic!.ChannelId.Should().Be(token.ChannelId);
-            diagnostic.TokenId.Should().Be(token.TokenId);
-            diagnostic.CreatedAt.Should().Be(token.CreatedAt);
-            diagnostic.Lifetime.Should().Be(TimeSpan.FromMilliseconds(token.Lifetime));
-            diagnostic.Client.Should().BeNull();
-            diagnostic.Server.Should().BeNull();
+            Assert.That(diagnostic, Is.Not.Null);
+            diagnostic!.Assert.That(ChannelId, Is.EqualTo(token.ChannelId));
+            Assert.That(diagnostic.TokenId, Is.EqualTo(token.TokenId));
+            Assert.That(diagnostic.CreatedAt, Is.EqualTo(token.CreatedAt));
+            Assert.That(diagnostic.Lifetime, Is.EqualTo(TimeSpan.FromMilliseconds(token.Lifetime)));
+            Assert.That(diagnostic.Client, Is.Null);
+            Assert.That(diagnostic.Server, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void OnChannelTokenActivatedWithMissingKeyShouldInvokeOnDiagnostics1()
         {
             // Arrange
-            var sut = new ChannelFactory(_configuration, _observabilityMock.Object);
+            var sut = new ChannelFactory(m_configuration, m_observabilityMock.Object);
             var token = new ChannelToken
             {
                 ChannelId = 123,
@@ -224,7 +225,7 @@ namespace Opc.Ua.Client
                 ServerSigningKey = null
             };
             var transportChannel = CreateUaSCUaBinaryTransportChannel(out var remoteEndPoint, out var localEndPoint);
-            _timeProviderMock.Setup(tp => tp.GetUtcNow()).Returns(DateTimeOffset.UtcNow);
+            m_timeProviderMock.Setup(tp => tp.GetUtcNow()).Returns(DateTimeOffset.UtcNow);
             ChannelDiagnostic? diagnostic = null;
             sut.OnDiagnostics += (ch, diag) => diagnostic = diag;
 
@@ -232,20 +233,20 @@ namespace Opc.Ua.Client
             sut.OnChannelTokenActivated(transportChannel, token, null);
 
             // Assert
-            diagnostic.Should().NotBeNull();
-            diagnostic!.ChannelId.Should().Be(token.ChannelId);
-            diagnostic.TokenId.Should().Be(token.TokenId);
-            diagnostic.CreatedAt.Should().Be(token.CreatedAt);
-            diagnostic.Lifetime.Should().Be(TimeSpan.FromMilliseconds(token.Lifetime));
-            diagnostic.Client.Should().BeNull();
-            diagnostic.Server.Should().BeNull();
+            Assert.That(diagnostic, Is.Not.Null);
+            diagnostic!.Assert.That(ChannelId, Is.EqualTo(token.ChannelId));
+            Assert.That(diagnostic.TokenId, Is.EqualTo(token.TokenId));
+            Assert.That(diagnostic.CreatedAt, Is.EqualTo(token.CreatedAt));
+            Assert.That(diagnostic.Lifetime, Is.EqualTo(TimeSpan.FromMilliseconds(token.Lifetime)));
+            Assert.That(diagnostic.Client, Is.Null);
+            Assert.That(diagnostic.Server, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void OnChannelTokenActivatedWithMissingKeyShouldInvokeOnDiagnostics2()
         {
             // Arrange
-            var sut = new ChannelFactory(_configuration, _observabilityMock.Object);
+            var sut = new ChannelFactory(m_configuration, m_observabilityMock.Object);
             var token = new ChannelToken
             {
                 ChannelId = 123,
@@ -260,7 +261,7 @@ namespace Opc.Ua.Client
                 ServerSigningKey = []
             };
             var transportChannel = CreateUaSCUaBinaryTransportChannel(out var remoteEndPoint, out var localEndPoint);
-            _timeProviderMock.Setup(tp => tp.GetUtcNow()).Returns(DateTimeOffset.UtcNow);
+            m_timeProviderMock.Setup(tp => tp.GetUtcNow()).Returns(DateTimeOffset.UtcNow);
             ChannelDiagnostic? diagnostic = null;
             sut.OnDiagnostics += (ch, diag) => diagnostic = diag;
 
@@ -268,20 +269,20 @@ namespace Opc.Ua.Client
             sut.OnChannelTokenActivated(transportChannel, token, null);
 
             // Assert
-            diagnostic.Should().NotBeNull();
-            diagnostic!.ChannelId.Should().Be(token.ChannelId);
-            diagnostic.TokenId.Should().Be(token.TokenId);
-            diagnostic.CreatedAt.Should().Be(token.CreatedAt);
-            diagnostic.Lifetime.Should().Be(TimeSpan.FromMilliseconds(token.Lifetime));
-            diagnostic.Client.Should().BeNull();
-            diagnostic.Server.Should().BeNull();
+            Assert.That(diagnostic, Is.Not.Null);
+            diagnostic!.Assert.That(ChannelId, Is.EqualTo(token.ChannelId));
+            Assert.That(diagnostic.TokenId, Is.EqualTo(token.TokenId));
+            Assert.That(diagnostic.CreatedAt, Is.EqualTo(token.CreatedAt));
+            Assert.That(diagnostic.Lifetime, Is.EqualTo(TimeSpan.FromMilliseconds(token.Lifetime)));
+            Assert.That(diagnostic.Client, Is.Null);
+            Assert.That(diagnostic.Server, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void OnChannelTokenActivatedOnNonSocketChannelShouldInvokeOnDiagnostics()
         {
             // Arrange
-            var sut = new ChannelFactory(_configuration, _observabilityMock.Object);
+            var sut = new ChannelFactory(m_configuration, m_observabilityMock.Object);
             var token = new ChannelToken
             {
                 ChannelId = 123,
@@ -296,7 +297,7 @@ namespace Opc.Ua.Client
                 ServerSigningKey = [16, 17, 18]
             };
             var transportChannel = CreateUaSCUaBinaryTransportChannel();
-            _timeProviderMock.Setup(tp => tp.GetUtcNow()).Returns(DateTimeOffset.UtcNow);
+            m_timeProviderMock.Setup(tp => tp.GetUtcNow()).Returns(DateTimeOffset.UtcNow);
             ChannelDiagnostic? diagnostic = null;
             sut.OnDiagnostics += (ch, diag) => diagnostic = diag;
 
@@ -304,24 +305,24 @@ namespace Opc.Ua.Client
             sut.OnChannelTokenActivated(transportChannel, token, null);
 
             // Assert
-            diagnostic.Should().NotBeNull();
-            diagnostic!.ChannelId.Should().Be(token.ChannelId);
-            diagnostic.TokenId.Should().Be(token.TokenId);
-            diagnostic.CreatedAt.Should().Be(token.CreatedAt);
-            diagnostic.Lifetime.Should().Be(TimeSpan.FromMilliseconds(token.Lifetime));
-            diagnostic.Client.Should().NotBeNull();
-            diagnostic.Server.Should().NotBeNull();
-            diagnostic.RemoteIpAddress.Should().BeNull();
-            diagnostic.RemotePort.Should().BeNull();
-            diagnostic.LocalIpAddress.Should().BeNull();
-            diagnostic.LocalPort.Should().BeNull();
+            Assert.That(diagnostic, Is.Not.Null);
+            diagnostic!.Assert.That(ChannelId, Is.EqualTo(token.ChannelId));
+            Assert.That(diagnostic.TokenId, Is.EqualTo(token.TokenId));
+            Assert.That(diagnostic.CreatedAt, Is.EqualTo(token.CreatedAt));
+            Assert.That(diagnostic.Lifetime, Is.EqualTo(TimeSpan.FromMilliseconds(token.Lifetime)));
+            Assert.That(diagnostic.Client, Is.Not.Null);
+            Assert.That(diagnostic.Server, Is.Not.Null);
+            Assert.That(diagnostic.RemoteIpAddress, Is.Null);
+            Assert.That(diagnostic.RemotePort, Is.Null);
+            Assert.That(diagnostic.LocalIpAddress, Is.Null);
+            Assert.That(diagnostic.LocalPort, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void OnChannelTokenActivatedShouldNotInvokeOnDiagnosticsWhenTokenIsNull()
         {
             // Arrange
-            var sut = new ChannelFactory(_configuration, _observabilityMock.Object);
+            var sut = new ChannelFactory(m_configuration, m_observabilityMock.Object);
             var transportChannel = new Mock<ITransportChannel>();
 
             ChannelDiagnostic? diagnostic = null;
@@ -331,21 +332,21 @@ namespace Opc.Ua.Client
             sut.OnChannelTokenActivated(transportChannel.Object, null, null);
 
             // Assert
-            diagnostic.Should().BeNull();
+            Assert.That(diagnostic, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void OnChannelTokenActivatedShouldNotThrowWhenOnDiagnosticsIsNull()
         {
             // Arrange
-            var sut = new ChannelFactory(_configuration, _observabilityMock.Object);
+            var sut = new ChannelFactory(m_configuration, m_observabilityMock.Object);
             var transportChannel = new Mock<ITransportChannel>();
 
             // Act
             sut.OnChannelTokenActivated(transportChannel.Object, null, null);
         }
 
-        [Fact]
+        [Test]
         public void GetIPAddressShouldReturnCorrectIPAddress()
         {
             // Arrange
@@ -355,10 +356,10 @@ namespace Opc.Ua.Client
             var ipAddress = ChannelFactory.GetIPAddress(endpoint);
 
             // Assert
-            ipAddress.Should().Be(endpoint.Address);
+            Assert.That(ipAddress, Is.EqualTo(endpoint.Address));
         }
 
-        [Fact]
+        [Test]
         public void GetIPAddressShouldReturnIPAddressWhenIPv4IsPreferred()
         {
             // Arrange
@@ -368,10 +369,10 @@ namespace Opc.Ua.Client
             var ipAddress = ChannelFactory.GetIPAddress(endpoint, true);
 
             // Assert
-            ipAddress.Should().Be(endpoint.Address);
+            Assert.That(ipAddress, Is.EqualTo(endpoint.Address));
         }
 
-        [Fact]
+        [Test]
         public void GetIPAddressShouldReturnCorrectIPAddressWhenIPv4IsPreferred()
         {
             // Arrange
@@ -381,12 +382,12 @@ namespace Opc.Ua.Client
             var ipAddress = ChannelFactory.GetIPAddress(endpoint, true);
 
             // Assert
-            ipAddress.Should().NotBeNull();
-            ipAddress!.MapToIPv6().Should().Be(endpoint.Address);
-            ipAddress!.AddressFamily.Should().Be(AddressFamily.InterNetwork);
+            Assert.That(ipAddress, Is.Not.Null);
+            Assert.That(ipAddress!.MapToIPv6(), Is.EqualTo(endpoint.Address));
+            ipAddress!.Assert.That(AddressFamily, Is.EqualTo(AddressFamily.InterNetwork));
         }
 
-        [Fact]
+        [Test]
         public void GetIPAddressShouldReturnIPv6AddressWhenIPv4IsNotRequired()
         {
             // Arrange
@@ -397,11 +398,11 @@ namespace Opc.Ua.Client
             var ipAddress = ChannelFactory.GetIPAddress(endpoint, true);
 
             // Assert
-            ipAddress.Should().Be(endpoint.Address);
-            ipAddress!.AddressFamily.Should().Be(AddressFamily.InterNetworkV6);
+            Assert.That(ipAddress, Is.EqualTo(endpoint.Address));
+            ipAddress!.Assert.That(AddressFamily, Is.EqualTo(AddressFamily.InterNetworkV6));
         }
 
-        [Fact]
+        [Test]
         public void GetIPAddressShouldReturnNullWhenEndpointIsNotIPEndPoint()
         {
             // Arrange
@@ -411,10 +412,10 @@ namespace Opc.Ua.Client
             var ipAddress = ChannelFactory.GetIPAddress(endpoint);
 
             // Assert
-            ipAddress.Should().BeNull();
+            Assert.That(ipAddress, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void GetPortShouldReturnCorrectPort()
         {
             // Arrange
@@ -424,10 +425,10 @@ namespace Opc.Ua.Client
             var port = ChannelFactory.GetPort(endpoint);
 
             // Assert
-            port.Should().Be(endpoint.Port);
+            Assert.That(port, Is.EqualTo(endpoint.Port));
         }
 
-        [Fact]
+        [Test]
         public void GetPortShouldReturnMinusOneWhenEndpointIsNotIPEndPoint()
         {
             // Arrange
@@ -437,7 +438,7 @@ namespace Opc.Ua.Client
             var port = ChannelFactory.GetPort(endpoint);
 
             // Assert
-            port.Should().Be(-1);
+            Assert.That(port, Is.EqualTo(-1));
         }
 
         private UaSCUaBinaryTransportChannel CreateUaSCUaBinaryTransportChannel(
@@ -445,13 +446,13 @@ namespace Opc.Ua.Client
         {
             remoteEndPoint = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 4840);
             localEndPoint = new IPEndPoint(IPAddress.Parse("192.168.1.2"), 4841);
-            _socketMock.Setup(s => s.RemoteEndpoint).Returns(remoteEndPoint);
-            _socketMock.Setup(s => s.LocalEndpoint).Returns(localEndPoint);
-            var transportChannel = new UaSCUaBinaryTransportChannel(_socketFactoryMock.Object);
+            m_socketMock.Setup(s => s.RemoteEndpoint).Returns(remoteEndPoint);
+            m_socketMock.Setup(s => s.LocalEndpoint).Returns(localEndPoint);
+            var transportChannel = new UaSCUaBinaryTransportChannel(m_socketFactoryMock.Object);
             var serverCert = new X500DistinguishedName("CN=server").CreateSelfSignedCertificate();
             var clientCert = new X500DistinguishedName("CN=client").CreateSelfSignedCertificate();
             var testEndpoint = GetTestEndpoint(serverCert);
-            transportChannel.Initialize(_transportWaitingConnectionMock.Object, new TransportChannelSettings
+            transportChannel.Initialize(m_transportWaitingConnectionMock.Object, new TransportChannelSettings
             {
                 Configuration = testEndpoint.Configuration,
                 CertificateValidator = new CertificateValidator(),
@@ -467,7 +468,7 @@ namespace Opc.Ua.Client
 
         private UaSCUaBinaryTransportChannel CreateUaSCUaBinaryTransportChannel()
         {
-            var transportChannel = new UaSCUaBinaryTransportChannel(_socketFactoryMock.Object);
+            var transportChannel = new UaSCUaBinaryTransportChannel(m_socketFactoryMock.Object);
             var serverCert = new X500DistinguishedName("CN=server").CreateSelfSignedCertificate();
             var clientCert = new X500DistinguishedName("CN=client").CreateSelfSignedCertificate();
             var testEndpoint = GetTestEndpoint(serverCert);
@@ -498,13 +499,13 @@ namespace Opc.Ua.Client
             return endpoint;
         }
 
-        private readonly ApplicationConfiguration _configuration;
-        private readonly Mock<ITelemetryContext> _observabilityMock;
-        private readonly Mock<TimeProvider> _timeProviderMock;
-        private readonly Mock<ITransportChannel> _transportChannelMock;
-        private readonly Mock<ITransportWaitingConnection> _transportWaitingConnectionMock;
-        private readonly Mock<IServiceMessageContext> _serviceMessageContextMock;
-        private readonly Mock<IMessageSocket> _socketMock;
-        private readonly Mock<IMessageSocketFactory> _socketFactoryMock;
+        private ApplicationConfiguration m_configuration;
+        private Mock<ITelemetryContext> m_observabilityMock;
+        private Mock<TimeProvider> m_timeProviderMock;
+        private Mock<ITransportChannel> m_transportChannelMock;
+        private Mock<ITransportWaitingConnection> m_transportWaitingConnectionMock;
+        private Mock<IServiceMessageContext> m_serviceMessageContextMock;
+        private Mock<IMessageSocket> m_socketMock;
+        private Mock<IMessageSocketFactory> m_socketFactoryMock;
     }
 }

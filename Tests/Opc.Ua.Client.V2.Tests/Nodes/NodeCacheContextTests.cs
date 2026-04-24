@@ -1,55 +1,56 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.Metrics;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Moq;
+using Opc.Ua.Client.Sessions;
+using Opc.Ua.Client.Subscriptions;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Nodes
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics.Metrics;
-    using System.Linq;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using FluentAssertions;
-    using Microsoft.Extensions.Logging;
-    using Microsoft.Extensions.Options;
-    using Moq;
-    using Opc.Ua.Client.Sessions;
-    using Opc.Ua.Client.Subscriptions;
-    using Xunit;
-
+    [TestFixture]
     public sealed class NodeCacheContextTests
     {
-        public NodeCacheContextTests()
+        [SetUp]
+        public void SetUp()
         {
-            _mockChannel = new Mock<ITransportChannel>();
-            _mockObservability = new Mock<ITelemetryContext>();
-            _mockMeterFactory = new Mock<IMeterFactory>();
-            _mockObservability.Setup(o => o.MeterFactory)
-                .Returns(_mockMeterFactory.Object);
-            _mockMeterFactory.Setup(o => o.Create(It.IsAny<MeterOptions>()))
+            m_mockChannel = new Mock<ITransportChannel>();
+            m_mockObservability = new Mock<ITelemetryContext>();
+            m_mockMeterFactory = new Mock<IMeterFactory>();
+            m_mockObservability.Setup(o => o.MeterFactory)
+                .Returns(m_mockMeterFactory.Object);
+            m_mockMeterFactory.Setup(o => o.Create(It.IsAny<MeterOptions>()))
                 .Returns(new Meter("TestMeter"));
-            _mockLogger = new Mock<ILogger<SessionBase>>();
-            _mockObservability.Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
-                .Returns(_mockLogger.Object);
-            _mockTimeProvider = new Mock<TimeProvider>();
-            _mockTimer = new Mock<ITimer>();
-            _mockTimeProvider
+            m_mockLogger = new Mock<ILogger<SessionBase>>();
+            m_mockObservability.Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
+                .Returns(m_mockLogger.Object);
+            m_mockTimeProvider = new Mock<TimeProvider>();
+            m_mockTimer = new Mock<ITimer>();
+            m_mockTimeProvider
                 .Setup(t => t.CreateTimer(
                     It.IsAny<TimerCallback>(),
                     It.IsAny<object>(),
                     It.IsAny<TimeSpan>(),
                     It.IsAny<TimeSpan>()))
-                .Returns(_mockTimer.Object);
-            _mockObservability
-                .Setup(o => o.TimeProvider).Returns(_mockTimeProvider.Object);
-            _options = new SessionCreateOptions
+                .Returns(m_mockTimer.Object);
+            m_mockObservability
+                .Setup(o => o.TimeProvider).Returns(m_mockTimeProvider.Object);
+            m_options = new SessionCreateOptions
             {
                 SessionName = "TestSession",
-                Channel = _mockChannel.Object
+                Channel = m_mockChannel.Object
             };
-            _configuration = new ApplicationConfiguration
+            m_configuration = new ApplicationConfiguration
             {
                 ClientConfiguration = new ClientConfiguration
                 {
@@ -58,13 +59,13 @@ namespace Opc.Ua.Client.Nodes
             };
         }
 
-        [Fact]
+        [Test]
         public async Task FetchValuesAsyncShouldReturnResultSetAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>
             {
                 NodeId.Parse("ns=2;s=TestNode1"),
@@ -77,7 +78,7 @@ namespace Opc.Ua.Client.Nodes
             };
             var diagnosticInfos = new DiagnosticInfoCollection();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -92,22 +93,22 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchValuesAsync(null, nodeIds, CancellationToken.None);
 
             // Assert
-            result.Results.Should().BeEquivalentTo(dataValues);
-            result.Errors.Should().AllBeEquivalentTo(ServiceResult.Good);
+            Assert.That(result.Results, Is.EqualTo(dataValues));
+            Assert.That(result.Errors, Has.All.EqualTo(ServiceResult.Good));
         }
 
-        [Fact]
+        [Test]
         public async Task FetchValueAsyncShouldReturnDataValueAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var dataValue = new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow);
             var diagnosticInfos = new DiagnosticInfoCollection();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -122,40 +123,40 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchValueAsync(null, nodeId, CancellationToken.None);
 
             // Assert
-            result.Should().BeEquivalentTo(dataValue);
+            Assert.That(result, Is.EqualTo(dataValue));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchValuesAsyncShouldReturnEmptyResultSetForEmptyNodeIdsAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>();
 
             // Act
             var result = await sut.FetchValuesAsync(null, nodeIds, CancellationToken.None);
 
             // Assert
-            result.Results.Should().BeEmpty();
-            result.Errors.Should().BeEmpty();
+            Assert.That(result.Results, Is.Empty);
+            Assert.That(result.Errors, Is.Empty);
         }
 
-        [Fact]
+        [Test]
         public async Task FetchValueAsyncShouldThrowServiceResultExceptionForBadStatusCodeAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var dataValue = new DataValue(new Variant(123), StatusCodes.Bad, DateTime.UtcNow);
             var diagnosticInfos = new DiagnosticInfoCollection();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -170,18 +171,18 @@ namespace Opc.Ua.Client.Nodes
             Func<Task> act = async () => await sut.FetchValueAsync(null, nodeId, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchValuesAsyncShouldReturnErrorsForBadStatusCodesAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId> { NodeId.Parse("ns=2;s=TestNode1"), NodeId.Parse("ns=2;s=TestNode2") };
             var dataValues = new DataValueCollection
             {
@@ -190,7 +191,7 @@ namespace Opc.Ua.Client.Nodes
             };
             var diagnosticInfos = new DiagnosticInfoCollection();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -205,23 +206,23 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchValuesAsync(null, nodeIds, CancellationToken.None);
 
             // Assert
-            result.Results.Should().BeEquivalentTo(dataValues);
-            result.Errors[0].StatusCode.Should().Be(StatusCodes.Bad);
-            result.Errors[1].StatusCode.Should().Be(StatusCodes.Good);
+            Assert.That(result.Results, Is.EqualTo(dataValues));
+            Assert.That(result.Errors[0].StatusCode, Is.EqualTo(StatusCodes.Bad));
+            Assert.That(result.Errors[1].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
-        [Fact]
+        [Test]
         public async Task FetchValueAsyncShouldHandleCancellationAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.Is<CancellationToken>(ct => ct.IsCancellationRequested)))
@@ -232,16 +233,16 @@ namespace Opc.Ua.Client.Nodes
             Func<Task> act = async () => await sut.FetchValueAsync(null, nodeId, cts.Token);
 
             // Assert
-            await act.Should().ThrowAsync<OperationCanceledException>();
+            Assert.ThrowsAsync<OperationCanceledException>(async () => await act());
         }
 
-        [Fact]
+        [Test]
         public async Task FetchValuesAsyncShouldHandleCancellationAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>
             {
                 NodeId.Parse("ns=2;s=TestNode1"),
@@ -250,7 +251,7 @@ namespace Opc.Ua.Client.Nodes
             var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.Is<CancellationToken>(ct => ct.IsCancellationRequested)))
@@ -261,22 +262,22 @@ namespace Opc.Ua.Client.Nodes
             Func<Task> act = async () => await sut.FetchValuesAsync(null, nodeIds, cts.Token);
 
             // Assert
-            await act.Should().ThrowAsync<OperationCanceledException>();
+            Assert.ThrowsAsync<OperationCanceledException>(async () => await act());
         }
 
-        [Fact]
+        [Test]
         public async Task FetchValueAsyncShouldProcessDiagnosticInfoAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var dataValue = new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow);
             var diagnosticInfo = new DiagnosticInfo();
             var diagnosticInfos = new DiagnosticInfoCollection { diagnosticInfo };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -291,19 +292,19 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchValueAsync(null, nodeId, CancellationToken.None);
 
             // Assert
-            result.Should().BeEquivalentTo(dataValue);
-            diagnosticInfos.Should().Contain(diagnosticInfo);
+            Assert.That(result, Is.EqualTo(dataValue));
+            Assert.That(diagnosticInfos, Does.Contain(diagnosticInfo));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchValuesAsyncShouldProcessDiagnosticInfoAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>
             {
                 NodeId.Parse("ns=2;s=TestNode1"),
@@ -317,7 +318,7 @@ namespace Opc.Ua.Client.Nodes
             var diagnosticInfo = new DiagnosticInfo();
             var diagnosticInfos = new DiagnosticInfoCollection { diagnosticInfo, diagnosticInfo };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -332,20 +333,20 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchValuesAsync(null, nodeIds, CancellationToken.None);
 
             // Assert
-            result.Results.Should().BeEquivalentTo(dataValues);
-            result.Errors.Should().AllBeEquivalentTo(ServiceResult.Good);
-            diagnosticInfos.Should().Contain(diagnosticInfo);
+            Assert.That(result.Results, Is.EqualTo(dataValues));
+            Assert.That(result.Errors, Has.All.EqualTo(ServiceResult.Good));
+            Assert.That(diagnosticInfos, Does.Contain(diagnosticInfo));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNodesAsyncShouldReturnResultSetAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>
             {
                 NodeId.Parse("ns=2;s=TestNode1"),
@@ -377,7 +378,7 @@ namespace Opc.Ua.Client.Nodes
                 }
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -409,19 +410,19 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchNodesAsync(null, nodeIds, CancellationToken.None);
 
             // Assert
-            result.Results.Count.Should().Be(2);
-            Utils.IsEqual(nodes[0], result.Results[0]).Should().BeTrue();
-            Utils.IsEqual(nodes[1], result.Results[1]).Should().BeTrue();
-            result.Errors.Should().AllBeEquivalentTo(ServiceResult.Good);
+            Assert.That(result.Results.Count, Is.EqualTo(2));
+            Assert.That(Utils.IsEqual(nodes[0], result.Results[0]), Is.True);
+            Assert.That(Utils.IsEqual(nodes[1], result.Results[1]), Is.True);
+            Assert.That(result.Errors, Has.All.EqualTo(ServiceResult.Good));
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNodesAsyncShouldReturnResultSetWhenOptionalAttributesMissingAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>
             {
                 NodeId.Parse("ns=2;s=TestNode1"),
@@ -453,7 +454,7 @@ namespace Opc.Ua.Client.Nodes
                 }
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -493,19 +494,19 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchNodesAsync(null, nodeIds, CancellationToken.None);
 
             // Assert
-            result.Results.Count.Should().Be(2);
-            Utils.IsEqual(nodes[0], result.Results[0]).Should().BeFalse();
-            Utils.IsEqual(nodes[1], result.Results[1]).Should().BeFalse();
-            result.Errors.Should().AllBeEquivalentTo(ServiceResult.Good);
+            Assert.That(result.Results.Count, Is.EqualTo(2));
+            Assert.That(Utils.IsEqual(nodes[0], result.Results[0]), Is.False);
+            Assert.That(Utils.IsEqual(nodes[1], result.Results[1]), Is.False);
+            Assert.That(result.Errors, Has.All.EqualTo(ServiceResult.Good));
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNodeAsyncShouldReturnNodeAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var node = new VariableNode
             {
@@ -519,7 +520,7 @@ namespace Opc.Ua.Client.Nodes
                 UserAccessLevel = 1
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -544,35 +545,35 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchNodeAsync(null, nodeId, CancellationToken.None);
 
             // Assert
-            Utils.IsEqual(node, result).Should().BeTrue();
+            Assert.That(Utils.IsEqual(node, result), Is.True);
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNodesAsyncShouldReturnEmptyResultSetForEmptyNodeIdsAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>();
 
             // Act
             var result = await sut.FetchNodesAsync(null, nodeIds, CancellationToken.None);
 
             // Assert
-            result.Results.Should().BeEmpty();
-            result.Errors.Should().BeEmpty();
+            Assert.That(result.Results, Is.Empty);
+            Assert.That(result.Errors, Is.Empty);
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNodeAsyncShouldThrowServiceResultExceptionForBadStatusCodeAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var node = new VariableNode
             {
@@ -587,7 +588,7 @@ namespace Opc.Ua.Client.Nodes
             };
             var diagnosticInfos = new DiagnosticInfoCollection();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -606,19 +607,19 @@ namespace Opc.Ua.Client.Nodes
                 CancellationToken.None);
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadAlreadyExists);
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadAlreadyExists));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNodesAsyncShouldReturnErrorsForBadStatusCodesAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>
             {
                 NodeId.Parse("ns=2;s=TestNode1"),
@@ -650,7 +651,7 @@ namespace Opc.Ua.Client.Nodes
                 }
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -680,21 +681,21 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchNodesAsync(null, nodeIds, CancellationToken.None);
 
             // Assert
-            result.Results.Count.Should().Be(2);
-            Utils.IsEqual(nodes[0], result.Results[0]).Should().BeTrue();
-            Utils.IsEqual(nodes[1], result.Results[1]).Should().BeFalse();
-            result.Errors.Count.Should().Be(2);
-            result.Errors[0].Should().Be(ServiceResult.Good);
-            result.Errors[1].StatusCode.Should().Be(StatusCodes.BadUnexpectedError);
+            Assert.That(result.Results.Count, Is.EqualTo(2));
+            Assert.That(Utils.IsEqual(nodes[0], result.Results[0]), Is.True);
+            Assert.That(Utils.IsEqual(nodes[1], result.Results[1]), Is.False);
+            Assert.That(result.Errors.Count, Is.EqualTo(2));
+            Assert.That(result.Errors[0], Is.EqualTo(ServiceResult.Good));
+            Assert.That(result.Errors[1].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNodesAsyncShouldReturnErrorsForBadNodeClassTypeAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>
             {
                 NodeId.Parse("ns=2;s=TestNode1"),
@@ -726,7 +727,7 @@ namespace Opc.Ua.Client.Nodes
                 }
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -763,26 +764,26 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchNodesAsync(null, nodeIds, CancellationToken.None);
 
             // Assert
-            result.Results.Count.Should().Be(2);
-            Utils.IsEqual(nodes[0], result.Results[0]).Should().BeFalse();
-            Utils.IsEqual(nodes[1], result.Results[1]).Should().BeFalse();
-            result.Errors.Count.Should().Be(2);
-            result.Errors[0].StatusCode.Should().Be(StatusCodes.BadUnexpectedError);
-            result.Errors[1].StatusCode.Should().Be(StatusCodes.BadUnexpectedError);
+            Assert.That(result.Results.Count, Is.EqualTo(2));
+            Assert.That(Utils.IsEqual(nodes[0], result.Results[0]), Is.False);
+            Assert.That(Utils.IsEqual(nodes[1], result.Results[1]), Is.False);
+            Assert.That(result.Errors.Count, Is.EqualTo(2));
+            Assert.That(result.Errors[0].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(result.Errors[1].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNodeAsyncShouldHandleCancellationAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.Is<CancellationToken>(ct => ct.IsCancellationRequested)))
@@ -793,16 +794,16 @@ namespace Opc.Ua.Client.Nodes
             Func<Task> act = async () => await sut.FetchNodeAsync(null, nodeId, cts.Token);
 
             // Assert
-            await act.Should().ThrowAsync<OperationCanceledException>();
+            Assert.ThrowsAsync<OperationCanceledException>(async () => await act());
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNodesAsyncShouldHandleCancellationAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>
             {
                 NodeId.Parse("ns=2;s=TestNode1"),
@@ -811,7 +812,7 @@ namespace Opc.Ua.Client.Nodes
             var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.Is<CancellationToken>(ct => ct.IsCancellationRequested)))
@@ -822,16 +823,16 @@ namespace Opc.Ua.Client.Nodes
             Func<Task> act = async () => await sut.FetchNodesAsync(null, nodeIds, cts.Token);
 
             // Assert
-            await act.Should().ThrowAsync<OperationCanceledException>();
+            Assert.ThrowsAsync<OperationCanceledException>(async () => await act());
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNodeAsyncShouldProcessDiagnosticInfoAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var node = new VariableNode
             {
@@ -845,7 +846,7 @@ namespace Opc.Ua.Client.Nodes
                 UserAccessLevel = 1
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -871,18 +872,18 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchNodeAsync(null, nodeId, CancellationToken.None);
 
             // Assert
-            Utils.IsEqual(node, result).Should().BeTrue();
+            Assert.That(Utils.IsEqual(node, result), Is.True);
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchNodesAsyncShouldProcessDiagnosticInfoAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>
             {
                 NodeId.Parse("ns=2;s=TestNode1"),
@@ -914,7 +915,7 @@ namespace Opc.Ua.Client.Nodes
                 }
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -947,21 +948,21 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchNodesAsync(null, nodeIds, CancellationToken.None);
 
             // Assert
-            result.Results.Count.Should().Be(2);
-            Utils.IsEqual(nodes[0], result.Results[0]).Should().BeTrue();
-            Utils.IsEqual(nodes[1], result.Results[1]).Should().BeTrue();
-            result.Errors.Count.Should().Be(2);
-            result.Errors.Should().AllBeEquivalentTo(ServiceResult.Good);
+            Assert.That(result.Results.Count, Is.EqualTo(2));
+            Assert.That(Utils.IsEqual(nodes[0], result.Results[0]), Is.True);
+            Assert.That(Utils.IsEqual(nodes[1], result.Results[1]), Is.True);
+            Assert.That(result.Errors.Count, Is.EqualTo(2));
+            Assert.That(result.Errors, Has.All.EqualTo(ServiceResult.Good));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
-        [Fact]
+        [Test]
         public async Task FetchReferencesAsyncShouldReturnResultSetAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var references = new ReferenceDescriptionCollection
             {
@@ -981,7 +982,7 @@ namespace Opc.Ua.Client.Nodes
                 }
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<BrowseRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1002,35 +1003,35 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchReferencesAsync(null, nodeId, CancellationToken.None);
 
             // Assert
-            result.Should().BeEquivalentTo(references);
+            Assert.That(result, Is.EqualTo(references));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchReferencesAsyncShouldReturnEmptyResultSetForEmptyNodeIdsAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>();
 
             // Act
             var result = await sut.FetchReferencesAsync(null, nodeIds, CancellationToken.None);
 
             // Assert
-            result.Results.Should().BeEmpty();
-            result.Errors.Should().BeEmpty();
+            Assert.That(result.Results, Is.Empty);
+            Assert.That(result.Errors, Is.Empty);
         }
 
-        [Fact]
+        [Test]
         public async Task FetchReferencesAsyncShouldReturnErrorsForBadStatusCodesAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>
             {
                 NodeId.Parse("ns=2;s=TestNode1"),
@@ -1054,7 +1055,7 @@ namespace Opc.Ua.Client.Nodes
                 }
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<BrowseRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1082,21 +1083,21 @@ namespace Opc.Ua.Client.Nodes
                 CancellationToken.None);
 
             // Assert
-            result.Results.Count.Should().Be(2);
-            Utils.IsEqual(result.Results[0], references).Should().BeTrue();
-            Utils.IsEqual(result.Results[1], references).Should().BeTrue();
-            result.Errors.Count.Should().Be(2);
-            result.Errors[0].StatusCode.Should().Be(StatusCodes.Bad);
-            result.Errors[1].StatusCode.Should().Be(StatusCodes.Bad);
+            Assert.That(result.Results.Count, Is.EqualTo(2));
+            Assert.That(Utils.IsEqual(result.Results[0], references), Is.True);
+            Assert.That(Utils.IsEqual(result.Results[1], references), Is.True);
+            Assert.That(result.Errors.Count, Is.EqualTo(2));
+            Assert.That(result.Errors[0].StatusCode, Is.EqualTo(StatusCodes.Bad));
+            Assert.That(result.Errors[1].StatusCode, Is.EqualTo(StatusCodes.Bad));
         }
 
-        [Fact]
+        [Test]
         public async Task FetchReferencesAsyncShouldHandleCancellationAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId>
             {
                 NodeId.Parse("ns=2;s=TestNode1"),
@@ -1105,7 +1106,7 @@ namespace Opc.Ua.Client.Nodes
             var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<BrowseRequest>(),
                     It.Is<CancellationToken>(ct => ct.IsCancellationRequested)))
@@ -1117,16 +1118,16 @@ namespace Opc.Ua.Client.Nodes
                 nodeIds, cts.Token);
 
             // Assert
-            await act.Should().ThrowAsync<OperationCanceledException>();
+            Assert.ThrowsAsync<OperationCanceledException>(async () => await act());
         }
 
-        [Fact]
+        [Test]
         public async Task FetchReferenceAsyncShouldReturnReferenceDescriptionAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var reference = new ReferenceDescription
             {
@@ -1136,7 +1137,7 @@ namespace Opc.Ua.Client.Nodes
                 NodeClass = NodeClass.Variable
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<BrowseRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1157,19 +1158,19 @@ namespace Opc.Ua.Client.Nodes
             var result = await sut.FetchReferencesAsync(null, nodeId, CancellationToken.None);
 
             // Assert
-            result.Count.Should().Be(1);
-            result[0].Should().BeEquivalentTo(reference);
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result[0], Is.EqualTo(reference));
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchReferenceAsyncShouldThrowServiceResultExceptionForBadStatusCodeAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var reference = new ReferenceDescription
             {
@@ -1179,7 +1180,7 @@ namespace Opc.Ua.Client.Nodes
                 NodeClass = NodeClass.Variable
             };
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<BrowseRequest>(),
                     It.IsAny<CancellationToken>()))
@@ -1202,23 +1203,23 @@ namespace Opc.Ua.Client.Nodes
                 CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>();
+            Assert.ThrowsAsync<ServiceResultException>(async () => await act());
 
-            _mockChannel.Verify();
+            m_mockChannel.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task FetchReferenceAsyncShouldHandleCancellationAsync()
         {
             // Arrange
-            var sut = new TestCacheContext(_configuration,
+            var sut = new TestCacheContext(m_configuration,
                 new ConfiguredEndpoint(null, new EndpointDescription()),
-                _options, _mockObservability.Object, null);
+                m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            _mockChannel
+            m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<BrowseRequest>(),
                     It.Is<CancellationToken>(ct => ct.IsCancellationRequested)))
@@ -1229,37 +1230,37 @@ namespace Opc.Ua.Client.Nodes
             Func<Task> act = async () => await sut.FetchReferencesAsync(null, nodeId, cts.Token);
 
             // Assert
-            await act.Should().ThrowAsync<OperationCanceledException>();
+            Assert.ThrowsAsync<OperationCanceledException>(async () => await act());
         }
 
         private sealed class TestCacheContext : SessionBase
         {
             public TestCacheContext(ApplicationConfiguration configuration,
-                ConfiguredEndpoint endpoint, SessionCreateOptions _options,
+                ConfiguredEndpoint endpoint, SessionCreateOptions m_options,
                 ITelemetryContext telemetry, ReverseConnectManager? reverseConnect)
-                : base(configuration, endpoint, _options, telemetry, reverseConnect)
+                : base(configuration, endpoint, m_options, telemetry, reverseConnect)
             {
-                if (_options.Channel != null)
+                if (m_options.Channel != null)
                 {
-                    AttachChannel(_options.Channel);
+                    AttachChannel(m_options.Channel);
                 }
             }
 
             protected override IManagedSubscription CreateSubscription(ISubscriptionNotificationHandler handler,
-                IOptionsMonitor<SubscriptionOptions> _options, IMessageAckQueue queue,
+                IOptionsMonitor<SubscriptionOptions> m_options, IMessageAckQueue queue,
                 ITelemetryContext telemetry)
             {
                 throw new NotImplementedException();
             }
         }
 
-        private readonly Mock<ITransportChannel> _mockChannel;
-        private readonly Mock<ITelemetryContext> _mockObservability;
-        private readonly Mock<ILogger<SessionBase>> _mockLogger;
-        private readonly Mock<IMeterFactory> _mockMeterFactory;
-        private readonly Mock<TimeProvider> _mockTimeProvider;
-        private readonly Mock<ITimer> _mockTimer;
-        private readonly SessionCreateOptions _options;
-        private readonly ApplicationConfiguration _configuration;
+        private Mock<ITransportChannel> m_mockChannel;
+        private Mock<ITelemetryContext> m_mockObservability;
+        private Mock<ILogger<SessionBase>> m_mockLogger;
+        private Mock<IMeterFactory> m_mockMeterFactory;
+        private Mock<TimeProvider> m_mockTimeProvider;
+        private Mock<ITimer> m_mockTimer;
+        private SessionCreateOptions m_options;
+        private ApplicationConfiguration m_configuration;
     }
 }

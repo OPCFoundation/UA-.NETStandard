@@ -1,87 +1,88 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Moq;
+using Nito.AsyncEx;
+using Opc.Ua.Client.Services;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Subscriptions
 {
-    using System;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using FluentAssertions;
-    using Microsoft.Extensions.Logging;
-    using Microsoft.Extensions.Options;
-    using Moq;
-    using Nito.AsyncEx;
-    using Opc.Ua.Client.Services;
-    using Opc.Ua.Client.Subscriptions.MonitoredItems;
-    using Xunit;
-
+    [TestFixture]
     public sealed class SubscriptionTests
     {
-        public SubscriptionTests()
+        [SetUp]
+        public void SetUp()
         {
-            _mockSubscriptionServices = new Mock<ISubscriptionServiceSet>();
-            _mockMonitoredItemServices = new Mock<IMonitoredItemServiceSet>();
-            _mockMethodServices = new Mock<IMethodServiceSet>();
-            _mockSubscriptionServices = new Mock<ISubscriptionServiceSet>();
-            _mockSession = new Mock<ISubscriptionContext>();
-            _mockSession
-                .Setup(_mockSession => _mockSession.SubscriptionServiceSet)
-                .Returns(_mockSubscriptionServices.Object);
-            _mockSession
-                .Setup(_mockSession => _mockSession.MethodServiceSet)
-                .Returns(_mockMethodServices.Object);
-            _mockSession
-                .Setup(_mockSession => _mockSession.MonitoredItemServiceSet)
-                .Returns(_mockMonitoredItemServices.Object);
-            _mockCompletion = new Mock<IMessageAckQueue>();
+            m_mockSubscriptionServices = new Mock<ISubscriptionServiceSet>();
+            m_mockMonitoredItemServices = new Mock<IMonitoredItemServiceSet>();
+            m_mockMethodServices = new Mock<IMethodServiceSet>();
+            m_mockSubscriptionServices = new Mock<ISubscriptionServiceSet>();
+            m_mockSession = new Mock<ISubscriptionContext>();
+            m_mockSession
+                .Setup(m_mockSession => m_mockSession.SubscriptionServiceSet)
+                .Returns(m_mockSubscriptionServices.Object);
+            m_mockSession
+                .Setup(m_mockSession => m_mockSession.MethodServiceSet)
+                .Returns(m_mockMethodServices.Object);
+            m_mockSession
+                .Setup(m_mockSession => m_mockSession.MonitoredItemServiceSet)
+                .Returns(m_mockMonitoredItemServices.Object);
+            m_mockCompletion = new Mock<IMessageAckQueue>();
             _options = OptionsFactory.Create<SubscriptionOptions>();
 
-            _mockTimeProvider = new Mock<TimeProvider>();
-            _mockTimer = new Mock<ITimer>();
-            _mockTimeProvider
+            m_mockTimeProvider = new Mock<TimeProvider>();
+            m_mockTimer = new Mock<ITimer>();
+            m_mockTimeProvider
                 .Setup(t => t.CreateTimer(
                     It.IsAny<TimerCallback>(),
                     It.IsAny<object>(),
                     It.IsAny<TimeSpan>(),
                     It.IsAny<TimeSpan>()))
-                .Returns(_mockTimer.Object);
-            _mockObservability = new Mock<ITelemetryContext>();
-            _mockObservability
-                .Setup(o => o.TimeProvider).Returns(_mockTimeProvider.Object);
-            _mockLogger = new Mock<ILogger<Subscription>>();
-            _mockObservability
+                .Returns(m_mockTimer.Object);
+            m_mockObservability = new Mock<ITelemetryContext>();
+            m_mockObservability
+                .Setup(o => o.TimeProvider).Returns(m_mockTimeProvider.Object);
+            m_mockLogger = new Mock<ILogger<Subscription>>();
+            m_mockObservability
                 .Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
-                .Returns(_mockLogger.Object);
-            _mockNotificationDataHandler = new Mock<ISubscriptionNotificationHandler>();
+                .Returns(m_mockLogger.Object);
+            m_mockNotificationDataHandler = new Mock<ISubscriptionNotificationHandler>();
         }
 
-        [Fact]
+        [Test]
         public void AddMonitoredItemShouldAddItemToMonitoredItems()
         {
             // Arrange
             var options = OptionsFactory.Create<MonitoredItemOptions>();
 
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object);
 
             // Act
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
 
             // Assert
-            success.Should().BeTrue();
-            monitoredItem.Should().NotBeNull();
-            Assert.NotNull(monitoredItem);
-            sut.MonitoredItems.Items.Should().Contain(monitoredItem);
+            Assert.That(success, Is.True);
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(sut.MonitoredItems.Items, Does.Contain(monitoredItem));
         }
 
-        [Fact]
+        [Test]
         public async Task ChangeSubscriptionOptionsShouldCallCreateAsyncIfNotCreatedAsync()
         {
             // Arrange
             var publishingInterval = TimeSpan.FromSeconds(100);
-            _mockSubscriptionServices
+            m_mockSubscriptionServices
                 .Setup(s => s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
                     publishingInterval.TotalMilliseconds, 21, 7, 10, true,
                     3, It.IsAny<CancellationToken>()))
@@ -95,14 +96,14 @@ namespace Opc.Ua.Client.Subscriptions
                 .Verifiable(Times.Once);
 
             _options.Configure(o => o with { Disabled = true });
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object);
-            sut.Created.Should().BeFalse();
-            sut.CurrentPublishingInterval.Should().Be(TimeSpan.Zero);
-            sut.CurrentKeepAliveCount.Should().Be(0);
-            sut.CurrentLifetimeCount.Should().Be(0);
-            sut.CurrentMaxNotificationsPerPublish.Should().Be(0);
-            sut.CurrentPriority.Should().Be(0);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object);
+            Assert.That(sut.Created, Is.False);
+            Assert.That(sut.CurrentPublishingInterval, Is.EqualTo(TimeSpan.Zero));
+            Assert.That(sut.CurrentKeepAliveCount, Is.EqualTo(0));
+            Assert.That(sut.CurrentLifetimeCount, Is.EqualTo(0));
+            Assert.That(sut.CurrentMaxNotificationsPerPublish, Is.EqualTo(0));
+            Assert.That(sut.CurrentPriority, Is.EqualTo(0));
 
             // Act
             sut.SubscriptionStateChanged.Reset();
@@ -119,24 +120,24 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.SubscriptionStateChanged.WaitAsync();
 
             // Assert
-            sut.Created.Should().BeTrue();
-            sut.CurrentPublishingInterval.Should().Be(TimeSpan.FromSeconds(10));
-            sut.CurrentKeepAliveCount.Should().Be(5);
-            sut.CurrentLifetimeCount.Should().Be(10);
-            sut.CurrentMaxNotificationsPerPublish.Should().Be(10);
-            sut.CurrentPriority.Should().Be(3);
-            sut.Id.Should().Be(22);
-            _mockSession.Verify();
+            Assert.That(sut.Created, Is.True);
+            Assert.That(sut.CurrentPublishingInterval, Is.EqualTo(TimeSpan.FromSeconds(10)));
+            Assert.That(sut.CurrentKeepAliveCount, Is.EqualTo(5));
+            Assert.That(sut.CurrentLifetimeCount, Is.EqualTo(10));
+            Assert.That(sut.CurrentMaxNotificationsPerPublish, Is.EqualTo(10));
+            Assert.That(sut.CurrentPriority, Is.EqualTo(3));
+            Assert.That(sut.Id, Is.EqualTo(22));
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ChangeSubscriptionOptionsShouldCallModifyAsyncIfCreatedAsync()
         {
             // Arrange
 
             var publishingInterval = TimeSpan.FromSeconds(100);
 
-            _mockSubscriptionServices
+            m_mockSubscriptionServices
                 .Setup(s => s.ModifySubscriptionAsync(It.IsAny<RequestHeader>(),
                     22, publishingInterval.TotalMilliseconds, 30, 10, 0,
                     4, It.IsAny<CancellationToken>()))
@@ -147,7 +148,7 @@ namespace Opc.Ua.Client.Subscriptions
                     RevisedPublishingInterval = 10000
                 })
                 .Verifiable(Times.Once);
-            _mockSubscriptionServices
+            m_mockSubscriptionServices
                 .Setup(s => s.SetPublishingModeAsync(It.IsAny<RequestHeader>(),
                     true, new UInt32Collection { 22 }, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new SetPublishingModeResponse
@@ -156,16 +157,16 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 22);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 22);
 
-            sut.Created.Should().BeTrue();
-            sut.CurrentPublishingEnabled.Should().BeFalse();
-            sut.CurrentPublishingInterval.Should().Be(publishingInterval);
-            sut.CurrentKeepAliveCount.Should().Be(7);
-            sut.CurrentLifetimeCount.Should().Be(21);
-            sut.CurrentMaxNotificationsPerPublish.Should().Be(10);
-            sut.CurrentPriority.Should().Be(3);
+            Assert.That(sut.Created, Is.True);
+            Assert.That(sut.CurrentPublishingEnabled, Is.False);
+            Assert.That(sut.CurrentPublishingInterval, Is.EqualTo(publishingInterval));
+            Assert.That(sut.CurrentKeepAliveCount, Is.EqualTo(7));
+            Assert.That(sut.CurrentLifetimeCount, Is.EqualTo(21));
+            Assert.That(sut.CurrentMaxNotificationsPerPublish, Is.EqualTo(10));
+            Assert.That(sut.CurrentPriority, Is.EqualTo(3));
 
             // Act
             sut.SubscriptionStateChanged.Reset();
@@ -179,24 +180,24 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.SubscriptionStateChanged.WaitAsync();
 
             // Assert
-            sut.Created.Should().BeTrue();
-            sut.CurrentPublishingInterval.Should().Be(TimeSpan.FromSeconds(10));
-            sut.CurrentKeepAliveCount.Should().Be(5);
-            sut.CurrentLifetimeCount.Should().Be(10);
-            sut.CurrentMaxNotificationsPerPublish.Should().Be(0);
-            sut.CurrentPriority.Should().Be(4);
-            sut.CurrentPublishingEnabled.Should().BeTrue();
-            _mockSession.Verify();
+            Assert.That(sut.Created, Is.True);
+            Assert.That(sut.CurrentPublishingInterval, Is.EqualTo(TimeSpan.FromSeconds(10)));
+            Assert.That(sut.CurrentKeepAliveCount, Is.EqualTo(5));
+            Assert.That(sut.CurrentLifetimeCount, Is.EqualTo(10));
+            Assert.That(sut.CurrentMaxNotificationsPerPublish, Is.EqualTo(0));
+            Assert.That(sut.CurrentPriority, Is.EqualTo(4));
+            Assert.That(sut.CurrentPublishingEnabled, Is.True);
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ChangeSubscriptionOptionsShouldCallSetPublishingModeIfItIsTheOnlyChangeAsync()
         {
             // Arrange
 
             var publishingInterval = TimeSpan.FromSeconds(100);
 
-            _mockSubscriptionServices
+            m_mockSubscriptionServices
                 .Setup(s => s.SetPublishingModeAsync(It.IsAny<RequestHeader>(),
                     true, new UInt32Collection { 22 }, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new SetPublishingModeResponse
@@ -205,11 +206,11 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 22);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 22);
 
-            sut.Created.Should().BeTrue();
-            sut.CurrentPublishingEnabled.Should().BeFalse();
+            Assert.That(sut.Created, Is.True);
+            Assert.That(sut.CurrentPublishingEnabled, Is.False);
 
             // Act
             sut.SubscriptionStateChanged.Reset();
@@ -226,15 +227,15 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.SubscriptionStateChanged.WaitAsync();
 
             // Assert
-            sut.CurrentPublishingEnabled.Should().BeTrue();
-            _mockSession.Verify();
+            Assert.That(sut.CurrentPublishingEnabled, Is.True);
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ChangeMonitoredItemOptionsShouldAddCreatedItemsAsync()
         {
             // Arrange
-            _mockMonitoredItemServices
+            m_mockMonitoredItemServices
                 .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     TimestampsToReturn.Both,
                     It.IsAny<MonitoredItemCreateRequestCollection>(), It.IsAny<CancellationToken>()))
@@ -253,43 +254,43 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-              _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+              m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
 
             sut.SubscriptionStateChanged.Reset();
             var success = sut.MonitoredItems.TryAdd("Test", OptionsFactory.Create(new MonitoredItemOptions
             {
                 StartNodeId = NodeId.Parse("ns=2;s=Demo")
             }), out var monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(success, Is.True);
 
             // Act
             await sut.SubscriptionStateChanged.WaitAsync();
 
-            Assert.NotNull(monitoredItem);
-            monitoredItem.ServerId.Should().Be(100);
-            monitoredItem.CurrentSamplingInterval.Should().Be(TimeSpan.FromSeconds(10));
-            monitoredItem.CurrentQueueSize.Should().Be(10);
-            monitoredItem.CurrentMonitoringMode.Should().Be(MonitoringMode.Reporting);
-            _mockSession.Verify();
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(monitoredItem.ServerId, Is.EqualTo(100));
+            Assert.That(monitoredItem.CurrentSamplingInterval, Is.EqualTo(TimeSpan.FromSeconds(10)));
+            Assert.That(monitoredItem.CurrentQueueSize, Is.EqualTo(10));
+            Assert.That(monitoredItem.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ChangeMonitoredItemOptionsShouldChangeSubscriptionAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-              _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+              m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(success, Is.True);
 
-            Assert.NotNull(monitoredItem);
-            monitoredItem.ServerId.Should().Be(monitoredItem.ClientHandle);
-            monitoredItem.CurrentMonitoringMode.Should().Be(MonitoringMode.Sampling);
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(monitoredItem.ServerId, Is.EqualTo(monitoredItem.ClientHandle));
+            Assert.That(monitoredItem.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Sampling));
 
-            _mockMonitoredItemServices
+            m_mockMonitoredItemServices
                 .Setup(s => s.ModifyMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     TimestampsToReturn.Both,
                     It.IsAny<MonitoredItemModifyRequestCollection>(),
@@ -320,28 +321,28 @@ namespace Opc.Ua.Client.Subscriptions
             });
             await sut.SubscriptionStateChanged.WaitAsync();
 
-            monitoredItem.CurrentSamplingInterval.Should().Be(TimeSpan.FromSeconds(100));
-            monitoredItem.CurrentQueueSize.Should().Be(1000);
-            monitoredItem.CurrentMonitoringMode.Should().Be(MonitoringMode.Sampling);
-            _mockSession.Verify();
+            Assert.That(monitoredItem.CurrentSamplingInterval, Is.EqualTo(TimeSpan.FromSeconds(100)));
+            Assert.That(monitoredItem.CurrentQueueSize, Is.EqualTo(1000));
+            Assert.That(monitoredItem.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Sampling));
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ChangeMonitoredItemOptionsNameShouldDeleteAndRecreateMonitoredItemAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-              _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+              m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(success, Is.True);
 
-            Assert.NotNull(monitoredItem);
-            monitoredItem.ServerId.Should().Be(monitoredItem.ClientHandle);
-            monitoredItem.CurrentMonitoringMode.Should().Be(MonitoringMode.Sampling);
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(monitoredItem.ServerId, Is.EqualTo(monitoredItem.ClientHandle));
+            Assert.That(monitoredItem.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Sampling));
 
-            _mockMonitoredItemServices
+            m_mockMonitoredItemServices
                 .Setup(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     new UInt32Collection { monitoredItem.ServerId }, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteMonitoredItemsResponse
@@ -349,7 +350,7 @@ namespace Opc.Ua.Client.Subscriptions
                     Results = [StatusCodes.Good]
                 })
                 .Verifiable(Times.Once);
-            _mockMonitoredItemServices
+            m_mockMonitoredItemServices
                 .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     TimestampsToReturn.Both,
                     It.Is<MonitoredItemCreateRequestCollection>(r => r.Count == 1
@@ -381,31 +382,31 @@ namespace Opc.Ua.Client.Subscriptions
             });
             await sut.SubscriptionStateChanged.WaitAsync();
 
-            monitoredItem.CurrentSamplingInterval.Should().Be(TimeSpan.FromSeconds(10));
-            monitoredItem.CurrentQueueSize.Should().Be(10);
-            monitoredItem.ServerId.Should().Be(400);
-            monitoredItem.CurrentMonitoringMode.Should().Be(MonitoringMode.Reporting);
-            _mockSession.Verify();
+            Assert.That(monitoredItem.CurrentSamplingInterval, Is.EqualTo(TimeSpan.FromSeconds(10)));
+            Assert.That(monitoredItem.CurrentQueueSize, Is.EqualTo(10));
+            Assert.That(monitoredItem.ServerId, Is.EqualTo(400));
+            Assert.That(monitoredItem.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task UpdatingMonitoringModeOnlyShouldCallSetMonitoringModeAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(success, Is.True);
 
-            Assert.NotNull(monitoredItem);
-            monitoredItem.ServerId.Should().Be(monitoredItem.ClientHandle);
-            monitoredItem.CurrentMonitoringMode.Should().Be(MonitoringMode.Sampling);
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(monitoredItem.ServerId, Is.EqualTo(monitoredItem.ClientHandle));
+            Assert.That(monitoredItem.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Sampling));
             // Now we have a monitored item in sampling mode
 
             // Only set monitoring mode should be called for the item
-            _mockMonitoredItemServices
+            m_mockMonitoredItemServices
                 .Setup(s => s.SetMonitoringModeAsync(It.IsAny<RequestHeader>(),
                     sut.Id, MonitoringMode.Reporting,
                     new UInt32Collection { monitoredItem.ServerId },
@@ -425,25 +426,25 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.SubscriptionStateChanged.WaitAsync();
 
             // Assert
-            monitoredItem.CurrentMonitoringMode.Should().Be(MonitoringMode.Reporting);
-            _mockSession.Verify();
+            Assert.That(monitoredItem.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task RemovingMonitoredItemShouldRemoveRemovedItemAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-              _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+              m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            success.Should().BeTrue();
-            sut.MonitoredItems.Count.Should().Be(1);
-            Assert.NotNull(monitoredItem);
+            Assert.That(success, Is.True);
+            Assert.That(sut.MonitoredItems.Count, Is.EqualTo(1));
+            Assert.That(monitoredItem, Is.Not.Null);
             // Now we got an item that is created
 
             // Only delete monitored item should be called
-            _mockMonitoredItemServices
+            m_mockMonitoredItemServices
                 .Setup(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     new UInt32Collection { monitoredItem.ServerId },
                     It.IsAny<CancellationToken>()))
@@ -460,26 +461,26 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.SubscriptionStateChanged.WaitAsync();
 
             // Assert
-            success.Should().BeTrue();
-            sut.MonitoredItems.Count.Should().Be(0);
-            _mockSession.Verify();
+            Assert.That(success, Is.True);
+            Assert.That(sut.MonitoredItems.Count, Is.EqualTo(0));
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task RemovingMonitoredItemShouldTryAgainIfDeleteFailsAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-              _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+              m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            Assert.NotNull(monitoredItem);
-            success.Should().BeTrue();
-            sut.MonitoredItems.Count.Should().Be(1);
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(success, Is.True);
+            Assert.That(sut.MonitoredItems.Count, Is.EqualTo(1));
             // Now we got an item that is created
 
             // Only delete monitored item should be called
-            _mockMonitoredItemServices
+            m_mockMonitoredItemServices
                 .SetupSequence(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(),
                     2, new UInt32Collection { monitoredItem.ServerId },
                     It.IsAny<CancellationToken>()))
@@ -507,20 +508,20 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.SubscriptionStateChanged.WaitAsync();
 
             // Assert
-            success.Should().BeTrue();
-            sut.MonitoredItems.Count.Should().Be(0);
-            _mockSession.Verify();
+            Assert.That(success, Is.True);
+            Assert.That(sut.MonitoredItems.Count, Is.EqualTo(0));
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ConditionRefreshAsyncShouldCallSessionCallAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
 
             // Assert
-            _mockMethodServices
+            m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.IsAny<CallMethodRequestCollection>(), It.IsAny<CancellationToken>()))
@@ -540,34 +541,34 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.ConditionRefreshAsync(default);
 
             // Assert
-            _mockSession.Verify();
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task ConditionRefreshAsyncThrowsIfNotYetCreatedAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object);
 
             // Act
             Func<Task> act = async () => await sut.ConditionRefreshAsync(CancellationToken.None);
 
             // Assert
-            (await act.Should().ThrowAsync<ServiceResultException>())
-                .Which.StatusCode.Should().Be(StatusCodes.BadSubscriptionIdInvalid);
-            _mockSession.Verify();
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task DeleteAsyncShouldCallSessionDeleteSubscriptionsAsync()
         {
             // Arrange
 
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 22);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 22);
 
-            _mockSubscriptionServices
+            m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
                     It.IsAny<RequestHeader>(), new UInt32Collection { 22 }, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteSubscriptionsResponse
@@ -580,18 +581,18 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.DeleteAsync(default);
 
             // Assert
-            _mockSession.Verify();
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task DisposeAsyncShouldCallSessionDeleteSubscriptionsAndCleanupMonitoredItemsAsync()
         {
             // Arrange
 
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 22);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 22);
 
-            _mockSubscriptionServices
+            m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
                     It.IsAny<RequestHeader>(), new UInt32Collection { 22 }, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteSubscriptionsResponse
@@ -604,21 +605,21 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.DisposeAsync();
 
             // Assert
-            _mockSession.Verify();
-            sut.MonitoredItems.Items.Should().BeEmpty();
+            m_mockSession.Verify();
+            Assert.That(sut.MonitoredItems.Items, Is.Empty);
         }
 
-        [Fact]
+        [Test]
         public async Task DisableShouldCallSessionDeleteSubscriptionsButNotMonitoredItemsAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 22);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 22);
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(success, Is.True);
 
-            _mockSubscriptionServices
+            m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
                     It.IsAny<RequestHeader>(), new UInt32Collection { 22 },
                     It.IsAny<CancellationToken>()))
@@ -634,18 +635,18 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.SubscriptionStateChanged.WaitAsync();
 
             // Assert
-            _mockSession.Verify();
-            sut.MonitoredItems.Items.Should().NotBeEmpty();
+            m_mockSession.Verify();
+            Assert.That(sut.MonitoredItems.Items, Is.Not.Empty);
         }
 
-        [Fact]
+        [Test]
         public async Task DeleteAsyncShouldCatchAllExceptionsAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 22);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 22);
 
-            _mockSubscriptionServices
+            m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
                     It.IsAny<RequestHeader>(), new UInt32Collection { 22 },
                     It.IsAny<CancellationToken>()))
@@ -659,90 +660,90 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.DeleteAsync(default);
 
             // Assert
-            _mockSession.Verify();
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task DisposeAsyncShouldDisposePublishTimerAsync()
         {
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object);
             // Act
             await sut.DisposeAsync();
 
             // Assert
-            _mockTimer.Verify(t => t.Dispose(), Times.Once);
+            m_mockTimer.Verify(t => t.Dispose(), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public void FindItemByClientHandleShouldReturnMonitoredItem()
         {
             // Arrange
             var options = OptionsFactory.Create<MonitoredItemOptions>();
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object);
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            Assert.NotNull(monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(success, Is.True);
 
             // Act
             success = sut.MonitoredItems.TryGetMonitoredItemByClientHandle(
                 monitoredItem.ClientHandle, out var result);
 
             // Assert
-            success.Should().BeTrue();
-            result.Should().Be(monitoredItem);
+            Assert.That(success, Is.True);
+            Assert.That(result, Is.EqualTo(monitoredItem));
         }
 
-        [Fact]
+        [Test]
         public void FindItemByClientHandleShouldReturnNullIfNotFound()
         {
             // Arrange
             var options = OptionsFactory.Create<MonitoredItemOptions>();
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object);
             var success = sut.MonitoredItems.TryAdd("Test", options, out _);
-            success.Should().BeTrue();
+            Assert.That(success, Is.True);
 
             // Act
             success = sut.MonitoredItems.TryGetMonitoredItemByClientHandle(55,
                 out var result);
 
             // Assert
-            success.Should().BeFalse();
-            result.Should().BeNull();
+            Assert.That(success, Is.False);
+            Assert.That(result, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public async Task OnPublishReceivedAsyncShouldResetKeepAliveTimerAsync()
         {
             // Arrange
             var message = new NotificationMessage();
 
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object);
 
             // Act
             await sut.OnPublishReceivedAsync(message, null, null!);
 
             // Assert
-            _mockTimer.Verify(t => t.Change(It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()), Times.Once);
+            m_mockTimer.Verify(t => t.Change(It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()), Times.Once);
         }
 
-        [Fact]
+        [Test]
         public async Task RecreateAsyncShouldReCreateSubscriptionAndMonitoredItemsAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 10);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 10);
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            Assert.NotNull(monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(success, Is.True);
 
             // We have a running subscription with one monitored item.
 
-            _mockSubscriptionServices
+            m_mockSubscriptionServices
                 .Setup(s => s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
                     TimeSpan.FromSeconds(100).TotalMilliseconds, 21, 7, 10, false,
                     3, It.IsAny<CancellationToken>()))
@@ -754,7 +755,7 @@ namespace Opc.Ua.Client.Subscriptions
                     RevisedPublishingInterval = 10000
                 })
                 .Verifiable(Times.Once);
-            _mockMonitoredItemServices
+            m_mockMonitoredItemServices
                 .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 22,
                     TimestampsToReturn.Both,
                     It.IsAny<MonitoredItemCreateRequestCollection>(), It.IsAny<CancellationToken>()))
@@ -773,37 +774,37 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            sut.Created.Should().BeTrue();
+            Assert.That(sut.Created, Is.True);
 
             // Act
             await sut.RecreateAsync(default);
 
             // Assert
-            sut.Created.Should().BeTrue();
-            sut.CurrentPublishingInterval.Should().Be(TimeSpan.FromSeconds(10));
-            sut.CurrentKeepAliveCount.Should().Be(5);
-            sut.CurrentLifetimeCount.Should().Be(10);
-            sut.CurrentMaxNotificationsPerPublish.Should().Be(10);
-            sut.CurrentPriority.Should().Be(3);
-            sut.Id.Should().Be(22);
-            monitoredItem.ServerId.Should().Be(200);
-            _mockSession.Verify();
+            Assert.That(sut.Created, Is.True);
+            Assert.That(sut.CurrentPublishingInterval, Is.EqualTo(TimeSpan.FromSeconds(10)));
+            Assert.That(sut.CurrentKeepAliveCount, Is.EqualTo(5));
+            Assert.That(sut.CurrentLifetimeCount, Is.EqualTo(10));
+            Assert.That(sut.CurrentMaxNotificationsPerPublish, Is.EqualTo(10));
+            Assert.That(sut.CurrentPriority, Is.EqualTo(3));
+            Assert.That(sut.Id, Is.EqualTo(22));
+            Assert.That(monitoredItem.ServerId, Is.EqualTo(200));
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task RecreateAsyncShouldReCreateSubscriptionsAsync()
         {
             // Arrange
 
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 10);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 10);
 
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            Assert.NotNull(monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(success, Is.True);
 
-            _mockSubscriptionServices
+            m_mockSubscriptionServices
                 .Setup(s => s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
                     TimeSpan.FromSeconds(100).TotalMilliseconds, 21, 7, 10, false,
                     3, It.IsAny<CancellationToken>()))
@@ -816,7 +817,7 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            _mockMonitoredItemServices
+            m_mockMonitoredItemServices
                 .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 22,
                     TimestampsToReturn.Both,
                     It.IsAny<MonitoredItemCreateRequestCollection>(), It.IsAny<CancellationToken>()))
@@ -834,55 +835,55 @@ namespace Opc.Ua.Client.Subscriptions
                     ]
                 })
                 .Verifiable(Times.Once);
-            sut.Created.Should().BeTrue();
+            Assert.That(sut.Created, Is.True);
 
             // Act
             await sut.RecreateAsync(default);
 
             // Assert
-            sut.Created.Should().BeTrue();
-            sut.CurrentPublishingInterval.Should().Be(TimeSpan.FromSeconds(10));
-            sut.CurrentKeepAliveCount.Should().Be(5);
-            sut.CurrentLifetimeCount.Should().Be(10);
-            sut.CurrentMaxNotificationsPerPublish.Should().Be(10);
-            sut.CurrentPriority.Should().Be(3);
-            sut.Id.Should().Be(22);
-            sut.MonitoredItems.Count.Should().Be(1);
-            monitoredItem.ServerId.Should().Be(200);
-            _mockSession.Verify();
+            Assert.That(sut.Created, Is.True);
+            Assert.That(sut.CurrentPublishingInterval, Is.EqualTo(TimeSpan.FromSeconds(10)));
+            Assert.That(sut.CurrentKeepAliveCount, Is.EqualTo(5));
+            Assert.That(sut.CurrentLifetimeCount, Is.EqualTo(10));
+            Assert.That(sut.CurrentMaxNotificationsPerPublish, Is.EqualTo(10));
+            Assert.That(sut.CurrentPriority, Is.EqualTo(3));
+            Assert.That(sut.Id, Is.EqualTo(22));
+            Assert.That(sut.MonitoredItems.Count, Is.EqualTo(1));
+            Assert.That(monitoredItem.ServerId, Is.EqualTo(200));
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public void RemoveItemShouldRemoveItemFromMonitoredItems()
         {
             // Arrange
             var options = OptionsFactory.Create<MonitoredItemOptions>();
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object);
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            Assert.NotNull(monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(success, Is.True);
 
             // Act
             success = sut.MonitoredItems.TryRemove(monitoredItem.ClientHandle);
 
             // Assert
-            success.Should().BeTrue();
-            sut.MonitoredItems.Items.Should().NotContain(monitoredItem);
+            Assert.That(success, Is.True);
+            Assert.That(sut.MonitoredItems.Items, Does.Not.Contain(monitoredItem));
         }
 
-        [Fact]
+        [Test]
         public async Task TryCompleteTransferAsyncShouldReturnFalseWhenResponseWrong1Async()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(success, Is.True);
 
-            _mockMethodServices
+            m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<CallMethodRequestCollection>(r =>
@@ -912,22 +913,22 @@ namespace Opc.Ua.Client.Subscriptions
             success = await sut.TryCompleteTransferAsync([], CancellationToken.None);
 
             // Assert
-            success.Should().BeFalse();
-            _mockSession.Verify();
+            Assert.That(success, Is.False);
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task TryCompleteTransferAsyncShouldReturnFalseWhenResponseWrong2Async()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(success, Is.True);
 
-            _mockMethodServices
+            m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<CallMethodRequestCollection>(r =>
@@ -957,23 +958,23 @@ namespace Opc.Ua.Client.Subscriptions
             success = await sut.TryCompleteTransferAsync([], CancellationToken.None);
 
             // Assert
-            success.Should().BeFalse();
-            _mockSession.Verify();
+            Assert.That(success, Is.False);
+            m_mockSession.Verify();
         }
 
-        [Fact]
+        [Test]
         public async Task TryCompleteTransferAsyncShouldCallGetMonitoredItemsAsyncAndCreateServerItemAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            Assert.NotNull(monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(success, Is.True);
 
-            _mockMethodServices
+            m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<CallMethodRequestCollection>(r =>
@@ -1003,26 +1004,26 @@ namespace Opc.Ua.Client.Subscriptions
             success = await sut.TryCompleteTransferAsync([], default);
 
             // Assert
-            _mockSession.Verify();
-            success.Should().BeTrue();
-            monitoredItem.ServerId.Should().Be(19900);
+            m_mockSession.Verify();
+            Assert.That(success, Is.True);
+            Assert.That(monitoredItem.ServerId, Is.EqualTo(19900));
         }
 
-        [Fact]
+        [Test]
         public async Task TryCompleteTransferAsyncShouldCallGetMonitoredItemsAsyncAndDoNothingIfStateIsCorrectAsync()
         {
             // Arrange
 
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            Assert.NotNull(monitoredItem);
-            success.Should().BeTrue();
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(success, Is.True);
             var serverId = monitoredItem.ServerId;
 
-            _mockMethodServices
+            m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<CallMethodRequestCollection>(r =>
@@ -1052,20 +1053,20 @@ namespace Opc.Ua.Client.Subscriptions
             success = await sut.TryCompleteTransferAsync([], default);
 
             // Assert
-            _mockSession.Verify();
-            monitoredItem.ServerId.Should().Be(serverId);
-            success.Should().BeTrue();
+            m_mockSession.Verify();
+            Assert.That(monitoredItem.ServerId, Is.EqualTo(serverId));
+            Assert.That(success, Is.True);
         }
 
-        [Fact]
+        [Test]
         public async Task TryCompleteTransferAsyncShouldCallGetMonitoredItemsAsyncAndDeleteItemIfNotInSubscriptionAsync()
         {
             // Arrange
 
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
 
-            _mockMethodServices
+            m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<CallMethodRequestCollection>(r =>
@@ -1091,7 +1092,7 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            _mockMonitoredItemServices
+            m_mockMonitoredItemServices
                 .Setup(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     new UInt32Collection { 19900 }, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteMonitoredItemsResponse
@@ -1104,23 +1105,23 @@ namespace Opc.Ua.Client.Subscriptions
             var success = await sut.TryCompleteTransferAsync([], default);
 
             // Assert
-            _mockSession.Verify();
-            success.Should().BeTrue();
+            m_mockSession.Verify();
+            Assert.That(success, Is.True);
         }
 
-        [Fact]
+        [Test]
         public async Task TryCompleteTransferAsyncShouldCallGetMonitoredItemsAsyncAndReturnFalseIfFailingAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            Assert.NotNull(monitoredItem);
-            success.Should().BeTrue();
-            monitoredItem.Created.Should().BeTrue();
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(success, Is.True);
+            Assert.That(monitoredItem.Created, Is.True);
 
-            _mockMethodServices
+            m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<CallMethodRequestCollection>(r =>
@@ -1146,26 +1147,26 @@ namespace Opc.Ua.Client.Subscriptions
             success = await sut.TryCompleteTransferAsync([], default);
 
             // Assert
-            _mockSession.Verify();
-            success.Should().BeFalse();
-            monitoredItem.Created.Should().BeFalse();
+            m_mockSession.Verify();
+            Assert.That(success, Is.False);
+            Assert.That(monitoredItem.Created, Is.False);
         }
 
-        [Fact]
+        [Test]
         public async Task TryCompleteTransferAsyncShouldAssignServerIdToMonitoredItemWithClientIdAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            Assert.NotNull(monitoredItem);
-            success.Should().BeTrue();
-            monitoredItem.Created.Should().BeTrue();
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(success, Is.True);
+            Assert.That(monitoredItem.Created, Is.True);
             var clientId = monitoredItem.ClientHandle;
             var serverId = monitoredItem.ServerId;
 
-            _mockMethodServices
+            m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<CallMethodRequestCollection>(r =>
@@ -1195,27 +1196,27 @@ namespace Opc.Ua.Client.Subscriptions
             success = await sut.TryCompleteTransferAsync([], default);
 
             // Assert
-            _mockSession.Verify();
-            success.Should().BeTrue();
-            monitoredItem.ClientHandle.Should().Be(19900);
-            monitoredItem.ServerId.Should().Be(serverId);
+            m_mockSession.Verify();
+            Assert.That(success, Is.True);
+            Assert.That(monitoredItem.ClientHandle, Is.EqualTo(19900));
+            Assert.That(monitoredItem.ServerId, Is.EqualTo(serverId));
         }
 
-        [Fact]
+        [Test]
         public async Task TryCompleteTransferAsyncShouldCreateWhatIsMissingOnServerAsync()
         {
             // Arrange
-            var sut = new TestSubscription(_mockSession.Object, _mockNotificationDataHandler.Object,
-                _mockCompletion.Object, _options, _mockObservability.Object, 2);
+            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
+                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
             var options = OptionsFactory.Create<MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
-            Assert.NotNull(monitoredItem);
-            success.Should().BeTrue();
-            monitoredItem.Created.Should().BeTrue();
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(success, Is.True);
+            Assert.That(monitoredItem.Created, Is.True);
             var clientId = monitoredItem.ClientHandle;
             var serverId = monitoredItem.ServerId;
 
-            _mockMethodServices
+            m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<CallMethodRequestCollection>(r =>
@@ -1242,7 +1243,7 @@ namespace Opc.Ua.Client.Subscriptions
                 .Verifiable(Times.Once);
 
             // Delete monitored item should be called
-            _mockMonitoredItemServices
+            m_mockMonitoredItemServices
                 .Setup(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     new UInt32Collection { 30000u }, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteMonitoredItemsResponse
@@ -1250,7 +1251,7 @@ namespace Opc.Ua.Client.Subscriptions
                     Results = [StatusCodes.Good]
                 })
                 .Verifiable(Times.Once);
-            _mockMonitoredItemServices
+            m_mockMonitoredItemServices
                 .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     TimestampsToReturn.Both,
                     It.IsAny<MonitoredItemCreateRequestCollection>(), It.IsAny<CancellationToken>()))
@@ -1273,13 +1274,13 @@ namespace Opc.Ua.Client.Subscriptions
             success = await sut.TryCompleteTransferAsync([], default);
 
             // Assert
-            success.Should().BeTrue();
-            monitoredItem.Created.Should().BeTrue();
-            monitoredItem.ClientHandle.Should().Be(clientId);
-            monitoredItem.ServerId.Should().Be(44444);
+            Assert.That(success, Is.True);
+            Assert.That(monitoredItem.Created, Is.True);
+            Assert.That(monitoredItem.ClientHandle, Is.EqualTo(clientId));
+            Assert.That(monitoredItem.ServerId, Is.EqualTo(44444));
 
-            _mockSession.Verify();
-            _mockMonitoredItemServices.Verify();
+            m_mockSession.Verify();
+            m_mockMonitoredItemServices.Verify();
         }
 
         private sealed class TestMonitoredItem : MonitoredItem
@@ -1303,8 +1304,8 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     // Auto create
                     options.Configure(o => CreatedOptions);
-                    TryGetPendingChange(out var change).Should().BeTrue();
-                    Assert.NotNull(change);
+                    Assert.That(TryGetPendingChange(out var change), Is.True);
+                    Assert.That(change, Is.Not.Null);
                     change.SetCreateResult(new MonitoredItemCreateRequest
                     {
                         ItemToMonitor = new ReadValueId
@@ -1394,16 +1395,16 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
-        private readonly Mock<IMessageAckQueue> _mockCompletion;
-        private readonly Opc.Ua.OptionsMonitor<SubscriptionOptions> _options;
-        private readonly Mock<ITelemetryContext> _mockObservability;
-        private readonly Mock<TimeProvider> _mockTimeProvider;
-        private readonly Mock<ISubscriptionServiceSet> _mockSubscriptionServices;
-        private readonly Mock<IMonitoredItemServiceSet> _mockMonitoredItemServices;
-        private readonly Mock<IMethodServiceSet> _mockMethodServices;
-        private readonly Mock<ISubscriptionContext> _mockSession;
-        private readonly Mock<ISubscriptionNotificationHandler> _mockNotificationDataHandler;
-        private readonly Mock<ITimer> _mockTimer;
-        private readonly Mock<ILogger<Subscription>> _mockLogger;
+        private Mock<IMessageAckQueue> m_mockCompletion;
+        private Opc.Ua.OptionsMonitor<SubscriptionOptions> _options;
+        private Mock<ITelemetryContext> m_mockObservability;
+        private Mock<TimeProvider> m_mockTimeProvider;
+        private Mock<ISubscriptionServiceSet> m_mockSubscriptionServices;
+        private Mock<IMonitoredItemServiceSet> m_mockMonitoredItemServices;
+        private Mock<IMethodServiceSet> m_mockMethodServices;
+        private Mock<ISubscriptionContext> m_mockSession;
+        private Mock<ISubscriptionNotificationHandler> m_mockNotificationDataHandler;
+        private Mock<ITimer> m_mockTimer;
+        private Mock<ILogger<Subscription>> m_mockLogger;
     }
 }

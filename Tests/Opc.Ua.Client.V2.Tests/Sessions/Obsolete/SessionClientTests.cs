@@ -1,18 +1,18 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using Opc.Ua;
+using System;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Sessions.Obsolete
 {
-    using FluentAssertions;
-    using Opc.Ua;
-    using System;
-    using Xunit;
-
+    [TestFixture]
     public class SessionClientTests
     {
-        [Fact]
+        [Test]
         public void CloseShouldThrowNotSupportedException()
         {
             // Arrange
@@ -22,11 +22,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.Close();
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Close deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Close deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void CreateSessionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -37,11 +37,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
                 null!, null!, null!, null!, 0, 0, out _, out _, out _, out _, out _, out _, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("CreateSession deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("CreateSession deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginCreateSessionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -51,11 +51,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginCreateSession(null, null!, null!, null!, null!, null!, null!, 0, 0, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginCreateSession deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginCreateSession deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndCreateSessionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -65,11 +65,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndCreateSession(null!, out _, out _, out _, out _, out _, out _, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndCreateSession deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndCreateSession deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void ActivateSessionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -79,11 +79,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.ActivateSession(null, null!, null!, null!, null!, null!, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("ActivateSession deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("ActivateSession deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginActivateSessionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -93,11 +93,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginActivateSession(null, null!, null, null!, null!, null!, null, null);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginActivateSession deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginActivateSession deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndActivateSessionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -107,11 +107,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndActivateSession(null!, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndActivateSession deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndActivateSession deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void CloseSessionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -121,11 +121,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.CloseSession(null, false);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("CloseSession deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("CloseSession deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginCloseSessionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -135,11 +135,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginCloseSession(null, false, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginCloseSession deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginCloseSession deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndCloseSessionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -149,11 +149,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndCloseSession(null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndCloseSession deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndCloseSession deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void CancelShouldThrowNotSupportedException()
         {
             // Arrange
@@ -163,11 +163,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.Cancel(null, 0, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Cancel deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Cancel deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginCancelShouldThrowNotSupportedException()
         {
             // Arrange
@@ -177,11 +177,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginCancel(null, 0, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginCancel deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginCancel deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndCancelShouldThrowNotSupportedException()
         {
             // Arrange
@@ -191,11 +191,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndCancel(null!, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndCancel deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndCancel deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void AddNodesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -205,11 +205,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.AddNodes(null, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("AddNodes deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("AddNodes deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginAddNodesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -219,11 +219,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginAddNodes(null, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginAddNodes deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginAddNodes deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndAddNodesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -233,11 +233,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndAddNodes(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndAddNodes deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndAddNodes deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void AddReferencesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -247,11 +247,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.AddReferences(null, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("AddReferences deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("AddReferences deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginAddReferencesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -261,11 +261,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginAddReferences(null, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginAddReferences deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginAddReferences deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndAddReferencesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -275,11 +275,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndAddReferences(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndAddReferences deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndAddReferences deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void DeleteNodesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -289,11 +289,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.DeleteNodes(null, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("DeleteNodes deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("DeleteNodes deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginDeleteNodesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -303,11 +303,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginDeleteNodes(null, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginDeleteNodes deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginDeleteNodes deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndDeleteNodesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -317,11 +317,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndDeleteNodes(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndDeleteNodes deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndDeleteNodes deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void DeleteReferencesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -331,11 +331,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.DeleteReferences(null, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("DeleteReferences deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("DeleteReferences deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginDeleteReferencesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -345,11 +345,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginDeleteReferences(null, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginDeleteReferences deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginDeleteReferences deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndDeleteReferencesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -359,11 +359,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndDeleteReferences(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndDeleteReferences deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndDeleteReferences deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BrowseShouldThrowNotSupportedException()
         {
             // Arrange
@@ -373,11 +373,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.Browse(null, null!, 0, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Browse deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Browse deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginBrowseShouldThrowNotSupportedException()
         {
             // Arrange
@@ -387,11 +387,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginBrowse(null, null!, 0, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginBrowse deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginBrowse deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndBrowseShouldThrowNotSupportedException()
         {
             // Arrange
@@ -401,11 +401,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndBrowse(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndBrowse deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndBrowse deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BrowseNextShouldThrowNotSupportedException()
         {
             // Arrange
@@ -415,11 +415,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BrowseNext(null, false, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BrowseNext deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BrowseNext deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginBrowseNextShouldThrowNotSupportedException()
         {
             // Arrange
@@ -429,11 +429,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginBrowseNext(null, false, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginBrowseNext deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginBrowseNext deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndBrowseNextShouldThrowNotSupportedException()
         {
             // Arrange
@@ -443,11 +443,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndBrowseNext(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndBrowseNext deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndBrowseNext deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void TranslateBrowsePathsToNodeIdsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -457,11 +457,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.TranslateBrowsePathsToNodeIds(null, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("TranslateBrowsePathsToNodeIds deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("TranslateBrowsePathsToNodeIds deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginTranslateBrowsePathsToNodeIdsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -471,11 +471,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginTranslateBrowsePathsToNodeIds(null, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginTranslateBrowsePathsToNodeIds deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginTranslateBrowsePathsToNodeIds deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndTranslateBrowsePathsToNodeIdsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -485,11 +485,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndTranslateBrowsePathsToNodeIds(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndTranslateBrowsePathsToNodeIds deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndTranslateBrowsePathsToNodeIds deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void RegisterNodesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -499,11 +499,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.RegisterNodes(null, null!, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("RegisterNodes deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("RegisterNodes deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginRegisterNodesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -513,11 +513,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginRegisterNodes(null, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginRegisterNodes deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginRegisterNodes deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndRegisterNodesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -527,11 +527,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndRegisterNodes(null!, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndRegisterNodes deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndRegisterNodes deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void UnregisterNodesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -541,11 +541,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.UnregisterNodes(null, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("UnregisterNodes deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("UnregisterNodes deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginUnregisterNodesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -555,11 +555,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginUnregisterNodes(null, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginUnregisterNodes deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginUnregisterNodes deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndUnregisterNodesShouldThrowNotSupportedException()
         {
             // Arrange
@@ -569,11 +569,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndUnregisterNodes(null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndUnregisterNodes deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndUnregisterNodes deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void QueryFirstShouldThrowNotSupportedException()
         {
             // Arrange
@@ -583,11 +583,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.QueryFirst(null, null!, null!, null!, 0, 0, out _, out _, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("QueryFirst deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("QueryFirst deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginQueryFirstShouldThrowNotSupportedException()
         {
             // Arrange
@@ -597,11 +597,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginQueryFirst(null, null!, null!, null!, 0, 0, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginQueryFirst deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginQueryFirst deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndQueryFirstShouldThrowNotSupportedException()
         {
             // Arrange
@@ -611,11 +611,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndQueryFirst(null!, out _, out _, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndQueryFirst deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndQueryFirst deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void QueryNextShouldThrowNotSupportedException()
         {
             // Arrange
@@ -625,11 +625,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.QueryNext(null, false, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("QueryNext deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("QueryNext deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginQueryNextShouldThrowNotSupportedException()
         {
             // Arrange
@@ -639,11 +639,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginQueryNext(null, false, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginQueryNext deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginQueryNext deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndQueryNextShouldThrowNotSupportedException()
         {
             // Arrange
@@ -653,11 +653,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndQueryNext(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndQueryNext deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndQueryNext deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void HistoryReadShouldThrowNotSupportedException()
         {
             // Arrange
@@ -667,11 +667,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.HistoryRead(null, null!, 0, false, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("HistoryRead deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("HistoryRead deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginHistoryReadShouldThrowNotSupportedException()
         {
             // Arrange
@@ -681,11 +681,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginHistoryRead(null, null!, 0, false, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginHistoryRead deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginHistoryRead deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndHistoryReadShouldThrowNotSupportedException()
         {
             // Arrange
@@ -695,10 +695,10 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndHistoryRead(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndHistoryRead deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndHistoryRead deprecated"));
         }
-        [Fact]
+        [Test]
         public void WriteShouldThrowNotSupportedException()
         {
             // Arrange
@@ -708,11 +708,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.Write(null, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Write deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Write deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginWriteShouldThrowNotSupportedException()
         {
             // Arrange
@@ -722,11 +722,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginWrite(null, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginWrite deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginWrite deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndWriteShouldThrowNotSupportedException()
         {
             // Arrange
@@ -736,11 +736,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndWrite(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndWrite deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndWrite deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void HistoryUpdateShouldThrowNotSupportedException()
         {
             // Arrange
@@ -750,11 +750,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.HistoryUpdate(null, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("HistoryUpdate deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("HistoryUpdate deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginHistoryUpdateShouldThrowNotSupportedException()
         {
             // Arrange
@@ -764,11 +764,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginHistoryUpdate(null, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginHistoryUpdate deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginHistoryUpdate deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndHistoryUpdateShouldThrowNotSupportedException()
         {
             // Arrange
@@ -778,11 +778,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndHistoryUpdate(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndHistoryUpdate deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndHistoryUpdate deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void CallShouldThrowNotSupportedException()
         {
             // Arrange
@@ -792,11 +792,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.Call(null, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Call deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Call deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginCallShouldThrowNotSupportedException()
         {
             // Arrange
@@ -806,11 +806,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginCall(null, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginCall deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginCall deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndCallShouldThrowNotSupportedException()
         {
             // Arrange
@@ -820,11 +820,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndCall(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndCall deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndCall deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void CreateMonitoredItemsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -834,11 +834,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.CreateMonitoredItems(null, 0, 0, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("CreateMonitoredItems deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("CreateMonitoredItems deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginCreateMonitoredItemsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -848,11 +848,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginCreateMonitoredItems(null, 0, 0, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginCreateMonitoredItems deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginCreateMonitoredItems deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndCreateMonitoredItemsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -862,11 +862,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndCreateMonitoredItems(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndCreateMonitoredItems deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndCreateMonitoredItems deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void ModifyMonitoredItemsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -876,11 +876,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.ModifyMonitoredItems(null, 0, 0, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("ModifyMonitoredItems deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("ModifyMonitoredItems deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginModifyMonitoredItemsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -890,11 +890,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginModifyMonitoredItems(null, 0, 0, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginModifyMonitoredItems deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginModifyMonitoredItems deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndModifyMonitoredItemsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -904,11 +904,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndModifyMonitoredItems(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndModifyMonitoredItems deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndModifyMonitoredItems deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void SetMonitoringModeShouldThrowNotSupportedException()
         {
             // Arrange
@@ -918,11 +918,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.SetMonitoringMode(null, 0, 0, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("SetMonitoringMode deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("SetMonitoringMode deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginSetMonitoringModeShouldThrowNotSupportedException()
         {
             // Arrange
@@ -932,11 +932,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginSetMonitoringMode(null, 0, 0, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginSetMonitoringMode deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginSetMonitoringMode deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndSetMonitoringModeShouldThrowNotSupportedException()
         {
             // Arrange
@@ -946,11 +946,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndSetMonitoringMode(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndSetMonitoringMode deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndSetMonitoringMode deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void SetTriggeringShouldThrowNotSupportedException()
         {
             // Arrange
@@ -960,11 +960,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.SetTriggering(null, 0, 0, null!, null!, out _, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("SetTriggering deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("SetTriggering deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginSetTriggeringShouldThrowNotSupportedException()
         {
             // Arrange
@@ -974,11 +974,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginSetTriggering(null, 0, 0, null!, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginSetTriggering deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginSetTriggering deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndSetTriggeringShouldThrowNotSupportedException()
         {
             // Arrange
@@ -988,11 +988,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndSetTriggering(null!, out _, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndSetTriggering deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndSetTriggering deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void DeleteMonitoredItemsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1002,11 +1002,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.DeleteMonitoredItems(null, 0, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("DeleteMonitoredItems deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("DeleteMonitoredItems deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginDeleteMonitoredItemsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1016,11 +1016,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginDeleteMonitoredItems(null, 0, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginDeleteMonitoredItems deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginDeleteMonitoredItems deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndDeleteMonitoredItemsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1030,11 +1030,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndDeleteMonitoredItems(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndDeleteMonitoredItems deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndDeleteMonitoredItems deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void CreateSubscriptionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1044,11 +1044,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.CreateSubscription(null, 0, 0, 0, 0, false, 0, out _, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("CreateSubscription deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("CreateSubscription deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginCreateSubscriptionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1058,11 +1058,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginCreateSubscription(null, 0, 0, 0, 0, false, 0, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginCreateSubscription deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginCreateSubscription deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndCreateSubscriptionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1072,11 +1072,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndCreateSubscription(null!, out _, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndCreateSubscription deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndCreateSubscription deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void ModifySubscriptionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1086,11 +1086,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.ModifySubscription(null, 0, 0, 0, 0, 0, 0, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("ModifySubscription deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("ModifySubscription deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginModifySubscriptionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1100,11 +1100,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginModifySubscription(null, 0, 0, 0, 0, 0, 0, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginModifySubscription deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginModifySubscription deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndModifySubscriptionShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1114,11 +1114,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndModifySubscription(null!, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndModifySubscription deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndModifySubscription deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void SetPublishingModeShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1128,11 +1128,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.SetPublishingMode(null, false, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("SetPublishingMode deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("SetPublishingMode deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginSetPublishingModeShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1142,11 +1142,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginSetPublishingMode(null, false, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginSetPublishingMode deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginSetPublishingMode deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndSetPublishingModeShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1156,11 +1156,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndSetPublishingMode(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndSetPublishingMode deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndSetPublishingMode deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void PublishShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1170,11 +1170,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.Publish(null, null!, out _, out _, out _, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Publish deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Publish deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginPublishShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1184,11 +1184,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginPublish(null, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginPublish deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginPublish deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndPublishShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1198,11 +1198,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndPublish(null!, out _, out _, out _, out _, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndPublish deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndPublish deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginReadShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1212,11 +1212,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginRead(null, 0, 0, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginRead deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginRead deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndReadShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1226,11 +1226,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndRead(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndRead deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndRead deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void ReadShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1240,11 +1240,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.Read(null, 0, 0, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Read deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Read deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void RepublishShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1254,11 +1254,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.Republish(null, 0, 0, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("Republish deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("Republish deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginRepublishShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1268,11 +1268,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginRepublish(null, 0, 0, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginRepublish deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginRepublish deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndRepublishShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1282,11 +1282,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndRepublish(null!, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndRepublish deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndRepublish deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void TransferSubscriptionsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1296,11 +1296,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.TransferSubscriptions(null, null!, false, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("TransferSubscriptions deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("TransferSubscriptions deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginTransferSubscriptionsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1310,11 +1310,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginTransferSubscriptions(null, null!, false, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginTransferSubscriptions deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginTransferSubscriptions deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndTransferSubscriptionsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1324,11 +1324,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndTransferSubscriptions(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndTransferSubscriptions deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndTransferSubscriptions deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void DeleteSubscriptionsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1338,11 +1338,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.DeleteSubscriptions(null, null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("DeleteSubscriptions deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("DeleteSubscriptions deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void BeginDeleteSubscriptionsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1352,11 +1352,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.BeginDeleteSubscriptions(null, null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("BeginDeleteSubscriptions deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("BeginDeleteSubscriptions deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void EndDeleteSubscriptionsShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1366,11 +1366,11 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = () => sessionClient.EndDeleteSubscriptions(null!, out _, out _);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("EndDeleteSubscriptions deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("EndDeleteSubscriptions deprecated"));
         }
 
-        [Fact]
+        [Test]
         public void UpdateRequestHeaderShouldThrowNotSupportedException()
         {
             // Arrange
@@ -1380,8 +1380,8 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             Action act = sessionClient.TestUpdateRequestHeader;
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("UpdateRequestHeader deprecated");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("UpdateRequestHeader deprecated"));
         }
 
         internal sealed class TestSessionClient : SessionClient

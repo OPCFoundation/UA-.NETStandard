@@ -1,33 +1,33 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using Opc.Ua;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Obsolete
 {
-    using FluentAssertions;
-    using Opc.Ua;
-    using System;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using Xunit;
-
+    [TestFixture]
     public sealed class NullChannelTests
     {
-        [Fact]
+        [Test]
         public void SetOperationTimeoutDoesNotThrow()
         {
             using var sut = new NullChannel();
 
             // Act
-            sut.OperationTimeout.Should().Be(0);
+            Assert.That(sut.OperationTimeout, Is.EqualTo(0));
             sut.OperationTimeout = 1;
 
             // Assert
-            sut.OperationTimeout.Should().Be(1);
+            Assert.That(sut.OperationTimeout, Is.EqualTo(1));
         }
 
-        [Fact]
+        [Test]
         public void SupportedFeaturesShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -36,11 +36,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => { var _ = sut.SupportedFeatures; };
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*SupportedFeatures deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*SupportedFeatures deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void EndpointDescriptionShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -49,11 +49,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => { var _ = sut.EndpointDescription; };
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*EndpointDescription deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*EndpointDescription deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void EndpointConfigurationShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -62,11 +62,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => { var _ = sut.EndpointConfiguration; };
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*EndpointConfiguration deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*EndpointConfiguration deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void MessageContextShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -75,11 +75,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => { var _ = sut.MessageContext; };
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*MessageContext deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*MessageContext deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void CurrentTokenShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -88,11 +88,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => { var _ = sut.CurrentToken; };
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*CurrentToken deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*CurrentToken deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void OnTokenActivatedAddShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -101,11 +101,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.OnTokenActivated += (a, b, e) => { };
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*OnTokenActivated deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*OnTokenActivated deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void OnTokenActivatedRemoveShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -114,11 +114,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.OnTokenActivated -= (a, b, e) => { };
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*OnTokenActivated deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*OnTokenActivated deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void BeginCloseShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -127,11 +127,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.BeginClose(null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*BeginClose deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*BeginClose deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void BeginOpenShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -140,11 +140,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.BeginOpen(null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*BeginOpen deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*BeginOpen deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void BeginReconnectShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -153,11 +153,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.BeginReconnect(null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*BeginReconnect deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*BeginReconnect deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void BeginSendRequestShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -166,11 +166,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.BeginSendRequest(null!, null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*BeginSendRequest deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*BeginSendRequest deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void CloseShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -179,11 +179,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = sut.Close;
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*Close deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*Close deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public async Task CloseAsyncShouldThrowNotSupportedAsync()
         {
             using var sut = new NullChannel();
@@ -192,11 +192,11 @@ namespace Opc.Ua.Client.Obsolete
             Func<Task> act = async () => await sut.CloseAsync(CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>()
-                .WithMessage("*CloseAsync deprecated*");
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("*CloseAsync deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void EndCloseShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -205,11 +205,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.EndClose(null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*EndClose deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*EndClose deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void EndOpenShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -218,11 +218,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.EndOpen(null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*EndOpen deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*EndOpen deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void EndReconnectShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -231,11 +231,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.EndReconnect(null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*EndReconnect deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*EndReconnect deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void EndSendRequestShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -244,11 +244,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.EndSendRequest(null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*EndSendRequest deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*EndSendRequest deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public async Task EndSendRequestAsyncShouldThrowNotSupportedAsync()
         {
             using var sut = new NullChannel();
@@ -257,11 +257,11 @@ namespace Opc.Ua.Client.Obsolete
             Func<Task> act = async () => await sut.EndSendRequestAsync(null!, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>()
-                .WithMessage("*EndSendRequestAsync deprecated*");
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("*EndSendRequestAsync deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void InitializeWithUriShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -270,11 +270,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.Initialize(new Uri("http://localhost"), null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*Initialize deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*Initialize deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void InitializeWithConnectionShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -282,11 +282,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.Initialize((ITransportWaitingConnection?)null!, null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*Initialize deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*Initialize deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void OpenShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -295,11 +295,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = sut.Open;
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*Open deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*Open deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void ReconnectShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -308,11 +308,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = sut.Reconnect;
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*Reconnect deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*Reconnect deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void ReconnectWithConnectionShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -321,11 +321,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.Reconnect(null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*Reconnect deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*Reconnect deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public void SendRequestShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
@@ -334,11 +334,11 @@ namespace Opc.Ua.Client.Obsolete
             Action act = () => sut.SendRequest(null!);
 
             // Assert
-            act.Should().Throw<ServiceResultException>()
-                .WithMessage("*SendRequest deprecated*");
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Match("*SendRequest deprecated*"));
         }
 
-        [Fact]
+        [Test]
         public async Task SendRequestAsyncShouldThrowNotSupportedAsync()
         {
             using var sut = new NullChannel();
@@ -347,8 +347,8 @@ namespace Opc.Ua.Client.Obsolete
             Func<Task> act = async () => await sut.SendRequestAsync(null!, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<ServiceResultException>()
-                .WithMessage("*SendRequestAsync deprecated*");
+            var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
+            Assert.That(ex.Message, Does.Match("*SendRequestAsync deprecated*"));
         }
     }
 }

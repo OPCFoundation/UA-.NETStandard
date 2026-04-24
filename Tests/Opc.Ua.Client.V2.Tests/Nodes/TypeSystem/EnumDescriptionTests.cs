@@ -1,20 +1,20 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using Moq;
+using Opc.Ua;
+using System.Collections.Generic;
+using System.Xml;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client.Nodes.TypeSystem
 {
-    using FluentAssertions;
-    using Moq;
-    using Opc.Ua;
-    using System.Collections.Generic;
-    using System.Xml;
-    using Xunit;
-
+    [TestFixture]
     public class EnumDescriptionTests
     {
-        [Fact]
+        [Test]
         public void DecodeWithEmptyEnumDefinitionShouldReturnNull()
         {
             // Arrange
@@ -28,10 +28,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
-            result.Should().BeNull();
+            Assert.That(result, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void DecodeWithIntegerShouldReturnEnumValueWithIntegerCode()
         {
             // Arrange
@@ -51,14 +51,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
-            result.Should().NotBeNull().And.BeOfType<EnumValue>();
-            Assert.NotNull(result);
+            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
-            enumValue.Symbol.Should().Be("TestField4");
-            enumValue.Value.Should().Be(4);
+            Assert.That(enumValue.Symbol, Is.EqualTo("TestField4"));
+            Assert.That(enumValue.Value, Is.EqualTo(4));
         }
 
-        [Fact]
+        [Test]
         public void DecodeWithWithDecoderExtensionShouldReturnEnumValueWithSymbolAndIntegerCode()
         {
             // Arrange
@@ -80,15 +80,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = enumDescription.Decode(decoder.Object, "TestField");
 
             // Assert
-            enumDescription.XmlName.Name.Should().Be("ssss");
-            result.Should().NotBeNull().And.BeOfType<EnumValue>();
-            Assert.NotNull(result);
+            Assert.That(enumDescription.XmlName.Name, Is.EqualTo("ssss"));
+            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
-            enumValue.Symbol.Should().Be("TestField4");
-            enumValue.Value.Should().Be(4);
+            Assert.That(enumValue.Symbol, Is.EqualTo("TestField4"));
+            Assert.That(enumValue.Value, Is.EqualTo(4));
         }
 
-        [Fact]
+        [Test]
         public void DecodeWithIntegerShouldReturnEnumValueWithSymbolAndIntegerCode()
         {
             // Arrange
@@ -108,15 +108,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
-            enumDescription.XmlName.Name.Should().Be("ssss");
-            result.Should().NotBeNull().And.BeOfType<EnumValue>();
-            Assert.NotNull(result);
+            Assert.That(enumDescription.XmlName.Name, Is.EqualTo("ssss"));
+            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
-            enumValue.Symbol.Should().Be("TestField4");
-            enumValue.Value.Should().Be(4);
+            Assert.That(enumValue.Symbol, Is.EqualTo("TestField4"));
+            Assert.That(enumValue.Value, Is.EqualTo(4));
         }
 
-        [Fact]
+        [Test]
         public void DecodeWithInvalidJsonTokenShouldReturnFirstEnumField1()
         {
             // Arrange
@@ -135,14 +135,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
-            result.Should().NotBeNull().And.BeOfType<EnumValue>();
-            Assert.NotNull(result);
+            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
-            enumValue.Symbol.Should().Be("TestField1");
-            enumValue.Value.Should().Be(1);
+            Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
+            Assert.That(enumValue.Value, Is.EqualTo(1));
         }
 
-        [Fact]
+        [Test]
         public void DecodeWithInvalidJsonTokenShouldReturnFirstEnumField2()
         {
             // Arrange
@@ -161,14 +161,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
-            result.Should().NotBeNull().And.BeOfType<EnumValue>();
-            Assert.NotNull(result);
+            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
-            enumValue.Symbol.Should().Be("TestField1");
-            enumValue.Value.Should().Be(1);
+            Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
+            Assert.That(enumValue.Value, Is.EqualTo(1));
         }
 
-        [Fact]
+        [Test]
         public void DecodeWithInvalidJsonTokenShouldReturnFirstEnumField3()
         {
             // Arrange
@@ -187,14 +187,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
-            result.Should().NotBeNull().And.BeOfType<EnumValue>();
-            Assert.NotNull(result);
+            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
-            enumValue.Symbol.Should().Be("TestField1");
-            enumValue.Value.Should().Be(1);
+            Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
+            Assert.That(enumValue.Value, Is.EqualTo(1));
         }
 
-        [Fact]
+        [Test]
         public void DecodeWithUnknownFieldNameShouldReturnFirstEnumField()
         {
             // Arrange
@@ -213,14 +213,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = enumDescription.Decode(jsonDecoder, "UnknownField");
 
             // Assert
-            result.Should().NotBeNull().And.BeOfType<EnumValue>();
-            Assert.NotNull(result);
+            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
-            enumValue.Symbol.Should().Be("TestField1");
-            enumValue.Value.Should().Be(1);
+            Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
+            Assert.That(enumValue.Value, Is.EqualTo(1));
         }
 
-        [Fact]
+        [Test]
         public void EncodeWithNoFieldsAndNullEnumValueShouldContainZeroWithNonReversibleEncoding()
         {
             // Arrange
@@ -235,12 +235,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().Contain("""
+            Assert.That(json, Does.Contain("""
             "TestField":0
-            """);
+            """));
         }
 
-        [Fact]
+        [Test]
         public void EncodeWithNoFieldsAndNullEnumValueShouldContainZeroWithReversibleEncoding()
         {
             // Arrange
@@ -255,12 +255,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().Contain("""
+            Assert.That(json, Does.Contain("""
             "TestField":"0"
-            """);
+            """));
         }
 
-        [Fact]
+        [Test]
         public void EncodeWithWithDecoderExtensionShouldReturnEnumValueWithSymbolAndIntegerCode()
         {
             // Arrange
@@ -285,7 +285,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             encoder.Verify();
         }
 
-        [Fact]
+        [Test]
         public void EncodeWithNullEnumValueShouldEncodeDefaultWithNonReversibleEncoding()
         {
             // Arrange
@@ -305,12 +305,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().Contain("""
+            Assert.That(json, Does.Contain("""
             "TestField":1
-            """);
+            """));
         }
 
-        [Fact]
+        [Test]
         public void EncodeWithNullEnumValueShouldEncodeDefaultWithReversibleEncoding()
         {
             // Arrange
@@ -330,11 +330,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().Contain("""
+            Assert.That(json, Does.Contain("""
             "TestField":"TestField1"
-            """);
+            """));
         }
-        [Fact]
+        [Test]
         public void EnumDescriptionDecodeDefaultDecoderShouldReturnEnumValue()
         {
             // Arrange
@@ -353,14 +353,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = enumDescription.Decode(binaryDecoder, "TestField");
 
             // Assert
-            result.Should().NotBeNull().And.BeOfType<EnumValue>();
-            Assert.NotNull(result);
+            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
-            enumValue.Symbol.Should().Be("TestField1");
-            enumValue.Value.Should().Be(1);
+            Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
+            Assert.That(enumValue.Value, Is.EqualTo(1));
         }
 
-        [Fact]
+        [Test]
         public void EnumDescriptionDecodeJsonDecoderShouldReturnEnumValue()
         {
             // Arrange
@@ -379,14 +379,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
-            result.Should().NotBeNull().And.BeOfType<EnumValue>();
-            Assert.NotNull(result);
+            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
-            enumValue.Symbol.Should().Be("TestField1");
-            enumValue.Value.Should().Be(1);
+            Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
+            Assert.That(enumValue.Value, Is.EqualTo(1));
         }
 
-        [Fact]
+        [Test]
         public void EnumDescriptionEncodeDefaultEncoderShouldEncodeEnumValue()
         {
             // Arrange
@@ -406,10 +406,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var encodedBytes = binaryEncoder.CloseAndReturnBuffer();
-            encodedBytes.Should().Equal([1, 0, 0, 0]);
+            Assert.That(encodedBytes, Is.EqualTo([1, 0, 0, 0]));
         }
 
-        [Fact]
+        [Test]
         public void EnumDescriptionEncodeJsonEncoderShouldEncodeEnumValueWithNonReversibleEncoding()
         {
             // Arrange
@@ -429,12 +429,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().Contain("""
+            Assert.That(json, Does.Contain("""
             "TestField":1
-            """);
+            """));
         }
 
-        [Fact]
+        [Test]
         public void EnumDescriptionEncodeJsonEncoderShouldEncodeEnumValueWithReversibleEncoding()
         {
             // Arrange
@@ -454,11 +454,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var json = jsonEncoder.CloseAndReturnText();
-            json.Should().Contain("""
+            Assert.That(json, Does.Contain("""
             "TestField":"TestField1"
-            """);
+            """));
         }
-        [Fact]
+        [Test]
         public void EnumDescriptionNullInstanceShouldReturnNull()
         {
             // Arrange
@@ -468,10 +468,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = nullEnumDescription.Decode(null!, "TestField");
 
             // Assert
-            result.Should().BeNull();
+            Assert.That(result, Is.Null);
         }
 
-        [Fact]
+        [Test]
         public void EnumValueInstancesWithDifferentValuesShouldNotBeEqual()
         {
             // Arrange
@@ -479,10 +479,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var enumValue2 = new EnumValue("TestField2", 2);
 
             // Act & Assert
-            enumValue1.Should().NotBe(enumValue2);
+            Assert.That(enumValue1, Is.Not.EqualTo(enumValue2));
         }
 
-        [Fact]
+        [Test]
         public void EnumValueInstancesWithSameValuesShouldBeEqual()
         {
             // Arrange
@@ -490,18 +490,18 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var enumValue2 = new EnumValue("TestField1", 1);
 
             // Act & Assert
-            enumValue1.Should().Be(enumValue2);
+            Assert.That(enumValue1, Is.EqualTo(enumValue2));
         }
 
-        [Fact]
+        [Test]
         public void EnumValuePropertiesShouldBeSetCorrectly()
         {
             // Arrange
             var enumValue = new EnumValue("TestField1", 1);
 
             // Act & Assert
-            enumValue.Symbol.Should().Be("TestField1");
-            enumValue.Value.Should().Be(1);
+            Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
+            Assert.That(enumValue.Value, Is.EqualTo(1));
         }
 
         public interface IExtendedCodec : IEncoder, IDecoder,

@@ -1,20 +1,20 @@
 // ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using System;
+using System.Globalization;
+using System.IO;
+using System.Net;
+using NUnit.Framework;
+
 namespace Opc.Ua.Client
 {
-    using FluentAssertions;
-    using System;
-    using System.Globalization;
-    using System.IO;
-    using System.Net;
-    using Xunit;
-
+    [TestFixture]
     public class ChannelDiagnosticTests
     {
-        [Fact]
+        [Test]
         public void ChannelDiagnosticShouldInitializePropertiesCorrectly()
         {
             // Arrange
@@ -52,28 +52,28 @@ namespace Opc.Ua.Client
             };
 
             // Assert
-            diagnostic.ToString().Should().NotBeNull();
-            diagnostic.GetHashCode().Should().NotBe(0);
-            diagnostic.TimeStamp.Should().Be(timeStamp);
-            diagnostic.Endpoint.Should().Be(endpoint);
-            diagnostic.RemoteIpAddress.Should().Be(remoteIpAddress);
-            diagnostic.RemotePort.Should().Be(4840);
-            diagnostic.LocalIpAddress.Should().Be(localIpAddress);
-            diagnostic.LocalPort.Should().Be(4841);
-            diagnostic.ChannelId.Should().Be(channelId);
-            diagnostic.TokenId.Should().Be(tokenId);
-            diagnostic.CreatedAt.Should().Be(createdAt);
-            diagnostic.Lifetime.Should().Be(lifetime);
-            diagnostic.Client.Should().Be(clientKey);
-            diagnostic.Server.Should().Be(serverKey);
-            serverKey.ToString().Should().NotBeNull();
-            clientKey.GetHashCode().Should().NotBe(serverKey.GetHashCode());
-            clientKey.Should().BeEquivalentTo(clientKey with { });
-            clientKey.Should().BeEquivalentTo(clientKey with { });
-            diagnostic.Should().BeEquivalentTo(diagnostic with { });
+            Assert.That(diagnostic.ToString(), Is.Not.Null);
+            Assert.That(diagnostic.GetHashCode(), Is.Not.EqualTo(0));
+            Assert.That(diagnostic.TimeStamp, Is.EqualTo(timeStamp));
+            Assert.That(diagnostic.Endpoint, Is.EqualTo(endpoint));
+            Assert.That(diagnostic.RemoteIpAddress, Is.EqualTo(remoteIpAddress));
+            Assert.That(diagnostic.RemotePort, Is.EqualTo(4840));
+            Assert.That(diagnostic.LocalIpAddress, Is.EqualTo(localIpAddress));
+            Assert.That(diagnostic.LocalPort, Is.EqualTo(4841));
+            Assert.That(diagnostic.ChannelId, Is.EqualTo(channelId));
+            Assert.That(diagnostic.TokenId, Is.EqualTo(tokenId));
+            Assert.That(diagnostic.CreatedAt, Is.EqualTo(createdAt));
+            Assert.That(diagnostic.Lifetime, Is.EqualTo(lifetime));
+            Assert.That(diagnostic.Client, Is.EqualTo(clientKey));
+            Assert.That(diagnostic.Server, Is.EqualTo(serverKey));
+            Assert.That(serverKey.ToString(), Is.Not.Null);
+            Assert.That(clientKey.GetHashCode(), Is.Not.EqualTo(serverKey.GetHashCode()));
+            Assert.That(clientKey, Is.EqualTo(clientKey with { }));
+            Assert.That(clientKey, Is.EqualTo(clientKey with { }));
+            Assert.That(diagnostic, Is.EqualTo(diagnostic with { }));
         }
 
-        [Fact]
+        [Test]
         public void WriteToWiresharkKeySetFileShouldWriteCorrectly()
         {
             // Arrange
@@ -116,10 +116,10 @@ namespace Opc.Ua.Client
 
             """.ReplaceLineEndings();
 
-            result.Should().Be(expected);
+            Assert.That(result, Is.EqualTo(expected));
         }
 
-        [Fact]
+        [Test]
         public void WriteToWiresharkKeySetFileShouldNotWriteWhenClientOrServerIsNull()
         {
             // Arrange
@@ -150,7 +150,7 @@ namespace Opc.Ua.Client
             var result = reader.ReadToEnd();
 
             // Assert
-            result.Should().BeEmpty();
+            Assert.That(result, Is.Empty);
         }
     }
 }
