@@ -23,6 +23,41 @@ The MCP server wraps the OPC UA .NET Standard client library, translating betwee
 
 All OPC UA types (NodeId, DataValue, Variant, StatusCode, etc.) are represented as JSON for LLM-friendly interaction.
 
+## Resources
+
+The MCP server exposes connected sessions as **MCP resources**, enabling the LLM to discover, inspect, and subscribe to session state.
+
+| Resource URI | Type | Description |
+|---|---|---|
+| `opcua://sessions` | Direct | List all active sessions with connection status |
+| `opcua://sessions/{name}` | Template | Full details of a named session (endpoint, security, namespaces) |
+| `opcua://sessions/{name}/namespaces` | Template | Server namespace table for a session |
+
+### Multi-Session Support
+
+The server supports **multiple simultaneous sessions** to different OPC UA servers. Each session is identified by a name.
+
+```
+Tool: Connect
+  endpointUrl: "opc.tcp://server1:62541/ReferenceServer"
+  name: "refserver"          (optional — auto-generated from hostname if omitted)
+  autoAcceptCerts: true
+
+Tool: Connect
+  endpointUrl: "opc.tcp://plc1:4840"
+  name: "plc1"
+
+Tool: Browse
+  nodeId: "i=85"
+  sessionName: "refserver"   (optional — uses the only session if there's just one)
+
+Tool: ReadValue
+  nodeId: "ns=2;s=Temperature"
+  sessionName: "plc1"
+```
+
+Sessions are listed via `resources/list` and detailed via `resources/read`.
+
 ## Installation
 
 ### Option 1: Install as a .NET global tool (recommended)
