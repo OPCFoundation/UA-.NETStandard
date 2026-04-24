@@ -55,9 +55,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Array of node IDs to read, e.g. ['ns=2;s=MyVariable', 'i=2258']")] string[] nodeIds,
             [Description("Attribute to read: 'Value' (default), 'DisplayName', 'BrowseName', 'NodeClass', 'DataType', etc.")] string? attributeId = null,
             [Description("Max age of cached value in milliseconds (0 = read from device, default: 0)")] double maxAge = 0,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -113,9 +114,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Array of node IDs to write, e.g. ['ns=2;s=MyVariable']")] string[] nodeIds,
             [Description("Array of values to write (matched by index with nodeIds)")] string[] values,
             [Description("Attribute to write (default: 'Value')")] string? attributeId = null,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -161,9 +163,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Start time for the history range (ISO 8601 format)")] string startTime,
             [Description("End time for the history range (ISO 8601 format)")] string endTime,
             [Description("Maximum number of values to return per node (default: 100)")] int maxValues = 100,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -237,9 +240,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Array of timestamps (ISO 8601 format) for the data points")] string[] timestamps,
             [Description("Array of values for the data points (matched by index with timestamps)")] string[] values,
             [Description("Update type: 'Insert', 'Replace', or 'Update' (default: 'Update')")] string updateType = "Update",
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {

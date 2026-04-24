@@ -70,9 +70,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Whether to include the starting node itself (default: true)")] bool includeStartNode = true,
             [Description("Whether to filter out OPC UA base type nodes from namespace 0 " +
                 "(default: false — include all)")] bool filterBaseTypes = false,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            ISession session = sessionManager.GetSessionOrThrow();
+            ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -150,9 +151,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Optional list of namespace URIs to include. If omitted, all non-base " +
                 "namespaces are exported.")] string[]? namespaceFilter = null,
             [Description("Export mode: 'Default' or 'Complete' (default: 'Default')")] string exportMode = "Default",
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            ISession session = sessionManager.GetSessionOrThrow();
+            ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {

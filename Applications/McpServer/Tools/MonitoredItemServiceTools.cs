@@ -56,9 +56,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Sampling interval in milliseconds (default: 1000)")] double samplingInterval = 1000,
             [Description("Queue size for notifications (default: 10)")] uint queueSize = 10,
             [Description("Discard oldest notifications when queue is full (default: true)")] bool discardOldest = true,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -123,9 +124,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("New sampling interval in milliseconds")] double samplingInterval = 1000,
             [Description("New queue size")] uint queueSize = 10,
             [Description("Discard oldest (default: true)")] bool discardOldest = true,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -182,9 +184,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Subscription ID")] uint subscriptionId,
             [Description("Array of monitored item IDs")] uint[] monitoredItemIds,
             [Description("Monitoring mode: 'Disabled', 'Sampling', or 'Reporting' (default: 'Reporting')")] string monitoringMode = "Reporting",
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -230,9 +233,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Triggering monitored item ID")] uint triggeringItemId,
             [Description("Array of monitored item IDs to add as links (optional)")] uint[]? linksToAdd = null,
             [Description("Array of monitored item IDs to remove as links (optional)")] uint[]? linksToRemove = null,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -271,9 +275,10 @@ namespace Opc.Ua.Mcp.Tools
             OpcUaSessionManager sessionManager,
             [Description("Subscription ID")] uint subscriptionId,
             [Description("Array of monitored item IDs to delete")] uint[] monitoredItemIds,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {

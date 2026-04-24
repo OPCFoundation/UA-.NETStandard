@@ -52,9 +52,10 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<string> FindServersAsync(
             OpcUaSessionManager sessionManager,
             [Description("Discovery endpoint URL, e.g. 'opc.tcp://localhost:4840'")] string discoveryUrl,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -110,9 +111,10 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<string> FindServersOnNetworkAsync(
             OpcUaSessionManager sessionManager,
             [Description("Discovery endpoint URL of the LDS, e.g. 'opc.tcp://localhost:4840'")] string discoveryUrl,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -173,9 +175,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Server name")] string serverName,
             [Description("Discovery URLs of the server to register")] string[] discoveryUrls,
             [Description("Whether the server is online (default: true)")] bool isOnline = true,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -234,9 +237,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Server name")] string serverName,
             [Description("Discovery URLs of the server to register")] string[] discoveryUrls,
             [Description("Whether the server is online (default: true)")] bool isOnline = true,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {

@@ -55,9 +55,10 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<string> ReadValueAsync(
             OpcUaSessionManager sessionManager,
             [Description("Node ID of the variable to read, e.g. 'ns=2;s=MyVariable' or 'i=2258' (ServerStatus/CurrentTime)")] string nodeId,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 DataValue dataValue = await session.ReadValueAsync(
@@ -93,9 +94,10 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<string> ReadValuesAsync(
             OpcUaSessionManager sessionManager,
             [Description("Array of node IDs to read values from")] string[] nodeIds,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 var parsedNodeIds = nodeIds.Select(OpcUaJsonHelper.ParseNodeId).ToList();
@@ -139,9 +141,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description(
                 "Optional data type hint: 'Boolean', 'Int32', 'UInt32', 'Int16', 'UInt16', 'Int64', 'UInt64', 'Float', 'Double', 'String', 'DateTime', 'Byte', 'SByte'")]
                  string? dataType = null,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 JsonElement jsonElement = JsonDocument.Parse(value).RootElement;
@@ -186,9 +189,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Starting node ID (default: 'i=85' for Objects folder)")] string? nodeId = null,
             [Description("Maximum depth to browse (default: 2)")] int maxDepth = 2,
             [Description("Maximum total references to return (default: 100)")] int maxResults = 100,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 NodeId startNode = nodeId != null
@@ -280,9 +284,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Object node ID on which the method is defined")] string objectId,
             [Description("Method node ID to call")] string methodId,
             [Description("Input argument values as strings (optional)")] string[]? inputArguments = null,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 Variant[] args = inputArguments?.Select(a => new Variant(a)).ToArray() ?? [];
@@ -319,9 +324,10 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<string> ReadNodeAsync(
             OpcUaSessionManager sessionManager,
             [Description("Node ID to read, e.g. 'i=85' or 'ns=2;s=MyNode'")] string nodeId,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 NodeId parsedNodeId = OpcUaJsonHelper.ParseNodeId(nodeId);
@@ -378,9 +384,10 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<string> CancelAsync(
             OpcUaSessionManager sessionManager,
             [Description("The request handle of the request to cancel")] uint requestHandle,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 CancelResponse response = await session.CancelAsync(

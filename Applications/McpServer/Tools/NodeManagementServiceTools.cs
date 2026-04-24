@@ -57,9 +57,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Browse name for the new node, e.g. '2:MyNewNode'")] string browseName,
             [Description("Node class: 'Object', 'Variable', 'Method', 'ObjectType', 'VariableType', 'ReferenceType', 'DataType', 'View'")] string nodeClass,
             [Description("Type definition node ID, e.g. 'i=58' (BaseObjectType) or 'i=62' (BaseVariableType)")] string? typeDefinition = null,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -155,9 +156,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Reference type ID, e.g. 'i=35' (Organizes)")] string referenceTypeId,
             [Description("Target node ID")] string targetNodeId,
             [Description("Is the reference forward direction (default: true)")] bool isForward = true,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -204,9 +206,10 @@ namespace Opc.Ua.Mcp.Tools
             OpcUaSessionManager sessionManager,
             [Description("Array of node IDs to delete")] string[] nodeIds,
             [Description("Also delete all target references (default: true)")] bool deleteTargetReferences = true,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -250,9 +253,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Target node ID")] string targetNodeId,
             [Description("Is the reference forward direction (default: true)")] bool isForward = true,
             [Description("Delete bidirectional (default: true)")] bool deleteBidirectional = true,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {

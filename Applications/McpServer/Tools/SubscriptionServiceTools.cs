@@ -57,9 +57,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Maximum number of notifications per publish (default: 0 = no limit)")] uint maxNotificationsPerPublish = 0,
             [Description("Whether publishing is enabled (default: true)")] bool publishingEnabled = true,
             [Description("Priority (0-255, default: 0)")] byte priority = 0,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -106,9 +107,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("New max keep-alive count")] uint maxKeepAliveCount = 2,
             [Description("Maximum notifications per publish (0 = no limit)")] uint maxNotificationsPerPublish = 0,
             [Description("Priority (0-255)")] byte priority = 0,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -150,9 +152,10 @@ namespace Opc.Ua.Mcp.Tools
             OpcUaSessionManager sessionManager,
             [Description("Array of subscription IDs")] uint[] subscriptionIds,
             [Description("Whether to enable publishing (true) or disable it (false)")] bool publishingEnabled,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -189,9 +192,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description(
                 "Subscription acknowledgements - array of subscription IDs with sequence numbers to acknowledge (optional)")] uint[]? ackSubscriptionIds = null,
             [Description("Corresponding sequence numbers for the acknowledgements (matched by index)")] uint[]? ackSequenceNumbers = null,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -247,9 +251,10 @@ namespace Opc.Ua.Mcp.Tools
             OpcUaSessionManager sessionManager,
             [Description("Subscription ID")] uint subscriptionId,
             [Description("Sequence number of the notification message to republish")] uint retransmitSequenceNumber,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -290,9 +295,10 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<string> DeleteSubscriptionsAsync(
             OpcUaSessionManager sessionManager,
             [Description("Array of subscription IDs to delete")] uint[] subscriptionIds,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -327,9 +333,10 @@ namespace Opc.Ua.Mcp.Tools
             OpcUaSessionManager sessionManager,
             [Description("Array of subscription IDs to transfer")] uint[] subscriptionIds,
             [Description("Whether to send initial data change notifications (default: true)")] bool sendInitialValues = true,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {

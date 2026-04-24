@@ -57,9 +57,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Include subtypes of the reference type (default: true)")] bool includeSubtypes = true,
             [Description("Node class mask filter (default: 0 = all classes)")] uint nodeClassMask = 0,
             [Description("Maximum references to return (default: 0 = server decides)")] uint maxResults = 0,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -126,9 +127,10 @@ namespace Opc.Ua.Mcp.Tools
             OpcUaSessionManager sessionManager,
             [Description("The continuation point from a previous Browse or BrowseNext call (base64 string)")] string continuationPoint,
             [Description("If true, releases the continuation point without returning results (default: false)")] bool releaseContinuationPoint = false,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -177,9 +179,10 @@ namespace Opc.Ua.Mcp.Tools
             OpcUaSessionManager sessionManager,
             [Description("Starting node ID, e.g. 'i=85' (Objects folder)")] string startingNodeId,
             [Description("Array of browse path segments, e.g. ['2:MyFolder', '2:MyVariable']")] string[] browsePath,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -240,9 +243,10 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<string> RegisterNodesAsync(
             OpcUaSessionManager sessionManager,
             [Description("Array of node IDs to register")] string[] nodeIds,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -279,9 +283,10 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<string> UnregisterNodesAsync(
             OpcUaSessionManager sessionManager,
             [Description("Array of registered node IDs to unregister")] string[] nodeIds,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -318,9 +323,10 @@ namespace Opc.Ua.Mcp.Tools
             OpcUaSessionManager sessionManager,
             [Description("Node ID of the type definition to query, e.g. 'i=58' (BaseObjectType)")] string typeDefinitionId,
             [Description("Maximum number of data sets to return (default: 100)")] uint maxDataSetsToReturn = 100,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
@@ -379,9 +385,10 @@ namespace Opc.Ua.Mcp.Tools
             OpcUaSessionManager sessionManager,
             [Description("Continuation point from a previous QueryFirst or QueryNext call (base64 string)")] string continuationPoint,
             [Description("If true, releases the continuation point without returning results (default: false)")] bool releaseContinuationPoint = false,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {

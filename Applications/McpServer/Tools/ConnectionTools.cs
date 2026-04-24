@@ -124,9 +124,11 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Username for 'Username' authentication")] string? username = null,
             [Description("Password for 'Username' authentication")] string? password = null,
             [Description("Auto-accept untrusted server certificates (for testing only, default: false)")] bool autoAcceptCerts = false,
+            [Description("Session name (auto-generated from endpoint URL if omitted)")] string? name = null,
             CancellationToken ct = default)
         {
             return sessionManager.ConnectAsync(
+                name,
                 endpointUrl,
                 securityMode,
                 securityPolicy,
@@ -144,9 +146,10 @@ namespace Opc.Ua.Mcp.Tools
         [Description("Disconnect from the current OPC UA server session.")]
         public static Task<string> DisconnectAsync(
             OpcUaSessionManager sessionManager,
+            [Description("Session name to disconnect (defaults to the only active session)")] string? name = null,
             CancellationToken ct = default)
         {
-            return sessionManager.DisconnectAsync(ct);
+            return sessionManager.DisconnectAsync(name, ct);
         }
 
         /// <summary>
@@ -154,9 +157,11 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "GetConnectionStatus")]
         [Description("Check if connected to an OPC UA server and return session information.")]
-        public static string GetConnectionStatus(OpcUaSessionManager sessionManager)
+        public static string GetConnectionStatus(
+            OpcUaSessionManager sessionManager,
+            [Description("Session name to check (defaults to all sessions)")] string? name = null)
         {
-            return sessionManager.GetConnectionStatus();
+            return sessionManager.GetConnectionStatus(name);
         }
     }
 }

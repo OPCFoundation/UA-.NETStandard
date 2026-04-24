@@ -39,6 +39,7 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Server;
 using Opc.Ua.Mcp;
+using Opc.Ua.Mcp.Tools;
 
 Console.Error.WriteLine("OPC UA MCP Server");
 Console.Error.WriteLine(
@@ -95,7 +96,8 @@ static async Task RunStdioServerAsync(CancellationToken ct)
     builder.Services
         .AddMcpServer()
         .WithStdioServerTransport()
-        .WithToolsFromAssembly();
+        .WithToolsFromAssembly()
+        .WithResources<SessionResources>();
 
     IHost app = builder.Build();
     await app.RunAsync(ct).ConfigureAwait(false);
@@ -113,7 +115,8 @@ static async Task RunSseServerAsync(int port, CancellationToken ct)
     builder.Services
         .AddMcpServer()
         .WithHttpTransport()
-        .WithToolsFromAssembly();
+        .WithToolsFromAssembly()
+        .WithResources<SessionResources>();
 
     WebApplication app = builder.Build();
     app.MapMcp();

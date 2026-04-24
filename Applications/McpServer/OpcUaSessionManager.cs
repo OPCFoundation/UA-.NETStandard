@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
@@ -56,9 +57,8 @@ namespace Opc.Ua.Mcp
         private readonly ILogger<OpcUaSessionManager> m_logger;
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ITelemetryContext m_telemetry = new NullTelemetry();
+        private readonly ConcurrentDictionary<string, SessionInfo> m_sessions = new(StringComparer.OrdinalIgnoreCase);
         private ApplicationConfiguration? m_configuration;
-        private Client.ISession? m_session;
-        private SessionReconnectHandler? m_reconnectHandler;
         private bool m_disposed;
 
         public OpcUaSessionManager(ILogger<OpcUaSessionManager> logger)
@@ -67,9 +67,23 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
-        /// Gets the current session, or null if not connected.
+        /// Holds information about a named OPC UA session.
         /// </summary>
-        public Client.ISession? Session => m_session;
+        public sealed class SessionInfo
+        {
+            public required string Name { get; init; }
+            public required Client.ISession Session { get; init; }
+            public required EndpointDescription Endpoint { get; init; }
+            public required string AuthType { get; init; }
+            public SessionReconnectHandler? ReconnectHandler { get; set; }
+            public DateTime ConnectedAt { get; init; } = DateTime.UtcNow;
+            public bool IsConnected => Session.Connected;
+        }
+
+        /// <summary>
+        /// Gets the first session, or null if none connected. For backward compatibility.
+        /// </summary>
+        public Client.ISession? Session => m_sessions.Values.FirstOrDefault()?.Session;
 
         /// <summary>
         /// Gets the telemetry context used by this session manager.
@@ -104,24 +118,62 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
-        /// Gets whether a session is currently connected.
+        /// Gets whether any session is currently connected.
         /// </summary>
-        public bool IsConnected => m_session?.Connected == true;
+        public bool IsConnected => m_sessions.Values.Any(s => s.IsConnected);
 
         /// <summary>
-        /// Gets the current session, throwing if not connected.
+        /// Gets a session by name, or the only active session if name is null.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Not connected to an OPC UA server.</exception>
-        public Client.ISession GetSessionOrThrow()
+        /// <exception cref="InvalidOperationException">Not connected or ambiguous session.</exception>
+        public Client.ISession GetSessionOrThrow(string? name = null)
         {
-            Client.ISession? session = m_session;
-            if (session == null || !session.Connected)
+            if (name != null)
+            {
+                if (m_sessions.TryGetValue(name, out SessionInfo? info) && info.IsConnected)
+                {
+                    return info.Session;
+                }
+
+                throw new InvalidOperationException(
+                    $"Session '{name}' not found or not connected. Use the 'Connect' tool first.");
+            }
+
+            int count = m_sessions.Count;
+            if (count == 0)
             {
                 throw new InvalidOperationException(
                     "Not connected to an OPC UA server. Use the 'Connect' tool first.");
             }
-            return session;
+
+            if (count == 1)
+            {
+                SessionInfo single = m_sessions.Values.First();
+                if (single.IsConnected)
+                {
+                    return single.Session;
+                }
+
+                throw new InvalidOperationException(
+                    "Not connected to an OPC UA server. Use the 'Connect' tool first.");
+            }
+
+            string names = string.Join(", ", m_sessions.Keys);
+            throw new InvalidOperationException(
+                $"Multiple sessions active. Specify a sessionName: {names}");
         }
+
+        /// <summary>
+        /// Gets all active sessions.
+        /// </summary>
+        public IReadOnlyCollection<SessionInfo> GetAllSessions() =>
+            m_sessions.Values.ToList().AsReadOnly();
+
+        /// <summary>
+        /// Gets information about a specific named session.
+        /// </summary>
+        public SessionInfo? GetSessionInfo(string name) =>
+            m_sessions.GetValueOrDefault(name);
 
         /// <summary>
         /// Discovers all endpoints available at the given discovery URL.
@@ -153,6 +205,7 @@ namespace Opc.Ua.Mcp
         /// Connects to an OPC UA server with endpoint selection and authentication options.
         /// </summary>
         public async Task<string> ConnectAsync(
+            string? name,
             string endpointUrl,
             string? securityMode,
             string? securityPolicy,
@@ -167,9 +220,22 @@ namespace Opc.Ua.Mcp
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (m_session?.Connected == true)
+                // Auto-generate name from endpoint URL if not specified
+                if (string.IsNullOrWhiteSpace(name))
                 {
-                    await DisconnectInternalAsync(ct).ConfigureAwait(false);
+                    var uri = new Uri(endpointUrl);
+                    name = string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0}-{1}",
+                        uri.Host,
+                        uri.Port);
+                }
+
+                // Disconnect existing session with same name
+                if (m_sessions.TryGetValue(name, out SessionInfo? existing))
+                {
+                    await DisconnectInternalAsync(existing, ct).ConfigureAwait(false);
+                    m_sessions.TryRemove(name, out _);
                 }
 
                 await EnsureConfigurationInternalAsync(autoAcceptCerts, ct).ConfigureAwait(false);
@@ -180,7 +246,7 @@ namespace Opc.Ua.Mcp
                     m_configuration.CertificateValidator.CertificateValidation += AutoAcceptCertificateValidation;
                 }
 
-                m_logger.LogInformation("Connecting to {EndpointUrl}...", endpointUrl);
+                m_logger.LogInformation("Connecting to {EndpointUrl} as '{Name}'...", endpointUrl, name);
 
                 EndpointDescription selectedEndpoint = await SelectEndpointAsync(
                     endpointUrl, securityMode, securityPolicy, authType, ct).ConfigureAwait(false);
@@ -206,22 +272,34 @@ namespace Opc.Ua.Mcp
 
                 if (session?.Connected == true)
                 {
-                    m_session = session;
-                    session.KeepAliveInterval = 5000;
-                    session.KeepAlive += SessionKeepAlive;
+                    var reconnectHandler = new SessionReconnectHandler(m_telemetry, true, 15_000);
+                    var sessionInfo = new SessionInfo
+                    {
+                        Name = name,
+                        Session = session,
+                        Endpoint = selectedEndpoint,
+                        AuthType = authType,
+                        ReconnectHandler = reconnectHandler,
+                        ConnectedAt = DateTime.UtcNow
+                    };
 
-                    m_reconnectHandler = new SessionReconnectHandler(m_telemetry, true, 15_000);
+                    m_sessions[name] = sessionInfo;
+
+                    session.KeepAliveInterval = 5000;
+                    session.KeepAlive += (s, e) => SessionKeepAlive(sessionInfo, s, e);
 
                     m_logger.LogInformation(
-                        "Connected. SessionName={SessionName}, SessionId={SessionId}",
+                        "Connected '{Name}'. SessionName={SessionName}, SessionId={SessionId}",
+                        name,
                         session.SessionName,
                         session.SessionId);
 
                     return string.Format(
                         CultureInfo.InvariantCulture,
-                        "Connected to {0}. SecurityMode={1}, SecurityPolicy={2}, Auth={3}, " +
-                        "SessionName={4}, SessionId={5}",
+                        "Connected to {0} as '{1}'. SecurityMode={2}, SecurityPolicy={3}, Auth={4}, " +
+                        "SessionName={5}, SessionId={6}",
                         endpointUrl,
+                        name,
                         selectedEndpoint.SecurityMode,
                         selectedEndpoint.SecurityPolicyUri,
                         authType,
@@ -238,21 +316,41 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
-        /// Disconnects the current session.
+        /// Disconnects a named session, or the only session if name is null.
         /// </summary>
-        public async Task<string> DisconnectAsync(CancellationToken ct = default)
+        public async Task<string> DisconnectAsync(string? name = null, CancellationToken ct = default)
         {
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (m_session == null || !m_session.Connected)
+                if (name != null)
                 {
-                    return "No active session to disconnect.";
+                    if (!m_sessions.TryRemove(name, out SessionInfo? info))
+                    {
+                        return $"Session '{name}' not found.";
+                    }
+
+                    await DisconnectInternalAsync(info, ct).ConfigureAwait(false);
+                    return $"Disconnected session '{name}'.";
                 }
 
-                string sessionName = m_session.SessionName;
-                await DisconnectInternalAsync(ct).ConfigureAwait(false);
-                return $"Disconnected session '{sessionName}'.";
+                int count = m_sessions.Count;
+                if (count == 0)
+                {
+                    return "No active sessions to disconnect.";
+                }
+
+                if (count > 1)
+                {
+                    string names = string.Join(", ", m_sessions.Keys);
+                    return $"Multiple sessions active. Specify a session name to disconnect: {names}";
+                }
+
+                // Exactly one session
+                KeyValuePair<string, SessionInfo> single = m_sessions.First();
+                m_sessions.TryRemove(single.Key, out _);
+                await DisconnectInternalAsync(single.Value, ct).ConfigureAwait(false);
+                return $"Disconnected session '{single.Key}'.";
             }
             finally
             {
@@ -261,23 +359,32 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
-        /// Gets connection status information.
+        /// Gets connection status information for one or all sessions.
         /// </summary>
-        public string GetConnectionStatus()
+        public string GetConnectionStatus(string? name = null)
         {
-            Client.ISession? session = m_session;
-            if (session == null || !session.Connected)
+            if (name != null)
+            {
+                if (!m_sessions.TryGetValue(name, out SessionInfo? info))
+                {
+                    return $"Session '{name}' not found.";
+                }
+
+                return FormatSessionStatus(info);
+            }
+
+            if (m_sessions.IsEmpty)
             {
                 return "Not connected.";
             }
 
-            return string.Format(
-                CultureInfo.InvariantCulture,
-                "Connected to {0}. SessionName={1}, SessionId={2}, ServerUri={3}",
-                session.Endpoint?.EndpointUrl ?? "unknown",
-                session.SessionName,
-                session.SessionId,
-                session.ServerUris?.ToArray().FirstOrDefault() ?? "unknown");
+            var lines = new List<string>();
+            foreach (SessionInfo info in m_sessions.Values)
+            {
+                lines.Add(FormatSessionStatus(info));
+            }
+
+            return string.Join(Environment.NewLine, lines);
         }
 
         public void Dispose()
@@ -288,23 +395,23 @@ namespace Opc.Ua.Mcp
             }
 
             m_disposed = true;
-            m_reconnectHandler?.Dispose();
-            m_session?.Dispose();
+            foreach (SessionInfo info in m_sessions.Values)
+            {
+                info.ReconnectHandler?.Dispose();
+                info.Session.Dispose();
+            }
+
+            m_sessions.Clear();
             m_lock.Dispose();
         }
 
-        private async Task DisconnectInternalAsync(CancellationToken ct)
+        private static async Task DisconnectInternalAsync(SessionInfo info, CancellationToken ct)
         {
-            if (m_session != null)
-            {
-                m_session.KeepAlive -= SessionKeepAlive;
-                m_reconnectHandler?.Dispose();
-                m_reconnectHandler = null;
+            info.ReconnectHandler?.Dispose();
+            info.ReconnectHandler = null;
 
-                await m_session.CloseAsync(ct).ConfigureAwait(false);
-                m_session.Dispose();
-                m_session = null;
-            }
+            await info.Session.CloseAsync(ct).ConfigureAwait(false);
+            info.Session.Dispose();
         }
 
         private async Task EnsureConfigurationInternalAsync(bool autoAcceptCerts, CancellationToken ct)
@@ -502,22 +609,26 @@ namespace Opc.Ua.Mcp
             }
         }
 
-        private void SessionKeepAlive(Client.ISession session, KeepAliveEventArgs e)
+        private void SessionKeepAlive(SessionInfo info, Client.ISession session, KeepAliveEventArgs e)
         {
             if (e.Status != null && ServiceResult.IsNotGood(e.Status))
             {
                 m_logger.LogWarning(
-                    "KeepAlive status: {Status}. Reconnecting...",
+                    "KeepAlive status for '{Name}': {Status}. Reconnecting...",
+                    info.Name,
                     e.Status);
 
-                if (m_reconnectHandler != null && session is Session s)
+                if (info.ReconnectHandler != null && session is Session s)
                 {
-                    m_reconnectHandler.BeginReconnect(s, 1000, SessionReconnectComplete);
+                    info.ReconnectHandler.BeginReconnect(s, 1000, (sender, _) =>
+                    {
+                        SessionReconnectComplete(info, sender);
+                    });
                 }
             }
         }
 
-        private void SessionReconnectComplete(object? sender, EventArgs e)
+        private void SessionReconnectComplete(SessionInfo info, object? sender)
         {
             if (sender is not SessionReconnectHandler handler)
             {
@@ -527,9 +638,43 @@ namespace Opc.Ua.Mcp
             Client.ISession? session = handler.Session;
             if (session != null)
             {
-                m_session = session;
-                m_logger.LogInformation("Session reconnected. SessionId={SessionId}", session.SessionId);
+                // Update the session in the dictionary with a new SessionInfo
+                var updated = new SessionInfo
+                {
+                    Name = info.Name,
+                    Session = session,
+                    Endpoint = info.Endpoint,
+                    AuthType = info.AuthType,
+                    ReconnectHandler = info.ReconnectHandler,
+                    ConnectedAt = info.ConnectedAt
+                };
+                m_sessions[info.Name] = updated;
+                m_logger.LogInformation(
+                    "Session '{Name}' reconnected. SessionId={SessionId}",
+                    info.Name,
+                    session.SessionId);
             }
+        }
+
+        private static string FormatSessionStatus(SessionInfo info)
+        {
+            if (!info.IsConnected)
+            {
+                return string.Format(
+                    CultureInfo.InvariantCulture,
+                    "'{0}': Disconnected (was {1})",
+                    info.Name,
+                    info.Endpoint.EndpointUrl);
+            }
+
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                "'{0}': Connected to {1}. SessionName={2}, SessionId={3}, ServerUri={4}",
+                info.Name,
+                info.Endpoint.EndpointUrl,
+                info.Session.SessionName,
+                info.Session.SessionId,
+                info.Session.ServerUris?.ToArray().FirstOrDefault() ?? "unknown");
         }
 
         private static void AutoAcceptCertificateValidation(

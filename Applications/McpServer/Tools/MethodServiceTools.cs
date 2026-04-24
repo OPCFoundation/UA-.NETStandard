@@ -54,9 +54,10 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Object node ID on which the method is defined")] string objectId,
             [Description("Method node ID to call")] string methodId,
             [Description("Input argument values as strings (optional)")] string[]? inputArguments = null,
+            [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow();
+            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
 
             try
             {
