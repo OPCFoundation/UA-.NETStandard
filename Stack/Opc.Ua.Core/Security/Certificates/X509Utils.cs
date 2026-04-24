@@ -720,10 +720,10 @@ namespace Opc.Ua
                 {
                     X509KeyStorageFlags storageFlags =
                         persisted ? X509KeyStorageFlags.PersistKeySet : X509KeyStorageFlags.Exportable;
-                    string passcodeStr = new string(passcode);
+
                     return Certificate.From(X509CertificateLoader.LoadPkcs12(
-                        certificate.Export(X509ContentType.Pfx, passcodeStr),
-                        passcodeStr,
+                        certificate.Export(X509ContentType.Pfx, passcode),
+                        passcode,
                         storageFlags));
                 }
                 finally

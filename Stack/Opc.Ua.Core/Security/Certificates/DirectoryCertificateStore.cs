@@ -244,10 +244,14 @@ namespace Opc.Ua
                 byte[] data;
                 if (writePrivateKey)
                 {
-                    string passcode = password == null ||
-                        password.Length == 0 ? string.Empty : new string(password);
-
-                    data = certificate.Export(X509ContentType.Pkcs12, passcode);
+                    if (password == null || password.Length == 0)
+                    {
+                        data = certificate.Export(X509ContentType.Pkcs12);
+                    }
+                    else
+                    {
+                        data = certificate.Export(X509ContentType.Pkcs12, password);
+                    }
                 }
                 else
                 {
@@ -267,14 +271,17 @@ namespace Opc.Ua
 
                 m_lastDirectoryCheck = DateTime.MinValue;
                 m_cache.Set(certificate.Thumbprint, certificate);
-                m_logger.LogDebug(Utils.TraceMasks.Security, "Certificate {Thumbprint} added to store and cache.", certificate.Thumbprint);
+                m_logger.LogDebug(
+                    Utils.TraceMasks.Security,
+                    "Certificate {Thumbprint} added to store and cache.",
+                    certificate.Thumbprint);
             }
             catch (Exception ex)
             {
                 m_logger.LogError(
                     ex,
                     "Failed to add certificate with thumbprint {Thumbprint} to store {StorePath}.",
-                    certificate?.Thumbprint,
+                    certificate.Thumbprint,
                     StorePath);
                 throw;
             }
