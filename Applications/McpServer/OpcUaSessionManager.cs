@@ -500,6 +500,12 @@ namespace Opc.Ua.Mcp
             IEnumerable<EndpointDescription> candidates = allEndpoints.ToArray() ??
                 Array.Empty<EndpointDescription>();
 
+            // Filter to match the same transport scheme as the requested URL
+            var requestUri = new Uri(endpointUrl);
+            candidates = candidates.Where(ep =>
+                ep.EndpointUrl != null &&
+                ep.EndpointUrl.StartsWith(requestUri.Scheme, StringComparison.OrdinalIgnoreCase));
+
             if (securityMode != null)
             {
                 MessageSecurityMode mode = ParseSecurityMode(securityMode);

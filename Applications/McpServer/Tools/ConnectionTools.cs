@@ -113,7 +113,7 @@ namespace Opc.Ua.Mcp.Tools
             "and it will auto-select the most secure endpoint with anonymous authentication. " +
             "Use GetEndpoints first to discover available security configurations and auth methods, " +
             "then specify securityMode/securityPolicy to select a specific endpoint.")]
-        public static Task<string> ConnectAsync(
+        public static async Task<string> ConnectAsync(
             OpcUaSessionManager sessionManager,
             [Description("The OPC UA server endpoint URL")] string endpointUrl,
             [Description("Security mode filter: 'None', 'Sign', or 'SignAndEncrypt'. " +
@@ -127,16 +127,33 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name (auto-generated from endpoint URL if omitted)")] string? name = null,
             CancellationToken ct = default)
         {
-            return sessionManager.ConnectAsync(
-                name,
-                endpointUrl,
-                securityMode,
-                securityPolicy,
-                authType,
-                username,
-                password,
-                autoAcceptCerts,
-                ct);
+            try
+            {
+                return await sessionManager.ConnectAsync(
+                    name, endpointUrl, securityMode, securityPolicy,
+                    authType, username, password, autoAcceptCerts, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+            {
+                return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
+                {
+                    ["error"] = true,
+                    ["statusCode"] = ex.StatusCode.ToString(),
+                    ["message"] = ex.Message,
+                });
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
+                {
+                    ["error"] = true,
+                    ["statusCode"] = "BadUnexpectedError",
+                    ["message"] = ex.Message,
+                    ["exceptionType"] = ex.GetType().Name,
+                    ["innerMessage"] = ex.InnerException?.Message,
+                });
+            }
         }
 
         /// <summary>
