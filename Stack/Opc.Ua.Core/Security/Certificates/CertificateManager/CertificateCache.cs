@@ -53,8 +53,8 @@ namespace Opc.Ua
         private const int kDefaultPrivateKeyCacheCapacity = 64;
         private static readonly TimeSpan s_defaultPrivateKeyTtl = TimeSpan.FromSeconds(30);
 
-        private readonly ILogger<CertificateCache> m_logger;
-        private readonly Meter m_meter;
+        private readonly ILogger<CertificateCache>? m_logger;
+        private readonly Meter? m_meter;
 
 #if NET6_0_OR_GREATER
         private readonly ICache<string, Certificate> m_publicKeyCache;
@@ -73,8 +73,8 @@ namespace Opc.Ua
             int privateKeyCacheCapacity = kDefaultPrivateKeyCacheCapacity,
             TimeSpan? privateKeyTtl = null)
         {
-            m_logger = telemetry.CreateLogger<CertificateCache>();
-            m_meter = telemetry.CreateMeter();
+            m_logger = telemetry?.CreateLogger<CertificateCache>();
+            m_meter = telemetry?.CreateMeter();
 
             privateKeyTtl ??= s_defaultPrivateKeyTtl;
 
@@ -89,30 +89,33 @@ namespace Opc.Ua
                 .WithMetrics()
                 .Build();
 
-            m_meter.CreateObservableCounter<long>(
-                "opcua.certcache.hit",
-                () => (m_publicKeyCache?.Metrics.Value?.Hits ?? 0) + (m_privateKeyCache?.Metrics.Value?.Hits ?? 0),
-                description: "Total certificate cache hits");
+            if (m_meter != null)
+            {
+                m_meter.CreateObservableCounter<long>(
+                    "opcua.certcache.hit",
+                    () => (m_publicKeyCache?.Metrics.Value?.Hits ?? 0) + (m_privateKeyCache?.Metrics.Value?.Hits ?? 0),
+                    description: "Total certificate cache hits");
 
-            m_meter.CreateObservableCounter<long>(
-                "opcua.certcache.miss",
-                () => (m_publicKeyCache?.Metrics.Value?.Misses ?? 0) + (m_privateKeyCache?.Metrics.Value?.Misses ?? 0),
-                description: "Total certificate cache misses");
+                m_meter.CreateObservableCounter<long>(
+                    "opcua.certcache.miss",
+                    () => (m_publicKeyCache?.Metrics.Value?.Misses ?? 0) + (m_privateKeyCache?.Metrics.Value?.Misses ?? 0),
+                    description: "Total certificate cache misses");
 
-            m_meter.CreateObservableGauge<int>(
-                "opcua.certcache.size",
-                () => (m_publicKeyCache?.Count ?? 0) + (m_privateKeyCache?.Count ?? 0),
-                description: "Current number of cached certificate entries");
+                m_meter.CreateObservableGauge<int>(
+                    "opcua.certcache.size",
+                    () => (m_publicKeyCache?.Count ?? 0) + (m_privateKeyCache?.Count ?? 0),
+                    description: "Current number of cached certificate entries");
 
-            m_meter.CreateObservableGauge<int>(
-                "opcua.certcache.private_key_entries",
-                () => m_privateKeyCache?.Count ?? 0,
-                description: "Current number of cached entries with private keys");
+                m_meter.CreateObservableGauge<int>(
+                    "opcua.certcache.private_key_entries",
+                    () => m_privateKeyCache?.Count ?? 0,
+                    description: "Current number of cached entries with private keys");
 
-            m_meter.CreateObservableCounter<long>(
-                "opcua.certcache.eviction",
-                () => (m_publicKeyCache?.Metrics.Value?.Evicted ?? 0) + (m_privateKeyCache?.Metrics.Value?.Evicted ?? 0),
-                description: "Total certificate cache evictions");
+                m_meter.CreateObservableCounter<long>(
+                    "opcua.certcache.eviction",
+                    () => (m_publicKeyCache?.Metrics.Value?.Evicted ?? 0) + (m_privateKeyCache?.Metrics.Value?.Evicted ?? 0),
+                    description: "Total certificate cache evictions");
+            }
         }
 
         /// <summary>
@@ -192,7 +195,7 @@ namespace Opc.Ua
         {
             m_publicKeyCache.Clear();
             m_privateKeyCache.Clear();
-            m_meter.Dispose();
+            m_meter?.Dispose();
         }
 #else
         /// <summary>
@@ -204,8 +207,8 @@ namespace Opc.Ua
             int privateKeyCacheCapacity = kDefaultPrivateKeyCacheCapacity,
             TimeSpan? privateKeyTtl = null)
         {
-            m_logger = telemetry.CreateLogger<CertificateCache>();
-            m_meter = telemetry.CreateMeter();
+            m_logger = telemetry?.CreateLogger<CertificateCache>();
+            m_meter = telemetry?.CreateMeter();
         }
 
         /// <summary>
@@ -234,7 +237,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            m_meter.Dispose();
+            m_meter?.Dispose();
         }
 #endif
     }

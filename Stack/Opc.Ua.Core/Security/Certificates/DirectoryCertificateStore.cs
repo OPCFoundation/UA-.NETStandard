@@ -201,13 +201,6 @@ namespace Opc.Ua
                     }
                 }
 
-                foreach (Certificate cert in certificates)
-                {
-                    m_cache.Set(cert.Thumbprint, cert);
-                }
-
-                m_logger.LogDebug(Utils.TraceMasks.Security, "Enumerated {Count} certificates from store, cache populated.", certificates.Count);
-
                 return certificates;
             }
             finally
@@ -244,10 +237,14 @@ namespace Opc.Ua
                 byte[] data;
                 if (writePrivateKey)
                 {
-                    string passcode = password == null ||
-                        password.Length == 0 ? string.Empty : new string(password);
-
-                    data = certificate.Export(X509ContentType.Pkcs12, passcode);
+                    if (password == null || password.Length == 0)
+                    {
+                        data = certificate.Export(X509ContentType.Pkcs12);
+                    }
+                    else
+                    {
+                        data = certificate.Export(X509ContentType.Pkcs12, password);
+                    }
                 }
                 else
                 {
@@ -266,15 +263,17 @@ namespace Opc.Ua
                 }
 
                 m_lastDirectoryCheck = DateTime.MinValue;
-                m_cache.Set(certificate.Thumbprint, certificate);
-                m_logger.LogDebug(Utils.TraceMasks.Security, "Certificate {Thumbprint} added to store and cache.", certificate.Thumbprint);
+                m_logger.LogDebug(
+                    Utils.TraceMasks.Security,
+                    "Certificate {Thumbprint} added to store.",
+                    certificate.Thumbprint);
             }
             catch (Exception ex)
             {
                 m_logger.LogError(
                     ex,
                     "Failed to add certificate with thumbprint {Thumbprint} to store {StorePath}.",
-                    certificate?.Thumbprint,
+                    certificate.Thumbprint,
                     StorePath);
                 throw;
             }
@@ -470,8 +469,7 @@ namespace Opc.Ua
                     if (found)
                     {
                         m_lastDirectoryCheck = DateTime.MinValue;
-                        m_cache.Remove(thumbprint);
-                        m_logger.LogDebug(Utils.TraceMasks.Security, "Certificate {Thumbprint} removed from store and cache.", thumbprint);
+                        m_logger.LogDebug(Utils.TraceMasks.Security, "Certificate {Thumbprint} removed from store.", thumbprint);
                     }
                 }
                 finally
@@ -493,16 +491,6 @@ namespace Opc.Ua
             string thumbprint,
             CancellationToken ct = default)
         {
-            Certificate cached = m_cache.TryGet(thumbprint);
-            if (cached != null)
-            {
-                m_logger.LogDebug(Utils.TraceMasks.Security, "Certificate cache hit for thumbprint {Thumbprint}.", thumbprint);
-                var result = new CertificateCollection();
-                result.Add(cached);
-                return result;
-            }
-
-            m_logger.LogDebug(Utils.TraceMasks.Security, "Certificate cache miss for thumbprint {Thumbprint}, loading from disk.", thumbprint);
             var certificates = new CertificateCollection();
 
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
@@ -515,12 +503,10 @@ namespace Opc.Ua
                     if (entry.CertificateWithPrivateKey != null)
                     {
                         certificates.Add(entry.CertificateWithPrivateKey.AddRef());
-                        m_cache.Set(thumbprint, entry.CertificateWithPrivateKey);
                     }
                     else
                     {
                         certificates.Add(entry.Certificate.AddRef());
-                        m_cache.Set(thumbprint, entry.Certificate);
                     }
                 }
 

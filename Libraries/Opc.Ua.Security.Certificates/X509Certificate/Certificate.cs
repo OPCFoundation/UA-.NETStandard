@@ -32,28 +32,13 @@
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Globalization;
+#if DEBUG
+using System.Runtime.CompilerServices;
+#endif
 
 namespace Opc.Ua.Security.Certificates
 {
-#if DEBUG
-    /// <summary>
-    /// Captures allocation context for leak-detection diagnostics.
-    /// </summary>
-    internal sealed class CertificateAllocationInfo
-    {
-        public string StackTrace { get; }
-        public string? Thumbprint { get; }
-        public DateTime CreatedAt { get; }
-
-        public CertificateAllocationInfo(string stackTrace, string? thumbprint)
-        {
-            StackTrace = stackTrace;
-            Thumbprint = thumbprint;
-            CreatedAt = DateTime.UtcNow;
-        }
-    }
-#endif
-
     /// <summary>
     /// Wraps an <see cref="X509Certificate2"/> providing a managed
     /// lifetime and implementing <see cref="IX509Certificate"/>.
@@ -72,24 +57,6 @@ namespace Opc.Ua.Security.Certificates
     public class Certificate : IX509Certificate, IDisposable, IEquatable<Certificate>
     {
         /// <summary>
-        /// The inner <see cref="X509Certificate2"/> instance.
-        /// Internal access is available to friends via InternalsVisibleTo.
-        /// </summary>
-        internal X509Certificate2 X509 { get; }
-
-        private int m_refCount = 1;
-
-#if DEBUG
-        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Certificate, CertificateAllocationInfo> s_allocationTracker = new();
-#endif
-
-#if DEBUG
-        // CS8618: the finalizer introduces a code path where X509 may be
-        // unset on a partially-constructed instance; safe because the
-        // finalizer only reads m_refCount and the allocation tracker.
-#pragma warning disable CS8618
-#endif
-        /// <summary>
         /// Creates a public-key-only certificate from DER or PEM encoded data.
         /// </summary>
         /// <param name="rawData">The DER or PEM encoded certificate data.</param>
@@ -97,9 +64,7 @@ namespace Opc.Ua.Security.Certificates
         {
             X509 = X509CertificateLoader.LoadCertificate(rawData);
 #if DEBUG
-            s_allocationTracker.Add(this, new CertificateAllocationInfo(
-                new System.Diagnostics.StackTrace(true).ToString(),
-                X509?.Thumbprint));
+            Track();
 #endif
         }
 
@@ -112,9 +77,7 @@ namespace Opc.Ua.Security.Certificates
         {
             X509 = X509CertificateLoader.LoadCertificate(rawData);
 #if DEBUG
-            s_allocationTracker.Add(this, new CertificateAllocationInfo(
-                new System.Diagnostics.StackTrace(true).ToString(),
-                X509?.Thumbprint));
+            Track();
 #endif
         }
 #endif
@@ -129,9 +92,7 @@ namespace Opc.Ua.Security.Certificates
         {
             X509 = X509CertificateLoader.LoadCertificateFromFile(fileName);
 #if DEBUG
-            s_allocationTracker.Add(this, new CertificateAllocationInfo(
-                new System.Diagnostics.StackTrace(true).ToString(),
-                X509?.Thumbprint));
+            Track();
 #endif
         }
 
@@ -151,9 +112,7 @@ namespace Opc.Ua.Security.Certificates
             X509 = X509CertificateLoader.LoadPkcs12(
                 rawData, password, keyStorageFlags);
 #if DEBUG
-            s_allocationTracker.Add(this, new CertificateAllocationInfo(
-                new System.Diagnostics.StackTrace(true).ToString(),
-                X509?.Thumbprint));
+            Track();
 #endif
         }
 
@@ -173,9 +132,7 @@ namespace Opc.Ua.Security.Certificates
             X509 = X509CertificateLoader.LoadPkcs12FromFile(
                 fileName, password, keyStorageFlags);
 #if DEBUG
-            s_allocationTracker.Add(this, new CertificateAllocationInfo(
-                new System.Diagnostics.StackTrace(true).ToString(),
-                X509?.Thumbprint));
+            Track();
 #endif
         }
 
@@ -191,14 +148,15 @@ namespace Opc.Ua.Security.Certificates
             X509 = certificate ??
                 throw new ArgumentNullException(nameof(certificate));
 #if DEBUG
-            s_allocationTracker.Add(this, new CertificateAllocationInfo(
-                new System.Diagnostics.StackTrace(true).ToString(),
-                X509?.Thumbprint));
+            Track();
 #endif
         }
-#if DEBUG
-#pragma warning restore CS8618
-#endif
+
+        /// <summary>
+        /// The inner <see cref="X509Certificate2"/> instance.
+        /// Internal access is available to friends via InternalsVisibleTo.
+        /// </summary>
+        internal X509Certificate2 X509 { get; }
 
         /// <summary>
         /// Creates a <see cref="Certificate"/> that takes ownership of the
@@ -315,6 +273,34 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public Oid SignatureAlgorithm => X509.SignatureAlgorithm;
 
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Releases the resources used by the <see cref="Certificate"/>.
+        /// The inner <see cref="X509Certificate2"/> is disposed only
+        /// when the reference count reaches zero.
+        /// </summary>
+        /// <param name="disposing">
+        /// <c>true</c> to release managed resources.
+        /// </param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                int remaining = System.Threading.Interlocked
+                    .Decrement(ref m_refCount);
+                if (remaining == 0)
+                {
+                    X509.Dispose();
+                }
+            }
+        }
+
         /// <summary>
         /// Exports the certificate to a byte array in the specified format.
         /// </summary>
@@ -330,18 +316,6 @@ namespace Opc.Ua.Security.Certificates
 
         /// <summary>
         /// Exports the certificate to a byte array in the specified format,
-        /// protected with a password.
-        /// </summary>
-        /// <param name="contentType">The format to export.</param>
-        /// <param name="password">The password to protect the exported data.</param>
-        /// <returns>The exported certificate bytes.</returns>
-        public byte[] Export(X509ContentType contentType, string? password)
-        {
-            return X509.Export(contentType, password);
-        }
-
-        /// <summary>
-        /// Exports the certificate to a byte array in the specified format,
         /// protected with a secure password.
         /// </summary>
         /// <param name="contentType">The format to export.</param>
@@ -349,7 +323,11 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The exported certificate bytes.</returns>
         public byte[] Export(X509ContentType contentType, ReadOnlySpan<char> password)
         {
-            return X509.Export(contentType, password.ToString());
+#if NETFRAMEWORK
+            return X509.Export(contentType, new string(password.ToArray()));
+#else
+            return X509.Export(contentType, new string(password));
+#endif
         }
 
         /// <summary>
@@ -474,15 +452,10 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return StringComparer.OrdinalIgnoreCase
-                .GetHashCode(Thumbprint);
+            return StringComparer.OrdinalIgnoreCase.GetHashCode(Thumbprint);
         }
 
-        /// <summary>
-        /// Returns a log-safe string representation of the certificate.
-        /// Includes identifying information (thumbprint, subject, validity,
-        /// key type) but omits privacy-relevant data.
-        /// </summary>
+        /// <inheritdoc/>
         public override string ToString()
         {
             try
@@ -490,8 +463,10 @@ namespace Opc.Ua.Security.Certificates
                 var sb = new System.Text.StringBuilder(128);
                 sb.Append("[Subject=").Append(Subject);
                 sb.Append(", Thumbprint=").Append(Thumbprint);
-                sb.Append(", NotBefore=").Append(NotBefore.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
-                sb.Append(", NotAfter=").Append(NotAfter.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+                sb.Append(", NotBefore=").Append(NotBefore
+                    .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+                sb.Append(", NotAfter=").Append(NotAfter
+                    .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
                 sb.Append(", KeyAlgorithm=").Append(GetKeyAlgorithm());
                 if (HasPrivateKey)
                 {
@@ -513,6 +488,7 @@ namespace Opc.Ua.Security.Certificates
         /// when the last reference is released.
         /// </summary>
         /// <returns>This certificate instance for fluent usage.</returns>
+        /// <exception cref="ObjectDisposedException"></exception>
         public Certificate AddRef()
         {
             int current = System.Threading.Interlocked.Increment(ref m_refCount);
@@ -526,6 +502,16 @@ namespace Opc.Ua.Security.Certificates
         }
 
 #if DEBUG
+        /// <summary>
+        /// Track the allocation
+        /// </summary>
+        private void Track()
+        {
+            s_allocationTracker.Add(this, new CertificateAllocationInfo(
+                new System.Diagnostics.StackTrace(true).ToString(),
+                X509.Thumbprint));
+        }
+
         /// <summary>
         /// Detects leaked certificates that were never disposed.
         /// Only compiled in DEBUG builds.
@@ -544,34 +530,26 @@ namespace Opc.Ua.Security.Certificates
                 System.Diagnostics.Debug.WriteLine(message);
             }
         }
-#endif
 
         /// <summary>
-        /// Releases the resources used by the <see cref="Certificate"/>.
-        /// The inner <see cref="X509Certificate2"/> is disposed only
-        /// when the reference count reaches zero.
+        /// Captures allocation context for leak-detection diagnostics.
         /// </summary>
-        /// <param name="disposing">
-        /// <c>true</c> to release managed resources.
-        /// </param>
-        protected virtual void Dispose(bool disposing)
+        internal sealed class CertificateAllocationInfo
         {
-            if (disposing)
+            public string StackTrace { get; }
+            public string? Thumbprint { get; }
+            public DateTime CreatedAt { get; }
+
+            public CertificateAllocationInfo(string stackTrace, string? thumbprint)
             {
-                int remaining = System.Threading.Interlocked
-                    .Decrement(ref m_refCount);
-                if (remaining == 0)
-                {
-                    X509.Dispose();
-                }
+                StackTrace = stackTrace;
+                Thumbprint = thumbprint;
+                CreatedAt = DateTime.UtcNow;
             }
         }
 
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
+        private static readonly ConditionalWeakTable<Certificate, CertificateAllocationInfo> s_allocationTracker = new();
+#endif
+        private int m_refCount = 1;
     }
 }
