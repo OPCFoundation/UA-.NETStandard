@@ -25,7 +25,7 @@ namespace Opc.Ua.Client
         IUnpooledSessionBuilder<TSessionCreateOptions>,
         IClientHandle, IDisposable
         where TPooledSessionOptions : PooledSessionOptions, new()
-        where TSessionOptions : SessionOptions, new()
+        where TSessionOptions : Sessions.SessionOptions, new()
         where TSessionCreateOptions : SessionCreateOptions, new()
     {
         /// <summary>
@@ -130,9 +130,8 @@ namespace Opc.Ua.Client
     public interface IPooledSessionBuilder<TPooledSessionOptions,
         TSessionOptions>
         where TPooledSessionOptions : PooledSessionOptions, new()
-        where TSessionOptions : SessionOptions, new()
-    {
-        /// <summary>
+        where TSessionOptions : Sessions.SessionOptions, new()
+    {        /// <summary>
         /// Connect the pooled client
         /// </summary>
         /// <param name="ct"></param>
@@ -173,7 +172,7 @@ namespace Opc.Ua.Client
     /// </summary>
     /// <typeparam name="T"></typeparam>
     public interface ISessionCreateOptionsBuilder<T> : ISessionOptionsBuilder<T>
-        where T : SessionOptions, new()
+        where T : Sessions.SessionOptions, new()
     {
         /// <summary>
         /// Add available endpoints that should be validated
@@ -245,7 +244,7 @@ namespace Opc.Ua.Client
     /// </summary>
     /// <typeparam name="T"></typeparam>
     public interface ISessionOptionsBuilder<T>
-        where T : SessionOptions, new()
+        where T : Sessions.SessionOptions, new()
     {
         /// <summary>
         /// Set session name

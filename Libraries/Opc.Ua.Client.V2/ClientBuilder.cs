@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -55,10 +55,10 @@ namespace Opc.Ua.Client
     /// </summary>
     /// <param name="services">A services collection to build a service provider</param>
     public class ClientBuilder(IServiceCollection? services = null) : ClientBuilderBase<
-        PooledSessionOptions, SessionOptions, SessionCreateOptions, ClientOptions>(services)
+        PooledSessionOptions, Sessions.SessionOptions, SessionCreateOptions, ClientOptions>(services)
     {
         /// <inheritdoc/>
-        protected override ISessionBuilder<PooledSessionOptions, SessionOptions,
+        protected override ISessionBuilder<PooledSessionOptions, Sessions.SessionOptions,
             SessionCreateOptions>
             Build(ServiceProvider provider, ApplicationInstance application,
                 string applicationUri, string productUri, ClientOptions options,
@@ -76,10 +76,10 @@ namespace Opc.Ua.Client
         /// <param name="application"></param>
         internal class ClientSessionBuilder(ServiceProvider provider,
             SessionManagerBase application) :
-            SessionBuilderBase<PooledSessionOptions, SessionOptions, SessionCreateOptions,
+            SessionBuilderBase<PooledSessionOptions, Sessions.SessionOptions, SessionCreateOptions,
                 SessionCreateOptionsBuilder<SessionCreateOptions>>(application,
-                new PooledSessionBuilderBase<PooledSessionOptions, SessionOptions,
-                    SessionOptionsBuilderBase<SessionOptions>>(application))
+                new PooledSessionBuilderBase<PooledSessionOptions, Sessions.SessionOptions,
+                    SessionOptionsBuilderBase<Sessions.SessionOptions>>(application))
         {
             /// <inheritdoc/>
             protected override void Dispose(bool disposing)
@@ -153,7 +153,7 @@ namespace Opc.Ua.Client
 
             /// <inheritdoc/>
             protected override IManagedSubscription CreateSubscription(ISubscriptionNotificationHandler handler,
-                IOptionsMonitor<SubscriptionOptions> options, IMessageAckQueue queue,
+                IOptionsMonitor<Subscriptions.SubscriptionOptions> options, IMessageAckQueue queue,
                 ITelemetryContext telemetry)
             {
                 return new ClientSubscription(this, handler, queue, options, telemetry);
@@ -161,11 +161,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        internal sealed class ClientSubscription : Subscription
+        internal sealed class ClientSubscription : Subscriptions.Subscription
         {
             /// <inheritdoc/>
             internal ClientSubscription(ClientSession session, ISubscriptionNotificationHandler handler,
-                IMessageAckQueue completion, IOptionsMonitor<SubscriptionOptions> options,
+                IMessageAckQueue completion, IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
                 ITelemetryContext telemetry) :
                 base(session, handler, completion, options, telemetry) => _session = session;
 
@@ -204,8 +204,8 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            protected override MonitoredItem CreateMonitoredItem(string name,
-                IOptionsMonitor<MonitoredItemOptions> options, IMonitoredItemContext context,
+            protected override Subscriptions.MonitoredItems.MonitoredItem CreateMonitoredItem(string name,
+                IOptionsMonitor<Subscriptions.MonitoredItems.MonitoredItemOptions> options, IMonitoredItemContext context,
                 ITelemetryContext telemetry)
             {
                 return new ClientItem(context, name, options,
@@ -216,11 +216,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        internal sealed class ClientItem : MonitoredItem
+        internal sealed class ClientItem : Subscriptions.MonitoredItems.MonitoredItem
         {
             /// <inheritdoc/>
             internal ClientItem(IMonitoredItemContext context, string name,
-                IOptionsMonitor<MonitoredItemOptions> options, ILogger logger)
+                IOptionsMonitor<Subscriptions.MonitoredItems.MonitoredItemOptions> options, ILogger logger)
                 : base(context, name, options, logger)
             {
             }

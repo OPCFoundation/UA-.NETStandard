@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
             var typeId = NodeId.Parse("i=1021");
             var dataTypeNode = new DataTypeNode { NodeId = typeId };
-            m_nodeCacheMock.Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+            m_nodeCacheMock.Setup(nc => nc.FindAsync(It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
 
             // Act
@@ -156,7 +156,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             Assert.That(result, Is.EqualTo(dataTypeNode));
-            m_nodeCacheMock.Verify(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()), Times.Once);
+            m_nodeCacheMock.Verify(nc => nc.FindAsync(It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]
@@ -171,20 +171,20 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode { NodeId = dataTypeId };
 
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    encodingVariableId,
+                .Setup(nc => nc.FindAsync(
+                    new ExpandedNodeId(encodingVariableId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(variableNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    encodingVariableId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(encodingVariableId),
                     ReferenceTypeIds.HasEncoding,
                     true, false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([dataTypeNode]);
+                .ReturnsAsync((ArrayOf<INode>)[dataTypeNode]);
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    dataTypeId,
+                .Setup(nc => nc.FindAsync(
+                    new ExpandedNodeId(dataTypeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
 
@@ -194,11 +194,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Assert
             Assert.That(result, Is.EqualTo(dataTypeNode));
             m_nodeCacheMock
-                .Verify(nc => nc.GetNodeAsync(
-                    It.IsAny<NodeId>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+                .Verify(nc => nc.FindAsync(
+                    It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
             m_nodeCacheMock
-                .Verify(nc => nc.GetReferencesAsync(
-                    encodingVariableId, ReferenceTypeIds.HasEncoding, true, false,
+                .Verify(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(encodingVariableId), ReferenceTypeIds.HasEncoding, true, false,
                     It.IsAny<CancellationToken>()), Times.Once);
         }
 
@@ -214,18 +214,18 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode { NodeId = dataTypeId };
 
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(variableNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(dataTypeId, It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(new ExpandedNodeId(dataTypeId), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     true, false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([]);
+                .ReturnsAsync(ArrayOf<INode>.Empty);
 
             // Act
             var result = await sut.GetDataTypeAsync(typeId, CancellationToken.None);
@@ -233,8 +233,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Assert
             Assert.That(result, Is.EqualTo(dataTypeNode));
             m_nodeCacheMock
-                .Verify(nc => nc.GetNodeAsync(
-                    It.IsAny<NodeId>(),
+                .Verify(nc => nc.FindAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     It.IsAny<CancellationToken>()),
                     Times.Exactly(2));
         }
@@ -251,18 +251,18 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode { NodeId = dataTypeId };
 
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(variableTypeNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(dataTypeId, It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(new ExpandedNodeId(dataTypeId), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     true, false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Never);
 
             // Act
@@ -271,8 +271,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Assert
             Assert.That(result, Is.EqualTo(dataTypeNode));
             m_nodeCacheMock
-                .Verify(nc => nc.GetNodeAsync(
-                    It.IsAny<NodeId>(),
+                .Verify(nc => nc.FindAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     It.IsAny<CancellationToken>()),
                     Times.Exactly(2));
             m_nodeCacheMock.Verify();
@@ -288,7 +288,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var node = new Node { NodeId = typeId };
 
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(node);
 
             // Act
@@ -297,8 +297,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Assert
             Assert.That(result, Is.Null);
             m_nodeCacheMock
-                .Verify(nc => nc.GetNodeAsync(
-                    It.IsAny<NodeId>(),
+                .Verify(nc => nc.FindAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     It.IsAny<CancellationToken>()),
                     Times.Once);
         }
@@ -360,17 +360,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             };
 
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ]);
@@ -381,8 +380,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Assert
             Assert.That(result, Is.Not.Null);
             m_nodeCacheMock
-                .Verify(nc => nc.GetNodeAsync(
-                    It.IsAny<NodeId>(),
+                .Verify(nc => nc.FindAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     It.IsAny<CancellationToken>()),
                     Times.Once);
         }
@@ -405,15 +404,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
 
-            m_nodeCacheMock.Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+            m_nodeCacheMock.Setup(nc => nc.FindAsync(It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
-            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+            m_nodeCacheMock.Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     It.IsAny<NodeId>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([]);
+                .ReturnsAsync(ArrayOf<INode>.Empty);
 
             // Act
             var result = await sut.GetDataTypeDescriptionAsync(typeId, CancellationToken.None);
@@ -421,9 +420,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.AssignableFrom<StructureDescription>());
-            m_nodeCacheMock.Verify(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()), Times.Once);
-            m_nodeCacheMock.Verify(nc => nc.GetReferencesAsync(
-                It.IsAny<NodeId>(),
+            m_nodeCacheMock.Verify(nc => nc.FindAsync(It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()), Times.Once);
+            m_nodeCacheMock.Verify(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                 It.IsAny<NodeId>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>(),
@@ -547,17 +546,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var xmlEncodingId = NodeId.Parse("i=1018");
 
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ]);
@@ -567,7 +565,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            m_nodeCacheMock.Verify(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()), Times.Once);
+            m_nodeCacheMock.Verify(nc => nc.FindAsync(It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]
@@ -614,17 +612,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             };
 
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ]);
@@ -635,8 +632,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Assert
             Assert.That(result, Is.Not.Null);
             m_nodeCacheMock
-                .Verify(nc => nc.GetNodeAsync(
-                    It.IsAny<NodeId>(),
+                .Verify(nc => nc.FindAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     It.IsAny<CancellationToken>()),
                     Times.Once);
         }
@@ -771,22 +768,22 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
             m_nodeCacheMock
-                .SetupSequence(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .SetupSequence(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([dataTypeNode]))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([dataTypeNode]))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([]));
-            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .ReturnsAsync((ArrayOf<INode>)[dataTypeNode])
+                .ReturnsAsync((ArrayOf<INode>)[dataTypeNode])
+                .ReturnsAsync(ArrayOf<INode>.Empty);
+            m_nodeCacheMock.Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
 
             // Act
@@ -819,22 +816,22 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(badDefinition)
             };
             m_nodeCacheMock
-                .SetupSequence(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .SetupSequence(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([dataTypeNode]))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([]));
+                .ReturnsAsync((ArrayOf<INode>)[dataTypeNode])
+                .ReturnsAsync(ArrayOf<INode>.Empty);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
 
             // Act
@@ -856,15 +853,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             m_contextMock.Setup(c => c.Factory).Returns(EncodeableFactory.Create()); // Could just mock GetSystemType
             var dataTypeNode = new DataTypeNode { NodeId = DataTypeIds.ReadAnnotationDataDetails };
             m_nodeCacheMock
-                .SetupSequence(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .SetupSequence(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([dataTypeNode]))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([dataTypeNode]))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([]));
+                .ReturnsAsync((ArrayOf<INode>)[dataTypeNode])
+                .ReturnsAsync((ArrayOf<INode>)[dataTypeNode])
+                .ReturnsAsync(ArrayOf<INode>.Empty);
 
             // Act
             var result = await sut.PreloadAllDataTypeAsync(CancellationToken.None);
@@ -907,23 +904,22 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var jsonEncodingId = NodeId.Parse("i=1019");
 
             m_nodeCacheMock
-                .SetupSequence(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .SetupSequence(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([dataTypeNode1, dataTypeNode2])
-                .ReturnsAsync([]);
+                .ReturnsAsync((ArrayOf<INode>)[dataTypeNode1, dataTypeNode2])
+                .ReturnsAsync(ArrayOf<INode>.Empty);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultJson), NodeId = jsonEncodingId }
                 ]);
@@ -934,9 +930,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Assert
             Assert.That(result, Is.True);
             m_nodeCacheMock
-                .Verify(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Verify(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     false,
                     It.IsAny<CancellationToken>()),
@@ -970,25 +966,24 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             };
 
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(new ExpandedNodeId(typeId), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    new NodeId[] { typeId },
-                    new NodeId[] { ReferenceTypeIds.HasSubtype },
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([]);
+                .ReturnsAsync(ArrayOf<INode>.Empty);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultJson), NodeId = jsonEncodingId },
@@ -1008,14 +1003,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Assert.That(description.XmlEncodingId, Is.EqualTo(xmlEncodingId));
 
             m_nodeCacheMock
-                .Verify(nc => nc.GetNodeAsync(
-                    typeId,
+                .Verify(nc => nc.FindAsync(
+                    new ExpandedNodeId(typeId),
                     It.IsAny<CancellationToken>()),
                     Times.Once);
             m_nodeCacheMock
-                .Verify(nc => nc.GetReferencesAsync(
-                    new NodeId[] { typeId },
-                    new NodeId[] { ReferenceTypeIds.HasSubtype },
+                .Verify(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     false,
                     It.IsAny<CancellationToken>()),
@@ -1039,25 +1034,24 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(enumDefinition)
             };
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(new ExpandedNodeId(typeId), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
-                    new NodeId[] { typeId },
-                    new NodeId[] { ReferenceTypeIds.HasSubtype },
+            m_nodeCacheMock.Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
-            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+            m_nodeCacheMock.Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultJson), NodeId = jsonEncodingId }
                 ])
@@ -1102,24 +1096,24 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(new ExpandedNodeId(typeId), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
-            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
-                    new NodeId[] { typeId },
-                    new NodeId[] { ReferenceTypeIds.HasSubtype },
+            m_nodeCacheMock.Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
-            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+            m_nodeCacheMock.Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
 
             // Act
@@ -1165,25 +1159,25 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(subTypeStructureDefinition)
             };
 
-            m_nodeCacheMock.Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
+            m_nodeCacheMock.Setup(nc => nc.FindAsync(new ExpandedNodeId(typeId), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
-            m_nodeCacheMock.Setup(nc => nc.GetNodeAsync(subTypeId, It.IsAny<CancellationToken>()))
+            m_nodeCacheMock.Setup(nc => nc.FindAsync(new ExpandedNodeId(subTypeId), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(subTypeNode);
-            m_nodeCacheMock.SetupSequence(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    new NodeId[] { ReferenceTypeIds.HasSubtype },
+            m_nodeCacheMock.SetupSequence(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([subTypeNode])
-                .ReturnsAsync([]);
-            m_nodeCacheMock.Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .ReturnsAsync((ArrayOf<INode>)[subTypeNode])
+                .ReturnsAsync(ArrayOf<INode>.Empty);
+            m_nodeCacheMock.Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([]);
+                .ReturnsAsync(ArrayOf<INode>.Empty);
 
             // Act
             await sut.PreloadDataTypeAsync(typeId, true, CancellationToken.None);
@@ -1206,7 +1200,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 BrowseName = new QualifiedName("AlreadyKnown")
             };
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(new ExpandedNodeId(typeId), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
             m_factoryMock.Setup(f => f.GetSystemType(typeId)).Returns(typeof(StructureValue));
@@ -1244,16 +1238,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             };
 
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
+                .Setup(nc => nc.FindAsync(new ExpandedNodeId(typeId), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
 
             // Act
@@ -1261,13 +1255,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             m_nodeCacheMock
-                .Verify(nc => nc.GetNodeAsync(
-                    typeId,
+                .Verify(nc => nc.FindAsync(
+                    new ExpandedNodeId(typeId),
                     It.IsAny<CancellationToken>()), Times.Once);
             m_nodeCacheMock
-                .Verify(nc => nc.GetReferencesAsync(
-                    new NodeId[] { typeId },
-                    new NodeId[] { ReferenceTypeIds.HasSubtype },
+                .Verify(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     false,
                     It.IsAny<CancellationToken>()), Times.Never);
@@ -1321,27 +1315,27 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             };
 
             m_nodeCacheMock
-                .SetupSequence(nc => nc.GetNodeAsync(
-                    It.IsAny<NodeId>(),
+                .SetupSequence(nc => nc.FindAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(variable)
                 .ReturnsAsync(dataTypeNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     true,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([]);
+                .ReturnsAsync(ArrayOf<INode>.Empty);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([]);
+                .ReturnsAsync(ArrayOf<INode>.Empty);
 
             // Act
             await sut.PreloadDataTypeAsync(typeId, false, CancellationToken.None);
@@ -1374,28 +1368,28 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataType = typeId
             };
             m_nodeCacheMock
-                .SetupSequence(nc => nc.GetNodeAsync(
-                    It.IsAny<NodeId>(),
+                .SetupSequence(nc => nc.FindAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(variable)
                 .ReturnsAsync(dataTypeNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     true,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
 
             // Act
@@ -1443,33 +1437,32 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var xmlEncodingId = NodeId.Parse("i=1018");
 
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    It.Is<NodeId>(id => id == typeId),
+                .Setup(nc => nc.FindAsync(
+                    It.Is<ExpandedNodeId>(id => id == new ExpandedNodeId(typeId)),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode);
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    subTypeId,
+                .Setup(nc => nc.FindAsync(
+                    new ExpandedNodeId(subTypeId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(subTypeNode);
             m_nodeCacheMock
-                .SetupSequence(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .SetupSequence(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([subTypeNode])
-                .ReturnsAsync([]);
+                .ReturnsAsync((ArrayOf<INode>)[subTypeNode])
+                .ReturnsAsync(ArrayOf<INode>.Empty);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ]);
@@ -1479,9 +1472,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             m_nodeCacheMock
-                .Verify(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Verify(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     false,
                     It.IsAny<CancellationToken>()),
@@ -1528,38 +1521,37 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var xmlEncodingId = NodeId.Parse("i=1018");
 
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    It.Is<NodeId>(id => id == typeId),
+                .Setup(nc => nc.FindAsync(
+                    It.Is<ExpandedNodeId>(id => id == new ExpandedNodeId(typeId)),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Exactly(5));
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.Is<IReadOnlyList<NodeId>>(i => i.Count == 1 && i.Contains(typeId)),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.Is<ArrayOf<ExpandedNodeId>>(i => i.Count == 1),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([subTypeNode])
+                .ReturnsAsync((ArrayOf<INode>)[subTypeNode])
                 .Verifiable(Times.Exactly(4));
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.Is<IReadOnlyList<NodeId>>(i => !i.Contains(typeId)),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.Is<ArrayOf<ExpandedNodeId>>(i => !i.Contains(new ExpandedNodeId(typeId))),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Exactly(4));
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<NodeId>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ExpandedNodeId>(),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ]);
@@ -1590,28 +1582,28 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 DataTypeDefinition = new ExtensionObject(badDefinition)
             };
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    It.Is<NodeId>(id => id == typeId),
+                .Setup(nc => nc.FindAsync(
+                    It.Is<ExpandedNodeId>(id => id == new ExpandedNodeId(typeId)),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([]))
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
 
             // Act
@@ -1641,29 +1633,28 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    It.Is<NodeId>(id => id == typeId),
+                .Setup(nc => nc.FindAsync(
+                    It.Is<ExpandedNodeId>(id => id == new ExpandedNodeId(typeId)),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([]))
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
@@ -1719,29 +1710,28 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    It.Is<NodeId>(id => id == typeId),
+                .Setup(nc => nc.FindAsync(
+                    It.Is<ExpandedNodeId>(id => id == new ExpandedNodeId(typeId)),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([]))
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
@@ -1796,29 +1786,28 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    It.Is<NodeId>(id => id == typeId),
+                .Setup(nc => nc.FindAsync(
+                    It.Is<ExpandedNodeId>(id => id == new ExpandedNodeId(typeId)),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([]))
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
@@ -1874,29 +1863,28 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    It.Is<NodeId>(id => id == typeId),
+                .Setup(nc => nc.FindAsync(
+                    It.Is<ExpandedNodeId>(id => id == new ExpandedNodeId(typeId)),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([]))
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
@@ -1952,29 +1940,28 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    It.Is<NodeId>(id => id == typeId),
+                .Setup(nc => nc.FindAsync(
+                    It.Is<ExpandedNodeId>(id => id == new ExpandedNodeId(typeId)),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([]))
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
@@ -2029,29 +2016,28 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    It.Is<NodeId>(id => id == typeId),
+                .Setup(nc => nc.FindAsync(
+                    It.Is<ExpandedNodeId>(id => id == new ExpandedNodeId(typeId)),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([]))
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
@@ -2105,29 +2091,28 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var xmlDefinition = new EnumDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    It.Is<NodeId>(id => id == typeId),
+                .Setup(nc => nc.FindAsync(
+                    It.Is<ExpandedNodeId>(id => id == new ExpandedNodeId(typeId)),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([]))
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId }
                 ])
                 .Verifiable(Times.Once);
@@ -2177,29 +2162,28 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
             m_nodeCacheMock
-                .Setup(nc => nc.GetNodeAsync(
-                    It.Is<NodeId>(id => id == typeId),
+                .Setup(nc => nc.FindAsync(
+                    It.Is<ExpandedNodeId>(id => id == new ExpandedNodeId(typeId)),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dataTypeNode)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                .Setup(nc => nc.FindReferencesAsync(
+                    It.IsAny<ArrayOf<ExpandedNodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     It.IsAny<bool>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IReadOnlyList<INode>>([]))
+                .ReturnsAsync(ArrayOf<INode>.Empty)
                 .Verifiable(Times.Once);
             m_nodeCacheMock
-                .Setup(nc => nc.GetReferencesAsync(
-                    typeId,
+                .Setup(nc => nc.FindReferencesAsync(
+                    new ExpandedNodeId(typeId),
                     ReferenceTypeIds.HasEncoding,
                     false,
                     false,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                [
+                .ReturnsAsync((ArrayOf<INode>)                [
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])

@@ -2447,7 +2447,7 @@ namespace Opc.Ua.Client.Sessions
             }
 
             protected override IManagedSubscription CreateSubscription(ISubscriptionNotificationHandler handler,
-                IOptionsMonitor<SubscriptionOptions> m_options, IMessageAckQueue queue,
+                IOptionsMonitor<Subscriptions.SubscriptionOptions> m_options, IMessageAckQueue queue,
                 ITelemetryContext telemetry)
             {
                 throw new NotImplementedException();

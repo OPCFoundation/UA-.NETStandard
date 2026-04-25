@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -15,7 +15,7 @@ namespace Opc.Ua.Client
         TSessionOptions, TSessionCreateOptions, TClientOptions> :
         IDependencyInjectionBuilder
         where TPooledSessionOptions : PooledSessionOptions, new()
-        where TSessionOptions : SessionOptions, new()
+        where TSessionOptions : Sessions.SessionOptions, new()
         where TSessionCreateOptions : SessionCreateOptions, new()
         where TClientOptions : ClientOptions, new()
     {
@@ -42,7 +42,7 @@ namespace Opc.Ua.Client
         TSessionOptions, TSessionCreateOptions, TClientOptions> :
         IDependencyInjectionBuilder
         where TPooledSessionOptions : PooledSessionOptions, new()
-        where TSessionOptions : SessionOptions, new()
+        where TSessionOptions : Sessions.SessionOptions, new()
         where TSessionCreateOptions : SessionCreateOptions, new()
         where TClientOptions : ClientOptions, new()
     {
@@ -61,7 +61,7 @@ namespace Opc.Ua.Client
         TSessionOptions, TSessionCreateOptions, TClientOptions> :
         IDependencyInjectionBuilder
         where TPooledSessionOptions : PooledSessionOptions, new()
-        where TSessionOptions : SessionOptions, new()
+        where TSessionOptions : Sessions.SessionOptions, new()
         where TSessionCreateOptions : SessionCreateOptions, new()
         where TClientOptions : ClientOptions, new()
     {
@@ -80,7 +80,7 @@ namespace Opc.Ua.Client
         TSessionOptions, TSessionCreateOptions, TClientOptions> :
         IDependencyInjectionBuilder
         where TPooledSessionOptions : PooledSessionOptions, new()
-        where TSessionOptions : SessionOptions, new()
+        where TSessionOptions : Sessions.SessionOptions, new()
         where TSessionCreateOptions : SessionCreateOptions, new()
         where TClientOptions : ClientOptions, new()
     {
@@ -99,7 +99,7 @@ namespace Opc.Ua.Client
         TSessionOptions, TSessionCreateOptions, TClientOptions> :
         IDependencyInjectionBuilder
         where TPooledSessionOptions : PooledSessionOptions, new()
-        where TSessionOptions : SessionOptions, new()
+        where TSessionOptions : Sessions.SessionOptions, new()
         where TSessionCreateOptions : SessionCreateOptions, new()
         where TClientOptions : ClientOptions, new()
     {

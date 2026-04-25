@@ -45,7 +45,7 @@ namespace Opc.Ua.Client.V2.Tests
     [Category("V2SubscriptionEngine")]
     public class V2SubscriptionEngineTests
     {
-        private Mock<ITelemetryContext> m_mockTelemetry;
+        private Mock<Opc.Ua.ITelemetryContext> m_mockTelemetry;
         private Mock<ILoggerFactory> m_mockLoggerFactory;
         private Mock<ISubscriptionEngineContext> m_mockContext;
 
@@ -57,7 +57,7 @@ namespace Opc.Ua.Client.V2.Tests
                 .Setup(f => f.CreateLogger(It.IsAny<string>()))
                 .Returns(new Mock<ILogger>().Object);
 
-            m_mockTelemetry = new Mock<ITelemetryContext>();
+            m_mockTelemetry = new Mock<Opc.Ua.ITelemetryContext>();
             m_mockTelemetry
                 .Setup(t => t.LoggerFactory)
                 .Returns(m_mockLoggerFactory.Object);

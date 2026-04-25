@@ -26,7 +26,7 @@ namespace Opc.Ua.Client
         ISessionBuilder<TPooledSessionOptions, TSessionOptions, TSessionCreateOptions>,
         IOptionsBuilder<EndpointDescription>
         where TPooledSessionOptions : PooledSessionOptions, new()
-        where TSessionOptions : SessionOptions, new()
+        where TSessionOptions : Sessions.SessionOptions, new()
         where TSessionCreateOptions : SessionCreateOptions, new()
         where TOptionsBuilder : ISessionCreateOptionsBuilder<TSessionCreateOptions>, new()
     {
@@ -155,7 +155,7 @@ namespace Opc.Ua.Client
         IPooledSessionBuilder<TPooledSessionOptions, TSessionOptions>,
         IOptionsBuilder<TPooledSessionOptions>
         where TPooledSessionOptions : PooledSessionOptions, new()
-        where TSessionOptions : SessionOptions, new()
+        where TSessionOptions : Sessions.SessionOptions, new()
         where TBuilder : ISessionOptionsBuilder<TSessionOptions>, new()
     {
         /// <inheritdoc/>

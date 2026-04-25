@@ -17,7 +17,6 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="BitFaster.Caching" />
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
@@ -29,13 +28,7 @@
     <PackageReference Include="System.Threading.Channels" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="..\Opc.Ua.Client\Subscription\Engine\ISubscriptionEngine.cs" Link="Subscriptions\Engine\ISubscriptionEngine.cs" />
-    <Compile Include="..\Opc.Ua.Client\Subscription\Engine\ISubscriptionEngineContext.cs" Link="Subscriptions\Engine\ISubscriptionEngineContext.cs" />
-    <Compile Include="..\Opc.Ua.Client\Subscription\Engine\ISubscriptionEngineFactory.cs" Link="Subscriptions\Engine\ISubscriptionEngineFactory.cs" />
+    <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

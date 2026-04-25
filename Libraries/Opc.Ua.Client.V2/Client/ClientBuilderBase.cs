@@ -40,7 +40,7 @@ namespace Opc.Ua.Client
             TSessionCreateOptions, TClientOptions>,
         IOptionsBuilder<TClientOptions>
         where TPooledSessionOptions : PooledSessionOptions, new()
-        where TSessionOptions : SessionOptions, new()
+        where TSessionOptions : Sessions.SessionOptions, new()
         where TSessionCreateOptions : SessionCreateOptions, new()
         where TClientOptions : ClientOptions, new()
     {

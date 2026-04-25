@@ -140,7 +140,7 @@ namespace Opc.Ua.Client.Sessions
         /// <summary>
         /// Server uris
         /// </summary>
-        internal StringTable ServerUris => MessageContext.ServerUris;
+        public StringTable ServerUris => MessageContext.ServerUris;
 
         /// <summary>
         /// Number of namespace table changes
@@ -191,7 +191,7 @@ namespace Opc.Ua.Client.Sessions
             SessionTimeout = GetSessionTimeout(Options);
             _clientCertificate = Options.ClientCertificate;
 
-            _nodeCache = new NodeCache(this);
+            _nodeCache = new NodeCache(this, new StackTelemetryAdapter(Observability));
             var messageContext =
                 Options.Channel?.MessageContext as ServiceMessageContext
                     ?? configuration.CreateMessageContext(_typeSystem);
@@ -601,7 +601,7 @@ namespace Opc.Ua.Client.Sessions
 
         /// <inheritdoc/>
         public IManagedSubscription CreateSubscription(ISubscriptionNotificationHandler handler,
-            IOptionsMonitor<SubscriptionOptions> options, IMessageAckQueue queue)
+            IOptionsMonitor<Subscriptions.SubscriptionOptions> options, IMessageAckQueue queue)
         {
             return CreateSubscription(handler, options, queue, Observability);
         }
@@ -1078,7 +1078,7 @@ namespace Opc.Ua.Client.Sessions
         /// <param name="telemetry"></param>
         /// <returns></returns>
         protected abstract IManagedSubscription CreateSubscription(
-            ISubscriptionNotificationHandler handler, IOptionsMonitor<SubscriptionOptions> options,
+            ISubscriptionNotificationHandler handler, IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
             IMessageAckQueue queue, ITelemetryContext telemetry);
 
         /// <summary>
@@ -2548,5 +2548,84 @@ namespace Opc.Ua.Client.Sessions
         private static readonly TimeSpan kKeepAliveGuardBand = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan kReconnectTimeout = TimeSpan.FromSeconds(15);
         private readonly DataTypeDescriptionResolver _typeSystem;
+
+        #region INodeCacheContext explicit implementations
+
+        /// <inheritdoc/>
+        async ValueTask<global::Opc.Ua.ResultSet<Node>> INodeCacheContext.FetchNodesAsync(
+            RequestHeader? requestHeader, ArrayOf<NodeId> nodeIds,
+            bool skipOptionalAttributes, CancellationToken ct)
+        {
+            var result = await FetchNodesAsync(requestHeader, nodeIds.ToList(), ct)
+                .ConfigureAwait(false);
+            return new global::Opc.Ua.ResultSet<Node>(
+                result.Results.ToArray(),
+                result.Errors.ToArray());
+        }
+
+        /// <inheritdoc/>
+        async ValueTask<global::Opc.Ua.ResultSet<Node>> INodeCacheContext.FetchNodesAsync(
+            RequestHeader? requestHeader, ArrayOf<NodeId> nodeIds,
+            NodeClass nodeClass, bool skipOptionalAttributes, CancellationToken ct)
+        {
+            var result = await FetchNodesAsync(requestHeader, nodeIds.ToList(), ct)
+                .ConfigureAwait(false);
+            return new global::Opc.Ua.ResultSet<Node>(
+                result.Results.ToArray(),
+                result.Errors.ToArray());
+        }
+
+        /// <inheritdoc/>
+        ValueTask<Node> INodeCacheContext.FetchNodeAsync(
+            RequestHeader? requestHeader, NodeId nodeId,
+            NodeClass nodeClass, bool skipOptionalAttributes, CancellationToken ct)
+        {
+            return FetchNodeAsync(requestHeader, nodeId, ct);
+        }
+
+        /// <inheritdoc/>
+        async ValueTask<global::Opc.Ua.ResultSet<ArrayOf<ReferenceDescription>>>
+            INodeCacheContext.FetchReferencesAsync(
+            RequestHeader? requestHeader, ArrayOf<NodeId> nodeIds, CancellationToken ct)
+        {
+            var result = await FetchReferencesAsync(requestHeader, nodeIds.ToList(), ct)
+                .ConfigureAwait(false);
+            return new global::Opc.Ua.ResultSet<ArrayOf<ReferenceDescription>>(
+                result.Results.ToArray(),
+                result.Errors.ToArray());
+        }
+
+        /// <inheritdoc/>
+        async ValueTask<global::Opc.Ua.ResultSet<DataValue>> INodeCacheContext.FetchValuesAsync(
+            RequestHeader? requestHeader, ArrayOf<NodeId> nodeIds, CancellationToken ct)
+        {
+            var result = await FetchValuesAsync(requestHeader, nodeIds.ToList(), ct)
+                .ConfigureAwait(false);
+            return new global::Opc.Ua.ResultSet<DataValue>(
+                result.Results.ToArray(),
+                result.Errors.ToArray());
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Adapts <see cref="ITelemetryContext"/> to <see cref="Opc.Ua.ITelemetryContext"/>
+        /// for use with V1 components that require the stack telemetry interface.
+        /// </summary>
+        private sealed class StackTelemetryAdapter(ITelemetryContext telemetry) : Opc.Ua.ITelemetryContext
+        {
+            /// <inheritdoc/>
+            public ILoggerFactory LoggerFactory => telemetry.LoggerFactory;
+
+            /// <inheritdoc/>
+            public Meter CreateMeter()
+            {
+                return telemetry.MeterFactory.Create(nameof(SessionBase));
+            }
+
+            /// <inheritdoc/>
+            public ActivitySource ActivitySource
+                => telemetry.ActivitySource ?? new ActivitySource(nameof(SessionBase));
+        }
     }
 }

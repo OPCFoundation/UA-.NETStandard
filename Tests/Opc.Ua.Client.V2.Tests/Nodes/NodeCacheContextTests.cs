@@ -1228,7 +1228,7 @@ namespace Opc.Ua.Client.Nodes
         {
             public TestCacheContext(ApplicationConfiguration configuration,
                 ConfiguredEndpoint endpoint, SessionCreateOptions m_options,
-                ITelemetryContext telemetry, ReverseConnectManager? reverseConnect)
+                ITelemetryContext telemetry, Sessions.ReverseConnectManager? reverseConnect)
                 : base(configuration, endpoint, m_options, telemetry, reverseConnect)
             {
                 if (m_options.Channel != null)
@@ -1238,7 +1238,7 @@ namespace Opc.Ua.Client.Nodes
             }
 
             protected override IManagedSubscription CreateSubscription(ISubscriptionNotificationHandler handler,
-                IOptionsMonitor<SubscriptionOptions> m_options, IMessageAckQueue queue,
+                IOptionsMonitor<Subscriptions.SubscriptionOptions> m_options, IMessageAckQueue queue,
                 ITelemetryContext telemetry)
             {
                 throw new NotImplementedException();

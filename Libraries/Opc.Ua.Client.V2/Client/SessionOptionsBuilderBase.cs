@@ -17,7 +17,7 @@ namespace Opc.Ua.Client
     /// <typeparam name="T"></typeparam>
     public class SessionOptionsBuilderBase<T> : ISessionOptionsBuilder<T>,
         IOptionsBuilder<T>
-        where T : SessionOptions, new()
+        where T : Sessions.SessionOptions, new()
     {
         /// <inheritdoc/>
         public T Options { get; set; } = new();
