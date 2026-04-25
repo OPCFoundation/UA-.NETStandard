@@ -834,7 +834,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     foreach (Certificate cert in mqttTlsOptions.Certificates.X509Certificates)
                     {
-                        x509Certificate2s.Add(cert.X509);
+                        x509Certificate2s.Add(cert.AsX509Certificate2());
                     }
                 }
 

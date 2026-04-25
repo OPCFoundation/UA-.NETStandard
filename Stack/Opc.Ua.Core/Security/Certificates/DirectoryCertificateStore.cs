@@ -1279,7 +1279,7 @@ namespace Opc.Ua
         private static string GetFileName(Certificate certificate)
         {
             // build file name.
-            string commonName = certificate.X509.FriendlyName;
+            string commonName = certificate.FriendlyName;
 
             List<string> names = X509Utils.ParseDistinguishedName(certificate.Subject);
 

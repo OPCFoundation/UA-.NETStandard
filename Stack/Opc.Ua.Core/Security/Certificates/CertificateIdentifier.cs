@@ -340,9 +340,9 @@ namespace Opc.Ua
         /// </returns>
         private static string GetDisplayName(Certificate certificate)
         {
-            if (!string.IsNullOrEmpty(certificate.X509.FriendlyName))
+            if (!string.IsNullOrEmpty(certificate.FriendlyName))
             {
-                return certificate.X509.FriendlyName;
+                return certificate.FriendlyName;
             }
 
             string name = certificate.Subject;

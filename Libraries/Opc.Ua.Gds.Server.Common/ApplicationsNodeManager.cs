@@ -870,7 +870,8 @@ namespace Opc.Ua.Gds.Server
                 }
 
                 using Certificate x509 = CertificateFactory.Create(certificate);
-                if (chain.Build(x509.X509))
+                using X509Certificate2 x509Cert = x509.AsX509Certificate2();
+                if (chain.Build(x509Cert))
                 {
                     result.CertificateStatus = StatusCodes.Good;
                     return result;

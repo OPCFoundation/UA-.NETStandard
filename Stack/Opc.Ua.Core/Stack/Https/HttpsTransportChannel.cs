@@ -419,7 +419,7 @@ namespace Opc.Ua.Bindings
                             m_logger.LogError(ce, "Copy of the private key for https was denied");
                         }
 #endif
-                        handler.ClientCertificates.Add(clientCertificate.X509);
+                        handler.ClientCertificates.Add(clientCertificate.AsX509Certificate2());
                         ClientChannelCertificate = clientCertificate.RawData;
                     }
 

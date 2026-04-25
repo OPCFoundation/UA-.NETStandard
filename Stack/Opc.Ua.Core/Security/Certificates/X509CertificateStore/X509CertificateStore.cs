@@ -159,25 +159,29 @@ namespace Opc.Ua
             using (var store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadWrite);
-                if (!store.Certificates.Contains(certificate.X509))
+                using X509Certificate2 x509ForCheck = X509CertificateLoader.LoadCertificate(certificate.RawData);
+                if (!store.Certificates.Contains(x509ForCheck))
                 {
                     if (certificate.HasPrivateKey && !NoPrivateKeys)
                     {
-                        // X509Store needs a persisted private key
-                        Certificate persistedCertificate = X509Utils.CreateCopyWithPrivateKey(
-                            certificate,
-                            true);
-                        store.Add(persistedCertificate.X509);
+                        // X509Store needs a persisted private key — export from
+                        // the original (exportable) cert, reimport with PersistKeySet
+                        byte[] pfx = certificate.Export(X509ContentType.Pfx);
+                        using X509Certificate2 persistedX509 = X509CertificateLoader.LoadPkcs12(
+                            pfx,
+                            (string)null,
+                            X509KeyStorageFlags.PersistKeySet);
+                        store.Add(persistedX509);
                     }
                     else if (certificate.HasPrivateKey && NoPrivateKeys)
                     {
                         // ensure no private key is added to store
-                        using Certificate publicKey = CertificateFactory.Create(certificate.RawData);
-                        store.Add(publicKey.X509);
+                        using X509Certificate2 publicX509 = X509CertificateLoader.LoadCertificate(certificate.RawData);
+                        store.Add(publicX509);
                     }
                     else
                     {
-                        store.Add(certificate.X509);
+                        store.Add(x509ForCheck);
                     }
 
                     m_logger.LogInformation(

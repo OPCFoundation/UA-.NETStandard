@@ -689,7 +689,8 @@ namespace Opc.Ua
             try
             {
                 var signature = new X509Signature(cert.RawData);
-                return signature.Verify(cert.X509);
+                using X509Certificate2 x509 = cert.AsX509Certificate2();
+                return signature.Verify(x509);
             }
             catch
             {

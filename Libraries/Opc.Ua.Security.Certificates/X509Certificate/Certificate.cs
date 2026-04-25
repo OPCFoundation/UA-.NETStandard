@@ -269,6 +269,11 @@ namespace Opc.Ua.Security.Certificates
         public string Issuer => X509.Issuer;
 
         /// <summary>
+        /// The friendly name of the certificate (Windows only, may be empty).
+        /// </summary>
+        public string FriendlyName => X509.FriendlyName;
+
+        /// <summary>
         /// The OID of the signature algorithm used to sign the certificate.
         /// </summary>
         public Oid SignatureAlgorithm => X509.SignatureAlgorithm;

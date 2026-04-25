@@ -1338,6 +1338,7 @@ namespace Opc.Ua
                 UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1)
             };
 
+            var extraStoreCerts = new List<X509Certificate2>();
             foreach (CertificateIdentifier issuer in issuers)
             {
                 if ((issuer.ValidationOptions &
@@ -1353,7 +1354,8 @@ namespace Opc.Ua
 
                 // we did the revocation check in the GetIssuers call. No need here.
                 policy.RevocationMode = X509RevocationMode.NoCheck;
-                policy.ExtraStore.Add(issuer.Certificate.X509);
+                extraStoreCerts.Add(issuer.Certificate.AsX509Certificate2());
+                policy.ExtraStore.Add(extraStoreCerts[^1]);
             }
 
             // build chain.
@@ -1361,7 +1363,8 @@ namespace Opc.Ua
             using (var chain = new X509Chain())
             {
                 chain.ChainPolicy = policy;
-                chain.Build(certificate.X509);
+                using X509Certificate2 certX509 = certificate.AsX509Certificate2();
+                chain.Build(certX509);
 
                 // check the chain results.
                 CertificateIdentifier target = trustedCertificate ??
@@ -1468,6 +1471,11 @@ namespace Opc.Ua
                         target = issuer;
                     }
                 }
+            }
+
+            foreach (X509Certificate2 extraCert in extraStoreCerts)
+            {
+                extraCert.Dispose();
             }
 
             // check whether the chain is complete (if there is a chain)

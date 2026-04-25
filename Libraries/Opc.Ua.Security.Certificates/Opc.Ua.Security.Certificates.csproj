@@ -12,18 +12,6 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.Core" />
-    <InternalsVisibleTo Include="Opc.Ua.Client" />
-    <InternalsVisibleTo Include="Opc.Ua.Server" />
-    <InternalsVisibleTo Include="Opc.Ua.Configuration" />
-    <InternalsVisibleTo Include="Opc.Ua.Gds.Server.Common" />
-    <InternalsVisibleTo Include="Opc.Ua.Gds.Client.Common" />
-    <InternalsVisibleTo Include="Opc.Ua.PubSub" />
-    <InternalsVisibleTo Include="Opc.Ua.Client.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.Configuration.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.Gds.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Collections.Immutable" />
