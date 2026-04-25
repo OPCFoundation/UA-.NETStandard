@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/mcp-server.json",
+  "name": "opcua-mcp",
+  "displayName": "OPC UA MCP Server",
+  "description": "Exposes all OPC UA Part 4 service calls as MCP tools, enabling AI assistants to connect to OPC UA servers, browse address spaces, read/write values, call methods, manage subscriptions, and more.",
+  "version": "1.0.0",
+  "publisher": "OPC Foundation",
+  "license": "MIT",
+  "homepage": "https://github.com/OPCFoundation/UA-.NETStandard",
+  "capabilities": {
+    "tools": true,
+    "resources": false,
+    "prompts": false
+  }
+}
