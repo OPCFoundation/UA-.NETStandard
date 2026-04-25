@@ -33,6 +33,7 @@ using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Globalization;
+using System.Threading;
 #if DEBUG
 using System.Runtime.CompilerServices;
 #endif
@@ -63,6 +64,7 @@ namespace Opc.Ua.Security.Certificates
         public Certificate(byte[] rawData)
         {
             X509 = X509CertificateLoader.LoadCertificate(rawData);
+            Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
 #endif
@@ -76,6 +78,7 @@ namespace Opc.Ua.Security.Certificates
         public Certificate(ReadOnlySpan<byte> rawData)
         {
             X509 = X509CertificateLoader.LoadCertificate(rawData);
+            Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
 #endif
@@ -91,6 +94,7 @@ namespace Opc.Ua.Security.Certificates
         public Certificate(string fileName)
         {
             X509 = X509CertificateLoader.LoadCertificateFromFile(fileName);
+            Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
 #endif
@@ -111,6 +115,7 @@ namespace Opc.Ua.Security.Certificates
         {
             X509 = X509CertificateLoader.LoadPkcs12(
                 rawData, password, keyStorageFlags);
+            Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
 #endif
@@ -131,6 +136,7 @@ namespace Opc.Ua.Security.Certificates
         {
             X509 = X509CertificateLoader.LoadPkcs12FromFile(
                 fileName, password, keyStorageFlags);
+            Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
 #endif
@@ -147,6 +153,7 @@ namespace Opc.Ua.Security.Certificates
         {
             X509 = certificate ??
                 throw new ArgumentNullException(nameof(certificate));
+            Interlocked.Increment(ref s_instancesCreated);
 #if DEBUG
             Track();
 #endif
@@ -302,6 +309,7 @@ namespace Opc.Ua.Security.Certificates
                 if (remaining == 0)
                 {
                     X509.Dispose();
+                    Interlocked.Increment(ref s_instancesDisposed);
                 }
             }
         }
@@ -555,6 +563,38 @@ namespace Opc.Ua.Security.Certificates
 
         private static readonly ConditionalWeakTable<Certificate, CertificateAllocationInfo> s_allocationTracker = new();
 #endif
+
+        private static long s_instancesCreated;
+        private static long s_instancesDisposed;
+
+        /// <summary>
+        /// Total number of <see cref="Certificate"/> instances created
+        /// since the last <see cref="ResetLeakCounters"/> call.
+        /// </summary>
+        public static long InstancesCreated => Volatile.Read(ref s_instancesCreated);
+
+        /// <summary>
+        /// Total number of <see cref="Certificate"/> instances whose
+        /// inner X509Certificate2 was disposed (refcount reached zero).
+        /// </summary>
+        public static long InstancesDisposed => Volatile.Read(ref s_instancesDisposed);
+
+        /// <summary>
+        /// Number of Certificate instances that were created but not
+        /// yet disposed. A positive value after GC indicates a leak.
+        /// </summary>
+        public static long InstancesLeaked => InstancesCreated - InstancesDisposed;
+
+        /// <summary>
+        /// Resets the leak-detection counters. Call at the start of a
+        /// test run to get a clean baseline.
+        /// </summary>
+        public static void ResetLeakCounters()
+        {
+            Interlocked.Exchange(ref s_instancesCreated, 0);
+            Interlocked.Exchange(ref s_instancesDisposed, 0);
+        }
+
         private int m_refCount = 1;
     }
 }
