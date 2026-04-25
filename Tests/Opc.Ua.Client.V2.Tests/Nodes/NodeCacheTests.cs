@@ -29,11 +29,11 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<Node>
+                .Returns(new ValueTask<Sessions.ResultSet<Node>>(new Sessions.ResultSet<Node>
                 {
                     Results = [new()],
                     Errors = [new ServiceResult(StatusCodes.BadUnexpectedError)]
-                })
+                }))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 
@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == datatypeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(default(ArrayOf<ReferenceDescription>)))
                 .Verifiable(Times.Once);
 
             // Act
@@ -111,7 +111,7 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == id),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(expected)
+                .Returns(new ValueTask<Node>(expected))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 
@@ -167,11 +167,11 @@ namespace Opc.Ua.Client.Nodes
                 .Verifiable(Times.Exactly(3));
             var nodeCache = new NodeCache(context.Object);
 
-            await Assert.ThrowsAsync<ServiceResultException>(
+            Assert.ThrowsAsync<ServiceResultException>(
                 () => nodeCache.GetNodeAsync(id, default).AsTask());
-            await Assert.ThrowsAsync<ServiceResultException>(
+            Assert.ThrowsAsync<ServiceResultException>(
                 () => nodeCache.GetNodeAsync(id, default).AsTask());
-            await Assert.ThrowsAsync<ServiceResultException>(
+            Assert.ThrowsAsync<ServiceResultException>(
                 () => nodeCache.GetNodeAsync(id, default).AsTask());
             context.Verify();
         }
@@ -181,7 +181,7 @@ namespace Opc.Ua.Client.Nodes
         {
             // Arrange
             var id = new NodeId("test", 0);
-            var browsePath = new QualifiedNameCollection { new QualifiedName("invalid") };
+            var browsePath = (ArrayOf<QualifiedName>)[new QualifiedName("invalid")];
             var context = new Mock<INodeCacheContext>();
 
             context
@@ -189,14 +189,14 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == ReferenceTypeIds.HierarchicalReferences),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(default(ArrayOf<ReferenceDescription>)))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchReferencesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == id),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(default(ArrayOf<ReferenceDescription>)))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 
@@ -219,7 +219,7 @@ namespace Opc.Ua.Client.Nodes
                 NodeId = id,
                 NodeClass = NodeClass.Variable
             };
-            var browsePath = new QualifiedNameCollection { new QualifiedName("child") };
+            var browsePath = (ArrayOf<QualifiedName>)[new QualifiedName("child")];
             var references = new List<ReferenceDescription>
             {
                 new ()
@@ -236,25 +236,25 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == ReferenceTypeIds.HierarchicalReferences),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(default(ArrayOf<ReferenceDescription>)))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchReferencesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == id),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReferenceDescriptionCollection(references))
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(references.ToArrayOf()))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == id),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<Node>
+                .Returns(new ValueTask<Sessions.ResultSet<Node>>(new Sessions.ResultSet<Node>
                 {
                     Results = [expected],
                     Errors = [ServiceResult.Good]
-                })
+                }))
                 .Verifiable(Times.Once);
 
             var nodeCache = new NodeCache(context.Object);
@@ -282,11 +282,7 @@ namespace Opc.Ua.Client.Nodes
             var rootId = new NodeId("root", 0);
             var childId = new NodeId("child", 0);
             var grandChildId = new NodeId("grandChild", 0);
-            var browsePath = new QualifiedNameCollection
-            {
-                new QualifiedName("child"),
-                new QualifiedName("grandChild")
-            };
+            var browsePath = (ArrayOf<QualifiedName>)[new QualifiedName("child"), new QualifiedName("grandChild")];
 
             var rootReferences = new List<ReferenceDescription>
             {
@@ -328,43 +324,43 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == ReferenceTypeIds.HierarchicalReferences),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(default(ArrayOf<ReferenceDescription>)))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchReferencesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == rootId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReferenceDescriptionCollection(rootReferences))
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(rootReferences.ToArrayOf()))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchReferencesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == childId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReferenceDescriptionCollection(childReferences))
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(childReferences.ToArrayOf()))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == childId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<Node>
+                .Returns(new ValueTask<Sessions.ResultSet<Node>>(new Sessions.ResultSet<Node>
                 {
                     Results = [childNode],
                     Errors = [ServiceResult.Good]
-                })
+                }))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == grandChildId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<Node>
+                .Returns(new ValueTask<Sessions.ResultSet<Node>>(new Sessions.ResultSet<Node>
                 {
                     Results = [expected],
                     Errors = [ServiceResult.Good]
-                })
+                }))
                 .Verifiable(Times.Once);
 
             var nodeCache = new NodeCache(context.Object);
@@ -421,14 +417,14 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == id),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReferenceDescriptionCollection(expected))
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(expected.ToArrayOf()))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<Node>
+                .Returns(new ValueTask<Sessions.ResultSet<Node>>(new Sessions.ResultSet<Node>
                 {
                     Results =
                     [
@@ -439,7 +435,7 @@ namespace Opc.Ua.Client.Nodes
                         }
                     ],
                     Errors = [ServiceResult.Good]
-                })
+                }))
                 .Verifiable(Times.Once);
 
             var nodeCache = new NodeCache(context.Object);
@@ -490,7 +486,7 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == referenceTypeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>((ArrayOf<ReferenceDescription>)
                 [
                     new ()
                     {
@@ -498,14 +494,14 @@ namespace Opc.Ua.Client.Nodes
                         BrowseName = new QualifiedName("HasSubtype"),
                         NodeId = new ExpandedNodeId(referenceSubTypeId)
                     }
-                ])
+                ]))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == referenceSubTypeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<Node>
+                .Returns(new ValueTask<Sessions.ResultSet<Node>>(new Sessions.ResultSet<Node>
                 {
                     Results =
                     [
@@ -516,14 +512,14 @@ namespace Opc.Ua.Client.Nodes
                         }
                     ],
                     Errors = [ServiceResult.Good]
-                })
+                }))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchReferencesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == referenceSubTypeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>((ArrayOf<ReferenceDescription>)
                 [
                     new ()
                     {
@@ -532,21 +528,21 @@ namespace Opc.Ua.Client.Nodes
                         BrowseName = new QualifiedName("HasSuperType"),
                         NodeId = new ExpandedNodeId(referenceTypeId)
                     }
-                ])
+                ]))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchReferencesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == id),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReferenceDescriptionCollection(expected))
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(expected.ToArrayOf()))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<Node>
+                .Returns(new ValueTask<Sessions.ResultSet<Node>>(new Sessions.ResultSet<Node>
                 {
                     Results =
                     [
@@ -557,7 +553,7 @@ namespace Opc.Ua.Client.Nodes
                         }
                     ],
                     Errors = [ServiceResult.Good]
-                })
+                }))
                 .Verifiable(Times.Once);
 
             var nodeCache = new NodeCache(context.Object);
@@ -607,21 +603,21 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == referenceTypeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(default(ArrayOf<ReferenceDescription>)))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchReferencesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == id),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReferenceDescriptionCollection(expected))
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(expected.ToArrayOf()))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<Node>
+                .Returns(new ValueTask<Sessions.ResultSet<Node>>(new Sessions.ResultSet<Node>
                 {
                     Results =
                     [
@@ -632,7 +628,7 @@ namespace Opc.Ua.Client.Nodes
                         }
                     ],
                     Errors = [ServiceResult.Good]
-                })
+                }))
                 .Verifiable(Times.Once);
 
             var nodeCache = new NodeCache(context.Object);
@@ -670,7 +666,7 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == typeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(default(ArrayOf<ReferenceDescription>)))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 
@@ -704,7 +700,7 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == subTypeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReferenceDescriptionCollection(references))
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(references.ToArrayOf()))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 
@@ -750,7 +746,7 @@ namespace Opc.Ua.Client.Nodes
         public async Task GetValueAsyncShouldReturnValueFromCacheAsync()
         {
             // Arrange
-            var expected = new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow);
+            var expected = new DataValue(new Variant(123), StatusCodes.Good, DateTimeUtc.Now);
             var id = new NodeId("test", 0);
             var context = new Mock<INodeCacheContext>();
 
@@ -759,7 +755,7 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == id),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(expected)
+                .Returns(new ValueTask<DataValue>(expected))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 
@@ -784,11 +780,11 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.IsAny<IReadOnlyList<NodeId>>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<DataValue>
+                .Returns(new ValueTask<Sessions.ResultSet<DataValue>>(new Sessions.ResultSet<DataValue>
                 {
                     Results = [new(), new()],
                     Errors = [new ServiceResult(StatusCodes.BadUnexpectedError), ServiceResult.Good]
-                })
+                }))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 
@@ -808,8 +804,8 @@ namespace Opc.Ua.Client.Nodes
             // Arrange
             var expected = new List<DataValue>
             {
-                new (new Variant(123), StatusCodes.Good, DateTime.UtcNow),
-                new (new Variant(456), StatusCodes.Good, DateTime.UtcNow)
+                new (new Variant(123), StatusCodes.Good, DateTimeUtc.Now),
+                new (new Variant(456), StatusCodes.Good, DateTimeUtc.Now)
             };
             var ids = new List<NodeId> { new("test1", 0), new("test2", 0) };
             var context = new Mock<INodeCacheContext>();
@@ -819,11 +815,11 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(i => i.ToHashSet().SetEquals(ids)),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<DataValue>
+                .Returns(new ValueTask<Sessions.ResultSet<DataValue>>(new Sessions.ResultSet<DataValue>
                 {
                     Results = expected,
                     Errors = [ServiceResult.Good, ServiceResult.Good]
-                })
+                }))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 
@@ -844,8 +840,8 @@ namespace Opc.Ua.Client.Nodes
             // Arrange
             var expected = new List<DataValue>
             {
-                new (new Variant(123), StatusCodes.Good, DateTime.UtcNow),
-                new (new Variant(456), StatusCodes.Good, DateTime.UtcNow)
+                new (new Variant(123), StatusCodes.Good, DateTimeUtc.Now),
+                new (new Variant(456), StatusCodes.Good, DateTimeUtc.Now)
             };
             var ids = new List<NodeId> { new("test1", 0), new("test2", 0) };
             var context = new Mock<INodeCacheContext>();
@@ -855,11 +851,11 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(i => i.ToHashSet().SetEquals(ids)),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<DataValue>
+                .Returns(new ValueTask<Sessions.ResultSet<DataValue>>(new Sessions.ResultSet<DataValue>
                 {
                     Results = expected,
                     Errors = [ServiceResult.Good, new ServiceResult(StatusCodes.Bad)]
-                })
+                }))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 
@@ -869,18 +865,18 @@ namespace Opc.Ua.Client.Nodes
             // Assert
             Assert.That(result[0], Is.EqualTo(expected[0]));
             Assert.That(result[1].StatusCode, Is.EqualTo(StatusCodes.Bad));
-            Assert.That(result[1].Value, Is.EqualTo(expected[1].Value));
+            Assert.That(result[1].WrappedValue, Is.EqualTo(expected[1].WrappedValue));
 
             context
                 .Setup(c => c.FetchValuesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(i => i.Count == 1 && i[0] == ids[1]),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<DataValue>
+                .Returns(new ValueTask<Sessions.ResultSet<DataValue>>(new Sessions.ResultSet<DataValue>
                 {
                     Results = [expected[1]],
                     Errors = [ServiceResult.Good]
-                })
+                }))
                 .Verifiable(Times.Once);
             result = await nodeCache.GetValuesAsync(ids, default);
             context.Verify();
@@ -899,7 +895,7 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == subTypeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(default(ArrayOf<ReferenceDescription>)))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 
@@ -933,7 +929,7 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == subTypeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReferenceDescriptionCollection(references))
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(references.ToArrayOf()))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 
@@ -962,7 +958,7 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == typeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(default(ArrayOf<ReferenceDescription>)))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 
@@ -979,7 +975,7 @@ namespace Opc.Ua.Client.Nodes
             // Arrange
             var typeId = new NodeId("type", 0);
             var subTypeId = new NodeId("subType", 0);
-            var references = new ReferenceDescriptionCollection
+            var references = new List<ReferenceDescription>
             {
                 new ()
                 {
@@ -994,21 +990,21 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == typeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(references)
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(references.ToArrayOf()))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchReferencesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<NodeId>(i => i == subTypeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync([])
+                .Returns(new ValueTask<ArrayOf<ReferenceDescription>>(default(ArrayOf<ReferenceDescription>)))
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == subTypeId),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ResultSet<Node>
+                .Returns(new ValueTask<Sessions.ResultSet<Node>>(new Sessions.ResultSet<Node>
                 {
                     Results =
                     [
@@ -1019,7 +1015,7 @@ namespace Opc.Ua.Client.Nodes
                         }
                     ],
                     Errors = [ServiceResult.Good]
-                })
+                }))
                 .Verifiable(Times.Once);
             var nodeCache = new NodeCache(context.Object);
 

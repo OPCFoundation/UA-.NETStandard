@@ -322,8 +322,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 try
                 {
-                    var monitoredItemIds = new UInt32Collection(itemsToDelete
-                        .Select(m => m.ServerId));
+                    var monitoredItemIds = new ArrayOf<uint>(itemsToDelete
+                        .Select(m => m.ServerId).ToArray());
                     var response = await _context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(null, _context.Id,
                         monitoredItemIds, ct).ConfigureAwait(false);
                     Ua.ClientBase.ValidateResponse(response.Results, monitoredItemIds);
@@ -356,11 +356,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 .ToList();
             if (deletes.Count > 0)
             {
-                var monitoredItemIds = new UInt32Collection(deletes.Select(c => c.Item.ServerId));
+                var monitoredItemIds = new ArrayOf<uint>(deletes.Select(c => c.Item.ServerId).ToArray());
                 var response = await _context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(null, _context.Id,
                     monitoredItemIds, ct).ConfigureAwait(false);
-                Ua.ClientBase.ValidateResponse(response.Results, deletes);
-                Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, deletes);
+                Ua.ClientBase.ValidateResponse(response.Results, monitoredItemIds);
+                Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
                 for (var index = 0; index < response.Results.Count; index++)
                 {
                     deletes[index].SetDeleteResult(
@@ -378,13 +378,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 .GroupBy(c => c.Timestamps))
             {
                 var monitoredItems = group.ToList();
-                var requests = new MonitoredItemModifyRequestCollection(group.Select(c => c.Modify));
+                var requests = new ArrayOf<MonitoredItemModifyRequest>(group.Select(c => c.Modify!).ToArray());
                 if (requests.Count > 0)
                 {
                     var response = await _context.MonitoredItemServiceSet.ModifyMonitoredItemsAsync(null, _context.Id,
                         group.Key, requests, ct).ConfigureAwait(false);
-                    Ua.ClientBase.ValidateResponse(response.Results, monitoredItems);
-                    Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItems);
+                    Ua.ClientBase.ValidateResponse(response.Results, requests);
+                    Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
                     // update results.
                     for (var index = 0; index < response.Results.Count; index++)
                     {
@@ -403,13 +403,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 var monitoredItems = mode
                     .Where(c => c.Item.Created && c.Item.CurrentMonitoringMode != mode.Key)
                     .ToList();
-                var requests = new UInt32Collection(monitoredItems.Select(c => c.Item.ServerId));
+                var requests = new ArrayOf<uint>(monitoredItems.Select(c => c.Item.ServerId).ToArray());
                 if (requests.Count > 0)
                 {
                     var response = await _context.MonitoredItemServiceSet.SetMonitoringModeAsync(null, _context.Id,
                         mode.Key, requests, ct).ConfigureAwait(false);
-                    Ua.ClientBase.ValidateResponse(response.Results, monitoredItems);
-                    Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItems);
+                    Ua.ClientBase.ValidateResponse(response.Results, requests);
+                    Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
                     // update results.
                     for (var index = 0; index < response.Results.Count; index++)
                     {
@@ -429,13 +429,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 .GroupBy(c => c.Timestamps))
             {
                 var monitoredItems = group.ToList();
-                var requests = new MonitoredItemCreateRequestCollection(group.Select(c => c.Create));
+                var requests = new ArrayOf<MonitoredItemCreateRequest>(group.Select(c => c.Create!).ToArray());
                 if (requests.Count > 0)
                 {
                     var response = await _context.MonitoredItemServiceSet.CreateMonitoredItemsAsync(null, _context.Id,
                         group.Key, requests, ct).ConfigureAwait(false);
-                    Ua.ClientBase.ValidateResponse(response.Results, monitoredItems);
-                    Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItems);
+                    Ua.ClientBase.ValidateResponse(response.Results, requests);
+                    Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
                     // update results.
                     for (var index = 0; index < response.Results.Count; index++)
                     {
@@ -508,7 +508,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var (success, serverHandleStateMap) = await GetMonitoredItemsAsync(
                 ct).ConfigureAwait(false);
 
-            UInt32Collection itemsToDelete;
+            ArrayOf<uint> itemsToDelete;
             lock (_monitoredItemsLock)
             {
                 if (!success)
@@ -569,7 +569,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
 
                 _deletedItems.Clear();
-                itemsToDelete = new UInt32Collection(serverClientHandleMap.Keys);
+                itemsToDelete = new ArrayOf<uint>(serverClientHandleMap.Keys.ToArray());
 
                 // Remaining items do not exist anymore on the server and need to be recreated
                 foreach (var missingOnServer in monitoredItems.Values)
@@ -615,7 +615,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             try
             {
-                var requests = new CallMethodRequestCollection
+                var requests = new ArrayOf<CallMethodRequest>(new[]
                 {
                     new CallMethodRequest
                     {
@@ -623,7 +623,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         MethodId = MethodIds.Server_GetMonitoredItems,
                         InputArguments = [new Variant(_context.Id)]
                     }
-                };
+                });
 
                 var response = await _context.MethodServiceSet.CallAsync(null, requests,
                     ct).ConfigureAwait(false);
@@ -639,8 +639,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
                 var outputArguments = results[0].OutputArguments;
                 if (outputArguments.Count != 2 ||
-                    outputArguments[0].Value is not uint[] serverHandles ||
-                    outputArguments[1].Value is not uint[] clientHandles ||
+                    outputArguments[0].AsBoxedObject() is not uint[] serverHandles ||
+                    outputArguments[1].AsBoxedObject() is not uint[] clientHandles ||
                     clientHandles.Length != serverHandles.Length)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,

@@ -216,7 +216,7 @@ namespace Opc.Ua.Client.Subscriptions
             await Task.Delay(10);
 
             Assert.That(sut.ReceivedSequenceNumbers, Is.EqualTo(
-                Enumerable.Range(1, 100)).Select(i => (uint)i));
+                Enumerable.Range(1, 100).Select(i => (uint)i)));
             Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
             Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.False);
             Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);

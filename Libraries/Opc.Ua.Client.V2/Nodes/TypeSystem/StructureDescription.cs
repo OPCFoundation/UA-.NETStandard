@@ -98,10 +98,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             base(typeId, xmlName, binaryEncodingId, xmlEncodingId, jsonEncodingId, isAbstract)
         {
             StructureDefinition = structureDefinition;
-            _fields = structureDefinition.Fields
-                .Select((f, order) => new StructureFieldDescription(
-                    cache, f, FieldsCanHaveSubtypedValues, order))
-                .ToArray();
+            var fields = structureDefinition.Fields;
+            _fields = new StructureFieldDescription[fields.Count];
+            for (var i = 0; i < fields.Count; i++)
+            {
+                _fields[i] = new StructureFieldDescription(
+                    cache, fields[i], FieldsCanHaveSubtypedValues, i);
+            }
         }
 
         /// <summary>
@@ -230,18 +233,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                         "Union selector out of range");
                 }
                 string? fieldName = null;
-                if (encoder.UseReversibleEncoding)
-                {
-                    encoder.WriteUInt32("SwitchField", switchField);
-                    fieldName = "Value";
-                }
+                encoder.WriteSwitchField(switchField, out fieldName);
                 if (switchField > 0) // Not null
                 {
                     _fields[switchField - 1].Encode(encoder, values[1], fieldName);
-                }
-                else if (!encoder.UseReversibleEncoding)
-                {
-                    encoder.WriteString(fieldName, null);
                 }
             }
         }
@@ -288,10 +283,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     throw ServiceResultException.Create(StatusCodes.BadDataEncodingInvalid,
                         "Encoding mask missing or less values than expected");
                 }
-                if (encoder.UseReversibleEncoding)
-                {
-                    encoder.WriteUInt32("EncodingMask", encodingMask);
-                }
+                encoder.WriteEncodingMask(encodingMask);
                 for (var i = 0; i < _fields.Length; i++)
                 {
                     var field = _fields[i];

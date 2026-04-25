@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -19,13 +19,13 @@ namespace Opc.Ua.Client.Sessions
         /// session creation against the available endpoints found
         /// in discovery.
         /// </summary>
-        public EndpointDescriptionCollection? AvailableEndpoints { get; init; }
+        public ArrayOf<EndpointDescription>? AvailableEndpoints { get; init; }
 
         /// <summary>
         /// Discovery profile uris that were returned in the initial
         /// discovery sequence.
         /// </summary>
-        public StringCollection? DiscoveryProfileUris { get; init; }
+        public ArrayOf<string>? DiscoveryProfileUris { get; init; }
 
         /// <summary>
         /// An existing channel to use. This can be an open channel

@@ -297,8 +297,8 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     return remaining;
                 }
-                var subscriptionIds = new UInt32Collection(subscriptions
-                    .Select(s => s.Id));
+                var subscriptionIds = new ArrayOf<uint>(subscriptions
+                    .Select(s => s.Id).ToArray());
                 var response = await _session.TransferSubscriptionsAsync(null,
                     subscriptionIds, sendInitialValues, ct).ConfigureAwait(false);
 
@@ -344,8 +344,7 @@ namespace Opc.Ua.Client.Subscriptions
                     else
                     {
                         var success = await subscriptions[index].TryCompleteTransferAsync(
-                            transferResults[index].AvailableSequenceNumbers
-                                ?? Array.Empty<uint>(), ct).ConfigureAwait(false);
+                            transferResults[index].AvailableSequenceNumbers.ToList(), ct).ConfigureAwait(false);
                         if (success)
                         {
                             continue;
@@ -584,7 +583,7 @@ namespace Opc.Ua.Client.Subscriptions
                     var ackWaitTimeout = CalculateTimeouts(
                         publishLatency.ElapsedMilliseconds, ref timeoutHint);
                     var acks = GetAcksReadyToSend();
-                    var handle = Utils.IncrementIdentifier(ref _outer._publishCounter);
+                    var handle = Utils.IncrementIdentifier(ref _outer._publishRequestCounter);
                     try
                     {
                         if (acks.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
@@ -618,8 +617,8 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             // deliver to subscription
                             await subscription.OnPublishReceivedAsync(notificationMessage,
-                                availableSequenceNumbers,
-                                response.ResponseHeader.StringTable).ConfigureAwait(false);
+                                availableSequenceNumbers.ToList(),
+                                response.ResponseHeader.StringTable.ToList()).ConfigureAwait(false);
                             Interlocked.Increment(ref _outer._goodPublishRequestCount);
                         }
                         else if (!ct.IsCancellationRequested &&
@@ -668,48 +667,53 @@ namespace Opc.Ua.Client.Subscriptions
 
                         // don't send another publish for these errors,
                         // or throttle to avoid server overload.
-                        switch (error.Code)
+                        var statusCode = error.StatusCode;
+                        if (statusCode == StatusCodes.BadTooManyPublishRequests)
                         {
-                            case StatusCodes.BadTooManyPublishRequests:
-                                TooManyPublishRequests = true;
-                                break;
-                            case StatusCodes.BadNoSubscription:
-                            case StatusCodes.BadSessionClosed:
-                            case StatusCodes.BadSecurityChecksFailed:
-                            case StatusCodes.BadCertificateInvalid:
-                            case StatusCodes.BadServerHalted:
-                                break;
-                            // may require a reconnect or activate to recover
-                            case StatusCodes.BadSessionIdInvalid:
-                            case StatusCodes.BadSecureChannelIdInvalid:
-                            case StatusCodes.BadSecureChannelClosed:
-                                // TODO
-                                // OnKeepAliveError(error);
-                                break;
-                            // Servers may return this error when overloaded
-                            case StatusCodes.BadTooManyOperations:
-                            case StatusCodes.BadTcpServerTooBusy:
-                            case StatusCodes.BadServerTooBusy:
-                                // throttle the next publish to reduce server load
-                                _logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
-                                    "Server busy, throttling worker.",
-                                    Index, handle);
-                                moreNotifications = false; // throttle
-                                break;
-                            case StatusCodes.BadTimeout:
-                            case StatusCodes.BadRequestTimeout:
-                                // Timed out - retry with larger timeout
-                                timeoutHint += 1000; // Increase by seconds
-                                _logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
-                                    "Timed out, increasing timeout to {Timeout}.",
-                                    Index, handle, timeoutHint);
-                                moreNotifications = true;
-                                break;
-                            default:
-                                _logger.LogError(e, "PUBLISH Worker #{Handle}-{Id} - " +
-                                    "Unhandled error {Status} during Publish.",
-                                    Index, handle, error.StatusCode);
-                                break;
+                            TooManyPublishRequests = true;
+                        }
+                        else if (statusCode == StatusCodes.BadNoSubscription ||
+                            statusCode == StatusCodes.BadSessionClosed ||
+                            statusCode == StatusCodes.BadSecurityChecksFailed ||
+                            statusCode == StatusCodes.BadCertificateInvalid ||
+                            statusCode == StatusCodes.BadServerHalted)
+                        {
+                            // ignore
+                        }
+                        // may require a reconnect or activate to recover
+                        else if (statusCode == StatusCodes.BadSessionIdInvalid ||
+                            statusCode == StatusCodes.BadSecureChannelIdInvalid ||
+                            statusCode == StatusCodes.BadSecureChannelClosed)
+                        {
+                            // TODO
+                            // OnKeepAliveError(error);
+                        }
+                        // Servers may return this error when overloaded
+                        else if (statusCode == StatusCodes.BadTooManyOperations ||
+                            statusCode == StatusCodes.BadTcpServerTooBusy ||
+                            statusCode == StatusCodes.BadServerTooBusy)
+                        {
+                            // throttle the next publish to reduce server load
+                            _logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
+                                "Server busy, throttling worker.",
+                                Index, handle);
+                            moreNotifications = false; // throttle
+                        }
+                        else if (statusCode == StatusCodes.BadTimeout ||
+                            statusCode == StatusCodes.BadRequestTimeout)
+                        {
+                            // Timed out - retry with larger timeout
+                            timeoutHint += 1000; // Increase by seconds
+                            _logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
+                                "Timed out, increasing timeout to {Timeout}.",
+                                Index, handle, timeoutHint);
+                            moreNotifications = true;
+                        }
+                        else
+                        {
+                            _logger.LogError(e, "PUBLISH Worker #{Handle}-{Id} - " +
+                                "Unhandled error {Status} during Publish.",
+                                Index, handle, error.StatusCode);
                         }
                     }
                 }
@@ -722,7 +726,7 @@ namespace Opc.Ua.Client.Subscriptions
             /// <param name="maxWaitTime"></param>
             /// <param name="ct"></param>
             /// <returns></returns>
-            private async Task<SubscriptionAcknowledgementCollection> WaitForAcksAsync(
+            private async Task<ArrayOf<SubscriptionAcknowledgement>> WaitForAcksAsync(
                 int maxWaitTime, CancellationToken ct)
             {
                 Debug.Assert(maxWaitTime != 0, "Checked before entering");
@@ -753,8 +757,10 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     var firstAck = await _outer._acks.Reader.ReadAsync(
                         cts.Token).ConfigureAwait(false);
-                    var acks = GetAcksReadyToSend();
-                    acks.Insert(0, firstAck);
+                    var restAcks = GetAcksReadyToSend();
+                    var ackList = restAcks.ToList();
+                    ackList.Insert(0, firstAck);
+                    ArrayOf<SubscriptionAcknowledgement> acks = ackList;
                     _logger.LogInformation(
                         "PUBLISH Worker #{Handle} - Publish {Count} acks after pausing {Duration}.",
                         Index, acks.Count, sw.Elapsed);
@@ -773,9 +779,9 @@ namespace Opc.Ua.Client.Subscriptions
             /// Get acks that are ready to send
             /// </summary>
             /// <returns></returns>
-            private SubscriptionAcknowledgementCollection GetAcksReadyToSend()
+            private ArrayOf<SubscriptionAcknowledgement> GetAcksReadyToSend()
             {
-                var acks = new SubscriptionAcknowledgementCollection();
+                var acks = new List<SubscriptionAcknowledgement>();
 
                 // TODO: Is this something that we can get from ops limit?
                 var available = _outer._acks.Reader.Count;
@@ -864,7 +870,7 @@ namespace Opc.Ua.Client.Subscriptions
         private static readonly TimeSpan kMaxOperationTimeout = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan kMinOperationTimeout = TimeSpan.FromSeconds(1);
         private const int kMaxSubscriptionHistory = 10;
-        private long _publishCounter;
+        private uint _publishRequestCounter;
 #pragma warning disable IDE0032 // Use auto property
         private int _badPublishRequestCount;
         private int _goodPublishRequestCount;

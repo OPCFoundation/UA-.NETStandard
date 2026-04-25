@@ -150,7 +150,7 @@ namespace Opc.Ua.Client.Subscriptions
                 .Verifiable(Times.Once);
             m_mockSubscriptionServices
                 .Setup(s => s.SetPublishingModeAsync(It.IsAny<RequestHeader>(),
-                    true, new UInt32Collection { 22 }, It.IsAny<CancellationToken>()))
+                    true, It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 22u), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new SetPublishingModeResponse
                 {
                     Results = [StatusCodes.Good]
@@ -199,7 +199,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             m_mockSubscriptionServices
                 .Setup(s => s.SetPublishingModeAsync(It.IsAny<RequestHeader>(),
-                    true, new UInt32Collection { 22 }, It.IsAny<CancellationToken>()))
+                    true, It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 22u), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new SetPublishingModeResponse
                 {
                     Results = [StatusCodes.Good]
@@ -238,7 +238,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMonitoredItemServices
                 .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     TimestampsToReturn.Both,
-                    It.IsAny<MonitoredItemCreateRequestCollection>(), It.IsAny<CancellationToken>()))
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
                     Results =
@@ -293,7 +293,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMonitoredItemServices
                 .Setup(s => s.ModifyMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     TimestampsToReturn.Both,
-                    It.IsAny<MonitoredItemModifyRequestCollection>(),
+                    It.IsAny<ArrayOf<MonitoredItemModifyRequest>>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ModifyMonitoredItemsResponse
                 {
@@ -344,7 +344,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             m_mockMonitoredItemServices
                 .Setup(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
-                    new UInt32Collection { monitoredItem.ServerId }, It.IsAny<CancellationToken>()))
+                    It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == monitoredItem.ServerId), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteMonitoredItemsResponse
                 {
                     Results = [StatusCodes.Good]
@@ -353,8 +353,8 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMonitoredItemServices
                 .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     TimestampsToReturn.Both,
-                    It.Is<MonitoredItemCreateRequestCollection>(r => r.Count == 1
-                        && r[0].ItemToMonitor.NodeId.Identifier.Equals("NewDemo")),
+                    It.Is<ArrayOf<MonitoredItemCreateRequest>>(r => r.Count == 1
+                        && r[0].ItemToMonitor.NodeId.ToString().Contains("NewDemo")),
                         It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
@@ -409,7 +409,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMonitoredItemServices
                 .Setup(s => s.SetMonitoringModeAsync(It.IsAny<RequestHeader>(),
                     sut.Id, MonitoringMode.Reporting,
-                    new UInt32Collection { monitoredItem.ServerId },
+                    It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == monitoredItem.ServerId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new SetMonitoringModeResponse
                 {
@@ -446,7 +446,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Only delete monitored item should be called
             m_mockMonitoredItemServices
                 .Setup(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
-                    new UInt32Collection { monitoredItem.ServerId },
+                    It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == monitoredItem.ServerId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteMonitoredItemsResponse
                 {
@@ -482,7 +482,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Only delete monitored item should be called
             m_mockMonitoredItemServices
                 .SetupSequence(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(),
-                    2, new UInt32Collection { monitoredItem.ServerId },
+                    2, It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == monitoredItem.ServerId),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteMonitoredItemsResponse
                 {
@@ -524,7 +524,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.IsAny<CallMethodRequestCollection>(), It.IsAny<CancellationToken>()))
+                    It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
                     Results =
@@ -570,7 +570,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
-                    It.IsAny<RequestHeader>(), new UInt32Collection { 22 }, It.IsAny<CancellationToken>()))
+                    It.IsAny<RequestHeader>(), It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 22u), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteSubscriptionsResponse
                 {
                     Results = [StatusCodes.Good]
@@ -594,7 +594,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
-                    It.IsAny<RequestHeader>(), new UInt32Collection { 22 }, It.IsAny<CancellationToken>()))
+                    It.IsAny<RequestHeader>(), It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 22u), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteSubscriptionsResponse
                 {
                     Results = [StatusCodes.Good]
@@ -621,7 +621,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
-                    It.IsAny<RequestHeader>(), new UInt32Collection { 22 },
+                    It.IsAny<RequestHeader>(), It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 22u),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteSubscriptionsResponse
                 {
@@ -648,7 +648,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
-                    It.IsAny<RequestHeader>(), new UInt32Collection { 22 },
+                    It.IsAny<RequestHeader>(), It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 22u),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteSubscriptionsResponse
                 {
@@ -758,7 +758,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMonitoredItemServices
                 .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 22,
                     TimestampsToReturn.Both,
-                    It.IsAny<MonitoredItemCreateRequestCollection>(), It.IsAny<CancellationToken>()))
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
                     Results =
@@ -820,7 +820,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMonitoredItemServices
                 .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 22,
                     TimestampsToReturn.Both,
-                    It.IsAny<MonitoredItemCreateRequestCollection>(), It.IsAny<CancellationToken>()))
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
                     Results =
@@ -886,10 +886,10 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(r =>
+                    It.Is<ArrayOf<CallMethodRequest>>(r =>
                            r.Count == 1
                         && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].Value.Equals(2u)
+                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
                         && r[0].ObjectId == ObjectIds.Server
                         && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
@@ -931,10 +931,10 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(r =>
+                    It.Is<ArrayOf<CallMethodRequest>>(r =>
                            r.Count == 1
                         && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].Value.Equals(2u)
+                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
                         && r[0].ObjectId == ObjectIds.Server
                         && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
@@ -977,10 +977,10 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(r =>
+                    It.Is<ArrayOf<CallMethodRequest>>(r =>
                            r.Count == 1
                         && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].Value.Equals(2u)
+                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
                         && r[0].ObjectId == ObjectIds.Server
                         && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
@@ -1026,10 +1026,10 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(r =>
+                    It.Is<ArrayOf<CallMethodRequest>>(r =>
                            r.Count == 1
                         && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].Value.Equals(2u)
+                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
                         && r[0].ObjectId == ObjectIds.Server
                         && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
@@ -1069,10 +1069,10 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(r =>
+                    It.Is<ArrayOf<CallMethodRequest>>(r =>
                            r.Count == 1
                         && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].Value.Equals(2u)
+                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
                         && r[0].ObjectId == ObjectIds.Server
                         && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
@@ -1094,7 +1094,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             m_mockMonitoredItemServices
                 .Setup(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
-                    new UInt32Collection { 19900 }, It.IsAny<CancellationToken>()))
+                    It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 19900u), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteMonitoredItemsResponse
                 {
                     Results = [StatusCodes.Good]
@@ -1124,10 +1124,10 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(r =>
+                    It.Is<ArrayOf<CallMethodRequest>>(r =>
                            r.Count == 1
                         && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].Value.Equals(2u)
+                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
                         && r[0].ObjectId == ObjectIds.Server
                         && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
@@ -1169,10 +1169,10 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(r =>
+                    It.Is<ArrayOf<CallMethodRequest>>(r =>
                            r.Count == 1
                         && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].Value.Equals(2u)
+                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
                         && r[0].ObjectId == ObjectIds.Server
                         && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
@@ -1219,10 +1219,10 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(r =>
+                    It.Is<ArrayOf<CallMethodRequest>>(r =>
                            r.Count == 1
                         && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].Value.Equals(2u)
+                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
                         && r[0].ObjectId == ObjectIds.Server
                         && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
@@ -1245,7 +1245,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Delete monitored item should be called
             m_mockMonitoredItemServices
                 .Setup(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
-                    new UInt32Collection { 30000u }, It.IsAny<CancellationToken>()))
+                    It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 30000u), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteMonitoredItemsResponse
                 {
                     Results = [StatusCodes.Good]
@@ -1254,7 +1254,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMonitoredItemServices
                 .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     TimestampsToReturn.Both,
-                    It.IsAny<MonitoredItemCreateRequestCollection>(), It.IsAny<CancellationToken>()))
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
                     Results =
@@ -1300,7 +1300,7 @@ namespace Opc.Ua.Client.Subscriptions
                 Opc.Ua.OptionsMonitor<MonitoredItemOptions> options, ILogger logger)
                 : base(subscription, name, options, logger)
             {
-                if (NodeId.IsNull(options.CurrentValue.StartNodeId))
+                if (options.CurrentValue.StartNodeId.IsNull)
                 {
                     // Auto create
                     options.Configure(o => CreatedOptions);

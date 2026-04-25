@@ -34,43 +34,6 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         }
 
         [Test]
-        public void GetInstanceIdShoudlBeInstanceIdOfFactory()
-        {
-            // Arrange
-            var sut = new DataTypeDescriptionResolver(
-                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
-            m_factoryMock.Setup(x => x.InstanceId).Returns(4).Verifiable(Times.Once);
-
-            // Act
-            Assert.That(sut.InstanceId, Is.EqualTo(4));
-
-            // Assert
-            m_factoryMock.Verify();
-        }
-
-        [Test]
-        public void GetEncodeableTypesShouldReturnAllEncodeableTypesOfFactory()
-        {
-            // Arrange
-            var sut = new DataTypeDescriptionResolver(
-                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
-            var type = typeof(StructureValue);
-            var typeId = ExpandedNodeId.Parse("i=1024");
-            m_factoryMock.Setup(x => x.EncodeableTypes).Returns(new Dictionary<ExpandedNodeId, Type>
-            {
-                [typeId] = type
-            }).Verifiable(Times.Once);
-
-            // Act
-            var encodeableTypes = sut.EncodeableTypes;
-
-            // Assert
-            Assert.That(encodeableTypes, Has.Exactly(1).Items).Assert.That(Which.Key, Is.EqualTo(typeId));
-            Assert.That(encodeableTypes, Has.Exactly(1).Items).Assert.That(Which.Value, Is.EqualTo(type));
-            m_factoryMock.Verify();
-        }
-
-        [Test]
         public void AddEncodeableTypeShouldAddTypeToFactory()
         {
             // Arrange
@@ -175,19 +138,6 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             m_factoryMock.Verify(f => f.AddEncodeableType(encodingId, systemType), Times.Once);
-        }
-
-        [Test]
-        public void CloneShouldCreateShallowCopy()
-        {
-            // Arrange
-            var sut = new DataTypeDescriptionResolver(
-                m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
-            var clone = sut.Clone();
-
-            // Assert
-            Assert.That(clone, Is.TypeOf<DataTypeDescriptionResolver>());
-            Assert.That(clone, Is.Not.SameAs(sut));
         }
 
         [Test]
@@ -421,8 +371,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ]);
 
             // Act
@@ -451,7 +401,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyStruct",
+                BrowseName = new QualifiedName("MyStruct"),
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
 
@@ -608,8 +558,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ]);
 
             // Act
@@ -675,8 +625,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ]);
 
             // Act
@@ -817,7 +767,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyRecursiveStruct",
+                BrowseName = new QualifiedName("MyRecursiveStruct"),
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
             m_nodeCacheMock
@@ -846,7 +796,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Assert.That(result, Is.True);
             var added = sut.GetStructureDescription(typeId);
             Assert.That(added, Is.Not.Null);
-            added!.Assert.That(StructureDefinition, Is.EqualTo(structureDefinition));
+            Assert.That(added!.StructureDefinition, Is.EqualTo(structureDefinition));
             m_nodeCacheMock.Verify();
         }
 
@@ -865,7 +815,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "BadDataType",
+                BrowseName = new QualifiedName("BadDataType"),
                 DataTypeDefinition = new ExtensionObject(badDefinition)
             };
             m_nodeCacheMock
@@ -903,7 +853,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Arrange
             var sut = new DataTypeDescriptionResolver(
                 m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
-            m_contextMock.Setup(c => c.Factory).Returns(new EncodeableFactory()); // Could just mock GetSystemType
+            m_contextMock.Setup(c => c.Factory).Returns(EncodeableFactory.Create()); // Could just mock GetSystemType
             var dataTypeNode = new DataTypeNode { NodeId = DataTypeIds.ReadAnnotationDataDetails };
             m_nodeCacheMock
                 .SetupSequence(nc => nc.GetReferencesAsync(
@@ -974,8 +924,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultJson, NodeId = jsonEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultJson), NodeId = jsonEncodingId }
                 ]);
 
             // Act
@@ -1015,7 +965,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyRecursiveStruct",
+                BrowseName = new QualifiedName("MyRecursiveStruct"),
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
 
@@ -1039,9 +989,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultJson, NodeId = jsonEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultJson), NodeId = jsonEncodingId },
                     new DataTypeNode { BrowseName = new QualifiedName("Special", 0), NodeId = specialEncodingId }
                 ]);
 
@@ -1085,7 +1035,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyEnum",
+                BrowseName = new QualifiedName("MyEnum"),
                 DataTypeDefinition = new ExtensionObject(enumDefinition)
             };
             m_nodeCacheMock
@@ -1108,8 +1058,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultJson, NodeId = jsonEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultJson), NodeId = jsonEncodingId }
                 ])
                 .Verifiable(Times.Once);
 
@@ -1118,7 +1068,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             var enumDescription = sut.GetDataTypeDescription(typeId);
-            Assert.That(enumDescription, Is.TypeOf<EnumDescription>()).Assert.That(Which.EnumDefinition, Is.EqualTo(enumDefinition));
+            Assert.That(enumDescription, Is.TypeOf<EnumDescription>());
+            Assert.That(((EnumDescription)enumDescription!).EnumDefinition, Is.EqualTo(enumDefinition));
             Assert.That(enumDescription, Is.Not.Null);
             Assert.That(enumDescription.BinaryEncodingId, Is.EqualTo(binaryEncodingId));
             Assert.That(enumDescription.JsonEncodingId, Is.EqualTo(jsonEncodingId));
@@ -1147,7 +1098,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyRecursiveStruct",
+                BrowseName = new QualifiedName("MyRecursiveStruct"),
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
             m_nodeCacheMock
@@ -1199,7 +1150,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyRecursiveStruct",
+                BrowseName = new QualifiedName("MyRecursiveStruct"),
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
             var subTypeStructureDefinition = new StructureDefinition
@@ -1210,7 +1161,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var subTypeNode = new DataTypeNode
             {
                 NodeId = subTypeId,
-                BrowseName = "MySubTypeStruct",
+                BrowseName = new QualifiedName("MySubTypeStruct"),
                 DataTypeDefinition = new ExtensionObject(subTypeStructureDefinition)
             };
 
@@ -1252,7 +1203,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "AlreadyKnown"
+                BrowseName = new QualifiedName("AlreadyKnown")
             };
             m_nodeCacheMock
                 .Setup(nc => nc.GetNodeAsync(typeId, It.IsAny<CancellationToken>()))
@@ -1288,7 +1239,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyStruct",
+                BrowseName = new QualifiedName("MyStruct"),
                 DataTypeDefinition = new ExtensionObject(structureDefinition)
             };
 
@@ -1519,8 +1470,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ]);
 
             // Act
@@ -1609,8 +1560,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ]);
 
             // Act
@@ -1635,7 +1586,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "BadDataType",
+                BrowseName = new QualifiedName("BadDataType"),
                 DataTypeDefinition = new ExtensionObject(badDefinition)
             };
             m_nodeCacheMock
@@ -1683,7 +1634,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyStructure"
+                BrowseName = new QualifiedName("MyStructure")
             };
             var binaryDefinition = new StructureDefinition();
             var xmlDefinition = new StructureDefinition();
@@ -1713,13 +1664,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultBinary,
+                    new QualifiedName(BrowseNames.DefaultBinary),
                     typeId,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DictionaryDataTypeDefinition(binaryDefinition,
@@ -1727,7 +1678,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultXml,
+                    new QualifiedName(BrowseNames.DefaultXml),
                     typeId,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DictionaryDataTypeDefinition(xmlDefinition,
@@ -1741,14 +1692,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             m_nodeCacheMock.Verify();
             m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            Assert.That(type, Is.TypeOf<StructureDescription.Structure>())
-                .Assert.That(Which.StructureDefinition, Is.EqualTo(binaryDefinition));
+            Assert.That(type, Is.TypeOf<StructureDescription.Structure>());
+            Assert.That(((StructureDescription)type!).StructureDefinition, Is.EqualTo(binaryDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            Assert.That(binary, Is.TypeOf<StructureDescription.Structure>())
-                .Assert.That(Which.StructureDefinition, Is.EqualTo(binaryDefinition));
+            Assert.That(binary, Is.TypeOf<StructureDescription.Structure>());
+            Assert.That(((StructureDescription)binary!).StructureDefinition, Is.EqualTo(binaryDefinition));
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            Assert.That(xml, Is.TypeOf<StructureDescription.Structure>())
-                .Assert.That(Which.StructureDefinition, Is.EqualTo(xmlDefinition));
+            Assert.That(xml, Is.TypeOf<StructureDescription.Structure>());
+            Assert.That(((StructureDescription)xml!).StructureDefinition, Is.EqualTo(xmlDefinition));
         }
 
         [Test]
@@ -1762,7 +1713,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyStructure"
+                BrowseName = new QualifiedName("MyStructure")
             };
             var binaryDefinition = new StructureDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
@@ -1791,13 +1742,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultBinary,
+                    new QualifiedName(BrowseNames.DefaultBinary),
                     typeId,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DictionaryDataTypeDefinition(binaryDefinition,
@@ -1805,10 +1756,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultXml,
+                    new QualifiedName(BrowseNames.DefaultXml),
                     typeId,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync((DictionaryDataTypeDefinition?)null)
+                .ReturnsAsync((DictionaryDataTypeDefinition)null!)
                 .Verifiable(Times.Once);
 
             // Act
@@ -1818,14 +1769,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             m_nodeCacheMock.Verify();
             m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            Assert.That(type, Is.TypeOf<StructureDescription.Structure>())
-                .Assert.That(Which.StructureDefinition, Is.EqualTo(binaryDefinition));
+            Assert.That(type, Is.TypeOf<StructureDescription.Structure>());
+            Assert.That(((StructureDescription)type!).StructureDefinition, Is.EqualTo(binaryDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            Assert.That(binary, Is.TypeOf<StructureDescription.Structure>())
-                .Assert.That(Which.StructureDefinition, Is.EqualTo(binaryDefinition));
+            Assert.That(binary, Is.TypeOf<StructureDescription.Structure>());
+            Assert.That(((StructureDescription)binary!).StructureDefinition, Is.EqualTo(binaryDefinition));
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            Assert.That(xml, Is.TypeOf<StructureDescription.Structure>())
-                .Assert.That(Which.StructureDefinition, Is.EqualTo(binaryDefinition));
+            Assert.That(xml, Is.TypeOf<StructureDescription.Structure>());
+            Assert.That(((StructureDescription)xml!).StructureDefinition, Is.EqualTo(binaryDefinition));
         }
 
         [Test]
@@ -1839,7 +1790,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyStructure"
+                BrowseName = new QualifiedName("MyStructure")
             };
             var xmlDefinition = new StructureDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
@@ -1868,13 +1819,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultXml,
+                    new QualifiedName(BrowseNames.DefaultXml),
                     typeId,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DictionaryDataTypeDefinition(xmlDefinition,
@@ -1882,10 +1833,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultBinary,
+                    new QualifiedName(BrowseNames.DefaultBinary),
                     typeId,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync((DictionaryDataTypeDefinition?)null)
+                .ReturnsAsync((DictionaryDataTypeDefinition)null!)
                 .Verifiable(Times.Once);
 
             // Act
@@ -1895,14 +1846,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             m_nodeCacheMock.Verify();
             m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            Assert.That(type, Is.TypeOf<StructureDescription.Structure>())
-                .Assert.That(Which.StructureDefinition, Is.EqualTo(xmlDefinition));
+            Assert.That(type, Is.TypeOf<StructureDescription.Structure>());
+            Assert.That(((StructureDescription)type!).StructureDefinition, Is.EqualTo(xmlDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            Assert.That(binary, Is.TypeOf<StructureDescription.Structure>())
-                .Assert.That(Which.StructureDefinition, Is.EqualTo(xmlDefinition));
+            Assert.That(binary, Is.TypeOf<StructureDescription.Structure>());
+            Assert.That(((StructureDescription)binary!).StructureDefinition, Is.EqualTo(xmlDefinition));
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            Assert.That(xml, Is.TypeOf<StructureDescription.Structure>())
-                .Assert.That(Which.StructureDefinition, Is.EqualTo(xmlDefinition));
+            Assert.That(xml, Is.TypeOf<StructureDescription.Structure>());
+            Assert.That(((StructureDescription)xml!).StructureDefinition, Is.EqualTo(xmlDefinition));
         }
 
         [Test]
@@ -1916,7 +1867,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyEnum"
+                BrowseName = new QualifiedName("MyEnum")
             };
             var binaryDefinition = new EnumDefinition();
             var xmlDefinition = new EnumDefinition();
@@ -1946,13 +1897,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultBinary,
+                    new QualifiedName(BrowseNames.DefaultBinary),
                     typeId,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DictionaryDataTypeDefinition(binaryDefinition,
@@ -1960,7 +1911,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultXml,
+                    new QualifiedName(BrowseNames.DefaultXml),
                     typeId,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DictionaryDataTypeDefinition(xmlDefinition,
@@ -1974,14 +1925,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             m_nodeCacheMock.Verify();
             m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            Assert.That(type, Is.TypeOf<EnumDescription>())
-                .Assert.That(Which.EnumDefinition, Is.EqualTo(binaryDefinition));
+            Assert.That(type, Is.TypeOf<EnumDescription>());
+            Assert.That(((EnumDescription)type!).EnumDefinition, Is.EqualTo(binaryDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            Assert.That(binary, Is.TypeOf<EnumDescription>())
-                .Assert.That(Which.EnumDefinition, Is.EqualTo(binaryDefinition));
+            Assert.That(binary, Is.TypeOf<EnumDescription>());
+            Assert.That(((EnumDescription)binary!).EnumDefinition, Is.EqualTo(binaryDefinition));
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            Assert.That(xml, Is.TypeOf<EnumDescription>())
-                .Assert.That(Which.EnumDefinition, Is.EqualTo(xmlDefinition));
+            Assert.That(xml, Is.TypeOf<EnumDescription>());
+            Assert.That(((EnumDescription)xml!).EnumDefinition, Is.EqualTo(xmlDefinition));
         }
 
         [Test]
@@ -1995,7 +1946,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyEnum"
+                BrowseName = new QualifiedName("MyEnum")
             };
             var binaryDefinition = new EnumDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
@@ -2024,13 +1975,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultBinary,
+                    new QualifiedName(BrowseNames.DefaultBinary),
                     typeId,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DictionaryDataTypeDefinition(binaryDefinition,
@@ -2038,10 +1989,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultXml,
+                    new QualifiedName(BrowseNames.DefaultXml),
                     typeId,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync((DictionaryDataTypeDefinition?)null)
+                .ReturnsAsync((DictionaryDataTypeDefinition)null!)
                 .Verifiable(Times.Once);
 
             // Act
@@ -2051,14 +2002,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             m_nodeCacheMock.Verify();
             m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            Assert.That(type, Is.TypeOf<EnumDescription>())
-                .Assert.That(Which.EnumDefinition, Is.EqualTo(binaryDefinition));
+            Assert.That(type, Is.TypeOf<EnumDescription>());
+            Assert.That(((EnumDescription)type!).EnumDefinition, Is.EqualTo(binaryDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            Assert.That(binary, Is.TypeOf<EnumDescription>())
-                .Assert.That(Which.EnumDefinition, Is.EqualTo(binaryDefinition));
+            Assert.That(binary, Is.TypeOf<EnumDescription>());
+            Assert.That(((EnumDescription)binary!).EnumDefinition, Is.EqualTo(binaryDefinition));
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            Assert.That(xml, Is.TypeOf<EnumDescription>())
-                .Assert.That(Which.EnumDefinition, Is.EqualTo(binaryDefinition));
+            Assert.That(xml, Is.TypeOf<EnumDescription>());
+            Assert.That(((EnumDescription)xml!).EnumDefinition, Is.EqualTo(binaryDefinition));
         }
 
         [Test]
@@ -2072,7 +2023,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyEnum"
+                BrowseName = new QualifiedName("MyEnum")
             };
             var xmlDefinition = new EnumDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
@@ -2101,13 +2052,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultXml,
+                    new QualifiedName(BrowseNames.DefaultXml),
                     typeId,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DictionaryDataTypeDefinition(xmlDefinition,
@@ -2115,10 +2066,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultBinary,
+                    new QualifiedName(BrowseNames.DefaultBinary),
                     typeId,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync((DictionaryDataTypeDefinition?)null)
+                .ReturnsAsync((DictionaryDataTypeDefinition)null!)
                 .Verifiable(Times.Once);
 
             // Act
@@ -2128,14 +2079,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             m_nodeCacheMock.Verify();
             m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            Assert.That(type, Is.TypeOf<EnumDescription>())
-                .Assert.That(Which.EnumDefinition, Is.EqualTo(xmlDefinition));
+            Assert.That(type, Is.TypeOf<EnumDescription>());
+            Assert.That(((EnumDescription)type!).EnumDefinition, Is.EqualTo(xmlDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            Assert.That(binary, Is.TypeOf<EnumDescription>())
-                .Assert.That(Which.EnumDefinition, Is.EqualTo(xmlDefinition));
+            Assert.That(binary, Is.TypeOf<EnumDescription>());
+            Assert.That(((EnumDescription)binary!).EnumDefinition, Is.EqualTo(xmlDefinition));
             var xml = sut.GetDataTypeDescription(xmlEncodingId);
-            Assert.That(xml, Is.TypeOf<EnumDescription>())
-                .Assert.That(Which.EnumDefinition, Is.EqualTo(xmlDefinition));
+            Assert.That(xml, Is.TypeOf<EnumDescription>());
+            Assert.That(((EnumDescription)xml!).EnumDefinition, Is.EqualTo(xmlDefinition));
         }
 
         [Test]
@@ -2149,7 +2100,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyEnum"
+                BrowseName = new QualifiedName("MyEnum")
             };
             var xmlDefinition = new EnumDefinition();
             var binaryEncodingId = NodeId.Parse("i=1017");
@@ -2177,12 +2128,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId }
                 ])
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultXml,
+                    new QualifiedName(BrowseNames.DefaultXml),
                     typeId,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DictionaryDataTypeDefinition(xmlDefinition,
@@ -2190,10 +2141,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultBinary,
+                    new QualifiedName(BrowseNames.DefaultBinary),
                     typeId,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync((DictionaryDataTypeDefinition?)null)
+                .ReturnsAsync((DictionaryDataTypeDefinition)null!)
                 .Verifiable(Times.Once);
 
             // Act
@@ -2203,11 +2154,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             m_nodeCacheMock.Verify();
             m_dataTypeSystemsMock.Verify();
             var type = sut.GetDataTypeDescription(typeId);
-            Assert.That(type, Is.TypeOf<EnumDescription>())
-                .Assert.That(Which.EnumDefinition, Is.EqualTo(xmlDefinition));
+            Assert.That(type, Is.TypeOf<EnumDescription>());
+            Assert.That(((EnumDescription)type!).EnumDefinition, Is.EqualTo(xmlDefinition));
             var binary = sut.GetDataTypeDescription(binaryEncodingId);
-            Assert.That(binary, Is.TypeOf<EnumDescription>())
-                .Assert.That(Which.EnumDefinition, Is.EqualTo(xmlDefinition));
+            Assert.That(binary, Is.TypeOf<EnumDescription>());
+            Assert.That(((EnumDescription)binary!).EnumDefinition, Is.EqualTo(xmlDefinition));
         }
 
         [Test]
@@ -2221,7 +2172,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = typeId,
-                BrowseName = "MyEnum"
+                BrowseName = new QualifiedName("MyEnum")
             };
             var binaryEncodingId = NodeId.Parse("i=1017");
             var xmlEncodingId = NodeId.Parse("i=1018");
@@ -2249,23 +2200,23 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultBinary, NodeId = binaryEncodingId },
-                    new DataTypeNode { BrowseName = BrowseNames.DefaultXml, NodeId = xmlEncodingId }
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = binaryEncodingId },
+                    new DataTypeNode { BrowseName = new QualifiedName(BrowseNames.DefaultXml), NodeId = xmlEncodingId }
                 ])
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultXml,
+                    new QualifiedName(BrowseNames.DefaultXml),
                     typeId,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync((DictionaryDataTypeDefinition?)null)
+                .ReturnsAsync((DictionaryDataTypeDefinition)null!)
                 .Verifiable(Times.Once);
             m_dataTypeSystemsMock
                 .Setup(x => x.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultBinary,
+                    new QualifiedName(BrowseNames.DefaultBinary),
                     typeId,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync((DictionaryDataTypeDefinition?)null)
+                .ReturnsAsync((DictionaryDataTypeDefinition)null!)
                 .Verifiable(Times.Once);
 
             // Act
@@ -2288,11 +2239,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Arrange
             var sut = new DataTypeDescriptionResolver(
                 m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
-            var enumFields = new EnumFieldCollection
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new EnumField { Name = "Value1", Value = 1 },
                 new EnumField { Name = "Value2", Value = 2 }
-            };
+            ];
             var enumDefinition = new EnumDefinition { Fields = enumFields };
             var dataTypeNode = new DataTypeNode
             {
@@ -2333,11 +2283,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Arrange
             var sut = new DataTypeDescriptionResolver(
                 m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
-            var enumFields = new EnumFieldCollection
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new EnumField { Name = "Duplicate", Value = 1 },
                 new EnumField { Name = "Duplicate", Value = 2 }
-            };
+            ];
             var enumDefinition = new EnumDefinition { Fields = enumFields };
             var dataTypeNode = new DataTypeNode
             {
@@ -2358,11 +2307,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Arrange
             var sut = new DataTypeDescriptionResolver(
                 m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
-            var structureFields = new StructureFieldCollection
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new StructureField { Name = "Field1", DataType = new NodeId(2), ValueRank = ValueRanks.Scalar },
                 new StructureField { Name = "Field2", DataType = new NodeId(3), ValueRank = ValueRanks.OneDimension }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 Fields = structureFields,
@@ -2435,10 +2383,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Arrange
             var sut = new DataTypeDescriptionResolver(
                 m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
-            var structureFields = new StructureFieldCollection
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new StructureField { Name = null, DataType = new NodeId(2), ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 Fields = structureFields,
@@ -2463,10 +2410,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Arrange
             var sut = new DataTypeDescriptionResolver(
                 m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
-            var structureFields = new StructureFieldCollection
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new StructureField { Name = "Field1", DataType = NodeId.Null, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 Fields = structureFields,
@@ -2491,11 +2437,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Arrange
             var sut = new DataTypeDescriptionResolver(
                 m_nodeCacheMock.Object, m_contextMock.Object, m_dataTypeSystemsMock.Object, m_loggerMock.Object);
-            var structureFields = new StructureFieldCollection
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new StructureField { Name = "Duplicate", DataType = new NodeId(2), ValueRank = ValueRanks.Scalar },
                 new StructureField { Name = "Duplicate", DataType = new NodeId(2), ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition { Fields = structureFields };
             var dataTypeNode = new DataTypeNode
             {
@@ -2519,7 +2464,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var dataTypeNode = new DataTypeNode
             {
                 NodeId = new NodeId(1),
-                DataTypeDefinition = null
+                DataTypeDefinition = ExtensionObject.Null
             };
 
             // Act

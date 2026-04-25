@@ -1,4 +1,4 @@
-// ------------------------------------------------------------
+﻿// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -60,8 +60,8 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
             var requestHeader = header.Value;
             var clientSignature = new SignatureData();
-            var clientSoftwareCertificates = new SignedSoftwareCertificateCollection();
-            var localeIds = new StringCollection();
+            var clientSoftwareCertificates = ArrayOf<SignedSoftwareCertificate>.Empty;
+            var localeIds = ArrayOf<string>.Empty;
             var userIdentityToken = new ExtensionObject();
             var userTokenSignature = new SignatureData();
             var ct = CancellationToken.None;
@@ -80,8 +80,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -94,8 +94,8 @@ namespace Opc.Ua.Client.Sessions
 
             var requestHeader = header.Value;
             var clientSignature = new SignatureData();
-            var clientSoftwareCertificates = new SignedSoftwareCertificateCollection();
-            var localeIds = new StringCollection();
+            var clientSoftwareCertificates = ArrayOf<SignedSoftwareCertificate>.Empty;
+            var localeIds = ArrayOf<string>.Empty;
             var userIdentityToken = new ExtensionObject();
             var userTokenSignature = new SignatureData();
             var ct = CancellationToken.None;
@@ -132,8 +132,8 @@ namespace Opc.Ua.Client.Sessions
 
             var requestHeader = header.Value;
             var clientSignature = new SignatureData();
-            var clientSoftwareCertificates = new SignedSoftwareCertificateCollection();
-            var localeIds = new StringCollection();
+            var clientSoftwareCertificates = ArrayOf<SignedSoftwareCertificate>.Empty;
+            var localeIds = ArrayOf<string>.Empty;
             var userIdentityToken = new ExtensionObject();
             var userTokenSignature = new SignatureData();
             var ct = CancellationToken.None;
@@ -164,8 +164,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var nodesToAdd = new AddNodesItemCollection(
-                Enumerable.Repeat(new AddNodesItem(), 15).ToList());
+            var nodesToAdd = Enumerable.Repeat(new AddNodesItem(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
@@ -176,13 +175,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new AddNodesResponse
                 {
-                    Results = new AddNodesResultCollection(
-                    Enumerable.Repeat(new AddNodesResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new AddNodesResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new AddNodesResponse
                 {
-                    Results = new AddNodesResultCollection(
-                    Enumerable.Repeat(new AddNodesResult(), 5).ToList())
+                    Results = Enumerable.Repeat(new AddNodesResult(), 5).ToArrayOf()
                 });
 
             // Act
@@ -203,7 +200,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var nodesToAdd = new AddNodesItemCollection(Enumerable.Repeat(new AddNodesItem(), 15).ToList());
+            var nodesToAdd = Enumerable.Repeat(new AddNodesItem(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
@@ -214,11 +211,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new AddNodesResponse
                 {
-                    Results = new AddNodesResultCollection(Enumerable.Repeat(new AddNodesResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new AddNodesResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new AddNodesResponse
                 {
-                    Results = new AddNodesResultCollection(Enumerable.Repeat(new AddNodesResult(), 5).ToList()),
+                    Results = Enumerable.Repeat(new AddNodesResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -241,7 +238,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var nodesToAdd = new AddNodesItemCollection();
+            var nodesToAdd = ArrayOf<AddNodesItem>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -257,8 +254,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -270,7 +267,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var nodesToAdd = new AddNodesItemCollection();
+            var nodesToAdd = ArrayOf<AddNodesItem>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -303,7 +300,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var nodesToAdd = new AddNodesItemCollection();
+            var nodesToAdd = ArrayOf<AddNodesItem>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -331,7 +328,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var nodesToAdd = new AddNodesItemCollection();
+            var nodesToAdd = ArrayOf<AddNodesItem>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -362,8 +359,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var referencesToAdd = new AddReferencesItemCollection(
-                Enumerable.Repeat(new AddReferencesItem(), 15).ToList());
+            var referencesToAdd = Enumerable.Repeat(new AddReferencesItem(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
@@ -374,13 +370,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new AddReferencesResponse
                 {
-                    Results = new StatusCodeCollection(
-                    Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new AddReferencesResponse
                 {
-                    Results = new StatusCodeCollection(
-                    Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToArrayOf()
                 });
 
             // Act
@@ -401,7 +395,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var referencesToAdd = new AddReferencesItemCollection(Enumerable.Repeat(new AddReferencesItem(), 15).ToList());
+            var referencesToAdd = Enumerable.Repeat(new AddReferencesItem(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerNodeManagement = 10;
@@ -412,11 +406,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new AddReferencesResponse
                 {
-                    Results = new StatusCodeCollection(Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new AddReferencesResponse
                 {
-                    Results = new StatusCodeCollection(Enumerable.Repeat((StatusCode)StatusCodes.Bad, 5).ToList()),
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Bad, 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -439,7 +433,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var referencesToAdd = new AddReferencesItemCollection();
+            var referencesToAdd = ArrayOf<AddReferencesItem>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -455,8 +449,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -468,7 +462,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var referencesToAdd = new AddReferencesItemCollection();
+            var referencesToAdd = ArrayOf<AddReferencesItem>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -501,7 +495,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var referencesToAdd = new AddReferencesItemCollection();
+            var referencesToAdd = ArrayOf<AddReferencesItem>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -529,7 +523,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var referencesToAdd = new AddReferencesItemCollection();
+            var referencesToAdd = ArrayOf<AddReferencesItem>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -562,8 +556,7 @@ namespace Opc.Ua.Client.Sessions
             var requestHeader = header.Value;
             var view = new ViewDescription();
             const uint requestedMaxReferencesPerNode = 10u;
-            var nodesToBrowse = new BrowseDescriptionCollection(
-                Enumerable.Repeat(new BrowseDescription(), 15).ToList());
+            var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
@@ -574,13 +567,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                    Enumerable.Repeat(new BrowseResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                    Enumerable.Repeat(new BrowseResult(), 5).ToList())
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf()
                 });
 
             // Act
@@ -603,8 +594,7 @@ namespace Opc.Ua.Client.Sessions
 
             var requestHeader = header.Value;
             var view = new ViewDescription();
-            var nodesToBrowse = new BrowseDescriptionCollection(
-                Enumerable.Repeat(new BrowseDescription(), 5).ToList());
+            var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 5).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
@@ -628,10 +618,9 @@ namespace Opc.Ua.Client.Sessions
                 .Returns<IServiceRequest, CancellationToken>((r, ct) =>
                 {
                     requestHeader = r.RequestHeader;
-                    return Task.FromResult<IServiceResponse>(new BrowseResponse
+                    return new ValueTask<IServiceResponse>(new BrowseResponse
                     {
-                        Results = new BrowseResultCollection(
-                            Enumerable.Repeat(new BrowseResult(), 5).ToList())
+                        Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf()
                     });
                 });
 
@@ -643,10 +632,9 @@ namespace Opc.Ua.Client.Sessions
             if (requestHeader != null)
             {
                 Assert.That(requestHeader.AdditionalHeader, Is.Not.Null);
-                var additionalParameters = requestHeader.AdditionalHeader.Body as AdditionalParametersType;
+                Assert.That(requestHeader.AdditionalHeader.TryGetEncodeable<AdditionalParametersType>(out var additionalParameters), Is.True);
                 Assert.That(additionalParameters, Is.Not.Null);
-                Assert.That(additionalParameters, Is.Not.Null);
-                Assert.That(additionalParameters.Parameters, Does.Contain(p => p.Key == "traceparent"));
+                Assert.That(additionalParameters!.Parameters.Find(p => p.Key == "traceparent"), Is.Not.Null);
             }
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Once);
@@ -661,8 +649,7 @@ namespace Opc.Ua.Client.Sessions
 
             var requestHeader = header.Value;
             var view = new ViewDescription();
-            var nodesToBrowse = new BrowseDescriptionCollection(
-                Enumerable.Repeat(new BrowseDescription(), 15).ToList());
+            var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
@@ -686,13 +673,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 5).ToList())
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf()
                 });
 
             // Act
@@ -703,10 +688,9 @@ namespace Opc.Ua.Client.Sessions
             if (requestHeader != null)
             {
                 Assert.That(requestHeader.AdditionalHeader, Is.Not.Null);
-                var additionalParameters = requestHeader.AdditionalHeader.Body as AdditionalParametersType;
+                Assert.That(requestHeader.AdditionalHeader.TryGetEncodeable<AdditionalParametersType>(out var additionalParameters), Is.True);
                 Assert.That(additionalParameters, Is.Not.Null);
-                Assert.That(additionalParameters, Is.Not.Null);
-                Assert.That(additionalParameters.Parameters, Does.Contain(p => p.Key == "traceparent"));
+                Assert.That(additionalParameters!.Parameters.Find(p => p.Key == "traceparent"), Is.Not.Null);
             }
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
@@ -722,7 +706,7 @@ namespace Opc.Ua.Client.Sessions
             var requestHeader = header.Value;
             var view = new ViewDescription();
             const uint requestedMaxReferencesPerNode = 10u;
-            var nodesToBrowse = new BrowseDescriptionCollection(Enumerable.Repeat(new BrowseDescription(), 15).ToList());
+            var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
@@ -734,13 +718,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 5).ToList()),
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -766,8 +748,7 @@ namespace Opc.Ua.Client.Sessions
 
             var requestHeader = header.Value;
             var view = new ViewDescription();
-            var nodesToBrowse = new BrowseDescriptionCollection(
-                Enumerable.Repeat(new BrowseDescription(), 15).ToList());
+            var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
@@ -795,17 +776,13 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 10).ToList()),
-                    DiagnosticInfos = new DiagnosticInfoCollection(
-                        Enumerable.Repeat(diagnosticInfo1, 10).ToList())
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf(),
+                    DiagnosticInfos = Enumerable.Repeat(diagnosticInfo1, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 5).ToList()),
-                    DiagnosticInfos = new DiagnosticInfoCollection(
-                        Enumerable.Repeat(diagnosticInfo2, 5).ToList())
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf(),
+                    DiagnosticInfos = Enumerable.Repeat(diagnosticInfo2, 5).ToArrayOf()
                 });
 
             // Act
@@ -833,8 +810,7 @@ namespace Opc.Ua.Client.Sessions
 
             var requestHeader = header.Value;
             var view = new ViewDescription();
-            var nodesToBrowse = new BrowseDescriptionCollection(
-                Enumerable.Repeat(new BrowseDescription(), 15).ToList());
+            var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
@@ -845,14 +821,12 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 10).ToList()),
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf(),
                     DiagnosticInfos = []
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 5).ToList()),
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf(),
                     DiagnosticInfos = []
                 });
 
@@ -877,8 +851,7 @@ namespace Opc.Ua.Client.Sessions
 
             var requestHeader = header.Value;
             var view = new ViewDescription();
-            var nodesToBrowse = new BrowseDescriptionCollection(
-                Enumerable.Repeat(new BrowseDescription(), 15).ToList());
+            var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
@@ -897,10 +870,8 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 10).ToList()),
-                    DiagnosticInfos = new DiagnosticInfoCollection(
-                        Enumerable.Repeat(diagnosticInfo1, 10).ToList()),
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf(),
+                    DiagnosticInfos = Enumerable.Repeat(diagnosticInfo1, 10).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         StringTable = []
@@ -908,10 +879,8 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 5).ToList()),
-                    DiagnosticInfos = new DiagnosticInfoCollection(
-                        Enumerable.Repeat(diagnosticInfo1, 5).ToList()),
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf(),
+                    DiagnosticInfos = Enumerable.Repeat(diagnosticInfo1, 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         StringTable = []
@@ -946,8 +915,7 @@ namespace Opc.Ua.Client.Sessions
 
             var requestHeader = header.Value;
             var view = new ViewDescription();
-            var nodesToBrowse = new BrowseDescriptionCollection(
-                Enumerable.Repeat(new BrowseDescription(), 15).ToList());
+            var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
@@ -966,15 +934,12 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 10).ToList()),
-                    DiagnosticInfos = new DiagnosticInfoCollection(
-                        Enumerable.Repeat(diagnosticInfo1, 10).ToList())
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf(),
+                    DiagnosticInfos = Enumerable.Repeat(diagnosticInfo1, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 5).ToList()),
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf(),
                     DiagnosticInfos = []
                 });
 
@@ -999,8 +964,7 @@ namespace Opc.Ua.Client.Sessions
 
             var requestHeader = header.Value;
             var view = new ViewDescription();
-            var nodesToBrowse = new BrowseDescriptionCollection(
-                Enumerable.Range(0, 15).Select(_ => new BrowseDescription()));
+            var nodesToBrowse = Enumerable.Range(0, 15).Select(_ => new BrowseDescription()).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
@@ -1019,10 +983,8 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Range(0, 10).Select(_ => new BrowseResult())),
-                    DiagnosticInfos = new DiagnosticInfoCollection(
-                        Enumerable.Range(0, 10).Select(_ => diagnosticInfo())),
+                    Results = Enumerable.Range(0, 10).Select(_ => new BrowseResult()).ToArrayOf(),
+                    DiagnosticInfos = Enumerable.Range(0, 10).Select(_ => diagnosticInfo()).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         StringTable = ["String1", "String2", "String3", "String4"]
@@ -1030,10 +992,8 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Range(0, 5).Select(_ => new BrowseResult())),
-                    DiagnosticInfos = new DiagnosticInfoCollection(
-                        Enumerable.Range(0, 5).Select(_ => diagnosticInfo())),
+                    Results = Enumerable.Range(0, 5).Select(_ => new BrowseResult()).ToArrayOf(),
+                    DiagnosticInfos = Enumerable.Range(0, 5).Select(_ => diagnosticInfo()).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         StringTable = ["String5", "String6", "String7", "String8"]
@@ -1074,8 +1034,7 @@ namespace Opc.Ua.Client.Sessions
 
             var requestHeader = header.Value;
             var view = new ViewDescription();
-            var nodesToBrowse = new BrowseDescriptionCollection(
-                Enumerable.Range(0, 15).Select(_ => new BrowseDescription()));
+            var nodesToBrowse = Enumerable.Range(0, 15).Select(_ => new BrowseDescription()).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
@@ -1102,10 +1061,8 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Range(0, 10).Select(_ => new BrowseResult())),
-                    DiagnosticInfos = new DiagnosticInfoCollection(
-                        Enumerable.Range(0, 10).Select(_ => diagnosticInfo1())),
+                    Results = Enumerable.Range(0, 10).Select(_ => new BrowseResult()).ToArrayOf(),
+                    DiagnosticInfos = Enumerable.Range(0, 10).Select(_ => diagnosticInfo1()).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         StringTable = ["String1", "String2", "String3", "String4"]
@@ -1113,10 +1070,8 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Range(0, 5).Select(_ => new BrowseResult())),
-                    DiagnosticInfos = new DiagnosticInfoCollection(
-                        Enumerable.Range(0, 5).Select(_ => diagnosticInfo2())),
+                    Results = Enumerable.Range(0, 5).Select(_ => new BrowseResult()).ToArrayOf(),
+                    DiagnosticInfos = Enumerable.Range(0, 5).Select(_ => diagnosticInfo2()).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         StringTable = ["String5", "String6", "String7", "String8"]
@@ -1157,8 +1112,7 @@ namespace Opc.Ua.Client.Sessions
 
             var requestHeader = header.Value;
             var view = new ViewDescription();
-            var nodesToBrowse = new BrowseDescriptionCollection(
-                Enumerable.Range(0, 15).Select(_ => new BrowseDescription()));
+            var nodesToBrowse = Enumerable.Range(0, 15).Select(_ => new BrowseDescription()).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerBrowse = 10;
@@ -1186,10 +1140,8 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Range(0, 10).Select(_ => new BrowseResult())),
-                    DiagnosticInfos = new DiagnosticInfoCollection(
-                        Enumerable.Range(0, 10).Select(_ => diagnosticInfo1())),
+                    Results = Enumerable.Range(0, 10).Select(_ => new BrowseResult()).ToArrayOf(),
+                    DiagnosticInfos = Enumerable.Range(0, 10).Select(_ => diagnosticInfo1()).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         StringTable = ["String1", "String2"]
@@ -1197,10 +1149,8 @@ namespace Opc.Ua.Client.Sessions
                 })
                 .ReturnsAsync(new BrowseResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Range(0, 5).Select(_ => new BrowseResult())),
-                    DiagnosticInfos = new DiagnosticInfoCollection(
-                        Enumerable.Range(0, 5).Select(_ => diagnosticInfo2())),
+                    Results = Enumerable.Range(0, 5).Select(_ => new BrowseResult()).ToArrayOf(),
+                    DiagnosticInfos = Enumerable.Range(0, 5).Select(_ => diagnosticInfo2()).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         StringTable = ["String1", "String2", "String3", "String4"]
@@ -1246,7 +1196,7 @@ namespace Opc.Ua.Client.Sessions
             var requestHeader = header.Value;
             var view = new ViewDescription();
             const uint requestedMaxReferencesPerNode = 10u;
-            var nodesToBrowse = new BrowseDescriptionCollection();
+            var nodesToBrowse = ArrayOf<BrowseDescription>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -1262,8 +1212,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -1277,7 +1227,7 @@ namespace Opc.Ua.Client.Sessions
             var requestHeader = header.Value;
             var view = new ViewDescription();
             const uint requestedMaxReferencesPerNode = 10u;
-            var nodesToBrowse = new BrowseDescriptionCollection();
+            var nodesToBrowse = ArrayOf<BrowseDescription>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -1312,7 +1262,7 @@ namespace Opc.Ua.Client.Sessions
             var requestHeader = header.Value;
             var view = new ViewDescription();
             const uint requestedMaxReferencesPerNode = 10u;
-            var nodesToBrowse = new BrowseDescriptionCollection();
+            var nodesToBrowse = ArrayOf<BrowseDescription>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -1342,7 +1292,7 @@ namespace Opc.Ua.Client.Sessions
             var requestHeader = header.Value;
             var view = new ViewDescription();
             const uint requestedMaxReferencesPerNode = 10u;
-            var nodesToBrowse = new BrowseDescriptionCollection();
+            var nodesToBrowse = ArrayOf<BrowseDescription>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -1374,8 +1324,7 @@ namespace Opc.Ua.Client.Sessions
 
             const bool releaseContinuationPoints = true;
             var requestHeader = header.Value;
-            var continuationPoints = new ByteStringCollection(
-                Enumerable.Repeat(Array.Empty<byte>(), 15).ToList());
+            var continuationPoints = Enumerable.Repeat(ByteString.Empty, 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxBrowseContinuationPoints = 10;
@@ -1386,13 +1335,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseNextResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseNextResponse
                 {
-                    Results = new BrowseResultCollection(
-                        Enumerable.Repeat(new BrowseResult(), 5).ToList())
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf()
                 });
 
             // Act
@@ -1415,7 +1362,7 @@ namespace Opc.Ua.Client.Sessions
 
             const bool releaseContinuationPoints = true;
             var requestHeader = header.Value;
-            var continuationPoints = new ByteStringCollection(Enumerable.Repeat(Array.Empty<byte>(), 15).ToList());
+            var continuationPoints = Enumerable.Repeat(ByteString.Empty, 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxBrowseContinuationPoints = 10;
@@ -1426,11 +1373,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BrowseNextResponse
                 {
-                    Results = new BrowseResultCollection(Enumerable.Repeat(new BrowseResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new BrowseResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new BrowseNextResponse
                 {
-                    Results = new BrowseResultCollection(Enumerable.Repeat(new BrowseResult(), 5).ToList()),
+                    Results = Enumerable.Repeat(new BrowseResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -1456,7 +1403,7 @@ namespace Opc.Ua.Client.Sessions
 
             const bool releaseContinuationPoints = true;
             var requestHeader = header.Value;
-            var continuationPoints = new ByteStringCollection();
+            var continuationPoints = ArrayOf<ByteString>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -1472,8 +1419,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -1486,7 +1433,7 @@ namespace Opc.Ua.Client.Sessions
 
             const bool releaseContinuationPoints = true;
             var requestHeader = header.Value;
-            var continuationPoints = new ByteStringCollection();
+            var continuationPoints = ArrayOf<ByteString>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -1520,7 +1467,7 @@ namespace Opc.Ua.Client.Sessions
 
             const bool releaseContinuationPoints = true;
             var requestHeader = header.Value;
-            var continuationPoints = new ByteStringCollection();
+            var continuationPoints = ArrayOf<ByteString>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -1549,7 +1496,7 @@ namespace Opc.Ua.Client.Sessions
 
             const bool releaseContinuationPoints = true;
             var requestHeader = header.Value;
-            var continuationPoints = new ByteStringCollection();
+            var continuationPoints = ArrayOf<ByteString>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -1581,8 +1528,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var methodsToCall = new CallMethodRequestCollection(
-                Enumerable.Repeat(new CallMethodRequest(), 15).ToList());
+            var methodsToCall = Enumerable.Repeat(new CallMethodRequest(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerMethodCall = 10;
@@ -1593,13 +1539,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
-                    Results = new CallMethodResultCollection(
-                    Enumerable.Repeat(new CallMethodResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new CallMethodResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new CallResponse
                 {
-                    Results = new CallMethodResultCollection(
-                    Enumerable.Repeat(new CallMethodResult(), 5).ToList())
+                    Results = Enumerable.Repeat(new CallMethodResult(), 5).ToArrayOf()
                 });
 
             // Act
@@ -1620,7 +1564,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var methodsToCall = new CallMethodRequestCollection(Enumerable.Repeat(new CallMethodRequest(), 15).ToList());
+            var methodsToCall = Enumerable.Repeat(new CallMethodRequest(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxNodesPerMethodCall = 10;
@@ -1631,11 +1575,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
-                    Results = new CallMethodResultCollection(Enumerable.Repeat(new CallMethodResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new CallMethodResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new CallResponse
                 {
-                    Results = new CallMethodResultCollection(Enumerable.Repeat(new CallMethodResult(), 5).ToList()),
+                    Results = Enumerable.Repeat(new CallMethodResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -1660,7 +1604,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var methodsToCall = new CallMethodRequestCollection();
+            var methodsToCall = ArrayOf<CallMethodRequest>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -1676,8 +1620,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -1689,7 +1633,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var methodsToCall = new CallMethodRequestCollection();
+            var methodsToCall = ArrayOf<CallMethodRequest>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -1722,7 +1666,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var methodsToCall = new CallMethodRequestCollection();
+            var methodsToCall = ArrayOf<CallMethodRequest>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -1750,7 +1694,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var requestHeader = header.Value;
-            var methodsToCall = new CallMethodRequestCollection();
+            var methodsToCall = ArrayOf<CallMethodRequest>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -1797,8 +1741,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -1887,8 +1831,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -1963,8 +1907,7 @@ namespace Opc.Ua.Client.Sessions
             var requestHeader = header.Value;
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection(
-                Enumerable.Repeat(new MonitoredItemCreateRequest(), 15).ToList());
+            var itemsToCreate = Enumerable.Repeat(new MonitoredItemCreateRequest(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
@@ -1975,13 +1918,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemCreateResultCollection(
-                        Enumerable.Repeat(new MonitoredItemCreateResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new MonitoredItemCreateResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemCreateResultCollection(
-                        Enumerable.Repeat(new MonitoredItemCreateResult(), 5).ToList())
+                    Results = Enumerable.Repeat(new MonitoredItemCreateResult(), 5).ToArrayOf()
                 });
 
             // Act
@@ -2005,7 +1946,7 @@ namespace Opc.Ua.Client.Sessions
             const uint subscriptionId = 1u;
             var requestHeader = header.Value;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection(Enumerable.Repeat(new MonitoredItemCreateRequest(), 15).ToList());
+            var itemsToCreate = Enumerable.Repeat(new MonitoredItemCreateRequest(), 15).ToArrayOf();
             var ct = CancellationToken.None;
 
             m_sessionServices.OperationLimits.MaxMonitoredItemsPerCall = 10;
@@ -2016,11 +1957,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemCreateResultCollection(Enumerable.Repeat(new MonitoredItemCreateResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new MonitoredItemCreateResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemCreateResultCollection(Enumerable.Repeat(new MonitoredItemCreateResult(), 5).ToList()),
+                    Results = Enumerable.Repeat(new MonitoredItemCreateResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -2046,7 +1987,7 @@ namespace Opc.Ua.Client.Sessions
             var requestHeader = header.Value;
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection();
+            var itemsToCreate = ArrayOf<MonitoredItemCreateRequest>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -2062,8 +2003,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -2077,7 +2018,7 @@ namespace Opc.Ua.Client.Sessions
             var requestHeader = header.Value;
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection();
+            var itemsToCreate = ArrayOf<MonitoredItemCreateRequest>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -2112,7 +2053,7 @@ namespace Opc.Ua.Client.Sessions
             var requestHeader = header.Value;
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection();
+            var itemsToCreate = ArrayOf<MonitoredItemCreateRequest>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -2142,7 +2083,7 @@ namespace Opc.Ua.Client.Sessions
             var requestHeader = header.Value;
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection();
+            var itemsToCreate = ArrayOf<MonitoredItemCreateRequest>.Empty;
             var ct = CancellationToken.None;
 
             m_mockChannel
@@ -2196,8 +2137,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -2282,7 +2223,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             const uint subscriptionId = 1u;
-            var monitoredItemIds = new UInt32Collection(Enumerable.Repeat(1u, 15).ToList());
+            var monitoredItemIds = Enumerable.Repeat(1u, 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2294,13 +2235,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteMonitoredItemsResponse
                 {
-                    Results = new StatusCodeCollection(
-                    Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new DeleteMonitoredItemsResponse
                 {
-                    Results = new StatusCodeCollection(
-                    Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToArrayOf()
                 });
 
             // Act
@@ -2322,7 +2261,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             const uint subscriptionId = 1u;
-            var monitoredItemIds = new UInt32Collection(Enumerable.Repeat(1u, 15).ToList());
+            var monitoredItemIds = Enumerable.Repeat(1u, 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2334,11 +2273,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteMonitoredItemsResponse
                 {
-                    Results = new StatusCodeCollection(Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new DeleteMonitoredItemsResponse
                 {
-                    Results = new StatusCodeCollection(Enumerable.Repeat((StatusCode)StatusCodes.Bad, 5).ToList()),
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Bad, 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -2363,7 +2302,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             const uint subscriptionId = 1u;
-            var monitoredItemIds = new UInt32Collection();
+            var monitoredItemIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2380,8 +2319,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -2393,7 +2332,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             const uint subscriptionId = 1u;
-            var monitoredItemIds = new UInt32Collection();
+            var monitoredItemIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2427,7 +2366,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             const uint subscriptionId = 1u;
-            var monitoredItemIds = new UInt32Collection();
+            var monitoredItemIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2455,8 +2394,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToDelete = new DeleteNodesItemCollection(
-                Enumerable.Repeat(new DeleteNodesItem(), 15).ToList());
+            var nodesToDelete = Enumerable.Repeat(new DeleteNodesItem(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2468,13 +2406,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteNodesResponse
                 {
-                    Results = new StatusCodeCollection(
-                        Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new DeleteNodesResponse
                 {
-                    Results = new StatusCodeCollection(
-                        Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToArrayOf()
                 });
 
             // Act
@@ -2494,7 +2430,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToDelete = new DeleteNodesItemCollection(Enumerable.Repeat(new DeleteNodesItem(), 15).ToList());
+            var nodesToDelete = Enumerable.Repeat(new DeleteNodesItem(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2506,11 +2442,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteNodesResponse
                 {
-                    Results = new StatusCodeCollection(Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new DeleteNodesResponse
                 {
-                    Results = new StatusCodeCollection(Enumerable.Repeat((StatusCode)StatusCodes.Bad, 5).ToList()),
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Bad, 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -2533,7 +2469,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToDelete = new DeleteNodesItemCollection();
+            var nodesToDelete = ArrayOf<DeleteNodesItem>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2550,8 +2486,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -2562,7 +2498,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToDelete = new DeleteNodesItemCollection();
+            var nodesToDelete = ArrayOf<DeleteNodesItem>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2595,7 +2531,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToDelete = new DeleteNodesItemCollection();
+            var nodesToDelete = ArrayOf<DeleteNodesItem>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2623,7 +2559,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToDelete = new DeleteNodesItemCollection();
+            var nodesToDelete = ArrayOf<DeleteNodesItem>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2654,8 +2590,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var referencesToDelete = new DeleteReferencesItemCollection(
-                Enumerable.Repeat(new DeleteReferencesItem(), 15).ToList());
+            var referencesToDelete = Enumerable.Repeat(new DeleteReferencesItem(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2667,13 +2602,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteReferencesResponse
                 {
-                    Results = new StatusCodeCollection(
-                        Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new DeleteReferencesResponse
                 {
-                    Results = new StatusCodeCollection(
-                        Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToArrayOf()
                 });
 
             // Act
@@ -2693,7 +2626,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var referencesToDelete = new DeleteReferencesItemCollection(Enumerable.Repeat(new DeleteReferencesItem(), 15).ToList());
+            var referencesToDelete = Enumerable.Repeat(new DeleteReferencesItem(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2705,11 +2638,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DeleteReferencesResponse
                 {
-                    Results = new StatusCodeCollection(Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new DeleteReferencesResponse
                 {
-                    Results = new StatusCodeCollection(Enumerable.Repeat((StatusCode)StatusCodes.Bad, 5).ToList()),
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Bad, 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -2731,7 +2664,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var referencesToDelete = new DeleteReferencesItemCollection();
+            var referencesToDelete = ArrayOf<DeleteReferencesItem>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2748,8 +2681,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -2760,7 +2693,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var referencesToDelete = new DeleteReferencesItemCollection();
+            var referencesToDelete = ArrayOf<DeleteReferencesItem>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2793,7 +2726,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var referencesToDelete = new DeleteReferencesItemCollection();
+            var referencesToDelete = ArrayOf<DeleteReferencesItem>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2821,7 +2754,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var referencesToDelete = new DeleteReferencesItemCollection();
+            var referencesToDelete = ArrayOf<DeleteReferencesItem>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2852,7 +2785,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2869,8 +2802,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -2881,7 +2814,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2914,7 +2847,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2945,8 +2878,7 @@ namespace Opc.Ua.Client.Sessions
             var historyReadDetails = new ExtensionObject();
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             const bool releaseContinuationPoints = true;
-            var nodesToRead = new HistoryReadValueIdCollection(
-                Enumerable.Repeat(new HistoryReadValueId(), 15).ToList());
+            var nodesToRead = Enumerable.Repeat(new HistoryReadValueId(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -2958,13 +2890,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new HistoryReadResponse
                 {
-                    Results = new HistoryReadResultCollection(
-                    Enumerable.Repeat(new HistoryReadResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new HistoryReadResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new HistoryReadResponse
                 {
-                    Results = new HistoryReadResultCollection(
-                    Enumerable.Repeat(new HistoryReadResult(), 5).ToList())
+                    Results = Enumerable.Repeat(new HistoryReadResult(), 5).ToArrayOf()
                 });
 
             // Act
@@ -2988,7 +2918,7 @@ namespace Opc.Ua.Client.Sessions
             var historyReadDetails = new ExtensionObject(new ReadEventDetails());
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             const bool releaseContinuationPoints = true;
-            var nodesToRead = new HistoryReadValueIdCollection(Enumerable.Repeat(new HistoryReadValueId(), 15).ToList());
+            var nodesToRead = Enumerable.Repeat(new HistoryReadValueId(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3000,11 +2930,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new HistoryReadResponse
                 {
-                    Results = new HistoryReadResultCollection(Enumerable.Repeat(new HistoryReadResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new HistoryReadResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new HistoryReadResponse
                 {
-                    Results = new HistoryReadResultCollection(Enumerable.Repeat(new HistoryReadResult(), 5).ToList()),
+                    Results = Enumerable.Repeat(new HistoryReadResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -3030,7 +2960,7 @@ namespace Opc.Ua.Client.Sessions
             var historyReadDetails = new ExtensionObject();
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             const bool releaseContinuationPoints = true;
-            var nodesToRead = new HistoryReadValueIdCollection();
+            var nodesToRead = ArrayOf<HistoryReadValueId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3048,8 +2978,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -3063,7 +2993,7 @@ namespace Opc.Ua.Client.Sessions
             var historyReadDetails = new ExtensionObject();
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             const bool releaseContinuationPoints = true;
-            var nodesToRead = new HistoryReadValueIdCollection();
+            var nodesToRead = ArrayOf<HistoryReadValueId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3100,7 +3030,7 @@ namespace Opc.Ua.Client.Sessions
             var historyReadDetails = new ExtensionObject();
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             const bool releaseContinuationPoints = true;
-            var nodesToRead = new HistoryReadValueIdCollection();
+            var nodesToRead = ArrayOf<HistoryReadValueId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3132,7 +3062,7 @@ namespace Opc.Ua.Client.Sessions
             var historyReadDetails = new ExtensionObject();
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
             const bool releaseContinuationPoints = true;
-            var nodesToRead = new HistoryReadValueIdCollection();
+            var nodesToRead = ArrayOf<HistoryReadValueId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3164,7 +3094,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var historyUpdateDetails = new ExtensionObjectCollection(Enumerable.Repeat(new ExtensionObject(), 15).ToList());
+            var historyUpdateDetails = Enumerable.Repeat(new ExtensionObject(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3176,11 +3106,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new HistoryUpdateResponse
                 {
-                    Results = new HistoryUpdateResultCollection(Enumerable.Repeat(new HistoryUpdateResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new HistoryUpdateResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new HistoryUpdateResponse
                 {
-                    Results = new HistoryUpdateResultCollection(Enumerable.Repeat(new HistoryUpdateResult(), 5).ToList())
+                    Results = Enumerable.Repeat(new HistoryUpdateResult(), 5).ToArrayOf()
                 });
 
             // Act
@@ -3199,8 +3129,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var historyUpdateDetails = new ExtensionObjectCollection(
-                Enumerable.Repeat(new ExtensionObject(new UpdateEventDetails()), 15).ToList());
+            var historyUpdateDetails = Enumerable.Repeat(new ExtensionObject(new UpdateEventDetails()), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3212,11 +3141,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new HistoryUpdateResponse
                 {
-                    Results = new HistoryUpdateResultCollection(Enumerable.Repeat(new HistoryUpdateResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new HistoryUpdateResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new HistoryUpdateResponse
                 {
-                    Results = new HistoryUpdateResultCollection(Enumerable.Repeat(new HistoryUpdateResult(), 5).ToList()),
+                    Results = Enumerable.Repeat(new HistoryUpdateResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -3238,7 +3167,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var historyUpdateDetails = new ExtensionObjectCollection();
+            var historyUpdateDetails = ArrayOf<ExtensionObject>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3255,8 +3184,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -3267,7 +3196,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var historyUpdateDetails = new ExtensionObjectCollection();
+            var historyUpdateDetails = ArrayOf<ExtensionObject>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3300,7 +3229,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var historyUpdateDetails = new ExtensionObjectCollection();
+            var historyUpdateDetails = ArrayOf<ExtensionObject>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3328,7 +3257,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var historyUpdateDetails = new ExtensionObjectCollection();
+            var historyUpdateDetails = ArrayOf<ExtensionObject>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3361,8 +3290,7 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToModify = new MonitoredItemModifyRequestCollection(
-                Enumerable.Repeat(new MonitoredItemModifyRequest(), 15).ToList());
+            var itemsToModify = Enumerable.Repeat(new MonitoredItemModifyRequest(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3374,13 +3302,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ModifyMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemModifyResultCollection(
-                        Enumerable.Repeat(new MonitoredItemModifyResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new MonitoredItemModifyResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new ModifyMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemModifyResultCollection(
-                        Enumerable.Repeat(new MonitoredItemModifyResult(), 5).ToList())
+                    Results = Enumerable.Repeat(new MonitoredItemModifyResult(), 5).ToArrayOf()
                 });
 
             // Act
@@ -3403,7 +3329,7 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToModify = new MonitoredItemModifyRequestCollection(Enumerable.Repeat(new MonitoredItemModifyRequest(), 15).ToList());
+            var itemsToModify = Enumerable.Repeat(new MonitoredItemModifyRequest(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3415,11 +3341,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ModifyMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemModifyResultCollection(Enumerable.Repeat(new MonitoredItemModifyResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new MonitoredItemModifyResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new ModifyMonitoredItemsResponse
                 {
-                    Results = new MonitoredItemModifyResultCollection(Enumerable.Repeat(new MonitoredItemModifyResult(), 5).ToList()),
+                    Results = Enumerable.Repeat(new MonitoredItemModifyResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -3444,7 +3370,7 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToModify = new MonitoredItemModifyRequestCollection();
+            var itemsToModify = ArrayOf<MonitoredItemModifyRequest>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3461,8 +3387,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -3475,7 +3401,7 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToModify = new MonitoredItemModifyRequestCollection();
+            var itemsToModify = ArrayOf<MonitoredItemModifyRequest>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3510,7 +3436,7 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToModify = new MonitoredItemModifyRequestCollection();
+            var itemsToModify = ArrayOf<MonitoredItemModifyRequest>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3540,7 +3466,7 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var itemsToModify = new MonitoredItemModifyRequestCollection();
+            var itemsToModify = ArrayOf<MonitoredItemModifyRequest>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3595,8 +3521,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -3680,7 +3606,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var subscriptionAcknowledgements = new SubscriptionAcknowledgementCollection();
+            var subscriptionAcknowledgements = ArrayOf<SubscriptionAcknowledgement>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3697,8 +3623,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -3709,7 +3635,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var subscriptionAcknowledgements = new SubscriptionAcknowledgementCollection();
+            var subscriptionAcknowledgements = ArrayOf<SubscriptionAcknowledgement>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3742,7 +3668,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var subscriptionAcknowledgements = new SubscriptionAcknowledgementCollection();
+            var subscriptionAcknowledgements = ArrayOf<SubscriptionAcknowledgement>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3771,7 +3697,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var view = new ViewDescription();
-            var nodeTypes = new NodeTypeDescriptionCollection();
+            var nodeTypes = ArrayOf<NodeTypeDescription>.Empty;
             var filter = new ContentFilter();
             const uint maxDataSetsToReturn = 10u;
             const uint maxReferencesToReturn = 10u;
@@ -3791,8 +3717,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -3804,7 +3730,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var view = new ViewDescription();
-            var nodeTypes = new NodeTypeDescriptionCollection();
+            var nodeTypes = ArrayOf<NodeTypeDescription>.Empty;
             var filter = new ContentFilter();
             const uint maxDataSetsToReturn = 10u;
             const uint maxReferencesToReturn = 10u;
@@ -3841,7 +3767,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             var view = new ViewDescription();
-            var nodeTypes = new NodeTypeDescriptionCollection();
+            var nodeTypes = ArrayOf<NodeTypeDescription>.Empty;
             var filter = new ContentFilter();
             const uint maxDataSetsToReturn = 10u;
             const uint maxReferencesToReturn = 10u;
@@ -3873,7 +3799,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             const bool releaseContinuationPoint = true;
-            var continuationPoint = Array.Empty<byte>();
+            var continuationPoint = ByteString.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3890,8 +3816,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -3903,7 +3829,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             const bool releaseContinuationPoint = true;
-            var continuationPoint = Array.Empty<byte>();
+            var continuationPoint = ByteString.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3937,7 +3863,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             const bool releaseContinuationPoint = true;
-            var continuationPoint = Array.Empty<byte>();
+            var continuationPoint = ByteString.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3967,8 +3893,7 @@ namespace Opc.Ua.Client.Sessions
 
             const double maxAge = 1000.0;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var nodesToRead = new ReadValueIdCollection(
-                Enumerable.Repeat(new ReadValueId(), 15).ToList());
+            var nodesToRead = Enumerable.Repeat(new ReadValueId(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -3980,13 +3905,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ReadResponse
                 {
-                    Results = new DataValueCollection(
-                    Enumerable.Repeat(new DataValue(), 10).ToList())
+                    Results = Enumerable.Repeat(new DataValue(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new ReadResponse
                 {
-                    Results = new DataValueCollection(
-                    Enumerable.Repeat(new DataValue(), 5).ToList())
+                    Results = Enumerable.Repeat(new DataValue(), 5).ToArrayOf()
                 });
 
             // Act
@@ -4009,7 +3932,7 @@ namespace Opc.Ua.Client.Sessions
 
             const double maxAge = 1000.0;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var nodesToRead = new ReadValueIdCollection(Enumerable.Repeat(new ReadValueId(), 15).ToList());
+            var nodesToRead = Enumerable.Repeat(new ReadValueId(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4021,11 +3944,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ReadResponse
                 {
-                    Results = new DataValueCollection(Enumerable.Repeat(new DataValue(), 10).ToList())
+                    Results = Enumerable.Repeat(new DataValue(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new ReadResponse
                 {
-                    Results = new DataValueCollection(Enumerable.Repeat(new DataValue(), 5).ToList()),
+                    Results = Enumerable.Repeat(new DataValue(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -4050,7 +3973,7 @@ namespace Opc.Ua.Client.Sessions
 
             const double maxAge = 1000.0;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var nodesToRead = new ReadValueIdCollection();
+            var nodesToRead = ArrayOf<ReadValueId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4067,8 +3990,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -4081,7 +4004,7 @@ namespace Opc.Ua.Client.Sessions
 
             const double maxAge = 1000.0;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var nodesToRead = new ReadValueIdCollection();
+            var nodesToRead = ArrayOf<ReadValueId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4116,7 +4039,7 @@ namespace Opc.Ua.Client.Sessions
 
             const double maxAge = 1000.0;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var nodesToRead = new ReadValueIdCollection();
+            var nodesToRead = ArrayOf<ReadValueId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4146,7 +4069,7 @@ namespace Opc.Ua.Client.Sessions
 
             const double maxAge = 1000.0;
             const TimestampsToReturn timestampsToReturn = TimestampsToReturn.Both;
-            var nodesToRead = new ReadValueIdCollection();
+            var nodesToRead = ArrayOf<ReadValueId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4178,7 +4101,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToRegister = new NodeIdCollection(Enumerable.Repeat(new NodeId(), 15).ToList());
+            var nodesToRegister = Enumerable.Repeat(default(NodeId), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4190,11 +4113,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new RegisterNodesResponse
                 {
-                    RegisteredNodeIds = new NodeIdCollection(Enumerable.Repeat(new NodeId(), 10).ToList())
+                    RegisteredNodeIds = Enumerable.Repeat(default(NodeId), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new RegisterNodesResponse
                 {
-                    RegisteredNodeIds = new NodeIdCollection(Enumerable.Repeat(new NodeId(), 5).ToList())
+                    RegisteredNodeIds = Enumerable.Repeat(default(NodeId), 5).ToArrayOf()
                 });
 
             // Act
@@ -4213,7 +4136,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToRegister = new NodeIdCollection(Enumerable.Repeat(new NodeId(), 15).ToList());
+            var nodesToRegister = Enumerable.Repeat(default(NodeId), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4225,11 +4148,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new RegisterNodesResponse
                 {
-                    RegisteredNodeIds = new NodeIdCollection(Enumerable.Repeat(new NodeId(), 10).ToList())
+                    RegisteredNodeIds = Enumerable.Repeat(default(NodeId), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new RegisterNodesResponse
                 {
-                    RegisteredNodeIds = new NodeIdCollection(Enumerable.Repeat(new NodeId(), 5).ToList()),
+                    RegisteredNodeIds = Enumerable.Repeat(default(NodeId), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -4252,7 +4175,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToRegister = new NodeIdCollection();
+            var nodesToRegister = ArrayOf<NodeId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4269,8 +4192,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -4281,7 +4204,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToRegister = new NodeIdCollection();
+            var nodesToRegister = ArrayOf<NodeId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4314,7 +4237,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToRegister = new NodeIdCollection();
+            var nodesToRegister = ArrayOf<NodeId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4360,8 +4283,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -4437,7 +4360,7 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const MonitoringMode monitoringMode = MonitoringMode.Reporting;
-            var monitoredItemIds = new UInt32Collection(Enumerable.Repeat(1u, 15).ToList());
+            var monitoredItemIds = Enumerable.Repeat(1u, 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4449,13 +4372,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new SetMonitoringModeResponse
                 {
-                    Results = new StatusCodeCollection(
-                    Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new SetMonitoringModeResponse
                 {
-                    Results = new StatusCodeCollection(
-                    Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToArrayOf()
                 });
 
             // Act
@@ -4478,7 +4399,7 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const MonitoringMode monitoringMode = MonitoringMode.Reporting;
-            var monitoredItemIds = new UInt32Collection(Enumerable.Repeat(1u, 15).ToList());
+            var monitoredItemIds = Enumerable.Repeat(1u, 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4490,11 +4411,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new SetMonitoringModeResponse
                 {
-                    Results = new StatusCodeCollection(Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new SetMonitoringModeResponse
                 {
-                    Results = new StatusCodeCollection(Enumerable.Repeat((StatusCode)StatusCodes.Bad, 5).ToList()),
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Bad, 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -4520,7 +4441,7 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const MonitoringMode monitoringMode = MonitoringMode.Reporting;
-            var monitoredItemIds = new UInt32Collection();
+            var monitoredItemIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4537,8 +4458,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -4551,7 +4472,7 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const MonitoringMode monitoringMode = MonitoringMode.Reporting;
-            var monitoredItemIds = new UInt32Collection();
+            var monitoredItemIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4586,7 +4507,7 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const MonitoringMode monitoringMode = MonitoringMode.Reporting;
-            var monitoredItemIds = new UInt32Collection();
+            var monitoredItemIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4616,7 +4537,7 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const MonitoringMode monitoringMode = MonitoringMode.Reporting;
-            var monitoredItemIds = new UInt32Collection();
+            var monitoredItemIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4649,7 +4570,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             const bool publishingEnabled = true;
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4666,8 +4587,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -4679,7 +4600,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             const bool publishingEnabled = true;
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4713,7 +4634,7 @@ namespace Opc.Ua.Client.Sessions
             // Arrange
 
             const bool publishingEnabled = true;
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4743,8 +4664,8 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const uint triggeringItemId = 1u;
-            var linksToAdd = new UInt32Collection(Enumerable.Repeat(1u, 15).ToList());
-            var linksToRemove = new UInt32Collection(Enumerable.Repeat(1u, 15).ToList());
+            var linksToAdd = Enumerable.Repeat(1u, 15).ToArrayOf();
+            var linksToRemove = Enumerable.Repeat(1u, 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4756,20 +4677,16 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new SetTriggeringResponse
                 {
-                    AddResults = new StatusCodeCollection(
-                        Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    AddResults = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new SetTriggeringResponse
                 {
-                    AddResults = new StatusCodeCollection(
-                        Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToList()),
-                    RemoveResults = new StatusCodeCollection(
-                        Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToList())
+                    AddResults = Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToArrayOf(),
+                    RemoveResults = Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToArrayOf()
                 })
                 .ReturnsAsync(new SetTriggeringResponse
                 {
-                    RemoveResults = new StatusCodeCollection(
-                        Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    RemoveResults = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 });
 
             // Act
@@ -4793,8 +4710,8 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const uint triggeringItemId = 1u;
-            var linksToAdd = new UInt32Collection(Enumerable.Repeat(1u, 15).ToList());
-            var linksToRemove = new UInt32Collection(Enumerable.Repeat(1u, 15).ToList());
+            var linksToAdd = Enumerable.Repeat(1u, 15).ToArrayOf();
+            var linksToRemove = Enumerable.Repeat(1u, 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4806,8 +4723,7 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new SetTriggeringResponse
                 {
-                    AddResults = new StatusCodeCollection(
-                        Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    AddResults = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new SetTriggeringResponse
                 {
@@ -4836,8 +4752,8 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const uint triggeringItemId = 1u;
-            var linksToAdd = new UInt32Collection();
-            var linksToRemove = new UInt32Collection();
+            var linksToAdd = ArrayOf<uint>.Empty;
+            var linksToRemove = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4854,8 +4770,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -4868,8 +4784,8 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const uint triggeringItemId = 1u;
-            var linksToAdd = new UInt32Collection();
-            var linksToRemove = new UInt32Collection();
+            var linksToAdd = ArrayOf<uint>.Empty;
+            var linksToRemove = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4904,8 +4820,8 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const uint triggeringItemId = 1u;
-            var linksToAdd = new UInt32Collection();
-            var linksToRemove = new UInt32Collection();
+            var linksToAdd = ArrayOf<uint>.Empty;
+            var linksToRemove = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4935,8 +4851,8 @@ namespace Opc.Ua.Client.Sessions
 
             const uint subscriptionId = 1u;
             const uint triggeringItemId = 1u;
-            var linksToAdd = new UInt32Collection();
-            var linksToRemove = new UInt32Collection();
+            var linksToAdd = ArrayOf<uint>.Empty;
+            var linksToRemove = ArrayOf<uint>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -4972,7 +4888,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = ArrayOf<uint>.Empty;
             const bool sendInitialValues = true;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
@@ -4990,8 +4906,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -5002,7 +4918,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = ArrayOf<uint>.Empty;
             const bool sendInitialValues = true;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
@@ -5036,7 +4952,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = ArrayOf<uint>.Empty;
             const bool sendInitialValues = true;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
@@ -5065,7 +4981,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = ArrayOf<uint>.Empty;
             const bool sendInitialValues = true;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
@@ -5098,7 +5014,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var browsePaths = new BrowsePathCollection(Enumerable.Repeat(new BrowsePath(), 15).ToList());
+            var browsePaths = Enumerable.Repeat(new BrowsePath(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5110,11 +5026,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
                 {
-                    Results = new BrowsePathResultCollection(Enumerable.Repeat(new BrowsePathResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new BrowsePathResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
                 {
-                    Results = new BrowsePathResultCollection(Enumerable.Repeat(new BrowsePathResult(), 5).ToList())
+                    Results = Enumerable.Repeat(new BrowsePathResult(), 5).ToArrayOf()
                 });
 
             // Act
@@ -5133,7 +5049,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var browsePaths = new BrowsePathCollection(Enumerable.Repeat(new BrowsePath(), 15).ToList());
+            var browsePaths = Enumerable.Repeat(new BrowsePath(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5145,11 +5061,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
                 {
-                    Results = new BrowsePathResultCollection(Enumerable.Repeat(new BrowsePathResult(), 10).ToList())
+                    Results = Enumerable.Repeat(new BrowsePathResult(), 10).ToArrayOf()
                 })
                 .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
                 {
-                    Results = new BrowsePathResultCollection(Enumerable.Repeat(new BrowsePathResult(), 5).ToList()),
+                    Results = Enumerable.Repeat(new BrowsePathResult(), 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -5170,7 +5086,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var browsePaths = new BrowsePathCollection();
+            var browsePaths = ArrayOf<BrowsePath>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5196,7 +5112,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var browsePaths = new BrowsePathCollection();
+            var browsePaths = ArrayOf<BrowsePath>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5226,7 +5142,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToUnregister = new NodeIdCollection(Enumerable.Repeat(new NodeId(), 15).ToList());
+            var nodesToUnregister = Enumerable.Repeat(default(NodeId), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5253,7 +5169,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToUnregister = new NodeIdCollection(Enumerable.Repeat(new NodeId(), 15).ToList());
+            var nodesToUnregister = Enumerable.Repeat(default(NodeId), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5286,7 +5202,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToUnregister = new NodeIdCollection();
+            var nodesToUnregister = ArrayOf<NodeId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5303,8 +5219,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -5314,7 +5230,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToUnregister = new NodeIdCollection();
+            var nodesToUnregister = ArrayOf<NodeId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5347,7 +5263,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToUnregister = new NodeIdCollection();
+            var nodesToUnregister = ArrayOf<NodeId>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5374,7 +5290,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToWrite = new WriteValueCollection(Enumerable.Repeat(new WriteValue(), 15).ToList());
+            var nodesToWrite = Enumerable.Repeat(new WriteValue(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5386,13 +5302,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new WriteResponse
                 {
-                    Results = new StatusCodeCollection(
-                    Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new WriteResponse
                 {
-                    Results = new StatusCodeCollection(
-                    Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 5).ToArrayOf()
                 });
 
             // Act
@@ -5411,7 +5325,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToWrite = new WriteValueCollection(Enumerable.Repeat(new WriteValue(), 15).ToList());
+            var nodesToWrite = Enumerable.Repeat(new WriteValue(), 15).ToArrayOf();
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5423,11 +5337,11 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new WriteResponse
                 {
-                    Results = new StatusCodeCollection(Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToList())
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, 10).ToArrayOf()
                 })
                 .ReturnsAsync(new WriteResponse
                 {
-                    Results = new StatusCodeCollection(Enumerable.Repeat((StatusCode)StatusCodes.Bad, 5).ToList()),
+                    Results = Enumerable.Repeat((StatusCode)StatusCodes.Bad, 5).ToArrayOf(),
                     ResponseHeader = new ResponseHeader
                     {
                         ServiceResult = StatusCodes.Bad
@@ -5448,7 +5362,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToWrite = new WriteValueCollection();
+            var nodesToWrite = ArrayOf<WriteValue>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5465,8 +5379,8 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(response, Is.Not.Null);
-            requestHeader?.Assert.That(RequestHandle, Is.Not.EqualTo(0));
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
+            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
             m_mockChannel.Verify();
         }
 
@@ -5476,7 +5390,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToWrite = new WriteValueCollection();
+            var nodesToWrite = ArrayOf<WriteValue>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5509,7 +5423,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToWrite = new WriteValueCollection();
+            var nodesToWrite = ArrayOf<WriteValue>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 
@@ -5537,7 +5451,7 @@ namespace Opc.Ua.Client.Sessions
         {
             // Arrange
 
-            var nodesToWrite = new WriteValueCollection();
+            var nodesToWrite = ArrayOf<WriteValue>.Empty;
             var ct = CancellationToken.None;
             var requestHeader = header.Value;
 

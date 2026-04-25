@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -49,10 +49,10 @@ namespace Opc.Ua.Client.Services
                         AttributeId = Attributes.Value,
                         IndexRange = new NumericRange(offset,
                             offset + maxByteStringLength - 1).ToString(),
-                        DataEncoding = null
+                        DataEncoding = default
                     };
 
-                    var readValueIds = new ReadValueIdCollection { valueToRead };
+                    var readValueIds = new ReadValueId[] { valueToRead }.ToArrayOf();
                     var response = await services.ReadAsync(null, 0, TimestampsToReturn.Neither,
                         readValueIds, ct).ConfigureAwait(false);
                     ClientBase.ValidateResponse(response.Results, readValueIds);
@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Services
                             0, response.DiagnosticInfos, response.ResponseHeader);
                         throw new ServiceResultException(serviceResult);
                     }
-                    if (response.Results[0].Value is not byte[] chunk || chunk.Length == 0)
+                    if (response.Results[0].WrappedValue.AsBoxedObject() is not byte[] chunk || chunk.Length == 0)
                     {
                         break;
                     }

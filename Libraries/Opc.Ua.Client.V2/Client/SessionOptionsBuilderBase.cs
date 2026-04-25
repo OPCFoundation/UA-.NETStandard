@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -89,7 +89,7 @@ namespace Opc.Ua.Client
     {
         /// <inheritdoc/>
         public ISessionCreateOptionsBuilder<T> WithAvailableEndpoints(
-            EndpointDescriptionCollection availableEndpoints)
+            ArrayOf<EndpointDescription> availableEndpoints)
         {
             Options = Options with { AvailableEndpoints = availableEndpoints };
             return this;
@@ -97,7 +97,7 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public ISessionCreateOptionsBuilder<T> WithDiscoveryProfileUris(
-            StringCollection discoveryProfileUris)
+            ArrayOf<string> discoveryProfileUris)
         {
             Options = Options with { DiscoveryProfileUris = discoveryProfileUris };
             return this;

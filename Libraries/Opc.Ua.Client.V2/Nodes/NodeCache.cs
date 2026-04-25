@@ -185,7 +185,7 @@ namespace Opc.Ua.Client.Nodes
                         (r.ReferenceTypeId == refTypeId ||
                             (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))))
                     .Select(r => ToNodeId(r.NodeId))
-                    .Where(n => !NodeId.IsNull(n))
+                    .Where(n => !n.IsNull)
                     .ToList();
             }
         }
@@ -204,7 +204,7 @@ namespace Opc.Ua.Client.Nodes
             }
             foreach (var nodeId in nodeIds)
             {
-                if (NodeId.IsNull(nodeId))
+                if (nodeId.IsNull)
                 {
                     continue;
                 }
@@ -251,7 +251,7 @@ namespace Opc.Ua.Client.Nodes
                         referenceTypeIds.Any(refTypeId => r.ReferenceTypeId == refTypeId ||
                             (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))))
                     .Select(r => ToNodeId(r.NodeId))
-                    .Where(n => !NodeId.IsNull(n))
+                    .Where(n => !n.IsNull)
                     .ToList();
             }
         }
@@ -289,7 +289,7 @@ namespace Opc.Ua.Client.Nodes
                     .AsTask().GetAwaiter().GetResult();
             }
             subTypeId = GetSuperTypeFromReferences(references);
-            if (!NodeId.IsNull(subTypeId))
+            if (!subTypeId.IsNull)
             {
                 return IsTypeOf(subTypeId, superTypeId);
             }
@@ -319,11 +319,11 @@ namespace Opc.Ua.Client.Nodes
             CancellationToken ct)
         {
             var typeId = datatypeId;
-            while (!Opc.Ua.NodeId.IsNull(typeId))
+            while (!typeId.IsNull)
             {
-                if (typeId.NamespaceIndex == 0 && typeId.IdType == Opc.Ua.IdType.Numeric)
+                if (typeId.NamespaceIndex == 0 && typeId.TryGetIdentifier(out uint numericId))
                 {
-                    var id = (BuiltInType)(int)(uint)typeId.Identifier;
+                    var id = (BuiltInType)(int)numericId;
                     if (id is > BuiltInType.Null and
                         <= BuiltInType.Enumeration and
                         not BuiltInType.DiagnosticInfo)
@@ -338,15 +338,16 @@ namespace Opc.Ua.Client.Nodes
 
         /// <inheritdoc/>
         public async ValueTask<INode?> GetNodeWithBrowsePathAsync(NodeId nodeId,
-            QualifiedNameCollection browsePath, CancellationToken ct)
+            ArrayOf<QualifiedName> browsePath, CancellationToken ct)
         {
             INode? found = null;
-            foreach (var browseName in browsePath)
+            var browsePathArray = browsePath.ToArray();
+            foreach (var browseName in browsePathArray!)
             {
                 found = null;
                 while (true)
                 {
-                    if (Opc.Ua.NodeId.IsNull(nodeId))
+                    if (nodeId.IsNull)
                     {
                         // Nothing can be found since there is no
                         return null;
@@ -364,7 +365,7 @@ namespace Opc.Ua.Client.Nodes
                         if (target.BrowseName == browseName)
                         {
                             nodeId = ToNodeId(target.NodeId);
-                            if (!NodeId.IsNull(nodeId))
+                            if (!nodeId.IsNull)
                             {
                                 found = target;
                             }
@@ -402,15 +403,16 @@ namespace Opc.Ua.Client.Nodes
         private ValueTask<List<ReferenceDescription>> GetOrAddReferencesAsync(
             NodeId nodeId, CancellationToken ct)
         {
-            Debug.Assert(!NodeId.IsNull(nodeId));
+            Debug.Assert(!nodeId.IsNull);
             return _refs.GetOrAddAsync(nodeId, async (nodeId, context) =>
             {
-                var references = await context.session.FetchReferencesAsync(
+                var fetchedRefs = await context.session.FetchReferencesAsync(
                     null, nodeId, context.ct).ConfigureAwait(false);
+                var references = new List<ReferenceDescription>(fetchedRefs.ToArray()!);
                 foreach (var reference in references)
                 {
                     // transform absolute identifiers.
-                    if (reference.NodeId?.IsAbsolute == true)
+                    if (reference.NodeId.IsAbsolute)
                     {
                         reference.NodeId = ExpandedNodeId.ToNodeId(
                             reference.NodeId, context.session.NamespaceUris);
@@ -433,9 +435,11 @@ namespace Opc.Ua.Client.Nodes
             Debug.Assert(result.Count(r => r == null) == remainingIds.Count);
 
             // fetch nodes and references from server.
-            var localIds = new NodeIdCollection(remainingIds);
-            (var nodes, var readErrors) = await _session.FetchNodesAsync(
+            var localIds = (IReadOnlyList<NodeId>)remainingIds;
+            var fetchResult = await _session.FetchNodesAsync(
                 null, localIds, ct).ConfigureAwait(false);
+            var nodes = fetchResult.Results;
+            var readErrors = fetchResult.Errors;
 
             Debug.Assert(nodes.Count == localIds.Count);
             Debug.Assert(readErrors.Count == localIds.Count);
@@ -506,7 +510,7 @@ namespace Opc.Ua.Client.Nodes
         /// <returns></returns>
         private bool IsTypeHierarchyLoaded(IEnumerable<NodeId> typeIds)
         {
-            var types = new Queue<NodeId>(typeIds.Where(nodeId => !NodeId.IsNull(nodeId)));
+            var types = new Queue<NodeId>(typeIds.Where(nodeId => !nodeId.IsNull));
             while (types.TryDequeue(out var typeId))
             {
                 if (!_refs.TryGet(typeId, out var references))

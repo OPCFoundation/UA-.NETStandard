@@ -161,7 +161,7 @@ namespace Opc.Ua.Client.Nodes.Obsolete
         {
             // Act
             Action act = () => m_typeTree.IsEncodingFor(new NodeId("test", 0),
-                new ExtensionObject(new ExpandedNodeId("test", 0), new ReadAtTimeDetails()));
+                new ExtensionObject(new ReadAtTimeDetails()));
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -169,10 +169,10 @@ namespace Opc.Ua.Client.Nodes.Obsolete
         }
 
         [Test]
-        public void IsEncodingForWithObjectShouldThrowNotSupported()
+        public void IsEncodingForWithVariantShouldThrowNotSupported()
         {
             // Act
-            Action act = () => m_typeTree.IsEncodingFor(new NodeId("test", 0), new object());
+            Action act = () => m_typeTree.IsEncodingFor(new NodeId("test", 0), new Variant());
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());

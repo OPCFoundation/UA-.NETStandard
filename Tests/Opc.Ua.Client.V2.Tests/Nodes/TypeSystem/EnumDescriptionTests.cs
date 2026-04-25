@@ -22,7 +22,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonDecoder = new JsonDecoder("""{"TestField": 1}""", new ServiceMessageContext());
+            var jsonDecoder = new JsonDecoder("""{"TestField": 1}""", ServiceMessageContext.Create(null));
 
             // Act
             var result = enumDescription.Decode(jsonDecoder, "TestField");
@@ -35,23 +35,22 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void DecodeWithIntegerShouldReturnEnumValueWithIntegerCode()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 },
                 new() { Name = "TestField4", Value = 4 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonDecoder = new JsonDecoder("""{"TestField":4}""", new ServiceMessageContext());
+            var jsonDecoder = new JsonDecoder("""{"TestField":4}""", ServiceMessageContext.Create(null));
 
             // Act
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
-            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null.And.InstanceOf<EnumValue>());
             Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
             Assert.That(enumValue.Symbol, Is.EqualTo("TestField4"));
@@ -62,13 +61,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void DecodeWithWithDecoderExtensionShouldReturnEnumValueWithSymbolAndIntegerCode()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 },
                 new() { Name = "TestField4", Value = 4 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName("ssss"),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
@@ -81,7 +79,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             Assert.That(enumDescription.XmlName.Name, Is.EqualTo("ssss"));
-            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null.And.InstanceOf<EnumValue>());
             Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
             Assert.That(enumValue.Symbol, Is.EqualTo("TestField4"));
@@ -92,24 +90,23 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void DecodeWithIntegerShouldReturnEnumValueWithSymbolAndIntegerCode()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 },
                 new() { Name = "TestField4", Value = 4 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName("ssss"),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonDecoder = new JsonDecoder("""{"TestField":"TestField_4"}""", new ServiceMessageContext());
+            var jsonDecoder = new JsonDecoder("""{"TestField":"TestField_4"}""", ServiceMessageContext.Create(null));
 
             // Act
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
             Assert.That(enumDescription.XmlName.Name, Is.EqualTo("ssss"));
-            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null.And.InstanceOf<EnumValue>());
             Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
             Assert.That(enumValue.Symbol, Is.EqualTo("TestField4"));
@@ -120,22 +117,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void DecodeWithInvalidJsonTokenShouldReturnFirstEnumField1()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonDecoder = new JsonDecoder("""{"TestField": "InvalidToken"}""", new ServiceMessageContext());
+            var jsonDecoder = new JsonDecoder("""{"TestField": "InvalidToken"}""", ServiceMessageContext.Create(null));
 
             // Act
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
-            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null.And.InstanceOf<EnumValue>());
             Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
             Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
@@ -146,22 +142,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void DecodeWithInvalidJsonTokenShouldReturnFirstEnumField2()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonDecoder = new JsonDecoder("""{"TestField": [1, 2, 3]}""", new ServiceMessageContext());
+            var jsonDecoder = new JsonDecoder("""{"TestField": [1, 2, 3]}""", ServiceMessageContext.Create(null));
 
             // Act
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
-            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null.And.InstanceOf<EnumValue>());
             Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
             Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
@@ -172,22 +167,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void DecodeWithInvalidJsonTokenShouldReturnFirstEnumField3()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonDecoder = new JsonDecoder("{}", new ServiceMessageContext());
+            var jsonDecoder = new JsonDecoder("{}", ServiceMessageContext.Create(null));
 
             // Act
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
-            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null.And.InstanceOf<EnumValue>());
             Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
             Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
@@ -198,22 +192,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void DecodeWithUnknownFieldNameShouldReturnFirstEnumField()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonDecoder = new JsonDecoder("""{"UnknownField": 1}""", new ServiceMessageContext());
+            var jsonDecoder = new JsonDecoder("""{"UnknownField": 1}""", ServiceMessageContext.Create(null));
 
             // Act
             var result = enumDescription.Decode(jsonDecoder, "UnknownField");
 
             // Assert
-            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null.And.InstanceOf<EnumValue>());
             Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
             Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
@@ -228,7 +221,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), true);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Verbose);
 
             // Act
             enumDescription.Encode(jsonEncoder, "TestField", null);
@@ -248,7 +241,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), false);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Compact);
 
             // Act
             enumDescription.Encode(jsonEncoder, "TestField", null);
@@ -264,13 +257,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void EncodeWithWithDecoderExtensionShouldReturnEnumValueWithSymbolAndIntegerCode()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 },
                 new() { Name = "TestField4", Value = 4 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName("ssss"),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
             var enumValue = new EnumValue("TestField4", 4);
@@ -289,16 +281,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void EncodeWithNullEnumValueShouldEncodeDefaultWithNonReversibleEncoding()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), true);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Verbose);
 
             // Act
             enumDescription.Encode(jsonEncoder, "TestField", null);
@@ -314,16 +305,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void EncodeWithNullEnumValueShouldEncodeDefaultWithReversibleEncoding()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), false);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Compact);
 
             // Act
             enumDescription.Encode(jsonEncoder, "TestField", null);
@@ -338,22 +328,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void EnumDescriptionDecodeDefaultDecoderShouldReturnEnumValue()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryDecoder = new BinaryDecoder([1, 0, 0, 0], new ServiceMessageContext());
+            var binaryDecoder = new BinaryDecoder([1, 0, 0, 0], ServiceMessageContext.Create(null));
 
             // Act
             var result = enumDescription.Decode(binaryDecoder, "TestField");
 
             // Assert
-            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null.And.InstanceOf<EnumValue>());
             Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
             Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
@@ -364,22 +353,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void EnumDescriptionDecodeJsonDecoderShouldReturnEnumValue()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonDecoder = new JsonDecoder("""{"TestField": 1}""", new ServiceMessageContext());
+            var jsonDecoder = new JsonDecoder("""{"TestField": 1}""", ServiceMessageContext.Create(null));
 
             // Act
             var result = enumDescription.Decode(jsonDecoder, "TestField");
 
             // Assert
-            Assert.That(result, Is.Not.Null).And.BeOfType<EnumValue>();
+            Assert.That(result, Is.Not.Null.And.InstanceOf<EnumValue>());
             Assert.That(result, Is.Not.Null);
             var enumValue = (EnumValue)result;
             Assert.That(enumValue.Symbol, Is.EqualTo("TestField1"));
@@ -390,16 +378,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void EnumDescriptionEncodeDefaultEncoderShouldEncodeEnumValue()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryEncoder = new BinaryEncoder(new ServiceMessageContext());
+            var binaryEncoder = new BinaryEncoder(ServiceMessageContext.Create(null));
 
             // Act
             enumDescription.Encode(binaryEncoder, "TestField", new EnumValue("TestField1", 1));
@@ -413,16 +400,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void EnumDescriptionEncodeJsonEncoderShouldEncodeEnumValueWithNonReversibleEncoding()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), true);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Verbose);
 
             // Act
             enumDescription.Encode(jsonEncoder, "TestField", new EnumValue("TestField1", 1));
@@ -438,16 +424,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void EnumDescriptionEncodeJsonEncoderShouldEncodeEnumValueWithReversibleEncoding()
         {
             // Arrange
-            var enumFields = new List<EnumField>
-            {
+            var enumFields = (ArrayOf<EnumField>)[
                 new() { Name = "TestField1", Value = 1 },
                 new() { Name = "TestField2", Value = 2 }
-            };
-            var enumDefinition = new EnumDefinition { Fields = new EnumFieldCollection(enumFields) };
+            ];
+            var enumDefinition = new EnumDefinition { Fields = enumFields };
             var enumDescription = new EnumDescription(new ExpandedNodeId(333), enumDefinition, new XmlQualifiedName(),
                 ExpandedNodeId.Null, ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), false);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Compact);
 
             // Act
             enumDescription.Encode(jsonEncoder, "TestField", new EnumValue("TestField1", 1));

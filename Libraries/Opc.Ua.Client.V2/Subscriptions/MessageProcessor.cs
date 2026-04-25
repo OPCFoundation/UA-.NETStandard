@@ -308,14 +308,14 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     publishStateMask |= PublishState.KeepAlive;
                     await OnKeepAliveNotificationAsync(message.SequenceNumber,
-                        message.PublishTime, publishStateMask).ConfigureAwait(false);
+                        (DateTime)message.PublishTime, publishStateMask).ConfigureAwait(false);
                 }
                 else
                 {
-                    foreach (var notificationData in message.NotificationData)
+                    for (int i = 0; i < message.NotificationData.Count; i++)
                     {
                         await DispatchAsync(message, publishStateMask,
-                            notificationData).ConfigureAwait(false);
+                            message.NotificationData[i]).ConfigureAwait(false);
                     }
                 }
                 await _completion.QueueAsync(new SubscriptionAcknowledgement
@@ -345,36 +345,36 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return;
             }
-            switch (notificationData.Body)
+            if (notificationData.Value.TryGetEncodeable(out DataChangeNotification datachange))
             {
-                case DataChangeNotification datachange:
-                    await OnDataChangeNotificationAsync(message.SequenceNumber,
-                        message.PublishTime, datachange, publishStateMask,
-                        message.StringTable).ConfigureAwait(false);
-                    break;
-                case EventNotificationList events:
-                    await OnEventDataNotificationAsync(message.SequenceNumber,
-                        message.PublishTime, events, publishStateMask,
-                        message.StringTable).ConfigureAwait(false);
-                    break;
-                case StatusChangeNotification statusChanged:
-                    var mask = publishStateMask;
-                    if (statusChanged.Status == StatusCodes.GoodSubscriptionTransferred)
-                    {
-                        // Only happens if we did not initiate the transfer.
-                        // TODO: Complete this subscription.
-                        mask |= PublishState.Transferred;
-                    }
-                    else if (statusChanged.Status == StatusCodes.BadTimeout)
-                    {
-                        // Timeout on the server.
-                        // TODO: Also complete this subscription
-                        mask |= PublishState.Timeout;
-                    }
-                    await OnStatusChangeNotificationAsync(message.SequenceNumber,
-                        message.PublishTime, statusChanged, mask,
-                        message.StringTable).ConfigureAwait(false);
-                    break;
+                await OnDataChangeNotificationAsync(message.SequenceNumber,
+                    (DateTime)message.PublishTime, datachange, publishStateMask,
+                    message.StringTable.ToArray() ?? []).ConfigureAwait(false);
+            }
+            else if (notificationData.Value.TryGetEncodeable(out EventNotificationList events))
+            {
+                await OnEventDataNotificationAsync(message.SequenceNumber,
+                    (DateTime)message.PublishTime, events, publishStateMask,
+                    message.StringTable.ToArray() ?? []).ConfigureAwait(false);
+            }
+            else if (notificationData.Value.TryGetEncodeable(out StatusChangeNotification statusChanged))
+            {
+                var mask = publishStateMask;
+                if (statusChanged.Status == StatusCodes.GoodSubscriptionTransferred)
+                {
+                    // Only happens if we did not initiate the transfer.
+                    // TODO: Complete this subscription.
+                    mask |= PublishState.Transferred;
+                }
+                else if (statusChanged.Status == StatusCodes.BadTimeout)
+                {
+                    // Timeout on the server.
+                    // TODO: Also complete this subscription
+                    mask |= PublishState.Timeout;
+                }
+                await OnStatusChangeNotificationAsync(message.SequenceNumber,
+                    (DateTime)message.PublishTime, statusChanged, mask,
+                    message.StringTable.ToArray() ?? []).ConfigureAwait(false);
             }
         }
 
@@ -389,7 +389,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             public static int Compare(IncomingMessage message, IncomingMessage other)
             {
-                // Greater than zero – message follows the
+                // Greater than zero ï¿½ message follows the
                 // other message in sort order.
                 return
                     (int)message.Message.SequenceNumber -

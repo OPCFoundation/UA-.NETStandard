@@ -9,6 +9,7 @@ using Moq;
 using Opc.Ua.Client;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -65,7 +66,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(sut.TryRemove(existingItem4.ClientHandle), Is.True);
 
             // Assert
-            Assert.That(sut.Items, Has.Exactly(1).Items).Assert.That(Which.Name, Is.EqualTo("Item3"));
+            Assert.That(sut.Items, Has.Exactly(1).Items);
+            Assert.That(sut.Items.First().Name, Is.EqualTo("Item3"));
             m_contextMock.Verify();
         }
 
@@ -84,7 +86,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(sut.TryRemove(existingItem4.ClientHandle), Is.False);
 
             // Assert
-            Assert.That(sut.Items, Has.Exactly(1).Items).Assert.That(Which.Name, Is.EqualTo("Item3"));
+            Assert.That(sut.Items, Has.Exactly(1).Items);
+            Assert.That(sut.Items.First().Name, Is.EqualTo("Item3"));
             m_contextMock.Verify();
         }
 
@@ -99,13 +102,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem4);
 
             sut.NotifySubscriptionManagerPaused(true);
-            Assert.That(sut.Items, Has.All.Matches<object>(i => ((TestMonitoredItem)i).Assert.That(Paused, Is.True)));
+            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused == true));
             sut.NotifySubscriptionManagerPaused(false);
-            Assert.That(sut.Items, Has.All.Matches<object>(i => ((TestMonitoredItem)i).Assert.That(Paused, Is.False)));
+            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused == false));
             sut.NotifySubscriptionManagerPaused(false);
-            Assert.That(sut.Items, Has.All.Matches<object>(i => ((TestMonitoredItem)i).Assert.That(Paused, Is.False)));
+            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused == false));
             sut.NotifySubscriptionManagerPaused(true);
-            Assert.That(sut.Items, Has.All.Matches<object>(i => ((TestMonitoredItem)i).Assert.That(Paused, Is.True)));
+            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused == true));
 
             // Assert
             m_contextMock.Verify();
@@ -166,19 +169,19 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     new MonitoredItemNotification
                     {
                         ClientHandle = monitoredItem2.ClientHandle,
-                        Value = new DataValue("test1", StatusCodes.Good, DateTime.UtcNow),
+                        Value = new DataValue("test1", StatusCodes.Good, DateTimeUtc.Now),
                         DiagnosticInfo = new DiagnosticInfo()
                     },
                     new MonitoredItemNotification
                     {
                         ClientHandle = monitoredItem2.ClientHandle,
-                        Value = new DataValue("test2", StatusCodes.Good, DateTime.UtcNow),
+                        Value = new DataValue("test2", StatusCodes.Good, DateTimeUtc.Now),
                         DiagnosticInfo = new DiagnosticInfo()
                     },
                     new MonitoredItemNotification
                     {
                         ClientHandle = monitoredItem1.ClientHandle,
-                        Value = new DataValue("test3", StatusCodes.Good, DateTime.UtcNow),
+                        Value = new DataValue("test3", StatusCodes.Good, DateTimeUtc.Now),
                         DiagnosticInfo = new DiagnosticInfo()
                     }
                 ]
@@ -188,15 +191,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(result.Length, Is.EqualTo(3));
-            Assert.That(// TODO: result.Span[0], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)// TODO: result.Span[0]).Value.Value, Is.EqualTo("test3"));
-            Assert.That(((DataValueChange)// TODO: result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem1));
-            Assert.That(// TODO: result.Span[1], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)// TODO: result.Span[1]).Value.Value, Is.EqualTo("test1"));
-            Assert.That(((DataValueChange)// TODO: result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem2));
-            Assert.That(// TODO: result.Span[2], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)// TODO: result.Span[2]).Value.Value, Is.EqualTo("test2"));
-            Assert.That(((DataValueChange)// TODO: result.Span[2]).MonitoredItem , Is.SameAs(monitoredItem2));
+            Assert.That(result.Span[0], Is.TypeOf<DataValueChange>());
+            Assert.That(((DataValueChange)result.Span[0]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test3"));
+            Assert.That(((DataValueChange)result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem1));
+            Assert.That(result.Span[1], Is.TypeOf<DataValueChange>());
+            Assert.That(((DataValueChange)result.Span[1]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test1"));
+            Assert.That(((DataValueChange)result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem2));
+            Assert.That(result.Span[2], Is.TypeOf<DataValueChange>());
+            Assert.That(((DataValueChange)result.Span[2]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test2"));
+            Assert.That(((DataValueChange)result.Span[2]).MonitoredItem , Is.SameAs(monitoredItem2));
         }
 
         [Test]
@@ -221,19 +224,19 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     new MonitoredItemNotification
                     {
                         ClientHandle = monitoredItem2.ClientHandle,
-                        Value = new DataValue("test1", StatusCodes.Good, DateTime.UtcNow),
+                        Value = new DataValue("test1", StatusCodes.Good, DateTimeUtc.Now),
                         DiagnosticInfo = new DiagnosticInfo()
                     },
                     new MonitoredItemNotification
                     {
                         ClientHandle = monitoredItem2.ClientHandle,
-                        Value = new DataValue("test2", StatusCodes.Good, DateTime.UtcNow),
+                        Value = new DataValue("test2", StatusCodes.Good, DateTimeUtc.Now),
                         DiagnosticInfo = new DiagnosticInfo()
                     },
                     new MonitoredItemNotification
                     {
                         ClientHandle = monitoredItem1.ClientHandle,
-                        Value = new DataValue("test3", StatusCodes.Good, DateTime.UtcNow),
+                        Value = new DataValue("test3", StatusCodes.Good, DateTimeUtc.Now),
                         DiagnosticInfo = new DiagnosticInfo()
                     }
                 ]
@@ -244,13 +247,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(result.Length, Is.EqualTo(3));
             Assert.That(result.Span[0], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)result.Span[0]).Value.Value, Is.EqualTo("test1"));
+            Assert.That(((DataValueChange)result.Span[0]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test1"));
             Assert.That(((DataValueChange)result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem2));
             Assert.That(result.Span[1], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)result.Span[1]).Value.Value, Is.EqualTo("test2"));
+            Assert.That(((DataValueChange)result.Span[1]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test2"));
             Assert.That(((DataValueChange)result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem2));
             Assert.That(result.Span[2], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)result.Span[2]).Value.Value, Is.EqualTo("test3"));
+            Assert.That(((DataValueChange)result.Span[2]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test3"));
             Assert.That(((DataValueChange)result.Span[2]).MonitoredItem , Is.SameAs(monitoredItem1));
         }
 
@@ -324,10 +327,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(result.Length, Is.EqualTo(2));
             Assert.That(result.Span[0], Is.TypeOf<EventNotification>());
-            Assert.That(((EventNotification)result.Span[0]).Fields[0].Value, Is.EqualTo("Event1"));
+            Assert.That(((EventNotification)result.Span[0]).Fields[0].AsBoxedObject(), Is.EqualTo("Event1"));
             Assert.That(((EventNotification)result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem1));
             Assert.That(result.Span[1], Is.TypeOf<EventNotification>());
-            Assert.That(((EventNotification)result.Span[1]).Fields[0].Value, Is.EqualTo("Event2"));
+            Assert.That(((EventNotification)result.Span[1]).Fields[0].AsBoxedObject(), Is.EqualTo("Event2"));
             Assert.That(((EventNotification)result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem3));
         }
 
@@ -369,12 +372,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(// TODO: result.Span[1], Is.TypeOf<EventNotification>());
-            Assert.That(((EventNotification)// TODO: result.Span[1]).Fields[0].Value, Is.EqualTo("Event1"));
-            Assert.That(((EventNotification)// TODO: result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem1));
-            Assert.That(// TODO: result.Span[0], Is.TypeOf<EventNotification>());
-            Assert.That(((EventNotification)// TODO: result.Span[0]).Fields[0].Value, Is.EqualTo("Event2"));
-            Assert.That(((EventNotification)// TODO: result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem3));
+            Assert.That(result.Span[1], Is.TypeOf<EventNotification>());
+            Assert.That(((EventNotification)result.Span[1]).Fields[0].AsBoxedObject(), Is.EqualTo("Event1"));
+            Assert.That(((EventNotification)result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem1));
+            Assert.That(result.Span[0], Is.TypeOf<EventNotification>());
+            Assert.That(((EventNotification)result.Span[0]).Fields[0].AsBoxedObject(), Is.EqualTo("Event2"));
+            Assert.That(((EventNotification)result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem3));
         }
 
         [Test]
@@ -393,7 +396,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.That(result, Does.Contain(item => item.Name == "Item1")).And.Contain(item => item.Name == "Item2");
+            Assert.That(result.Select(i => i.Name), Does.Contain("Item1").And.Contain("Item2"));
             m_contextMock.Verify();
         }
 
@@ -415,8 +418,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var result = sut.Update(state);
 
             // Assert
-            Assert.That(result, Has.Exactly(1).Items).Assert.That(Which, Is.TypeOf<TestMonitoredItem>())
-                .Assert.That(Which, Is.EqualTo(existingItem));
+            Assert.That(result, Has.Exactly(1).Items);
+            Assert.That(result[0], Is.TypeOf<TestMonitoredItem>());
+            Assert.That(result[0], Is.EqualTo(existingItem));
             m_contextMock.Verify();
         }
 
@@ -436,9 +440,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var result = sut.Update(state);
 
             // Assert
-            Assert.That(result, Has.Exactly(1).Items).Assert.That(Which, Is.TypeOf<TestMonitoredItem>())
-                .Assert.That(Which, Is.Not.EqualTo(existingItem));
-            Assert.That(result, Has.Exactly(1).Items).Assert.That(Which.Name, Is.EqualTo("Item2"));
+            Assert.That(result, Has.Exactly(1).Items);
+            Assert.That(result[0], Is.TypeOf<TestMonitoredItem>());
+            Assert.That(result[0], Is.Not.EqualTo(existingItem));
+            Assert.That(result[0].Name, Is.EqualTo("Item2"));
             m_contextMock.Verify();
         }
 
@@ -462,8 +467,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var result = sut.Update(state);
 
             // Assert
-            Assert.That(result, Has.Exactly(1).Items).Assert.That(Which, Is.TypeOf<TestMonitoredItem>())
-                .Assert.That(Which, Is.EqualTo(existingItem1));
+            Assert.That(result, Has.Exactly(1).Items);
+            Assert.That(result[0], Is.TypeOf<TestMonitoredItem>());
+            Assert.That(result[0], Is.EqualTo(existingItem1));
             Assert.That(sut.TryGetMonitoredItemByName("Item2", out _), Is.False);
             m_contextMock.Verify();
         }
@@ -475,8 +481,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
 
             var success = sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem);
-            Assert.That(existingItem, Is.TypeOf<TestMonitoredItem>())
-                .Assert.That(Which.Options.CurrentValue.SamplingInterval, Is.Not.EqualTo(TimeSpan.FromSeconds(100)));
+            Assert.That(existingItem, Is.TypeOf<TestMonitoredItem>());
+            Assert.That(((TestMonitoredItem)existingItem!).Options.CurrentValue.SamplingInterval, Is.Not.EqualTo(TimeSpan.FromSeconds(100)));
             var options = OptionsFactory.Create<MonitoredItemOptions>(o => o with
             {
                 SamplingInterval = TimeSpan.FromSeconds(100)
@@ -490,8 +496,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var result = sut.Update(state);
 
             // Assert
-            Assert.That(result, Has.Exactly(1).Items).Assert.That(Which, Is.TypeOf<TestMonitoredItem>())
-                .Assert.That(Which.Options.CurrentValue.SamplingInterval, Is.EqualTo(TimeSpan.FromSeconds(100)));
+            Assert.That(result, Has.Exactly(1).Items);
+            Assert.That(result[0], Is.TypeOf<TestMonitoredItem>());
+            Assert.That(((TestMonitoredItem)result[0]).Options.CurrentValue.SamplingInterval, Is.EqualTo(TimeSpan.FromSeconds(100)));
             m_contextMock.Verify();
         }
 

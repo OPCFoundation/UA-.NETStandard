@@ -8,6 +8,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
     using Opc.Ua;
     using System;
     using System.Diagnostics;
+    using System.Linq;
     using System.Xml;
 
     /// <summary>
@@ -55,7 +56,6 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         /// <returns></returns>
         public object? Decode(IDecoder decoder, string fieldName)
         {
-            Debug.Assert(EnumDefinition.Fields != null);
             if (EnumDefinition.Fields.Count == 0)
             {
                 return null;
@@ -65,31 +65,6 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             {
                 case IEnumValueTypeDecoder enumDecoder:
                     return enumDecoder.ReadEnumerated(fieldName, EnumDefinition);
-                case JsonDecoder json:
-                    if (!json.ReadField(fieldName, out var token))
-                    {
-                        break;
-                    }
-                    switch (token)
-                    {
-                        case long code:
-                            field = EnumDefinition.Fields
-                                .Find(f => f.Value == code);
-                            break;
-                        case string text:
-                            var index = text.LastIndexOf('_');
-                            if (index > 0 &&
-                                long.TryParse(text.AsSpan(index + 1),
-                                    out var value))
-                            {
-                                field = EnumDefinition.Fields
-                                    .Find(f => f.Value == value);
-                            }
-                            field ??= EnumDefinition.Fields
-                                .Find(f => f.Name == text);
-                            break;
-                    }
-                    break;
                 default:
                     var v = decoder.ReadInt32(fieldName);
                     field = EnumDefinition.Fields
@@ -110,7 +85,6 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Initialize a null value to the first field in the description
             if (o is not EnumValue e)
             {
-                Debug.Assert(EnumDefinition.Fields != null);
                 e = EnumDefinition.Fields.Count == 0
                     ? EnumValue.Null
                     : new EnumValue(EnumDefinition.Fields[0]);
@@ -119,12 +93,6 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             {
                 case IEnumValueTypeEncoder enumEncoder:
                     enumEncoder.WriteEnumerated(fieldName, e, EnumDefinition);
-                    break;
-                case JsonEncoder json when
-                    json.EncodingToUse is not JsonEncodingType.Reversible and
-                    not JsonEncodingType.Compact:
-
-                    json.WriteString(fieldName, e.Symbol);
                     break;
                 default:
                     encoder.WriteInt32(fieldName, (int)e.Value);

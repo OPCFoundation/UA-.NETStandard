@@ -134,9 +134,9 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public override string GetPassword(CertificateIdentifier certificateIdentifier)
+            public override char[] GetPassword(CertificateIdentifier certificateIdentifier)
             {
-                return string.Empty;
+                return [];
             }
         }
 

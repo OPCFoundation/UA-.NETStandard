@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -31,7 +31,7 @@ namespace Opc.Ua.Client.Services
         /// <param name="ct"></param>
         /// <returns></returns>
         IAsyncEnumerable<BrowseDescriptionResult> BrowseAsync(RequestHeader? requestHeader,
-            ViewDescription? view, BrowseDescriptionCollection nodesToBrowse,
+            ViewDescription? view, ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken ct = default);
     }
 }

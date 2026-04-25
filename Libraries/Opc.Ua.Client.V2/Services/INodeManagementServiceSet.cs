@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -22,8 +22,8 @@ namespace Opc.Ua.Client.Services
         /// <param name="nodesToAdd"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<AddNodesResponse> AddNodesAsync(RequestHeader? requestHeader,
-            AddNodesItemCollection nodesToAdd, CancellationToken ct = default);
+        ValueTask<AddNodesResponse> AddNodesAsync(RequestHeader? requestHeader,
+            ArrayOf<AddNodesItem> nodesToAdd, CancellationToken ct = default);
 
         /// <summary>
         /// Add references service
@@ -32,8 +32,8 @@ namespace Opc.Ua.Client.Services
         /// <param name="referencesToAdd"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<AddReferencesResponse> AddReferencesAsync(RequestHeader? requestHeader,
-            AddReferencesItemCollection referencesToAdd, CancellationToken ct = default);
+        ValueTask<AddReferencesResponse> AddReferencesAsync(RequestHeader? requestHeader,
+            ArrayOf<AddReferencesItem> referencesToAdd, CancellationToken ct = default);
 
         /// <summary>
         /// Delete nodes service
@@ -42,8 +42,8 @@ namespace Opc.Ua.Client.Services
         /// <param name="nodesToDelete"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<DeleteNodesResponse> DeleteNodesAsync(RequestHeader? requestHeader,
-            DeleteNodesItemCollection nodesToDelete, CancellationToken ct = default);
+        ValueTask<DeleteNodesResponse> DeleteNodesAsync(RequestHeader? requestHeader,
+            ArrayOf<DeleteNodesItem> nodesToDelete, CancellationToken ct = default);
 
         /// <summary>
         /// Delete references service
@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Services
         /// <param name="referencesToDelete"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<DeleteReferencesResponse> DeleteReferencesAsync(RequestHeader? requestHeader,
-            DeleteReferencesItemCollection referencesToDelete, CancellationToken ct = default);
+        ValueTask<DeleteReferencesResponse> DeleteReferencesAsync(RequestHeader? requestHeader,
+            ArrayOf<DeleteReferencesItem> referencesToDelete, CancellationToken ct = default);
     }
 }

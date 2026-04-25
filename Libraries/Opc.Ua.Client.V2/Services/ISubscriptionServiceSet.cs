@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -27,7 +27,7 @@ namespace Opc.Ua.Client.Services
         /// <param name="priority"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<CreateSubscriptionResponse> CreateSubscriptionAsync(RequestHeader? requestHeader,
+        ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(RequestHeader? requestHeader,
             double requestedPublishingInterval, uint requestedLifetimeCount,
             uint requestedMaxKeepAliveCount, uint maxNotificationsPerPublish, bool publishingEnabled,
             byte priority, CancellationToken ct = default);
@@ -44,7 +44,7 @@ namespace Opc.Ua.Client.Services
         /// <param name="priority"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<ModifySubscriptionResponse> ModifySubscriptionAsync(RequestHeader? requestHeader,
+        ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(RequestHeader? requestHeader,
             uint subscriptionId, double requestedPublishingInterval, uint requestedLifetimeCount,
             uint requestedMaxKeepAliveCount, uint maxNotificationsPerPublish,
             byte priority, CancellationToken ct = default);
@@ -57,8 +57,8 @@ namespace Opc.Ua.Client.Services
         /// <param name="subscriptionIds"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<SetPublishingModeResponse> SetPublishingModeAsync(RequestHeader? requestHeader,
-            bool publishingEnabled, UInt32Collection subscriptionIds, CancellationToken ct = default);
+        ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(RequestHeader? requestHeader,
+            bool publishingEnabled, ArrayOf<uint> subscriptionIds, CancellationToken ct = default);
 
         /// <summary>
         /// Republish service
@@ -68,7 +68,7 @@ namespace Opc.Ua.Client.Services
         /// <param name="retransmitSequenceNumber"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<RepublishResponse> RepublishAsync(RequestHeader? requestHeader,
+        ValueTask<RepublishResponse> RepublishAsync(RequestHeader? requestHeader,
             uint subscriptionId, uint retransmitSequenceNumber, CancellationToken ct = default);
 
         /// <summary>
@@ -78,8 +78,8 @@ namespace Opc.Ua.Client.Services
         /// <param name="subscriptionIds"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(RequestHeader? requestHeader,
-            UInt32Collection subscriptionIds, CancellationToken ct = default);
+        ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(RequestHeader? requestHeader,
+            ArrayOf<uint> subscriptionIds, CancellationToken ct = default);
 
 #if OBSOLETE
         /// <summary>
@@ -92,9 +92,9 @@ namespace Opc.Ua.Client.Services
         /// <param name="linksToRemove"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<SetTriggeringResponse> SetTriggeringAsync(RequestHeader? requestHeader,
-            uint subscriptionId, uint triggeringItemId, UInt32Collection linksToAdd,
-            UInt32Collection linksToRemove, CancellationToken ct = default);
+        ValueTask<SetTriggeringResponse> SetTriggeringAsync(RequestHeader? requestHeader,
+            uint subscriptionId, uint triggeringItemId, ArrayOf<uint> linksToAdd,
+            ArrayOf<uint> linksToRemove, CancellationToken ct = default);
 #endif
     }
 }

@@ -70,6 +70,7 @@ namespace Opc.Ua.Client
         /// <param name="loggerFactory"></param>
         public ReverseConnectManager(ILoggerFactory loggerFactory) // TODO: Make internal
         {
+            _loggerFactory = loggerFactory;
             _logger = loggerFactory.CreateLogger<ReverseConnectManager>();
             _state = ReverseConnectManagerState.New;
             _registrations = [];
@@ -109,7 +110,7 @@ namespace Opc.Ua.Client
 
                     // clear configured endpoints
                     ClearEndpoints(true);
-                    if (_configuration.ClientEndpoints != null)
+                    if (!_configuration.ClientEndpoints.IsNull)
                     {
                         foreach (var endpoint in _configuration.ClientEndpoints)
                         {
@@ -323,7 +324,7 @@ namespace Opc.Ua.Client
         /// configuration.</param>
         private void AddEndpointInternal(Uri endpointUrl, bool configEntry)
         {
-            var reverseConnectHost = new ReverseConnectHost();
+            var reverseConnectHost = new ReverseConnectHost(new StackTelemetry(_loggerFactory));
             var info = new ReverseConnectInfo(reverseConnectHost, configEntry);
             try
             {
@@ -535,11 +536,34 @@ namespace Opc.Ua.Client
 
         private readonly Lock _lock = new();
         private ReverseConnectClientConfiguration _configuration;
+        private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger _logger;
         private Dictionary<Uri, ReverseConnectInfo> _endpointUrls;
         private ReverseConnectManagerState _state;
         private CancellationTokenSource _cts;
         private readonly Lock _registrationsLock = new();
         private readonly List<Registration> _registrations;
+
+        /// <summary>
+        /// Simple adapter to provide Opc.Ua.ITelemetryContext from an ILoggerFactory.
+        /// </summary>
+        private sealed class StackTelemetry : Opc.Ua.ITelemetryContext
+        {
+            public StackTelemetry(ILoggerFactory loggerFactory)
+            {
+                LoggerFactory = loggerFactory;
+            }
+
+            public ILoggerFactory LoggerFactory { get; }
+
+            public System.Diagnostics.Metrics.Meter CreateMeter()
+            {
+                return new System.Diagnostics.Metrics.Meter(
+                    nameof(ReverseConnectManager));
+            }
+
+            public System.Diagnostics.ActivitySource ActivitySource { get; }
+                = new(nameof(ReverseConnectManager));
+        }
     }
 }

@@ -85,7 +85,7 @@ namespace Opc.Ua.Client
             TSessionOptions, TSessionCreateOptions>
             WithServerCertificate(byte[] serverCertificate)
         {
-            Options.ServerCertificate = serverCertificate;
+            Options.ServerCertificate = (ByteString)serverCertificate;
             return this;
         }
 

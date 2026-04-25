@@ -3,6 +3,8 @@
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+#nullable enable
+
 using Moq;
 using System;
 using System.Collections.Generic;
@@ -22,15 +24,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void StructureDescriptionDecodeJsonShouldReturnValues()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Structure,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
 
             var structureDescription = StructureDescription.Create(
@@ -38,7 +39,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonDecoder = new JsonDecoder("""{"Field1": 1, "Field2": 2}""", new ServiceMessageContext());
+            var jsonDecoder = new JsonDecoder("""{"Field1": 1, "Field2": 2}""", ServiceMessageContext.Create(null));
 
             // Act
             var result = structureDescription.Decode(jsonDecoder);
@@ -55,15 +56,14 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void StructureDescriptionDecodeShouldReturnValues()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Structure,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
 
             var structureDescription = StructureDescription.Create(
@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryDecoder = new BinaryDecoder([1, 0, 0, 0, 2, 0, 0, 0], new ServiceMessageContext());
+            var binaryDecoder = new BinaryDecoder([1, 0, 0, 0, 2, 0, 0, 0], ServiceMessageContext.Create(null));
 
             // Act
             var result = structureDescription.Decode(binaryDecoder);
@@ -88,22 +88,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void StructureDescriptionEncodeJsonShouldEncodeValuesInReversibleEncoding()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Structure,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var structureDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), true);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Verbose);
             var values = new object[] { 1u, 2u };
 
             // Act
@@ -119,22 +118,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void StructureDescriptionEncodeShouldEncodeValues()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Structure,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var structureDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryEncoder = new BinaryEncoder(new ServiceMessageContext());
+            var binaryEncoder = new BinaryEncoder(ServiceMessageContext.Create(null));
             var values = new object[] { 1u, 2u };
 
             // Act
@@ -149,22 +147,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void StructureDescriptionEncodeWithInvalidValuesShouldThrowException()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Structure,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var structureDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryEncoder = new BinaryEncoder(new ServiceMessageContext());
+            var binaryEncoder = new BinaryEncoder(ServiceMessageContext.Create(null));
             var values = new object[] { 1u }; // Not enough values
 
             // Act
@@ -207,22 +204,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void StructureWithOptionalFieldsDecodeJsonShouldReturnValues()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar, IsOptional = true },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.StructureWithOptionalFields,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonDecoder = new JsonDecoder("""{"EncodingMask": 1, "Field2": 2}""", new ServiceMessageContext());
+            var jsonDecoder = new JsonDecoder("""{"EncodingMask": 1, "Field2": 2}""", ServiceMessageContext.Create(null));
 
             // Act
             var result = structureWithOptionalFieldsDescription.Decode(jsonDecoder);
@@ -240,22 +236,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void StructureWithOptionalFieldsDecodeShouldReturnValues()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar, IsOptional = true },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.StructureWithOptionalFields,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryDecoder = new BinaryDecoder([1, 0, 0, 0, 2, 0, 0, 0], new ServiceMessageContext());
+            var binaryDecoder = new BinaryDecoder([1, 0, 0, 0, 2, 0, 0, 0], ServiceMessageContext.Create(null));
 
             // Act
             var result = structureWithOptionalFieldsDescription.Decode(binaryDecoder);
@@ -273,51 +268,49 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void StructureWithOptionalFieldsDecodeWithMissingEncodingMaskShouldThrowException()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar, IsOptional = true },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.StructureWithOptionalFields,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryDecoder = new BinaryDecoder([2, 0, 0, 0], new ServiceMessageContext());
+            var binaryDecoder = new BinaryDecoder([2, 0, 0, 0], ServiceMessageContext.Create(null));
 
             // Act
             Action act = () => structureWithOptionalFieldsDescription.Decode(binaryDecoder);
 
             // Assert
-            Assert.Throws<ServiceResultException>(() => act());
-                .Which.Message.Contains("end of stream", StringComparison.InvariantCulture);
+            var ex = Assert.Throws<ServiceResultException>(() => act());
+            Assert.That(ex.Message, Does.Contain("end of stream"));
         }
 
         [Test]
         public void StructureWithOptionalFieldsEncodeJsonShouldEncodeValuesInNonReversibleEncoding()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar, IsOptional = true },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.StructureWithOptionalFields,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), false);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Compact);
             var values = new object?[] { 1u, null, 2u };
 
             // Act
@@ -333,22 +326,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void StructureWithOptionalFieldsEncodeJsonShouldEncodeValuesInReversibleEncoding()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar, IsOptional = true },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.StructureWithOptionalFields,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), true);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Verbose);
             var values = new object?[] { 1u, null, 2u };
 
             // Act
@@ -364,22 +356,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void StructureWithOptionalFieldsEncodeJsonWithMissingEncodingMaskShouldThrowException()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar, IsOptional = true },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.StructureWithOptionalFields,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), false);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Compact);
             var values = new object?[] { null, null, 2u }; // Missing encoding mask
 
             // Act
@@ -394,22 +385,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void StructureWithOptionalFieldsEncodeShouldEncodeValues()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar, IsOptional = true },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.StructureWithOptionalFields,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryEncoder = new BinaryEncoder(new ServiceMessageContext());
+            var binaryEncoder = new BinaryEncoder(ServiceMessageContext.Create(null));
             var values = new object?[] { 1u, null, 2u };
 
             // Act
@@ -424,22 +414,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void StructureWithOptionalFieldsEncodeWithMissingEncodingMaskShouldThrowException()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar, IsOptional = true },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.StructureWithOptionalFields,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var structureWithOptionalFieldsDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryEncoder = new BinaryEncoder(new ServiceMessageContext());
+            var binaryEncoder = new BinaryEncoder(ServiceMessageContext.Create(null));
             var values = new object?[] { null, null, 2u };
 
             // Act
@@ -454,17 +443,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionDecodeJsonShouldReturnValues()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field3", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field4", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Union,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
@@ -480,7 +468,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Assert.That(unionDescription.IsAbstract, Is.False);
             Assert.That(unionDescription.FieldsCanHaveSubtypedValues, Is.False);
 
-            var jsonDecoder = new JsonDecoder("""{"SwitchField": 1, "Value": 3}""", new ServiceMessageContext());
+            var jsonDecoder = new JsonDecoder("""{"SwitchField": 1, "Value": 3}""", ServiceMessageContext.Create(null));
 
             // Act
             var result = unionDescription.Decode(jsonDecoder);
@@ -497,22 +485,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionDecodeJsonWithNullValueShouldReturnNull()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Union,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonDecoder = new JsonDecoder("""{"SwitchField": 0, "Value": null}""", new ServiceMessageContext());
+            var jsonDecoder = new JsonDecoder("""{"SwitchField": 0, "Value": null}""", ServiceMessageContext.Create(null));
 
             // Act
             var result = unionDescription.Decode(jsonDecoder);
@@ -529,17 +516,16 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionDecodeShouldReturnValues()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field3", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field4", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.UnionWithSubtypedValues,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
@@ -555,7 +541,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Assert.That(unionDescription.IsAbstract, Is.False);
             Assert.That(unionDescription.FieldsCanHaveSubtypedValues, Is.True);
 
-            var binaryDecoder = new BinaryDecoder([1, 0, 0, 0, 3, 0, 0, 0], new ServiceMessageContext());
+            var binaryDecoder = new BinaryDecoder([1, 0, 0, 0, 3, 0, 0, 0], ServiceMessageContext.Create(null));
 
             // Act
             var result = unionDescription.Decode(binaryDecoder);
@@ -572,22 +558,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionDecodeWithInvalidSwitchFieldShouldThrowException()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-        {
+            var structureFields = (ArrayOf<StructureField>)[
             new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
             new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-        };
+        ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Union,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryDecoder = new BinaryDecoder([3, 0, 0, 0], new ServiceMessageContext());
+            var binaryDecoder = new BinaryDecoder([3, 0, 0, 0], ServiceMessageContext.Create(null));
 
             // Act
             Action act = () => unionDescription.Decode(binaryDecoder);
@@ -601,22 +586,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionDecodeWithNullValueShouldReturnNull()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Union,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryDecoder = new BinaryDecoder([0, 0, 0, 0], new ServiceMessageContext());
+            var binaryDecoder = new BinaryDecoder([0, 0, 0, 0], ServiceMessageContext.Create(null));
 
             // Act
             var result = unionDescription.Decode(binaryDecoder);
@@ -633,24 +617,23 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionEncodeJsonShouldEncodeValuesInNonReversibleEncoding()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field3", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field4", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Union,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), false);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Compact);
             var values = new object?[] { 2u, 3u };
 
             // Act
@@ -666,24 +649,23 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionEncodeJsonShouldEncodeValuesInReversibleEncoding()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field3", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field4", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Union,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), true);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Verbose);
             var values = new object?[] { 1u, 3u };
 
             // Act
@@ -699,22 +681,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionEncodeJsonWithInvalidSwitchFieldShouldThrowException()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Union,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), false);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Compact);
             var values = new object?[] { 3u, 3u }; // Invalid switch field
 
             // Act
@@ -729,22 +710,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionEncodeJsonWithNullValueShouldEncodeCorrectlyWithNonReversibleEncoding()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Union,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), false);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Compact);
             var values = new object?[] { 0u, null };
 
             // Act
@@ -759,22 +739,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionEncodeJsonWithNullValueShouldEncodeCorrectlyWithReversibleEncoding()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Union,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var jsonEncoder = new JsonEncoder(new ServiceMessageContext(), true);
+            var jsonEncoder = new JsonEncoder(ServiceMessageContext.Create(null), JsonEncoderOptions.Verbose);
             var values = new object?[] { 0u, null };
 
             // Act
@@ -789,24 +768,23 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionEncodeShouldEncodeValues()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field3", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field4", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Union,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryEncoder = new BinaryEncoder(new ServiceMessageContext());
+            var binaryEncoder = new BinaryEncoder(ServiceMessageContext.Create(null));
             var values = new object?[] { 1u, 3u };
 
             // Act
@@ -821,22 +799,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionEncodeWithInvalidSwitchFieldShouldThrowException()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-        {
+            var structureFields = (ArrayOf<StructureField>)[
             new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
             new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-        };
+        ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Union,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryEncoder = new BinaryEncoder(new ServiceMessageContext());
+            var binaryEncoder = new BinaryEncoder(ServiceMessageContext.Create(null));
             var values = new object?[] { 3u, 3u };
 
             // Act
@@ -850,22 +827,21 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         public void UnionDescriptionEncodeWithNullValueShouldEncodeCorrectly()
         {
             // Arrange
-            var structureFields = new List<StructureField>
-            {
+            var structureFields = (ArrayOf<StructureField>)[
                 new() { Name = "Field1", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
                 new() { Name = "Field2", DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
             var structureDefinition = new StructureDefinition
             {
                 StructureType = StructureType.Union,
-                Fields = new StructureFieldCollection(structureFields)
+                Fields = structureFields
             };
             var unionDescription = StructureDescription.Create(
                 m_mockedTypeSystem.Object, new ExpandedNodeId(333),
                 structureDefinition, new XmlQualifiedName(), ExpandedNodeId.Null,
                 ExpandedNodeId.Null, ExpandedNodeId.Null);
 
-            var binaryEncoder = new BinaryEncoder(new ServiceMessageContext());
+            var binaryEncoder = new BinaryEncoder(ServiceMessageContext.Create(null));
             var values = new object?[] { 0u, null };
 
             // Act

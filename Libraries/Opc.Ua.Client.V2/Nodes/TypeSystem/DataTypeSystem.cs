@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -109,11 +109,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             for (var index = 0; index < dictionaryIds.Count; index++)
             {
                 if (StatusCode.IsBad(values[index].StatusCode) ||
-                    values[index].Value is not byte[] buffer)
+                    !values[index].WrappedValue.TryGet(out ByteString bufferBs))
                 {
                     throw new ServiceResultException(values[index].StatusCode);
                 }
 
+                var buffer = bufferBs.ToArray();
                 var zeroTerminator = Array.IndexOf<byte>(buffer, 0);
                 if (zeroTerminator >= 0)
                 {
@@ -131,9 +132,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 }
                 // read namespace property values
                 var nameSpaceValue = await _nodeCache.GetValueAsync(ExpandedNodeId.ToNodeId(
-                    namespaceNodeId, _context.NamespaceUris), ct).ConfigureAwait(false);
+                    namespaceNodeId.Value, _context.NamespaceUris), ct).ConfigureAwait(false);
+                string ns = null!;
                 if (StatusCode.IsBad(nameSpaceValue.StatusCode) ||
-                    nameSpaceValue.Value is not string ns)
+                    !nameSpaceValue.WrappedValue.TryGet(out ns!))
                 {
                     _logger.LogWarning("Failed to load namespace {Ns}: {Error}",
                         namespaceNodeId, nameSpaceValue.StatusCode);
@@ -238,58 +240,62 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             EnumDefinition? enumDefinition = null;
             foreach (var value in values)
             {
-                switch (value?.Value)
+                if (value == null)
                 {
-                    case ExtensionObject[] enumValueTypes:
-                        // use EnumValues
-                        var enumValues = new EnumDefinition();
-                        foreach (var extensionObject in enumValueTypes)
-                        {
-                            if (extensionObject.Body is not EnumValueType enumValue)
-                            {
-                                continue;
-                            }
-                            var name = enumValue.DisplayName.Text;
-                            var enumTypeField = new EnumField
-                            {
-                                Name = name,
-                                Value = enumValue.Value,
-                                DisplayName = name
-                            };
-                            enumValues.Fields.Add(enumTypeField);
-                        }
-                        if (enumValues.Fields.Count > 0)
-                        {
-                            // Prefer enum values, otherwise use enum strings
-                            return new DictionaryDataTypeDefinition(enumValues,
-                                new XmlQualifiedName(nodeId.Identifier.ToString(),
-                                _context.NamespaceUris.GetString(nodeId.NamespaceIndex)),
-                                ExpandedNodeId.Null);
-                        }
-                        break;
-                    case LocalizedText[] enumFieldNames:
-                        // Degrade to EnumStrings
-                        enumDefinition ??= new EnumDefinition();
-                        for (var i = 0; i < enumFieldNames.Length; i++)
-                        {
-                            var enumFieldName = enumFieldNames[i];
-                            var name = enumFieldName.Text;
+                    continue;
+                }
 
-                            var enumTypeField = new EnumField
-                            {
-                                Name = name,
-                                Value = i,
-                                DisplayName = name
-                            };
-                            enumDefinition.Fields.Add(enumTypeField);
+                if (value.WrappedValue.TryGet(out ArrayOf<ExtensionObject> enumValueTypes))
+                {
+                    // use EnumValues
+                    var enumValues = new EnumDefinition();
+                    foreach (var extensionObject in enumValueTypes)
+                    {
+                        if (!extensionObject.TryGetEncodeable(out EnumValueType enumValue))
+                        {
+                            continue;
                         }
-                        break;
+                        var name = enumValue.DisplayName.Text;
+                        var enumTypeField = new EnumField
+                        {
+                            Name = name,
+                            Value = enumValue.Value,
+                            DisplayName = (LocalizedText)name
+                        };
+                        enumValues.Fields += enumTypeField;
+                    }
+                    if (enumValues.Fields.Count > 0)
+                    {
+                        // Prefer enum values, otherwise use enum strings
+                        return new DictionaryDataTypeDefinition(enumValues,
+                            new XmlQualifiedName(nodeId.IdentifierAsString,
+                            _context.NamespaceUris.GetString(nodeId.NamespaceIndex)),
+                            ExpandedNodeId.Null);
+                    }
+                }
+                else if (value.WrappedValue.TryGet(out ArrayOf<LocalizedText> enumFieldNames))
+                {
+                    // Degrade to EnumStrings
+                    enumDefinition ??= new EnumDefinition();
+                    for (var i = 0; i < enumFieldNames.Count; i++)
+                    {
+                        var enumFieldName = enumFieldNames[i];
+                        var name = enumFieldName.Text;
+
+                        var enumTypeField = new EnumField
+                        {
+                            Name = name,
+                            Value = i,
+                            DisplayName = (LocalizedText)name
+                        };
+                        enumDefinition.Fields += enumTypeField;
+                    }
                 }
             }
             if (enumDefinition != null)
             {
                 return new DictionaryDataTypeDefinition(enumDefinition, new XmlQualifiedName(
-                    nodeId.Identifier.ToString(), _context.NamespaceUris.GetString(
+                    nodeId.IdentifierAsString, _context.NamespaceUris.GetString(
                         nodeId.NamespaceIndex)), ExpandedNodeId.Null);
             }
             return null;
@@ -318,7 +324,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 // Nothing to do
                 return;
             }
-            var nodeIdCollection = descriptions
+            var nodeIds = descriptions
                 .Select(node => ExpandedNodeId.ToNodeId(node.NodeId, _context.NamespaceUris))
                 .ToList();
             //
@@ -331,15 +337,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // the Value shall be an Xpath expression (see XPATH) which points to an XML
             // element in the schema document.
             //
-            var descriptionInfos = await _nodeCache.GetValuesAsync(nodeIdCollection,
+            var descriptionInfos = await _nodeCache.GetValuesAsync(nodeIds,
                 ct).ConfigureAwait(false);
-            var encodings = await _nodeCache.GetReferencesAsync(nodeIdCollection,
+            var encodings = await _nodeCache.GetReferencesAsync(nodeIds,
                 [ReferenceTypeIds.HasDescription], true, false, ct).ConfigureAwait(false);
             var encodingNodeIds = encodings
                 .Where(node => Utils.IsEqual(node.BrowseName, EncodingName)) // Filter only the encodings
                 .Select(node => ExpandedNodeId.ToNodeId(node.NodeId, _context.NamespaceUris))
                 .ToList();
-            if (encodingNodeIds.Count != nodeIdCollection.Count)
+            if (encodingNodeIds.Count != nodeIds.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadDataEncodingInvalid,
                     "Failed to resolve descriptions from encodings.");
@@ -347,7 +353,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             Debug.Assert(descriptionInfos.Count == encodingNodeIds.Count);
             var dataTypeNodes = await _nodeCache.GetReferencesAsync(encodingNodeIds,
                 [ReferenceTypeIds.HasEncoding], true, false, ct).ConfigureAwait(false);
-            if (dataTypeNodes.Count != nodeIdCollection.Count)
+            if (dataTypeNodes.Count != nodeIds.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadDataEncodingInvalid,
                     "Failed to resolve data types from encodings.");
@@ -355,10 +361,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             for (var i = 0; i < dataTypeNodes.Count; i++)
             {
                 var key = descriptionInfos[i];
-                if (!StatusCode.IsGood(key.StatusCode) || key.Value is not string typeName)
+                if (!StatusCode.IsGood(key.StatusCode) || !key.WrappedValue.TryGet(out string typeName))
                 {
                     _logger.LogInformation("Bad data type description {NodeId} : {Status}",
-                        nodeIdCollection[i], key.StatusCode);
+                        nodeIds[i], key.StatusCode);
                     continue;
                 }
                 var xmlName = new XmlQualifiedName(typeName, targetNamespace);

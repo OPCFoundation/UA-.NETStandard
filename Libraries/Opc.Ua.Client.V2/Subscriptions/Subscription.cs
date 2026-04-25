@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.Subscriptions
                 throw ServiceResultException.Create(StatusCodes.BadSubscriptionIdInvalid,
                     "Subscription has not been created.");
             }
-            var methodsToCall = new CallMethodRequestCollection
+            var methodsToCall = new CallMethodRequest[]
             {
                 new CallMethodRequest()
                 {
@@ -396,7 +396,7 @@ namespace Opc.Ua.Client.Subscriptions
             try
             {
                 // delete the subscription.
-                var subscriptionIds = new UInt32Collection { Id };
+                ArrayOf<uint> subscriptionIds = new uint[] { Id };
                 var response = await _context.SubscriptionServiceSet.DeleteSubscriptionsAsync(null,
                     subscriptionIds, ct).ConfigureAwait(false);
                 // validate response.
@@ -485,7 +485,7 @@ namespace Opc.Ua.Client.Subscriptions
             async Task SetPublishingModeAsync(SubscriptionOptions options, CancellationToken ct)
             {
                 // modify the subscription.
-                var subscriptionIds = new UInt32Collection { Id };
+                ArrayOf<uint> subscriptionIds = new uint[] { Id };
                 var response = await _context.SubscriptionServiceSet.SetPublishingModeAsync(
                     null, options.PublishingEnabled, subscriptionIds, ct).ConfigureAwait(false);
 

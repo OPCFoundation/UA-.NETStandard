@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -181,7 +181,7 @@ namespace Opc.Ua.Client
         /// <param name="availableEndpoints"></param>
         /// <returns></returns>
         ISessionCreateOptionsBuilder<T> WithAvailableEndpoints(
-            EndpointDescriptionCollection availableEndpoints);
+            ArrayOf<EndpointDescription> availableEndpoints);
 
         /// <summary>
         /// Add a channel that should be used
@@ -213,7 +213,7 @@ namespace Opc.Ua.Client
         /// <param name="discoveryProfileUris"></param>
         /// <returns></returns>
         ISessionCreateOptionsBuilder<T> WithDiscoveryProfileUris(
-            StringCollection discoveryProfileUris);
+            ArrayOf<string> discoveryProfileUris);
 
         /// <summary>
         /// Set user identity

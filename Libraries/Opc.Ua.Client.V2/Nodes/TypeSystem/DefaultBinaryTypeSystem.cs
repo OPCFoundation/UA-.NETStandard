@@ -26,13 +26,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
     {
         /// <inheritdoc/>
         public override NodeId TypeSystemId
-            => Objects.OPCBinarySchema_TypeSystem;
+            => (NodeId)Objects.OPCBinarySchema_TypeSystem;
         /// <inheritdoc/>
         public override QualifiedName TypeSystemName
-            => BrowseNames.OPCBinarySchema_TypeSystem;
+            => (QualifiedName)BrowseNames.OPCBinarySchema_TypeSystem;
         /// <inheritdoc/>
         public override QualifiedName EncodingName
-            => BrowseNames.DefaultBinary;
+            => (QualifiedName)BrowseNames.DefaultBinary;
 
         /// <inheritdoc/>
         public DefaultBinaryTypeSystem(INodeCache nodeCache,
@@ -119,7 +119,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         {
             var structureDefinition = new StructureDefinition
             {
-                BaseDataType = null,
+                BaseDataType = NodeId.Null,
                 DefaultEncodingId =
                     ExpandedNodeId.ToNodeId(defaultEncodingId, namespaceTable),
                 Fields = [],
@@ -211,11 +211,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 var dataTypeField = new StructureField
                 {
                     Name = field.Name,
-                    Description = null,
+                    Description = default,
                     DataType = fieldDataTypeNodeId,
                     IsOptional = false,
                     MaxStringLength = 0,
-                    ArrayDimensions = null,
+                    ArrayDimensions = default,
                     ValueRank = -1
                 };
                 if (field.LengthField != null)
@@ -231,7 +231,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     lastField.Name = field.Name;
                     lastField.DataType = fieldDataTypeNodeId;
                     lastField.ValueRank = 1;
-                    structureDefinition.Fields.Add(dataTypeField);
+                    structureDefinition.Fields += dataTypeField;
                     continue;
                 }
                 if (isUnionType)
@@ -246,7 +246,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                         }
                         continue;
                     }
-                    structureDefinition.Fields.Add(dataTypeField);
+                    structureDefinition.Fields += dataTypeField;
                     if (structureDefinition.Fields.Count != i)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadTypeDefinitionInvalid,
@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                             $"The switch field for {field.SwitchField} does not exist.");
                     }
                 }
-                structureDefinition.Fields.Add(dataTypeField);
+                structureDefinition.Fields += dataTypeField;
             }
             return structureDefinition;
 
@@ -303,10 +303,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 {
                     Name = enumValue.Name,
                     Value = enumValue.Value,
-                    Description = enumValue.Documentation?.Text?.FirstOrDefault(),
-                    DisplayName = enumValue.Name
+                    Description = (LocalizedText)(enumValue.Documentation?.Text?.FirstOrDefault() ?? string.Empty),
+                    DisplayName = (LocalizedText)enumValue.Name
                 };
-                enumDefinition.Fields.Add(enumTypeField);
+                enumDefinition.Fields += enumTypeField;
             }
             return enumDefinition;
         }

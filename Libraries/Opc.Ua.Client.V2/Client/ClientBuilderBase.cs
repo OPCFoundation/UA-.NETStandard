@@ -373,7 +373,7 @@ namespace Opc.Ua.Client
                      meterFactory ?? new Meters(), activitySource);
             }
 
-            return Build(provider, new ApplicationInstance
+            return Build(provider, new ApplicationInstance((Opc.Ua.ITelemetryContext?)null)
             {
                 ApplicationType = _applicationType,
                 ApplicationName = _applicationName

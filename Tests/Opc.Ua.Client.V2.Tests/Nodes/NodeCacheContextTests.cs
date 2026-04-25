@@ -6,7 +6,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -15,6 +14,8 @@ using Moq;
 using Opc.Ua.Client.Sessions;
 using Opc.Ua.Client.Subscriptions;
 using NUnit.Framework;
+
+#nullable enable
 
 namespace Opc.Ua.Client.Nodes
 {
@@ -71,22 +72,21 @@ namespace Opc.Ua.Client.Nodes
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
             };
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow),
                 new DataValue(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
-            };
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ];
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReadResponse
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
                 {
                     Results = dataValues,
-                    DiagnosticInfos = diagnosticInfos
-                })
+                    DiagnosticInfos = []
+                }))
                 .Verifiable(Times.Once);
 
             // Act
@@ -106,17 +106,16 @@ namespace Opc.Ua.Client.Nodes
                 m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var dataValue = new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow);
-            var diagnosticInfos = new DiagnosticInfoCollection();
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReadResponse
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
                 {
                     Results = [dataValue],
-                    DiagnosticInfos = diagnosticInfos
-                })
+                    DiagnosticInfos = []
+                }))
                 .Verifiable(Times.Once);
 
             // Act
@@ -154,17 +153,16 @@ namespace Opc.Ua.Client.Nodes
                 m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var dataValue = new DataValue(new Variant(123), StatusCodes.Bad, DateTime.UtcNow);
-            var diagnosticInfos = new DiagnosticInfoCollection();
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReadResponse
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
                 {
                     Results = [dataValue],
-                    DiagnosticInfos = diagnosticInfos
-                })
+                    DiagnosticInfos = []
+                }))
                 .Verifiable(Times.Once);
 
             // Act
@@ -184,22 +182,21 @@ namespace Opc.Ua.Client.Nodes
                 new ConfiguredEndpoint(null, new EndpointDescription()),
                 m_options, m_mockObservability.Object, null);
             var nodeIds = new List<NodeId> { NodeId.Parse("ns=2;s=TestNode1"), NodeId.Parse("ns=2;s=TestNode2") };
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(123), StatusCodes.Bad, DateTime.UtcNow),
                 new DataValue(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
-            };
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ];
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReadResponse
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
                 {
                     Results = dataValues,
-                    DiagnosticInfos = diagnosticInfos
-                })
+                    DiagnosticInfos = []
+                }))
                 .Verifiable(Times.Once);
 
             // Act
@@ -275,17 +272,17 @@ namespace Opc.Ua.Client.Nodes
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var dataValue = new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow);
             var diagnosticInfo = new DiagnosticInfo();
-            var diagnosticInfos = new DiagnosticInfoCollection { diagnosticInfo };
+            ArrayOf<DiagnosticInfo> diagnosticInfos = [diagnosticInfo];
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReadResponse
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
                 {
                     Results = [dataValue],
-                    DiagnosticInfos = diagnosticInfos
-                })
+                    DiagnosticInfos = []
+                }))
                 .Verifiable(Times.Once);
 
             // Act
@@ -310,23 +307,23 @@ namespace Opc.Ua.Client.Nodes
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
             };
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow),
                 new DataValue(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
-            };
+            ];
             var diagnosticInfo = new DiagnosticInfo();
-            var diagnosticInfos = new DiagnosticInfoCollection { diagnosticInfo, diagnosticInfo };
+            ArrayOf<DiagnosticInfo> diagnosticInfos = [diagnosticInfo, diagnosticInfo];
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReadResponse
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
                 {
                     Results = dataValues,
-                    DiagnosticInfos = diagnosticInfos
-                })
+                    DiagnosticInfos = []
+                }))
                 .Verifiable(Times.Once);
 
             // Act
@@ -360,9 +357,9 @@ namespace Opc.Ua.Client.Nodes
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType1"),
-                    Description = "TestDescription1",
-                    DisplayName = "TestDisplayName1",
-                    BrowseName = "TestBrowseName1",
+                    Description = LocalizedText.From("TestDescription1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
                     UserAccessLevel = 1
                 },
                 new VariableNode
@@ -371,9 +368,9 @@ namespace Opc.Ua.Client.Nodes
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType2"),
-                    Description = "TestDescription2",
-                    DisplayName = "TestDisplayName2",
-                    BrowseName = "TestBrowseName2",
+                    Description = LocalizedText.From("TestDescription2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
                     UserAccessLevel = 1
                 }
             };
@@ -384,21 +381,21 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    var results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             var value = new DataValue();
                             if (r.NodeId == nodeIds[0])
                             {
-                                nodes[0].Read(null!, r.AttributeId, value);
+                                nodes[0].Read(null, r.AttributeId, value);
                             }
                             else
                             {
-                                nodes[1].Read(null!, r.AttributeId, value);
+                                nodes[1].Read(null, r.AttributeId, value);
                             }
                             return value;
-                        }));
-                    return Task.FromResult<IServiceResponse>(new ReadResponse
+                        });
+                    return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
                         DiagnosticInfos = []
@@ -436,9 +433,9 @@ namespace Opc.Ua.Client.Nodes
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType1"),
-                    Description = "TestDescription1",
-                    DisplayName = "TestDisplayName1",
-                    BrowseName = "TestBrowseName1",
+                    Description = LocalizedText.From("TestDescription1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
                     UserAccessLevel = 1
                 },
                 new VariableNode
@@ -447,9 +444,9 @@ namespace Opc.Ua.Client.Nodes
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType2"),
-                    Description = "TestDescription2",
-                    DisplayName = "TestDisplayName2",
-                    BrowseName = "TestBrowseName2",
+                    Description = LocalizedText.From("TestDescription2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
                     UserAccessLevel = 1
                 }
             };
@@ -460,8 +457,8 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    var results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             var value = new DataValue();
                             if (r.AttributeId == Attributes.MinimumSamplingInterval)
@@ -474,15 +471,15 @@ namespace Opc.Ua.Client.Nodes
                             }
                             if (r.NodeId == nodeIds[0])
                             {
-                                nodes[0].Read(null!, r.AttributeId, value);
+                                nodes[0].Read(null, r.AttributeId, value);
                             }
                             else
                             {
-                                nodes[1].Read(null!, r.AttributeId, value);
+                                nodes[1].Read(null, r.AttributeId, value);
                             }
                             return value;
-                        }));
-                    return Task.FromResult<IServiceResponse>(new ReadResponse
+                        });
+                    return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
                         DiagnosticInfos = []
@@ -514,9 +511,9 @@ namespace Opc.Ua.Client.Nodes
                 NodeClass = NodeClass.Variable,
                 AccessLevel = 1,
                 DataType = NodeId.Parse("ns=2;s=TestDataType"),
-                Description = "TestDescription",
-                DisplayName = "TestDisplayName",
-                BrowseName = "TestBrowseName",
+                Description = LocalizedText.From("TestDescription"),
+                DisplayName = LocalizedText.From("TestDisplayName"),
+                BrowseName = QualifiedName.From("TestBrowseName"),
                 UserAccessLevel = 1
             };
 
@@ -526,14 +523,14 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    var results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             var value = new DataValue();
-                            node.Read(null!, r.AttributeId, value);
+                            node.Read(null, r.AttributeId, value);
                             return value;
-                        }));
-                    return Task.FromResult<IServiceResponse>(new ReadResponse
+                        });
+                    return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
                         DiagnosticInfos = []
@@ -581,24 +578,22 @@ namespace Opc.Ua.Client.Nodes
                 NodeClass = NodeClass.Variable,
                 AccessLevel = 1,
                 DataType = NodeId.Parse("ns=2;s=TestDataType"),
-                Description = "TestDescription",
-                DisplayName = "TestDisplayName",
-                BrowseName = "TestBrowseName",
+                Description = LocalizedText.From("TestDescription"),
+                DisplayName = LocalizedText.From("TestDisplayName"),
+                BrowseName = QualifiedName.From("TestBrowseName"),
                 UserAccessLevel = 1
             };
-            var diagnosticInfos = new DiagnosticInfoCollection();
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<ReadRequest>(),
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
-                    Task.FromResult<IServiceResponse>(new ReadResponse
+                    new ValueTask<IServiceResponse>(new ReadResponse
                     {
-                        Results = new DataValueCollection(request.NodesToRead
-                                .Select(r => new DataValue(StatusCodes.BadAlreadyExists))),
-                        DiagnosticInfos = new DiagnosticInfoCollection(
-                                request.NodesToRead.Select(_ => new DiagnosticInfo()))
+                        Results = request.NodesToRead
+                                .ConvertAll(r => new DataValue(StatusCodes.BadAlreadyExists)),
+                        DiagnosticInfos = request.NodesToRead.ConvertAll(_ => new DiagnosticInfo())
                     }))
                 .Verifiable(Times.Once);
 
@@ -633,9 +628,9 @@ namespace Opc.Ua.Client.Nodes
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType1"),
-                    Description = "TestDescription1",
-                    DisplayName = "TestDisplayName1",
-                    BrowseName = "TestBrowseName1",
+                    Description = LocalizedText.From("TestDescription1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
                     UserAccessLevel = 1
                 },
                 new VariableNode
@@ -644,9 +639,9 @@ namespace Opc.Ua.Client.Nodes
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType2"),
-                    Description = "TestDescription2",
-                    DisplayName = "TestDisplayName2",
-                    BrowseName = "TestBrowseName2",
+                    Description = LocalizedText.From("TestDescription2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
                     UserAccessLevel = 1
                 }
             };
@@ -657,22 +652,21 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    var results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             if (r.NodeId == nodeIds[0])
                             {
                                 var value = new DataValue();
-                                nodes[0].Read(null!, r.AttributeId, value);
+                                nodes[0].Read(null, r.AttributeId, value);
                                 return value;
                             }
                             return new DataValue(StatusCodes.BadUnexpectedError);
-                        }));
-                    return Task.FromResult<IServiceResponse>(new ReadResponse
+                        });
+                    return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
-                        DiagnosticInfos = new DiagnosticInfoCollection(
-                            results.Select(r => new DiagnosticInfo()))
+                        DiagnosticInfos = results.ConvertAll(r => new DiagnosticInfo())
                     });
                 })
                 .Verifiable(Times.Exactly(2));
@@ -709,9 +703,9 @@ namespace Opc.Ua.Client.Nodes
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType1"),
-                    Description = "TestDescription1",
-                    DisplayName = "TestDisplayName1",
-                    BrowseName = "TestBrowseName1",
+                    Description = LocalizedText.From("TestDescription1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
                     UserAccessLevel = 1
                 },
                 new VariableNode
@@ -720,9 +714,9 @@ namespace Opc.Ua.Client.Nodes
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType2"),
-                    Description = "TestDescription2",
-                    DisplayName = "TestDisplayName2",
-                    BrowseName = "TestBrowseName2",
+                    Description = LocalizedText.From("TestDescription2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
                     UserAccessLevel = 1
                 }
             };
@@ -733,8 +727,8 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    var results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             if (r.AttributeId == Attributes.NodeClass)
                             {
@@ -743,19 +737,18 @@ namespace Opc.Ua.Client.Nodes
                             var value = new DataValue();
                             if (r.NodeId == nodeIds[0])
                             {
-                                nodes[0].Read(null!, r.AttributeId, value);
+                                nodes[0].Read(null, r.AttributeId, value);
                             }
                             else
                             {
-                                nodes[1].Read(null!, r.AttributeId, value);
+                                nodes[1].Read(null, r.AttributeId, value);
                             }
                             return value;
-                        }));
-                    return Task.FromResult<IServiceResponse>(new ReadResponse
+                        });
+                    return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
-                        DiagnosticInfos = new DiagnosticInfoCollection(
-                            results.Select(r => new DiagnosticInfo()))
+                        DiagnosticInfos = results.ConvertAll(r => new DiagnosticInfo())
                     });
                 })
                 .Verifiable(Times.Exactly(2));
@@ -840,9 +833,9 @@ namespace Opc.Ua.Client.Nodes
                 NodeClass = NodeClass.Variable,
                 AccessLevel = 1,
                 DataType = NodeId.Parse("ns=2;s=TestDataType"),
-                Description = "TestDescription",
-                DisplayName = "TestDisplayName",
-                BrowseName = "TestBrowseName",
+                Description = LocalizedText.From("TestDescription"),
+                DisplayName = LocalizedText.From("TestDisplayName"),
+                BrowseName = QualifiedName.From("TestBrowseName"),
                 UserAccessLevel = 1
             };
 
@@ -852,18 +845,17 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    var results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             var value = new DataValue();
-                            node.Read(null!, r.AttributeId, value);
+                            node.Read(null, r.AttributeId, value);
                             return value;
-                        }));
-                    return Task.FromResult<IServiceResponse>(new ReadResponse
+                        });
+                    return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
-                        DiagnosticInfos = new DiagnosticInfoCollection(
-                            results.Select(_ => new DiagnosticInfo()))
+                        DiagnosticInfos = results.ConvertAll(_ => new DiagnosticInfo())
                     });
                 })
                 .Verifiable(Times.Once);
@@ -897,9 +889,9 @@ namespace Opc.Ua.Client.Nodes
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType1"),
-                    Description = "TestDescription1",
-                    DisplayName = "TestDisplayName1",
-                    BrowseName = "TestBrowseName1",
+                    Description = LocalizedText.From("TestDescription1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
                     UserAccessLevel = 1
                 },
                 new VariableNode
@@ -908,9 +900,9 @@ namespace Opc.Ua.Client.Nodes
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType2"),
-                    Description = "TestDescription2",
-                    DisplayName = "TestDisplayName2",
-                    BrowseName = "TestBrowseName2",
+                    Description = LocalizedText.From("TestDescription2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
                     UserAccessLevel = 1
                 }
             };
@@ -921,25 +913,24 @@ namespace Opc.Ua.Client.Nodes
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    var results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             var value = new DataValue();
                             if (r.NodeId == nodeIds[0])
                             {
-                                nodes[0].Read(null!, r.AttributeId, value);
+                                nodes[0].Read(null, r.AttributeId, value);
                             }
                             else
                             {
-                                nodes[1].Read(null!, r.AttributeId, value);
+                                nodes[1].Read(null, r.AttributeId, value);
                             }
                             return value;
-                        }));
-                    return Task.FromResult<IServiceResponse>(new ReadResponse
+                        });
+                    return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
-                        DiagnosticInfos = new DiagnosticInfoCollection(
-                            results.Select(r => new DiagnosticInfo()))
+                        DiagnosticInfos = results.ConvertAll(r => new DiagnosticInfo())
                     });
                 })
                 .Verifiable(Times.Exactly(2));
@@ -964,29 +955,29 @@ namespace Opc.Ua.Client.Nodes
                 new ConfiguredEndpoint(null, new EndpointDescription()),
                 m_options, m_mockObservability.Object, null);
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
-            var references = new ReferenceDescriptionCollection
-            {
+            ArrayOf<ReferenceDescription> references =
+            [
                 new ReferenceDescription
                 {
-                    NodeId = new ExpandedNodeId("ns=2;s=TestNode1"),
-                    BrowseName = "TestBrowseName1",
-                    DisplayName = "TestDisplayName1",
+                    NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
                     NodeClass = NodeClass.Variable
                 },
                 new ReferenceDescription
                 {
-                    NodeId = new ExpandedNodeId("ns=2;s=TestNode2"),
-                    BrowseName = "TestBrowseName2",
-                    DisplayName = "TestDisplayName2",
+                    NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode2"),
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
                     NodeClass = NodeClass.Variable
                 }
-            };
+            ];
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<BrowseRequest>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new BrowseResponse
+                .Returns(new ValueTask<IServiceResponse>(new BrowseResponse
                 {
                     Results =
                     [
@@ -996,7 +987,7 @@ namespace Opc.Ua.Client.Nodes
                 }
                     ],
                     DiagnosticInfos = []
-                })
+                }))
                 .Verifiable(Times.Once);
 
             // Act
@@ -1037,29 +1028,29 @@ namespace Opc.Ua.Client.Nodes
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
             };
-            var references = new ReferenceDescriptionCollection
-            {
+            ArrayOf<ReferenceDescription> references =
+            [
                 new ReferenceDescription
                 {
-                    NodeId = new ExpandedNodeId("ns=2;s=TestNode1"),
-                    BrowseName = "TestBrowseName1",
-                    DisplayName = "TestDisplayName1",
+                    NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
                     NodeClass = NodeClass.Variable
                 },
                 new ReferenceDescription
                 {
-                    NodeId = new ExpandedNodeId("ns=2;s=TestNode2"),
-                    BrowseName = "TestBrowseName2",
-                    DisplayName = "TestDisplayName2",
+                    NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode2"),
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
                     NodeClass = NodeClass.Variable
                 }
-            };
+            ];
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<BrowseRequest>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new BrowseResponse
+                .Returns(new ValueTask<IServiceResponse>(new BrowseResponse
                 {
                     Results =
                     [
@@ -1075,7 +1066,7 @@ namespace Opc.Ua.Client.Nodes
                         }
                     ],
                     DiagnosticInfos = []
-                })
+                }))
                 .Verifiable(Times.Once);
 
             // Act
@@ -1131,9 +1122,9 @@ namespace Opc.Ua.Client.Nodes
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var reference = new ReferenceDescription
             {
-                NodeId = new ExpandedNodeId("ns=2;s=TestNode1"),
-                BrowseName = "TestBrowseName1",
-                DisplayName = "TestDisplayName1",
+                NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
+                BrowseName = QualifiedName.From("TestBrowseName1"),
+                DisplayName = LocalizedText.From("TestDisplayName1"),
                 NodeClass = NodeClass.Variable
             };
 
@@ -1141,7 +1132,7 @@ namespace Opc.Ua.Client.Nodes
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<BrowseRequest>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new BrowseResponse
+                .Returns(new ValueTask<IServiceResponse>(new BrowseResponse
                 {
                     Results =
                     [
@@ -1151,7 +1142,7 @@ namespace Opc.Ua.Client.Nodes
                 }
                     ],
                     DiagnosticInfos = []
-                })
+                }))
                 .Verifiable(Times.Once);
 
             // Act
@@ -1174,9 +1165,9 @@ namespace Opc.Ua.Client.Nodes
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var reference = new ReferenceDescription
             {
-                NodeId = new ExpandedNodeId("ns=2;s=TestNode1"),
-                BrowseName = "TestBrowseName1",
-                DisplayName = "TestDisplayName1",
+                NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
+                BrowseName = QualifiedName.From("TestBrowseName1"),
+                DisplayName = LocalizedText.From("TestDisplayName1"),
                 NodeClass = NodeClass.Variable
             };
 
@@ -1184,7 +1175,7 @@ namespace Opc.Ua.Client.Nodes
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<BrowseRequest>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new BrowseResponse
+                .Returns(new ValueTask<IServiceResponse>(new BrowseResponse
                 {
                     ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Bad },
                     Results =
@@ -1195,7 +1186,7 @@ namespace Opc.Ua.Client.Nodes
                         }
                     ],
                     DiagnosticInfos = []
-                })
+                }))
                 .Verifiable(Times.Once);
 
             // Act

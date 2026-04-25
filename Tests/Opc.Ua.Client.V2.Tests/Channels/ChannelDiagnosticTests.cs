@@ -18,13 +18,13 @@ namespace Opc.Ua.Client
         public void ChannelDiagnosticShouldInitializePropertiesCorrectly()
         {
             // Arrange
-            var timeStamp = DateTimeOffset.UtcNow;
-            var endpoint = new Opc.Ua.EndpointDescription("opc.tcp://localhost:4840");
+            DateTimeOffset timeStamp = DateTimeOffset.UtcNow;
+            var endpoint = new EndpointDescription("opc.tcp://localhost:4840");
             var remoteIpAddress = IPAddress.Parse("192.168.1.1");
             var localIpAddress = IPAddress.Parse("192.168.1.2");
             const uint channelId = 123u;
             const uint tokenId = 456u;
-            var createdAt = DateTime.UtcNow;
+            DateTime createdAt = DateTime.UtcNow;
             var lifetime = TimeSpan.FromMinutes(30);
             var clientKey = new ChannelKey([1, 2, 3], [4, 5, 6], 32);
             var serverKey = new ChannelKey([], [], 0)
@@ -35,7 +35,7 @@ namespace Opc.Ua.Client
             };
 
             // Act
-            var diagnostic = new ChannelDiagnostic
+            var diagnostic = new TransportChannelDiagnostic
             {
                 TimeStamp = timeStamp,
                 Endpoint = endpoint,
@@ -52,8 +52,8 @@ namespace Opc.Ua.Client
             };
 
             // Assert
-            Assert.That(diagnostic.ToString(), Is.Not.Null);
-            Assert.That(diagnostic.GetHashCode(), Is.Not.EqualTo(0));
+            Assert.That(diagnostic.ToString(), Is.Not.Null.And.Not.Empty);
+            Assert.That(diagnostic.GetHashCode(), Is.Not.Zero);
             Assert.That(diagnostic.TimeStamp, Is.EqualTo(timeStamp));
             Assert.That(diagnostic.Endpoint, Is.EqualTo(endpoint));
             Assert.That(diagnostic.RemoteIpAddress, Is.EqualTo(remoteIpAddress));
@@ -66,25 +66,26 @@ namespace Opc.Ua.Client
             Assert.That(diagnostic.Lifetime, Is.EqualTo(lifetime));
             Assert.That(diagnostic.Client, Is.EqualTo(clientKey));
             Assert.That(diagnostic.Server, Is.EqualTo(serverKey));
-            Assert.That(serverKey.ToString(), Is.Not.Null);
+            Assert.That(serverKey.ToString(), Is.Not.Null.And.Not.Empty);
             Assert.That(clientKey.GetHashCode(), Is.Not.EqualTo(serverKey.GetHashCode()));
-            Assert.That(clientKey, Is.EqualTo(clientKey with { }));
-            Assert.That(clientKey, Is.EqualTo(clientKey with { }));
-            Assert.That(diagnostic, Is.EqualTo(diagnostic with { }));
+            ChannelKey clientClone = clientKey with { };
+            Assert.That(clientClone, Is.EqualTo(clientKey));
+            TransportChannelDiagnostic diagnosticClone = diagnostic with { };
+            Assert.That(diagnosticClone, Is.EqualTo(diagnostic));
         }
 
         [Test]
         public void WriteToWiresharkKeySetFileShouldWriteCorrectly()
         {
             // Arrange
-            var timeStamp = DateTimeOffset.UtcNow;
+            DateTimeOffset timeStamp = DateTimeOffset.UtcNow;
             var endpoint = new EndpointDescription("opc.tcp://localhost:4840");
             const uint channelId = 123u;
             const uint tokenId = 456u;
             var clientKey = new ChannelKey([1, 2, 3], [4, 5, 6], 32);
             var serverKey = new ChannelKey([7, 8, 9], [10, 11, 12], 16);
 
-            var diagnostic = new ChannelDiagnostic
+            var diagnostic = new TransportChannelDiagnostic
             {
                 TimeStamp = timeStamp,
                 Endpoint = endpoint,
@@ -103,15 +104,15 @@ namespace Opc.Ua.Client
             memoryStream.Position = 0;
 
             using var reader = new StreamReader(memoryStream);
-            var result = reader.ReadToEnd();
+            string result = reader.ReadToEnd();
 
             // Assert
-            var expected = $"""
-            client_iv_{channelId}_{tokenId}: {Convert.ToHexString([.. clientKey.Iv])}
-            client_key_{channelId}_{tokenId}: {Convert.ToHexString([.. clientKey.Key])}
+            string expected = $"""
+            client_iv_{channelId}_{tokenId}: {Utils.ToHexString([.. clientKey.Iv])}
+            client_key_{channelId}_{tokenId}: {Utils.ToHexString([.. clientKey.Key])}
             client_siglen_{channelId}_{tokenId}: {clientKey.SigLen.ToString(CultureInfo.InvariantCulture)}
-            server_iv_{channelId}_{tokenId}: {Convert.ToHexString([.. serverKey.Iv])}
-            server_key_{channelId}_{tokenId}: {Convert.ToHexString([.. serverKey.Key])}
+            server_iv_{channelId}_{tokenId}: {Utils.ToHexString([.. serverKey.Iv])}
+            server_key_{channelId}_{tokenId}: {Utils.ToHexString([.. serverKey.Key])}
             server_siglen_{channelId}_{tokenId}: {serverKey.SigLen.ToString(CultureInfo.InvariantCulture)}
 
             """.ReplaceLineEndings();
@@ -123,12 +124,12 @@ namespace Opc.Ua.Client
         public void WriteToWiresharkKeySetFileShouldNotWriteWhenClientOrServerIsNull()
         {
             // Arrange
-            var timeStamp = DateTimeOffset.UtcNow;
+            DateTimeOffset timeStamp = DateTimeOffset.UtcNow;
             var endpoint = new EndpointDescription("opc.tcp://localhost:4840");
             const uint channelId = 123u;
             const uint tokenId = 456u;
 
-            var diagnostic = new ChannelDiagnostic
+            var diagnostic = new TransportChannelDiagnostic
             {
                 TimeStamp = timeStamp,
                 Endpoint = endpoint,
@@ -147,7 +148,7 @@ namespace Opc.Ua.Client
             memoryStream.Position = 0;
 
             using var reader = new StreamReader(memoryStream);
-            var result = reader.ReadToEnd();
+            string result = reader.ReadToEnd();
 
             // Assert
             Assert.That(result, Is.Empty);

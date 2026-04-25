@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -24,8 +24,8 @@ namespace Opc.Ua.Client.Services
         /// <param name="nodesToRead"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<ReadResponse> ReadAsync(RequestHeader? requestHeader, double maxAge,
-            TimestampsToReturn timestampsToReturn, ReadValueIdCollection nodesToRead,
+        ValueTask<ReadResponse> ReadAsync(RequestHeader? requestHeader, double maxAge,
+            TimestampsToReturn timestampsToReturn, ArrayOf<ReadValueId> nodesToRead,
             CancellationToken ct = default);
 
         /// <summary>
@@ -35,8 +35,8 @@ namespace Opc.Ua.Client.Services
         /// <param name="nodesToWrite"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<WriteResponse> WriteAsync(RequestHeader? requestHeader,
-            WriteValueCollection nodesToWrite, CancellationToken ct = default);
+        ValueTask<WriteResponse> WriteAsync(RequestHeader? requestHeader,
+            ArrayOf<WriteValue> nodesToWrite, CancellationToken ct = default);
 
         /// <summary>
         /// History read service
@@ -48,9 +48,9 @@ namespace Opc.Ua.Client.Services
         /// <param name="nodesToRead"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<HistoryReadResponse> HistoryReadAsync(RequestHeader? requestHeader,
+        ValueTask<HistoryReadResponse> HistoryReadAsync(RequestHeader? requestHeader,
             ExtensionObject historyReadDetails, TimestampsToReturn timestampsToReturn,
-            bool releaseContinuationPoints, HistoryReadValueIdCollection nodesToRead,
+            bool releaseContinuationPoints, ArrayOf<HistoryReadValueId> nodesToRead,
             CancellationToken ct = default);
 
         /// <summary>
@@ -60,7 +60,7 @@ namespace Opc.Ua.Client.Services
         /// <param name="historyUpdateDetails"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<HistoryUpdateResponse> HistoryUpdateAsync(RequestHeader? requestHeader,
-            ExtensionObjectCollection historyUpdateDetails, CancellationToken ct = default);
+        ValueTask<HistoryUpdateResponse> HistoryUpdateAsync(RequestHeader? requestHeader,
+            ArrayOf<ExtensionObject> historyUpdateDetails, CancellationToken ct = default);
     }
 }

@@ -25,7 +25,7 @@ namespace Opc.Ua.Client.Sessions
         /// <summary>
         /// The endpoint the session is connected to.
         /// </summary>
-        EndpointDescription Endpoint { get; }
+        EndpointDescription? Endpoint { get; }
 
         /// <summary>
         /// The current user identity of the session

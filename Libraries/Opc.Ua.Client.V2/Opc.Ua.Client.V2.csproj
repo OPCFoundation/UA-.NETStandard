@@ -1,25 +1,41 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <AssemblyName>$(AssemblyPrefix).Client.V2</AssemblyName>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Client.V2</PackageId>
+    <RootNamespace>Opc.Ua.Client</RootNamespace>
+    <Description>OPC UA Client V2 Class Library</Description>
+    <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <IsTrimmable>true</IsTrimmable>
-    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <Nullable>enable</Nullable>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="BitFaster.Caching" Version="2.5.3" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.4" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.4" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4" />
-    <PackageReference Include="Microsoft.Extensions.Diagnostics" Version="9.0.4" />
-    <PackageReference Include="Nito.AsyncEx" Version="5.1.2" />
-    <PackageReference Include="Polly.Core" Version="8.5.2" />
-    <PackageReference Include="Irony" Version="1.5.3" />
-    <PackageReference Include="Stateless" Version="5.17.0" />
-    <PackageReference Include="System.Threading.Channels" Version="9.0.4" />
+    <InternalsVisibleTo Include="Opc.Ua.Client.V2.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BitFaster.Caching" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics" />
+    <PackageReference Include="Nito.AsyncEx" />
+    <PackageReference Include="Polly.Core" />
+    <PackageReference Include="Irony" />
+    <PackageReference Include="Stateless" />
+    <PackageReference Include="System.Threading.Channels" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Configuration" Version="1.5.375.457" />
-    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Core" Version="1.5.375.457" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Opc.Ua.Client\Subscription\Engine\ISubscriptionEngine.cs" Link="Subscriptions\Engine\ISubscriptionEngine.cs" />
+    <Compile Include="..\Opc.Ua.Client\Subscription\Engine\ISubscriptionEngineContext.cs" Link="Subscriptions\Engine\ISubscriptionEngineContext.cs" />
+    <Compile Include="..\Opc.Ua.Client\Subscription\Engine\ISubscriptionEngineFactory.cs" Link="Subscriptions\Engine\ISubscriptionEngineFactory.cs" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
 </Project>

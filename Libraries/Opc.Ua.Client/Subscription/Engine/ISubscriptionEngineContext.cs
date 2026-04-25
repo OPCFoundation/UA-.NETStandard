@@ -36,7 +36,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Context provided by the <see cref="Session"/> to the
+    /// Context provided by the session to the
     /// <see cref="ISubscriptionEngine"/>. Decouples the engine from the
     /// Session implementation, providing only the services and state the
     /// engine needs to operate the publish loop.
@@ -98,12 +98,14 @@ namespace Opc.Ua.Client
         /// </summary>
         ITelemetryContext Telemetry { get; }
 
+#if OPCUA_V1_CLIENT
         /// <summary>
         /// The list of subscriptions managed by this session.
         /// The engine uses this to look up target subscriptions
         /// from publish responses.
         /// </summary>
         IReadOnlyList<Subscription> Subscriptions { get; }
+#endif
 
         /// <summary>
         /// Send a Publish request to the server.
@@ -168,6 +170,7 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             uint sequenceNumber);
 
+#if OPCUA_V1_CLIENT
         /// <summary>
         /// Raise a publish notification event on the session.
         /// </summary>
@@ -177,6 +180,7 @@ namespace Opc.Ua.Client
         void OnPublishNotification(
             Subscription subscription,
             NotificationEventArgs notification);
+#endif
 
         /// <summary>
         /// Notify the session that a keep-alive error was detected,

@@ -339,7 +339,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Assert
             Assert.DoesNotThrow(() => act());
-            m_mockEncoder.Verify(e => e.WriteXmlElement("Field1", value), Times.Once);
+            m_mockEncoder.Verify(e => e.WriteXmlElement("Field1", It.IsAny<Opc.Ua.XmlElement>()), Times.Once);
         }
 
         [Test]
@@ -380,7 +380,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Arrange
             var field = new StructureField { Name = "Field1", DataType = new NodeId((uint)BuiltInType.StatusCode), ValueRank = ValueRanks.Scalar };
             var description = new StructureFieldDescription(m_mockDataTypeSystem.Object, field, false, 0);
-            const uint value = StatusCodes.Good;
+            StatusCode value = StatusCodes.Good;
 
             // Act
             Action act = () => description.Encode(m_mockEncoder.Object, value);
@@ -615,9 +615,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         [TestCase(BuiltInType.Double, 1.0)]
         [TestCase(BuiltInType.String, "test")]
         [TestCase(BuiltInType.ByteString, new byte[] { 0x01, 0x02 })]
-        [TestCase(BuiltInType.StatusCode, StatusCodes.Good)]
+        [TestCase(BuiltInType.StatusCode, (uint)0)]
         [TestCase(BuiltInType.Enumeration, 1)]
-        public void EncodeValidArrayBuiltInTypesDoesNotThrow(BuiltInType builtInType, object? value)
+        public void EncodeValidArrayBuiltInTypesDoesNotThrow(BuiltInType builtInType, object value)
         {
             // Arrange
             var field = new StructureField { Name = "Field1", DataType = new NodeId((uint)builtInType), ValueRank = ValueRanks.OneDimension };
@@ -644,9 +644,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         [TestCase(BuiltInType.Double, 1.0)]
         [TestCase(BuiltInType.String, "test")]
         [TestCase(BuiltInType.ByteString, new byte[] { 0x01, 0x02 })]
-        [TestCase(BuiltInType.StatusCode, StatusCodes.Good)]
+        [TestCase(BuiltInType.StatusCode, (uint)0)]
         [TestCase(BuiltInType.Enumeration, 1)]
-        public void EncodeValidArrayBuiltInTypesWithFieldNameOverride(BuiltInType builtInType, object? value)
+        public void EncodeValidArrayBuiltInTypesWithFieldNameOverride(BuiltInType builtInType, object value)
         {
             // Arrange
             var field = new StructureField { Name = "Field1", DataType = new NodeId((uint)builtInType), ValueRank = ValueRanks.OneDimension };
@@ -686,7 +686,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = description.Decode(m_mockDecoder.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo((sbyte))1);
+            Assert.That(result, Is.EqualTo((sbyte)1));
             m_mockDecoder.Verify(d => d.ReadSByte("Field1"), Times.Once);
         }
 
@@ -702,7 +702,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = description.Decode(m_mockDecoder.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo((byte))1);
+            Assert.That(result, Is.EqualTo((byte)1));
             m_mockDecoder.Verify(d => d.ReadByte("Field1"), Times.Once);
         }
 
@@ -718,7 +718,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = description.Decode(m_mockDecoder.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo((short))1);
+            Assert.That(result, Is.EqualTo((short)1));
             m_mockDecoder.Verify(d => d.ReadInt16("Field1"), Times.Once);
         }
 
@@ -734,7 +734,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = description.Decode(m_mockDecoder.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo((ushort))1);
+            Assert.That(result, Is.EqualTo((ushort)1));
             m_mockDecoder.Verify(d => d.ReadUInt16("Field1"), Times.Once);
         }
 
@@ -766,7 +766,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = description.Decode(m_mockDecoder.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo((uint))1);
+            Assert.That(result, Is.EqualTo((uint)1));
             m_mockDecoder.Verify(d => d.ReadUInt32("Field1"), Times.Once);
         }
 
@@ -782,7 +782,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = description.Decode(m_mockDecoder.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo((long))1);
+            Assert.That(result, Is.EqualTo((long)1));
             m_mockDecoder.Verify(d => d.ReadInt64("Field1"), Times.Once);
         }
 
@@ -798,7 +798,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var result = description.Decode(m_mockDecoder.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo((ulong))1);
+            Assert.That(result, Is.EqualTo((ulong)1));
             m_mockDecoder.Verify(d => d.ReadUInt64("Field1"), Times.Once);
         }
 
@@ -890,7 +890,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Arrange
             var field = new StructureField { Name = "Field1", DataType = new NodeId((uint)BuiltInType.ByteString), ValueRank = ValueRanks.Scalar };
             var description = new StructureFieldDescription(m_mockDataTypeSystem.Object, field, false, 0);
-            var expectedValue = new byte[] { 0x01, 0x02 };
+            var expectedValue = new ByteString(new byte[] { 0x01, 0x02 });
             m_mockDecoder.Setup(d => d.ReadByteString("Field1")).Returns(expectedValue);
 
             // Act
@@ -907,7 +907,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Arrange
             var field = new StructureField { Name = "Field1", DataType = new NodeId((uint)BuiltInType.XmlElement), ValueRank = ValueRanks.Scalar };
             var description = new StructureFieldDescription(m_mockDataTypeSystem.Object, field, false, 0);
-            var expectedValue = new XmlDocument().CreateElement("test");
+            var expectedValue = (Opc.Ua.XmlElement)"<test/>";
             m_mockDecoder.Setup(d => d.ReadXmlElement("Field1")).Returns(expectedValue);
 
             // Act
@@ -958,7 +958,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Arrange
             var field = new StructureField { Name = "Field1", DataType = new NodeId((uint)BuiltInType.StatusCode), ValueRank = ValueRanks.Scalar };
             var description = new StructureFieldDescription(m_mockDataTypeSystem.Object, field, false, 0);
-            const uint expectedValue = StatusCodes.Good;
+            StatusCode expectedValue = StatusCodes.Good;
             m_mockDecoder.Setup(d => d.ReadStatusCode("Field1")).Returns(expectedValue);
 
             // Act
@@ -1109,55 +1109,35 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var description = new StructureFieldDescription(m_mockDataTypeSystem.Object, field, false, 0);
             var expectedValue = value;
 
-            var builder = m_mockDecoder.Setup(d => d.ReadArray("Field1", ValueRanks.OneDimension, builtInType, null, null));
-            switch (builtInType)
-            {
-                case BuiltInType.Boolean:
-                    builder.Returns((bool[])value);
-                    break;
-                case BuiltInType.SByte:
-                    builder.Returns((sbyte[])value);
-                    break;
-                case BuiltInType.Byte:
-                    builder.Returns((byte[])value);
-                    break;
-                case BuiltInType.Int16:
-                    builder.Returns((short[])value);
-                    break;
-                case BuiltInType.UInt16:
-                    builder.Returns((ushort[])value);
-                    break;
-                case BuiltInType.Int32:
-                    builder.Returns((int[])value);
-                    break;
-                case BuiltInType.UInt32:
-                    builder.Returns((uint[])value);
-                    break;
-                case BuiltInType.Int64:
-                    builder.Returns((long[])value);
-                    break;
-                case BuiltInType.UInt64:
-                    builder.Returns((ulong[])value);
-                    break;
-                case BuiltInType.Float:
-                    builder.Returns((float[])value);
-                    break;
-                case BuiltInType.Double:
-                    builder.Returns((double[])value);
-                    break;
-                case BuiltInType.String:
-                    builder.Returns((string[])value);
-                    break;
-                case BuiltInType.Enumeration:
-                    builder.Returns((int[])value);
-                    break;
-            }
+            m_mockDecoder.Setup(d => d.ReadVariantValue("Field1", It.Is<TypeInfo>(t => t.BuiltInType == builtInType && t.ValueRank == ValueRanks.OneDimension)))
+                .Returns(CreateArrayVariant(builtInType, value));
 
             // Act
             var result = description.Decode(m_mockDecoder.Object);
 
             // Assert
             Assert.That(result, Is.EqualTo(expectedValue));
+        }
+
+        private static Variant CreateArrayVariant(BuiltInType builtInType, object value)
+        {
+            return builtInType switch
+            {
+                BuiltInType.Boolean => Variant.From(new ArrayOf<bool>((bool[])value)),
+                BuiltInType.SByte => Variant.From(new ArrayOf<sbyte>((sbyte[])value)),
+                BuiltInType.Byte => Variant.From(new ArrayOf<byte>((byte[])value)),
+                BuiltInType.Int16 => Variant.From(new ArrayOf<short>((short[])value)),
+                BuiltInType.UInt16 => Variant.From(new ArrayOf<ushort>((ushort[])value)),
+                BuiltInType.Int32 => Variant.From(new ArrayOf<int>((int[])value)),
+                BuiltInType.UInt32 => Variant.From(new ArrayOf<uint>((uint[])value)),
+                BuiltInType.Int64 => Variant.From(new ArrayOf<long>((long[])value)),
+                BuiltInType.UInt64 => Variant.From(new ArrayOf<ulong>((ulong[])value)),
+                BuiltInType.Float => Variant.From(new ArrayOf<float>((float[])value)),
+                BuiltInType.Double => Variant.From(new ArrayOf<double>((double[])value)),
+                BuiltInType.String => Variant.From(new ArrayOf<string>((string[])value)),
+                BuiltInType.Enumeration => Variant.FromEnumeration(new ArrayOf<int>((int[])value)),
+                _ => throw new ArgumentOutOfRangeException(nameof(builtInType))
+            };
         }
 
         private Mock<IDataTypeDescriptionResolver> m_mockDataTypeSystem;

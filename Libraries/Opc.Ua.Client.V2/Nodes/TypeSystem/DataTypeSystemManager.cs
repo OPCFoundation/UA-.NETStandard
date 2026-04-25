@@ -50,8 +50,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 await xml.LoadAsync(default).ConfigureAwait(false);
                 return xml;
             }, LazyThreadSafetyMode.ExecutionAndPublication);
-            _systems.TryAdd(BrowseNames.DefaultBinary, binary);
-            _systems.TryAdd(BrowseNames.DefaultXml, xml);
+            _systems.TryAdd((QualifiedName)BrowseNames.DefaultBinary, binary);
+            _systems.TryAdd((QualifiedName)BrowseNames.DefaultXml, xml);
         }
 
         /// <inheritdoc/>

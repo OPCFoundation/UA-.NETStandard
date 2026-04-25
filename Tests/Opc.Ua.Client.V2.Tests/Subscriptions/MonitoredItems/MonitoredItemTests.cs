@@ -502,7 +502,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var result = monitoredItem.ToString();
 
             // Assert
-            Assert.That(result, Is.EqualTo($"Test#{monitoredItem.ClientHandle}|0 (TestItem))");
+            Assert.That(result, Is.EqualTo($"Test#{monitoredItem.ClientHandle}|0 (TestItem)"));
         }
 
         private sealed class TestMonitoredItem : MonitoredItem

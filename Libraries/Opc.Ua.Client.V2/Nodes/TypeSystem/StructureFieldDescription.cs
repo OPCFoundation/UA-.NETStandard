@@ -165,13 +165,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     encoder.WriteByteString(fieldName, (byte[]?)o);
                     break;
                 case BuiltInType.XmlElement:
-                    encoder.WriteXmlElement(fieldName, (XmlElement?)o);
+                    encoder.WriteXmlElement(fieldName, o is Opc.Ua.XmlElement xe ? xe : default);
                     break;
                 case BuiltInType.NodeId:
-                    encoder.WriteNodeId(fieldName, (NodeId?)o);
+                    encoder.WriteNodeId(fieldName, o is NodeId nid ? nid : default);
                     break;
                 case BuiltInType.ExpandedNodeId:
-                    encoder.WriteExpandedNodeId(fieldName, (ExpandedNodeId?)o);
+                    encoder.WriteExpandedNodeId(fieldName, o is ExpandedNodeId eid ? eid : default);
                     break;
                 case BuiltInType.StatusCode:
                     if (o is uint statusCode)
@@ -197,7 +197,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     encoder.WriteVariant(fieldName, (Variant?)o ?? Variant.Null);
                     break;
                 case BuiltInType.ExtensionObject:
-                    encoder.WriteExtensionObject(fieldName, (ExtensionObject?)o);
+                    encoder.WriteExtensionObject(fieldName, o is ExtensionObject eo ? eo : default);
                     break;
                 case BuiltInType.Enumeration:
                     var e = _typeSystem.GetEnumDescription(Field.DataType);
@@ -208,7 +208,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     }
                     if (type?.IsEnum == true)
                     {
-                        encoder.WriteEnumerated(fieldName, (Enum?)o);
+                        encoder.WriteInt32(fieldName,
+                            o != null ? Convert.ToInt32(o, System.Globalization.CultureInfo.InvariantCulture) : 0);
                         break;
                     }
                     encoder.WriteInt32(fieldName, (int?)o ?? 0);
@@ -219,7 +220,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                         throw ServiceResultException.Create(StatusCodes.BadEncodingError,
                             "Cannot encode unknown type {0}.", type?.Name);
                     }
-                    encoder.WriteEncodeable(fieldName, (IEncodeable?)o, (Type?)type);
+                    encoder.WriteEncodeable<IEncodeable>(fieldName, (o as IEncodeable)!, Field.DataType);
                     break;
             }
         }
@@ -233,7 +234,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         private void EncodeArray(IEncoder encoder, string fieldName, object? o)
         {
             var builtInType = GetType(out _);
-            encoder.WriteArray(fieldName, o, Field.ValueRank, builtInType);
+            if (VariantHelper.TryCastFrom(o!, out Variant variant))
+            {
+                encoder.WriteVariantValue(fieldName, variant);
+            }
         }
 
         /// <summary>
@@ -297,7 +301,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 case BuiltInType.ExtensionObject:
                     if (typeof(IEncodeable).IsAssignableFrom(type))
                     {
-                        return decoder.ReadEncodeable(fieldName, type);
+                        return decoder.ReadEncodeable<IEncodeable>(fieldName, Field.DataType);
                     }
                     return decoder.ReadExtensionObject(fieldName);
                 case BuiltInType.Enumeration:
@@ -308,13 +312,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     }
                     if (type?.IsEnum == true)
                     {
-                        return decoder.ReadEnumerated(fieldName, type);
+                        return decoder.ReadEnumerated(fieldName);
                     }
                     return decoder.ReadInt32(fieldName);
                 default:
                     if (typeof(IEncodeable).IsAssignableFrom(type))
                     {
-                        return decoder.ReadEncodeable(fieldName, type);
+                        return decoder.ReadEncodeable<IEncodeable>(fieldName, Field.DataType);
                     }
                     break;
             }
@@ -329,9 +333,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         /// <param name="fieldName"></param>
         private Array? DecodeArray(IDecoder decoder, string fieldName)
         {
-            var builtInType = GetType(out var elementType);
-            return decoder.ReadArray(fieldName, Field.ValueRank,
-                builtInType, elementType);
+            var builtInType = GetType(out _);
+            var variant = decoder.ReadVariantValue(fieldName,
+                new TypeInfo(builtInType, Field.ValueRank));
+            return variant.AsBoxedObject() as Array;
         }
 
         /// <summary>
@@ -354,14 +359,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 return BuiltInType.ExtensionObject;
             }
 
-            if (datatypeId.IsNullNodeId || datatypeId.NamespaceIndex != 0 ||
+            if (datatypeId.IsNull || datatypeId.NamespaceIndex != 0 ||
                 datatypeId.IdType != IdType.Numeric)
             {
                 return BuiltInType.Null;
             }
 
-            var builtInType = (BuiltInType)Enum.ToObject(typeof(BuiltInType),
-                datatypeId.Identifier);
+            var builtInType = datatypeId.TryGetIdentifier(out uint numericId)
+                ? (BuiltInType)numericId
+                : BuiltInType.Null;
 
             if (builtInType is <= BuiltInType.DiagnosticInfo or BuiltInType.Enumeration)
             {

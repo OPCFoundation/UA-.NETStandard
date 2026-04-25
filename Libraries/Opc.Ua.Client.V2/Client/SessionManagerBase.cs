@@ -225,7 +225,7 @@ namespace Opc.Ua.Client
             if (useReverseConnect)
             {
                 connection = await ReverseConnectManager.WaitForConnectionAsync(
-                    new Uri(endpoint.EndpointUrl), null, ct).ConfigureAwait(false);
+                    new Uri(endpoint.EndpointUrl!), null, ct).ConfigureAwait(false);
                 options = options with { Connection = connection };
             }
 
@@ -288,20 +288,21 @@ namespace Opc.Ua.Client
             }
 
             using var client = connection != null ?
-                DiscoveryClient.Create(configuration, connection, endpointConfiguration) :
-                DiscoveryClient.Create(configuration, discoveryUrl, endpointConfiguration);
-            var uri = new Uri(client.Endpoint.EndpointUrl);
-            var endpoints = await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
+                await DiscoveryClient.CreateAsync(configuration, connection, endpointConfiguration, ct: ct).ConfigureAwait(false) :
+                await DiscoveryClient.CreateAsync(configuration, discoveryUrl!, endpointConfiguration, ct: ct).ConfigureAwait(false);
+            var uri = new Uri(client.Endpoint!.EndpointUrl!);
+            var endpoints = await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
+            var endpointsList = endpoints.ToArray()!;
             discoveryUrl ??= uri;
 
             _logger.LogInformation("{Client}: Discovery endpoint {DiscoveryUrl} returned " +
                 "endpoints. Selecting endpoint {EndpointUri} with SecurityMode " +
                 "{SecurityMode} and {SecurityPolicy} SecurityPolicyUri from:\n{Endpoints}",
                 this, discoveryUrl, uri, endpoint.SecurityMode,
-                    endpoint.SecurityPolicyUri ?? "any", endpoints.Select(
+                    endpoint.SecurityPolicyUri ?? "any", endpointsList.Select(
                         ep => "      " + ToString(ep)).Aggregate((a, b) => $"{a}\n{b}"));
 
-            var filtered = endpoints
+            var filtered = endpointsList
                 .Where(ep =>
                     SecurityPolicies.GetDisplayName(ep.SecurityPolicyUri) != null &&
                     ep.SecurityMode == endpoint.SecurityMode &&

@@ -65,7 +65,8 @@ namespace Opc.Ua.Client
                     transportChannel :
                     throw new ArgumentException("not a transport channel"),
                   configuration,
-                  endpoint)
+                  endpoint,
+                  engineFactory: null)
         {
         }
 
@@ -82,6 +83,9 @@ namespace Opc.Ua.Client
         /// by server in GetEndpoints() response.</param>
         /// <param name="discoveryProfileUris">The value of profileUris used in
         /// GetEndpoints() request.</param>
+        /// <param name="engineFactory">Optional subscription engine factory. When
+        /// <c>null</c> the session uses <see cref="ClassicSubscriptionEngineFactory"/>
+        /// by default.</param>
         /// <remarks>
         /// The application configuration is used to look up the certificate if none
         /// is provided. The clientCertificate must have the private key. This will
@@ -98,12 +102,14 @@ namespace Opc.Ua.Client
             X509Certificate2? clientCertificate = null,
             X509Certificate2Collection? clientCertificateChain = null,
             ArrayOf<EndpointDescription> availableEndpoints = default,
-            ArrayOf<string> discoveryProfileUris = default)
+            ArrayOf<string> discoveryProfileUris = default,
+            ISubscriptionEngineFactory? engineFactory = null)
             : this(
                   channel,
                   configuration,
                   endpoint,
-                  channel.MessageContext ?? configuration.CreateMessageContext())
+                  channel.MessageContext ?? configuration.CreateMessageContext(),
+                  engineFactory)
         {
             m_instanceCertificate = clientCertificate;
             m_instanceCertificateChain = clientCertificateChain;
@@ -122,7 +128,8 @@ namespace Opc.Ua.Client
                   channel,
                   template.m_configuration,
                   template.ConfiguredEndpoint,
-                  channel.MessageContext ?? template.m_configuration.CreateMessageContext())
+                  channel.MessageContext ?? template.m_configuration.CreateMessageContext(),
+                  template.m_engineFactory)
         {
             m_instanceCertificate = template.m_instanceCertificate;
             m_instanceCertificateChain = template.m_instanceCertificateChain;
@@ -179,7 +186,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext,
+            ISubscriptionEngineFactory? engineFactory = null)
             : base(channel, messageContext.Telemetry)
         {
             if (messageContext == null)
@@ -244,6 +252,8 @@ namespace Opc.Ua.Client
             m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
 
             // Create the subscription engine.
+            m_engineFactory = engineFactory
+                ?? ClassicSubscriptionEngineFactory.Instance;
             m_engine = new ClassicSubscriptionEngine(new SessionEngineContext(this));
 
             // set the default preferred locales.
@@ -494,6 +504,12 @@ namespace Opc.Ua.Client
         /// A session factory that was used to create the session.
         /// </summary>
         public ISessionFactory SessionFactory { get; set; }
+
+        /// <summary>
+        /// Gets the subscription engine factory used by this session.
+        /// </summary>
+        public ISubscriptionEngineFactory SubscriptionEngineFactory
+            => m_engineFactory;
 
         /// <summary>
         /// Gets the endpoint used to connect to the server.
@@ -4374,6 +4390,7 @@ namespace Opc.Ua.Client
         private readonly ArrayOf<EndpointDescription> m_discoveryServerEndpoints;
         private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
+        private readonly ISubscriptionEngineFactory m_engineFactory;
         private readonly ClassicSubscriptionEngine m_engine;
 
         private sealed class AsyncRequestState : IDisposable

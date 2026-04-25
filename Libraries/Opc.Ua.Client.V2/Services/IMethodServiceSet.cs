@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -21,8 +21,8 @@ namespace Opc.Ua.Client.Services
         /// <param name="methodsToCall"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<CallResponse> CallAsync(RequestHeader? requestHeader,
-            CallMethodRequestCollection methodsToCall,
+        ValueTask<CallResponse> CallAsync(RequestHeader? requestHeader,
+            ArrayOf<CallMethodRequest> methodsToCall,
             CancellationToken ct = default);
     }
 }

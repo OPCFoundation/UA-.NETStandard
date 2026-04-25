@@ -205,39 +205,41 @@ namespace Opc.Ua.Client.Sessions
                     tryReconnect = false;
 
                     // check if the server endpoint could not be reached.
-                    switch (sre.StatusCode)
+                    var statusCode = sre.StatusCode;
+                    if (statusCode == StatusCodes.BadTcpInternalError ||
+                        statusCode == StatusCodes.BadCommunicationError ||
+                        statusCode == StatusCodes.BadRequestTimeout ||
+                        statusCode == StatusCodes.BadTimeout)
                     {
-                        case StatusCodes.BadTcpInternalError:
-                        case StatusCodes.BadCommunicationError:
-                        case StatusCodes.BadRequestTimeout:
-                        case StatusCodes.BadTimeout:
-                            // check if reactivating is still an option.
-                            var timeout = SessionTimeout -
-                                Observability.TimeProvider.GetElapsedTime(LastKeepAliveTimestamp);
-                            if (timeout <= TimeSpan.Zero)
-                            {
-                                DetachChannel();
-                                break;
-                            }
+                        // check if reactivating is still an option.
+                        var timeout = SessionTimeout -
+                            Observability.TimeProvider.GetElapsedTime(LastKeepAliveTimestamp);
+                        if (timeout <= TimeSpan.Zero)
+                        {
+                            DetachChannel();
+                        }
+                        else
+                        {
                             _logger.LogInformation(
                                 "{Session}: Retry to reconnect, est. session timeout in {Timeout} ms.",
                                 this, timeout);
                             tryReconnect = true;
-                            break;
-                        // check if the security configuration may have changed
-                        case StatusCodes.BadSecurityChecksFailed:
-                        case StatusCodes.BadCertificateInvalid:
-                            _updateFromServer = true;
-                            _logger.LogInformation("{Session}: Reconnect failed due to security check. " +
-                                "Request endpoint update from server. {Message}", this, sre.Message);
-                            break;
-
-                        case StatusCodes.BadNotConnected:
-                        case StatusCodes.BadSecureChannelClosed:
-                        case StatusCodes.BadSecureChannelIdInvalid:
-                        case StatusCodes.BadServerHalted:
-                            DetachChannel();
-                            break;
+                        }
+                    }
+                    // check if the security configuration may have changed
+                    else if (statusCode == StatusCodes.BadSecurityChecksFailed ||
+                        statusCode == StatusCodes.BadCertificateInvalid)
+                    {
+                        _updateFromServer = true;
+                        _logger.LogInformation("{Session}: Reconnect failed due to security check. " +
+                            "Request endpoint update from server. {Message}", this, sre.Message);
+                    }
+                    else if (statusCode == StatusCodes.BadNotConnected ||
+                        statusCode == StatusCodes.BadSecureChannelClosed ||
+                        statusCode == StatusCodes.BadSecureChannelIdInvalid ||
+                        statusCode == StatusCodes.BadServerHalted)
+                    {
+                        DetachChannel();
                     }
                     context.Properties.Set(new ResiliencePropertyKey<bool>(kReconnectPropertyName),
                         tryReconnect);
@@ -275,20 +277,20 @@ namespace Opc.Ua.Client.Sessions
                 {
                     _logger.LogError("{Session}: Could not reconnect the Session. {Message}", this,
                         Redact.Create(sre));
-                    switch (sre.StatusCode)
+                    var sc = sre.StatusCode;
+                    if (sc == StatusCodes.BadTcpInternalError ||
+                        sc == StatusCodes.BadCommunicationError ||
+                        sc == StatusCodes.BadNotConnected ||
+                        sc == StatusCodes.BadSecureChannelClosed ||
+                        sc == StatusCodes.BadSecureChannelIdInvalid ||
+                        sc == StatusCodes.BadServerHalted)
                     {
-                        case StatusCodes.BadTcpInternalError:
-                        case StatusCodes.BadCommunicationError:
-                        case StatusCodes.BadNotConnected:
-                        case StatusCodes.BadSecureChannelClosed:
-                        case StatusCodes.BadSecureChannelIdInvalid:
-                        case StatusCodes.BadServerHalted:
-                            // We can just detach, not need to close
-                            DetachChannel();
-                            break;
-                        default:
-                            await SafeCloseChannelAsync(ct).ConfigureAwait(false);
-                            break;
+                        // We can just detach, not need to close
+                        DetachChannel();
+                    }
+                    else
+                    {
+                        await SafeCloseChannelAsync(ct).ConfigureAwait(false);
                     }
                 }
                 throw;

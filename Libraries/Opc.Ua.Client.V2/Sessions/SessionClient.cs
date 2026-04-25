@@ -50,11 +50,11 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<ActivateSessionResponse> ActivateSessionAsync(
-            RequestHeader? requestHeader, SignatureData clientSignature,
-            SignedSoftwareCertificateCollection clientSoftwareCertificates,
-            StringCollection localeIds, ExtensionObject userIdentityToken,
-            SignatureData userTokenSignature, CancellationToken ct)
+        public override async ValueTask<ActivateSessionResponse> ActivateSessionAsync(
+            RequestHeader? requestHeader, SignatureData? clientSignature,
+            ArrayOf<SignedSoftwareCertificate> clientSoftwareCertificates,
+            ArrayOf<string> localeIds, ExtensionObject userIdentityToken,
+            SignatureData? userTokenSignature, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(ActivateSessionAsync));
             return await base.ActivateSessionAsync(requestHeader, clientSignature,
@@ -63,7 +63,7 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<CloseSessionResponse> CloseSessionAsync(
+        public override async ValueTask<CloseSessionResponse> CloseSessionAsync(
             RequestHeader? requestHeader, bool deleteSubscriptions, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(CloseSessionAsync));
@@ -72,7 +72,7 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<CancelResponse> CancelAsync(RequestHeader? requestHeader,
+        public override async ValueTask<CancelResponse> CancelAsync(RequestHeader? requestHeader,
             uint requestHandle, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(CancelAsync));
@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
+        public override async ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
             RequestHeader? requestHeader, double requestedPublishingInterval,
             uint requestedLifetimeCount, uint requestedMaxKeepAliveCount,
             uint maxNotificationsPerPublish, bool publishingEnabled, byte priority,
@@ -93,7 +93,7 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
+        public override async ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
             RequestHeader? requestHeader, uint subscriptionId, double requestedPublishingInterval,
             uint requestedLifetimeCount, uint requestedMaxKeepAliveCount,
             uint maxNotificationsPerPublish, byte priority, CancellationToken ct)
@@ -105,9 +105,9 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<SetPublishingModeResponse> SetPublishingModeAsync(
+        public override async ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
             RequestHeader? requestHeader, bool publishingEnabled,
-            UInt32Collection subscriptionIds, CancellationToken ct)
+            ArrayOf<uint> subscriptionIds, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(SetPublishingModeAsync));
             return await base.SetPublishingModeAsync(requestHeader, publishingEnabled,
@@ -115,8 +115,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<PublishResponse> PublishAsync(RequestHeader? requestHeader,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements, CancellationToken ct)
+        public override async ValueTask<PublishResponse> PublishAsync(RequestHeader? requestHeader,
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(PublishAsync));
             return await base.PublishAsync(requestHeader, subscriptionAcknowledgements,
@@ -124,7 +124,7 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<RepublishResponse> RepublishAsync(RequestHeader? requestHeader,
+        public override async ValueTask<RepublishResponse> RepublishAsync(RequestHeader? requestHeader,
             uint subscriptionId, uint retransmitSequenceNumber, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(RepublishAsync));
@@ -133,8 +133,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
-            RequestHeader? requestHeader, UInt32Collection subscriptionIds, bool sendInitialValues,
+        public override async ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+            RequestHeader? requestHeader, ArrayOf<uint> subscriptionIds, bool sendInitialValues,
             CancellationToken ct)
         {
             using var activity = StartActivity(nameof(TransferSubscriptionsAsync));
@@ -143,8 +143,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
-            RequestHeader? requestHeader, UInt32Collection subscriptionIds, CancellationToken ct)
+        public override async ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+            RequestHeader? requestHeader, ArrayOf<uint> subscriptionIds, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(DeleteSubscriptionsAsync));
             return await base.DeleteSubscriptionsAsync(requestHeader, subscriptionIds,
@@ -152,8 +152,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<QueryFirstResponse> QueryFirstAsync(RequestHeader? requestHeader,
-            ViewDescription view, NodeTypeDescriptionCollection nodeTypes, ContentFilter filter,
+        public override async ValueTask<QueryFirstResponse> QueryFirstAsync(RequestHeader? requestHeader,
+            ViewDescription? view, ArrayOf<NodeTypeDescription> nodeTypes, ContentFilter? filter,
             uint maxDataSetsToReturn, uint maxReferencesToReturn, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(QueryFirstAsync));
@@ -162,8 +162,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<QueryNextResponse> QueryNextAsync(RequestHeader? requestHeader,
-            bool releaseContinuationPoint, byte[] continuationPoint, CancellationToken ct)
+        public override async ValueTask<QueryNextResponse> QueryNextAsync(RequestHeader? requestHeader,
+            bool releaseContinuationPoint, ByteString continuationPoint, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(QueryNextAsync));
             return await base.QueryNextAsync(requestHeader, releaseContinuationPoint,
@@ -171,9 +171,9 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<BrowseResponse> BrowseAsync(RequestHeader? requestHeader,
+        public override async ValueTask<BrowseResponse> BrowseAsync(RequestHeader? requestHeader,
             ViewDescription? view, uint requestedMaxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse, CancellationToken ct)
+            ArrayOf<BrowseDescription> nodesToBrowse, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(BrowseAsync));
             var operationLimit = OperationLimits.MaxNodesPerBrowse;
@@ -185,10 +185,10 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             BrowseResponse? response = null;
-            InitResponseCollections<BrowseResult, BrowseResultCollection>(out var results,
+            InitResponseCollections<BrowseResult>(out var results,
                 out var diagnosticInfos, out var stringTable, nodesToBrowse.Count, operationLimit);
             foreach (var nodesToBrowseBatch in nodesToBrowse
-                .Batch<BrowseDescription, BrowseDescriptionCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.BrowseAsync(requestHeader, view,
@@ -201,7 +201,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, nodesToBrowseBatch);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, nodesToBrowseBatch);
 
-                AddResponses<BrowseResult, BrowseResultCollection>(
+                AddResponses<BrowseResult>(
                     ref results, ref diagnosticInfos, ref stringTable, batchResults,
                     batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
@@ -214,8 +214,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<BrowseNextResponse> BrowseNextAsync(RequestHeader? requestHeader,
-            bool releaseContinuationPoints, ByteStringCollection continuationPoints, CancellationToken ct)
+        public override async ValueTask<BrowseNextResponse> BrowseNextAsync(RequestHeader? requestHeader,
+            bool releaseContinuationPoints, ArrayOf<ByteString> continuationPoints, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(BrowseNextAsync));
 
@@ -228,10 +228,10 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             BrowseNextResponse? response = null;
-            InitResponseCollections<BrowseResult, BrowseResultCollection>(out var results,
+            InitResponseCollections<BrowseResult>(out var results,
                 out var diagnosticInfos, out var stringTable, continuationPoints.Count, operationLimit);
             foreach (var continuationPointsBatch in continuationPoints
-                .Batch<byte[], ByteStringCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.BrowseNextAsync(requestHeader, releaseContinuationPoints,
@@ -243,7 +243,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, continuationPointsBatch);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, continuationPointsBatch);
 
-                AddResponses<BrowseResult, BrowseResultCollection>(
+                AddResponses<BrowseResult>(
                     ref results, ref diagnosticInfos, ref stringTable, batchResults,
                     batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
@@ -256,8 +256,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
-            RequestHeader? requestHeader, BrowsePathCollection browsePaths, CancellationToken ct)
+        public override async ValueTask<TranslateBrowsePathsToNodeIdsResponse>TranslateBrowsePathsToNodeIdsAsync(
+            RequestHeader? requestHeader, ArrayOf<BrowsePath> browsePaths, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(TranslateBrowsePathsToNodeIdsAsync));
 
@@ -270,10 +270,10 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             TranslateBrowsePathsToNodeIdsResponse? response = null;
-            InitResponseCollections<BrowsePathResult, BrowsePathResultCollection>(out var results,
+            InitResponseCollections<BrowsePathResult>(out var results,
                 out var diagnosticInfos, out var stringTable, browsePaths.Count, operationLimit);
             foreach (var batchBrowsePaths in browsePaths
-                .Batch<BrowsePath, BrowsePathCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.TranslateBrowsePathsToNodeIdsAsync(requestHeader,
@@ -284,7 +284,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchBrowsePaths);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchBrowsePaths);
 
-                AddResponses<BrowsePathResult, BrowsePathResultCollection>(
+                AddResponses<BrowsePathResult>(
                     ref results, ref diagnosticInfos, ref stringTable, batchResults,
                     batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
@@ -297,8 +297,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<RegisterNodesResponse> RegisterNodesAsync(
-            RequestHeader? requestHeader, NodeIdCollection nodesToRegister,
+        public override async ValueTask<RegisterNodesResponse> RegisterNodesAsync(
+            RequestHeader? requestHeader, ArrayOf<NodeId> nodesToRegister,
             CancellationToken ct)
         {
             using var activity = StartActivity(nameof(RegisterNodesAsync));
@@ -312,9 +312,9 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             RegisterNodesResponse? response = null;
-            var registeredNodeIds = new NodeIdCollection();
+            var registeredNodeIds = new List<NodeId>();
             foreach (var batchNodesToRegister in nodesToRegister
-                .Batch<NodeId, NodeIdCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.RegisterNodesAsync(requestHeader,
@@ -331,8 +331,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<UnregisterNodesResponse> UnregisterNodesAsync(
-            RequestHeader? requestHeader, NodeIdCollection nodesToUnregister,
+        public override async ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
+            RequestHeader? requestHeader, ArrayOf<NodeId> nodesToUnregister,
             CancellationToken ct)
         {
             using var activity = StartActivity(nameof(UnregisterNodesAsync));
@@ -347,7 +347,7 @@ namespace Opc.Ua.Client.Sessions
             requestHeader ??= new RequestHeader();
             UnregisterNodesResponse? response = null;
             foreach (var batchNodesToUnregister in nodesToUnregister
-                .Batch<NodeId, NodeIdCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.UnregisterNodesAsync(requestHeader,
@@ -358,9 +358,9 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<ReadResponse> ReadAsync(RequestHeader? requestHeader,
+        public override async ValueTask<ReadResponse> ReadAsync(RequestHeader? requestHeader,
             double maxAge, TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead, CancellationToken ct)
+            ArrayOf<ReadValueId> nodesToRead, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(ReadAsync));
 
@@ -373,10 +373,10 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             ReadResponse? response = null;
-            InitResponseCollections<DataValue, DataValueCollection>(out var results,
+            InitResponseCollections<DataValue>(out var results,
                 out var diagnosticInfos, out var stringTable, nodesToRead.Count, operationLimit);
             foreach (var batchAttributesToRead in nodesToRead
-                .Batch<ReadValueId, ReadValueIdCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.ReadAsync(requestHeader, maxAge, timestampsToReturn,
@@ -388,7 +388,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchAttributesToRead);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchAttributesToRead);
 
-                AddResponses<DataValue, DataValueCollection>(
+                AddResponses<DataValue>(
                     ref results, ref diagnosticInfos, ref stringTable, batchResults,
                     batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
@@ -401,16 +401,16 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<HistoryReadResponse> HistoryReadAsync(
+        public override async ValueTask<HistoryReadResponse> HistoryReadAsync(
             RequestHeader? requestHeader, ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn, bool releaseContinuationPoints,
-            HistoryReadValueIdCollection nodesToRead, CancellationToken ct)
+            ArrayOf<HistoryReadValueId> nodesToRead, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(HistoryReadAsync));
 
             var operationLimit = OperationLimits.MaxNodesPerHistoryReadData;
-            if (historyReadDetails?.TypeId == DataTypeIds.ReadEventDetails ||
-                historyReadDetails?.Body is ReadEventDetails)
+            if (historyReadDetails.TypeId == DataTypeIds.ReadEventDetails ||
+                historyReadDetails.TryGetEncodeable(out ReadEventDetails _))
             {
                 operationLimit = OperationLimits.MaxNodesPerHistoryReadEvents;
             }
@@ -424,11 +424,11 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             HistoryReadResponse? response = null;
-            InitResponseCollections<HistoryReadResult, HistoryReadResultCollection>(
+            InitResponseCollections<HistoryReadResult>(
                 out var results, out var diagnosticInfos, out var stringTable,
                 nodesToRead.Count, operationLimit);
             foreach (var batchNodesToRead in nodesToRead
-                .Batch<HistoryReadValueId, HistoryReadValueIdCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.HistoryReadAsync(requestHeader, historyReadDetails,
@@ -441,7 +441,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchNodesToRead);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToRead);
 
-                AddResponses<HistoryReadResult, HistoryReadResultCollection>(
+                AddResponses<HistoryReadResult>(
                     ref results, ref diagnosticInfos, ref stringTable,
                     batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
@@ -454,8 +454,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<WriteResponse> WriteAsync(RequestHeader? requestHeader,
-            WriteValueCollection nodesToWrite, CancellationToken ct)
+        public override async ValueTask<WriteResponse> WriteAsync(RequestHeader? requestHeader,
+            ArrayOf<WriteValue> nodesToWrite, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(WriteAsync));
 
@@ -468,10 +468,10 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             WriteResponse? response = null;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(out var results,
+            InitResponseCollections<StatusCode>(out var results,
                 out var diagnosticInfos, out var stringTable, nodesToWrite.Count, operationLimit);
             foreach (var batchNodesToWrite in nodesToWrite
-                .Batch<WriteValue, WriteValueCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.WriteAsync(requestHeader,
@@ -483,7 +483,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchNodesToWrite);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToWrite);
 
-                AddResponses<StatusCode, StatusCodeCollection>(
+                AddResponses<StatusCode>(
                     ref results, ref diagnosticInfos, ref stringTable, batchResults,
                     batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
@@ -496,8 +496,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<HistoryUpdateResponse> HistoryUpdateAsync(
-            RequestHeader? requestHeader, ExtensionObjectCollection historyUpdateDetails,
+        public override async ValueTask<HistoryUpdateResponse> HistoryUpdateAsync(
+            RequestHeader? requestHeader, ArrayOf<ExtensionObject> historyUpdateDetails,
             CancellationToken ct)
         {
             using var activity = StartActivity(nameof(HistoryUpdateAsync));
@@ -505,7 +505,7 @@ namespace Opc.Ua.Client.Sessions
             var operationLimit = OperationLimits.MaxNodesPerHistoryUpdateData;
             if (historyUpdateDetails.Count > 0 &&
                 (historyUpdateDetails[0].TypeId == DataTypeIds.UpdateEventDetails ||
-                historyUpdateDetails[0]?.Body is UpdateEventDetails))
+                historyUpdateDetails[0].TryGetEncodeable(out UpdateEventDetails _)))
             {
                 operationLimit = OperationLimits.MaxNodesPerHistoryUpdateEvents;
             }
@@ -518,11 +518,11 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             HistoryUpdateResponse? response = null;
-            InitResponseCollections<HistoryUpdateResult, HistoryUpdateResultCollection>(
+            InitResponseCollections<HistoryUpdateResult>(
                 out var results, out var diagnosticInfos, out var stringTable,
                 historyUpdateDetails.Count, operationLimit);
             foreach (var batchHistoryUpdateDetails in historyUpdateDetails
-                .Batch<ExtensionObject, ExtensionObjectCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.HistoryUpdateAsync(requestHeader,
@@ -534,7 +534,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchHistoryUpdateDetails);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchHistoryUpdateDetails);
 
-                AddResponses<HistoryUpdateResult, HistoryUpdateResultCollection>(
+                AddResponses<HistoryUpdateResult>(
                     ref results, ref diagnosticInfos, ref stringTable, batchResults,
                     batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
@@ -547,8 +547,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<CallResponse> CallAsync(RequestHeader? requestHeader,
-            CallMethodRequestCollection methodsToCall, CancellationToken ct)
+        public override async ValueTask<CallResponse> CallAsync(RequestHeader? requestHeader,
+            ArrayOf<CallMethodRequest> methodsToCall, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(CallAsync));
 
@@ -561,10 +561,10 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             CallResponse? response = null;
-            InitResponseCollections<CallMethodResult, CallMethodResultCollection>(out var results,
+            InitResponseCollections<CallMethodResult>(out var results,
                 out var diagnosticInfos, out var stringTable, methodsToCall.Count, operationLimit);
             foreach (var batchMethodsToCall in methodsToCall
-                .Batch<CallMethodRequest, CallMethodRequestCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.CallAsync(requestHeader,
@@ -576,7 +576,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchMethodsToCall);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchMethodsToCall);
 
-                AddResponses<CallMethodResult, CallMethodResultCollection>(
+                AddResponses<CallMethodResult>(
                     ref results, ref diagnosticInfos, ref stringTable, batchResults,
                     batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
@@ -589,9 +589,9 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public override async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             RequestHeader? requestHeader, uint subscriptionId, TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequestCollection itemsToCreate, CancellationToken ct)
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(CreateMonitoredItemsAsync));
 
@@ -604,11 +604,11 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             CreateMonitoredItemsResponse? response = null;
-            InitResponseCollections<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
+            InitResponseCollections<MonitoredItemCreateResult>(
                 out var results, out var diagnosticInfos, out var stringTable, itemsToCreate.Count,
                 operationLimit);
             foreach (var batchItemsToCreate in itemsToCreate
-                .Batch<MonitoredItemCreateRequest, MonitoredItemCreateRequestCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.CreateMonitoredItemsAsync(requestHeader, subscriptionId,
@@ -619,7 +619,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchItemsToCreate);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToCreate);
 
-                AddResponses<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
+                AddResponses<MonitoredItemCreateResult>(
                     ref results, ref diagnosticInfos, ref stringTable, batchResults,
                     batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
@@ -632,9 +632,9 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+        public override async ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             RequestHeader? requestHeader, uint subscriptionId, TimestampsToReturn timestampsToReturn,
-            MonitoredItemModifyRequestCollection itemsToModify, CancellationToken ct)
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(ModifyMonitoredItemsAsync));
 
@@ -647,11 +647,11 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             ModifyMonitoredItemsResponse? response = null;
-            InitResponseCollections<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
+            InitResponseCollections<MonitoredItemModifyResult>(
                 out var results, out var diagnosticInfos, out var stringTable,
                 itemsToModify.Count, operationLimit);
             foreach (var batchItemsToModify in itemsToModify
-                .Batch<MonitoredItemModifyRequest, MonitoredItemModifyRequestCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.ModifyMonitoredItemsAsync(requestHeader, subscriptionId,
@@ -662,7 +662,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchItemsToModify);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToModify);
 
-                AddResponses<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
+                AddResponses<MonitoredItemModifyResult>(
                     ref results, ref diagnosticInfos, ref stringTable, batchResults,
                     batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
@@ -675,9 +675,9 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
+        public override async ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
             RequestHeader? requestHeader, uint subscriptionId, MonitoringMode monitoringMode,
-            UInt32Collection monitoredItemIds, CancellationToken ct)
+            ArrayOf<uint> monitoredItemIds, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(SetMonitoringModeResponse));
 
@@ -690,10 +690,10 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             SetMonitoringModeResponse? response = null;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(out var results,
+            InitResponseCollections<StatusCode>(out var results,
                 out var diagnosticInfos, out var stringTable, monitoredItemIds.Count, operationLimit);
             foreach (var batchMonitoredItemIds in monitoredItemIds
-                .Batch<uint, UInt32Collection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.SetMonitoringModeAsync(requestHeader, subscriptionId,
@@ -705,7 +705,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchMonitoredItemIds);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchMonitoredItemIds);
 
-                AddResponses<StatusCode, StatusCodeCollection>(
+                AddResponses<StatusCode>(
                     ref results, ref diagnosticInfos, ref stringTable, batchResults,
                     batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
@@ -718,9 +718,9 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<SetTriggeringResponse> SetTriggeringAsync(
+        public override async ValueTask<SetTriggeringResponse> SetTriggeringAsync(
             RequestHeader? requestHeader, uint subscriptionId, uint triggeringItemId,
-            UInt32Collection linksToAdd, UInt32Collection linksToRemove, CancellationToken ct)
+            ArrayOf<uint> linksToAdd, ArrayOf<uint> linksToRemove, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(SetTriggeringAsync));
 
@@ -733,15 +733,15 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             SetTriggeringResponse? response = null;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(out var addResults,
+            InitResponseCollections<StatusCode>(out var addResults,
                 out var addDiagnosticInfos, out var stringTable, linksToAdd.Count,
                 operationLimit);
-            InitResponseCollections<StatusCode, StatusCodeCollection>(out var removeResults,
+            InitResponseCollections<StatusCode>(out var removeResults,
                 out var removeDiagnosticInfos, out _, linksToRemove.Count, operationLimit);
             foreach (var batchLinksToAdd in linksToAdd
-                .Batch<uint, UInt32Collection>(operationLimit))
+                .Batch((int)operationLimit))
             {
-                UInt32Collection batchLinksToRemove;
+                ArrayOf<uint> batchLinksToRemove;
                 if (operationLimit == 0)
                 {
                     batchLinksToRemove = linksToRemove;
@@ -749,10 +749,9 @@ namespace Opc.Ua.Client.Sessions
                 }
                 else if (batchLinksToAdd.Count < operationLimit)
                 {
-                    batchLinksToRemove = new UInt32Collection(
-                        linksToRemove.Take((int)operationLimit - batchLinksToAdd.Count));
-                    linksToRemove = new UInt32Collection(
-                        linksToRemove.Skip(batchLinksToRemove.Count));
+                    var takeCount = (int)operationLimit - batchLinksToAdd.Count;
+                    batchLinksToRemove = linksToRemove[..takeCount];
+                    linksToRemove = linksToRemove[takeCount..];
                 }
                 else
                 {
@@ -773,12 +772,12 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchRemoveResults, batchLinksToRemove);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchRemoveDiagnosticInfos, batchLinksToRemove);
 
-                AddResponses<StatusCode, StatusCodeCollection>(
+                AddResponses<StatusCode>(
                     ref addResults, ref addDiagnosticInfos, ref stringTable,
                     batchAddResults, batchAddDiagnosticInfos,
                     response.ResponseHeader.StringTable);
 
-                AddResponses<StatusCode, StatusCodeCollection>(
+                AddResponses<StatusCode>(
                     ref removeResults, ref removeDiagnosticInfos, ref stringTable,
                     batchRemoveResults, batchRemoveDiagnosticInfos,
                     response.ResponseHeader.StringTable);
@@ -787,10 +786,10 @@ namespace Opc.Ua.Client.Sessions
             if (linksToRemove.Count > 0)
             {
                 foreach (var batchLinksToRemove in linksToRemove
-                    .Batch<uint, UInt32Collection>(operationLimit))
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
-                    var batchLinksToAdd = new UInt32Collection();
+                    var batchLinksToAdd = new ArrayOf<uint>();
                     response = await base.SetTriggeringAsync(requestHeader, subscriptionId,
                         triggeringItemId, batchLinksToAdd, batchLinksToRemove,
                         ct).ConfigureAwait(false);
@@ -805,12 +804,12 @@ namespace Opc.Ua.Client.Sessions
                     Ua.ClientBase.ValidateResponse(batchRemoveResults, batchLinksToRemove);
                     Ua.ClientBase.ValidateDiagnosticInfos(batchRemoveDiagnosticInfos, batchLinksToRemove);
 
-                    AddResponses<StatusCode, StatusCodeCollection>(
+                    AddResponses<StatusCode>(
                         ref addResults, ref addDiagnosticInfos, ref stringTable,
                         batchAddResults, batchAddDiagnosticInfos,
                         response.ResponseHeader.StringTable);
 
-                    AddResponses<StatusCode, StatusCodeCollection>(
+                    AddResponses<StatusCode>(
                         ref removeResults, ref removeDiagnosticInfos, ref stringTable,
                         batchRemoveResults, batchRemoveDiagnosticInfos,
                         response.ResponseHeader.StringTable);
@@ -827,8 +826,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
-            RequestHeader? requestHeader, uint subscriptionId, UInt32Collection monitoredItemIds,
+        public override async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+            RequestHeader? requestHeader, uint subscriptionId, ArrayOf<uint> monitoredItemIds,
             CancellationToken ct)
         {
             using var activity = StartActivity(nameof(DeleteMonitoredItemsAsync));
@@ -842,10 +841,10 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             DeleteMonitoredItemsResponse? response = null;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(out var results,
+            InitResponseCollections<StatusCode>(out var results,
                 out var diagnosticInfos, out var stringTable, monitoredItemIds.Count, operationLimit);
             foreach (var batchMonitoredItemIds in monitoredItemIds
-                .Batch<uint, UInt32Collection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.DeleteMonitoredItemsAsync(requestHeader,
@@ -856,7 +855,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchMonitoredItemIds);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchMonitoredItemIds);
 
-                AddResponses<StatusCode, StatusCodeCollection>(
+                AddResponses<StatusCode>(
                     ref results, ref diagnosticInfos, ref stringTable, batchResults,
                     batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
@@ -869,8 +868,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<AddNodesResponse> AddNodesAsync(RequestHeader? requestHeader,
-            AddNodesItemCollection nodesToAdd, CancellationToken ct)
+        public override async ValueTask<AddNodesResponse> AddNodesAsync(RequestHeader? requestHeader,
+            ArrayOf<AddNodesItem> nodesToAdd, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(AddNodesAsync));
 
@@ -883,10 +882,10 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             AddNodesResponse? response = null;
-            InitResponseCollections<AddNodesResult, AddNodesResultCollection>(out var results,
+            InitResponseCollections<AddNodesResult>(out var results,
                 out var diagnosticInfos, out var stringTable, nodesToAdd.Count, operationLimit);
             foreach (var batchNodesToAdd in nodesToAdd
-                .Batch<AddNodesItem, AddNodesItemCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.AddNodesAsync(requestHeader, batchNodesToAdd,
@@ -896,7 +895,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchNodesToAdd);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToAdd);
 
-                AddResponses<AddNodesResult, AddNodesResultCollection>(ref results,
+                AddResponses<AddNodesResult>(ref results,
                     ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos,
                     response.ResponseHeader.StringTable);
             }
@@ -909,8 +908,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<AddReferencesResponse> AddReferencesAsync(RequestHeader? requestHeader,
-            AddReferencesItemCollection referencesToAdd, CancellationToken ct)
+        public override async ValueTask<AddReferencesResponse> AddReferencesAsync(RequestHeader? requestHeader,
+            ArrayOf<AddReferencesItem> referencesToAdd, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(AddReferencesAsync));
 
@@ -923,11 +922,11 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             AddReferencesResponse? response = null;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(out var results,
+            InitResponseCollections<StatusCode>(out var results,
                 out var diagnosticInfos, out var stringTable, referencesToAdd.Count,
                 operationLimit);
             foreach (var batchReferencesToAdd in referencesToAdd
-                .Batch<AddReferencesItem, AddReferencesItemCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.AddReferencesAsync(requestHeader, batchReferencesToAdd,
@@ -938,7 +937,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchReferencesToAdd);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToAdd);
 
-                AddResponses<StatusCode, StatusCodeCollection>(ref results, ref diagnosticInfos,
+                AddResponses<StatusCode>(ref results, ref diagnosticInfos,
                     ref stringTable, batchResults, batchDiagnosticInfos,
                     response.ResponseHeader.StringTable);
             }
@@ -951,8 +950,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<DeleteNodesResponse> DeleteNodesAsync(RequestHeader? requestHeader,
-            DeleteNodesItemCollection nodesToDelete, CancellationToken ct)
+        public override async ValueTask<DeleteNodesResponse> DeleteNodesAsync(RequestHeader? requestHeader,
+            ArrayOf<DeleteNodesItem> nodesToDelete, CancellationToken ct)
         {
             using var activity = StartActivity(nameof(DeleteNodesAsync));
 
@@ -965,10 +964,10 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             DeleteNodesResponse? response = null;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(out var results,
+            InitResponseCollections<StatusCode>(out var results,
                 out var diagnosticInfos, out var stringTable, nodesToDelete.Count, operationLimit);
             foreach (var batchNodesToDelete in nodesToDelete
-                .Batch<DeleteNodesItem, DeleteNodesItemCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.DeleteNodesAsync(requestHeader,
@@ -979,7 +978,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchNodesToDelete);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToDelete);
 
-                AddResponses<StatusCode, StatusCodeCollection>(ref results, ref diagnosticInfos,
+                AddResponses<StatusCode>(ref results, ref diagnosticInfos,
                     ref stringTable, batchResults, batchDiagnosticInfos,
                     response.ResponseHeader.StringTable);
             }
@@ -992,8 +991,8 @@ namespace Opc.Ua.Client.Sessions
         }
 
         /// <inheritdoc/>
-        public override async Task<DeleteReferencesResponse> DeleteReferencesAsync(
-            RequestHeader? requestHeader, DeleteReferencesItemCollection referencesToDelete,
+        public override async ValueTask<DeleteReferencesResponse> DeleteReferencesAsync(
+            RequestHeader? requestHeader, ArrayOf<DeleteReferencesItem> referencesToDelete,
             CancellationToken ct)
         {
             using var activity = StartActivity(nameof(DeleteReferencesAsync));
@@ -1007,11 +1006,11 @@ namespace Opc.Ua.Client.Sessions
 
             requestHeader ??= new RequestHeader();
             DeleteReferencesResponse? response = null;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(out var results,
+            InitResponseCollections<StatusCode>(out var results,
                 out var diagnosticInfos, out var stringTable, referencesToDelete.Count,
                 operationLimit);
             foreach (var batchReferencesToDelete in referencesToDelete
-                .Batch<DeleteReferencesItem, DeleteReferencesItemCollection>(operationLimit))
+                .Batch((int)operationLimit))
             {
                 requestHeader.RequestHandle = 0;
                 response = await base.DeleteReferencesAsync(requestHeader,
@@ -1022,7 +1021,7 @@ namespace Opc.Ua.Client.Sessions
                 Ua.ClientBase.ValidateResponse(batchResults, batchReferencesToDelete);
                 Ua.ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToDelete);
 
-                AddResponses<StatusCode, StatusCodeCollection>(ref results, ref diagnosticInfos,
+                AddResponses<StatusCode>(ref results, ref diagnosticInfos,
                     ref stringTable, batchResults, batchDiagnosticInfos,
                     response.ResponseHeader.StringTable);
             }
@@ -1106,25 +1105,31 @@ namespace Opc.Ua.Client.Sessions
             ]));
             var traceData = new AdditionalParametersType();
             // Determine the trace flag based on the 'Recorded' status.
-            var traceFlags = (context.ActivityTraceFlags & ActivityTraceFlags.Recorded) != 0
+            var traceFlags = (context.ActivityTraceFlags & System.Diagnostics.ActivityTraceFlags.Recorded) != 0
                 ? "01" : "00";
 
             // Construct the traceparent header, adhering to the W3C Trace Context format.
             var traceparent = $"00-{context.TraceId}-{context.SpanId}-{traceFlags}";
-            traceData.Parameters.Add(new Opc.Ua.KeyValuePair
+            var parameters = new List<Opc.Ua.KeyValuePair>(traceData.Parameters.ToArray()!)
             {
-                Key = "traceparent",
-                Value = traceparent
-            });
-            if (request.RequestHeader.AdditionalHeader?.Body == null)
+                new Opc.Ua.KeyValuePair
+                {
+                    Key = (QualifiedName)"traceparent",
+                    Value = traceparent
+                }
+            };
+            traceData.Parameters = parameters;
+            if (request.RequestHeader.AdditionalHeader.IsNull)
             {
                 request.RequestHeader.AdditionalHeader = new ExtensionObject(traceData);
             }
-            else if (request.RequestHeader.AdditionalHeader.Body is
-                AdditionalParametersType existingParameters)
+            else if (request.RequestHeader.AdditionalHeader.TryGetEncodeable(
+                out AdditionalParametersType existingParameters))
             {
                 // Merge the trace data into the existing parameters.
-                existingParameters.Parameters.AddRange(traceData.Parameters);
+                var existingParams = new List<Opc.Ua.KeyValuePair>(existingParameters.Parameters.ToArray()!);
+                existingParams.AddRange(traceData.Parameters.ToArray()!);
+                existingParameters.Parameters = existingParams;
             }
         }
 
@@ -1142,7 +1147,6 @@ namespace Opc.Ua.Client.Sessions
         /// Initialize the collections for a service call.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <typeparam name="C"></typeparam>
         /// <param name="results"></param>
         /// <param name="diagnosticInfos"></param>
         /// <param name="stringTable"></param>
@@ -1152,14 +1156,13 @@ namespace Opc.Ua.Client.Sessions
         /// Preset the result collections with null if the operation limit
         /// is sufficient or with the final size if batching is necessary.
         /// </remarks>
-        private static void InitResponseCollections<T, C>(out C results,
-            out DiagnosticInfoCollection diagnosticInfos,
-            out StringCollection stringTable, int count, uint operationLimit)
-            where C : List<T>, new()
+        private static void InitResponseCollections<T>(out List<T> results,
+            out List<DiagnosticInfo> diagnosticInfos,
+            out List<string> stringTable, int count, uint operationLimit)
         {
             Debug.Assert(count > operationLimit);
-            results = new C() { Capacity = count };
-            diagnosticInfos = new DiagnosticInfoCollection(count);
+            results = new List<T>(count);
+            diagnosticInfos = new List<DiagnosticInfo>(count);
             stringTable = [];
         }
 
@@ -1167,7 +1170,6 @@ namespace Opc.Ua.Client.Sessions
         /// Add the result of a batched service call to the results.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <typeparam name="C"></typeparam>
         /// <param name="results"></param>
         /// <param name="diagnosticInfos"></param>
         /// <param name="stringTable"></param>
@@ -1180,10 +1182,10 @@ namespace Opc.Ua.Client.Sessions
         /// collections otherwise.
         /// The string table indexes are updated in the diagnostic infos if necessary.
         /// </remarks>
-        private static void AddResponses<T, C>(ref C results,
-            ref DiagnosticInfoCollection diagnosticInfos, ref StringCollection stringTable,
-            C batchedResults, DiagnosticInfoCollection batchedDiagnosticInfos,
-            StringCollection batchedStringTable) where C : List<T>
+        private static void AddResponses<T>(ref List<T> results,
+            ref List<DiagnosticInfo> diagnosticInfos, ref List<string> stringTable,
+            ArrayOf<T> batchedResults, ArrayOf<DiagnosticInfo> batchedDiagnosticInfos,
+            ArrayOf<string> batchedStringTable)
         {
             var hasDiagnosticInfos = diagnosticInfos.Count > 0;
             var hasEmptyDiagnosticInfos = diagnosticInfos.Count == 0 && results.Count > 0;
@@ -1202,7 +1204,7 @@ namespace Opc.Ua.Client.Sessions
                 // fill missing diagnostics infos with null entries
                 for (var i = 0; i < correctionCount; i++)
                 {
-                    diagnosticInfos.Add(null);
+                    diagnosticInfos.Add(null!);
                 }
             }
             else if (batchedStringTable.Count > 0)

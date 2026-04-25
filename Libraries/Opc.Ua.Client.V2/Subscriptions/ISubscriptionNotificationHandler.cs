@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -25,7 +25,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// <param name="MonitoredItem"></param>
     /// <param name="Fields"></param>
     public record struct EventNotification(IMonitoredItem? MonitoredItem,
-        VariantCollection Fields);
+        ArrayOf<Variant> Fields);
 
     /// <summary>
     /// Notification handler

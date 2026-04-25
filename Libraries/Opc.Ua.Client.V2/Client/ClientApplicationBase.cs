@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) Microsoft.  All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -49,7 +49,9 @@ namespace Opc.Ua.Client
                 instance.ApplicationName);
             if (_options.StackLoggingLevel != null)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 Utils.SetLogger(new MaxLevel(stackLogger, _options.StackLoggingLevel.Value));
+#pragma warning restore CS0618 // Type or member is obsolete
             }
             _application = BuildAsync(instance, applicationUri, productUri);
         }
@@ -72,7 +74,7 @@ namespace Opc.Ua.Client
                 CreateDiscoveryUri(discoveryUrl.ToString(), 4840)
             };
             var queue = new Queue<Tuple<Uri, List<string>>>();
-            var localeIds = locales != null ? new StringCollection(locales) : null;
+            var localeIds = locales != null ? new ArrayOf<string>(locales.ToArray()) : default;
             queue.Enqueue(Tuple.Create(discoveryUrl, new List<string>()));
             ct.ThrowIfCancellationRequested();
             while (queue.Count > 0)
@@ -104,7 +106,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public abstract string GetPassword(CertificateIdentifier certificateIdentifier);
+        public abstract char[] GetPassword(CertificateIdentifier certificateIdentifier);
 
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
@@ -138,47 +140,45 @@ namespace Opc.Ua.Client
         /// <param name="configuration"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        internal ValueTask DiscoverAsync(Uri discoveryUrl, StringCollection? localeIds,
+        internal ValueTask DiscoverAsync(Uri discoveryUrl, ArrayOf<string> localeIds,
             List<string> caps, int timeout, HashSet<string> visitedUris,
             Queue<Tuple<Uri, List<string>>> queue, HashSet<FoundEndpoint> result,
             ApplicationConfiguration configuration, CancellationToken ct)
         {
             if (_options.RetryStrategy != null)
             {
-                return _options.RetryStrategy.ExecuteAsync((state, ct) =>
-                    DiscoverAsyncCore(state.discoveryUrl, state.localeIds, state.caps,
-                        state.timeout, state.visitedUris, state.queue, state.result,
-                        state.configuration, ct),
-                    (discoveryUrl, localeIds, caps, timeout, visitedUris, queue,
-                        result, configuration), ct);
+                return _options.RetryStrategy.ExecuteAsync(
+                    (ct) => DiscoverAsyncCore(discoveryUrl, localeIds, caps,
+                        timeout, visitedUris, queue, result,
+                        configuration, ct), ct);
             }
             return DiscoverAsyncCore(discoveryUrl, localeIds, caps, timeout, visitedUris,
                 queue, result, configuration, ct);
 
-            async ValueTask DiscoverAsyncCore(Uri discoveryUrl, StringCollection? localeIds,
+            async ValueTask DiscoverAsyncCore(Uri discoveryUrl, ArrayOf<string> localeIds,
                 List<string> caps, int timeout, HashSet<string> visitedUris,
                 Queue<Tuple<Uri, List<string>>> queue, HashSet<FoundEndpoint> result,
                 ApplicationConfiguration configuration, CancellationToken ct)
             {
                 var endpointConfiguration = EndpointConfiguration.Create(configuration);
                 endpointConfiguration.OperationTimeout = timeout;
-                using var client = DiscoveryClient.Create(discoveryUrl, endpointConfiguration);
+                using var client = await DiscoveryClient.CreateAsync(
+                    configuration, discoveryUrl, endpointConfiguration, ct: ct).ConfigureAwait(false);
                 //
                 // Get endpoints from current discovery server
                 //
-                var endpoints = await client.GetEndpointsAsync(null,
-                    client.Endpoint.EndpointUrl, localeIds, null, ct).ConfigureAwait(false);
-                if (!(endpoints?.Endpoints?.Any() ?? false))
+                var endpoints = await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
+                if (endpoints.IsNull || endpoints.Count == 0)
                 {
                     _logger.LogDebug("No endpoints at {DiscoveryUrl}...", discoveryUrl);
                     return;
                 }
                 _logger.LogDebug("Found endpoints at {DiscoveryUrl}...", discoveryUrl);
 
-                foreach (var ep in endpoints.Endpoints.Where(ep =>
+                foreach (var ep in endpoints.ToArray()!.Where(ep =>
                     ep.Server.ApplicationType != Opc.Ua.ApplicationType.DiscoveryServer))
                 {
-                    result.Add(new FoundEndpoint(ep, new UriBuilder(ep.EndpointUrl)
+                    result.Add(new FoundEndpoint(ep, new UriBuilder(ep.EndpointUrl!)
                     {
                         Host = discoveryUrl.DnsSafeHost
                     }.ToString(), new HashSet<string>(caps)));
@@ -194,7 +194,7 @@ namespace Opc.Ua.Client
                         0, 1000, [], ct).ConfigureAwait(false);
                     foreach (var server in response?.Servers ?? [])
                     {
-                        var url = CreateDiscoveryUri(server.DiscoveryUrl, discoveryUrl.Port);
+                        var url = CreateDiscoveryUri(server.DiscoveryUrl!, discoveryUrl.Port);
                         if (!visitedUris.Contains(url))
                         {
                             queue.Enqueue(Tuple.Create(discoveryUrl,
@@ -215,10 +215,11 @@ namespace Opc.Ua.Client
                 // into the discovery queue
                 //
                 var found = await client.FindServersAsync(null,
-                    client.Endpoint.EndpointUrl, localeIds, null, ct).ConfigureAwait(false);
+                    client.Endpoint!.EndpointUrl, localeIds, default, ct).ConfigureAwait(false);
                 if (found?.Servers != null)
                 {
-                    foreach (var server in found.Servers.SelectMany(s => s.DiscoveryUrls))
+                    foreach (var server in found.Servers.ToArray()!.SelectMany(
+                        s => s.DiscoveryUrls.ToArray()!))
                     {
                         var url = CreateDiscoveryUri(server, discoveryUrl.Port);
                         if (!visitedUris.Contains(url))
@@ -273,7 +274,7 @@ namespace Opc.Ua.Client
                     SecurityTokenLifetime = (int)_options.Quotas.SecurityTokenLifetime.TotalMilliseconds
                 })
                 .AsClient()
-                .AddSecurityConfiguration(string.Empty, // Deliberate - otherwise we try and get hostname
+                .AddSecurityConfiguration(default(ArrayOf<CertificateIdentifier>),
                     _options.Security.PkiRootPath)
                 .SetAutoAcceptUntrustedCertificates(
                     _options.Security.AutoAcceptUntrustedCertificates)
@@ -345,7 +346,7 @@ namespace Opc.Ua.Client
                     new TrustedUserCertificateStore();
                 try
                 {
-                    var appConfig = await appBuilder.Create().ConfigureAwait(false);
+                    var appConfig = await appBuilder.CreateAsync().ConfigureAwait(false);
                     var ownCertificate =
                         appConfig.SecurityConfiguration.ApplicationCertificate.Certificate;
                     if (ownCertificate == null)
@@ -365,8 +366,7 @@ namespace Opc.Ua.Client
                             ownCertificate.Subject, ownCertificate.Thumbprint);
                     }
 
-                    var hasAppCertificate = await appInstance.CheckApplicationInstanceCertificate(true,
-                        CertificateFactory.DefaultKeySize,
+                    var hasAppCertificate = await appInstance.CheckApplicationInstanceCertificatesAsync(true,
                         CertificateFactory.DefaultLifeTime).ConfigureAwait(false);
                     if (!hasAppCertificate || appInstance.ApplicationConfiguration.SecurityConfiguration
                         .ApplicationCertificate.Certificate == null)
@@ -382,7 +382,7 @@ namespace Opc.Ua.Client
                             .ApplicationCertificate.Certificate;
                         _logger.LogInformation(
                             "Own certificate Subject '{Subject}' (Thumbprint: {Thumbprint}) created.",
-                            ownCertificate.Subject, ownCertificate.Thumbprint);
+                            ownCertificate?.Subject, ownCertificate?.Thumbprint);
                     }
                     await ShowCertificateStoreInformationAsync(appConfig).ConfigureAwait(false);
                     return appConfig;
@@ -412,9 +412,9 @@ namespace Opc.Ua.Client
                         options.ApplicationCertificate.StoreType != null)
                     {
                         using var certStore = CertificateStoreIdentifier.CreateStore(
-                            options.ApplicationCertificate.StoreType);
+                            options.ApplicationCertificate.StoreType, (Opc.Ua.ITelemetryContext?)null);
                         certStore.Open(options.ApplicationCertificate.StorePath, false);
-                        var certs = await certStore.Enumerate().ConfigureAwait(false);
+                        var certs = await certStore.EnumerateAsync().ConfigureAwait(false);
                         var subjects = new List<string>();
                         foreach (var cert in certs.Where(c => c != null).OrderBy(c => c.NotAfter))
                         {
@@ -512,9 +512,9 @@ namespace Opc.Ua.Client
         private class TrustedUserCertificateStore : CertificateTrustList
         {
             /// <inheritdoc/>
-            public override ICertificateStore OpenStore()
+            public override ICertificateStore OpenStore(Opc.Ua.ITelemetryContext telemetry)
             {
-                var store = CreateStore(StoreType);
+                var store = CreateStore(StoreType, telemetry);
                 store.Open(StorePath, false); // Allow private keys
                 return store;
             }

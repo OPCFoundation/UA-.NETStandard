@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Nodes
         /// <param name="ct"></param>
         /// <returns></returns>
         ValueTask<INode?> GetNodeWithBrowsePathAsync(NodeId nodeId,
-            QualifiedNameCollection browsePath, CancellationToken ct = default);
+            ArrayOf<QualifiedName> browsePath, CancellationToken ct = default);
 
         /// <summary>
         /// Returns the references of the specified node that meet

@@ -25,7 +25,7 @@ namespace Opc.Ua.Client.Nodes
         /// collection.
         /// </summary>
         /// <remarks>
-        /// If the nodeclass for the nodes in nodeIdCollection is already known
+        /// If the nodeclass for the nodes in nodeIds is already known
         /// and passed as nodeClass, reads only values of required attributes.
         /// Otherwise NodeClass.Unspecified should be used.
         /// </remarks>
@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.Nodes
         /// <param name="header"></param>
         /// <param name="nodeId">The node id.</param>
         /// <param name="ct"></param>
-        ValueTask<ReferenceDescriptionCollection> FetchReferencesAsync(
+        ValueTask<ArrayOf<ReferenceDescription>> FetchReferencesAsync(
             RequestHeader? header, NodeId nodeId, CancellationToken ct = default);
 
         /// <summary>
@@ -66,7 +66,7 @@ namespace Opc.Ua.Client.Nodes
         /// <param name="ct"></param>
         /// <returns>A list of reference collections and the errors reported by the
         /// server.</returns>
-        ValueTask<ResultSet<ReferenceDescriptionCollection>> FetchReferencesAsync(
+        ValueTask<ResultSet<ArrayOf<ReferenceDescription>>> FetchReferencesAsync(
             RequestHeader? header, IReadOnlyList<NodeId> nodeIds,
             CancellationToken ct = default);
 

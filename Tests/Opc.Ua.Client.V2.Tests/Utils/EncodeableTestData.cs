@@ -15,7 +15,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The actual value of the type.
         /// </summary>
-        public T? Value { get; set; }
+        public T Value { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EncodeableTestData{T}"/> class.
@@ -28,7 +28,7 @@ namespace Opc.Ua.Client
         /// Initializes a new instance of the <see cref="EncodeableTestData{T}"/> class.
         /// </summary>
         /// <param name="value">The value to wrap.</param>
-        public EncodeableTestData(T? value) => Value = value;
+        public EncodeableTestData(T value) => Value = value;
 
         /// <inheritdoc/>
         public override string ToString() => Value?.ToString() ?? "(null)";

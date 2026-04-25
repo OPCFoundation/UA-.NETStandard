@@ -74,8 +74,8 @@ namespace Opc.Ua.Client.Subscriptions
             var s2 = sut.Add(m_mockNotificationDataHandler.Object, so2);
             Assert.That(sut.Count, Is.EqualTo(2));
 
-            Assert.Throws<ServiceResultException>(() => sut.Invoking(s => s.Add(m_mockNotificationDataHandler.Object, so2))());
-                .Assert.That(Which.StatusCode, Is.EqualTo(StatusCodes.BadAlreadyExists));
+            var ex = Assert.Throws<ServiceResultException>(() => sut.Add(m_mockNotificationDataHandler.Object, so2));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadAlreadyExists));
             await Task.Delay(100); // Give time to workers to start
             Assert.That(sut.PublishWorkerCount, Is.EqualTo(0));
             await sut.CompleteAsync(1, default);
@@ -262,19 +262,18 @@ namespace Opc.Ua.Client.Subscriptions
 
             session.Setup(session => session.PublishAsync(
                 It.IsAny<RequestHeader>(),
-                It.IsAny<SubscriptionAcknowledgementCollection>(),
+                It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
                 It.IsAny<CancellationToken>()))
                 .ReturnsAsync((RequestHeader h,
-                    SubscriptionAcknowledgementCollection s, CancellationToken ct)
+                    ArrayOf<SubscriptionAcknowledgement> s, CancellationToken ct)
                     => new PublishResponse
                     {
-                        AvailableSequenceNumbers = Array.Empty<uint>(),
+                        AvailableSequenceNumbers = ArrayOf<uint>.Empty,
                         NotificationMessage = new NotificationMessage
                         {
                             SequenceNumber = h.RequestHandle
                         },
-                        Results = new StatusCodeCollection(
-                            s.Select(_ => (StatusCode)StatusCodes.Good)),
+                        Results = s.ToArray().Select(_ => (StatusCode)StatusCodes.Good).ToArrayOf(),
                         SubscriptionId = 1,
                         MoreNotifications = false,
                         ResponseHeader = new ResponseHeader

@@ -87,7 +87,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Context = context;
             Name = name;
             Error = ServiceResult.Good;
-            ClientHandle = Utils.IncrementIdentifier(ref _globalClientHandle);
+            ClientHandle = Utils.IncrementIdentifier(ref _globalClientHandleUint);
 
             _logger = logger;
             _options = Options = options;
@@ -231,7 +231,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
                 ClientHandle = clientHandle;
 
-                Utils.LowerLimitIdentifier(ref _globalClientHandle, clientHandle);
+                Utils.SetIdentifierToAtLeast(ref _globalClientHandleUint, clientHandle);
             }
             if (serverHandle != ServerId)
             {
@@ -283,7 +283,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 return;
             }
 
-            if (NodeId.IsNull(options.StartNodeId))
+            if (options.StartNodeId.IsNull)
             {
                 // Not valid
                 Context.NotifyItemChangeResult(this, 0, options, new ServiceResult(
@@ -364,7 +364,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public Change(MonitoredItem item, MonitoredItemOptions options,
                 MonitoredItemOptions? currentOptions)
             {
-                Debug.Assert(!NodeId.IsNull(options.StartNodeId));
+                Debug.Assert(!options.StartNodeId.IsNull);
                 Options = options;
                 Item = item;
 
@@ -375,7 +375,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     QueueSize = options.QueueSize,
                     DiscardOldest = options.DiscardOldest,
                     Filter = options.Filter != null ?
-                        new ExtensionObject(options.Filter) : null
+                        new ExtensionObject(options.Filter) : default
                 };
 
                 Create = new MonitoredItemCreateRequest
@@ -385,7 +385,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         NodeId = options.StartNodeId,
                         AttributeId = options.AttributeId,
                         IndexRange = options.IndexRange,
-                        DataEncoding = options.Encoding
+                        DataEncoding = options.Encoding ?? QualifiedName.Null
                     },
                     MonitoringMode = options.MonitoringMode,
                     RequestedParameters = parameters
@@ -439,7 +439,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             /// <param name="responseHeader"></param>
             internal void SetCreateResult(MonitoredItemCreateRequest request,
                 MonitoredItemCreateResult result, int index,
-                DiagnosticInfoCollection diagnosticInfos, ResponseHeader responseHeader)
+                ArrayOf<DiagnosticInfo> diagnosticInfos, ResponseHeader responseHeader)
             {
                 Debug.Assert(request.RequestedParameters.ClientHandle == Item.ClientHandle);
                 var error = ServiceResult.Good;
@@ -482,7 +482,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             /// <param name="responseHeader"></param>
             internal void SetModifyResult(MonitoredItemModifyRequest request,
                 MonitoredItemModifyResult result, int index,
-                DiagnosticInfoCollection diagnosticInfos, ResponseHeader responseHeader)
+                ArrayOf<DiagnosticInfo> diagnosticInfos, ResponseHeader responseHeader)
             {
                 Debug.Assert(request.RequestedParameters.ClientHandle == Item.ClientHandle);
                 var error = ServiceResult.Good;
@@ -538,7 +538,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             /// <param name="responseHeader"></param>
             /// <exception cref="NotImplementedException"></exception>
             internal void SetMonitoringModeResult(MonitoringMode monitoringMode,
-                StatusCode statusCode, int index, DiagnosticInfoCollection diagnosticInfos,
+                StatusCode statusCode, int index, ArrayOf<DiagnosticInfo> diagnosticInfos,
                 ResponseHeader responseHeader)
             {
                 var error = ServiceResult.Good;
@@ -576,7 +576,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             /// <param name="diagnosticInfos"></param>
             /// <param name="responseHeader"></param>
             internal void SetDeleteResult(StatusCode statusCode, int index,
-                DiagnosticInfoCollection diagnosticInfos, ResponseHeader responseHeader)
+                ArrayOf<DiagnosticInfo> diagnosticInfos, ResponseHeader responseHeader)
             {
                 var error = ServiceResult.Good;
                 if (StatusCode.IsBad(statusCode))
@@ -619,8 +619,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             private void Notify(ServiceResult error, bool final,
                 ExtensionObject? filterResultExtensionObject = null)
             {
-                var filterResult = filterResultExtensionObject?.Body
-                    as MonitoringFilterResult;
+                MonitoringFilterResult? filterResult = null;
+                if (filterResultExtensionObject.HasValue &&
+                    filterResultExtensionObject.Value.TryGetEncodeable(out MonitoringFilterResult fr))
+                {
+                    filterResult = fr;
+                }
                 var stop = Item.Context.NotifyItemChangeResult(
                     Item, RetryCount, Options, error, final, filterResult);
                 if (final || stop)
@@ -629,7 +633,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
                 Item.Error = error;
                 Item.FilterResult = filterResult == null ? Item.FilterResult :
-                    (MonitoringFilterResult)Utils.Clone(filterResult);
+                    (MonitoringFilterResult)filterResult.Clone();
             }
 
             /// <summary>
@@ -640,14 +644,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             /// <returns></returns>
             private static bool IsCommunicationError(ServiceResult error)
             {
-                switch ((uint)error.StatusCode)
-                {
-                    case StatusCodes.BadCommunicationError:
-                    case StatusCodes.BadNotConnected:
-                    case StatusCodes.BadSecureChannelClosed:
-                        return true;
-                }
-                return false; // includes not errors
+                var code = error.StatusCode;
+                return code == StatusCodes.BadCommunicationError ||
+                    code == StatusCodes.BadNotConnected ||
+                    code == StatusCodes.BadSecureChannelClosed;
             }
         }
 
@@ -699,7 +699,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         private IDisposable? _changeTracking;
         private readonly ConcurrentQueue<Change> _pendingChanges = new();
         private readonly ILogger _logger;
-        internal static long _globalClientHandle;
+        internal static uint _globalClientHandleUint;
         private IOptionsMonitor<MonitoredItemOptions> _options;
     }
 }

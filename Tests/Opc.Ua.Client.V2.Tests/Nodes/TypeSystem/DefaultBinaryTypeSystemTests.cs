@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var typeSystemName = sut.TypeSystemName;
 
             // Assert
-            Assert.That(typeSystemName, Is.EqualTo((QualifiedName))BrowseNames.OPCBinarySchema_TypeSystem);
+            Assert.That(typeSystemName, Is.EqualTo((QualifiedName)BrowseNames.OPCBinarySchema_TypeSystem));
         }
 
         [Test]
@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var encodingName = sut.EncodingName;
 
             // Assert
-            Assert.That(encodingName, Is.EqualTo((QualifiedName))BrowseNames.DefaultBinary);
+            Assert.That(encodingName, Is.EqualTo((QualifiedName)BrowseNames.DefaultBinary));
         }
 
         [Test]
@@ -603,7 +603,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
-                    It.Is<NodeId>(nodeId => nodeId.Identifier.Equals(9999u)),
+                    It.Is<NodeId>(nodeId => nodeId == new NodeId(9999u)),
                     ReferenceTypeIds.HasProperty,
                     false, false,
                     It.IsAny<CancellationToken>()))
@@ -664,11 +664,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             {
                 NodeId = new NodeId(1),
                 NodeClass = NodeClass.Variable,
-                BrowseName = BrowseNames.NamespaceUri,
+                BrowseName = new QualifiedName(BrowseNames.NamespaceUri),
                 Value = "http://test.org/UA/"
             };
 
-            var dictionaryContent = new DataValue(Array.Empty<byte>());
+            var dictionaryContent = new DataValue(new Variant(Array.Empty<byte>()));
 
             m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
@@ -723,12 +723,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 BrowseName = new QualifiedName("TypeDictionary"),
                 Value = "Test Dictionary Content"
             };
-            var machinary = new DataValue(Encoding.UTF8.GetBytes(MachineryResultTypeSystem));
+            var machinary = new DataValue(new Variant(Encoding.UTF8.GetBytes(MachineryResultTypeSystem)));
             var machineryNsNode = new VariableNode
             {
                 NodeId = new NodeId(1),
                 NodeClass = NodeClass.Variable,
-                BrowseName = BrowseNames.NamespaceUri,
+                BrowseName = new QualifiedName(BrowseNames.NamespaceUri),
                 Value = "http://opcfoundation.org/UA/Machinery/Result/"
             };
             var gmsDictionaryId = new NodeId(1243);
@@ -743,10 +743,10 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             {
                 NodeId = new NodeId(2),
                 NodeClass = NodeClass.Variable,
-                BrowseName = BrowseNames.NamespaceUri,
+                BrowseName = new QualifiedName(BrowseNames.NamespaceUri),
                 Value = "http://opcfoundation.org/UA/GMS/"
             };
-            var gms = new DataValue(Encoding.UTF8.GetBytes(GmsTypeSystem));
+            var gms = new DataValue(new Variant(Encoding.UTF8.GetBytes(GmsTypeSystem)));
 
             m_nodeCacheMock
                 .Setup(nc => nc.GetReferencesAsync(
@@ -800,9 +800,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     ct))
                 .ReturnsAsync(
                 [
-                    new VariableNode { BrowseName = "Description1", NodeId = new NodeId(13) },
-                    new VariableNode { BrowseName = "Description2", NodeId = new NodeId(14) },
-                    new VariableNode { BrowseName = "Description2", NodeId = new NodeId(15) }
+                    new VariableNode { BrowseName = new QualifiedName("Description1"), NodeId = new NodeId(13) },
+                    new VariableNode { BrowseName = new QualifiedName("Description2"), NodeId = new NodeId(14) },
+                    new VariableNode { BrowseName = new QualifiedName("Description2"), NodeId = new NodeId(15) }
                 ])
                 .Verifiable(Times.Once);
             m_nodeCacheMock
@@ -825,9 +825,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     ct))
                 .ReturnsAsync(
                 [
-                    new VariableNode { BrowseName = BrowseNames.DefaultBinary, NodeId = new NodeId(16) },
-                    new VariableNode { BrowseName = BrowseNames.DefaultBinary, NodeId = new NodeId(17) },
-                    new VariableNode { BrowseName = BrowseNames.DefaultBinary, NodeId = new NodeId(18) }
+                    new VariableNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = new NodeId(16) },
+                    new VariableNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = new NodeId(17) },
+                    new VariableNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = new NodeId(18) }
                 ])
                 .Verifiable(Times.Once);
             m_nodeCacheMock
@@ -839,9 +839,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     ct))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = "MeasurementReasonEnum", NodeId = new NodeId(19) },
-                    new DataTypeNode { BrowseName = "ToleranceLimitEnum", NodeId = new NodeId(20) },
-                    new DataTypeNode { BrowseName = "ToolAlignmentState", NodeId = new NodeId(21) }
+                    new DataTypeNode { BrowseName = new QualifiedName("MeasurementReasonEnum"), NodeId = new NodeId(19) },
+                    new DataTypeNode { BrowseName = new QualifiedName("ToleranceLimitEnum"), NodeId = new NodeId(20) },
+                    new DataTypeNode { BrowseName = new QualifiedName("ToolAlignmentState"), NodeId = new NodeId(21) }
                 ])
                 .Verifiable(Times.Once);
             m_nodeCacheMock
@@ -853,9 +853,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     ct))
                 .ReturnsAsync(
                 [
-                    new VariableNode { BrowseName = "Description1", NodeId = new NodeId(3) },
-                    new VariableNode { BrowseName = "Description2", NodeId = new NodeId(4) },
-                    new VariableNode { BrowseName = "Description2", NodeId = new NodeId(5) }
+                    new VariableNode { BrowseName = new QualifiedName("Description1"), NodeId = new NodeId(3) },
+                    new VariableNode { BrowseName = new QualifiedName("Description2"), NodeId = new NodeId(4) },
+                    new VariableNode { BrowseName = new QualifiedName("Description2"), NodeId = new NodeId(5) }
                 ])
                 .Verifiable(Times.Once);
             m_nodeCacheMock
@@ -878,9 +878,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     ct))
                 .ReturnsAsync(
                 [
-                    new VariableNode { BrowseName = BrowseNames.DefaultBinary, NodeId = new NodeId(6) },
-                    new VariableNode { BrowseName = BrowseNames.DefaultBinary, NodeId = new NodeId(7) },
-                    new VariableNode { BrowseName = BrowseNames.DefaultBinary, NodeId = new NodeId(8) }
+                    new VariableNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = new NodeId(6) },
+                    new VariableNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = new NodeId(7) },
+                    new VariableNode { BrowseName = new QualifiedName(BrowseNames.DefaultBinary), NodeId = new NodeId(8) }
                 ])
                 .Verifiable(Times.Once);
             m_nodeCacheMock
@@ -892,9 +892,9 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     ct))
                 .ReturnsAsync(
                 [
-                    new DataTypeNode { BrowseName = "ProcessingTimesDataType", NodeId = new NodeId(9) },
-                    new DataTypeNode { BrowseName = "ResultDataType", NodeId = new NodeId(10) },
-                    new DataTypeNode { BrowseName = "ResultTransferOptionsDataType", NodeId = new NodeId(11) }
+                    new DataTypeNode { BrowseName = new QualifiedName("ProcessingTimesDataType"), NodeId = new NodeId(9) },
+                    new DataTypeNode { BrowseName = new QualifiedName("ResultDataType"), NodeId = new NodeId(10) },
+                    new DataTypeNode { BrowseName = new QualifiedName("ResultTransferOptionsDataType"), NodeId = new NodeId(11) }
                 ])
                 .Verifiable(Times.Once);
 
@@ -915,30 +915,30 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             // Assert
             m_nodeCacheMock.Verify();
             Assert.That(sut.TypeCount, Is.EqualTo(12));
-            Assert.That(processingTimesDataType1, Is.Not.Null).And
-                .Assert.That(Subject, Is.EqualTo(processingTimesDataType2));
-            Assert.That(resultDataType1, Is.Not.Null).And
-                .Assert.That(Subject, Is.EqualTo(resultDataType2));
-            Assert.That(resultTransferOptionsDataType1, Is.Not.Null).And
-                .Assert.That(Subject, Is.EqualTo(resultTransferOptionsDataType2));
+            Assert.That(processingTimesDataType1, Is.Not.Null);
+            Assert.That(processingTimesDataType1, Is.EqualTo(processingTimesDataType2));
+            Assert.That(resultDataType1, Is.Not.Null);
+            Assert.That(resultDataType1, Is.EqualTo(resultDataType2));
+            Assert.That(resultTransferOptionsDataType1, Is.Not.Null);
+            Assert.That(resultTransferOptionsDataType1, Is.EqualTo(resultTransferOptionsDataType2));
             Assert.That(processingTimesDataType1!.Definition!, Is.TypeOf<StructureDefinition>());
-                .Assert.That(Which.Fields, Has.Count.EqualTo(4));
+            Assert.That(((StructureDefinition)processingTimesDataType1!.Definition!).Fields, Has.Count.EqualTo(4));
             Assert.That(processingTimesDataType1!.Definition!, Is.TypeOf<StructureDefinition>());
-                .Assert.That(Which.StructureType, Is.EqualTo(StructureType.StructureWithOptionalFields));
+            Assert.That(((StructureDefinition)processingTimesDataType1!.Definition!).StructureType, Is.EqualTo(StructureType.StructureWithOptionalFields));
             Assert.That(resultDataType1!.Definition!, Is.TypeOf<StructureDefinition>());
-                .Assert.That(Which.Fields, Has.Count.EqualTo(3));
+            Assert.That(((StructureDefinition)resultDataType1!.Definition!).Fields, Has.Count.EqualTo(3));
             Assert.That(resultDataType1!.Definition!, Is.TypeOf<StructureDefinition>());
-                .Assert.That(Which.StructureType, Is.EqualTo(StructureType.Structure));
+            Assert.That(((StructureDefinition)resultDataType1!.Definition!).StructureType, Is.EqualTo(StructureType.Structure));
             Assert.That(resultTransferOptionsDataType1!.Definition!, Is.TypeOf<StructureDefinition>());
-                .Assert.That(Which.Fields, Has.Count.EqualTo(1));
+            Assert.That(((StructureDefinition)resultTransferOptionsDataType1!.Definition!).Fields, Has.Count.EqualTo(1));
             Assert.That(resultTransferOptionsDataType1!.Definition!, Is.TypeOf<StructureDefinition>());
-                .Assert.That(Which.StructureType, Is.EqualTo(StructureType.Structure));
+            Assert.That(((StructureDefinition)resultTransferOptionsDataType1!.Definition!).StructureType, Is.EqualTo(StructureType.Structure));
             Assert.That(toolAlignmentState1!.Definition!, Is.TypeOf<EnumDefinition>());
-                .Assert.That(Which.Fields, Has.Count.EqualTo(3));
+            Assert.That(((EnumDefinition)toolAlignmentState1!.Definition!).Fields, Has.Count.EqualTo(3));
             Assert.That(toleranceLimitEnum1!.Definition!, Is.TypeOf<EnumDefinition>());
-                .Assert.That(Which.Fields, Has.Count.EqualTo(3));
+            Assert.That(((EnumDefinition)toleranceLimitEnum1!.Definition!).Fields, Has.Count.EqualTo(3));
             Assert.That(measurementReasonEnum1!.Definition!, Is.TypeOf<EnumDefinition>());
-                .Assert.That(Which.Fields, Has.Count.EqualTo(6));
+            Assert.That(((EnumDefinition)measurementReasonEnum1!.Definition!).Fields, Has.Count.EqualTo(6));
         }
 
         public const string GmsTypeSystem = """

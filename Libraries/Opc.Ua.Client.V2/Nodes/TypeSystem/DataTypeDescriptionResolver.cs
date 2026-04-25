@@ -32,11 +32,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         IDataTypeDescriptionManager, IDataTypeDescriptionResolver
     {
         /// <inheritdoc/>
-        public IReadOnlyDictionary<ExpandedNodeId, Type> EncodeableTypes
-            => _context.Factory.EncodeableTypes;
+        public IEnumerable<ExpandedNodeId> KnownTypeIds
+            => _context.Factory.KnownTypeIds;
 
         /// <inheritdoc/>
-        public int InstanceId => _context.Factory.InstanceId;
+        public IEncodeableFactoryBuilder Builder
+            => _context.Factory.Builder;
 
         /// <summary>
         /// Initializes the type system with a session and optionally type
@@ -69,6 +70,29 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         }
 
         /// <inheritdoc/>
+        public bool TryGetEncodeableType(ExpandedNodeId typeId,
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IEncodeableType? encodeableType)
+        {
+            return _context.Factory.TryGetEncodeableType(typeId, out encodeableType);
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetEnumeratedType(ExpandedNodeId typeId,
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IEnumeratedType? enumeratedType)
+        {
+            return _context.Factory.TryGetEnumeratedType(typeId, out enumeratedType);
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetType(XmlQualifiedName xmlName,
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IType? type)
+        {
+            return _context.Factory.TryGetType(xmlName, out type);
+        }
+
+        /// <summary>
+        /// Returns the system type for the specified type or encoding id.
+        /// </summary>
         public Type? GetSystemType(ExpandedNodeId typeOrEncodingId)
         {
             if (_structures.ContainsKey(typeOrEncodingId))
@@ -80,36 +104,6 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 return typeof(EnumValue);
             }
             return _context.Factory.GetSystemType(typeOrEncodingId);
-        }
-
-        /// <inheritdoc/>
-        public object Clone()
-        {
-            return new DataTypeDescriptionResolver(this);
-        }
-
-        /// <inheritdoc/>
-        public void AddEncodeableType(Type systemType)
-        {
-            _context.Factory.AddEncodeableType(systemType);
-        }
-
-        /// <inheritdoc/>
-        public void AddEncodeableType(ExpandedNodeId encodingId, Type systemType)
-        {
-            _context.Factory.AddEncodeableType(encodingId, systemType);
-        }
-
-        /// <inheritdoc/>
-        public void AddEncodeableTypes(Assembly assembly)
-        {
-            _context.Factory.AddEncodeableTypes(assembly);
-        }
-
-        /// <inheritdoc/>
-        public void AddEncodeableTypes(IEnumerable<Type> systemTypes)
-        {
-            _context.Factory.AddEncodeableTypes(systemTypes);
         }
 
         /// <inheritdoc/>
@@ -148,7 +142,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             void CollectAllDataTypeDefinitions(ExpandedNodeId typeId,
                 Dictionary<ExpandedNodeId, DataTypeDefinition> collect)
             {
-                Debug.Assert(!NodeId.IsNull(typeId), "Unexpected null data type id");
+                Debug.Assert(!typeId.IsNull, "Unexpected null data type id");
                 if (_structures.TryGetValue(typeId, out var dataTypeDefinition))
                 {
                     var structureDefinition = dataTypeDefinition.StructureDefinition;
@@ -246,7 +240,8 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 {
                     // Preload all field types if needed
                     var includeSubtypes = description.FieldsCanHaveSubtypedValues;
-                    foreach (var field in description.StructureDefinition.Fields)
+                    var fieldsArray = description.StructureDefinition.Fields.ToArray()!;
+                    foreach (var field in fieldsArray)
                     {
                         if (!includeSubtypes && IsKnownType(field.DataType))
                         {
@@ -358,16 +353,19 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         /// completely incorrect</exception>
         internal DataTypeDefinition? GetDataTypeDefinition(DataTypeNode dataTypeNode)
         {
-            switch (dataTypeNode.DataTypeDefinition?.Body)
+            if (dataTypeNode.DataTypeDefinition.IsNull ||
+                !dataTypeNode.DataTypeDefinition.TryGetEncodeable(out IEncodeable dtDefBody))
+            {
+                return null;
+            }
+            switch (dtDefBody)
             {
                 case EnumDefinition enumDefinition:
-                    Debug.Assert(enumDefinition.Fields != null); // always set in class
                     if (enumDefinition.Fields.Count == 0)
                     {
                         return enumDefinition;
                     }
-                    if (enumDefinition.Fields
-                            .Select(f => f.Name)
+                    if (enumDefinition.Fields.ToArray()!.Select(f => f.Name)
                             .Distinct()
                             .Count() !=
                         enumDefinition.Fields.Count)
@@ -378,12 +376,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     }
                     return enumDefinition;
                 case StructureDefinition structureDefinition:
-                    Debug.Assert(structureDefinition.Fields != null); // always set in class
                     switch (structureDefinition.StructureType)
                     {
                         case StructureType.Union:
                         case StructureType.UnionWithSubtypedValues:
-                            if (NodeId.IsNull(structureDefinition.BaseDataType))
+                            if (structureDefinition.BaseDataType.IsNull)
                             {
                                 structureDefinition.BaseDataType = DataTypeIds.Union;
                             }
@@ -391,7 +388,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                         case StructureType.StructureWithOptionalFields:
                         case StructureType.StructureWithSubtypedValues:
                         case StructureType.Structure:
-                            if (NodeId.IsNull(structureDefinition.BaseDataType))
+                            if (structureDefinition.BaseDataType.IsNull)
                             {
                                 structureDefinition.BaseDataType = DataTypeIds.Structure;
                             }
@@ -417,7 +414,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                                 i, dataTypeNode.NodeId);
                             return null;
                         }
-                        if (NodeId.IsNull(field.DataType))
+                        if (field.DataType.IsNull)
                         {
                             _logger.LogError("Field {Name} in structure definition of " +
                                 "data type {Type} is missing a data type.",
@@ -433,8 +430,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                             return null;
                         }
                     }
-                    if (structureDefinition.Fields
-                            .Select(f => f.Name)
+                    if (structureDefinition.Fields.ToArray()!.Select(f => f.Name)
                             .Distinct()
                             .Count() !=
                         structureDefinition.Fields.Count)
@@ -444,8 +440,6 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                         // We accept this because it makes no difference to us
                     }
                     return structureDefinition;
-                case null:
-                    return null;
                 default:
                     break;
             }
@@ -528,11 +522,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 ReferenceTypeIds.HasEncoding, false, false, ct).ConfigureAwait(false);
             var lookup = references.ToDictionary(r => r.BrowseName, r =>
                 NormalizeExpandedNodeId(r.NodeId));
-            var binaryEncodingId = lookup.TryGetValue(BrowseNames.DefaultBinary,
+            var binaryEncodingId = lookup.TryGetValue((QualifiedName)BrowseNames.DefaultBinary,
                 out var b) ? b : ExpandedNodeId.Null;
-            var xmlEncodingId = lookup.TryGetValue(BrowseNames.DefaultXml,
+            var xmlEncodingId = lookup.TryGetValue((QualifiedName)BrowseNames.DefaultXml,
                 out var x) ? x : ExpandedNodeId.Null;
-            var jsonEncodingId = lookup.TryGetValue(BrowseNames.DefaultJson,
+            var jsonEncodingId = lookup.TryGetValue((QualifiedName)BrowseNames.DefaultJson,
                 out var j) ? j : ExpandedNodeId.Null;
 
             XmlQualifiedName? name = null;
@@ -544,7 +538,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             {
                 // 2. Use legacy type system
                 var def = await _dataTypeSystems.GetDataTypeDefinitionAsync(
-                    BrowseNames.DefaultBinary, dataTypeNode.NodeId,
+                    (QualifiedName)BrowseNames.DefaultBinary, dataTypeNode.NodeId,
                     ct).ConfigureAwait(false);
 
                 dataTypeDefinition = def?.Definition;
@@ -558,7 +552,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 if (xmlEncodingId != ExpandedNodeId.Null || dataTypeDefinition == null)
                 {
                     var xml = await _dataTypeSystems.GetDataTypeDefinitionAsync(
-                        BrowseNames.DefaultXml, dataTypeNode.NodeId,
+                        (QualifiedName)BrowseNames.DefaultXml, dataTypeNode.NodeId,
                         ct).ConfigureAwait(false);
                     if (xml?.Definition != null)
                     {
@@ -596,7 +590,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         private async IAsyncEnumerable<DataTypeNode> GetUnknownSubTypesAsync(
             ExpandedNodeId dataType, [EnumeratorCancellation] CancellationToken ct)
         {
-            var nodesToBrowse = new NodeIdCollection
+            var nodesToBrowse = new List<NodeId>
             {
                 ExpandedNodeId.ToNodeId(dataType, _context.NamespaceUris)
             };
@@ -609,10 +603,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 {
                     yield return node;
                 }
-                nodesToBrowse = new NodeIdCollection(response
+                nodesToBrowse = response
                     .OfType<DataTypeNode>()
                     .Select(r => ExpandedNodeId.ToNodeId(r.NodeId,
-                        _context.NamespaceUris)));
+                        _context.NamespaceUris))
+                    .ToList();
             }
         }
 
@@ -624,8 +619,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         private ExpandedNodeId NormalizeExpandedNodeId(ExpandedNodeId expandedNodeId)
         {
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, _context.NamespaceUris);
-            return NodeId.ToExpandedNodeId(nodeId, _context.NamespaceUris)
-                ?? ExpandedNodeId.Null;
+            return NodeId.ToExpandedNodeId(nodeId, _context.NamespaceUris);
         }
 
         /// <summary>

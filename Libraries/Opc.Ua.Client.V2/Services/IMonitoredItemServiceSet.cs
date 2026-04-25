@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -24,8 +24,8 @@ namespace Opc.Ua.Client.Services
         /// <param name="monitoredItemIds"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<SetMonitoringModeResponse> SetMonitoringModeAsync(RequestHeader? requestHeader,
-            uint subscriptionId, MonitoringMode monitoringMode, UInt32Collection monitoredItemIds,
+        ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(RequestHeader? requestHeader,
+            uint subscriptionId, MonitoringMode monitoringMode, ArrayOf<uint> monitoredItemIds,
             CancellationToken ct = default);
 
         /// <summary>
@@ -37,9 +37,9 @@ namespace Opc.Ua.Client.Services
         /// <param name="itemsToCreate"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(RequestHeader? requestHeader,
+        ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(RequestHeader? requestHeader,
             uint subscriptionId, TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequestCollection itemsToCreate, CancellationToken ct = default);
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate, CancellationToken ct = default);
 
         /// <summary>
         /// Modify monitored item service
@@ -50,9 +50,9 @@ namespace Opc.Ua.Client.Services
         /// <param name="itemsToModify"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(RequestHeader? requestHeader,
+        ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(RequestHeader? requestHeader,
             uint subscriptionId, TimestampsToReturn timestampsToReturn,
-            MonitoredItemModifyRequestCollection itemsToModify, CancellationToken ct = default);
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify, CancellationToken ct = default);
 
         /// <summary>
         /// Delete monitored items service
@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Services
         /// <param name="monitoredItemIds"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(RequestHeader? requestHeader,
-            uint subscriptionId, UInt32Collection monitoredItemIds, CancellationToken ct = default);
+        ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(RequestHeader? requestHeader,
+            uint subscriptionId, ArrayOf<uint> monitoredItemIds, CancellationToken ct = default);
     }
 }

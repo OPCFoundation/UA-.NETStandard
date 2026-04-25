@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) Microsoft.  All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -213,8 +213,8 @@ namespace Opc.Ua.Client
                     }
 
                     var sampledNodes = _sampledNodes;
-                    var nodesToRead = new ReadValueIdCollection(sampledNodes
-                        .Select(n => n.InitialValue));
+                    ArrayOf<ReadValueId> nodesToRead = sampledNodes
+                        .Select(n => n.InitialValue).ToArray();
                     try
                     {
                         // Wait until period completed
@@ -236,14 +236,14 @@ namespace Opc.Ua.Client
                             nodesToRead, ct).ConfigureAwait(false);
 
                         // Notify clients of the values
-                        await QueueAsync(sequenceNumber, sampledNodes, response.Results,
+                        await QueueAsync(sequenceNumber, sampledNodes, response.Results.ToArray() ?? [],
                             sw.Elapsed).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) { }
                     catch (ServiceResultException sre)
                     {
                         await QueueAsync(sequenceNumber, sampledNodes,
-                            sre.StatusCode, sw.Elapsed).ConfigureAwait(false);
+                            (uint)sre.StatusCode, sw.Elapsed).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -267,7 +267,7 @@ namespace Opc.Ua.Client
                 var missed = GetMissed(elapsed);
                 await Task.WhenAll(nodesToRead.Zip(values)
                     .GroupBy(n => n.First.Queue)
-                    .Select(b => QueueAsyncCore(seq, StatusCodes.Good, missed, b.Key, [.. b])))
+                    .Select(b => QueueAsyncCore(seq, (uint)StatusCodes.Good, missed, b.Key, [.. b])))
                     .ConfigureAwait(false);
 
                 async Task QueueAsyncCore(uint seq, uint statusCode, int missed,

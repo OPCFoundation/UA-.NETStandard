@@ -71,13 +71,13 @@ namespace Opc.Ua.Client.Nodes.Obsolete
         }
 
         /// <inheritdoc/>
-        public IList<NodeId> FindSubTypes(ExpandedNodeId typeId)
+        public ArrayOf<NodeId> FindSubTypes(ExpandedNodeId typeId)
         {
             throw NotSupported(nameof(FindSubTypes));
         }
 
         /// <inheritdoc/>
-        public QualifiedName? FindReferenceTypeName(NodeId referenceTypeId)
+        public QualifiedName FindReferenceTypeName(NodeId referenceTypeId)
         {
             throw NotSupported(nameof(FindReferenceTypeName));
         }
@@ -101,7 +101,7 @@ namespace Opc.Ua.Client.Nodes.Obsolete
         }
 
         /// <inheritdoc/>
-        public bool IsEncodingFor(NodeId expectedTypeId, object value)
+        public bool IsEncodingFor(NodeId expectedTypeId, Variant value)
         {
             throw NotSupported(nameof(IsEncodingFor));
         }

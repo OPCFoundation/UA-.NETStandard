@@ -1,12 +1,12 @@
-﻿// ------------------------------------------------------------
-//  Copyright (c) Microsoft.  All rights reserved.
+// ------------------------------------------------------------
+//  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using System.Collections.Generic;
+
 namespace Opc.Ua
 {
-    using System.Collections.Generic;
-
     /// <summary>
     /// Node id comparer
     /// </summary>
@@ -19,12 +19,8 @@ namespace Opc.Ua
         public static Comparers Instance { get; } = new Comparers();
 
         /// <inheritdoc/>
-        public bool Equals(ExpandedNodeId? x, ExpandedNodeId? y)
+        public bool Equals(ExpandedNodeId x, ExpandedNodeId y)
         {
-            if (ReferenceEquals(x, y))
-            {
-                return true;
-            }
             return x == y;
         }
 
@@ -35,22 +31,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(NodeId? x, NodeId? y)
+        public bool Equals(NodeId x, NodeId y)
         {
-            if (ReferenceEquals(x, y))
-            {
-                return true;
-            }
             return x == y;
         }
 
         /// <inheritdoc/>
         public int GetHashCode(NodeId obj)
         {
-            if (obj is null)
-            {
-                return 0;
-            }
             return obj.GetHashCode();
         }
     }

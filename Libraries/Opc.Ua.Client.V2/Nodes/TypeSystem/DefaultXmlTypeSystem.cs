@@ -30,19 +30,20 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
     {
         /// <inheritdoc/>
         public override NodeId TypeSystemId
-            => Objects.XmlSchema_TypeSystem;
+            => (NodeId)Objects.XmlSchema_TypeSystem;
         /// <inheritdoc/>
         public override QualifiedName TypeSystemName
-            => BrowseNames.XmlSchema_TypeSystem;
+            => (QualifiedName)BrowseNames.XmlSchema_TypeSystem;
         /// <inheritdoc/>
         public override QualifiedName EncodingName
-            => BrowseNames.DefaultXml;
+            => (QualifiedName)BrowseNames.DefaultXml;
 
         /// <inheritdoc/>
         public DefaultXmlTypeSystem(INodeCache nodeCache,
             IServiceMessageContext context, ILogger<DefaultXmlTypeSystem> logger)
             : base(nodeCache, context, logger)
         {
+            _logger = logger;
         }
 
         /// <inheritdoc/>
@@ -51,10 +52,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
         {
             using var istrm = new MemoryStream(buffer);
             var xmlSchemaValidator = new Schema.Xml.XmlSchemaValidator(imports);
-            xmlSchemaValidator.Validate(istrm);
+            xmlSchemaValidator.Validate(istrm, _logger);
             return new DataTypeDictionary(dictionaryId, targetNamespace, TypeSystemId,
                 TypeSystemName, null, xmlSchemaValidator.TargetSchema);
         }
+
+        private readonly ILogger _logger;
 
         /// <inheritdoc/>
         protected override void LoadDictionaryDataTypeDefinitions(
@@ -131,12 +134,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     {
                         Name = enumFacet.Value,
                         Value = value,
-                        Description = enumFacet.Annotation?.Items?.OfType<XmlSchemaDocumentation>()
-                            .FirstOrDefault()?.Markup?.FirstOrDefault()?.InnerText,
-                        DisplayName = enumFacet.Annotation?.Items?.OfType<XmlSchemaDocumentation>()
-                            .FirstOrDefault()?.Markup?.FirstOrDefault()?.InnerText
+                        Description = (LocalizedText)(enumFacet.Annotation?.Items?.OfType<XmlSchemaDocumentation>()
+                            .FirstOrDefault()?.Markup?.FirstOrDefault()?.InnerText ?? string.Empty),
+                        DisplayName = (LocalizedText)(enumFacet.Annotation?.Items?.OfType<XmlSchemaDocumentation>()
+                            .FirstOrDefault()?.Markup?.FirstOrDefault()?.InnerText ?? string.Empty)
                     };
-                    enumDefinition.Fields.Add(enumTypeField);
+                    enumDefinition.Fields += enumTypeField;
                 }
             }
             return enumDefinition;
@@ -159,11 +162,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             NamespaceTable namespaceUris, ExpandedNodeId typeId)
         {
             // TODO: Implement
-            Debug.Assert(typeId != null);
+            Debug.Assert(!typeId.IsNull);
 
             var structureDefinition = new StructureDefinition
             {
-                BaseDataType = null,
+                BaseDataType = NodeId.Null,
                 DefaultEncodingId = ExpandedNodeId.ToNodeId(encodingId, namespaceUris),
                 Fields = [],
                 StructureType = StructureType.Structure
@@ -181,15 +184,15 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                     var field = new StructureField
                     {
                         Name = element.Name,
-                        Description = null,
+                        Description = default,
                         DataType = ResolveDataType(element.SchemaTypeName,
                             typeDictionary, namespaceUris),
                         IsOptional = element.MinOccurs == 0,
                         MaxStringLength = 0,
-                        ArrayDimensions = null,
+                        ArrayDimensions = default,
                         ValueRank = element.MaxOccurs > 1 ? 1 : -1
                     };
-                    structureDefinition.Fields.Add(field);
+                    structureDefinition.Fields += field;
                 }
             }
 

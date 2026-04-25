@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -24,9 +24,9 @@ namespace Opc.Ua.Client.Services
         /// <param name="nodesToBrowse"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<BrowseResponse> BrowseAsync(RequestHeader? requestHeader,
+        ValueTask<BrowseResponse> BrowseAsync(RequestHeader? requestHeader,
             ViewDescription? view, uint requestedMaxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse, CancellationToken ct = default);
+            ArrayOf<BrowseDescription> nodesToBrowse, CancellationToken ct = default);
 
         /// <summary>
         /// Browse next service
@@ -36,8 +36,8 @@ namespace Opc.Ua.Client.Services
         /// <param name="continuationPoints"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<BrowseNextResponse> BrowseNextAsync(RequestHeader? requestHeader,
-            bool releaseContinuationPoints, ByteStringCollection continuationPoints,
+        ValueTask<BrowseNextResponse> BrowseNextAsync(RequestHeader? requestHeader,
+            bool releaseContinuationPoints, ArrayOf<ByteString> continuationPoints,
             CancellationToken ct = default);
 
         /// <summary>
@@ -47,8 +47,8 @@ namespace Opc.Ua.Client.Services
         /// <param name="browsePaths"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
-            RequestHeader? requestHeader, BrowsePathCollection browsePaths,
+        ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+            RequestHeader? requestHeader, ArrayOf<BrowsePath> browsePaths,
             CancellationToken ct = default);
 
         /// <summary>
@@ -58,8 +58,8 @@ namespace Opc.Ua.Client.Services
         /// <param name="nodesToRegister"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<RegisterNodesResponse> RegisterNodesAsync(RequestHeader? requestHeader,
-            NodeIdCollection nodesToRegister, CancellationToken ct = default);
+        ValueTask<RegisterNodesResponse> RegisterNodesAsync(RequestHeader? requestHeader,
+            ArrayOf<NodeId> nodesToRegister, CancellationToken ct = default);
 
         /// <summary>
         /// Unregister nodes service
@@ -68,7 +68,7 @@ namespace Opc.Ua.Client.Services
         /// <param name="nodesToUnregister"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<UnregisterNodesResponse> UnregisterNodesAsync(RequestHeader? requestHeader,
-            NodeIdCollection nodesToUnregister, CancellationToken ct = default);
+        ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(RequestHeader? requestHeader,
+            ArrayOf<NodeId> nodesToUnregister, CancellationToken ct = default);
     }
 }

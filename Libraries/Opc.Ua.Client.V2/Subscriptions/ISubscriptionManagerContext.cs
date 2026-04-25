@@ -1,4 +1,4 @@
-﻿// ------------------------------------------------------------
+// ------------------------------------------------------------
 //  Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -31,8 +31,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="subscriptionAcknowledgements"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<PublishResponse> PublishAsync(RequestHeader? requestHeader,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+        ValueTask<PublishResponse> PublishAsync(RequestHeader? requestHeader,
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             CancellationToken ct = default);
 
         /// <summary>
@@ -43,8 +43,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="sendInitialValues"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
-            RequestHeader? requestHeader, UInt32Collection subscriptionIds,
+        ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+            RequestHeader? requestHeader, ArrayOf<uint> subscriptionIds,
             bool sendInitialValues, CancellationToken ct = default);
 
         /// <summary>
@@ -55,8 +55,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="subscriptionIds"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
-            RequestHeader? requestHeader, UInt32Collection subscriptionIds,
+        ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+            RequestHeader? requestHeader, ArrayOf<uint> subscriptionIds,
             CancellationToken ct = default);
     }
 }

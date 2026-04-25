@@ -68,8 +68,8 @@ namespace Opc.Ua.Client.Sessions
                 m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(2000u)),
                 new DataValue(new Variant(3000u)),
                 new DataValue(new Variant(4000u)),
@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Sessions
                 new DataValue(new Variant(25000u)),
                 new DataValue(new Variant(26000u)),
                 new DataValue(new Variant(27000u))
-            };
+            ];
 
             m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
@@ -158,8 +158,8 @@ namespace Opc.Ua.Client.Sessions
                 m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection();
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ArrayOf<DataValue> dataValues = ArrayOf<DataValue>.Empty;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = ArrayOf<DiagnosticInfo>.Empty;
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
@@ -190,12 +190,12 @@ namespace Opc.Ua.Client.Sessions
                 m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(2000u)),
                 new DataValue(new Variant(3000u))
-            };
+            ];
 
             m_mockChannel
                 .SetupSequence(c => c.SendRequestAsync(
@@ -230,12 +230,12 @@ namespace Opc.Ua.Client.Sessions
                 m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(StatusCodes.BadUnexpectedError)
-            };
+            ];
 
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ArrayOf<DiagnosticInfo> diagnosticInfos = ArrayOf<DiagnosticInfo>.Empty;
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
@@ -266,12 +266,12 @@ namespace Opc.Ua.Client.Sessions
                 m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection
-            {
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue("InvalidDataType")
-            };
+            ];
 
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ArrayOf<DiagnosticInfo> diagnosticInfos = ArrayOf<DiagnosticInfo>.Empty;
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
@@ -553,8 +553,8 @@ namespace Opc.Ua.Client.Sessions
                 m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
-            var dataValues = new DataValueCollection();
-            var diagnosticInfos = new DiagnosticInfoCollection();
+            ArrayOf<DataValue> dataValues = ArrayOf<DataValue>.Empty;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = ArrayOf<DiagnosticInfo>.Empty;
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
@@ -654,7 +654,7 @@ namespace Opc.Ua.Client.Sessions
                 m_options, m_mockObservability.Object, null);
             var ct = CancellationToken.None;
 
-            var serverState = new DataValue(new Variant(ServerState.Running));
+            var serverState = new DataValue(Variant.From(ServerState.Running));
 
             m_mockChannel
                 .Setup(c => c.SendRequestAsync(
@@ -860,7 +860,7 @@ namespace Opc.Ua.Client.Sessions
 
             m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
-                .Returns(Task.CompletedTask)
+                .Returns(default(ValueTask))
                 .Verifiable(Times.Once);
 
             // Act
@@ -908,7 +908,7 @@ namespace Opc.Ua.Client.Sessions
 
             m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
-                .Returns(Task.CompletedTask)
+                .Returns(default(ValueTask))
                 .Verifiable(Times.Once);
 
             // Act
@@ -941,7 +941,7 @@ namespace Opc.Ua.Client.Sessions
 
             m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
-                .Returns(Task.CompletedTask)
+                .Returns(default(ValueTask))
                 .Verifiable(Times.Once);
 
             // Act
@@ -1007,7 +1007,7 @@ namespace Opc.Ua.Client.Sessions
 
             m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
-                .Returns(Task.CompletedTask)
+                .Returns(default(ValueTask))
                 .Verifiable(Times.Once);
 
             // Act
@@ -1036,7 +1036,7 @@ namespace Opc.Ua.Client.Sessions
                 .Verifiable(Times.Once);
             m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
-                .Returns(Task.CompletedTask)
+                .Returns(default(ValueTask))
                 .Verifiable(Times.Once);
 
             // Act
@@ -1069,7 +1069,8 @@ namespace Opc.Ua.Client.Sessions
             var serverNonce = new byte[] { 1, 2, 3, 4 };
 
             m_mockChannel
-                .Setup(c => c.Reconnect(It.IsAny<ITransportWaitingConnection>()))
+                .Setup(c => c.ReconnectAsync(It.IsAny<ITransportWaitingConnection>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask))
                 .Verifiable(Times.Once);
             m_mockChannel
             .Setup(c => c.SupportedFeatures)
@@ -1081,7 +1082,7 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ActivateSessionResponse
                 {
-                    ServerNonce = serverNonce,
+                    ServerNonce = new ByteString(serverNonce),
                     Results = [],
                     DiagnosticInfos = []
                 })
@@ -1115,7 +1116,7 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
 
             m_mockChannel
-                .Setup(c => c.Reconnect(It.IsAny<ITransportWaitingConnection>()))
+                .Setup(c => c.ReconnectAsync(It.IsAny<ITransportWaitingConnection>(), It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(StatusCodes.BadUnexpectedError))
                 .Verifiable(Times.Once);
             m_mockChannel
@@ -1183,7 +1184,7 @@ namespace Opc.Ua.Client.Sessions
             sut.SetConnected();
 
             m_mockChannel
-                .Setup(c => c.Reconnect(It.IsAny<ITransportWaitingConnection>()))
+                .Setup(c => c.ReconnectAsync(It.IsAny<ITransportWaitingConnection>(), It.IsAny<CancellationToken>()))
                 .Throws(new TaskCanceledException())
                 .Verifiable(Times.Once);
             m_mockChannel
@@ -1218,7 +1219,8 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
 
             m_mockChannel
-                .Setup(c => c.Reconnect(It.IsAny<ITransportWaitingConnection>()))
+                .Setup(c => c.ReconnectAsync(It.IsAny<ITransportWaitingConnection>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask))
                 .Verifiable(Times.Once);
             m_mockChannel
                 .Setup(c => c.SupportedFeatures)
@@ -1229,7 +1231,7 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ActivateSessionResponse
                 {
-                    ServerNonce = null,
+                    ServerNonce = default,
                     Results = [],
                     DiagnosticInfos = []
                 })
@@ -1239,7 +1241,7 @@ namespace Opc.Ua.Client.Sessions
             await sut.ReconnectAsync(ct);
 
             // Assert
-            Assert.That(sut._serverNonce, Is.Not.Null).And.BeEmpty();
+            Assert.That(sut._serverNonce, Is.EqualTo(ByteString.Empty));
             m_mockChannel.Verify();
         }
         [Test]
@@ -1294,7 +1296,8 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
 
             m_mockChannel
-                .Setup(c => c.Reconnect(It.IsAny<ITransportWaitingConnection>()))
+                .Setup(c => c.ReconnectAsync(It.IsAny<ITransportWaitingConnection>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask))
                 .Verifiable(Times.Once);
             m_mockChannel
                 .Setup(c => c.SupportedFeatures)
@@ -1340,7 +1343,8 @@ namespace Opc.Ua.Client.Sessions
             var ct = CancellationToken.None;
 
             m_mockChannel
-                .Setup(c => c.Reconnect(It.IsAny<ITransportWaitingConnection>()))
+                .Setup(c => c.ReconnectAsync(It.IsAny<ITransportWaitingConnection>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask))
                 .Verifiable(Times.Once);
             m_mockChannel
                 .Setup(c => c.SupportedFeatures)
@@ -1389,7 +1393,7 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateSessionResponse
                 {
-                    ServerNonce = serverNonce,
+                    ServerNonce = new ByteString(serverNonce),
                     SessionId = NodeId.Parse("s=connected"),
                     AuthenticationToken = authToken,
                     ServerEndpoints = [ep]
@@ -1402,7 +1406,7 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ActivateSessionResponse
                 {
-                    ServerNonce = serverNonce,
+                    ServerNonce = new ByteString(serverNonce),
                     Results = [],
                     DiagnosticInfos = []
                 })
@@ -1430,9 +1434,9 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ReadResponse
                 {
-                    Results = new DataValueCollection(Enumerable
+                    Results = (ArrayOf<DataValue>)[..Enumerable
                         .Range(0, 27)
-                        .Select(_ => new DataValue(Variant.Null))),
+                        .Select(_ => new DataValue(Variant.Null))],
                     DiagnosticInfos = []
                 })
                 .Verifiable(Times.Once);
@@ -1446,8 +1450,8 @@ namespace Opc.Ua.Client.Sessions
                 {
                     Results =
                     [
-                        new (new[] { Opc.Ua.Namespaces.OpcUa }),
-                        new(Array.Empty<string>())
+                        new DataValue(Variant.From(new[] { Opc.Ua.Namespaces.OpcUa })),
+                        new DataValue(Variant.From(Array.Empty<string>()))
                     ],
                     DiagnosticInfos = []
                 })
@@ -1489,7 +1493,7 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateSessionResponse
                 {
-                    ServerNonce = serverNonce,
+                    ServerNonce = new ByteString(serverNonce),
                     SessionId = NodeId.Parse("s=connected"),
                     AuthenticationToken = authToken,
                     ServerEndpoints = [ep]
@@ -1503,7 +1507,7 @@ namespace Opc.Ua.Client.Sessions
                 .ReturnsAsync(new ActivateSessionResponse
                 {
                     ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.BadSessionNotActivated },
-                    ServerNonce = serverNonce,
+                    ServerNonce = new ByteString(serverNonce),
                     Results = [],
                     DiagnosticInfos = []
                 })
@@ -1521,7 +1525,7 @@ namespace Opc.Ua.Client.Sessions
 
             m_mockChannel
                 .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
-                .Returns(Task.CompletedTask)
+                .Returns(default(ValueTask))
                 .Verifiable(Times.Once);
 
             // Act
@@ -1561,7 +1565,7 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateSessionResponse
                 {
-                    ServerNonce = serverNonce,
+                    ServerNonce = new ByteString(serverNonce),
                     SessionId = NodeId.Parse("s=connected"),
                     AuthenticationToken = authToken,
                     ServerEndpoints = [ep]
@@ -1575,7 +1579,7 @@ namespace Opc.Ua.Client.Sessions
                 .ReturnsAsync(new ActivateSessionResponse
                 {
                     ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.BadSessionNotActivated },
-                    ServerNonce = serverNonce,
+                    ServerNonce = new ByteString(serverNonce),
                     Results = [],
                     DiagnosticInfos = []
                 })
@@ -1750,7 +1754,7 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateSessionResponse
                 {
-                    ServerNonce = null,
+                    ServerNonce = default,
                     SessionId = NodeId.Parse("s=connected")
                 })
                 .Verifiable(Times.Once);
@@ -1791,7 +1795,7 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateSessionResponse
                 {
-                    ServerNonce = serverNonce,
+                    ServerNonce = new ByteString(serverNonce),
                     SessionId = NodeId.Parse("s=connected"),
                     AuthenticationToken = authToken,
                     ServerEndpoints = [ep]
@@ -1804,7 +1808,7 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ActivateSessionResponse
                 {
-                    ServerNonce = serverNonce,
+                    ServerNonce = new ByteString(serverNonce),
                     Results = [],
                     DiagnosticInfos = []
                 })
@@ -1832,9 +1836,9 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ReadResponse
                 {
-                    Results = new DataValueCollection(Enumerable
+                    Results = (ArrayOf<DataValue>)[..Enumerable
                         .Range(0, 27)
-                        .Select(_ => new DataValue(Variant.Null))),
+                        .Select(_ => new DataValue(Variant.Null))],
                     DiagnosticInfos = []
                 })
                 .Verifiable(Times.Once);
@@ -1848,8 +1852,8 @@ namespace Opc.Ua.Client.Sessions
                 {
                     Results =
                     [
-                new (new[] { Opc.Ua.Namespaces.OpcUa }),
-                new(Array.Empty<string>())
+                new DataValue(Variant.From(new[] { Opc.Ua.Namespaces.OpcUa })),
+                new DataValue(Variant.From(Array.Empty<string>()))
                     ],
                     DiagnosticInfos = []
                 })
@@ -1874,9 +1878,9 @@ namespace Opc.Ua.Client.Sessions
 
             var nodeIds = new[]
             {
-                new NodeId("ns=1;s=ChildNode1"),
-                new NodeId("ns=1;s=ChildNode2"),
-                new NodeId("ns=1;s=ChildNode3")
+                NodeId.Parse("ns=1;s=ChildNode1"),
+                NodeId.Parse("ns=1;s=ChildNode2"),
+                NodeId.Parse("ns=1;s=ChildNode3")
             };
 
             m_mockChannel
@@ -1937,7 +1941,7 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(results, Has.Count.EqualTo(2));
-            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[0]));
+            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<ReferenceDescription>(r => r.NodeId == nodeIds[0]));
             Assert.That(results[1].Result.References, Is.Empty);
             Assert.That(results[1].Result.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
             m_mockChannel.Verify();
@@ -1954,9 +1958,9 @@ namespace Opc.Ua.Client.Sessions
 
             var nodeIds = new[]
             {
-                new NodeId("ns=1;s=ChildNode1"),
-                new NodeId("ns=1;s=ChildNode2"),
-                new NodeId("ns=1;s=ChildNode3")
+                NodeId.Parse("ns=1;s=ChildNode1"),
+                NodeId.Parse("ns=1;s=ChildNode2"),
+                NodeId.Parse("ns=1;s=ChildNode3")
             };
 
             m_mockChannel
@@ -2034,9 +2038,9 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(results, Has.Count.EqualTo(3));
-            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[0]));
-            Assert.That(results[1].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[1]));
-            Assert.That(results[2].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[2]));
+            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<ReferenceDescription>(r => r.NodeId == nodeIds[0]));
+            Assert.That(results[1].Result.References, Has.Exactly(1).Matches<ReferenceDescription>(r => r.NodeId == nodeIds[1]));
+            Assert.That(results[2].Result.References, Has.Exactly(1).Matches<ReferenceDescription>(r => r.NodeId == nodeIds[2]));
             m_mockChannel.Verify();
         }
 
@@ -2051,9 +2055,9 @@ namespace Opc.Ua.Client.Sessions
 
             var nodeIds = new[]
             {
-                new NodeId("ns=1;s=ChildNode1"),
-                new NodeId("ns=1;s=ChildNode2"),
-                new NodeId("ns=1;s=ChildNode3")
+                NodeId.Parse("ns=1;s=ChildNode1"),
+                NodeId.Parse("ns=1;s=ChildNode2"),
+                NodeId.Parse("ns=1;s=ChildNode3")
             };
 
             m_mockChannel
@@ -2091,7 +2095,7 @@ namespace Opc.Ua.Client.Sessions
                                 new () { NodeId = nodeIds[1] },
                                 new () { NodeId = nodeIds[2] }
                             ],
-                            ContinuationPoint = null
+                            ContinuationPoint = default
                         }
                     ],
                     DiagnosticInfos = []
@@ -2118,7 +2122,7 @@ namespace Opc.Ua.Client.Sessions
 
             // Assert
             Assert.That(results, Has.Count.EqualTo(2));
-            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[0]));
+            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<ReferenceDescription>(r => r.NodeId == nodeIds[0]));
             Assert.That(results[1].Result.References.Count, Is.EqualTo(2));
             Assert.That(results[1].Result.References[0].NodeId, Is.EqualTo(nodeIds[1]));
             Assert.That(results[1].Result.References[1].NodeId, Is.EqualTo(nodeIds[2]));
@@ -2136,9 +2140,9 @@ namespace Opc.Ua.Client.Sessions
 
             var nodeIds = new[]
             {
-                new NodeId("ns=1;s=ChildNode1"),
-                new NodeId("ns=1;s=ChildNode2"),
-                new NodeId("ns=1;s=ChildNode3")
+                NodeId.Parse("ns=1;s=ChildNode1"),
+                NodeId.Parse("ns=1;s=ChildNode2"),
+                NodeId.Parse("ns=1;s=ChildNode3")
             };
 
             m_mockChannel
@@ -2195,9 +2199,9 @@ namespace Opc.Ua.Client.Sessions
 
             var nodeIds = new[]
             {
-                new NodeId("ns=1;s=ChildNode1"),
-                new NodeId("ns=1;s=ChildNode2"),
-                new NodeId("ns=1;s=ChildNode3")
+                NodeId.Parse("ns=1;s=ChildNode1"),
+                NodeId.Parse("ns=1;s=ChildNode2"),
+                NodeId.Parse("ns=1;s=ChildNode3")
             };
 
             m_mockChannel
@@ -2257,7 +2261,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.ThrowsAsync<OperationCanceledException>(async () => await act());
             Assert.That(results, Has.Count.EqualTo(1));
-            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[0]));
+            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<ReferenceDescription>(r => r.NodeId == nodeIds[0]));
             m_mockChannel.Verify();
         }
 
@@ -2272,9 +2276,9 @@ namespace Opc.Ua.Client.Sessions
 
             var nodeIds = new[]
             {
-                new NodeId("ns=1;s=ChildNode1"),
-                new NodeId("ns=1;s=ChildNode2"),
-                new NodeId("ns=1;s=ChildNode3")
+                NodeId.Parse("ns=1;s=ChildNode1"),
+                NodeId.Parse("ns=1;s=ChildNode2"),
+                NodeId.Parse("ns=1;s=ChildNode3")
             };
 
             m_mockChannel
@@ -2341,7 +2345,7 @@ namespace Opc.Ua.Client.Sessions
             var ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act());
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(results, Has.Count.EqualTo(1));
-            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == nodeIds[0]));
+            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<ReferenceDescription>(r => r.NodeId == nodeIds[0]));
             m_mockChannel.Verify();
         }
 
@@ -2357,9 +2361,9 @@ namespace Opc.Ua.Client.Sessions
 
             var nodeIds = new[]
             {
-                new NodeId("ns=1;s=ChildNode1"),
-                new NodeId("ns=1;s=ChildNode2"),
-                new NodeId("ns=1;s=ChildNode3")
+                NodeId.Parse("ns=1;s=ChildNode1"),
+                NodeId.Parse("ns=1;s=ChildNode2"),
+                NodeId.Parse("ns=1;s=ChildNode3")
             };
 
             m_mockChannel
@@ -2418,7 +2422,7 @@ namespace Opc.Ua.Client.Sessions
             }
             // Assert
             Assert.That(results, Has.Count.EqualTo(2));
-            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<object>(r => r.NodeId == new NodeId("ns=1;s=ChildNode1")));
+            Assert.That(results[0].Result.References, Has.Exactly(1).Matches<ReferenceDescription>(r => r.NodeId == NodeId.Parse("ns=1;s=ChildNode1")));
             Assert.That(results[1].Result.References, Is.Empty);
             Assert.That(results[1].Result.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             m_mockChannel.Verify();
@@ -2428,7 +2432,7 @@ namespace Opc.Ua.Client.Sessions
         {
             public TestSessionBase(ApplicationConfiguration configuration,
                 ConfiguredEndpoint endpoint, SessionCreateOptions options,
-                ITelemetryContext telemetry, ReverseConnectManager? reverseConnect)
+                ITelemetryContext telemetry, ReverseConnectManager reverseConnect)
                 : base(configuration, endpoint, options, telemetry, reverseConnect)
             {
                 if (options.Channel != null)

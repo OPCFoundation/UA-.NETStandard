@@ -7,25 +7,13 @@ using Opc.Ua;
 using System;
 using NUnit.Framework;
 
+#pragma warning disable CS0618 // Type or member is obsolete
+
 namespace Opc.Ua.Client.Sessions.Obsolete
 {
     [TestFixture]
     public class SessionClientTests
     {
-        [Test]
-        public void CloseShouldThrowNotSupportedException()
-        {
-            // Arrange
-            var sessionClient = new SessionClient();
-
-            // Act
-            Action act = () => sessionClient.Close();
-
-            // Assert
-            var ex = Assert.Throws<ServiceResultException>(() => act());
-            Assert.That(ex.Message, Does.Match("Close deprecated"));
-        }
-
         [Test]
         public void CreateSessionShouldThrowNotSupportedException()
         {
@@ -34,7 +22,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
 
             // Act
             Action act = () => sessionClient.CreateSession(null, null!, null!,
-                null!, null!, null!, null!, 0, 0, out _, out _, out _, out _, out _, out _, out _, out _, out _);
+                null!, null!, default, default, 0, 0, out _, out _, out _, out _, out _, out _, out _, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -48,7 +36,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginCreateSession(null, null!, null!, null!, null!, null!, null!, 0, 0, null!, null!);
+            Action act = () => sessionClient.BeginCreateSession(null, null!, null!, null!, null!, default, default, 0, 0, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -76,7 +64,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.ActivateSession(null, null!, null!, null!, null!, null!, out _, out _, out _);
+            Action act = () => sessionClient.ActivateSession(null, null!, default, default, default, null!, out _, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -90,7 +78,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginActivateSession(null, null!, null, null!, null!, null!, null, null);
+            Action act = () => sessionClient.BeginActivateSession(null, null!, default, default, default, null!, null, null);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -202,7 +190,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.AddNodes(null, null!, out _, out _);
+            Action act = () => sessionClient.AddNodes(null, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -216,7 +204,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginAddNodes(null, null!, null!, null!);
+            Action act = () => sessionClient.BeginAddNodes(null, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -244,7 +232,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.AddReferences(null, null!, out _, out _);
+            Action act = () => sessionClient.AddReferences(null, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -258,7 +246,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginAddReferences(null, null!, null!, null!);
+            Action act = () => sessionClient.BeginAddReferences(null, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -286,7 +274,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.DeleteNodes(null, null!, out _, out _);
+            Action act = () => sessionClient.DeleteNodes(null, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -300,7 +288,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginDeleteNodes(null, null!, null!, null!);
+            Action act = () => sessionClient.BeginDeleteNodes(null, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -328,7 +316,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.DeleteReferences(null, null!, out _, out _);
+            Action act = () => sessionClient.DeleteReferences(null, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -342,7 +330,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginDeleteReferences(null, null!, null!, null!);
+            Action act = () => sessionClient.BeginDeleteReferences(null, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -370,7 +358,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.Browse(null, null!, 0, null!, out _, out _);
+            Action act = () => sessionClient.Browse(null, null!, 0, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -384,7 +372,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginBrowse(null, null!, 0, null!, null!, null!);
+            Action act = () => sessionClient.BeginBrowse(null, null!, 0, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -412,7 +400,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BrowseNext(null, false, null!, out _, out _);
+            Action act = () => sessionClient.BrowseNext(null, false, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -426,7 +414,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginBrowseNext(null, false, null!, null!, null!);
+            Action act = () => sessionClient.BeginBrowseNext(null, false, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -454,7 +442,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.TranslateBrowsePathsToNodeIds(null, null!, out _, out _);
+            Action act = () => sessionClient.TranslateBrowsePathsToNodeIds(null, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -468,7 +456,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginTranslateBrowsePathsToNodeIds(null, null!, null!, null!);
+            Action act = () => sessionClient.BeginTranslateBrowsePathsToNodeIds(null, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -496,7 +484,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.RegisterNodes(null, null!, out _);
+            Action act = () => sessionClient.RegisterNodes(null, default, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -510,7 +498,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginRegisterNodes(null, null!, null!, null!);
+            Action act = () => sessionClient.BeginRegisterNodes(null, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -538,7 +526,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.UnregisterNodes(null, null!);
+            Action act = () => sessionClient.UnregisterNodes(null, default);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -552,7 +540,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginUnregisterNodes(null, null!, null!, null!);
+            Action act = () => sessionClient.BeginUnregisterNodes(null, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -580,7 +568,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.QueryFirst(null, null!, null!, null!, 0, 0, out _, out _, out _, out _, out _);
+            Action act = () => sessionClient.QueryFirst(null, null!, default, null!, 0, 0, out _, out _, out _, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -594,7 +582,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginQueryFirst(null, null!, null!, null!, 0, 0, null!, null!);
+            Action act = () => sessionClient.BeginQueryFirst(null, null!, default, null!, 0, 0, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -622,7 +610,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.QueryNext(null, false, null!, out _, out _);
+            Action act = () => sessionClient.QueryNext(null, false, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -636,7 +624,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginQueryNext(null, false, null!, null!, null!);
+            Action act = () => sessionClient.BeginQueryNext(null, false, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -664,7 +652,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.HistoryRead(null, null!, 0, false, null!, out _, out _);
+            Action act = () => sessionClient.HistoryRead(null, default, 0, false, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -678,7 +666,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginHistoryRead(null, null!, 0, false, null!, null!, null!);
+            Action act = () => sessionClient.BeginHistoryRead(null, default, 0, false, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -705,7 +693,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.Write(null, null!, out _, out _);
+            Action act = () => sessionClient.Write(null, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -719,7 +707,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginWrite(null, null!, null!, null!);
+            Action act = () => sessionClient.BeginWrite(null, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -747,7 +735,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.HistoryUpdate(null, null!, out _, out _);
+            Action act = () => sessionClient.HistoryUpdate(null, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -761,7 +749,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginHistoryUpdate(null, null!, null!, null!);
+            Action act = () => sessionClient.BeginHistoryUpdate(null, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -789,7 +777,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.Call(null, null!, out _, out _);
+            Action act = () => sessionClient.Call(null, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -803,7 +791,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginCall(null, null!, null!, null!);
+            Action act = () => sessionClient.BeginCall(null, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -831,7 +819,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.CreateMonitoredItems(null, 0, 0, null!, out _, out _);
+            Action act = () => sessionClient.CreateMonitoredItems(null, 0, 0, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -845,7 +833,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginCreateMonitoredItems(null, 0, 0, null!, null!, null!);
+            Action act = () => sessionClient.BeginCreateMonitoredItems(null, 0, 0, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -873,7 +861,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.ModifyMonitoredItems(null, 0, 0, null!, out _, out _);
+            Action act = () => sessionClient.ModifyMonitoredItems(null, 0, 0, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -887,7 +875,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginModifyMonitoredItems(null, 0, 0, null!, null!, null!);
+            Action act = () => sessionClient.BeginModifyMonitoredItems(null, 0, 0, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -915,7 +903,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.SetMonitoringMode(null, 0, 0, null!, out _, out _);
+            Action act = () => sessionClient.SetMonitoringMode(null, 0, 0, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -929,7 +917,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginSetMonitoringMode(null, 0, 0, null!, null!, null!);
+            Action act = () => sessionClient.BeginSetMonitoringMode(null, 0, 0, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -957,7 +945,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.SetTriggering(null, 0, 0, null!, null!, out _, out _, out _, out _);
+            Action act = () => sessionClient.SetTriggering(null, 0, 0, default, default, out _, out _, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -971,7 +959,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginSetTriggering(null, 0, 0, null!, null!, null!, null!);
+            Action act = () => sessionClient.BeginSetTriggering(null, 0, 0, default, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -999,7 +987,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.DeleteMonitoredItems(null, 0, null!, out _, out _);
+            Action act = () => sessionClient.DeleteMonitoredItems(null, 0, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -1013,7 +1001,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginDeleteMonitoredItems(null, 0, null!, null!, null!);
+            Action act = () => sessionClient.BeginDeleteMonitoredItems(null, 0, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -1125,7 +1113,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.SetPublishingMode(null, false, null!, out _, out _);
+            Action act = () => sessionClient.SetPublishingMode(null, false, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -1139,7 +1127,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginSetPublishingMode(null, false, null!, null!, null!);
+            Action act = () => sessionClient.BeginSetPublishingMode(null, false, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -1167,7 +1155,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.Publish(null, null!, out _, out _, out _, out _, out _, out _);
+            Action act = () => sessionClient.Publish(null, default, out _, out _, out _, out _, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -1181,7 +1169,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginPublish(null, null!, null!, null!);
+            Action act = () => sessionClient.BeginPublish(null, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -1209,7 +1197,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginRead(null, 0, 0, null!, null!, null!);
+            Action act = () => sessionClient.BeginRead(null, 0, 0, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -1237,7 +1225,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.Read(null, 0, 0, null!, out _, out _);
+            Action act = () => sessionClient.Read(null, 0, 0, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -1293,7 +1281,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.TransferSubscriptions(null, null!, false, out _, out _);
+            Action act = () => sessionClient.TransferSubscriptions(null, default, false, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -1307,7 +1295,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginTransferSubscriptions(null, null!, false, null!, null!);
+            Action act = () => sessionClient.BeginTransferSubscriptions(null, default, false, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -1335,7 +1323,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.DeleteSubscriptions(null, null!, out _, out _);
+            Action act = () => sessionClient.DeleteSubscriptions(null, default, out _, out _);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -1349,7 +1337,7 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             var sessionClient = new SessionClient();
 
             // Act
-            Action act = () => sessionClient.BeginDeleteSubscriptions(null, null!, null!, null!);
+            Action act = () => sessionClient.BeginDeleteSubscriptions(null, default, null!, null!);
 
             // Assert
             var ex = Assert.Throws<ServiceResultException>(() => act());
@@ -1392,4 +1380,6 @@ namespace Opc.Ua.Client.Sessions.Obsolete
             }
         }
     }
+
+#pragma warning restore CS0618 // Type or member is obsolete
 }
