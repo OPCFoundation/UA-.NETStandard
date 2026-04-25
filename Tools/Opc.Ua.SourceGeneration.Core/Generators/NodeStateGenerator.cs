@@ -1390,7 +1390,7 @@ namespace Opc.Ua.SourceGeneration
                     AddDataTypeStateFactoryReplacements(context, dataType);
                     break;
                 case ObjectDesign objectDesign:
-                    AddObjectReplacements(context, objectDesign);
+                    AddObjectReplacements(context, objectDesign, references);
                     break;
                 case VariableDesign variableDesign:
                     AddVariableStateFactoryReplacements(context, variableDesign, references);
@@ -2122,7 +2122,8 @@ namespace Opc.Ua.SourceGeneration
 
         private void AddObjectReplacements(
             IWriteContext context,
-            ObjectDesign node)
+            ObjectDesign node,
+            HashSet<ReferenceToGenerate> references)
         {
             context.Template.AddReplacement(
                 Tokens.StateClassName,
@@ -2151,7 +2152,7 @@ namespace Opc.Ua.SourceGeneration
                 GetModellingRuleReplacement(node.ModellingRule));
             context.Template.AddReplacement(
                 Tokens.EventNotifier,
-                node.SupportsEvents
+                (node.SupportsEvents || HasForwardEventReferences(references))
                     ? "global::Opc.Ua.EventNotifiers.SubscribeToEvents"
                     : "global::Opc.Ua.EventNotifiers.None");
         }
@@ -2204,6 +2205,33 @@ namespace Opc.Ua.SourceGeneration
                     ? "global::Opc.Ua.EventNotifiers.SubscribeToEvents"
                     : "global::Opc.Ua.EventNotifiers.None");
             context.Template.AddReplacement(Tokens.ContainsNoLoopsValue, node.ContainsNoLoops);
+        }
+
+        /// <summary>
+        /// Returns true if the references include a forward HasEventSource
+        /// (i=36) or HasNotifier (i=48) reference. Per OPC UA Part 3, the
+        /// EventNotifier attribute must be set on the source node of these
+        /// references to indicate that events can be subscribed to.
+        /// </summary>
+        private static bool HasForwardEventReferences(HashSet<ReferenceToGenerate> references)
+        {
+            if (references == null)
+            {
+                return false;
+            }
+
+            foreach (ReferenceToGenerate reference in references)
+            {
+                if (!reference.IsInverse &&
+                    reference.ReferenceTypeId != null &&
+                    (reference.ReferenceTypeId.Name == "HasEventSource" ||
+                     reference.ReferenceTypeId.Name == "HasNotifier"))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void CollectNodesToGenerate()
@@ -2296,6 +2324,81 @@ namespace Opc.Ua.SourceGeneration
                 }
                 GetChildren(instanceToGenerate, m_instances, true);
             }
+
+            // Collect DataType encoding nodes (Default Binary, Default XML, Default JSON).
+            // These are ObjectDesign instances with TypeDefinition=DataTypeEncodingType
+            // that are linked to DataTypes via HasEncoding references. They don't have
+            // a Hierarchy from the model validation, so we build a minimal one with
+            // their references to emit them into the address space.
+            CollectEncodingNodes();
+        }
+
+        private void CollectEncodingNodes()
+        {
+            foreach (NodeDesign node in m_context.ModelDesign.Nodes)
+            {
+                if (node is not ObjectDesign encoding)
+                {
+                    continue;
+                }
+
+                if (encoding.TypeDefinition == null ||
+                    encoding.TypeDefinition.Name != "DataTypeEncodingType")
+                {
+                    continue;
+                }
+
+                if (encoding.NotInAddressSpace)
+                {
+                    continue;
+                }
+
+                if (m_context.ModelDesign.IsExcluded(encoding))
+                {
+                    continue;
+                }
+
+                // Skip if already collected
+                if (m_nodes.ContainsKey(encoding.SymbolicId))
+                {
+                    continue;
+                }
+
+                // Build a synthetic Hierarchy with the encoding's references
+                var hierarchy = new Hierarchy();
+                if (encoding.References != null)
+                {
+                    foreach (Reference reference in encoding.References)
+                    {
+                        if (reference.ReferenceType == null)
+                        {
+                            continue;
+                        }
+
+                        hierarchy.References.Add(new HierarchyReference
+                        {
+                            SourcePath = string.Empty,
+                            ReferenceType = reference.ReferenceType,
+                            IsInverse = reference.IsInverse,
+                            TargetId = reference.TargetId,
+                            TargetPath = null
+                        });
+                    }
+                }
+
+                encoding.Hierarchy = hierarchy;
+
+                var entry = new NodeToGenerate(
+                    Parent: null,
+                    Path: string.Empty,
+                    Hierarchy: hierarchy,
+                    Design: encoding,
+                    IsNotExplicitlyDefined: false,
+                    RootIsTypeDefinition: false,
+                    InstanceOf: null);
+
+                m_nodes.TryAdd(encoding.SymbolicId, entry);
+            }
         }
 
         private bool ExcludeNodeStateClassGeneration(NodeToGenerate node)
@@ -2310,8 +2413,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             // Only process type designs and method types for definitions
+            // Also allow DataTypeEncodingType instances (Default Binary/XML/JSON)
             if (node.Design is not VariableTypeDesign and not ObjectTypeDesign &&
-                !node.Design.IsMethodTypeDesign())
+                !node.Design.IsMethodTypeDesign() &&
+                !IsDataTypeEncodingInstance(node.Design))
             {
                 return true;
             }
@@ -2349,6 +2454,13 @@ namespace Opc.Ua.SourceGeneration
                     !instanceDesign.Parent.NotInAddressSpace;
             }
             return isInAddressSpace;
+        }
+
+        private static bool IsDataTypeEncodingInstance(NodeDesign node)
+        {
+            return node is ObjectDesign objectDesign &&
+                objectDesign.TypeDefinition != null &&
+                objectDesign.TypeDefinition.Name == "DataTypeEncodingType";
         }
 
         /// <summary>
