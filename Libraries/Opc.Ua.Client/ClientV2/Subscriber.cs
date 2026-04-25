@@ -25,7 +25,7 @@ namespace Opc.Ua.Client
         /// Create subscriber
         /// </summary>
         /// <param name="telemetry"></param>
-        public Subscriber(IV2TelemetryContext telemetry)
+        public Subscriber(ITelemetryContext telemetry)
         {
             _observability = telemetry;
             _logger = telemetry.LoggerFactory.CreateLogger<Subscriber>();
@@ -133,7 +133,7 @@ namespace Opc.Ua.Client
 
         private readonly SemaphoreSlim _subscriptionLock = new(1, 1);
         private readonly HashSet<Reader> _registrations = [];
-        private readonly IV2TelemetryContext _observability;
+        private readonly ITelemetryContext _observability;
         private readonly ILogger _logger;
         private bool _disposed;
     }

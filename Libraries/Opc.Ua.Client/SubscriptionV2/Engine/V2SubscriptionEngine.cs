@@ -30,7 +30,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -181,8 +180,7 @@ namespace Opc.Ua.Client
                     new SubscriptionContextAdapter(m_context);
                 return new DefaultSubscription(
                     subscriptionContext, handler, queue,
-                    options, new ClientTelemetryAdapter(
-                        m_context.Telemetry));
+                    options, m_context.Telemetry);
             }
 
             /// <inheritdoc/>
@@ -474,7 +472,7 @@ namespace Opc.Ua.Client
                 ISubscriptionNotificationHandler handler,
                 IMessageAckQueue completion,
                 IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
-                IV2TelemetryContext telemetry)
+                ITelemetryContext telemetry)
                 : base(context, handler, completion,
                        options, telemetry)
             {
@@ -487,7 +485,7 @@ namespace Opc.Ua.Client
                     IOptionsMonitor<Subscriptions.MonitoredItems.MonitoredItemOptions>
                         options,
                     IMonitoredItemContext context,
-                    IV2TelemetryContext telemetry)
+                    ITelemetryContext telemetry)
             {
                 return new DefaultMonitoredItem(
                     context, name, options,
@@ -512,55 +510,6 @@ namespace Opc.Ua.Client
                 ILogger logger)
                 : base(context, name, options, logger)
             {
-            }
-        }
-
-        /// <summary>
-        /// Adapts <see cref="Opc.Ua.ITelemetryContext"/>
-        /// (stack) to <see cref="IV2TelemetryContext"/>
-        /// (V2 client) so the V2 subscription types can be
-        /// used from the classic engine context.
-        /// </summary>
-        private sealed class ClientTelemetryAdapter
-            : IV2TelemetryContext
-        {
-            private readonly Opc.Ua.ITelemetryContext m_inner;
-
-            public ClientTelemetryAdapter(
-                Opc.Ua.ITelemetryContext inner)
-            {
-                m_inner = inner;
-            }
-
-            /// <inheritdoc/>
-            public ILoggerFactory LoggerFactory
-                => m_inner.LoggerFactory;
-
-            /// <inheritdoc/>
-            public IMeterFactory MeterFactory { get; }
-                = new SimpleMeterFactory();
-
-            /// <inheritdoc/>
-            public TimeProvider TimeProvider
-                => TimeProvider.System;
-
-            /// <inheritdoc/>
-            public ActivitySource ActivitySource
-                => m_inner.ActivitySource;
-
-            /// <inheritdoc/>
-            public Meter CreateMeter()
-            {
-                return m_inner.CreateMeter();
-            }
-
-            private sealed class SimpleMeterFactory
-                : IMeterFactory
-            {
-                public Meter Create(MeterOptions options)
-                    => new(options);
-
-                public void Dispose() { }
             }
         }
 

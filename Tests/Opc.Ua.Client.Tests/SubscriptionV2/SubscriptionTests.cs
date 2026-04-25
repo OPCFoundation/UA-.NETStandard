@@ -40,18 +40,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockCompletion = new Mock<IMessageAckQueue>();
             _options = OptionsFactory.Create<SubscriptionOptions>();
 
-            m_mockTimeProvider = new Mock<TimeProvider>();
-            m_mockTimer = new Mock<ITimer>();
-            m_mockTimeProvider
-                .Setup(t => t.CreateTimer(
-                    It.IsAny<TimerCallback>(),
-                    It.IsAny<object>(),
-                    It.IsAny<TimeSpan>(),
-                    It.IsAny<TimeSpan>()))
-                .Returns(m_mockTimer.Object);
-            m_mockObservability = new Mock<IV2TelemetryContext>();
-            m_mockObservability
-                .Setup(o => o.TimeProvider).Returns(m_mockTimeProvider.Object);
+            m_mockObservability = new Mock<ITelemetryContext>();
             m_mockLogger = new Mock<ILogger<Subscription>>();
             m_mockObservability
                 .Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
@@ -665,15 +654,12 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
-        public async Task DisposeAsyncShouldDisposePublishTimerAsync()
+        public async Task DisposeAsyncShouldDisposeCleanlyAsync()
         {
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
                 m_mockCompletion.Object, _options, m_mockObservability.Object);
-            // Act
+            // Act & Assert - should not throw
             await sut.DisposeAsync();
-
-            // Assert
-            m_mockTimer.Verify(t => t.Dispose(), Times.Once);
         }
 
         [Test]
@@ -716,7 +702,7 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
-        public async Task OnPublishReceivedAsyncShouldResetKeepAliveTimerAsync()
+        public async Task OnPublishReceivedAsyncShouldProcessNotificationAsync()
         {
             // Arrange
             var message = new NotificationMessage();
@@ -724,11 +710,8 @@ namespace Opc.Ua.Client.Subscriptions
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
                 m_mockCompletion.Object, _options, m_mockObservability.Object);
 
-            // Act
+            // Act & Assert - should not throw
             await sut.OnPublishReceivedAsync(message, null, null!);
-
-            // Assert
-            m_mockTimer.Verify(t => t.Change(It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()), Times.Once);
         }
 
         [Test]
@@ -1349,7 +1332,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             public TestSubscription(ISubscriptionContext session, ISubscriptionNotificationHandler handler,
                 IMessageAckQueue completion, Opc.Ua.OptionsMonitor<SubscriptionOptions> options,
-                IV2TelemetryContext telemetry, uint? subscriptionIdForAlreadyCreatedState = null)
+                ITelemetryContext telemetry, uint? subscriptionIdForAlreadyCreatedState = null)
                 : base(session, handler, completion, !subscriptionIdForAlreadyCreatedState.HasValue ?
                       options : options.Configure(o => o with { Disabled = true }), telemetry)
             {
@@ -1383,7 +1366,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             protected override MonitoredItems.MonitoredItem CreateMonitoredItem(string name,
                 IOptionsMonitor<MonitoredItems.MonitoredItemOptions> options, MonitoredItems.IMonitoredItemContext context,
-                IV2TelemetryContext telemetry)
+                ITelemetryContext telemetry)
             {
                 return new TestMonitoredItem(context, name,
                     (Opc.Ua.OptionsMonitor<MonitoredItems.MonitoredItemOptions>)options, new Mock<ILogger>().Object);
@@ -1398,14 +1381,12 @@ namespace Opc.Ua.Client.Subscriptions
 
         private Mock<IMessageAckQueue> m_mockCompletion;
         private Opc.Ua.OptionsMonitor<SubscriptionOptions> _options;
-        private Mock<IV2TelemetryContext> m_mockObservability;
-        private Mock<TimeProvider> m_mockTimeProvider;
+        private Mock<ITelemetryContext> m_mockObservability;
         private Mock<ISubscriptionServiceSet> m_mockSubscriptionServices;
         private Mock<IMonitoredItemServiceSet> m_mockMonitoredItemServices;
         private Mock<IMethodServiceSet> m_mockMethodServices;
         private Mock<ISubscriptionContext> m_mockSession;
         private Mock<ISubscriptionNotificationHandler> m_mockNotificationDataHandler;
-        private Mock<ITimer> m_mockTimer;
         private Mock<ILogger<Subscription>> m_mockLogger;
     }
 }

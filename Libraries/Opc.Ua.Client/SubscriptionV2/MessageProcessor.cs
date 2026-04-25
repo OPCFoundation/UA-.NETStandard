@@ -28,7 +28,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Observability context
         /// </summary>
-        protected IV2TelemetryContext Observability { get; }
+        protected ITelemetryContext Observability { get; }
 
         /// <summary>
         /// Create subscription
@@ -37,7 +37,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="completion"></param>
         /// <param name="telemetry"></param>
         protected MessageProcessor(ISubscriptionServiceSet services,
-            IMessageAckQueue completion, IV2TelemetryContext telemetry)
+            IMessageAckQueue completion, ITelemetryContext telemetry)
         {
             Observability = telemetry;
             _availableInRetransmissionQueue = [];
@@ -70,9 +70,9 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 _availableInRetransmissionQueue = availableSequenceNumbers;
             }
-            _lastNotificationTimestamp = Observability.TimeProvider.GetTimestamp();
+            _lastNotificationTimestamp = TimeProvider.System.GetTimestamp();
             await _messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
-                Observability.TimeProvider.GetUtcNow())).ConfigureAwait(false);
+                TimeProvider.System.GetUtcNow())).ConfigureAwait(false);
         }
 
         /// <summary>

@@ -17,7 +17,7 @@ namespace Opc.Ua.Client
         [SetUp]
         public void SetUp()
         {
-            m_observabilityMock = new Mock<IV2TelemetryContext>();
+            m_observabilityMock = new Mock<ITelemetryContext>();
             m_serviceMessageContextMock = new Mock<IServiceMessageContext>();
             m_configuration = new ApplicationConfiguration();
         }
@@ -53,7 +53,7 @@ namespace Opc.Ua.Client
         }
 
         private ApplicationConfiguration m_configuration = null!;
-        private Mock<IV2TelemetryContext> m_observabilityMock = null!;
+        private Mock<ITelemetryContext> m_observabilityMock = null!;
         private Mock<IServiceMessageContext> m_serviceMessageContextMock = null!;
     }
 }

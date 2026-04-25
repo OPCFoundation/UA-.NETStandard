@@ -31,7 +31,7 @@ namespace Opc.Ua.Client.Sessions
         /// <param name="reverseConnect">Reverse connect manager</param>
         protected Session(ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint, SessionCreateOptions options,
-            IV2TelemetryContext telemetry, ReverseConnectManager? reverseConnect) :
+            ITelemetryContext telemetry, ReverseConnectManager? reverseConnect) :
             base(configuration, endpoint, options, telemetry, reverseConnect)
         {
         }
@@ -214,7 +214,7 @@ namespace Opc.Ua.Client.Sessions
                     {
                         // check if reactivating is still an option.
                         var timeout = SessionTimeout -
-                            Observability.TimeProvider.GetElapsedTime(LastKeepAliveTimestamp);
+                            TimeProvider.System.GetElapsedTime(LastKeepAliveTimestamp);
                         if (timeout <= TimeSpan.Zero)
                         {
                             DetachChannel();

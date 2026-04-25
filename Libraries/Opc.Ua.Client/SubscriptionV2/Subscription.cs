@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     return false;
                 }
-                var timeSinceLastNotification = Observability.TimeProvider
+                var timeSinceLastNotification = TimeProvider.System
                     .GetElapsedTime(lastNotificationTimestamp);
                 return timeSinceLastNotification >
                     _keepAliveInterval + kKeepAliveTimerMargin;
@@ -93,12 +93,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="telemetry"></param>
         protected Subscription(ISubscriptionContext context, ISubscriptionNotificationHandler handler,
             IMessageAckQueue completion, IOptionsMonitor<SubscriptionOptions> options,
-            IV2TelemetryContext telemetry) : base(context.SubscriptionServiceSet, completion, telemetry)
+            ITelemetryContext telemetry) : base(context.SubscriptionServiceSet, completion, telemetry)
         {
             _handler = handler;
             _context = context;
             _monitoredItems = new MonitoredItemManager(this, telemetry);
-            _publishTimer = Observability.TimeProvider.CreateTimer(OnKeepAlive,
+            _publishTimer = TimeProvider.System.CreateTimer(OnKeepAlive,
                 null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             OnOptionsChanged(options.CurrentValue);
             _changeTracking = options.OnChange((o, _) => OnOptionsChanged(o));
@@ -257,7 +257,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <returns></returns>
         protected abstract MonitoredItem CreateMonitoredItem(string name,
             IOptionsMonitor<MonitoredItemOptions> options, IMonitoredItemContext context,
-            IV2TelemetryContext telemetry);
+            ITelemetryContext telemetry);
 
         /// <summary>
         /// Called when the options changed
@@ -624,7 +624,7 @@ namespace Opc.Ua.Client.Subscriptions
         private void StartKeepAliveTimer()
         {
             var options = Options;
-            _lastNotificationTimestamp = Observability.TimeProvider.GetTimestamp();
+            _lastNotificationTimestamp = TimeProvider.System.GetTimestamp();
             _keepAliveInterval = CurrentPublishingInterval * (CurrentKeepAliveCount + 1);
             if (_keepAliveInterval < kMinKeepAliveTimerInterval)
             {

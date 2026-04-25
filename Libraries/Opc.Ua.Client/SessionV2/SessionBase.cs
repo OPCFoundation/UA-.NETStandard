@@ -9,9 +9,7 @@ namespace Opc.Ua.Client.Sessions
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
     using Opc.Ua.Client;
-    using Opc.Ua.Client.Nodes;
     using Opc.Ua.Client.Subscriptions;
-    using Opc.Ua.Client.Nodes.TypeSystem;
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
@@ -131,7 +129,7 @@ namespace Opc.Ua.Client.Sessions
         /// <summary>
         /// Gets the last keep alive timestamp
         /// </summary>
-        public long LastKeepAliveTimestamp { get; private set; }
+        public long LastKeepAliveTimestamp { get; internal set; }
 
         /// <summary>
         /// Number of namespace table changes
@@ -169,14 +167,14 @@ namespace Opc.Ua.Client.Sessions
         /// http channels</param>
         protected SessionBase(ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint, SessionCreateOptions options,
-            IV2TelemetryContext telemetry, ReverseConnectManager? reverseConnect,
+            ITelemetryContext telemetry, ReverseConnectManager? reverseConnect,
             IChannelFactory? channelFactory = null)
             : base(telemetry, options.Channel)
         {
             Options = options;
-            _meter = Observability.MeterFactory.Create(nameof(SessionBase));
+            _meter = Observability.CreateMeter();
             _logger = Observability.LoggerFactory.CreateLogger<SessionBase>();
-            _keepAliveTimer = Observability.TimeProvider.CreateTimer(
+            _keepAliveTimer = TimeProvider.System.CreateTimer(
                 _ => TriggerWorker(),
                 null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
@@ -185,32 +183,27 @@ namespace Opc.Ua.Client.Sessions
             _channelFactory = channelFactory
                 ?? new ChannelFactory(configuration, telemetry);
 
-            CreatedAt = Observability.TimeProvider.GetUtcNow();
+            CreatedAt = TimeProvider.System.GetUtcNow();
             ConfiguredEndpoint = endpoint;
 
             Identity = Options.Identity ?? new UserIdentity();
             SessionTimeout = GetSessionTimeout(Options);
             _clientCertificate = Options.ClientCertificate;
 
-            _nodeCache = new NodeCache(this, new StackTelemetryAdapter(Observability));
+            _nodeCache = new NodeCache(this, Observability);
+            _factory = EncodeableFactory.Create();
             var messageContext =
                 Options.Channel?.MessageContext as ServiceMessageContext
-                    ?? configuration.CreateMessageContext(_typeSystem);
+                    ?? configuration.CreateMessageContext(_factory);
 
-            var dataTypeSystems = Options.DisableDataTypeDictionary ? null :
-                new DataTypeSystemManager(_nodeCache, messageContext,
-                    Observability.LoggerFactory);
-            _typeSystem = new DataTypeDescriptionResolver(_nodeCache, messageContext,
-                dataTypeSystems, Observability.LoggerFactory
-                    .CreateLogger<DataTypeDescriptionResolver>());
             MessageContext = messageContext;
             _systemContext = new SessionSystemContext((Opc.Ua.ITelemetryContext?)null)
             {
                 SystemHandle = this,
-                EncodeableFactory = _typeSystem,
+                EncodeableFactory = _factory,
                 NamespaceUris = NamespaceUris,
                 ServerUris = ServerUris,
-                TypeTable = new Nodes.Obsolete.TypeTree(_nodeCache),
+                TypeTable = _nodeCache.TypeTree,
                 PreferredLocales = default,
                 SessionId = NodeId.Null,
                 UserIdentity = null
@@ -846,19 +839,13 @@ namespace Opc.Ua.Client.Sessions
                     // fetch operation limits
                     await FetchOperationLimitsAsync(ct).ConfigureAwait(false);
 
-                    // Fetch all data types from the server
-                    if (Options.EnableComplexTypePreloading)
-                    {
-                        await _typeSystem.PreloadAllDataTypeAsync(ct: ct).ConfigureAwait(false);
-                    }
-
                     await _subscriptions.RecreateSubscriptionsAsync(previousSessionId,
                         ct).ConfigureAwait(false);
                     _subscriptions.Resume();
 
                     // call session created callback, which was already set in base class only.
                     SessionCreated(sessionId, authenticationToken);
-                    ConnectedSince = Observability.TimeProvider.GetUtcNow();
+                    ConnectedSince = TimeProvider.System.GetUtcNow();
                 }
                 catch (Exception)
                 {
@@ -1080,7 +1067,7 @@ namespace Opc.Ua.Client.Sessions
         /// <returns></returns>
         protected abstract IManagedSubscription CreateSubscription(
             ISubscriptionNotificationHandler handler, IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
-            IMessageAckQueue queue, IV2TelemetryContext telemetry);
+            IMessageAckQueue queue, ITelemetryContext telemetry);
 
         /// <summary>
         /// Dispose the session
@@ -1430,7 +1417,7 @@ namespace Opc.Ua.Client.Sessions
                     throw ServiceResultException.Create(StatusCodes.BadDataUnavailable,
                         "Keep alive returned invalid server state");
                 }
-                LastKeepAliveTimestamp = Observability.TimeProvider.GetTimestamp();
+                LastKeepAliveTimestamp = TimeProvider.System.GetTimestamp();
                 return true;
             }
             catch (Exception e)
@@ -1441,7 +1428,7 @@ namespace Opc.Ua.Client.Sessions
                 {
                     // keep alive read timed out
                     var delta =
-                        Observability.TimeProvider.GetElapsedTime(LastKeepAliveTimestamp);
+                        TimeProvider.System.GetElapsedTime(LastKeepAliveTimestamp);
                     _logger.LogInformation(
                         "{Session}: KEEP ALIVE LATE: {Late} for EndpointUrl={Url}",
                         this, delta, Endpoint?.EndpointUrl);
@@ -1489,7 +1476,7 @@ namespace Opc.Ua.Client.Sessions
         /// </summary>
         private void ResetKeepAliveTimer()
         {
-            LastKeepAliveTimestamp = Observability.TimeProvider.GetTimestamp();
+            LastKeepAliveTimestamp = TimeProvider.System.GetTimestamp();
             var keepAliveInterval = Options.KeepAliveInterval ?? kDefaultKeepAliveInterval;
             _keepAliveTimer.Change(keepAliveInterval, keepAliveInterval);
         }
@@ -2548,7 +2535,7 @@ namespace Opc.Ua.Client.Sessions
         private static readonly TimeSpan kDefaultKeepAliveInterval = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan kKeepAliveGuardBand = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan kReconnectTimeout = TimeSpan.FromSeconds(15);
-        private readonly DataTypeDescriptionResolver _typeSystem;
+        private readonly IEncodeableFactory _factory;
 
         #region INodeCacheContext explicit implementations
 
@@ -2608,26 +2595,6 @@ namespace Opc.Ua.Client.Sessions
         }
 
         #endregion
-
-        /// <summary>
-        /// Adapts <see cref="IV2TelemetryContext"/> to <see cref="Opc.Ua.ITelemetryContext"/>
-        /// for use with V1 components that require the stack telemetry interface.
-        /// </summary>
-        private sealed class StackTelemetryAdapter(IV2TelemetryContext telemetry) : Opc.Ua.ITelemetryContext
-        {
-            /// <inheritdoc/>
-            public ILoggerFactory LoggerFactory => telemetry.LoggerFactory;
-
-            /// <inheritdoc/>
-            public Meter CreateMeter()
-            {
-                return telemetry.MeterFactory.Create(nameof(SessionBase));
-            }
-
-            /// <inheritdoc/>
-            public ActivitySource ActivitySource
-                => telemetry.ActivitySource ?? new ActivitySource(nameof(SessionBase));
-        }
     }
 }
 #endif

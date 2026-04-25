@@ -22,7 +22,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [SetUp]
         public void SetUp()
         {
-            m_observabilityMock = new Mock<IV2TelemetryContext>();
+            m_observabilityMock = new Mock<ITelemetryContext>();
             m_mockLogger = new Mock<ILogger<MonitoredItemManager>>();
             m_mockLoggerFactory = new Mock<ILoggerFactory>();
             m_mockLoggerFactory
@@ -525,7 +525,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         private Mock<IMonitoredItemManagerContext> m_contextMock;
-        private Mock<IV2TelemetryContext> m_observabilityMock;
+        private Mock<ITelemetryContext> m_observabilityMock;
         private Mock<ILogger<MonitoredItemManager>> m_mockLogger;
         private Mock<ILoggerFactory> m_mockLoggerFactory;
     }

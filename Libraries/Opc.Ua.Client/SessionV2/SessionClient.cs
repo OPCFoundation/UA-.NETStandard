@@ -36,14 +36,14 @@ namespace Opc.Ua.Client.Sessions
         /// <summary>
         /// Observability context
         /// </summary>
-        protected IV2TelemetryContext Observability { get; }
+        protected ITelemetryContext Observability { get; }
 
         /// <summary>
         /// Intializes the object with a channel and logger factory.
         /// </summary>
         /// <param name="telemetry"></param>
         /// <param name="channel"></param>
-        protected SessionClient(IV2TelemetryContext telemetry,
+        protected SessionClient(ITelemetryContext telemetry,
             ITransportChannel? channel = null) : base(channel)
         {
             Observability = telemetry;

@@ -29,7 +29,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="telemetry"></param>
         /// <exception cref="ArgumentException"></exception>
-        protected ApplicationBase(IV2TelemetryContext telemetry) => _logger = telemetry.LoggerFactory.CreateLogger<ApplicationBase>();
+        protected ApplicationBase(ITelemetryContext telemetry) => _logger = telemetry.LoggerFactory.CreateLogger<ApplicationBase>();
 
         /// <inheritdoc/>
         public async ValueTask<IReadOnlyList<X509Certificate>> ListCertificatesAsync(

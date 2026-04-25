@@ -63,7 +63,7 @@ namespace Opc.Ua.Client
             SessionCreateOptions>
             Build(ServiceProvider provider, ApplicationInstance application,
                 string applicationUri, string productUri, ClientOptions options,
-                IV2TelemetryContext telemetry)
+                ITelemetryContext telemetry)
         {
             var app = new ClientApplication(application, applicationUri, productUri,
                 options, telemetry);
@@ -109,7 +109,7 @@ namespace Opc.Ua.Client
         /// <param name="options"></param>
         /// <param name="telemetry"></param>
         internal class ClientApplication(ApplicationInstance instance, string applicationUri,
-            string productUri, ClientOptions options, IV2TelemetryContext telemetry) :
+            string productUri, ClientOptions options, ITelemetryContext telemetry) :
             SessionManagerBase(instance, applicationUri, productUri, options, telemetry)
         {
             /// <summary>
@@ -129,7 +129,7 @@ namespace Opc.Ua.Client
 
             /// <inheritdoc/>
             protected override Opc.Ua.Client.Sessions.Session CreateSession(ApplicationConfiguration configuration,
-                ConfiguredEndpoint endpoint, SessionCreateOptions options, IV2TelemetryContext telemetry)
+                ConfiguredEndpoint endpoint, SessionCreateOptions options, ITelemetryContext telemetry)
             {
                 return new ClientSession(this, configuration, endpoint, options, telemetry);
             }
@@ -149,13 +149,13 @@ namespace Opc.Ua.Client
 
             /// <inheritdoc/>
             internal ClientSession(ClientApplication application, ApplicationConfiguration configuration,
-                ConfiguredEndpoint endpoint, SessionCreateOptions options, IV2TelemetryContext telemetry)
+                ConfiguredEndpoint endpoint, SessionCreateOptions options, ITelemetryContext telemetry)
                 : base(configuration, endpoint, options, telemetry, application.ReverseConnectManager) => Application = application;
 
             /// <inheritdoc/>
             protected override IManagedSubscription CreateSubscription(ISubscriptionNotificationHandler handler,
                 IOptionsMonitor<Subscriptions.SubscriptionOptions> options, IMessageAckQueue queue,
-                IV2TelemetryContext telemetry)
+                ITelemetryContext telemetry)
             {
                 return new ClientSubscription(this, handler, queue, options, telemetry);
             }
@@ -167,7 +167,7 @@ namespace Opc.Ua.Client
             /// <inheritdoc/>
             internal ClientSubscription(ClientSession session, ISubscriptionNotificationHandler handler,
                 IMessageAckQueue completion, IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
-                IV2TelemetryContext telemetry) :
+                ITelemetryContext telemetry) :
                 base(session, handler, completion, options, telemetry) => _session = session;
 
             /// <inheritdoc/>
@@ -207,7 +207,7 @@ namespace Opc.Ua.Client
             /// <inheritdoc/>
             protected override Subscriptions.MonitoredItems.MonitoredItem CreateMonitoredItem(string name,
                 IOptionsMonitor<Subscriptions.MonitoredItems.MonitoredItemOptions> options, IMonitoredItemContext context,
-                IV2TelemetryContext telemetry)
+                ITelemetryContext telemetry)
             {
                 return new ClientItem(context, name, options,
                     telemetry.LoggerFactory.CreateLogger<ClientItem>());

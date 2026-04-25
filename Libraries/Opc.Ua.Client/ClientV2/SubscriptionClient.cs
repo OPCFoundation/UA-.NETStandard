@@ -43,12 +43,12 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="session"></param>
         /// <param name="telemetry"></param>
-        public SubscriptionClient(Sessions.ISession session, IV2TelemetryContext telemetry)
+        public SubscriptionClient(Sessions.ISession session, ITelemetryContext telemetry)
         {
             _session = session;
             _observability = telemetry;
             _logger = _observability.LoggerFactory.CreateLogger<SubscriptionClient>();
-            _resyncTimer = _observability.TimeProvider.CreateTimer(
+            _resyncTimer = TimeProvider.System.CreateTimer(
                 _ => _syncEvent.Set(),
                 null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             _syncTask = ManageSubscriptionsAsync(_cts.Token);
@@ -382,7 +382,7 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            var nextSync = _observability.TimeProvider.GetUtcNow() + delay;
+            var nextSync = TimeProvider.System.GetUtcNow() + delay;
             if (nextSync <= _nextSync)
             {
                 _nextSync = nextSync;
@@ -637,7 +637,7 @@ namespace Opc.Ua.Client
         private readonly ITimer _resyncTimer;
         private readonly Task _syncTask;
         private readonly Sessions.ISession _session;
-        private readonly IV2TelemetryContext _observability;
+        private readonly ITelemetryContext _observability;
         private readonly ILogger _logger;
         private DateTimeOffset _nextSync;
         private bool _disposed;

@@ -38,12 +38,12 @@ namespace Opc.Ua.Client
         /// <param name="telemetry"></param>
         /// <exception cref="ArgumentException"></exception>
         protected ClientApplicationBase(ApplicationInstance instance, string applicationUri,
-            string productUri, ClientOptions options, IV2TelemetryContext telemetry)
+            string productUri, ClientOptions options, ITelemetryContext telemetry)
             : base(telemetry)
         {
             _options = options;
             _logger = telemetry.LoggerFactory.CreateLogger<ClientApplicationBase>();
-            _timeProvider = telemetry.TimeProvider;
+            _timeProvider = TimeProvider.System;
 
             // Install a logger
             var stackLogger = telemetry.LoggerFactory.CreateLogger(

@@ -36,7 +36,7 @@ namespace Opc.Ua.Client.Sessions
         [SetUp]
         public void SetUp()
         {
-            m_mockObservability = new Mock<IV2TelemetryContext>();
+            m_mockObservability = new Mock<ITelemetryContext>();
             m_mockChannel = new Mock<ITransportChannel>();
             m_mockLogger = new Mock<ILogger<SessionClient>>();
 
@@ -5478,13 +5478,13 @@ namespace Opc.Ua.Client.Sessions
 
         private sealed class TestSessionServices : Opc.Ua.Client.Sessions.SessionClient
         {
-            public TestSessionServices(IV2TelemetryContext telemetry, ITransportChannel channel)
+            public TestSessionServices(ITelemetryContext telemetry, ITransportChannel channel)
                 : base(telemetry, channel) => AttachChannel(channel);
         }
 
         private Mock<ITransportChannel> m_mockChannel;
         private Mock<ILogger<SessionClient>> m_mockLogger;
-        private Mock<IV2TelemetryContext> m_mockObservability;
+        private Mock<ITelemetryContext> m_mockObservability;
         private TestSessionServices m_sessionServices;
     }
 }

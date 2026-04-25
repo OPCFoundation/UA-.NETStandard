@@ -325,28 +325,12 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         private sealed record class Observability(ILoggerFactory LoggerFactory,
-             TimeProvider TimeProvider, IMeterFactory MeterFactory,
-             ActivitySource ActivitySource) : IV2TelemetryContext
+             ActivitySource ActivitySource) : ITelemetryContext
         {
             /// <inheritdoc/>
             public Meter CreateMeter()
             {
-                return MeterFactory.Create(nameof(Observability));
-            }
-        }
-
-        /// <inheritdoc/>
-        private sealed class Meters : IMeterFactory
-        {
-            /// <inheritdoc/>
-            public Meter Create(MeterOptions options)
-            {
-                return new(options);
-            }
-
-            /// <inheritdoc/>
-            public void Dispose()
-            {
+                return new Meter(nameof(Observability));
             }
         }
 
@@ -361,7 +345,7 @@ namespace Opc.Ua.Client
             var options = provider.GetService<IPostConfigureOptions<ClientOptions>>();
             options?.PostConfigure(null, Options);
 
-            var telemetry = provider.GetService<IV2TelemetryContext>();
+            var telemetry = provider.GetService<ITelemetryContext>();
             if (telemetry == null)
             {
                 var loggerFactory = provider.GetService<ILoggerFactory>();
@@ -372,13 +356,9 @@ namespace Opc.Ua.Client
                     loggerFactory = provider.GetRequiredService<ILoggerFactory>();
                 }
 
-                var meterFactory = provider.GetService<IMeterFactory>();
-                var timeProvider = provider.GetService<TimeProvider>();
                 var activitySource = provider.GetService<ActivitySource>();
 
                 telemetry = new Observability(loggerFactory,
-                     timeProvider ?? TimeProvider.System,
-                     meterFactory ?? new Meters(),
                      activitySource ?? new ActivitySource(nameof(Observability)));
             }
 
@@ -402,7 +382,7 @@ namespace Opc.Ua.Client
         protected abstract ISessionBuilder<TPooledSessionOptions, TSessionOptions,
             TSessionCreateOptions>
             Build(ServiceProvider provider, ApplicationInstance application, string applicationUri,
-                string productUri, TClientOptions options, IV2TelemetryContext telemetry);
+                string productUri, TClientOptions options, ITelemetryContext telemetry);
 
         private ApplicationType _applicationType;
         private string? _applicationUri;

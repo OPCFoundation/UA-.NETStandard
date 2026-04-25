@@ -28,7 +28,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="session"></param>
         /// <param name="telemetry"></param>
-        public SamplingClient(Sessions.ISession session, IV2TelemetryContext telemetry)
+        public SamplingClient(Sessions.ISession session, ITelemetryContext telemetry)
         {
             _session = session;
             _observability = telemetry;
@@ -230,7 +230,7 @@ namespace Opc.Ua.Client
                         var timeout = _samplingRate.TotalMilliseconds / 2;
                         var response = await session.AttributeServiceSet.ReadAsync(new RequestHeader
                         {
-                            Timestamp = _outer._observability.TimeProvider.GetUtcNow().UtcDateTime,
+                            Timestamp = TimeProvider.System.GetUtcNow().UtcDateTime,
                             TimeoutHint = (uint)timeout,
                             ReturnDiagnostics = 0
                         }, _maxAge.TotalMilliseconds, Opc.Ua.TimestampsToReturn.Both,
@@ -277,7 +277,7 @@ namespace Opc.Ua.Client
                     var values = items
                         .ConvertAll(v => CreateSample(v.Item1, statusCode, missed > 0, v.Item2));
                     var changes = new PeriodicData(seq,
-                        _outer._observability.TimeProvider.GetUtcNow().UtcDateTime, values,
+                        TimeProvider.System.GetUtcNow().UtcDateTime, values,
                         PublishState.None, []);
                     await queue.QueueAsync(changes).ConfigureAwait(false);
                 }
@@ -305,7 +305,7 @@ namespace Opc.Ua.Client
                     var values = items
                         .ConvertAll(v => CreateSample(v, statusCode, missed > 0));
                     var changes = new PeriodicData(seq,
-                        _outer._observability.TimeProvider.GetUtcNow().UtcDateTime, values,
+                        TimeProvider.System.GetUtcNow().UtcDateTime, values,
                         PublishState.None, []);
                     await queue.QueueAsync(changes).ConfigureAwait(false);
                 }
@@ -345,7 +345,7 @@ namespace Opc.Ua.Client
 
         private readonly Sessions.ISession _session;
         private readonly Dictionary<(TimeSpan, TimeSpan), Sampler> _samplers = [];
-        private readonly IV2TelemetryContext _observability;
+        private readonly ITelemetryContext _observability;
         private readonly ILogger _logger;
     }
 }

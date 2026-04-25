@@ -39,7 +39,7 @@ namespace Opc.Ua.Client
         /// <param name="options"></param>
         /// <param name="telemetry"></param>
         protected SessionManagerBase(ApplicationInstance instance, string applicationUri,
-            string productUri, ClientOptions options, IV2TelemetryContext telemetry) :
+            string productUri, ClientOptions options, ITelemetryContext telemetry) :
             base(instance, applicationUri, productUri, options, telemetry)
         {
             _options = options;
@@ -185,7 +185,7 @@ namespace Opc.Ua.Client
         /// <param name="telemetry"></param>
         /// <returns></returns>
         protected abstract Opc.Ua.Client.Sessions.Session CreateSession(ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint, SessionCreateOptions options, IV2TelemetryContext telemetry);
+            ConfiguredEndpoint endpoint, SessionCreateOptions options, ITelemetryContext telemetry);
 
         /// <summary>
         /// Connect with resiliency applied
@@ -506,7 +506,7 @@ namespace Opc.Ua.Client
         }
 
         private readonly ILogger _logger;
-        private readonly IV2TelemetryContext _observability;
+        private readonly ITelemetryContext _observability;
         private readonly ClientOptions _options;
         private readonly Lazy<Exception?> _reverseConnectStartException;
         private readonly IScopedAsyncCache<PooledSessionOptions, Opc.Ua.Client.Sessions.Session> _pool;

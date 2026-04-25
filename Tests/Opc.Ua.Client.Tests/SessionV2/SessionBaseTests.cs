@@ -26,26 +26,12 @@ namespace Opc.Ua.Client.Sessions
         public void SetUp()
         {
             m_mockChannel = new Mock<ITransportChannel>();
-            m_mockObservability = new Mock<IV2TelemetryContext>();
-            m_mockMeterFactory = new Mock<IMeterFactory>();
-            m_mockObservability.Setup(o => o.MeterFactory)
-                .Returns(m_mockMeterFactory.Object);
-            m_mockMeterFactory.Setup(o => o.Create(It.IsAny<MeterOptions>()))
+            m_mockObservability = new Mock<ITelemetryContext>();
+            m_mockObservability.Setup(o => o.CreateMeter())
                 .Returns(new Meter("TestMeter"));
             m_mockLogger = new Mock<ILogger<SessionBase>>();
             m_mockObservability.Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
                 .Returns(m_mockLogger.Object);
-            m_mockTimeProvider = new Mock<TimeProvider>();
-            m_mockTimer = new Mock<ITimer>();
-            m_mockTimeProvider
-                .Setup(t => t.CreateTimer(
-                    It.IsAny<TimerCallback>(),
-                    It.IsAny<object>(),
-                    It.IsAny<TimeSpan>(),
-                    It.IsAny<TimeSpan>()))
-                .Returns(m_mockTimer.Object);
-            m_mockObservability
-                .Setup(o => o.TimeProvider).Returns(m_mockTimeProvider.Object);
             m_options = new SessionCreateOptions
             {
                 SessionName = "TestSession",
@@ -770,12 +756,6 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadNoCommunication))
                 .Verifiable(Times.Once);
-            m_mockTimeProvider
-                .Setup(t => t.TimestampFrequency)
-                .Returns(1000);
-            m_mockTimeProvider
-                .Setup(t => t.GetTimestamp())
-                .Returns(-10000000L);
 
             // Act
             var result = await sut.PingServerAsync(ct);
@@ -800,12 +780,8 @@ namespace Opc.Ua.Client.Sessions
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadNoCommunication))
                 .Verifiable(Times.Once);
-            m_mockTimeProvider
-                .Setup(t => t.TimestampFrequency)
-                .Returns(1000);
-            m_mockTimeProvider
-                .Setup(t => t.GetTimestamp())
-                .Returns(10000000L);
+            // Set timestamp to 0 so that elapsed time is very large
+            sut.LastKeepAliveTimestamp = 0;
 
             // Act
             var result = await sut.PingServerAsync(ct);
@@ -2433,7 +2409,7 @@ namespace Opc.Ua.Client.Sessions
         {
             public TestSessionBase(ApplicationConfiguration configuration,
                 ConfiguredEndpoint endpoint, SessionCreateOptions options,
-                IV2TelemetryContext telemetry, ReverseConnectManager reverseConnect)
+                ITelemetryContext telemetry, ReverseConnectManager reverseConnect)
                 : base(configuration, endpoint, options, telemetry, reverseConnect)
             {
                 if (options.Channel != null)
@@ -2449,18 +2425,15 @@ namespace Opc.Ua.Client.Sessions
 
             protected override IManagedSubscription CreateSubscription(ISubscriptionNotificationHandler handler,
                 IOptionsMonitor<Subscriptions.SubscriptionOptions> m_options, IMessageAckQueue queue,
-                IV2TelemetryContext telemetry)
+                ITelemetryContext telemetry)
             {
                 throw new NotImplementedException();
             }
         }
 
         private Mock<ITransportChannel> m_mockChannel;
-        private Mock<IV2TelemetryContext> m_mockObservability;
+        private Mock<ITelemetryContext> m_mockObservability;
         private Mock<ILogger<SessionBase>> m_mockLogger;
-        private Mock<IMeterFactory> m_mockMeterFactory;
-        private Mock<TimeProvider> m_mockTimeProvider;
-        private Mock<ITimer> m_mockTimer;
         private ApplicationConfiguration m_configuration;
         private SessionCreateOptions m_options;
     }

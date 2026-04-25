@@ -24,13 +24,11 @@ namespace Opc.Ua.Client.Subscriptions
         public void SetUp()
         {
             m_mockCompletion = new Mock<IMessageAckQueue>();
-            m_mockObservability = new Mock<IV2TelemetryContext>();
-            m_mockTimeProvider = new Mock<TimeProvider>();
+            m_mockObservability = new Mock<ITelemetryContext>();
             m_mockServices = new Mock<ISubscriptionServiceSet>();
             m_mockLogger = new Mock<ILogger<Subscription>>();
             m_mockObservability.Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
                 .Returns(m_mockLogger.Object);
-            m_mockObservability.Setup(o => o.TimeProvider).Returns(m_mockTimeProvider.Object);
         }
 
         [Test]
@@ -281,7 +279,7 @@ namespace Opc.Ua.Client.Subscriptions
         private sealed class TestMessageProcessor : MessageProcessor
         {
             public TestMessageProcessor(ISubscriptionServiceSet session,
-                IMessageAckQueue completion, IV2TelemetryContext telemetry)
+                IMessageAckQueue completion, ITelemetryContext telemetry)
                 : base(session, completion, telemetry)
             {
             }
@@ -370,9 +368,8 @@ namespace Opc.Ua.Client.Subscriptions
         }
         private Mock<IMessageAckQueue> m_mockCompletion;
         private Mock<ILogger<Subscription>> m_mockLogger;
-        private Mock<IV2TelemetryContext> m_mockObservability;
+        private Mock<ITelemetryContext> m_mockObservability;
         private Mock<ISubscriptionServiceSet> m_mockServices;
-        private Mock<TimeProvider> m_mockTimeProvider;
     }
 }
 #endif

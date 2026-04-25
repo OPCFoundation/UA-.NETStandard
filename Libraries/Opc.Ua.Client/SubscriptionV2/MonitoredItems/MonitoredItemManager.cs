@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <param name="context"></param>
         /// <param name="telemetry"></param>
         public MonitoredItemManager(IMonitoredItemManagerContext context,
-            IV2TelemetryContext telemetry)
+            ITelemetryContext telemetry)
         {
             _logger = telemetry.LoggerFactory.CreateLogger<MonitoredItemManager>();
             _context = context;

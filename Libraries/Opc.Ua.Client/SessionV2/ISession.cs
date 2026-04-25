@@ -7,7 +7,6 @@
 namespace Opc.Ua.Client.Sessions
 {
     using Opc.Ua;
-    using Opc.Ua.Client.Nodes;
     using Opc.Ua.Client.Services;
     using Opc.Ua.Client.Subscriptions;
     using System;

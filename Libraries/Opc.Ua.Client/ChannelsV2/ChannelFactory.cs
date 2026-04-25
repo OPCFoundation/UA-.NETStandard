@@ -15,7 +15,7 @@ namespace Opc.Ua.Client
     internal class ChannelFactory : IChannelFactory
     {
         private readonly ApplicationConfiguration m_configuration;
-        private readonly IV2TelemetryContext m_telemetry;
+        private readonly ITelemetryContext m_telemetry;
 
         /// <summary>
         /// Create a channel factory with the specified configuration.
@@ -23,7 +23,7 @@ namespace Opc.Ua.Client
         /// <param name="configuration"></param>
         /// <param name="telemetry"></param>
         public ChannelFactory(ApplicationConfiguration configuration,
-            IV2TelemetryContext telemetry)
+            ITelemetryContext telemetry)
         {
             m_configuration = configuration;
             m_telemetry = telemetry;
