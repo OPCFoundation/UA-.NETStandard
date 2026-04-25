@@ -38,7 +38,6 @@
   </Folder>
   <Folder Name="/Libraries/">
     <Project Path="Libraries/Opc.Ua.Client.ComplexTypes/Opc.Ua.Client.ComplexTypes.csproj" />
-    <Project Path="Libraries/Opc.Ua.Client.V2/Opc.Ua.Client.V2.csproj" />
     <Project Path="Libraries/Opc.Ua.Client/Opc.Ua.Client.csproj" />
     <Project Path="Libraries/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj" />
     <Project Path="Libraries/Opc.Ua.Gds.Client.Common/Opc.Ua.Gds.Client.Common.csproj" />
@@ -124,7 +123,6 @@
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
-    <Project Path="Tests/Opc.Ua.Client.V2.Tests/Opc.Ua.Client.V2.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Configuration.Tests/Opc.Ua.Configuration.Tests.csproj" />

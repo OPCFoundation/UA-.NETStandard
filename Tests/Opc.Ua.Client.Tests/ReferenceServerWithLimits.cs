@@ -136,7 +136,7 @@ namespace Opc.Ua.Client.Tests
             return MasterNodeManagerReference;
         }
 
-        protected override ISessionManager CreateSessionManager(
+        protected override Opc.Ua.Server.ISessionManager CreateSessionManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
