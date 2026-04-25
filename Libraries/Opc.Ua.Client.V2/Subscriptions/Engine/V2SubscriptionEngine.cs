@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -171,14 +173,15 @@ namespace Opc.Ua.Client
             /// <inheritdoc/>
             public IManagedSubscription CreateSubscription(
                 ISubscriptionNotificationHandler handler,
-                IOptionsMonitor<SubscriptionOptions> options,
+                IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
                 IMessageAckQueue queue)
             {
                 var subscriptionContext =
                     new SubscriptionContextAdapter(m_context);
                 return new DefaultSubscription(
                     subscriptionContext, handler, queue,
-                    options, m_context.Telemetry);
+                    options, new ClientTelemetryAdapter(
+                        m_context.Telemetry));
             }
 
             /// <inheritdoc/>
@@ -463,13 +466,13 @@ namespace Opc.Ua.Client
         /// the constructor and provides a default monitored item
         /// factory.
         /// </summary>
-        private sealed class DefaultSubscription : Subscription
+        private sealed class DefaultSubscription : Subscriptions.Subscription
         {
             public DefaultSubscription(
                 ISubscriptionContext context,
                 ISubscriptionNotificationHandler handler,
                 IMessageAckQueue completion,
-                IOptionsMonitor<SubscriptionOptions> options,
+                IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
                 Client.ITelemetryContext telemetry)
                 : base(context, handler, completion,
                        options, telemetry)
@@ -477,10 +480,10 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            protected override MonitoredItem
+            protected override Subscriptions.MonitoredItems.MonitoredItem
                 CreateMonitoredItem(
                     string name,
-                    IOptionsMonitor<MonitoredItemOptions>
+                    IOptionsMonitor<Subscriptions.MonitoredItems.MonitoredItemOptions>
                         options,
                     IMonitoredItemContext context,
                     Client.ITelemetryContext telemetry)
@@ -499,15 +502,58 @@ namespace Opc.Ua.Client
         /// exposes the constructor.
         /// </summary>
         private sealed class DefaultMonitoredItem
-            : MonitoredItem
+            : Subscriptions.MonitoredItems.MonitoredItem
         {
             public DefaultMonitoredItem(
                 IMonitoredItemContext context,
                 string name,
-                IOptionsMonitor<MonitoredItemOptions> options,
+                IOptionsMonitor<Subscriptions.MonitoredItems.MonitoredItemOptions> options,
                 ILogger logger)
                 : base(context, name, options, logger)
             {
+            }
+        }
+
+        /// <summary>
+        /// Adapts <see cref="Opc.Ua.ITelemetryContext"/>
+        /// (stack) to <see cref="Client.ITelemetryContext"/>
+        /// (V2 client) so the V2 subscription types can be
+        /// used from the classic engine context.
+        /// </summary>
+        private sealed class ClientTelemetryAdapter
+            : Client.ITelemetryContext
+        {
+            private readonly Opc.Ua.ITelemetryContext m_inner;
+
+            public ClientTelemetryAdapter(
+                Opc.Ua.ITelemetryContext inner)
+            {
+                m_inner = inner;
+            }
+
+            /// <inheritdoc/>
+            public ILoggerFactory LoggerFactory
+                => m_inner.LoggerFactory;
+
+            /// <inheritdoc/>
+            public IMeterFactory MeterFactory { get; }
+                = new SimpleMeterFactory();
+
+            /// <inheritdoc/>
+            public TimeProvider TimeProvider
+                => TimeProvider.System;
+
+            /// <inheritdoc/>
+            public ActivitySource? ActivitySource
+                => m_inner.ActivitySource;
+
+            private sealed class SimpleMeterFactory
+                : IMeterFactory
+            {
+                public Meter Create(MeterOptions options)
+                    => new(options);
+
+                public void Dispose() { }
             }
         }
 

@@ -42,7 +42,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="session"></param>
         /// <param name="telemetry"></param>
-        public SubscriptionClient(ISession session, ITelemetryContext telemetry)
+        public SubscriptionClient(Sessions.ISession session, ITelemetryContext telemetry)
         {
             _session = session;
             _observability = telemetry;
@@ -217,7 +217,7 @@ namespace Opc.Ua.Client
             var removals = 0;
             var additions = 0;
             var updates = 0;
-            Dictionary<SubscriptionOptions, VirtualSubscription> existing;
+            Dictionary<Subscriptions.SubscriptionOptions, VirtualSubscription> existing;
             lock (_subscriptions)
             {
                 existing = _subscriptions.ToDictionary();
@@ -394,7 +394,7 @@ namespace Opc.Ua.Client
         /// several partitions that are made up of actual subscriptions in the
         /// underlying session.
         /// </summary>
-        internal sealed class VirtualSubscription : Opc.Ua.OptionsMonitor<SubscriptionOptions>,
+        internal sealed class VirtualSubscription : Opc.Ua.OptionsMonitor<Subscriptions.SubscriptionOptions>,
             ISubscriptionNotificationHandler, IAsyncDisposable
         {
             /// <summary>
@@ -409,7 +409,7 @@ namespace Opc.Ua.Client
             /// <param name="client"></param>
             /// <param name="option"></param>
             /// <param name="registrations"></param>
-            public VirtualSubscription(SubscriptionClient client, SubscriptionOptions option,
+            public VirtualSubscription(SubscriptionClient client, Subscriptions.SubscriptionOptions option,
                 List<Registration> registrations) : base(option)
             {
                 _subscriptionClient = client;
@@ -549,7 +549,7 @@ namespace Opc.Ua.Client
                     {
                         var monitoredItems = _subscriptions[partitionIdx].MonitoredItems.Update(
                             partitions[partitionIdx].Items.ConvertAll(item =>
-                                (item.Name, (IOptionsMonitor<MonitoredItemOptions>)item.Options))
+                                (item.Name, (IOptionsMonitor<Subscriptions.MonitoredItems.MonitoredItemOptions>)item.Options))
     );
 
                         // Create lookup to split the monitored item notifications on receive
@@ -574,7 +574,7 @@ namespace Opc.Ua.Client
                 public List<(
                     Registration Registration,
                     string Name,
-                    IOptionsMonitor<MonitoredItemOptions> Options
+                    IOptionsMonitor<Subscriptions.MonitoredItems.MonitoredItemOptions> Options
                     )> Items
                 { get; } = [];
 
@@ -629,13 +629,13 @@ namespace Opc.Ua.Client
 
         private const int kMaxMonitoredItemPerSubscriptionDefault = 64 * 1024;
         private readonly Dictionary<INotificationQueue, Registration> _registrations = [];
-        private readonly Dictionary<SubscriptionOptions, VirtualSubscription> _subscriptions = [];
+        private readonly Dictionary<Subscriptions.SubscriptionOptions, VirtualSubscription> _subscriptions = [];
         private readonly SemaphoreSlim _subscriptionLock = new(1, 1);
         private readonly CancellationTokenSource _cts = new();
         private readonly AsyncAutoResetEvent _syncEvent = new();
         private readonly ITimer _resyncTimer;
         private readonly Task _syncTask;
-        private readonly ISession _session;
+        private readonly Sessions.ISession _session;
         private readonly ITelemetryContext _observability;
         private readonly ILogger _logger;
         private DateTimeOffset _nextSync;

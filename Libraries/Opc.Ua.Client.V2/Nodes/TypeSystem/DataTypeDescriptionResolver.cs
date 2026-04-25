@@ -520,7 +520,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 _context.NamespaceUris);
             var references = await _nodeCache.GetReferencesAsync(source,
                 ReferenceTypeIds.HasEncoding, false, false, ct).ConfigureAwait(false);
-            var lookup = references.ToDictionary(r => r.BrowseName, r =>
+            var lookup = references.ToArray()!.ToDictionary(r => r.BrowseName, r =>
                 NormalizeExpandedNodeId(r.NodeId));
             var binaryEncodingId = lookup.TryGetValue((QualifiedName)BrowseNames.DefaultBinary,
                 out var b) ? b : ExpandedNodeId.Null;
@@ -598,12 +598,12 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             {
                 var response = await _nodeCache.GetReferencesAsync(nodesToBrowse,
                     [ReferenceTypeIds.HasSubtype], false, false, ct).ConfigureAwait(false);
-                foreach (var node in response.OfType<DataTypeNode>()
+                foreach (var node in response.ToArray()!.OfType<DataTypeNode>()
                     .Where(n => !IsKnownType(n.NodeId)))
                 {
                     yield return node;
                 }
-                nodesToBrowse = response
+                nodesToBrowse = response.ToArray()!
                     .OfType<DataTypeNode>()
                     .Select(r => ExpandedNodeId.ToNodeId(r.NodeId,
                         _context.NamespaceUris))

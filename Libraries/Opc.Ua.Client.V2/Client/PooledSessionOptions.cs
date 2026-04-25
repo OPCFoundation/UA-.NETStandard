@@ -33,7 +33,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Session options
         /// </summary>
-        public SessionOptions? SessionOptions { get; init; }
+        public Sessions.SessionOptions? SessionOptions { get; init; }
 
         /// <summary>
         /// Use reverse connect

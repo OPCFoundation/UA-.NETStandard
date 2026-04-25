@@ -99,7 +99,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
 
             // Read all dictionaries
             var dictionaryIds = dictionaryReferences
-                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, _context.NamespaceUris))
+                .ConvertAll(r => ExpandedNodeId.ToNodeId(r.NodeId, _context.NamespaceUris))
                 .ToList();
 
             var values = await _nodeCache.GetValuesAsync(dictionaryIds,
@@ -108,8 +108,11 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             var schemas = new Dictionary<NodeId, (string Ns, byte[] Buffer)>();
             for (var index = 0; index < dictionaryIds.Count; index++)
             {
-                if (StatusCode.IsBad(values[index].StatusCode) ||
-                    !values[index].WrappedValue.TryGet(out ByteString bufferBs))
+                if (StatusCode.IsBad(values[index].StatusCode))
+                {
+                    throw new ServiceResultException(values[index].StatusCode);
+                }
+                if (!values[index].WrappedValue.TryGet(out ByteString bufferBs))
                 {
                     throw new ServiceResultException(values[index].StatusCode);
                 }
@@ -124,7 +127,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 // Read namespace property of the dictionary
                 var references = await _nodeCache.GetReferencesAsync(dictionaryIds[index],
                     ReferenceTypeIds.HasProperty, false, false, ct).ConfigureAwait(false);
-                var namespaceNodeId = references
+                var namespaceNodeId = references.ToArray()!
                     .FirstOrDefault(r => r.BrowseName == BrowseNames.NamespaceUri)?.NodeId;
                 if (namespaceNodeId == null)
                 {
@@ -224,7 +227,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 ReferenceTypeIds.HasProperty, false, false, ct).ConfigureAwait(false);
 
             // Filter down to the supported properties
-            var propertiesToRead = references
+            var propertiesToRead = references.ToArray()!
                 .Where(n => n.BrowseName == BrowseNames.EnumValues ||
                             n.BrowseName == BrowseNames.EnumStrings)
                 .Select(n => ExpandedNodeId.ToNodeId(n.NodeId, _context.NamespaceUris))
@@ -325,7 +328,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 return;
             }
             var nodeIds = descriptions
-                .Select(node => ExpandedNodeId.ToNodeId(node.NodeId, _context.NamespaceUris))
+                .ConvertAll(node => ExpandedNodeId.ToNodeId(node.NodeId, _context.NamespaceUris))
                 .ToList();
             //
             // DataTypeDictionaries are complex Variables which expose their Descriptions
@@ -341,7 +344,7 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
                 ct).ConfigureAwait(false);
             var encodings = await _nodeCache.GetReferencesAsync(nodeIds,
                 [ReferenceTypeIds.HasDescription], true, false, ct).ConfigureAwait(false);
-            var encodingNodeIds = encodings
+            var encodingNodeIds = encodings.ToArray()!
                 .Where(node => Utils.IsEqual(node.BrowseName, EncodingName)) // Filter only the encodings
                 .Select(node => ExpandedNodeId.ToNodeId(node.NodeId, _context.NamespaceUris))
                 .ToList();
@@ -361,7 +364,13 @@ namespace Opc.Ua.Client.Nodes.TypeSystem
             for (var i = 0; i < dataTypeNodes.Count; i++)
             {
                 var key = descriptionInfos[i];
-                if (!StatusCode.IsGood(key.StatusCode) || !key.WrappedValue.TryGet(out string typeName))
+                if (!StatusCode.IsGood(key.StatusCode))
+                {
+                    _logger.LogInformation("Bad data type description {NodeId} : {Status}",
+                        nodeIds[i], key.StatusCode);
+                    continue;
+                }
+                if (!key.WrappedValue.TryGet(out string typeName))
                 {
                     _logger.LogInformation("Bad data type description {NodeId} : {Status}",
                         nodeIds[i], key.StatusCode);

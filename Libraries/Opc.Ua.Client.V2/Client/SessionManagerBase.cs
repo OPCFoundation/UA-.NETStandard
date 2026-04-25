@@ -27,7 +27,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reverse connect manager
         /// </summary>
-        public ReverseConnectManager ReverseConnectManager { get; }
+        public Sessions.ReverseConnectManager ReverseConnectManager { get; }
 
         /// <summary>
         /// Create connection manager
@@ -55,7 +55,7 @@ namespace Opc.Ua.Client
                 .AsScopedCache()
                 .Build();
 
-            ReverseConnectManager = new ReverseConnectManager(telemetry.LoggerFactory);
+            ReverseConnectManager = new Sessions.ReverseConnectManager(telemetry.LoggerFactory);
             _reverseConnectStartException = new Lazy<Exception?>(
                 StartReverseConnectManager, isThreadSafe: true);
             InitializeMetrics();
@@ -475,7 +475,7 @@ namespace Opc.Ua.Client
         private sealed class Unpooled(Opc.Ua.Client.Sessions.Session session) : ISessionHandle
         {
             /// <inheritdoc/>
-            public ISession Session { get; } = session;
+            public Sessions.ISession Session { get; } = session;
 
             /// <inheritdoc/>
             public ValueTask DisposeAsync()
@@ -494,7 +494,7 @@ namespace Opc.Ua.Client
             /// <summary>
             /// Session reference valid until disposed.
             /// </summary>
-            public ISession Session => lifetime.Value;
+            public Sessions.ISession Session => lifetime.Value;
 
             /// <inheritdoc/>
             public ValueTask DisposeAsync()

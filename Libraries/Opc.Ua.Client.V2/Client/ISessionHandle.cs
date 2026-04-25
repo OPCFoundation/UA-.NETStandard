@@ -17,6 +17,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The session
         /// </summary>
-        ISession Session { get; }
+        Sessions.ISession Session { get; }
     }
 }

@@ -20,13 +20,13 @@ namespace Opc.Ua.Client
         /// </summary>
         public Dictionary<
             string,
-            IOptionsMonitor<MonitoredItemOptions>
+            IOptionsMonitor<Subscriptions.MonitoredItems.MonitoredItemOptions>
             > MonitoredItems
         { get; init; } = [];
 
         /// <summary>
         /// Subscription options
         /// </summary>
-        public SubscriptionOptions? Options { get; init; }
+        public Subscriptions.SubscriptionOptions? Options { get; init; }
     }
 }

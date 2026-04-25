@@ -27,7 +27,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="session"></param>
         /// <param name="telemetry"></param>
-        public SamplingClient(ISession session, ITelemetryContext telemetry)
+        public SamplingClient(Sessions.ISession session, ITelemetryContext telemetry)
         {
             _session = session;
             _observability = telemetry;
@@ -342,7 +342,7 @@ namespace Opc.Ua.Client
             private readonly PeriodicTimer _timer;
         }
 
-        private readonly ISession _session;
+        private readonly Sessions.ISession _session;
         private readonly Dictionary<(TimeSpan, TimeSpan), Sampler> _samplers = [];
         private readonly ITelemetryContext _observability;
         private readonly ILogger _logger;
