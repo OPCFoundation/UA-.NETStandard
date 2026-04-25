@@ -1109,8 +1109,12 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
+                if (instance.ModellingRule is ModellingRule.None)
+                {
+                    continue;
+                }
+
                 if (instance.ModellingRule is
-                    ModellingRule.None or
                     ModellingRule.OptionalPlaceholder or
                     ModellingRule.MandatoryPlaceholder)
                 {
@@ -2558,6 +2562,14 @@ namespace Opc.Ua.SourceGeneration
                     }
                     else if (current.StaticValue && !current.Inherited)
                     {
+                        add = true;
+                    }
+                    else if (child.ModellingRule == ModellingRule.None &&
+                        current.ExplicitlyDefined &&
+                        current.Instance is ObjectDesign)
+                    {
+                        // Include ModellingRule=None Object children that are explicitly defined
+                        // on this type (e.g., state machine states and transitions).
                         add = true;
                     }
                     else if (child.ModellingRule is not ModellingRule.None)
