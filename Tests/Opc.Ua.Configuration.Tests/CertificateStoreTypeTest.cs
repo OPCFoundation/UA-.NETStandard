@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.IO;
 using System.Threading;
@@ -201,7 +203,7 @@ namespace Opc.Ua.Configuration.Tests
         /// <inheritdoc/>
         public Task AddAsync(
             Certificate certificate,
-            char[] password = null,
+            char[]? password = null,
             CancellationToken ct = default)
         {
             return m_innerStore.AddAsync(certificate, password, ct);
@@ -276,12 +278,12 @@ namespace Opc.Ua.Configuration.Tests
         public bool SupportsLoadPrivateKey => m_innerStore.SupportsLoadPrivateKey;
 
         /// <inheritdoc/>
-        public Task<Certificate> LoadPrivateKeyAsync(
+        public Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            char[] password,
+            char[]? password,
             CancellationToken ct = default)
         {
             return m_innerStore.LoadPrivateKeyAsync(

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -45,6 +47,9 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private CertificateTypesProvider()
         {
+            m_securityConfiguration = null!;
+            m_certificateValidator = null!;
+            m_certificateChain = null!;
         }
 
         /// <summary>
@@ -85,35 +90,35 @@ namespace Opc.Ua.Security.Certificates
         /// Return the instance certificate for a security policy.
         /// </summary>
         /// <param name="securityPolicyUri">The security policy Uri</param>
-        public Certificate GetInstanceCertificate(string securityPolicyUri)
+        public Certificate? GetInstanceCertificate(string securityPolicyUri)
         {
             if (securityPolicyUri == SecurityPolicies.None)
             {
                 // return the default certificate for None
-                return m_securityConfiguration.ApplicationCertificates.ToArray().FirstOrDefault().Certificate;
+                return (m_securityConfiguration.ApplicationCertificates.ToArray() ?? []).FirstOrDefault()?.Certificate;
             }
             foreach (NodeId certType in Ua.CertificateIdentifier
                 .MapSecurityPolicyToCertificateTypes(securityPolicyUri))
             {
-                Ua.CertificateIdentifier instanceCertificate =
-                    m_securityConfiguration.ApplicationCertificates.ToArray().FirstOrDefault(id =>
+                Ua.CertificateIdentifier? instanceCertificate =
+                    (m_securityConfiguration.ApplicationCertificates.ToArray() ?? []).FirstOrDefault(id =>
                         id.CertificateType == certType);
                 if (instanceCertificate == null &&
                     certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                 {
-                    instanceCertificate = m_securityConfiguration.ApplicationCertificates
-                        .ToArray().FirstOrDefault(id => id.CertificateType.IsNull);
+                    instanceCertificate = (m_securityConfiguration.ApplicationCertificates
+                        .ToArray() ?? []).FirstOrDefault(id => id.CertificateType.IsNull);
                 }
                 if (instanceCertificate == null &&
                     certType == ObjectTypeIds.ApplicationCertificateType)
                 {
-                    instanceCertificate = m_securityConfiguration.ApplicationCertificates
-                        .ToArray().FirstOrDefault();
+                    instanceCertificate = (m_securityConfiguration.ApplicationCertificates
+                        .ToArray() ?? []).FirstOrDefault();
                 }
                 if (instanceCertificate == null && certType == ObjectTypeIds.HttpsCertificateType)
                 {
-                    instanceCertificate = m_securityConfiguration.ApplicationCertificates
-                        .ToArray().FirstOrDefault();
+                    instanceCertificate = (m_securityConfiguration.ApplicationCertificates
+                        .ToArray() ?? []).FirstOrDefault();
                 }
                 if (instanceCertificate != null)
                 {
@@ -127,7 +132,7 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the cached certificate chain blob of a certificate for use in a secure channel as raw byte array from cache.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public byte[] LoadCertificateChainRaw(Certificate certificate)
+        public byte[]? LoadCertificateChainRaw(Certificate? certificate)
         {
             if (certificate == null)
             {
@@ -136,7 +141,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (m_certificateChain.TryGetValue(
                     certificate.Thumbprint,
-                    out Tuple<CertificateCollection, byte[]> result
+                    out Tuple<CertificateCollection, byte[]>? result
                 ) &&
                 result.Item2 != null)
             {
@@ -150,8 +155,8 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the certificate chain for an application certificate.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public async Task<CertificateCollection> LoadCertificateChainAsync(
-            Certificate certificate)
+        public async Task<CertificateCollection?> LoadCertificateChainAsync(
+            Certificate? certificate)
         {
             if (certificate == null)
             {
@@ -160,7 +165,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (m_certificateChain.TryGetValue(
                     certificate.Thumbprint,
-                    out Tuple<CertificateCollection, byte[]> certificateChainTuple))
+                    out Tuple<CertificateCollection, byte[]>? certificateChainTuple))
             {
                 // Return a new collection with AddRef'd members so the
                 // caller can dispose independently without invalidating the cache.
@@ -175,7 +180,11 @@ namespace Opc.Ua.Security.Certificates
             {
                 for (int i = 0; i < issuers.Count; i++)
                 {
-                    certificateChain.Add(issuers[i].Certificate);
+                    Certificate? issuerCert = issuers[i].Certificate;
+                    if (issuerCert != null)
+                    {
+                        certificateChain.Add(issuerCert);
+                    }
                 }
             }
 
@@ -198,7 +207,7 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the certificate chain for an application certificate from cache.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public CertificateCollection LoadCertificateChain(Certificate certificate)
+        public CertificateCollection? LoadCertificateChain(Certificate? certificate)
         {
             if (certificate == null)
             {
@@ -207,7 +216,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (m_certificateChain.TryGetValue(
                     certificate.Thumbprint,
-                    out Tuple<CertificateCollection, byte[]> certificateChainTuple))
+                    out Tuple<CertificateCollection, byte[]>? certificateChainTuple))
             {
                 // Return a new collection with AddRef'd members so the
                 // caller can dispose independently without invalidating the cache.

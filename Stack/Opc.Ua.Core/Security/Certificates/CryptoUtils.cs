@@ -27,6 +27,8 @@ using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Digests;
 #endif
 
+#nullable enable
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -86,6 +88,12 @@ namespace Opc.Ua
             }
 
             PublicKey encodedPublicKey = certificate.PublicKey;
+
+            if (encodedPublicKey.EncodedParameters is null)
+            {
+                return NodeId.Null;
+            }
+
             switch (BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData))
             {
                 // nistP256
@@ -155,6 +163,11 @@ namespace Opc.Ua
                 const string signatureQualifier = "ECDsa";
                 PublicKey encodedPublicKey = certificate.PublicKey;
 
+                if (encodedPublicKey.EncodedParameters is null)
+                {
+                    return string.Empty;
+                }
+
                 // New values can be determined by running the dotted-decimal OID value
                 // through BitConverter.ToString(CryptoConfig.EncodeOID(dottedDecimal));
 
@@ -178,9 +191,9 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the public key for the specified certificate.
         /// </summary>
-        public static ECDsa GetPublicKey(Certificate certificate)
+        public static ECDsa? GetPublicKey(Certificate certificate)
         {
-            return GetPublicKey(certificate, out string[] _);
+            return GetPublicKey(certificate, out string[]? _);
         }
 
         /// <summary>
@@ -188,9 +201,9 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
         /// <exception cref="NotImplementedException"></exception>
-        public static ECDsa GetPublicKey(
+        public static ECDsa? GetPublicKey(
             Certificate certificate,
-            out string[] securityPolicyUris)
+            out string[]? securityPolicyUris)
         {
             securityPolicyUris = null;
 
@@ -215,7 +228,7 @@ namespace Opc.Ua
 
             foreach (X509Extension extension in certificate.Extensions)
             {
-                if (extension.Oid.Value == "2.5.29.15")
+                if (extension.Oid?.Value == "2.5.29.15")
                 {
                     var kuExt = (X509KeyUsageExtension)extension;
 
@@ -227,6 +240,12 @@ namespace Opc.Ua
             }
 
             PublicKey encodedPublicKey = certificate.PublicKey;
+
+            if (encodedPublicKey.EncodedParameters is null)
+            {
+                return null;
+            }
+
             string keyParameters = BitConverter.ToString(
                 encodedPublicKey.EncodedParameters.RawData);
             byte[] keyValue = encodedPublicKey.EncodedKeyValue.RawData;
@@ -307,7 +326,7 @@ namespace Opc.Ua
         /// <summary>
         /// Computes a signature.
         /// </summary>
-        public static byte[] Sign(
+        public static byte[]? Sign(
             ArraySegment<byte> dataToSign,
             Certificate signingCertificate,
             string securityPolicyUri)
@@ -321,7 +340,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         /// <exception cref="NotSupportedException"></exception>
-        public static byte[] Sign(
+        public static byte[]? Sign(
             ArraySegment<byte> dataToSign,
             Certificate signingCertificate,
             AsymmetricSignatureAlgorithm algorithm)
@@ -376,10 +395,13 @@ namespace Opc.Ua
                     StatusCodes.BadCertificateInvalid,
                     "Missing private key needed for create a signature.");
 
+            byte[] arrayToSign = dataToSign.Array
+                ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Data to sign must not be empty.");
+
             using (senderPrivateKey)
             {
                 return senderPrivateKey.SignData(
-                    dataToSign.Array,
+                    arrayToSign,
                     dataToSign.Offset,
                     dataToSign.Count,
                     hashAlgorithm);
@@ -465,10 +487,14 @@ namespace Opc.Ua
                     throw new NotSupportedException($"AsymmetricSignatureAlgorithm not supported: {algorithm}.");
             }
 
-            using ECDsa ecdsa = GetPublicKey(signingCertificate);
+            using ECDsa ecdsa = GetPublicKey(signingCertificate)
+                ?? throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Missing ECC public key for signature verification.");
+
+            byte[] arrayToVerify = dataToVerify.Array
+                ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Data to verify must not be empty.");
 
             return ecdsa.VerifyData(
-                dataToVerify.Array,
+                arrayToVerify,
                 dataToVerify.Offset,
                 dataToVerify.Count,
                 signature,
@@ -488,6 +514,8 @@ namespace Opc.Ua
         /// starting at offset; padding added.</returns>
         private static ArraySegment<byte> AddPadding(ArraySegment<byte> data, int blockSize, int trailingBytes = 0)
         {
+            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data), "Data array must not be null.");
+
             int paddingByteSize = blockSize > byte.MaxValue ? 2 : 1;
             int paddingSize = blockSize - ((data.Count + paddingByteSize + trailingBytes) % blockSize);
             paddingSize %= blockSize;
@@ -495,19 +523,19 @@ namespace Opc.Ua
             int endOfData = data.Offset + data.Count;
             int endOfPaddedData = data.Offset + data.Count + paddingSize + paddingByteSize;
 
-            for (int ii = endOfData; ii < endOfPaddedData - paddingByteSize && ii < data.Array.Length; ii++)
+            for (int ii = endOfData; ii < endOfPaddedData - paddingByteSize && ii < dataArray.Length; ii++)
             {
-                data.Array[ii] = (byte)(paddingSize & 0xFF);
+                dataArray[ii] = (byte)(paddingSize & 0xFF);
             }
 
-            data.Array[endOfData + paddingSize] = (byte)(paddingSize & 0xFF);
+            dataArray[endOfData + paddingSize] = (byte)(paddingSize & 0xFF);
 
             if (blockSize > byte.MaxValue)
             {
-                data.Array[endOfData + paddingSize + 1] = (byte)((paddingSize & 0xFF) >> 8);
+                dataArray[endOfData + paddingSize + 1] = (byte)((paddingSize & 0xFF) >> 8);
             }
 
-            return new ArraySegment<byte>(data.Array, data.Offset, data.Count + paddingSize + paddingByteSize);
+            return new ArraySegment<byte>(dataArray, data.Offset, data.Count + paddingSize + paddingByteSize);
         }
 
         /// <summary>
@@ -522,13 +550,15 @@ namespace Opc.Ua
         /// <exception cref="CryptographicException"></exception>
         private static ArraySegment<byte> RemovePadding(ArraySegment<byte> data, int blockSize)
         {
-            int paddingSize = data.Array[data.Offset + data.Count - 1];
+            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data), "Data array must not be null.");
+
+            int paddingSize = dataArray[data.Offset + data.Count - 1];
             int paddingByteSize = 1;
 
             if (blockSize > byte.MaxValue)
             {
                 paddingSize <<= 8;
-                paddingSize += data.Array[data.Offset + data.Count - 2];
+                paddingSize += dataArray[data.Offset + data.Count - 2];
                 paddingByteSize = 2;
             }
 
@@ -543,7 +573,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                notvalid |= data.Array[start + ii] ^ (paddingSize & 0xFF);
+                notvalid |= dataArray[start + ii] ^ (paddingSize & 0xFF);
             }
 
             if (notvalid != 0)
@@ -551,7 +581,7 @@ namespace Opc.Ua
                 throw new CryptographicException("Invalid padding.");
             }
 
-            return new ArraySegment<byte>(data.Array, 0, data.Offset + data.Count - paddingSize - paddingByteSize);
+            return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count - paddingSize - paddingByteSize);
         }
 
         /// <summary>
@@ -564,8 +594,8 @@ namespace Opc.Ua
             SecurityPolicyInfo securityPolicy,
             byte[] encryptingKey,
             byte[] iv,
-            byte[] signingKey = null,
-            HMAC hmac = null,
+            byte[]? signingKey = null,
+            HMAC? hmac = null,
             bool signOnly = false,
             uint tokenId = 0,
             uint lastSequenceNumber = 0)
@@ -601,6 +631,8 @@ namespace Opc.Ua
 #endif
             }
 
+            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data));
+
             int hashLength = 0;
 
             if (signingKey != null)
@@ -620,17 +652,17 @@ namespace Opc.Ua
 
             if (signingKey != null)
             {
-                byte[] hash = hmac.ComputeHash(data.Array, 0, data.Offset + data.Count);
+                byte[] hash = hmac!.ComputeHash(dataArray, 0, data.Offset + data.Count);
 
                 Buffer.BlockCopy(
                     hash,
                     0,
-                    data.Array,
+                    dataArray,
                     data.Offset + data.Count,
                     hash.Length);
 
                 data = new ArraySegment<byte>(
-                    data.Array,
+                    dataArray,
                     data.Offset,
                     data.Count + hash.Length);
             }
@@ -649,14 +681,14 @@ namespace Opc.Ua
 #pragma warning restore CA5401
 
                 encryptor.TransformBlock(
-                    data.Array,
+                    dataArray,
                     data.Offset,
                     data.Count,
-                    data.Array,
+                    dataArray,
                     data.Offset);
             }
 
-            return new ArraySegment<byte>(data.Array, 0, data.Offset + data.Count);
+            return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);
         }
 
 #if NET8_0_OR_GREATER
@@ -698,11 +730,13 @@ namespace Opc.Ua
                 throw new ArgumentException("ChaCha20-Poly1305 requires a 96-bit (12-byte) nonce.", nameof(iv));
             }
 
+            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data));
+
             byte[] ciphertext = new byte[signOnly ? 0 : data.Count];
             byte[] tag = new byte[kChaChaPolyTagLength]; // ChaCha20-Poly1305/AES-GCM uses 128-bit authentication tag
 
             var extraData = new ReadOnlySpan<byte>(
-                data.Array,
+                dataArray,
                 0,
                 signOnly ? data.Offset + data.Count : data.Offset);
 
@@ -720,13 +754,13 @@ namespace Opc.Ua
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
             {
-                Buffer.BlockCopy(ciphertext, 0, data.Array, data.Offset, ciphertext.Length);
+                Buffer.BlockCopy(ciphertext, 0, dataArray, data.Offset, ciphertext.Length);
             }
 
-            Buffer.BlockCopy(tag, 0, data.Array, data.Offset + data.Count, tag.Length);
+            Buffer.BlockCopy(tag, 0, dataArray, data.Offset + data.Count, tag.Length);
 
             return new ArraySegment<byte>(
-                data.Array,
+                dataArray,
                 0,
                 data.Offset + data.Count + kChaChaPolyTagLength);
         }
@@ -760,20 +794,22 @@ namespace Opc.Ua
                     nameof(data));
             }
 
+            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data));
+
             byte[] plaintext = new byte[data.Count - kChaChaPolyTagLength];
 
             var encryptedData = new ArraySegment<byte>(
-                data.Array,
+                dataArray,
                 data.Offset,
                 signOnly ? 0 : data.Count - kChaChaPolyTagLength);
 
             var tag = new ArraySegment<byte>(
-                data.Array,
+                dataArray,
                 data.Offset + data.Count - kChaChaPolyTagLength,
                 kChaChaPolyTagLength);
 
             var extraData = new ReadOnlySpan<byte>(
-                data.Array,
+                dataArray,
                 0,
                 signOnly ? data.Offset + data.Count - kChaChaPolyTagLength : data.Offset);
 
@@ -791,10 +827,10 @@ namespace Opc.Ua
             // Return layout: [associated data | plaintext]
             if (!signOnly)
             {
-                Buffer.BlockCopy(plaintext, 0, data.Array, data.Offset, encryptedData.Count);
+                Buffer.BlockCopy(plaintext, 0, dataArray, data.Offset, encryptedData.Count);
             }
 
-            return new ArraySegment<byte>(data.Array, 0, data.Offset + data.Count - kChaChaPolyTagLength);
+            return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count - kChaChaPolyTagLength);
         }
 
         private const int kAesGcmIvLength = 12;
@@ -818,11 +854,13 @@ namespace Opc.Ua
                 throw new ArgumentException("AES-GCM requires a 96-bit (12-byte) IV/nonce.", nameof(iv));
             }
 
+            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data));
+
             byte[] ciphertext = new byte[signOnly ? 0 : data.Count];
             byte[] tag = new byte[kAesGcmTagLength]; // AES-GCM uses 128-bit authentication tag
 
             var extraData = new ReadOnlySpan<byte>(
-                data.Array,
+                dataArray,
                 0,
                 signOnly ? data.Offset + data.Count : data.Offset);
 
@@ -840,13 +878,13 @@ namespace Opc.Ua
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
             {
-                Buffer.BlockCopy(ciphertext, 0, data.Array, data.Offset, ciphertext.Length);
+                Buffer.BlockCopy(ciphertext, 0, dataArray, data.Offset, ciphertext.Length);
             }
 
-            Buffer.BlockCopy(tag, 0, data.Array, data.Offset + data.Count, tag.Length);
+            Buffer.BlockCopy(tag, 0, dataArray, data.Offset + data.Count, tag.Length);
 
             return new ArraySegment<byte>(
-                data.Array,
+                dataArray,
                 0,
                 data.Offset + data.Count + kAesGcmTagLength);
         }
@@ -878,20 +916,22 @@ namespace Opc.Ua
                     nameof(data));
             }
 
+            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data));
+
             byte[] plaintext = new byte[data.Count - kAesGcmTagLength];
 
             var encryptedData = new ArraySegment<byte>(
-                data.Array,
+                dataArray,
                 data.Offset,
                 signOnly ? 0 : data.Count - kAesGcmTagLength);
 
             var tag = new ArraySegment<byte>(
-                data.Array,
+                dataArray,
                 data.Offset + data.Count - kAesGcmTagLength,
                 kAesGcmTagLength);
 
             var extraData = new ReadOnlySpan<byte>(
-                data.Array,
+                dataArray,
                 0,
                 signOnly ? data.Offset + data.Count - kAesGcmTagLength : data.Offset);
 
@@ -909,10 +949,10 @@ namespace Opc.Ua
             // Return layout: [associated data | plaintext]
             if (!signOnly)
             {
-                Buffer.BlockCopy(plaintext, 0, data.Array, data.Offset, encryptedData.Count);
+                Buffer.BlockCopy(plaintext, 0, dataArray, data.Offset, encryptedData.Count);
             }
 
-            return new ArraySegment<byte>(data.Array, 0, data.Offset + data.Count - kAesGcmTagLength);
+            return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count - kAesGcmTagLength);
         }
 #endif
 
@@ -926,7 +966,7 @@ namespace Opc.Ua
            SecurityPolicyInfo securityPolicy,
            byte[] encryptingKey,
            byte[] iv,
-           byte[] signingKey = null,
+           byte[]? signingKey = null,
            bool signOnly = false,
            uint tokenId = 0,
            uint lastSequenceNumber = 0)
@@ -962,6 +1002,8 @@ namespace Opc.Ua
 #endif
             }
 
+            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data));
+
             if (!signOnly)
             {
                 using var aes = Aes.Create();
@@ -974,10 +1016,10 @@ namespace Opc.Ua
                 using ICryptoTransform decryptor = aes.CreateDecryptor();
 
                 decryptor.TransformBlock(
-                    data.Array,
+                    dataArray,
                     data.Offset,
                     data.Count,
-                    data.Array,
+                    dataArray,
                     data.Offset);
             }
 
@@ -986,15 +1028,15 @@ namespace Opc.Ua
             if (signingKey != null)
             {
                 using HMAC hmac = securityPolicy.CreateSignatureHmac(signingKey);
-                byte[] hash = hmac.ComputeHash(data.Array, 0, data.Offset + data.Count - (hmac.HashSize / 8));
+                byte[] hash = hmac.ComputeHash(dataArray, 0, data.Offset + data.Count - (hmac.HashSize / 8));
                 for (int ii = 0; ii < hash.Length; ii++)
                 {
                     int index = data.Offset + data.Count - hash.Length + ii;
-                    isNotValid |= data.Array[index] != hash[ii] ? 1 : 0;
+                    isNotValid |= dataArray[index] != hash[ii] ? 1 : 0;
                 }
 
                 data = new ArraySegment<byte>(
-                    data.Array,
+                    dataArray,
                     data.Offset,
                     data.Count - hash.Length);
             }
@@ -1009,7 +1051,7 @@ namespace Opc.Ua
                 throw new CryptographicException("Invalid signature.");
             }
 
-            return new ArraySegment<byte>(data.Array, 0, data.Offset + data.Count);
+            return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);
         }
     }
 }

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -96,7 +98,7 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel operation with</param>
         Task AddAsync(
             Certificate certificate,
-            char[] password = null,
+            char[]? password = null,
             CancellationToken ct = default);
 
         /// <summary>
@@ -145,12 +147,12 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
         /// <returns>The matching certificate with private key</returns>
-        Task<Certificate> LoadPrivateKeyAsync(
+        Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            char[] password,
+            char[]? password,
             CancellationToken ct = default);
 
         /// <summary>

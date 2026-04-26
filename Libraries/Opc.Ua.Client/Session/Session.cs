@@ -4805,7 +4805,11 @@ namespace Opc.Ua.Client
 
                     for (int i = 0; i < issuers.Count; i++)
                     {
-                        clientCertificateChain.Add(issuers[i].Certificate);
+                        Certificate? issuerCert = issuers[i].Certificate;
+                        if (issuerCert != null)
+                        {
+                            clientCertificateChain.Add(issuerCert);
+                        }
                     }
                 }
                 catch
@@ -5126,6 +5130,13 @@ namespace Opc.Ua.Client
                             throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,
                                 "Server did not provide a valid ECDHKey. User authentication not possible.");
+                        }
+
+                        if (serverCertificate == null || m_userTokenSecurityPolicyUri == null)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                "Server certificate or security policy URI is not available. User authentication not possible.");
                         }
 
                         if (!CryptoUtils.Verify(

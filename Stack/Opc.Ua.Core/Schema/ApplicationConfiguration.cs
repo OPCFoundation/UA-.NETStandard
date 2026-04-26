@@ -1765,6 +1765,7 @@ namespace Opc.Ua
         private ArrayOf<CertificateIdentifier> m_trustedCertificates;
     }
 
+#nullable enable
     [DataType(Namespace = Namespaces.OpcUaConfig)]
     public partial class CertificateIdentifier
     {
@@ -1807,14 +1808,14 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The type of the store - defined in the <see cref="CertificateStoreType"/>.</value>
         [DataTypeField(Order = 0)]
-        public string StoreType { get; set; }
+        public string? StoreType { get; set; }
 
         /// <summary>
         /// The path that identifies the certificate store.
         /// </summary>
         /// <value>The store path in the form <c>StoreName\\Store Location</c> .</value>
         [DataTypeField(Order = 1)]
-        public string StorePath
+        public string? StorePath
         {
             get => m_storePath;
             set
@@ -1880,7 +1881,7 @@ namespace Opc.Ua
         /// <seealso cref="System.Security.Cryptography.AsnEncodedData"/>
         /// <exception cref="ArgumentException"></exception>
         [DataTypeField(Order = 2)]
-        public string SubjectName
+        public string? SubjectName
         {
             get
             {
@@ -1912,7 +1913,7 @@ namespace Opc.Ua
         /// <seealso cref="X509Certificate2"/>
         /// <exception cref="ArgumentException"></exception>
         [DataTypeField(Order = 3)]
-        public string Thumbprint
+        public string? Thumbprint
         {
             get
             {
@@ -1941,7 +1942,7 @@ namespace Opc.Ua
         /// Gets the DER encoded certificate data or create embedded in this instance certificate using the DER encoded certificate data.
         /// </summary>
         /// <value>A byte array containing the X.509 certificate data.</value>
-        public byte[] RawData
+        public byte[]? RawData
         {
             get
             {
@@ -1992,17 +1993,18 @@ namespace Opc.Ua
         /// </summary>
         /// <value>Rsa, RsaMin, RsaSha256, NistP256, NistP384, BrainpoolP256r1, BrainpoolP384r1, Curve25519, Curve448</value>
         [DataTypeField(Order = 6)]
-        public string CertificateTypeString
+        public string? CertificateTypeString
         {
             get => EncodeCertificateType(CertificateType);
             set => CertificateType = DecodeCertificateType(value);
         }
 
-        private string m_storePath;
-        private string m_subjectName;
-        private string m_thumbprint;
-        private Certificate m_certificate;
+        private string? m_storePath;
+        private string? m_subjectName;
+        private string? m_thumbprint;
+        private Certificate? m_certificate;
     }
+#nullable restore
 
     /// <summary>
     /// Stores a list of cached endpoints.

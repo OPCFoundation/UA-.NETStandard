@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -67,7 +69,7 @@ namespace Opc.Ua
         [Obsolete("Use GetCertificatesAsync() instead.")]
         public Task<CertificateCollection> GetCertificates()
         {
-            return GetCertificatesAsync(null);
+            return GetCertificatesAsync(null!);
         }
 
         /// <summary>
@@ -82,7 +84,7 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(StorePath))
             {
-                ICertificateStore store = null;
+                ICertificateStore? store = null;
                 try
                 {
                     store = OpenStore(telemetry) ??
@@ -105,7 +107,7 @@ namespace Opc.Ua
             for (int i = 0; i < TrustedCertificates.Count; i++)
             {
                 CertificateIdentifier trustedCertificate = TrustedCertificates[i];
-                Certificate certificate = await trustedCertificate.FindAsync(null, telemetry, ct)
+                Certificate? certificate = await trustedCertificate.FindAsync(null, telemetry, ct)
                     .ConfigureAwait(false);
 
                 if (certificate != null)

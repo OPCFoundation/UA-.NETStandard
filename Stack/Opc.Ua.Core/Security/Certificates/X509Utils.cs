@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -83,7 +85,7 @@ namespace Opc.Ua
             }
 
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = certificate
+            X509SubjectAltNameExtension? alternateName = certificate
                 .FindExtension<X509SubjectAltNameExtension>();
             if (alternateName != null)
             {
@@ -133,7 +135,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate</param>
         public static int GetRSAPublicKeySize(Certificate certificate)
         {
-            using RSA rsaPublicKey = certificate.GetRSAPublicKey();
+            using RSA? rsaPublicKey = certificate.GetRSAPublicKey();
             if (rsaPublicKey != null)
             {
                 return rsaPublicKey.KeySize;
@@ -147,7 +149,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate</param>
         public static int GetPublicKeySize(Certificate certificate)
         {
-            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
+            using (RSA? rsaPublicKey = certificate.GetRSAPublicKey())
             {
                 if (rsaPublicKey != null)
                 {
@@ -155,7 +157,7 @@ namespace Opc.Ua
                 }
             }
 
-            using ECDsa ecdsaPublicKey = certificate.GetECDsaPublicKey();
+            using ECDsa? ecdsaPublicKey = certificate.GetECDsaPublicKey();
             if (ecdsaPublicKey != null)
             {
                 return ecdsaPublicKey.KeySize;
@@ -173,7 +175,7 @@ namespace Opc.Ua
         public static string GetApplicationUriFromCertificate(Certificate certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = certificate
+            X509SubjectAltNameExtension? alternateName = certificate
                 .FindExtension<X509SubjectAltNameExtension>();
 
             // get the application uri.
@@ -193,7 +195,7 @@ namespace Opc.Ua
         public static IReadOnlyList<string> GetApplicationUrisFromCertificate(Certificate certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = certificate
+            X509SubjectAltNameExtension? alternateName = certificate
                 .FindExtension<X509SubjectAltNameExtension>();
 
             // get the application uris.
@@ -256,7 +258,7 @@ namespace Opc.Ua
         public static bool HasApplicationURN(Certificate certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = certificate
+            X509SubjectAltNameExtension? alternateName = certificate
                 .FindExtension<X509SubjectAltNameExtension>();
 
             // find the application urn.
@@ -304,7 +306,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsIssuerAllowed(Certificate certificate)
         {
-            X509BasicConstraintsExtension constraints = certificate
+            X509BasicConstraintsExtension? constraints = certificate
                 .FindExtension<X509BasicConstraintsExtension>();
 
             if (constraints != null)
@@ -320,7 +322,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsCertificateAuthority(Certificate certificate)
         {
-            X509BasicConstraintsExtension constraints = certificate
+            X509BasicConstraintsExtension? constraints = certificate
                 .FindExtension<X509BasicConstraintsExtension>();
             if (constraints != null)
             {
@@ -526,7 +528,7 @@ namespace Opc.Ua
 
             var buffer = new StringBuilder();
 
-            string key = null;
+            string? key = null;
             bool found = false;
 
             for (int ii = 0; ii < name.Length; ii++)
@@ -753,7 +755,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get the certificate by issuer and serial number.
         /// </summary>
-        public static async Task<Certificate> FindIssuerCABySerialNumberAsync(
+        public static async Task<Certificate?> FindIssuerCABySerialNumberAsync(
             ICertificateStore store,
             X500DistinguishedName issuer,
             string serialnumber)
@@ -776,7 +778,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get the certificate issuer by its key identifier.
         /// </summary>
-        public static async Task<Certificate> FindIssuerCAByKeyIdentifierAsync(
+        public static async Task<Certificate?> FindIssuerCAByKeyIdentifierAsync(
             ICertificateStore store,
             X500DistinguishedName issuer,
             string keyIdentifier)
@@ -787,7 +789,7 @@ namespace Opc.Ua
             {
                 if (CompareDistinguishedName(certificate.SubjectName, issuer))
                 {
-                    X509SubjectKeyIdentifierExtension subject = certificate.FindExtension<X509SubjectKeyIdentifierExtension>();
+                    X509SubjectKeyIdentifierExtension? subject = certificate.FindExtension<X509SubjectKeyIdentifierExtension>();
                     if (subject != null && Utils.IsEqual(subject.SubjectKeyIdentifier, keyIdentifier))
                     {
                         return certificate;
@@ -814,7 +816,7 @@ namespace Opc.Ua
             this Certificate certificate,
             string storeType,
             string storePath,
-            string password = null)
+            string? password = null)
         {
             return AddToStoreAsync(
                 certificate,
@@ -839,7 +841,7 @@ namespace Opc.Ua
         public static Certificate AddToStore(
             this Certificate certificate,
             CertificateStoreIdentifier storeIdentifier,
-            string password = null)
+            string? password = null)
         {
             return AddToStoreAsync(
                 certificate,
@@ -866,8 +868,8 @@ namespace Opc.Ua
             this Certificate certificate,
             string storeType,
             string storePath,
-            char[] password = null,
-            ITelemetryContext telemetry = null,
+            char[]? password = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             // add cert to the store.
@@ -898,7 +900,7 @@ namespace Opc.Ua
         public static async Task<X509CRL> AddToStoreAsync(
             this X509CRL crl,
             CertificateStoreIdentifier storeIdentifier,
-            ITelemetryContext telemetry = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             // add cert to the store.
@@ -937,8 +939,8 @@ namespace Opc.Ua
         public static async Task<Certificate> AddToStoreAsync(
             this Certificate certificate,
             CertificateStoreIdentifier storeIdentifier,
-            char[] password = null,
-            ITelemetryContext telemetry = null,
+            char[]? password = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             // add cert to the store.

@@ -20,6 +20,8 @@ using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Parameters;
 #endif
 
+#nullable enable
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -39,12 +41,12 @@ namespace Opc.Ua
         public EncryptedSecret(
             IServiceMessageContext context,
             string securityPolicyUri,
-            CertificateCollection senderIssuerCertificates,
+            CertificateCollection? senderIssuerCertificates,
             Certificate receiverCertificate,
-            Nonce receiverNonce,
-            Certificate senderCertificate,
-            Nonce senderNonce,
-            CertificateValidator validator = null,
+            Nonce? receiverNonce,
+            Certificate? senderCertificate,
+            Nonce? senderNonce,
+            CertificateValidator? validator = null,
             bool doNotEncodeSenderCertificate = false)
         {
             SenderCertificate = senderCertificate;
@@ -70,7 +72,7 @@ namespace Opc.Ua
             IServiceMessageContext context,
             string securityPolicyUri,
             Certificate receiverCertificate,
-            Nonce receiverNonce = null)
+            Nonce? receiverNonce = null)
         {
             return new EncryptedSecret(
                 context: context,
@@ -93,7 +95,7 @@ namespace Opc.Ua
             Nonce receiverNonce,
             Certificate senderCertificate,
             Nonce senderNonce,
-            CertificateValidator validator = null,
+            CertificateValidator? validator = null,
             bool doNotEncodeSenderCertificate = false)
         {
             return new EncryptedSecret(
@@ -111,12 +113,12 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the X.509 certificate of the sender.
         /// </summary>
-        public Certificate SenderCertificate { get; private set; }
+        public Certificate? SenderCertificate { get; private set; }
 
         /// <summary>
         /// Gets or sets the collection of X.509 certificates of the sender's issuer.
         /// </summary>
-        public CertificateCollection SenderIssuerCertificates { get; private set; }
+        public CertificateCollection? SenderIssuerCertificates { get; private set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the sender's certificate should not be encoded.
@@ -126,12 +128,12 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the nonce of the sender.
         /// </summary>
-        public Nonce SenderNonce { get; private set; }
+        public Nonce? SenderNonce { get; private set; }
 
         /// <summary>
         /// Gets or sets the nonce of the receiver.
         /// </summary>
-        public Nonce ReceiverNonce { get; }
+        public Nonce? ReceiverNonce { get; }
 
         /// <summary>
         /// Gets or sets the X.509 certificate of the receiver.
@@ -141,7 +143,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the certificate validator.
         /// </summary>
-        public CertificateValidator Validator { get; }
+        public CertificateValidator? Validator { get; }
 
         /// <summary>
         /// Gets or sets the security policy.
@@ -172,7 +174,7 @@ namespace Opc.Ua
             encryptingKey = new byte[encryptingKeySize];
             iv = new byte[blockSize];
 
-            byte[] secret = localNonce.GenerateSecret(remoteNonce, null);
+            byte[] secret = localNonce.GenerateSecret(remoteNonce, null!) ?? throw new InvalidOperationException("Failed to generate secret.");
             byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
 
             byte[] salt = Utils.Append(
@@ -207,6 +209,11 @@ namespace Opc.Ua
                 return EncryptRsa(secret, nonce);
             }
 
+            if (SenderCertificate == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Sender certificate is required for ECC encryption.");
+            }
+
             int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate);
 
             using var encoder = new BinaryEncoder(Context);
@@ -220,7 +227,7 @@ namespace Opc.Ua
 
             encoder.WriteString(null, SecurityPolicy.Uri);
 
-            byte[] senderCertificate = null;
+            byte[]? senderCertificate = null;
 
             if (!DoNotEncodeSenderCertificate)
             {
@@ -259,6 +266,13 @@ namespace Opc.Ua
                 throw new ServiceResultException(
                     StatusCodes.BadArgumentsMissing,
                     "The receiver did not provide an ephemeral key.");
+            }
+
+            if (SenderNonce?.Data == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadArgumentsMissing,
+                    "The sender nonce is required for ECC encryption.");
             }
 
             byte[] senderNonce = SenderNonce.Data;
@@ -360,7 +374,7 @@ namespace Opc.Ua
             byte[] signature = CryptoUtils.Sign(
                 dataToSign,
                 SenderCertificate,
-                SecurityPolicy.AsymmetricSignatureAlgorithm);
+                SecurityPolicy.AsymmetricSignatureAlgorithm) ?? throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to sign data.");
 
             Buffer.BlockCopy(
                 signature,
@@ -387,11 +401,11 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
             }
 
-            byte[] signingKey = null;
-            byte[] encryptingKey = null;
-            byte[] iv = null;
-            byte[] keyData = null;
-            byte[] encryptedPayload = null;
+            byte[]? signingKey = null;
+            byte[]? encryptingKey = null;
+            byte[]? iv = null;
+            byte[]? keyData = null;
+            byte[]? encryptedPayload = null;
 
             try
             {
@@ -405,7 +419,7 @@ namespace Opc.Ua
                     ReceiverCertificate,
                     SecurityPolicy.Uri,
                     keyData,
-                    logger).Data;
+                    logger).Data ?? throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to encrypt key data.");
 
                 using var payloadEncoder = new BinaryEncoder(Context);
                 payloadEncoder.WriteByteString(null, nonce ?? []);
@@ -536,7 +550,7 @@ namespace Opc.Ua
         /// <summary>
         /// Tries to decrypt an RSAEncryptedSecret payload.
         /// </summary>
-        public bool TryDecryptRsa(byte[] encodedSecret, byte[] expectedNonce, out byte[] secret)
+        public bool TryDecryptRsa(byte[] encodedSecret, byte[] expectedNonce, out byte[]? secret)
         {
             secret = null;
 
@@ -616,12 +630,12 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadDecodingError);
             }
 
-            byte[] keyData = null;
-            byte[] signingKey = null;
-            byte[] encryptingKey = null;
-            byte[] iv = null;
-            byte[] encryptedPayload = null;
-            byte[] payload = null;
+            byte[]? keyData = null;
+            byte[]? signingKey = null;
+            byte[]? encryptingKey = null;
+            byte[]? iv = null;
+            byte[]? encryptedPayload = null;
+            byte[]? payload = null;
 
             try
             {
@@ -691,8 +705,9 @@ namespace Opc.Ua
                     SecurityPolicy,
                     encryptingKey,
                     iv);
+                byte[] plainTextArray = plainText.Array ?? throw new ServiceResultException(StatusCodes.BadDecodingError);
                 payload = new byte[plainText.Count];
-                Buffer.BlockCopy(plainText.Array, plainText.Offset, payload, 0, payload.Length);
+                Buffer.BlockCopy(plainTextArray, plainText.Offset, payload, 0, payload.Length);
 
                 using var payloadDecoder = new BinaryDecoder(payload, Context);
 
@@ -749,7 +764,7 @@ namespace Opc.Ua
         /// <c>true</c> if decryption succeeds; otherwise <c>false</c>.
         /// Routes to RSA or ECC decryption based on the configured security policy.
         /// </returns>
-        public bool TryDecrypt(byte[] encryptedSecret, byte[] expectedNonce, out byte[] secret)
+        public bool TryDecrypt(byte[] encryptedSecret, byte[] expectedNonce, out byte[]? secret)
         {
             secret = null;
 
@@ -815,8 +830,10 @@ namespace Opc.Ua
             DateTime earliestTime,
             ITelemetryContext telemetry)
         {
+            byte[] decryptArray = dataToDecrypt.Array ?? throw new ArgumentNullException(nameof(dataToDecrypt));
+
             using var decoder = new BinaryDecoder(
-                dataToDecrypt.Array,
+                decryptArray,
                 dataToDecrypt.Offset,
                 dataToDecrypt.Count,
                 Context);
@@ -909,7 +926,7 @@ namespace Opc.Ua
 
             SenderNonce = Nonce.CreateNonce(SecurityPolicy, senderPublicKey.ToArray());
 
-            if (!Utils.IsEqual(receiverPublicKey.ToArray(), ReceiverNonce.Data))
+            if (!Utils.IsEqual(receiverPublicKey.ToArray(), ReceiverNonce?.Data))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
@@ -927,14 +944,14 @@ namespace Opc.Ua
             byte[] signature = new byte[signatureLength];
 
             Buffer.BlockCopy(
-                dataToDecrypt.Array,
+                decryptArray,
                 dataToDecrypt.Offset + dataToDecrypt.Count - signatureLength,
                 signature,
                 0,
                 signatureLength);
 
             var dataToSign = new ArraySegment<byte>(
-                dataToDecrypt.Array,
+                decryptArray,
                 dataToDecrypt.Offset,
                 dataToDecrypt.Count - signatureLength);
 
@@ -947,7 +964,7 @@ namespace Opc.Ua
 
             // extract the encrypted data.
             return new ArraySegment<byte>(
-                dataToDecrypt.Array,
+                decryptArray,
                 dataToDecrypt.Offset + startOfEncryption,
                 dataToDecrypt.Count - startOfEncryption - signatureLength);
         }
@@ -975,6 +992,11 @@ namespace Opc.Ua
                 new ArraySegment<byte>(data, offset, count),
                 earliestTime,
                 telemetry);
+
+            if (ReceiverNonce == null || SenderNonce == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadArgumentsMissing, "Receiver and sender nonces are required for ECC decryption.");
+            }
 
             CreateKeysForEcc(
                 SecurityPolicy,

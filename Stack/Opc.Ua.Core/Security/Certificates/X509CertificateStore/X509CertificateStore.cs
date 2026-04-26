@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -132,7 +134,7 @@ namespace Opc.Ua
         public string StoreType => CertificateStoreType.X509Store;
 
         /// <inheritdoc/>
-        public string StorePath { get; private set; }
+        public string StorePath { get; private set; } = string.Empty;
 
         /// <inheritdoc/>
         public bool NoPrivateKeys { get; private set; }
@@ -148,7 +150,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task AddAsync(
             Certificate certificate,
-            char[] password = null,
+            char[]? password = null,
             CancellationToken ct = default)
         {
             if (certificate == null)
@@ -169,7 +171,7 @@ namespace Opc.Ua
                         byte[] pfx = certificate.Export(X509ContentType.Pfx);
                         using X509Certificate2 persistedX509 = X509CertificateLoader.LoadPkcs12(
                             pfx,
-                            (string)null,
+                            (string?)null,
                             X509KeyStorageFlags.PersistKeySet);
                         store.Add(persistedX509);
                     }
@@ -239,15 +241,15 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
-        public Task<Certificate> LoadPrivateKeyAsync(
+        public Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            char[] password,
+            char[]? password,
             CancellationToken ct = default)
         {
-            return Task.FromResult<Certificate>(null);
+            return Task.FromResult<Certificate?>(null);
         }
 
         /// <inheritdoc/>
@@ -397,7 +399,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
-            Certificate issuer = null;
+            Certificate? issuer = null;
             CertificateCollection certificates = await EnumerateAsync(ct).ConfigureAwait(
                 false);
             foreach (Certificate certificate in certificates)

@@ -297,7 +297,7 @@ namespace Opc.Ua
             for (int i = 0; i < appCerts.Count; i++)
             {
                 CertificateIdentifier certId = appCerts[i];
-                using Certificate certificate = await certId.FindAsync(true, applicationUri, m_telemetry, ct)
+                using Certificate? certificate = await certId.FindAsync(true, applicationUri, m_telemetry, ct)
                     .ConfigureAwait(false);
                 if (certificate != null)
                 {
