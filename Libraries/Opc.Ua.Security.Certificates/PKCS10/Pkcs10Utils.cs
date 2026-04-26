@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Formats.Asn1;
 using System.Security.Cryptography;
@@ -54,7 +56,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="attributes">The CSR attributes encoded as DER bytes.</param>
         /// <returns>The X509SubjectAltNameExtension if found; otherwise, null.</returns>
         /// <exception cref="CryptographicException"></exception>
-        public static X509SubjectAltNameExtension GetSubjectAltNameExtension(byte[] attributes)
+        public static X509SubjectAltNameExtension? GetSubjectAltNameExtension(byte[]? attributes)
         {
             if (attributes == null || attributes.Length == 0)
             {

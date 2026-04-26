@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
 
 using System;

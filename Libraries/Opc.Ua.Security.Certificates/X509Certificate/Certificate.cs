@@ -240,7 +240,8 @@ namespace Opc.Ua.Security.Certificates
 
         /// <inheritdoc/>
         public HashAlgorithmName HashAlgorithmName =>
-            Oids.GetHashAlgorithmName(X509.SignatureAlgorithm.Value);
+            Oids.GetHashAlgorithmName(X509.SignatureAlgorithm.Value
+                ?? throw new CryptographicException("Signature algorithm OID value is null."));
 
         /// <inheritdoc/>
         public X509ExtensionCollection Extensions => X509.Extensions;

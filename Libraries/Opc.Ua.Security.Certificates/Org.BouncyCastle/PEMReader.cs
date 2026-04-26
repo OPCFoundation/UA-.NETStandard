@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 #if NETFRAMEWORK
 using System;
 using System.IO;
@@ -177,7 +179,7 @@ namespace Opc.Ua.Security.Certificates
                 pemReader = new PemReader(pemStreamReader, pwFinder);
             }
 
-            AsymmetricAlgorithm key = null;
+            AsymmetricAlgorithm? key = null;
             try
             {
                 // find the private key in the PEM blob
@@ -259,7 +261,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         internal class Password : IPasswordFinder, IDisposable
         {
-            private readonly char[] m_password;
+            private readonly char[]? m_password;
 
             public Password(ReadOnlySpan<char> word)
             {
@@ -271,7 +273,7 @@ namespace Opc.Ua.Security.Certificates
                 }
             }
 
-            public char[] GetPassword()
+            public char[]? GetPassword()
             {
                 return m_password;
             }

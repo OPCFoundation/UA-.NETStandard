@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
@@ -72,11 +74,9 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static byte[] ExportPublicKeyAsPEM(Certificate certificate)
         {
-            byte[] exportedPublicKey = null;
-            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
-            {
-                exportedPublicKey = rsaPublicKey.ExportSubjectPublicKeyInfo();
-            }
+            using RSA rsaPublicKey = certificate.GetRSAPublicKey()
+                ?? throw new CryptographicException("RSA public key not found.");
+            byte[] exportedPublicKey = rsaPublicKey.ExportSubjectPublicKeyInfo();
             return EncodeAsPEM(exportedPublicKey, "PUBLIC KEY");
         }
 
@@ -85,12 +85,10 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static byte[] ExportRSAPrivateKeyAsPEM(Certificate certificate)
         {
-            byte[] exportedRSAPrivateKey = null;
-            using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
-            {
-                // write private key as PKCS#1
-                exportedRSAPrivateKey = rsaPrivateKey.ExportRSAPrivateKey();
-            }
+            using RSA rsaPrivateKey = certificate.GetRSAPrivateKey()
+                ?? throw new CryptographicException("RSA private key not found.");
+            // write private key as PKCS#1
+            byte[] exportedRSAPrivateKey = rsaPrivateKey.ExportRSAPrivateKey();
             return EncodeAsPEM(exportedRSAPrivateKey, "RSA PRIVATE KEY");
         }
 
@@ -99,12 +97,10 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static byte[] ExportECDsaPrivateKeyAsPEM(Certificate certificate)
         {
-            byte[] exportedECPrivateKey = null;
-            using (ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
-            {
-                // write private key as PKCS#1
-                exportedECPrivateKey = ecdsaPrivateKey.ExportECPrivateKey();
-            }
+            using ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey()
+                ?? throw new CryptographicException("ECDsa private key not found.");
+            // write private key as PKCS#1
+            byte[] exportedECPrivateKey = ecdsaPrivateKey.ExportECPrivateKey();
             return EncodeAsPEM(exportedECPrivateKey, "EC PRIVATE KEY");
         }
 
@@ -115,8 +111,8 @@ namespace Opc.Ua.Security.Certificates
             Certificate certificate,
             ReadOnlySpan<char> password = default)
         {
-            byte[] exportedPkcs8PrivateKey = null;
-            using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
+            byte[]? exportedPkcs8PrivateKey = null;
+            using (RSA? rsaPrivateKey = certificate.GetRSAPrivateKey())
             {
                 if (rsaPrivateKey != null)
                 {
@@ -132,7 +128,7 @@ namespace Opc.Ua.Security.Certificates
                 }
                 else
                 {
-                    using ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey();
+                    using ECDsa? ecdsaPrivateKey = certificate.GetECDsaPrivateKey();
                     if (ecdsaPrivateKey != null)
                     {
                         // write private key as PKCS#8
@@ -149,7 +145,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             return EncodeAsPEM(
-                exportedPkcs8PrivateKey,
+                exportedPkcs8PrivateKey ?? throw new CryptographicException("No private key found."),
                 password.IsEmpty || password.IsWhiteSpace() ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
 
@@ -159,7 +155,7 @@ namespace Opc.Ua.Security.Certificates
         public static bool TryRemovePublicKeyFromPEM(
             string thumbprint,
             ReadOnlySpan<byte> pemDataBlob,
-            out byte[] modifiedPemDataBlob)
+            out byte[]? modifiedPemDataBlob)
         {
             modifiedPemDataBlob = null;
             const string label = "CERTIFICATE";

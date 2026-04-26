@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Formats.Asn1;
@@ -122,7 +124,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public X500DistinguishedName IssuerName { get; }
+        public X500DistinguishedName IssuerName { get; } = null!;
 
         /// <inheritdoc/>
         public string Issuer => IssuerName.Name;
@@ -143,7 +145,7 @@ namespace Opc.Ua.Security.Certificates
         public X509ExtensionCollection CrlExtensions { get; }
 
         /// <inheritdoc/>
-        public byte[] RawData { get; private set; }
+        public byte[] RawData { get; private set; } = null!;
 
         /// <summary>
         /// Set this update time.
@@ -272,7 +274,8 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateForRSA(Certificate issuerCertificate)
         {
-            using RSA rsa = issuerCertificate.GetRSAPrivateKey();
+            using RSA rsa = issuerCertificate.GetRSAPrivateKey()
+                ?? throw new CryptographicException("RSA private key not found.");
             var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
             return CreateSignature(generator);
         }
@@ -283,7 +286,8 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateForECDsa(Certificate issuerCertificate)
         {
-            using ECDsa ecdsa = issuerCertificate.GetECDsaPrivateKey();
+            using ECDsa ecdsa = issuerCertificate.GetECDsaPrivateKey()
+                ?? throw new CryptographicException("ECDsa private key not found.");
             var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
             return CreateSignature(generator);
         }

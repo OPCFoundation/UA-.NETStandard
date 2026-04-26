@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 #if !NET9_0_OR_GREATER
 
 namespace System.Security.Cryptography.X509Certificates

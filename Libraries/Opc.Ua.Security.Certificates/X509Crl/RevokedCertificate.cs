@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -87,7 +89,7 @@ namespace Opc.Ua.Security.Certificates
         public RevokedCertificate(string serialNumber)
             : this()
         {
-            UserCertificate = [.. ((IEnumerable<byte>)serialNumber.FromHexString()).Reverse()];
+            UserCertificate = [.. ((IEnumerable<byte>)(serialNumber.FromHexString() ?? [])).Reverse()];
         }
 
         /// <summary>
@@ -116,7 +118,7 @@ namespace Opc.Ua.Security.Certificates
         /// The serial number of the revoked user certificate
         /// as a little endian byte array.
         /// </summary>
-        public byte[] UserCertificate { get; }
+        public byte[] UserCertificate { get; } = null!;
 
         /// <summary>
         /// The UTC time of the revocation event.
