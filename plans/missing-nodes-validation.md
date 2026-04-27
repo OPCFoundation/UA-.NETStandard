@@ -3,7 +3,6 @@
 **Date:** 2026-04-27  
 **Server:** ConsoleReferenceServer with GDS (`opc.tcp://localhost:48010`)  
 **Spec:** `Opc.Ua.NodeSet2.xml` v1.05.07  
-**Commit:** `817b1b695` (asfixes branch)
 
 ## Result
 
@@ -31,7 +30,7 @@ SecurityMode=None). The remaining gaps are optional features or type-level metad
 | Structural Category | Count | Fix Needed |
 |---------------------|------:|------------|
 | Type-level children (mandatory on ObjectTypes not instantiated) | 261 | No |
-| Instance-level children (concrete server objects) | 48 | 1 recommended |
+| Instance-level children (concrete server objects) | 48 | No (all present or deliberate) |
 | Orphan property templates (no ParentNodeId) | 26 | No |
 
 ### Type-Level Children (261 nodes)
@@ -575,9 +574,11 @@ sub-properties use a dynamic diagnostics model (computed on demand, not static n
 
 #### Server > Auditing (1 node)
 
-`i=2994` -- Boolean indicating audit support. Reference server does not enable auditing.
+`i=2994` -- Boolean indicating audit support. **Present** in the server (value=`true`),
+but returns `BadUserAccessDenied` for anonymous users due to RolePermissions.
+Visible to authenticated admin users.
 
-**Fix needed:** Recommended. Part 5 section 6.3.3 says expose with value `false`.
+**Fix needed:** No. Already correctly exposed; hidden from export by access control.
 
 #### HA Configuration (6 nodes)
 
@@ -665,9 +666,9 @@ Variable nodes with no `ParentNodeId`. Canonical type-level property definitions
 |----------|------:|------------|--------|
 | Type-level children | 261 | No | - |
 | Server diagnostics | 16 | No (deliberate) | - |
-| Server.Auditing | 1 | **Recommended** | Trivial |
+| Server.Auditing | 1 | No (**Present**, access-restricted) | - |
 | HA Configuration | 6 | No (optional) | - |
 | FileSystem | 11 | No (optional) | - |
 | PublishSubscribe | 14 | No (optional) | Large |
 | Orphan templates | 26 | No (design-time) | - |
-| **Total** | **335** | **1 recommended** | |
+| **Total** | **335** | **No fixes needed** | |
