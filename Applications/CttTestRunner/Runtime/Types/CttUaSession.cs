@@ -471,25 +471,15 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 response.Set("RevisedSessionTimeout", JsValue.FromObject(engine, _session.SessionTimeout));
                 response.Set("MaxRequestMessageSize", JsValue.FromObject(engine, 0));
 
-                // ServerNonce as UaByteString — generate a 32-byte nonce
+                // ServerNonce as UaByteString with clone/append
                 byte[] nonceBytes = new byte[32];
                 System.Security.Cryptography.RandomNumberGenerator.Fill(nonceBytes);
-                var serverNonce = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                serverNonce.Set("length", JsValue.FromObject(engine, nonceBytes.Length));
-                serverNonce.Set("isEmpty", new ClrFunction(engine, "isEmpty",
-                    (_, _) => JsValue.FromObject(engine, nonceBytes.Length == 0)));
-                serverNonce.Set("clone", new ClrFunction(engine, "clone",
-                    (thisObj, _) => thisObj));
-                serverNonce.Set("append", new ClrFunction(engine, "append",
-                    (_, _) => JsValue.Undefined));
+                var serverNonce = engine.Evaluate($"_makeByteString({nonceBytes.Length})");
                 response.Set("ServerNonce", serverNonce);
 
                 // ServerCertificate as UaByteString
                 byte[] certBytes = _session.ConfiguredEndpoint?.Description?.ServerCertificate.ToArray() ?? Array.Empty<byte>();
-                var serverCert = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                serverCert.Set("length", JsValue.FromObject(engine, certBytes.Length));
-                serverCert.Set("isEmpty", new ClrFunction(engine, "isEmpty",
-                    (_, _) => JsValue.FromObject(engine, certBytes.Length == 0)));
+                var serverCert = engine.Evaluate($"_makeByteString({certBytes.Length})");
                 response.Set("ServerCertificate", serverCert);
 
                 // ServerEndpoints
@@ -506,12 +496,8 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     epObj.Set("SecurityPolicyUri", JsValue.FromObject(engine, ep.SecurityPolicyUri ?? ""));
                     epObj.Set("SecurityLevel", JsValue.FromObject(engine, ep.SecurityLevel));
                     epObj.Set("TransportProfileUri", JsValue.FromObject(engine, ep.TransportProfileUri ?? ""));
-                    var certObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                    var epCertBytes = ep.ServerCertificate.ToArray();
-                    certObj.Set("length", JsValue.FromObject(engine, epCertBytes.Length));
-                    certObj.Set("isEmpty", new ClrFunction(engine, "isEmpty",
-                        (_, _) => JsValue.FromObject(engine, epCertBytes.Length == 0)));
-                    epObj.Set("ServerCertificate", certObj);
+                    var certObj = engine.Evaluate($"_makeByteString({ep.ServerCertificate.ToArray().Length})") as ObjectInstance;
+                    epObj.Set("ServerCertificate", certObj!);
                     // UserIdentityTokens
                     var tokens = new List<JsValue>();
                     foreach (var t in ep.UserIdentityTokens)
@@ -567,15 +553,10 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             var response = args[1].AsObject();
 
             // Session.CreateAsync already activates the session, so just return Good
-            var responseHeader = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-            responseHeader.Set("ServiceResult", CreateUaStatusCode(engine, (uint)StatusCodes.Good));
-            responseHeader.Set("Timestamp", CreateUaDateTimeNow(engine));
-            response.Set("ResponseHeader", responseHeader);
+            response.Set("ResponseHeader", CreateResponseHeader(engine, (uint)StatusCodes.Good));
 
             // ServerNonce
-            var serverNonce = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-            serverNonce.Set("length", JsValue.FromObject(engine, 0));
-            response.Set("ServerNonce", serverNonce);
+            response.Set("ServerNonce", engine.Evaluate("_makeByteString(32)"));
 
             // Results (empty status code array)
             response.Set("Results", engine.Intrinsics.Array.Construct(Array.Empty<JsValue>()));
@@ -707,12 +688,9 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                         engine.Intrinsics.Array.Construct(discUrlsList.ToArray()));
                     epObj.Set("Server", serverObj);
 
-                    // ServerCertificate (UaByteString-like with isEmpty)
+                    // ServerCertificate (UaByteString-like with clone/isEmpty)
                     var certLen = ep.ServerCertificate.Length;
-                    var certObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                    certObj.Set("length", JsValue.FromObject(engine, certLen));
-                    certObj.Set("isEmpty", new ClrFunction(engine, "isEmpty",
-                        (_, _) => JsValue.FromObject(engine, certLen == 0)));
+                    var certObj = engine.Evaluate($"_makeByteString({certLen})");
                     epObj.Set("ServerCertificate", certObj);
 
                     // UserIdentityTokens

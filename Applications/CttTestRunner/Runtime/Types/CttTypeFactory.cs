@@ -106,11 +106,11 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 function UaActivateSessionRequest() {
                     var obj = (this instanceof UaActivateSessionRequest) ? this : {};
                     obj.RequestHeader = new UaRequestHeader();
-                    obj.ClientSignature = { Algorithm: '', Signature: { length: 0 } };
+                    obj.ClientSignature = { Algorithm: '', Signature: _makeByteString(0) };
                     obj.ClientSoftwareCertificates = [];
                     obj.LocaleIds = [];
                     obj.UserIdentityToken = null;
-                    obj.UserTokenSignature = { Algorithm: '', Signature: { length: 0 } };
+                    obj.UserTokenSignature = { Algorithm: '', Signature: _makeByteString(0) };
                     obj.toString = function() { return 'ActivateSessionRequest'; };
                     if (!(this instanceof UaActivateSessionRequest)) return obj;
                 }
@@ -126,9 +126,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     if (!(this instanceof UaCloseSessionRequest)) return obj;
                 }
             ");
-            RegisterRequestResponse(engine, "UaActivateSessionRequest", "ClientSignature", "ClientSoftwareCertificates", "LocaleIds", "UserIdentityToken", "UserTokenSignature", "RequestHeader");
             RegisterRequestResponse(engine, "UaActivateSessionResponse", "ServerNonce", "Results", "DiagnosticInfos", "ResponseHeader");
-            RegisterRequestResponse(engine, "UaCloseSessionRequest", "DeleteSubscriptions", "RequestHeader");
             RegisterRequestResponse(engine, "UaCloseSessionResponse", "ResponseHeader");
             RegisterRequestResponse(engine, "UaCreateSessionResponse", "SessionId", "AuthenticationToken", "RevisedSessionTimeout", "ServerNonce", "ServerCertificate", "ServerEndpoints", "ServerSoftwareCertificates", "ServerSignature", "MaxRequestMessageSize", "ResponseHeader");
             RegisterRequestResponse(engine, "UaQueryFirstRequest", "View", "NodeTypes", "Filter", "MaxDataSetsToReturn", "MaxReferencesToReturn", "RequestHeader");
@@ -228,7 +226,23 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             RegisterSimpleType(engine, "UaLocalizedText", "Text", "Locale");
             RegisterSimpleType(engine, "UaQualifiedName", "Name", "NamespaceIndex");
             RegisterSimpleType(engine, "UaExpandedNodeId", "NodeId", "NamespaceUri", "ServerIndex");
-            RegisterSimpleType(engine, "UaExtensionObject", "TypeId", "Body");
+            // UaExtensionObject with setter methods for identity tokens, filters, etc.
+            engine.Execute(@"
+                function UaExtensionObject() {
+                    var obj = (this instanceof UaExtensionObject) ? this : {};
+                    obj.TypeId = undefined;
+                    obj.Body = undefined;
+                    obj._inner = null;
+                    obj.clone = function() { return obj; };
+                    obj.setAnonymousIdentityToken = function(token) { obj._inner = token; obj.TypeId = { NodeId: new UaNodeId(321) }; };
+                    obj.setUserNameIdentityToken = function(token) { obj._inner = token; obj.TypeId = { NodeId: new UaNodeId(324) }; };
+                    obj.setX509IdentityToken = function(token) { obj._inner = token; obj.TypeId = { NodeId: new UaNodeId(327) }; };
+                    obj.setAttributeOperand = function(op) { obj._inner = op; };
+                    obj.setDataChangeFilter = function(f) { obj._inner = f; };
+                    obj.setEventFilter = function(f) { obj._inner = f; };
+                    if (!(this instanceof UaExtensionObject)) return obj;
+                }
+            ");
             RegisterSimpleType(engine, "UaGuid");
             RegisterSimpleType(engine, "UaByteString");
             RegisterSimpleType(engine, "UaXmlElement");
@@ -549,25 +563,46 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
         private static void RegisterChannelConstructor(Engine engine)
         {
-            // Use JS function so 'new UaChannel()' works (ClrFunction doesn't support [[Construct]])
             engine.Execute(@"
+                function _makeByteString(len) {
+                    return {
+                        length: len || 0,
+                        isEmpty: function() { return this.length === 0; },
+                        clone: function() { return _makeByteString(this.length); },
+                        append: function(other) { if (other && other.length) this.length += other.length; },
+                        toString: function() { return '[ByteString(' + this.length + ')]'; }
+                    };
+                }
+
                 function UaChannel() {
                     this.Connected = false;
-                    this.ClientCertificate = { length: 0 };
+                    this.ClientCertificate = _makeByteString(0);
+                    this.ClientPrivateKey = _makeByteString(0);
+                    this.ServerCertificate = _makeByteString(0);
+                    this.ClientNonce = _makeByteString(0);
+                    this.ServerNonce = _makeByteString(0);
                     this.RequestedLifetime = 0;
+                    this.NetworkTimeout = 60000;
                     this.SecurityMode = 1; // None
+                    this.MessageSecurityMode = 1; // None
+                    this.RequestedSecurityPolicyUri = 'http://opcfoundation.org/UA/SecurityPolicy#None';
                     this.SecurityPolicy = '';
-                    this.ServerCertificate = { length: 0 };
+                    this.ServerUrl = '';
+                    this.CertificateTrustListLocation = '';
+                    this.CertificateRevocationListLocation = '';
+                    this.ClientAuditEntryId = '';
                     this.connect = function(url) {
                         this.Connected = true;
                         this._url = url;
-                        var sc = new UaStatusCode(0);
-                        return sc;
+                        return new UaStatusCode(0);
                     };
                     this.disconnect = function() {
                         this.Connected = false;
-                        var sc = new UaStatusCode(0);
-                        return sc;
+                        return new UaStatusCode(0);
+                    };
+                    this.IsSecure = function() {
+                        return this.RequestedSecurityPolicyUri !== 'http://opcfoundation.org/UA/SecurityPolicy#None' &&
+                               this.MessageSecurityMode !== 1;
                     };
                 }
             ");
@@ -662,7 +697,24 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
         private static void RegisterCryptoProviderConstructor(Engine engine)
         {
-            engine.Execute("function UaCryptoProvider() {}");
+            engine.Execute(@"
+                function UaCryptoProvider(securityPolicyUri) {
+                    this.SecurityPolicyUri = securityPolicyUri || '';
+                    var _goodResult = function() {
+                        var r = new UaStatusCode(0);
+                        return r;
+                    };
+                    this.asymmetricSign = function(data, privateKey, signature) { return _goodResult(); };
+                    this.asymmetricVerify = function(data, certificate, signature) { return _goodResult(); };
+                    this.asymmetricEncrypt = function(data, certificate) { return _goodResult(); };
+                    this.asymmetricDecrypt = function(data, privateKey) { return _goodResult(); };
+                    this.symmetricSign = function(data, key) { return _goodResult(); };
+                    this.symmetricVerify = function(data, key, signature) { return _goodResult(); };
+                    this.symmetricEncrypt = function(data, key) { return _goodResult(); };
+                    this.symmetricDecrypt = function(data, key) { return _goodResult(); };
+                    this.generateKey = function(length) { return _makeByteString(length || 32); };
+                }
+            ");
         }
 
         private static void RegisterRequestHeaderHelper(Engine engine)
