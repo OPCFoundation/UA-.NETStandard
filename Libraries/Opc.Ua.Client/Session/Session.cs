@@ -373,16 +373,65 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Closes the session and the underlying channel.
         /// </summary>
+#pragma warning disable CA2215 // Dispose methods should call base class dispose
         protected override void Dispose(bool disposing)
+#pragma warning restore CA2215 // Dispose methods should call base class dispose
         {
-            if (Disposed && disposing)
+            if (!m_disposeAsyncCalled)
+            {
+                DisposeAsyncCore(disposing).AsTask().GetAwaiter().GetResult();
+            }
+        }
+
+#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            GC.SuppressFinalize(this);
+            await DisposeAsyncCore(true).ConfigureAwait(false);
+        }
+#endif
+
+        /// <summary>
+        /// Core async dispose logic for the session.
+        /// </summary>
+        /// <param name="disposing">True if called from dispose, false otherwise.</param>
+        protected virtual async ValueTask DisposeAsyncCore(bool disposing)
+        {
+            if (m_disposeAsyncCalled)
             {
                 return;
             }
+            m_disposeAsyncCalled = true;
 
             if (disposing)
             {
-                StopKeepAliveTimerAsync().AsTask().GetAwaiter().GetResult();
+                if (Disposed)
+                {
+                    return;
+                }
+
+                try
+                {
+                    await StopKeepAliveTimerAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    m_logger.LogDebug(ex, "Error stopping keep alive timer during dispose.");
+                }
+
+                try
+                {
+                    if (Connected)
+                    {
+                        await WaitForOrCancelOutstandingPublishRequestsAsync(default).ConfigureAwait(false);
+                        await base.CloseSessionAsync(null, DeleteSubscriptionsOnClose, default).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    m_logger.LogDebug(ex, "Error closing session during dispose.");
+                }
 
                 m_defaultSubscription?.Dispose();
                 m_nodeCache?.Dispose();
@@ -4400,6 +4449,7 @@ namespace Opc.Ua.Client
         private string? m_userTokenSecurityPolicyUri;
         private Nonce? m_eccServerEphemeralKey;
         private Subscription? m_defaultSubscription;
+        private bool m_disposeAsyncCalled;
         private readonly ArrayOf<EndpointDescription> m_discoveryServerEndpoints;
         private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
