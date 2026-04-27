@@ -4319,7 +4319,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            int number = value.GetInt32();
+            int number = (int)value.GetUInt32();
             if (number >= variable.EnumValues.Value.Count || number < 0)
             {
                 return StatusCodes.BadOutOfRange;
