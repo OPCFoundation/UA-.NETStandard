@@ -12,6 +12,7 @@ using System.Threading;
 using Jint;
 using Jint.Native;
 using Jint.Native.Object;
+using Jint.Runtime;
 using Jint.Runtime.Interop;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.CttTestRunner.Runtime.Settings;
@@ -232,25 +233,27 @@ namespace Opc.Ua.CttTestRunner.Runtime
         /// <summary>
         /// Creates an Assert object with methods matching CTT assertions.
         /// </summary>
-        public ObjectInstance CreateAssertObject()
+        public JsValue CreateAssertObject()
         {
-            return new CttAssert(TestContext, _loggerFactory.CreateLogger("Assert"));
+            return new CttAssert(TestContext, _loggerFactory.CreateLogger("Assert"))
+                .ToJsObject();
         }
 
         /// <summary>
         /// Creates the ServiceRegister object (tracks which services were tested).
         /// </summary>
-        public ObjectInstance CreateServiceRegister()
+        public JsValue CreateServiceRegister()
         {
-            return new CttServiceRegister(_loggerFactory.CreateLogger("ServiceRegister"));
+            return new CttServiceRegister(_loggerFactory.CreateLogger("ServiceRegister"))
+                .ToJsObject();
         }
 
         /// <summary>
         /// Creates the Identifier object with all OPC UA NodeId numeric constants.
         /// </summary>
-        public ObjectInstance CreateIdentifierObject()
+        public JsValue CreateIdentifierObject()
         {
-            return new CttIdentifierConstants();
+            return new CttIdentifierConstants().ToJsObject();
         }
 
         /// <summary>
@@ -264,9 +267,10 @@ namespace Opc.Ua.CttTestRunner.Runtime
         /// <summary>
         /// Creates the MonitoredItem helper with static methods.
         /// </summary>
-        public ObjectInstance CreateMonitoredItemHelper(Engine engine)
+        public JsValue CreateMonitoredItemHelper(Engine engine)
         {
-            return new CttMonitoredItemHelper(engine, _project, _loggerFactory.CreateLogger("MonitoredItem"));
+            return new CttMonitoredItemHelper(engine, _project, _loggerFactory.CreateLogger("MonitoredItem"))
+                .ToJsObject(engine);
         }
 
         private ObjectInstance CreateSessionWrapper(Engine engine)

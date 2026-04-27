@@ -16,6 +16,7 @@ using Jint.Runtime;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.CttTestRunner.Runtime;
 using Opc.Ua.CttTestRunner.Runtime.Settings;
+using Opc.Ua.CttTestRunner.Runtime.Types;
 
 namespace Opc.Ua.CttTestRunner
 {

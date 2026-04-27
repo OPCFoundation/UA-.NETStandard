@@ -17,36 +17,45 @@ namespace Opc.Ua.CttTestRunner.Runtime
     /// <summary>
     /// Tracks which OPC UA services have been tested during the run.
     /// </summary>
-    public sealed class CttServiceRegister : ObjectInstance
+    public sealed class CttServiceRegister
     {
         private readonly ILogger _logger;
         private readonly Dictionary<string, ServiceInfo> _services = new();
 
-        public CttServiceRegister(ILogger logger) : base(new Engine())
+        public CttServiceRegister(ILogger logger)
         {
             _logger = logger;
+        }
 
-            FastSetDataProperty("Register", new ClrFunction(Engine, "Register",
+        /// <summary>
+        /// Creates a JS object exposing Register, SetFailed, and UaService methods.
+        /// </summary>
+        public ObjectInstance ToJsObject()
+        {
+            var engine = new Engine();
+            var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+
+            obj.Set("Register", new ClrFunction(engine, "Register",
                 (_, args) =>
                 {
-                    if (args.Length > 0 && args[0].Type == Jint.Native.JsValueType.Object)
+                    if (args.Length > 0 && args[0].IsObject())
                     {
-                        var svc = ((ObjectInstance)args[0]).Get("Service");
-                        if (svc.Type == Jint.Native.JsValueType.Object)
+                        var svc = args[0].AsObject().Get("Service");
+                        if (svc.IsObject())
                         {
-                            var name = ((ObjectInstance)svc).Get("Name").AsString();
+                            var name = svc.AsObject().Get("Name").AsString();
                             _services[name] = new ServiceInfo { Name = name, Tested = true };
                         }
                     }
                     return JsValue.Undefined;
                 }));
 
-            FastSetDataProperty("SetFailed", new ClrFunction(Engine, "SetFailed",
+            obj.Set("SetFailed", new ClrFunction(engine, "SetFailed",
                 (_, args) =>
                 {
-                    if (args.Length > 0 && args[0].Type == Jint.Native.JsValueType.Object)
+                    if (args.Length > 0 && args[0].IsObject())
                     {
-                        var name = ((ObjectInstance)args[0]).Get("Name").AsString();
+                        var name = args[0].AsObject().Get("Name").AsString();
                         if (_services.TryGetValue(name, out var info))
                         {
                             info.Failed = true;
@@ -55,21 +64,23 @@ namespace Opc.Ua.CttTestRunner.Runtime
                     return JsValue.Undefined;
                 }));
 
-            FastSetDataProperty("UaService", new ClrFunction(Engine, "UaService",
+            obj.Set("UaService", new ClrFunction(engine, "UaService",
                 (_, args) =>
                 {
-                    var obj = (ObjectInstance)Engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                    if (args.Length > 0 && args[0].Type == Jint.Native.JsValueType.Object)
+                    var svcObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                    if (args.Length > 0 && args[0].IsObject())
                     {
-                        var argsObj = (ObjectInstance)args[0];
-                        obj.Set("Name", argsObj.Get("Name"));
-                        obj.Set("Available",
-                            argsObj.HasProperty("Available") ? argsObj.Get("Available") : JsValue.FromObject(Engine, true));
-                        obj.Set("Tested",
-                            argsObj.HasProperty("Tested") ? argsObj.Get("Tested") : JsValue.FromObject(Engine, true));
+                        var argsObj = args[0].AsObject();
+                        svcObj.Set("Name", argsObj.Get("Name"));
+                        svcObj.Set("Available",
+                            argsObj.HasProperty("Available") ? argsObj.Get("Available") : JsValue.FromObject(engine, true));
+                        svcObj.Set("Tested",
+                            argsObj.HasProperty("Tested") ? argsObj.Get("Tested") : JsValue.FromObject(engine, true));
                     }
-                    return obj;
+                    return svcObj;
                 }));
+
+            return obj;
         }
 
         private sealed class ServiceInfo

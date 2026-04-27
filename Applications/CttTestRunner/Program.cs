@@ -29,12 +29,14 @@
 
 using System;
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Configuration;
+using Opc.Ua.CttTestRunner.Runtime.Settings;
 
 namespace Opc.Ua.CttTestRunner
 {
@@ -46,13 +48,6 @@ namespace Opc.Ua.CttTestRunner
         public static async Task<int> Main(string[] args)
         {
             var settingsOption = new Option<string>("--settings", "Path to .ctt.xml project file");
-            settingsOption.AddValidator(result =>
-            {
-                if (string.IsNullOrEmpty(result.GetValueOrDefault<string>()))
-                {
-                    result.ErrorMessage = "--settings is required";
-                }
-            });
 
             var fileOption = new Option<string>("--file", "Specific .js test script to run");
 
@@ -64,9 +59,11 @@ namespace Opc.Ua.CttTestRunner
 
             var listOption = new Option<bool>("--list", "List available conformance units without running tests");
 
-            var verboseOption = new Option<bool>("--verbose", "Enable verbose logging of JS↔.NET calls");
+            var verboseOption = new Option<bool>("--verbose", "Enable verbose logging of JS\u2194.NET calls");
 
-            var rootCommand = new RootCommand("OPC UA CTT JavaScript Test Runner — executes CTT test scripts using the .NET Standard stack")
+            var jsonOption = new Option<bool>("--json", "Emit JSON lines to stdout for machine-readable output");
+
+            var rootCommand = new RootCommand("OPC UA CTT JavaScript Test Runner \u2014 executes CTT test scripts using the .NET Standard stack")
             {
                 settingsOption,
                 fileOption,
@@ -74,15 +71,23 @@ namespace Opc.Ua.CttTestRunner
                 resultOption,
                 conformanceUnitOption,
                 listOption,
-                verboseOption
+                verboseOption,
+                jsonOption
             };
 
-            rootCommand.SetHandler(async (settings, file, cttDir, result, cu, list, verbose) =>
+            rootCommand.SetAction(async (parseResult, ct) =>
             {
+                string settings = parseResult.GetValue(settingsOption) ?? "";
+                string? file = parseResult.GetValue(fileOption);
+                string? cttDir = parseResult.GetValue(cttDirOption);
+                string? result = parseResult.GetValue(resultOption);
+                string? cu = parseResult.GetValue(conformanceUnitOption);
+                bool list = parseResult.GetValue(listOption);
+                bool verbose = parseResult.GetValue(verboseOption);
                 await RunAsync(settings, file, cttDir, result, cu, list, verbose).ConfigureAwait(false);
-            }, settingsOption, fileOption, cttDirOption, resultOption, conformanceUnitOption, listOption, verboseOption);
+            });
 
-            return await rootCommand.InvokeAsync(args).ConfigureAwait(false);
+            return await rootCommand.Parse(args).InvokeAsync().ConfigureAwait(false);
         }
 
         private static async Task RunAsync(
@@ -137,7 +142,8 @@ namespace Opc.Ua.CttTestRunner
             var projectSettings = new CttProjectSettings(settingsPath);
 
             // Initialize OPC UA application
-            var application = new ApplicationInstance {
+            var telemetry = DefaultTelemetry.Create(b => b.AddConsole());
+            var application = new ApplicationInstance(telemetry) {
                 ApplicationName = "OPC UA CTT Test Runner",
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = "CttTestRunner"
@@ -145,12 +151,12 @@ namespace Opc.Ua.CttTestRunner
 
             string configPath = Path.Combine(
                 AppContext.BaseDirectory, "CttTestRunner.Config.xml");
-            var config = await application.LoadApplicationConfiguration(configPath, false).ConfigureAwait(false);
+            var config = await application.LoadApplicationConfigurationAsync(configPath, false).ConfigureAwait(false);
             config.CertificateValidator.CertificateValidation += (_, e) =>
             {
                 e.Accept = true; // Auto-accept for testing
             };
-            await application.CheckApplicationInstanceCertificate(false, 0).ConfigureAwait(false);
+            await application.CheckApplicationInstanceCertificatesAsync(false).ConfigureAwait(false);
 
             // Build test list
             string[] testFiles;

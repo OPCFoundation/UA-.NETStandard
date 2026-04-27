@@ -309,7 +309,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             engine.SetValue("UaChannel", new ClrFunction(engine, "UaChannel", (_, _) =>
             {
                 var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                obj.Set("Connected", JsValue.False);
+                obj.Set("Connected", JsValue.FromObject(engine, false));
                 return obj;
             }));
         }

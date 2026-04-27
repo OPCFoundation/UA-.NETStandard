@@ -77,13 +77,14 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             {
                 // Get the endpoint description
                 var endpointDescription = await CoreClientUtils.SelectEndpointAsync(
-                    _config, new Uri(url), null, CancellationToken.None);
+                    _config, url, true, _config.CreateMessageContext().Telemetry,
+                    CancellationToken.None).ConfigureAwait(false);
 
                 var endpointConfig = EndpointConfiguration.Create(_config);
                 var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfig);
 
                 // Create session using factory
-                var factory = new DefaultSessionFactory();
+                var factory = new DefaultSessionFactory(_config.CreateMessageContext().Telemetry);
                 _session = await factory.CreateAsync(
                     _config,
                     endpoint,
@@ -93,7 +94,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     sessionTimeout: 60000,
                     identity: new UserIdentity(new AnonymousIdentityToken()),
                     preferredLocales: new ArrayOf<string>(),
-                    ct: CancellationToken.None);
+                    ct: CancellationToken.None).ConfigureAwait(false);
 
                 _connected = true;
                 _logger.LogInformation("Connected. SessionId={Id}", _session.SessionId);
@@ -199,7 +200,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Service {Method} threw", name);
-                        return CreateUaStatusCode(engine, StatusCodes.BadUnexpectedError);
+                        return CreateUaStatusCode(engine, (uint)StatusCodes.BadUnexpectedError);
                     }
                 }));
         }
@@ -209,7 +210,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
         private JsValue ServiceRead(Engine engine, JsValue[] args)
         {
             var session = EnsureConnected();
-            if (args.Length < 2) return CreateUaStatusCode(engine, StatusCodes.BadInvalidArgument);
+            if (args.Length < 2) return CreateUaStatusCode(engine, (uint)StatusCodes.BadInvalidArgument);
 
             var request = args[0].AsObject();
             var response = args[1].AsObject();
@@ -217,7 +218,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             // Extract NodesToRead from request
             var nodesToRead = new List<ReadValueId>();
             var reqNodes = request.Get("NodesToRead");
-            if (reqNodes.Type == Jint.Native.JsValueType.Object)
+            if (reqNodes.IsObject())
             {
                 var nodesObj = (ObjectInstance)reqNodes;
                 int length = (int)nodesObj.Get("length").AsNumber();
@@ -239,14 +240,14 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
             var tsReturn = TimestampsToReturn.Both;
             var tsVal = request.Get("TimestampsToReturn");
-            if (tsVal.Type == Jint.Native.JsValueType.Number)
+            if (tsVal.IsNumber())
             {
                 tsReturn = (TimestampsToReturn)(int)tsVal.AsNumber();
             }
 
             double maxAge = 0;
             var maxAgeVal = request.Get("MaxAge");
-            if (maxAgeVal.Type == Jint.Native.JsValueType.Number)
+            if (maxAgeVal.IsNumber())
             {
                 maxAge = maxAgeVal.AsNumber();
             }
@@ -272,20 +273,20 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             var diagArray = engine.Intrinsics.Array.Construct(Array.Empty<JsValue>());
             response.Set("DiagnosticInfos", diagArray);
 
-            return CreateUaStatusCode(engine, StatusCodes.Good);
+            return CreateUaStatusCode(engine, (uint)StatusCodes.Good);
         }
 
         private JsValue ServiceWrite(Engine engine, JsValue[] args)
         {
             var session = EnsureConnected();
-            if (args.Length < 2) return CreateUaStatusCode(engine, StatusCodes.BadInvalidArgument);
+            if (args.Length < 2) return CreateUaStatusCode(engine, (uint)StatusCodes.BadInvalidArgument);
 
             var request = args[0].AsObject();
             var response = args[1].AsObject();
 
             var writeValues = new List<WriteValue>();
             var reqNodes = request.Get("NodesToWrite");
-            if (reqNodes.Type == Jint.Native.JsValueType.Object)
+            if (reqNodes.IsObject())
             {
                 var nodesObj = (ObjectInstance)reqNodes;
                 int length = (int)nodesObj.Get("length").AsNumber();
@@ -317,24 +318,25 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 CreateUaStatusCode(engine, writeResponse.ResponseHeader.ServiceResult.Code));
             response.Set("ResponseHeader", responseHeader);
 
+            var writeResults = writeResponse.Results.ToArray() ?? Array.Empty<StatusCode>();
             var resultsArray = engine.Intrinsics.Array.Construct(
-                writeResponse.Results.ToArray()!.Select(r => CreateUaStatusCode(engine, r.Code)).ToArray());
+                writeResults.Select(r => CreateUaStatusCode(engine, r.Code)).ToArray());
             response.Set("Results", resultsArray);
 
-            return CreateUaStatusCode(engine, StatusCodes.Good);
+            return CreateUaStatusCode(engine, (uint)StatusCodes.Good);
         }
 
         private JsValue ServiceBrowse(Engine engine, JsValue[] args)
         {
             var session = EnsureConnected();
-            if (args.Length < 2) return CreateUaStatusCode(engine, StatusCodes.BadInvalidArgument);
+            if (args.Length < 2) return CreateUaStatusCode(engine, (uint)StatusCodes.BadInvalidArgument);
 
             var request = args[0].AsObject();
             var response = args[1].AsObject();
 
             var nodesToBrowse = new List<BrowseDescription>();
             var reqNodes = request.Get("NodesToBrowse");
-            if (reqNodes.Type == Jint.Native.JsValueType.Object)
+            if (reqNodes.IsObject())
             {
                 var nodesObj = (ObjectInstance)reqNodes;
                 int length = (int)nodesObj.Get("length").AsNumber();
@@ -359,7 +361,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
             uint maxRefs = 0;
             var maxRefsVal = request.Get("RequestedMaxReferencesPerNode");
-            if (maxRefsVal.Type == Jint.Native.JsValueType.Number)
+            if (maxRefsVal.IsNumber())
             {
                 maxRefs = (uint)maxRefsVal.AsNumber();
             }
@@ -376,7 +378,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             var resultsArray = CreateBrowseResultsArray(engine, browseResponse.Results);
             response.Set("Results", resultsArray);
 
-            return CreateUaStatusCode(engine, StatusCodes.Good);
+            return CreateUaStatusCode(engine, (uint)StatusCodes.Good);
         }
 
         // Stub implementations for remaining services — each follows the same pattern
@@ -412,7 +414,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
         private JsValue ServiceFindServers(Engine engine, JsValue[] args)
         {
-            if (args.Length < 2) return CreateUaStatusCode(engine, StatusCodes.BadInvalidArgument);
+            if (args.Length < 2) return CreateUaStatusCode(engine, (uint)StatusCodes.BadInvalidArgument);
             var request = args[0].AsObject();
             var response = args[1].AsObject();
 
@@ -420,16 +422,18 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             var reqUrl = request.Get("EndpointUrl");
             if (CttGlobals.IsDefined(reqUrl)) endpointUrl = reqUrl.ToString();
 
-            var servers = DiscoveryClient.Create(new Uri(endpointUrl))
-                .FindServers(null);
+            var discoveryClient = DiscoveryClient.CreateAsync(
+                _config, new Uri(endpointUrl), ct: CancellationToken.None).GetAwaiter().GetResult();
+            var servers = discoveryClient.FindServersAsync(default, CancellationToken.None).GetAwaiter().GetResult();
 
             var responseHeader = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
             responseHeader.Set("ServiceResult",
-                CreateUaStatusCode(engine, StatusCodes.Good));
+                CreateUaStatusCode(engine, (uint)StatusCodes.Good));
             response.Set("ResponseHeader", responseHeader);
 
+            var serversList = servers.ToArray() ?? Array.Empty<ApplicationDescription>();
             var serversArray = engine.Intrinsics.Array.Construct(
-                servers.Select(s =>
+                serversList.Select(s =>
                 {
                     var sObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
                     sObj.Set("ApplicationName",
@@ -442,12 +446,12 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 }).ToArray());
             response.Set("Servers", serversArray);
 
-            return CreateUaStatusCode(engine, StatusCodes.Good);
+            return CreateUaStatusCode(engine, (uint)StatusCodes.Good);
         }
 
         private JsValue ServiceGetEndpoints(Engine engine, JsValue[] args)
         {
-            if (args.Length < 2) return CreateUaStatusCode(engine, StatusCodes.BadInvalidArgument);
+            if (args.Length < 2) return CreateUaStatusCode(engine, (uint)StatusCodes.BadInvalidArgument);
             var request = args[0].AsObject();
             var response = args[1].AsObject();
 
@@ -455,16 +459,18 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             var reqUrl = request.Get("EndpointUrl");
             if (CttGlobals.IsDefined(reqUrl)) endpointUrl = reqUrl.ToString();
 
-            var endpoints = DiscoveryClient.Create(new Uri(endpointUrl))
-                .GetEndpoints(null);
+            var epDiscoveryClient = DiscoveryClient.CreateAsync(
+                _config, new Uri(endpointUrl), ct: CancellationToken.None).GetAwaiter().GetResult();
+            var endpoints = epDiscoveryClient.GetEndpointsAsync(default, CancellationToken.None).GetAwaiter().GetResult();
 
             var responseHeader = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
             responseHeader.Set("ServiceResult",
-                CreateUaStatusCode(engine, StatusCodes.Good));
+                CreateUaStatusCode(engine, (uint)StatusCodes.Good));
             response.Set("ResponseHeader", responseHeader);
 
+            var endpointsList = endpoints.ToArray() ?? Array.Empty<EndpointDescription>();
             var epArray = engine.Intrinsics.Array.Construct(
-                endpoints.Select(ep =>
+                endpointsList.Select(ep =>
                 {
                     var epObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
                     epObj.Set("EndpointUrl",
@@ -509,7 +515,8 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
         private ObjectInstance CreateDataValuesArray(Engine engine, ArrayOf<DataValue> values)
         {
-            var items = values.Select(dv =>
+            var itemsList = new List<JsValue>();
+            foreach (var dv in values)
             {
                 var dvObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
                 dvObj.Set("StatusCode",
@@ -517,15 +524,17 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
                 // Value as UaVariant
                 var variantObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                if (dv.Value != null)
+                var wrappedValue = dv.WrappedValue;
+                object? rawValue = wrappedValue.AsBoxedObject();
+                if (rawValue != null)
                 {
                     variantObj.Set("DataType",
-                        JsValue.FromObject(engine, (int)TypeInfo.GetBuiltInType(dv.WrappedValue.TypeInfo?.BuiltInType ?? BuiltInType.Null)));
+                        JsValue.FromObject(engine, (int)wrappedValue.TypeInfo.BuiltInType));
                     variantObj.Set("Value",
-                        ConvertToJsValue(engine, dv.Value));
+                        ConvertToJsValue(engine, rawValue));
 
                     // Array support
-                    if (dv.Value is Array arr)
+                    if (rawValue is Array arr)
                     {
                         variantObj.Set("getArraySize",
                             new ClrFunction(engine, "getArraySize",
@@ -541,19 +550,19 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     // toXxx() converters
                     variantObj.Set("toBoolean",
                         new ClrFunction(engine, "toBoolean",
-                            (_, _) => JsValue.FromObject(engine, Convert.ToBoolean(dv.Value))));
+                            (_, _) => JsValue.FromObject(engine, Convert.ToBoolean(rawValue))));
                     variantObj.Set("toInt32",
                         new ClrFunction(engine, "toInt32",
-                            (_, _) => JsValue.FromObject(engine, Convert.ToInt32(dv.Value))));
+                            (_, _) => JsValue.FromObject(engine, Convert.ToInt32(rawValue))));
                     variantObj.Set("toUInt32",
                         new ClrFunction(engine, "toUInt32",
-                            (_, _) => JsValue.FromObject(engine, Convert.ToUInt32(dv.Value))));
+                            (_, _) => JsValue.FromObject(engine, Convert.ToUInt32(rawValue))));
                     variantObj.Set("toDouble",
                         new ClrFunction(engine, "toDouble",
-                            (_, _) => JsValue.FromObject(engine, Convert.ToDouble(dv.Value))));
+                            (_, _) => JsValue.FromObject(engine, Convert.ToDouble(rawValue))));
                     variantObj.Set("toString",
                         new ClrFunction(engine, "toString",
-                            (_, _) => JsValue.FromObject(engine, dv.Value?.ToString() ?? "")));
+                            (_, _) => JsValue.FromObject(engine, rawValue?.ToString() ?? "")));
                 }
                 dvObj.Set("Value", variantObj);
 
@@ -571,59 +580,61 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 dvObj.Set("clone", new ClrFunction(engine, "clone",
                     (_, _) => dvObj)); // shallow clone is sufficient for most tests
 
-                return (JsValue)dvObj;
-            }).ToArray();
+                itemsList.Add(dvObj);
+            }
 
-            return (ObjectInstance)engine.Intrinsics.Array.Construct(items);
+            return (ObjectInstance)engine.Intrinsics.Array.Construct(itemsList.ToArray());
         }
 
         private ObjectInstance CreateBrowseResultsArray(Engine engine, ArrayOf<BrowseResult> results)
         {
-            var items = results.Select(br =>
+            var itemsList = new List<JsValue>();
+            foreach (var br in results)
             {
                 var brObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
                 brObj.Set("StatusCode",
                     CreateUaStatusCode(engine, br.StatusCode.Code));
 
                 // References array
-                var refs = (br.References ?? new ReferenceDescriptionCollection())
-                    .Select(rd =>
-                    {
-                        var rdObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                        rdObj.Set("ReferenceTypeId",
-                            CreateNodeIdObject(engine, rd.ReferenceTypeId));
-                        rdObj.Set("IsForward",
-                            JsValue.FromObject(engine, rd.IsForward));
-                        rdObj.Set("NodeId",
-                            CreateExpandedNodeIdObject(engine, rd.NodeId));
-                        rdObj.Set("BrowseName",
-                            CreateQualifiedNameObject(engine, rd.BrowseName));
-                        rdObj.Set("DisplayName",
-                            JsValue.FromObject(engine, rd.DisplayName.Text));
-                        rdObj.Set("NodeClass",
-                            JsValue.FromObject(engine, (int)rd.NodeClass));
-                        rdObj.Set("TypeDefinition",
-                            CreateExpandedNodeIdObject(engine, rd.TypeDefinition));
-                        return (JsValue)rdObj;
-                    }).ToArray();
+                var refsList = new List<JsValue>();
+                foreach (var rd in br.References)
+                {
+                    var rdObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                    rdObj.Set("ReferenceTypeId",
+                        CreateNodeIdObject(engine, rd.ReferenceTypeId));
+                    rdObj.Set("IsForward",
+                        JsValue.FromObject(engine, rd.IsForward));
+                    rdObj.Set("NodeId",
+                        CreateExpandedNodeIdObject(engine, rd.NodeId));
+                    rdObj.Set("BrowseName",
+                        CreateQualifiedNameObject(engine, rd.BrowseName));
+                    rdObj.Set("DisplayName",
+                        JsValue.FromObject(engine, rd.DisplayName.Text));
+                    rdObj.Set("NodeClass",
+                        JsValue.FromObject(engine, (int)rd.NodeClass));
+                    rdObj.Set("TypeDefinition",
+                        CreateExpandedNodeIdObject(engine, rd.TypeDefinition));
+                    refsList.Add(rdObj);
+                }
                 brObj.Set("References",
-                    engine.Intrinsics.Array.Construct(refs));
+                    engine.Intrinsics.Array.Construct(refsList.ToArray()));
 
                 // ContinuationPoint
-                if (br.ContinuationPoint != null && br.ContinuationPoint.Length > 0)
+                byte[] cpBytes = (byte[]?)br.ContinuationPoint.ToArray() ?? Array.Empty<byte>();
+                if (cpBytes.Length > 0)
                 {
                     brObj.Set("ContinuationPoint",
-                        JsValue.FromObject(engine, Convert.ToBase64String(br.ContinuationPoint)));
+                        JsValue.FromObject(engine, Convert.ToBase64String(cpBytes)));
                 }
                 else
                 {
                     brObj.Set("ContinuationPoint", JsValue.Null);
                 }
 
-                return (JsValue)brObj;
-            }).ToArray();
+                itemsList.Add(brObj);
+            }
 
-            return (ObjectInstance)engine.Intrinsics.Array.Construct(items);
+            return (ObjectInstance)engine.Intrinsics.Array.Construct(itemsList.ToArray());
         }
 
         private static JsValue ConvertToJsValue(Engine engine, object? value)
@@ -655,7 +666,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
         private static ObjectInstance CreateNodeIdObject(Engine engine, NodeId? nodeId)
         {
             var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-            if (nodeId == null || nodeId.Value.IsNullNodeId)
+            if (nodeId == null || nodeId.Value.IsNull)
             {
                 obj.Set("IdentifierNumeric", JsValue.FromObject(engine, 0));
                 obj.Set("NamespaceIndex", JsValue.FromObject(engine, 0));
@@ -663,7 +674,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             else
             {
                 obj.Set("IdentifierNumeric",
-                    JsValue.FromObject(engine, nodeId.Value.Identifier is uint u ? (double)u : 0));
+                    JsValue.FromObject(engine, nodeId.Value.TryGetIdentifier(out uint numId) ? (double)numId : 0));
                 obj.Set("NamespaceIndex",
                     JsValue.FromObject(engine, (double)nodeId.Value.NamespaceIndex));
             }
@@ -675,7 +686,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
         private static ObjectInstance CreateExpandedNodeIdObject(Engine engine, ExpandedNodeId? nodeId)
         {
             var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-            var nid = nodeId != null ? ExpandedNodeId.ToNodeId(nodeId, null) : NodeId.Null;
+            var nid = nodeId != null ? ExpandedNodeId.ToNodeId(nodeId.Value, null) : NodeId.Null;
             obj.Set("NodeId", CreateNodeIdObject(engine, nid));
             obj.Set("toString", new ClrFunction(engine, "toString",
                 (_, _) => JsValue.FromObject(engine, nodeId?.ToString() ?? "i=0")));
@@ -695,11 +706,11 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
         private static NodeId ParseNodeId(JsValue value)
         {
-            if (value.Type == Jint.Native.JsValueType.String)
+            if (value.IsString())
             {
                 return NodeId.Parse(value.AsString());
             }
-            if (value.Type == Jint.Native.JsValueType.Object)
+            if (value.IsObject())
             {
                 var obj = (ObjectInstance)value;
                 if (obj.HasProperty("IdentifierNumeric"))
@@ -709,9 +720,9 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     return new NodeId(id, ns);
                 }
                 var toString = obj.Get("toString");
-                if (toString.Type == Jint.Native.JsValueType.Object)
+                if (toString.IsObject())
                 {
-                    return NodeId.Parse((ObjectInstance)toString.Call(value, Array.Empty<JsValue>()).AsString());
+                    return NodeId.Parse(toString.Call(value, Array.Empty<JsValue>()).AsString());
                 }
             }
             return NodeId.Null;
@@ -719,16 +730,16 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
         private static DataValue ParseDataValue(JsValue value)
         {
-            if (value.Type != Jint.Native.JsValueType.Object) return new DataValue();
+            if (!value.IsObject()) return new DataValue();
             var obj = (ObjectInstance)value;
             var dv = new DataValue();
 
             var val = obj.Get("Value");
             if (CttGlobals.IsDefined(val))
             {
-                if (val.Type == Jint.Native.JsValueType.Number) dv.WrappedValue = val.AsNumber();
-                else if (val.Type == Jint.Native.JsValueType.Boolean) dv.WrappedValue = val.AsBoolean();
-                else if (val.Type == Jint.Native.JsValueType.String) dv.WrappedValue = val.AsString();
+                if (val.IsNumber()) dv.WrappedValue = val.AsNumber();
+                else if (val.IsBoolean()) dv.WrappedValue = val.AsBoolean();
+                else if (val.IsString()) dv.WrappedValue = val.AsString();
             }
 
             return dv;

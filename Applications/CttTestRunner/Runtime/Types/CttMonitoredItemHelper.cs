@@ -19,55 +19,65 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
     /// Implements the MonitoredItem helper object used by CTT scripts.
     /// Provides static factory methods: fromSettings(), fromNodeIds(), fromSetting().
     /// </summary>
-    public sealed class CttMonitoredItemHelper : ObjectInstance
+    public sealed class CttMonitoredItemHelper
     {
         private readonly CttProjectSettings _project;
         private readonly ILogger _logger;
+        private readonly Engine _engine;
         private int _nextClientHandle = 1;
 
         public CttMonitoredItemHelper(Engine engine, CttProjectSettings project, ILogger logger)
-            : base(engine)
         {
+            _engine = engine;
             _project = project;
             _logger = logger;
+        }
 
-            // Static methods
-            FastSetDataProperty("fromSettings", new ClrFunction(engine, "fromSettings",
+        /// <summary>
+        /// Creates a JS object exposing all MonitoredItem helper methods.
+        /// </summary>
+        public ObjectInstance ToJsObject(Engine engine)
+        {
+            var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+
+            obj.Set("fromSettings", new ClrFunction(engine, "fromSettings",
                 (_, args) => FromSettings(args)));
-            FastSetDataProperty("fromNodeIds", new ClrFunction(engine, "fromNodeIds",
+            obj.Set("fromNodeIds", new ClrFunction(engine, "fromNodeIds",
                 (_, args) => FromNodeIds(args)));
-            FastSetDataProperty("fromSetting", new ClrFunction(engine, "fromSetting",
+            obj.Set("fromSetting", new ClrFunction(engine, "fromSetting",
                 (_, args) => FromSetting(args)));
-            FastSetDataProperty("fromSettingsExt", new ClrFunction(engine, "fromSettingsExt",
+            obj.Set("fromSettingsExt", new ClrFunction(engine, "fromSettingsExt",
                 (_, args) => FromSettingsExt(args)));
-            FastSetDataProperty("GetNextClientHandle", new ClrFunction(engine, "GetNextClientHandle",
+            obj.Set("GetNextClientHandle", new ClrFunction(engine, "GetNextClientHandle",
                 (_, _) => JsValue.FromObject(engine, _nextClientHandle++)));
-            FastSetDataProperty("GetSettingNames", new ClrFunction(engine, "GetSettingNames",
+            obj.Set("GetSettingNames", new ClrFunction(engine, "GetSettingNames",
                 (_, args) => GetSettingNames(args)));
-            FastSetDataProperty("GetRequiredNodes", new ClrFunction(engine, "GetRequiredNodes",
+            obj.Set("GetRequiredNodes", new ClrFunction(engine, "GetRequiredNodes",
                 (_, args) => JsValue.Null));
-            FastSetDataProperty("Clone", new ClrFunction(engine, "Clone",
+            obj.Set("Clone", new ClrFunction(engine, "Clone",
                 (_, args) => args.Length > 0 ? args[0] : JsValue.Null));
-            FastSetDataProperty("toNodeIds", new ClrFunction(engine, "toNodeIds",
+            obj.Set("toNodeIds", new ClrFunction(engine, "toNodeIds",
                 (_, args) => ToNodeIds(args)));
-            FastSetDataProperty("toIdsArray", new ClrFunction(engine, "toIdsArray",
+            obj.Set("toIdsArray", new ClrFunction(engine, "toIdsArray",
                 (_, args) => ToNodeIds(args)));
-            FastSetDataProperty("fromUaRefDescHelper", new ClrFunction(engine, "fromUaRefDescHelper",
+            obj.Set("fromUaRefDescHelper", new ClrFunction(engine, "fromUaRefDescHelper",
                 (_, args) => JsValue.Null));
-            FastSetDataProperty("GetValuesToString", new ClrFunction(engine, "GetValuesToString",
+            obj.Set("GetValuesToString", new ClrFunction(engine, "GetValuesToString",
                 (_, _) => JsValue.FromObject(engine, "")));
-            FastSetDataProperty("GetAttributesAsNodes", new ClrFunction(engine, "GetAttributesAsNodes",
-                (_, _) => Engine.Intrinsics.Array.Construct(Array.Empty<JsValue>())));
-            FastSetDataProperty("SafelySetArrayTypeKnown", new ClrFunction(engine, "SafelySetArrayTypeKnown",
+            obj.Set("GetAttributesAsNodes", new ClrFunction(engine, "GetAttributesAsNodes",
+                (_, _) => _engine.Intrinsics.Array.Construct(Array.Empty<JsValue>())));
+            obj.Set("SafelySetArrayTypeKnown", new ClrFunction(engine, "SafelySetArrayTypeKnown",
                 (_, _) => JsValue.Undefined));
-            FastSetDataProperty("SafelySetValueTypeKnown", new ClrFunction(engine, "SafelySetValueTypeKnown",
+            obj.Set("SafelySetValueTypeKnown", new ClrFunction(engine, "SafelySetValueTypeKnown",
                 (_, _) => JsValue.Undefined));
-            FastSetDataProperty("SafelySetValueTypeUnknown", new ClrFunction(engine, "SafelySetValueTypeUnknown",
+            obj.Set("SafelySetValueTypeUnknown", new ClrFunction(engine, "SafelySetValueTypeUnknown",
                 (_, _) => JsValue.Undefined));
-            FastSetDataProperty("FromBrowsePathResults", new ClrFunction(engine, "FromBrowsePathResults",
-                (_, _) => Engine.Intrinsics.Array.Construct(Array.Empty<JsValue>())));
-            FastSetDataProperty("FromBrowsePathTargets", new ClrFunction(engine, "FromBrowsePathTargets",
-                (_, _) => Engine.Intrinsics.Array.Construct(Array.Empty<JsValue>())));
+            obj.Set("FromBrowsePathResults", new ClrFunction(engine, "FromBrowsePathResults",
+                (_, _) => _engine.Intrinsics.Array.Construct(Array.Empty<JsValue>())));
+            obj.Set("FromBrowsePathTargets", new ClrFunction(engine, "FromBrowsePathTargets",
+                (_, _) => _engine.Intrinsics.Array.Construct(Array.Empty<JsValue>())));
+
+            return obj;
         }
 
         private JsValue FromSettings(JsValue[] args)
@@ -81,7 +91,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             string indexRange = args.Length > 3 && args[3].IsString() ? args[3].AsString() : "";
             int monitoringMode = args.Length > 4 ? (int)args[4].AsNumber() : 2; // Reporting
 
-            var items = Engine.Intrinsics.Array.Construct(Array.Empty<JsValue>());
+            var items = _engine.Intrinsics.Array.Construct(Array.Empty<JsValue>());
             int length = (int)settingsArray.Get("length").AsNumber();
 
             for (int i = startIndex; i < length; i++)
@@ -119,7 +129,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 items[i] = CreateMonitoredItemFromNodeId(nodeId, attributeId);
             }
 
-            return Engine.Intrinsics.Array.Construct(items);
+            return _engine.Intrinsics.Array.Construct(items);
         }
 
         private JsValue FromSetting(JsValue[] args)
@@ -156,32 +166,32 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
             return FromSettings(new[] {
                 settings,
-                JsValue.FromObject(Engine, 0),
-                JsValue.FromObject(Engine, attributeId)
+                JsValue.FromObject(_engine, 0),
+                JsValue.FromObject(_engine, attributeId)
             });
         }
 
         private JsValue CreateMonitoredItem(string nodeIdStr, int attributeId, string indexRange, int monitoringMode, string settingPath)
         {
-            var obj = (ObjectInstance)Engine.Intrinsics.Object.Construct(Array.Empty<Jint.Native.JsValue>());
-            obj.Set("NodeId", JsValue.FromObject(Engine, nodeIdStr));
-            obj.Set("AttributeId", JsValue.FromObject(Engine, attributeId));
-            obj.Set("IndexRange", JsValue.FromObject(Engine, indexRange));
-            obj.Set("MonitoringMode", JsValue.FromObject(Engine, monitoringMode));
-            obj.Set("ClientHandle", JsValue.FromObject(Engine, _nextClientHandle++));
-            obj.Set("SettingName", JsValue.FromObject(Engine, settingPath));
+            var obj = (ObjectInstance)_engine.Intrinsics.Object.Construct(Array.Empty<Jint.Native.JsValue>());
+            obj.Set("NodeId", JsValue.FromObject(_engine, nodeIdStr));
+            obj.Set("AttributeId", JsValue.FromObject(_engine, attributeId));
+            obj.Set("IndexRange", JsValue.FromObject(_engine, indexRange));
+            obj.Set("MonitoringMode", JsValue.FromObject(_engine, monitoringMode));
+            obj.Set("ClientHandle", JsValue.FromObject(_engine, _nextClientHandle++));
+            obj.Set("SettingName", JsValue.FromObject(_engine, settingPath));
             obj.Set("Value", JsValue.Null);
-            obj.Set("DataType", JsValue.FromObject(Engine, 0));
-            obj.Set("ArrayUpperBound", JsValue.FromObject(Engine, -1));
-            obj.Set("IsArray", JsValue.FromObject(Engine, false));
+            obj.Set("DataType", JsValue.FromObject(_engine, 0));
+            obj.Set("ArrayUpperBound", JsValue.FromObject(_engine, -1));
+            obj.Set("IsArray", JsValue.FromObject(_engine, false));
             obj.Set("DataEncoding", JsValue.Undefined);
-            obj.Set("SamplingInterval", JsValue.FromObject(Engine, 1000));
-            obj.Set("QueueSize", JsValue.FromObject(Engine, 1));
-            obj.Set("DiscardOldest", JsValue.FromObject(Engine, true));
+            obj.Set("SamplingInterval", JsValue.FromObject(_engine, 1000));
+            obj.Set("QueueSize", JsValue.FromObject(_engine, 1));
+            obj.Set("DiscardOldest", JsValue.FromObject(_engine, true));
             obj.Set("Filter", JsValue.Null);
 
             // SetBrowse helper
-            obj.Set("SetBrowse", new ClrFunction(Engine, "SetBrowse",
+            obj.Set("SetBrowse", new ClrFunction(_engine, "SetBrowse",
                 (thisObj, args) =>
                 {
                     if (args.Length >= 1) thisObj.AsObject().Set("BrowseDirection", args[0]);
@@ -193,15 +203,15 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 }));
 
             // clone()
-            obj.Set("clone", new ClrFunction(Engine, "clone",
+            obj.Set("clone", new ClrFunction(_engine, "clone",
                 (_, _) => CreateMonitoredItem(nodeIdStr, attributeId, indexRange, monitoringMode, settingPath)));
 
             // SafeNodeId
-            obj.Set("SafeNodeId", new ClrFunction(Engine, "SafeNodeId",
-                (_, _) => JsValue.FromObject(Engine, nodeIdStr)));
+            obj.Set("SafeNodeId", new ClrFunction(_engine, "SafeNodeId",
+                (_, _) => JsValue.FromObject(_engine, nodeIdStr)));
 
             // ClearVQTT
-            obj.Set("ClearVQTT", new ClrFunction(Engine, "ClearVQTT",
+            obj.Set("ClearVQTT", new ClrFunction(_engine, "ClearVQTT",
                 (thisVal, _) =>
                 {
                     thisVal.AsObject().Set("Value", JsValue.Null);
@@ -222,7 +232,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
         private JsValue GetSettingNames(JsValue[] args)
         {
-            if (args.Length == 0 || !args[0].IsObject()) return Engine.Intrinsics.Array.Construct(Array.Empty<JsValue>());
+            if (args.Length == 0 || !args[0].IsObject()) return _engine.Intrinsics.Array.Construct(Array.Empty<JsValue>());
             var items = args[0].AsObject();
 
             if (items.HasProperty("length"))
@@ -234,21 +244,21 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     var item = items.Get(i.ToString());
                     names[i] = CttGlobals.IsDefined(item) && item.IsObject()
                         ? item.AsObject().Get("SettingName")
-                        : JsValue.FromObject(Engine, "");
+                        : JsValue.FromObject(_engine, "");
                 }
-                return Engine.Intrinsics.Array.Construct(names);
+                return _engine.Intrinsics.Array.Construct(names);
             }
             else
             {
                 // Single item
-                return Engine.Intrinsics.Array.Construct(
+                return _engine.Intrinsics.Array.Construct(
                     new[] { items.Get("SettingName") });
             }
         }
 
         private JsValue ToNodeIds(JsValue[] args)
         {
-            if (args.Length == 0 || !args[0].IsObject()) return Engine.Intrinsics.Array.Construct(Array.Empty<JsValue>());
+            if (args.Length == 0 || !args[0].IsObject()) return _engine.Intrinsics.Array.Construct(Array.Empty<JsValue>());
             var items = args[0].AsObject();
             int length = (int)items.Get("length").AsNumber();
             var nodeIds = new JsValue[length];
@@ -257,7 +267,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 var item = items.Get(i.ToString()).AsObject();
                 nodeIds[i] = item.Get("NodeId");
             }
-            return Engine.Intrinsics.Array.Construct(nodeIds);
+            return _engine.Intrinsics.Array.Construct(nodeIds);
         }
     }
 }

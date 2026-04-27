@@ -202,7 +202,9 @@ namespace Opc.Ua.CttTestRunner.Runtime.Settings
 
         private void ParseRows(XmlNode rowsNode, SettingsNode parent)
         {
-            foreach (XmlNode row in rowsNode.SelectNodes("Row") ?? Enumerable.Empty<XmlNode>())
+            var rows = rowsNode.SelectNodes("Row");
+            if (rows == null) return;
+            foreach (XmlNode row in rows)
             {
                 // Column 0 = Name (DisplayRole)
                 // Column 1 = Value (DisplayRole)
@@ -210,7 +212,9 @@ namespace Opc.Ua.CttTestRunner.Runtime.Settings
                 string? value = null;
                 XmlNode? childRows = null;
 
-                foreach (XmlNode col in row.SelectNodes("Column") ?? Enumerable.Empty<XmlNode>())
+                var columns = row.SelectNodes("Column");
+                if (columns == null) continue;
+                foreach (XmlNode col in columns)
                 {
                     var colIdx = col.Attributes?["column"]?.Value;
                     var displayData = col.SelectSingleNode(

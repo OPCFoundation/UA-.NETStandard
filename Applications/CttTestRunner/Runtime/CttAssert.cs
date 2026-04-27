@@ -18,49 +18,60 @@ namespace Opc.Ua.CttTestRunner.Runtime
     /// Methods: True, False, Equal, NotEqual, GreaterThan, LessThan, InRange,
     ///          StatusCodeIs, StatusCodeIsOneOf, CoercedEqual, StringContains, etc.
     /// </summary>
-    public sealed class CttAssert : ObjectInstance
+    public sealed class CttAssert
     {
         private readonly CttTestContext _context;
         private readonly ILogger _logger;
+        private Engine? _engine;
 
         public CttAssert(CttTestContext context, ILogger logger)
-            : base(new Engine())
         {
             _context = context;
             _logger = logger;
+        }
 
-            FastSetDataProperty("True", new ClrFunction(Engine, "True",
+        /// <summary>
+        /// Creates a JS object exposing all assert methods.
+        /// </summary>
+        public ObjectInstance ToJsObject()
+        {
+            _engine = new Engine();
+            var obj = (ObjectInstance)_engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+
+            obj.Set("True", new ClrFunction(_engine, "True",
                 (_, args) => AssertTrue(args)));
-            FastSetDataProperty("False", new ClrFunction(Engine, "False",
+            obj.Set("False", new ClrFunction(_engine, "False",
                 (_, args) => AssertFalse(args)));
-            FastSetDataProperty("Equal", new ClrFunction(Engine, "Equal",
+            obj.Set("Equal", new ClrFunction(_engine, "Equal",
                 (_, args) => AssertEqual(args)));
-            FastSetDataProperty("NotEqual", new ClrFunction(Engine, "NotEqual",
+            obj.Set("NotEqual", new ClrFunction(_engine, "NotEqual",
                 (_, args) => AssertNotEqual(args)));
-            FastSetDataProperty("GreaterThan", new ClrFunction(Engine, "GreaterThan",
+            obj.Set("GreaterThan", new ClrFunction(_engine, "GreaterThan",
                 (_, args) => AssertGreaterThan(args)));
-            FastSetDataProperty("LessThan", new ClrFunction(Engine, "LessThan",
+            obj.Set("LessThan", new ClrFunction(_engine, "LessThan",
                 (_, args) => AssertLessThan(args)));
-            FastSetDataProperty("InRange", new ClrFunction(Engine, "InRange",
+            obj.Set("InRange", new ClrFunction(_engine, "InRange",
                 (_, args) => AssertInRange(args)));
-            FastSetDataProperty("StatusCodeIs", new ClrFunction(Engine, "StatusCodeIs",
+            obj.Set("StatusCodeIs", new ClrFunction(_engine, "StatusCodeIs",
                 (_, args) => AssertStatusCodeIs(args)));
-            FastSetDataProperty("StatusCodeIsOneOf", new ClrFunction(Engine, "StatusCodeIsOneOf",
+            obj.Set("StatusCodeIsOneOf", new ClrFunction(_engine, "StatusCodeIsOneOf",
                 (_, args) => AssertStatusCodeIsOneOf(args)));
-            FastSetDataProperty("CoercedEqual", new ClrFunction(Engine, "CoercedEqual",
+            obj.Set("CoercedEqual", new ClrFunction(_engine, "CoercedEqual",
                 (_, args) => AssertCoercedEqual(args)));
-            FastSetDataProperty("StringContains", new ClrFunction(Engine, "StringContains",
+            obj.Set("StringContains", new ClrFunction(_engine, "StringContains",
                 (_, args) => AssertStringContains(args)));
-            FastSetDataProperty("StringNotContains", new ClrFunction(Engine, "StringNotContains",
+            obj.Set("StringNotContains", new ClrFunction(_engine, "StringNotContains",
                 (_, args) => AssertStringNotContains(args)));
-            FastSetDataProperty("NullNodeId", new ClrFunction(Engine, "NullNodeId",
+            obj.Set("NullNodeId", new ClrFunction(_engine, "NullNodeId",
                 (_, args) => AssertNullNodeId(args)));
-            FastSetDataProperty("NodeIdsEqual", new ClrFunction(Engine, "NodeIdsEqual",
+            obj.Set("NodeIdsEqual", new ClrFunction(_engine, "NodeIdsEqual",
                 (_, args) => AssertNodeIdsEqual(args)));
-            FastSetDataProperty("QualifiedNamesEqual", new ClrFunction(Engine, "QualifiedNamesEqual",
+            obj.Set("QualifiedNamesEqual", new ClrFunction(_engine, "QualifiedNamesEqual",
                 (_, args) => AssertQualifiedNamesEqual(args)));
-            FastSetDataProperty("LocalizedTextsEqual", new ClrFunction(Engine, "LocalizedTextsEqual",
+            obj.Set("LocalizedTextsEqual", new ClrFunction(_engine, "LocalizedTextsEqual",
                 (_, args) => AssertLocalizedTextsEqual(args)));
+
+            return obj;
         }
 
         private JsValue AssertTrue(JsValue[] args)
@@ -70,9 +81,9 @@ namespace Opc.Ua.CttTestRunner.Runtime
             if (!condition)
             {
                 _context.AddError($"Assert.True failed: {message}");
-                return JsValue.FromObject(Engine, false);
+                return JsValue.FromObject(_engine!, false);
             }
-            return JsValue.FromObject(Engine, true);
+            return JsValue.FromObject(_engine!, true);
         }
 
         private JsValue AssertFalse(JsValue[] args)
@@ -82,78 +93,78 @@ namespace Opc.Ua.CttTestRunner.Runtime
             if (condition)
             {
                 _context.AddError($"Assert.False failed: {message}");
-                return JsValue.FromObject(Engine, false);
+                return JsValue.FromObject(_engine!, false);
             }
-            return JsValue.FromObject(Engine, true);
+            return JsValue.FromObject(_engine!, true);
         }
 
         private JsValue AssertEqual(JsValue[] args)
         {
-            if (args.Length < 2) return JsValue.FromObject(Engine, false);
+            if (args.Length < 2) return JsValue.FromObject(_engine!, false);
             string expected = args[0].ToString();
             string actual = args[1].ToString();
             string message = args.Length > 2 ? args[2].ToString() : $"Expected '{expected}' == '{actual}'";
             if (!string.Equals(expected, actual, StringComparison.Ordinal))
             {
                 _context.AddError($"Assert.Equal failed: {message} (expected={expected}, actual={actual})");
-                return JsValue.FromObject(Engine, false);
+                return JsValue.FromObject(_engine!, false);
             }
             if (args.Length > 3)
             {
                 _context.AddLog(args[3].ToString());
             }
-            return JsValue.FromObject(Engine, true);
+            return JsValue.FromObject(_engine!, true);
         }
 
         private JsValue AssertNotEqual(JsValue[] args)
         {
-            if (args.Length < 2) return JsValue.FromObject(Engine, false);
+            if (args.Length < 2) return JsValue.FromObject(_engine!, false);
             string expected = args[0].ToString();
             string actual = args[1].ToString();
             string message = args.Length > 2 ? args[2].ToString() : $"Expected '{expected}' != '{actual}'";
             if (string.Equals(expected, actual, StringComparison.Ordinal))
             {
                 _context.AddError($"Assert.NotEqual failed: {message}");
-                return JsValue.FromObject(Engine, false);
+                return JsValue.FromObject(_engine!, false);
             }
-            return JsValue.FromObject(Engine, true);
+            return JsValue.FromObject(_engine!, true);
         }
 
         private JsValue AssertGreaterThan(JsValue[] args)
         {
-            if (args.Length < 2) return JsValue.FromObject(Engine, false);
+            if (args.Length < 2) return JsValue.FromObject(_engine!, false);
             double threshold = args[0].AsNumber();
             double actual = args[1].AsNumber();
             string message = args.Length > 2 ? args[2].ToString() : $"Expected {actual} > {threshold}";
             if (actual <= threshold)
             {
                 _context.AddError($"Assert.GreaterThan failed: {message} (actual={actual}, threshold={threshold})");
-                return JsValue.FromObject(Engine, false);
+                return JsValue.FromObject(_engine!, false);
             }
             if (args.Length > 3)
             {
                 _context.AddLog(args[3].ToString());
             }
-            return JsValue.FromObject(Engine, true);
+            return JsValue.FromObject(_engine!, true);
         }
 
         private JsValue AssertLessThan(JsValue[] args)
         {
-            if (args.Length < 2) return JsValue.FromObject(Engine, false);
+            if (args.Length < 2) return JsValue.FromObject(_engine!, false);
             double threshold = args[0].AsNumber();
             double actual = args[1].AsNumber();
             string message = args.Length > 2 ? args[2].ToString() : $"Expected {actual} < {threshold}";
             if (actual >= threshold)
             {
                 _context.AddError($"Assert.LessThan failed: {message}");
-                return JsValue.FromObject(Engine, false);
+                return JsValue.FromObject(_engine!, false);
             }
-            return JsValue.FromObject(Engine, true);
+            return JsValue.FromObject(_engine!, true);
         }
 
         private JsValue AssertInRange(JsValue[] args)
         {
-            if (args.Length < 3) return JsValue.FromObject(Engine, false);
+            if (args.Length < 3) return JsValue.FromObject(_engine!, false);
             double low = args[0].AsNumber();
             double high = args[1].AsNumber();
             double actual = args[2].AsNumber();
@@ -161,34 +172,34 @@ namespace Opc.Ua.CttTestRunner.Runtime
             if (actual < low || actual > high)
             {
                 _context.AddError($"Assert.InRange failed: {message}");
-                return JsValue.FromObject(Engine, false);
+                return JsValue.FromObject(_engine!, false);
             }
-            return JsValue.FromObject(Engine, true);
+            return JsValue.FromObject(_engine!, true);
         }
 
         private JsValue AssertStatusCodeIs(JsValue[] args)
         {
             // StatusCodeIs(expected, actual, failMsg, passMsg)
-            if (args.Length < 2) return JsValue.FromObject(Engine, false);
+            if (args.Length < 2) return JsValue.FromObject(_engine!, false);
             uint expected = (uint)args[0].AsNumber();
             uint actual = (uint)args[1].AsNumber();
             string failMsg = args.Length > 2 ? args[2].ToString() : "StatusCode mismatch";
             if (expected != actual)
             {
                 _context.AddError($"Assert.StatusCodeIs failed: {failMsg} (expected=0x{expected:X8}, actual=0x{actual:X8})");
-                return JsValue.FromObject(Engine, false);
+                return JsValue.FromObject(_engine!, false);
             }
             if (args.Length > 3)
             {
                 _context.AddLog(args[3].ToString());
             }
-            return JsValue.FromObject(Engine, true);
+            return JsValue.FromObject(_engine!, true);
         }
 
         private JsValue AssertStatusCodeIsOneOf(JsValue[] args)
         {
             // StatusCodeIsOneOf(expectedArray_or_ExpectedResults, actual, failMsg, passMsg)
-            if (args.Length < 2) return JsValue.FromObject(Engine, false);
+            if (args.Length < 2) return JsValue.FromObject(_engine!, false);
             uint actual = (uint)args[1].AsNumber();
             string failMsg = args.Length > 2 ? args[2].ToString() : "StatusCode not in expected set";
 
@@ -200,14 +211,14 @@ namespace Opc.Ua.CttTestRunner.Runtime
                 if (!contains.AsBoolean())
                 {
                     _context.AddError($"Assert.StatusCodeIsOneOf failed: {failMsg} (actual=0x{actual:X8})");
-                    return JsValue.FromObject(Engine, false);
+                    return JsValue.FromObject(_engine!, false);
                 }
-                return JsValue.FromObject(Engine, true);
+                return JsValue.FromObject(_engine!, true);
             }
 
             // TODO: handle array-based expected values
             _context.AddLog($"Assert.StatusCodeIsOneOf: actual=0x{actual:X8}");
-            return JsValue.FromObject(Engine, true);
+            return JsValue.FromObject(_engine!, true);
         }
 
         private JsValue AssertCoercedEqual(JsValue[] args)
@@ -218,36 +229,36 @@ namespace Opc.Ua.CttTestRunner.Runtime
 
         private JsValue AssertStringContains(JsValue[] args)
         {
-            if (args.Length < 2) return JsValue.FromObject(Engine, false);
+            if (args.Length < 2) return JsValue.FromObject(_engine!, false);
             string haystack = args[0].ToString();
             string needle = args[1].ToString();
             string message = args.Length > 2 ? args[2].ToString() : $"Expected string to contain '{needle}'";
             if (!haystack.Contains(needle, StringComparison.OrdinalIgnoreCase))
             {
                 _context.AddError($"Assert.StringContains failed: {message}");
-                return JsValue.FromObject(Engine, false);
+                return JsValue.FromObject(_engine!, false);
             }
-            return JsValue.FromObject(Engine, true);
+            return JsValue.FromObject(_engine!, true);
         }
 
         private JsValue AssertStringNotContains(JsValue[] args)
         {
-            if (args.Length < 2) return JsValue.FromObject(Engine, false);
+            if (args.Length < 2) return JsValue.FromObject(_engine!, false);
             string haystack = args[0].ToString();
             string needle = args[1].ToString();
             string message = args.Length > 2 ? args[2].ToString() : $"Expected string NOT to contain '{needle}'";
             if (haystack.Contains(needle, StringComparison.OrdinalIgnoreCase))
             {
                 _context.AddError($"Assert.StringNotContains failed: {message}");
-                return JsValue.FromObject(Engine, false);
+                return JsValue.FromObject(_engine!, false);
             }
-            return JsValue.FromObject(Engine, true);
+            return JsValue.FromObject(_engine!, true);
         }
 
         private JsValue AssertNullNodeId(JsValue[] args)
         {
             // NullNodeId(nodeId, message)
-            return JsValue.FromObject(Engine, true); // TODO: implement NodeId null check
+            return JsValue.FromObject(_engine!, true); // TODO: implement NodeId null check
         }
 
         private JsValue AssertNodeIdsEqual(JsValue[] args) => AssertEqual(args);

@@ -5,6 +5,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using Jint;
 using Jint.Native;
@@ -16,11 +17,12 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
     /// Exposes all OPC UA numeric NodeId constants (Identifier.*) to JavaScript.
     /// The CTT scripts use patterns like: new UaNodeId(Identifier.Server_ServerCapabilities)
     /// </summary>
-    public sealed class CttIdentifierConstants : ObjectInstance
+    public sealed class CttIdentifierConstants
     {
-        public CttIdentifierConstants() : base(new Engine())
+        private readonly Dictionary<string, double> _constants = new();
+
+        public CttIdentifierConstants()
         {
-            // Use reflection to populate from the Opc.Ua.ObjectIds, VariableIds, etc.
             PopulateFromType(typeof(ObjectIds));
             PopulateFromType(typeof(VariableIds));
             PopulateFromType(typeof(MethodIds));
@@ -28,6 +30,20 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             PopulateFromType(typeof(VariableTypeIds));
             PopulateFromType(typeof(ReferenceTypeIds));
             PopulateFromType(typeof(DataTypeIds));
+        }
+
+        /// <summary>
+        /// Creates a JS object with all identifier constants set as properties.
+        /// </summary>
+        public ObjectInstance ToJsObject()
+        {
+            var engine = new Engine();
+            var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+            foreach (var kvp in _constants)
+            {
+                obj.Set(kvp.Key, JsValue.FromObject(engine, kvp.Value));
+            }
+            return obj;
         }
 
         private void PopulateFromType(Type idsType)
@@ -40,8 +56,10 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     if (nodeId.HasValue && nodeId.Value.IdType == IdType.Numeric)
                     {
                         string name = ConvertFieldName(field.Name);
-                        Set(name,
-                            JsValue.FromObject(Engine, (double)(uint)nodeId.Value.Identifier!));
+                        if (nodeId.Value.TryGetIdentifier(out uint numericId))
+                        {
+                            _constants[name] = numericId;
+                        }
                     }
                 }
             }
