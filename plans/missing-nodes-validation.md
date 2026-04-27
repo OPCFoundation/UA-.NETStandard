@@ -3,15 +3,15 @@
 **Date:** 2026-04-27  
 **Server:** ConsoleReferenceServer with GDS (`opc.tcp://localhost:48010`)  
 **Spec:** `Opc.Ua.NodeSet2.xml` v1.05.07  
-**Commit:** `e8f12b891` (asfixes branch)
+**Commit:** `2c675052b` (asfixes branch, local)
 
 ## Result
 
 | Metric | Value |
 |--------|------:|
-| Spec ns=0 nodes | 5283 |
-| Server ns=0 nodes (export) | 5917 |
-| Missing from export | 1316 |
+| Spec ns=0 nodes | 5,283 |
+| Server ns=0 nodes (export) | 6,106 |
+| Missing from export | 1,146 |
 
 All encoding nodes and access-restricted role children **exist in the server**.
 They appear missing only due to export methodology limitations (hierarchical browse,
@@ -20,32 +20,34 @@ SecurityMode=None).
 | Category | Count | Status |
 |----------|------:|--------|
 | Encoding objects | 384 | **Present** -- non-hierarchical; not reachable by browse from Root |
-| Access-restricted nodes | 236 | **Present** -- require SignAndEncrypt to read |
-| Optional / Placeholder (direct) | 129 | Correctly absent |
-| Optional ancestor missing | 284 | Correctly absent |
-| Other (see detailed analysis) | 283 | See below |
-| **Total** | **1316** | |
+| Access-restricted nodes (spec-defined) | 236 | **Present** -- require SignAndEncrypt to read |
+| Optional / Placeholder (direct) | 116 | Correctly absent |
+| Optional ancestor missing | 172 | Correctly absent |
+| Other (see detailed analysis) | 238 | See below |
+| **Total** | **1,146** | |
 
-## Detailed Analysis of 283 Remaining Nodes
+## Detailed Analysis of 238 Remaining Nodes
 
-All 283 nodes **exist in the server address space** (confirmed via OPC UA Read — none return
-`BadNodeIdUnknown`). They appear missing from the export because the hierarchical browse
-cannot reach them through access-restricted parent nodes or because they are not connected
-to the browse hierarchy for anonymous users.
+All 238 nodes **exist in the server** (verified via OPC UA Read — none return
+`BadNodeIdUnknown`). They appear missing from the export due to access restrictions
+on the individual nodes (methods/variables with `DefaultRolePermissions`) or because
+the export cannot traverse dynamic/non-browseable paths.
 
 | Structural Category | Count | Status |
 |---------------------|------:|--------|
-| Type-level children (on access-restricted ObjectTypes) | 203 | **Present** -- parent type is access-restricted |
-| Instance-level children (concrete server objects) | 48 | **Present** -- access-restricted or dynamic |
-| Orphan property templates (no ParentNodeId) | 32 | **Present** -- no hierarchical parent to browse from |
+| Type children with access-restricted methods/variables | 164 | **Present** -- individual nodes require authentication |
+| Instance-level children (diagnostics, HA, PubSub, FileSystem) | 48 | **Present** -- access-restricted or dynamic |
+| Orphan property templates (no ParentNodeId) | 26 | **Present** -- no hierarchical parent to browse from |
 
-### Type-Level Children (203 nodes)
+### Type Children with Access-Restricted Methods/Variables (164 nodes)
 
-**All present.** These nodes exist in the server but their parent ObjectTypes have
-`AccessRestrictions` or `RolePermissions` that block anonymous browse access. The
-export tool uses anonymous SecurityMode=None, so it cannot traverse into these types.
+**All present.** The parent ObjectTypes are now fully readable (no access restrictions
+on type definitions). However, individual child nodes — particularly security-sensitive
+methods like `AddSecurityGroup`, `RemoveSecurityGroup`, `AddRole`, `UpdateCertificate` —
+have their own `DefaultRolePermissions` that require authenticated users. This is correct
+per the spec; these methods should not be callable by anonymous users.
 
-**Fix needed: No.** The nodes are correctly in the address space.
+**Fix needed: No.** Individual method/variable access restrictions are correct.
 
 <details>
 <summary>Type-level children by parent ObjectType</summary>
@@ -609,15 +611,24 @@ Variable nodes with no `ParentNodeId` -- canonical type-level property definitio
 
 ## Fix Summary
 
-All 1,316 export-missing nodes are accounted for. **No nodes are actually missing** from the
+All 1,146 export-missing nodes are accounted for. **No nodes are actually missing** from the
 server address space. The gaps are entirely due to export methodology limitations:
 
 | Category | Count | Status |
 |----------|------:|--------|
 | Encoding objects | 384 | **Present** (non-hierarchical) |
-| Access-restricted nodes | 236 | **Present** (need encryption) |
-| Optional / Placeholder | 413 | Correctly absent |
-| Type-level children | 203 | **Present** (parent access-restricted) |
-| Instance-level children | 48 | **Present** (access-restricted or dynamic) |
-| Orphan templates | 32 | **Present** (no hierarchical parent) |
-| **Total** | **1,316** | **No fixes needed** |
+| Access-restricted (spec-defined) | 236 | **Present** (need encryption) |
+| Optional / Placeholder | 288 | Correctly absent |
+| Type children (method/variable access restricted) | 164 | **Present** (need authentication) |
+| Instance-level (diagnostics, HA, PubSub, FileSystem) | 48 | **Present** (access-restricted or dynamic) |
+| Orphan templates | 26 | **Present** (no hierarchical parent) |
+| **Total** | **1,146** | **No fixes needed** |
+
+### Source Generator Fixes Applied
+
+1. **`ModellingRule=None` children** — Extended `GetChildren` to include Variables and Methods
+   (not just Objects) with `ModellingRule=None` when explicitly defined on a type. Added ~52 nodes.
+
+2. **`DefaultAccessRestrictions` on type definitions** — Stopped applying `DefaultAccessRestrictions`
+   and `DefaultRolePermissions` to ObjectType/VariableType nodes. These defaults are meant for
+   instances, not type definitions. ObjectTypes should always be universally readable.
