@@ -1433,11 +1433,18 @@ namespace Opc.Ua.SourceGeneration
                     : null);
 
             // Access restrictions
+            // DefaultAccessRestrictions apply to instances of the type, not to the
+            // type definition itself. Type definitions (ObjectType, VariableType)
+            // should only use their own explicit AccessRestrictions.
+            bool isTypeDefinition = root is ObjectTypeDesign or VariableTypeDesign;
             string accessRestrictions =
                 root.AccessRestrictions.GetAccessRestrictionsAsCode(
-                    root.AccessRestrictionsSpecified) ??
-                root.DefaultAccessRestrictions.GetAccessRestrictionsAsCode(
+                    root.AccessRestrictionsSpecified);
+            if (accessRestrictions == null && !isTypeDefinition)
+            {
+                accessRestrictions = root.DefaultAccessRestrictions.GetAccessRestrictionsAsCode(
                     root.DefaultAccessRestrictionsSpecified);
+            }
             context.Template.AddReplacement(
                 Tokens.AccessRestrictionsValue,
                 accessRestrictions != null
@@ -2891,9 +2898,16 @@ namespace Opc.Ua.SourceGeneration
         private HashSet<RolePermission> GetRolePermissions(NodeDesign node)
         {
             var rolePermissions = new HashSet<RolePermission>();
+            // DefaultRolePermissions apply to instances of the type, not to the
+            // type definition itself. Type definitions should only use their own
+            // explicit RolePermissions.
+            bool isTypeDefinition = node is ObjectTypeDesign or VariableTypeDesign;
             RolePermission[] nodeRolePermissions =
-                node.RolePermissions?.RolePermission ??
-                node.DefaultRolePermissions?.RolePermission;
+                node.RolePermissions?.RolePermission;
+            if (nodeRolePermissions == null && !isTypeDefinition)
+            {
+                nodeRolePermissions = node.DefaultRolePermissions?.RolePermission;
+            }
             if (nodeRolePermissions != null)
             {
                 foreach (RolePermission rp in nodeRolePermissions)
