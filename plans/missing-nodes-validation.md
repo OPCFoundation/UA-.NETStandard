@@ -1,122 +1,196 @@
 # Missing Nodes Validation Report
 
-**Date:** 2026-04-26  
-**Server:** `opc.tcp://localhost:48010` (ConsoleReferenceServer)  
-**Spec:** `Opc.Ua.NodeSet2.xml` v1.05.07
+**Date:** 2026-04-27  
+**Server:** ConsoleReferenceServer with GDS (`opc.tcp://localhost:48010`)  
+**Spec:** `Opc.Ua.NodeSet2.xml` v1.05.07  
+**Commit:** `817b1b695` (asfixes branch)
 
 ## Result
 
-The previous analysis reported **794 truly missing nodes** (384 encoding, 172 role children, 238 other).
-Live validation proves **all 384 encoding nodes and all 172 role children exist in the server**.
-They appeared missing due to limitations of the ExportNodeSet comparison method:
+| Metric | Value |
+|--------|------:|
+| Spec ns=0 nodes | 5283 |
+| Server ns=0 nodes (export) | 6009 |
+| Missing from export | 1243 |
 
-| Category | Count | Status | Root Cause |
-|----------|------:|--------|------------|
-| Encoding objects | 384 | **Present** | No hierarchical parent; export uses hierarchical browse only |
-| Role children (AccessRestrictions=3) | 236 | **Present** | Require SignAndEncrypt; export used SecurityMode=None |
-| Optional / Placeholder (direct) | 129 | Correctly absent | ModellingRule is Optional or Placeholder |
-| Optional ancestor missing | 284 | Correctly absent | Parent chain includes Optional/Placeholder node |
-| Other | 292 | See below | Detailed analysis per node follows |
-| **Total not in export** | **1,325** | | |
+All 384 encoding nodes and all access-restricted role children **exist in the server**.
+They appear missing only due to export methodology limitations (hierarchical browse,
+SecurityMode=None). The remaining gaps are optional features or type-level metadata.
 
-## Validation Steps
+| Category | Count | Status |
+|----------|------:|--------|
+| Encoding objects | 384 | **Present** -- non-hierarchical; not reachable by browse from Root |
+| Access-restricted nodes | 236 | **Present** -- require SignAndEncrypt to read |
+| Optional / Placeholder (direct) | 116 | Correctly absent |
+| Optional ancestor missing | 172 | Correctly absent |
+| Other (see detailed analysis) | 335 | See below |
+| **Total** | **1243** | |
 
-1. Read `plans/missing-nodes-analysis.md` and `plans/filtered-missing-nodes.md` (the two reports from a prior agent)
-2. Connected to the running ConsoleReferenceServer (PID 25040) via OPC UA (Anonymous + Admin, SecurityMode=None)
-3. **Read encoding node IDs** (i=121..i=32825) -- all 384 returned `Good` with correct BrowseNames
-4. **Browsed DataType HasEncoding** (e.g. i=296 Argument) -- confirmed encoding objects are reachable via non-hierarchical refs
-5. **Browsed from i=121** with all reference types -- confirmed only non-hierarchical refs exist (HasEncoding inverse, HasDescription, HasTypeDefinition)
-6. **Browsed role parents** (Observer i=15668, RoleSetType i=15607) -- all children present including AddIdentity, Identities, AddRole, RemoveRole
-7. **Read role children** as admin -- returned `BadSecurityModeInsufficient`, confirming they exist but require encrypted connection
-8. **Exported server address space** via ExportNodeSet (hierarchical browse from Root) -- confirmed encoding and access-restricted nodes absent from export
-9. **Checked spec XML** -- confirmed `AccessRestrictions="3"` on role children; confirmed encoding objects have no `ParentNodeId`
-10. **Reviewed source generator** -- `CollectEncodingNodes()` at `NodeStateGenerator.cs:2336` correctly emits all 384 encoding objects into `AddOpcUa()`
-11. **Verified generated output** -- `Opc.Ua.NodeStates.ex.g.cs` (21.7 MB) contains 1,931 nodes in `AddOpcUa()` including 1,074 encoding-related Create calls
-
-## Remaining 292 Nodes -- Detailed Analysis
+## Detailed Analysis of 335 Remaining Nodes
 
 | Structural Category | Count | Fix Needed |
 |---------------------|------:|------------|
-| Type-level children (mandatory on ObjectTypes the server does not instantiate) | 212 | No |
+| Type-level children (mandatory on ObjectTypes not instantiated) | 261 | No |
 | Instance-level children (concrete server objects) | 48 | 1 recommended |
-| Orphan property templates (no ParentNodeId) | 32 | No |
+| Orphan property templates (no ParentNodeId) | 26 | No |
 
-### Type-Level Children (212 nodes)
+### Type-Level Children (261 nodes)
 
-These are Mandatory children defined on ObjectTypes in the spec. They are **not
-instantiated** because the reference server does not create instances of these types.
-When a server does instantiate one of these types, the children are created
-automatically from the type definition.
+Mandatory children defined on ObjectTypes. Not instantiated because the server does not
+create instances of these types. When instantiated, children are created automatically.
 
-**Fix needed: No.** These are type-definition metadata, not runtime nodes.
+**Fix needed: No.**
 
 <details>
 <summary>Type-level children by parent ObjectType</summary>
 
-#### CertificateGroupType (i=12555) -- 32 nodes
+#### ProgramStateMachineType (i=2391) -- 30 nodes
 
-**Reason:** GDS/Push certificate management type. Server does not implement push certificate management.
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=13599 | TrustList | Object | Mandatory |
-| i=13600 | Size | Variable | Mandatory |
-| i=13601 | Writable | Variable | Mandatory |
-| i=13602 | UserWritable | Variable | Mandatory |
-| i=13603 | OpenCount | Variable | Mandatory |
-| i=13605 | Open | Method | Mandatory |
-| i=13606 | InputArguments | Variable | Mandatory |
-| i=13607 | OutputArguments | Variable | Mandatory |
-| i=13608 | Close | Method | Mandatory |
-| i=13609 | InputArguments | Variable | Mandatory |
-| i=13610 | Read | Method | Mandatory |
-| i=13611 | InputArguments | Variable | Mandatory |
-| i=13612 | OutputArguments | Variable | Mandatory |
-| i=13613 | Write | Method | Mandatory |
-| i=13614 | InputArguments | Variable | Mandatory |
-| i=13615 | GetPosition | Method | Mandatory |
-| i=13616 | InputArguments | Variable | Mandatory |
-| i=13617 | OutputArguments | Variable | Mandatory |
-| i=13618 | SetPosition | Method | Mandatory |
-| i=13619 | InputArguments | Variable | Mandatory |
-| i=13620 | LastUpdateTime | Variable | Mandatory |
-| i=13621 | OpenWithMasks | Method | Mandatory |
-| i=13622 | InputArguments | Variable | Mandatory |
-| i=13623 | OutputArguments | Variable | Mandatory |
-| i=13624 | CloseAndUpdate | Method | Mandatory |
-| i=13625 | InputArguments | Variable | Mandatory |
-| i=13626 | OutputArguments | Variable | Mandatory |
-| i=13627 | AddCertificate | Method | Mandatory |
-| i=13628 | InputArguments | Variable | Mandatory |
-| i=13629 | RemoveCertificate | Method | Mandatory |
-| i=13630 | InputArguments | Variable | Mandatory |
-| i=13631 | CertificateTypes | Variable | Mandatory |
-
-#### PubSubKeyPushTargetType (i=25337) -- 15 nodes
-
-**Reason:** PubSub security key push target type. Server does not implement SKS key push.
+**Reason:** Program state machine properties. Not used.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
-| i=25340 | SecurityPolicyUri | Variable | Mandatory |
-| i=25634 | ApplicationUri | Variable | Mandatory |
-| i=25635 | EndpointUrl | Variable | Mandatory |
-| i=25636 | UserTokenType | Variable | Mandatory |
-| i=25637 | RequestedKeyCount | Variable | Mandatory |
-| i=25638 | RetryInterval | Variable | Mandatory |
-| i=25639 | LastPushExecutionTime | Variable | Mandatory |
-| i=25640 | LastPushErrorTime | Variable | Mandatory |
-| i=25641 | ConnectSecurityGroups | Method | Mandatory |
-| i=25642 | InputArguments | Variable | Mandatory |
-| i=25643 | OutputArguments | Variable | Mandatory |
-| i=25644 | DisconnectSecurityGroups | Method | Mandatory |
-| i=25645 | InputArguments | Variable | Mandatory |
-| i=25646 | OutputArguments | Variable | Mandatory |
-| i=25647 | TriggerKeyUpdate | Method | Mandatory |
+| i=2392 | Creatable | Variable | - |
+| i=2396 | InstanceCount | Variable | - |
+| i=2397 | MaxInstanceCount | Variable | - |
+| i=2398 | MaxRecycleCount | Variable | - |
+| i=2400 | Ready | Object | - |
+| i=2401 | StateNumber | Variable | Mandatory |
+| i=2402 | Running | Object | - |
+| i=2403 | StateNumber | Variable | Mandatory |
+| i=2404 | Suspended | Object | - |
+| i=2405 | StateNumber | Variable | Mandatory |
+| i=2406 | Halted | Object | - |
+| i=2407 | StateNumber | Variable | Mandatory |
+| i=2408 | HaltedToReady | Object | - |
+| i=2409 | TransitionNumber | Variable | Mandatory |
+| i=2410 | ReadyToRunning | Object | - |
+| i=2411 | TransitionNumber | Variable | Mandatory |
+| i=2412 | RunningToHalted | Object | - |
+| i=2413 | TransitionNumber | Variable | Mandatory |
+| i=2414 | RunningToReady | Object | - |
+| i=2415 | TransitionNumber | Variable | Mandatory |
+| i=2416 | RunningToSuspended | Object | - |
+| i=2417 | TransitionNumber | Variable | Mandatory |
+| i=2418 | SuspendedToRunning | Object | - |
+| i=2419 | TransitionNumber | Variable | Mandatory |
+| i=2420 | SuspendedToHalted | Object | - |
+| i=2421 | TransitionNumber | Variable | Mandatory |
+| i=2422 | SuspendedToReady | Object | - |
+| i=2423 | TransitionNumber | Variable | Mandatory |
+| i=2424 | ReadyToHalted | Object | - |
+| i=2425 | TransitionNumber | Variable | Mandatory |
+
+#### FileTransferStateMachineType (i=15803) -- 28 nodes
+
+**Reason:** Type-level children not instantiated by the reference server.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=15815 | Idle | Object | - |
+| i=15816 | StateNumber | Variable | Mandatory |
+| i=15817 | ReadPrepare | Object | - |
+| i=15818 | StateNumber | Variable | Mandatory |
+| i=15819 | ReadTransfer | Object | - |
+| i=15820 | StateNumber | Variable | Mandatory |
+| i=15821 | ApplyWrite | Object | - |
+| i=15822 | StateNumber | Variable | Mandatory |
+| i=15823 | Error | Object | - |
+| i=15824 | StateNumber | Variable | Mandatory |
+| i=15825 | IdleToReadPrepare | Object | - |
+| i=15826 | TransitionNumber | Variable | Mandatory |
+| i=15827 | ReadPrepareToReadTransfer | Object | - |
+| i=15828 | TransitionNumber | Variable | Mandatory |
+| i=15829 | ReadTransferToIdle | Object | - |
+| i=15830 | TransitionNumber | Variable | Mandatory |
+| i=15831 | IdleToApplyWrite | Object | - |
+| i=15832 | TransitionNumber | Variable | Mandatory |
+| i=15833 | ApplyWriteToIdle | Object | - |
+| i=15834 | TransitionNumber | Variable | Mandatory |
+| i=15835 | ReadPrepareToError | Object | - |
+| i=15836 | TransitionNumber | Variable | Mandatory |
+| i=15837 | ReadTransferToError | Object | - |
+| i=15838 | TransitionNumber | Variable | Mandatory |
+| i=15839 | ApplyWriteToError | Object | - |
+| i=15840 | TransitionNumber | Variable | Mandatory |
+| i=15841 | ErrorToIdle | Object | - |
+| i=15842 | TransitionNumber | Variable | Mandatory |
+
+#### ShelvedStateMachineType (i=2929) -- 18 nodes
+
+**Reason:** Type-level children not instantiated by the reference server.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=2930 | Unshelved | Object | - |
+| i=2932 | TimedShelved | Object | - |
+| i=2933 | OneShotShelved | Object | - |
+| i=2935 | UnshelvedToTimedShelved | Object | - |
+| i=2936 | UnshelvedToOneShotShelved | Object | - |
+| i=2940 | TimedShelvedToUnshelved | Object | - |
+| i=2942 | TimedShelvedToOneShotShelved | Object | - |
+| i=2943 | OneShotShelvedToUnshelved | Object | - |
+| i=2945 | OneShotShelvedToTimedShelved | Object | - |
+| i=6098 | StateNumber | Variable | Mandatory |
+| i=6100 | StateNumber | Variable | Mandatory |
+| i=6101 | StateNumber | Variable | Mandatory |
+| i=11322 | TransitionNumber | Variable | Mandatory |
+| i=11323 | TransitionNumber | Variable | Mandatory |
+| i=11324 | TransitionNumber | Variable | Mandatory |
+| i=11325 | TransitionNumber | Variable | Mandatory |
+| i=11326 | TransitionNumber | Variable | Mandatory |
+| i=11327 | TransitionNumber | Variable | Mandatory |
+
+#### PubSubKeyPushTargetFolderType (i=25346) -- 17 nodes
+
+**Reason:** PubSub key push target folder. Not implemented.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=25348 | AddPushTarget | Method | Mandatory |
+| i=25349 | InputArguments | Variable | Mandatory |
+| i=25350 | OutputArguments | Variable | Mandatory |
+| i=25351 | RemovePushTarget | Method | Mandatory |
+| i=25352 | InputArguments | Variable | Mandatory |
+| i=25366 | AddPushTarget | Method | Mandatory |
+| i=25367 | InputArguments | Variable | Mandatory |
+| i=25368 | OutputArguments | Variable | Mandatory |
+| i=25369 | RemovePushTarget | Method | Mandatory |
+| i=25370 | InputArguments | Variable | Mandatory |
+| i=25655 | ConnectSecurityGroups | Method | Mandatory |
+| i=25656 | InputArguments | Variable | Mandatory |
+| i=25657 | OutputArguments | Variable | Mandatory |
+| i=25658 | DisconnectSecurityGroups | Method | Mandatory |
+| i=25659 | InputArguments | Variable | Mandatory |
+| i=25660 | OutputArguments | Variable | Mandatory |
+| i=25661 | TriggerKeyUpdate | Method | Mandatory |
+
+#### ExclusiveLimitStateMachineType (i=9318) -- 16 nodes
+
+**Reason:** Type-level children not instantiated by the reference server.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=9329 | HighHigh | Object | - |
+| i=9330 | StateNumber | Variable | Mandatory |
+| i=9331 | High | Object | - |
+| i=9332 | StateNumber | Variable | Mandatory |
+| i=9333 | Low | Object | - |
+| i=9334 | StateNumber | Variable | Mandatory |
+| i=9335 | LowLow | Object | - |
+| i=9336 | StateNumber | Variable | Mandatory |
+| i=9337 | LowLowToLow | Object | - |
+| i=9338 | LowToLowLow | Object | - |
+| i=9339 | HighHighToHigh | Object | - |
+| i=9340 | HighToHighHigh | Object | - |
+| i=11340 | TransitionNumber | Variable | Mandatory |
+| i=11341 | TransitionNumber | Variable | Mandatory |
+| i=11342 | TransitionNumber | Variable | Mandatory |
+| i=11343 | TransitionNumber | Variable | Mandatory |
 
 #### SessionsDiagnosticsSummaryType (i=2026) -- 11 nodes
 
-**Reason:** Session diagnostics type. The server uses a simplified diagnostics model.
+**Reason:** Session diagnostics type. Server uses simplified diagnostics model.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
@@ -132,44 +206,26 @@ automatically from the type definition.
 | i=12150 | SecurityPolicyUri | Variable | Mandatory |
 | i=12151 | ClientCertificate | Variable | Mandatory |
 
-#### TrustListType (i=12522) -- 11 nodes
+#### SecurityGroupFolderType (i=15452) -- 10 nodes
 
-**Reason:** Trust list file type with Open/Close/Read/Write methods. Server does not expose TrustList management via this type.
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=12542 | LastUpdateTime | Variable | Mandatory |
-| i=12543 | OpenWithMasks | Method | Mandatory |
-| i=12544 | InputArguments | Variable | Mandatory |
-| i=12545 | OutputArguments | Variable | Mandatory |
-| i=12546 | CloseAndUpdate | Method | Mandatory |
-| i=12547 | OutputArguments | Variable | Mandatory |
-| i=12548 | AddCertificate | Method | Mandatory |
-| i=12549 | InputArguments | Variable | Mandatory |
-| i=12550 | RemoveCertificate | Method | Mandatory |
-| i=12551 | InputArguments | Variable | Mandatory |
-| i=12705 | InputArguments | Variable | Mandatory |
-
-#### SessionDiagnosticsObjectType (i=2029) -- 10 nodes
-
-**Reason:** Session diagnostics type with SessionSecurityDiagnostics. Simplified diagnostics model.
+**Reason:** Security group folder. Not implemented.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
-| i=2031 | SessionSecurityDiagnostics | Variable | Mandatory |
-| i=3179 | SessionId | Variable | Mandatory |
-| i=3180 | ClientUserIdOfSession | Variable | Mandatory |
-| i=3181 | ClientUserIdHistory | Variable | Mandatory |
-| i=3182 | AuthenticationMechanism | Variable | Mandatory |
-| i=3183 | Encoding | Variable | Mandatory |
-| i=3184 | TransportProtocol | Variable | Mandatory |
-| i=3185 | SecurityMode | Variable | Mandatory |
-| i=3186 | SecurityPolicyUri | Variable | Mandatory |
-| i=3187 | ClientCertificate | Variable | Mandatory |
+| i=15454 | AddSecurityGroup | Method | Mandatory |
+| i=15455 | InputArguments | Variable | Mandatory |
+| i=15456 | OutputArguments | Variable | Mandatory |
+| i=15457 | RemoveSecurityGroup | Method | Mandatory |
+| i=15458 | InputArguments | Variable | Mandatory |
+| i=15461 | AddSecurityGroup | Method | Mandatory |
+| i=15462 | InputArguments | Variable | Mandatory |
+| i=15463 | OutputArguments | Variable | Mandatory |
+| i=15464 | RemoveSecurityGroup | Method | Mandatory |
+| i=15465 | InputArguments | Variable | Mandatory |
 
 #### AlarmConditionType (i=2915) -- 10 nodes
 
-**Reason:** TrueState/FalseState properties on TwoStateVariable children. These are display-hint properties, optional in practice.
+**Reason:** TrueState/FalseState display-hint properties on TwoStateVariable children.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
@@ -201,41 +257,26 @@ automatically from the type definition.
 | i=25281 | RemovePushTarget | Method | Mandatory |
 | i=25282 | InputArguments | Variable | Mandatory |
 
-#### ServerConfigurationType (i=12581) -- 9 nodes
+#### SessionDiagnosticsObjectType (i=2029) -- 10 nodes
 
-**Reason:** Server push configuration type (UpdateCertificate, CreateSigningRequest). Not implemented by reference server.
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=12616 | UpdateCertificate | Method | Mandatory |
-| i=12617 | InputArguments | Variable | Mandatory |
-| i=12618 | OutputArguments | Variable | Mandatory |
-| i=12731 | CreateSigningRequest | Method | Mandatory |
-| i=12732 | InputArguments | Variable | Mandatory |
-| i=12733 | OutputArguments | Variable | Mandatory |
-| i=12734 | ApplyChanges | Method | Mandatory |
-| i=12775 | GetRejectedList | Method | Mandatory |
-| i=12776 | OutputArguments | Variable | Mandatory |
-
-#### ApplicationConfigurationFolderType (i=16662) -- 9 nodes
-
-**Reason:** Application configuration folder with UpdateCertificate etc. Same as ServerConfigurationType.
+**Reason:** Session diagnostics type. Simplified diagnostics model.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
-| i=18533 | UpdateCertificate | Method | Mandatory |
-| i=18534 | InputArguments | Variable | Mandatory |
-| i=18535 | OutputArguments | Variable | Mandatory |
-| i=18539 | ApplyChanges | Method | Mandatory |
-| i=18541 | CreateSigningRequest | Method | Mandatory |
-| i=18542 | InputArguments | Variable | Mandatory |
-| i=18543 | OutputArguments | Variable | Mandatory |
-| i=18544 | GetRejectedList | Method | Mandatory |
-| i=18545 | OutputArguments | Variable | Mandatory |
+| i=2031 | SessionSecurityDiagnostics | Variable | Mandatory |
+| i=3179 | SessionId | Variable | Mandatory |
+| i=3180 | ClientUserIdOfSession | Variable | Mandatory |
+| i=3181 | ClientUserIdHistory | Variable | Mandatory |
+| i=3182 | AuthenticationMechanism | Variable | Mandatory |
+| i=3183 | Encoding | Variable | Mandatory |
+| i=3184 | TransportProtocol | Variable | Mandatory |
+| i=3185 | SecurityMode | Variable | Mandatory |
+| i=3186 | SecurityPolicyUri | Variable | Mandatory |
+| i=3187 | ClientCertificate | Variable | Mandatory |
 
 #### UserManagementType (i=24264) -- 9 nodes
 
-**Reason:** User management type (AddUser, ModifyUser, RemoveUser, ChangePassword). Server does not implement user management API.
+**Reason:** User management (AddUser, ModifyUser, etc.). Not implemented.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
@@ -249,9 +290,25 @@ automatically from the type definition.
 | i=24275 | ChangePassword | Method | Mandatory |
 | i=24276 | InputArguments | Variable | Mandatory |
 
+#### ApplicationConfigurationFolderType (i=16662) -- 9 nodes
+
+**Reason:** Application config folder. Same as ServerConfigurationType.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=18533 | UpdateCertificate | Method | Mandatory |
+| i=18534 | InputArguments | Variable | Mandatory |
+| i=18535 | OutputArguments | Variable | Mandatory |
+| i=18539 | ApplyChanges | Method | Mandatory |
+| i=18541 | CreateSigningRequest | Method | Mandatory |
+| i=18542 | InputArguments | Variable | Mandatory |
+| i=18543 | OutputArguments | Variable | Mandatory |
+| i=18544 | GetRejectedList | Method | Mandatory |
+| i=18545 | OutputArguments | Variable | Mandatory |
+
 #### ProvisionableDeviceType (i=26871) -- 9 nodes
 
-**Reason:** Provisioning workflow type. Same certificate management pattern -- not implemented.
+**Reason:** Provisioning workflow type. Not implemented.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
@@ -265,9 +322,25 @@ automatically from the type definition.
 | i=28013 | GetRejectedList | Method | Mandatory |
 | i=28014 | OutputArguments | Variable | Mandatory |
 
+#### ServerConfigurationType (i=12581) -- 9 nodes
+
+**Reason:** Server push configuration (UpdateCertificate, CreateSigningRequest). Not implemented.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=12616 | UpdateCertificate | Method | Mandatory |
+| i=12617 | InputArguments | Variable | Mandatory |
+| i=12618 | OutputArguments | Variable | Mandatory |
+| i=12731 | CreateSigningRequest | Method | Mandatory |
+| i=12732 | InputArguments | Variable | Mandatory |
+| i=12733 | OutputArguments | Variable | Mandatory |
+| i=12734 | ApplyChanges | Method | Mandatory |
+| i=12775 | GetRejectedList | Method | Mandatory |
+| i=12776 | OutputArguments | Variable | Mandatory |
+
 #### NonExclusiveLimitAlarmType (i=9906) -- 8 nodes
 
-**Reason:** TrueState/FalseState display-hint properties on alarm state variables.
+**Reason:** TrueState/FalseState display-hint properties.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
@@ -280,23 +353,9 @@ automatically from the type definition.
 | i=10054 | TrueState | Variable | - |
 | i=10055 | FalseState | Variable | - |
 
-#### ConditionType (i=2782) -- 7 nodes
-
-**Reason:** ConditionRefresh/ConditionRefresh2 and SupportsFilteredRetain. Server provides these on instances, not the type.
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=3875 | ConditionRefresh | Method | - |
-| i=3876 | InputArguments | Variable | Mandatory |
-| i=9018 | TrueState | Variable | - |
-| i=9019 | FalseState | Variable | - |
-| i=12912 | ConditionRefresh2 | Method | - |
-| i=12913 | InputArguments | Variable | Mandatory |
-| i=32060 | SupportsFilteredRetain | Variable | - |
-
 #### PublishSubscribeType (i=14416) -- 7 nodes
 
-**Reason:** PubSub connection and diagnostic methods. Server does not fully implement PubSub.
+**Reason:** PubSub methods. Server does not fully implement PubSub.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
@@ -308,22 +367,37 @@ automatically from the type definition.
 | i=25430 | InputArguments | Variable | Mandatory |
 | i=25431 | OutputArguments | Variable | Mandatory |
 
-#### RoleSetType (i=15607) -- 6 nodes
+#### PubSubKeyPushTargetType (i=25337) -- 7 nodes
 
-**Reason:** AddRole/RemoveRole methods. Present but only accessible with encrypted connection (AccessRestrictions=3).
+**Reason:** PubSub security key push target. Server does not implement SKS key push.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
-| i=15997 | AddRole | Method | Mandatory |
-| i=15998 | InputArguments | Variable | Mandatory |
-| i=15999 | OutputArguments | Variable | Mandatory |
-| i=16000 | RemoveRole | Method | Mandatory |
-| i=16001 | InputArguments | Variable | Mandatory |
-| i=16162 | Identities | Variable | Mandatory |
+| i=25641 | ConnectSecurityGroups | Method | Mandatory |
+| i=25642 | InputArguments | Variable | Mandatory |
+| i=25643 | OutputArguments | Variable | Mandatory |
+| i=25644 | DisconnectSecurityGroups | Method | Mandatory |
+| i=25645 | InputArguments | Variable | Mandatory |
+| i=25646 | OutputArguments | Variable | Mandatory |
+| i=25647 | TriggerKeyUpdate | Method | Mandatory |
+
+#### ConditionType (i=2782) -- 7 nodes
+
+**Reason:** ConditionRefresh methods and SupportsFilteredRetain.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=3875 | ConditionRefresh | Method | - |
+| i=3876 | InputArguments | Variable | Mandatory |
+| i=9018 | TrueState | Variable | - |
+| i=9019 | FalseState | Variable | - |
+| i=12912 | ConditionRefresh2 | Method | - |
+| i=12913 | InputArguments | Variable | Mandatory |
+| i=32060 | SupportsFilteredRetain | Variable | - |
 
 #### PubSubConfigurationType (i=25482) -- 6 nodes
 
-**Reason:** PubSub configuration file type with ReserveIds/CloseAndUpdate.
+**Reason:** PubSub config file (ReserveIds/CloseAndUpdate).
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
@@ -334,33 +408,22 @@ automatically from the type definition.
 | i=25509 | InputArguments | Variable | Mandatory |
 | i=25510 | OutputArguments | Variable | Mandatory |
 
-#### SecurityGroupType (i=15471) -- 5 nodes
+#### RoleSetType (i=15607) -- 6 nodes
 
-**Reason:** Security group management for PubSub. Server does not implement SKS security groups.
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=15046 | KeyLifetime | Variable | Mandatory |
-| i=15047 | SecurityPolicyUri | Variable | Mandatory |
-| i=15048 | MaxFutureKeyCount | Variable | Mandatory |
-| i=15056 | MaxPastKeyCount | Variable | Mandatory |
-| i=15472 | SecurityGroupId | Variable | Mandatory |
-
-#### SecurityGroupFolderType (i=15452) -- 5 nodes
-
-**Reason:** Security group folder management for PubSub. Server does not implement SKS.
+**Reason:** AddRole/RemoveRole. Present but require encrypted connection.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
-| i=15461 | AddSecurityGroup | Method | Mandatory |
-| i=15462 | InputArguments | Variable | Mandatory |
-| i=15463 | OutputArguments | Variable | Mandatory |
-| i=15464 | RemoveSecurityGroup | Method | Mandatory |
-| i=15465 | InputArguments | Variable | Mandatory |
+| i=15997 | AddRole | Method | Mandatory |
+| i=15998 | InputArguments | Variable | Mandatory |
+| i=15999 | OutputArguments | Variable | Mandatory |
+| i=16000 | RemoveRole | Method | Mandatory |
+| i=16001 | InputArguments | Variable | Mandatory |
+| i=16162 | Identities | Variable | Mandatory |
 
 #### ServerCapabilitiesType (i=2013) -- 5 nodes
 
-**Reason:** Server capabilities properties the reference server does not populate.
+**Reason:** Capabilities properties not populated by reference server.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
@@ -369,29 +432,6 @@ automatically from the type definition.
 | i=16298 | OutputArguments | Variable | Mandatory |
 | i=16299 | RemoveRole | Method | Mandatory |
 | i=16300 | InputArguments | Variable | Mandatory |
-
-#### PubSubKeyPushTargetFolderType (i=25346) -- 5 nodes
-
-**Reason:** PubSub key push target folder management. Server does not implement SKS.
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=25366 | AddPushTarget | Method | Mandatory |
-| i=25367 | InputArguments | Variable | Mandatory |
-| i=25368 | OutputArguments | Variable | Mandatory |
-| i=25369 | RemovePushTarget | Method | Mandatory |
-| i=25370 | InputArguments | Variable | Mandatory |
-
-#### ProgramStateMachineType (i=2391) -- 4 nodes
-
-**Reason:** Program state machine properties (Creatable, InstanceCount). Not used by reference server.
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=2392 | Creatable | Variable | - |
-| i=2396 | InstanceCount | Variable | - |
-| i=2397 | MaxInstanceCount | Variable | - |
-| i=2398 | MaxRecycleCount | Variable | - |
 
 #### AcknowledgeableConditionType (i=2881) -- 4 nodes
 
@@ -404,6 +444,24 @@ automatically from the type definition.
 | i=9109 | TrueState | Variable | - |
 | i=9110 | FalseState | Variable | - |
 
+#### AlarmSuppressionGroupType (i=32064) -- 2 nodes
+
+**Reason:** TrueState/FalseState display-hint.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=23586 | TrueState | Variable | - |
+| i=23587 | FalseState | Variable | - |
+
+#### AlarmGroupType (i=16405) -- 2 nodes
+
+**Reason:** TrueState/FalseState display-hint.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=16472 | TrueState | Variable | - |
+| i=16473 | FalseState | Variable | - |
+
 #### DialogConditionType (i=2830) -- 2 nodes
 
 **Reason:** TrueState/FalseState on DialogState.
@@ -413,71 +471,21 @@ automatically from the type definition.
 | i=9062 | TrueState | Variable | - |
 | i=9063 | FalseState | Variable | - |
 
-#### AlarmGroupType (i=16405) -- 2 nodes
-
-**Reason:** TrueState/FalseState display-hint on alarm group state variables.
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=16472 | TrueState | Variable | - |
-| i=16473 | FalseState | Variable | - |
-
-#### AlarmSuppressionGroupType (i=32064) -- 2 nodes
-
-**Reason:** TrueState/FalseState display-hint on alarm suppression state variables.
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=23586 | TrueState | Variable | - |
-| i=23587 | FalseState | Variable | - |
-
-#### ServerType (i=2004) -- 1 nodes
-
-**Reason:** Type-level child of ServerType.
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=3113 | SessionSecurityDiagnosticsArray | Variable | Mandatory |
-
-#### ServerDiagnosticsType (i=2020) -- 1 nodes
-
-**Reason:** Diagnostics array that the server explicitly deletes (SamplingIntervalDiagnosticsArray).
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=3130 | SessionSecurityDiagnosticsArray | Variable | Mandatory |
-
 #### RoleType (i=15620) -- 1 nodes
 
-**Reason:** Identities variable on RoleType. Present on instances but only accessible with encryption.
+**Reason:** Identities on RoleType. Present on instances, require encryption.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
 | i=16173 | Identities | Variable | Mandatory |
 
-#### WriterGroupType (i=17725) -- 1 nodes
+#### ReaderGroupType (i=17999) -- 1 nodes
 
 **Reason:** Type-level children not instantiated by the reference server.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
-| i=17824 | Reset | Method | Mandatory |
-
-#### PubSubConnectionType (i=14209) -- 1 nodes
-
-**Reason:** Type-level children not instantiated by the reference server.
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=19253 | Reset | Method | Mandatory |
-
-#### DataSetWriterType (i=15298) -- 1 nodes
-
-**Reason:** Type-level children not instantiated by the reference server.
-
-| NodeId | BrowseName | NodeClass | MR |
-|--------|------------|-----------|-----|
-| i=19562 | Reset | Method | Mandatory |
+| i=21027 | Reset | Method | Mandatory |
 
 #### DataSetReaderType (i=15306) -- 1 nodes
 
@@ -495,30 +503,56 @@ automatically from the type definition.
 |--------|------------|-----------|-----|
 | i=19689 | Reset | Method | Mandatory |
 
-#### ReaderGroupType (i=17999) -- 1 nodes
+#### ServerType (i=2004) -- 1 nodes
+
+**Reason:** Type-level child of ServerType.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=3113 | SessionSecurityDiagnosticsArray | Variable | Mandatory |
+
+#### ServerDiagnosticsType (i=2020) -- 1 nodes
+
+**Reason:** Server explicitly deletes SamplingIntervalDiagnosticsArray.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=3130 | SessionSecurityDiagnosticsArray | Variable | Mandatory |
+
+#### WriterGroupType (i=17725) -- 1 nodes
 
 **Reason:** Type-level children not instantiated by the reference server.
 
 | NodeId | BrowseName | NodeClass | MR |
 |--------|------------|-----------|-----|
-| i=21027 | Reset | Method | Mandatory |
+| i=17824 | Reset | Method | Mandatory |
+
+#### DataSetWriterType (i=15298) -- 1 nodes
+
+**Reason:** Type-level children not instantiated by the reference server.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=19562 | Reset | Method | Mandatory |
+
+#### PubSubConnectionType (i=14209) -- 1 nodes
+
+**Reason:** Type-level children not instantiated by the reference server.
+
+| NodeId | BrowseName | NodeClass | MR |
+|--------|------------|-----------|-----|
+| i=19253 | Reset | Method | Mandatory |
 
 </details>
 
 ### Instance-Level Children (48 nodes)
 
-These are children of concrete objects in the running server.
+#### Server > ServerDiagnostics (16 nodes)
 
-#### Server > ServerDiagnostics children (16 nodes)
+`DiagnosticsNodeManager` explicitly deletes `SamplingIntervalDiagnosticsArray`. Remaining
+sub-properties use a dynamic diagnostics model (computed on demand, not static nodes).
 
-Path: `Server > ServerDiagnostics > ServerDiagnosticsSummary > {sub-variables}`
-
-**Reason:** The `DiagnosticsNodeManager` explicitly deletes `SamplingIntervalDiagnosticsArray`
-(`DiagnosticsNodeManager.cs:156-161`). The remaining `ServerDiagnosticsSummary` sub-properties
-(ServerViewCount, CurrentSessionCount, etc.) and `SubscriptionDiagnosticsArray` use a dynamic
-diagnostics model where values are computed on demand rather than stored as static nodes.
-
-**Fix needed:** No. Deliberate simplification; the reference server uses dynamic diagnostics.
+**Fix needed:** No.
 
 | NodeId | BrowseName | Chain |
 |--------|------------|-------|
@@ -541,20 +575,15 @@ diagnostics model where values are computed on demand rather than stored as stat
 
 #### Server > Auditing (1 node)
 
-`i=2994` -- Boolean variable indicating whether the server supports auditing.
+`i=2994` -- Boolean indicating audit support. Reference server does not enable auditing.
 
-**Reason:** The reference server does not enable the auditing subsystem.
-
-**Fix needed:** Recommended. Per Part 5 section 6.3.3, even non-auditing servers should
-expose this variable with value `false`. One-line addition in `DiagnosticsNodeManager`.
+**Fix needed:** Recommended. Part 5 section 6.3.3 says expose with value `false`.
 
 #### HA Configuration (6 nodes)
 
-Path: `HA Configuration > AggregateConfiguration > {TreatUncertainAsBad, PercentDataBad, ...}`
+Historical Access configuration. Reference server does not implement HA.
 
-**Reason:** The reference server does not implement Historical Access.
-
-**Fix needed:** No. Historical Access is an optional server capability.
+**Fix needed:** No (optional capability).
 
 | NodeId | BrowseName |
 |--------|------------|
@@ -567,21 +596,15 @@ Path: `HA Configuration > AggregateConfiguration > {TreatUncertainAsBad, Percent
 
 #### FileSystem (11 nodes)
 
-Path: `FileSystem > {CreateDirectory, CreateFile, Delete, MoveOrCopy}`
+`FileSystem` object with CreateDirectory/CreateFile/Delete/MoveOrCopy methods.
 
-**Reason:** The reference server does not expose filesystem access.
-
-**Fix needed:** No. FileSystem is an optional server feature.
+**Fix needed:** No (optional capability).
 
 #### PublishSubscribe instance children (14 nodes)
 
-Path: `PublishSubscribe > {AddConnection, RemoveConnection, Diagnostics.Reset, PubSubConfiguration.*}`
+AddConnection/RemoveConnection methods, diagnostics Reset, PubSubConfiguration file methods.
 
-**Reason:** The PublishSubscribe singleton exists but AddConnection/RemoveConnection methods,
-diagnostic Reset, and PubSubConfiguration file methods (Write, ReserveIds, CloseAndUpdate)
-are not implemented.
-
-**Fix needed:** No, unless full PubSub support is a goal. This is a large feature effort.
+**Fix needed:** No (optional capability, large effort).
 
 | NodeId | BrowseName | Chain |
 |--------|------------|-------|
@@ -600,13 +623,12 @@ are not implemented.
 | i=25478 | InputArguments | PublishSubscribe > PubSubConfiguration > CloseAndUpdate > InputArguments |
 | i=25479 | OutputArguments | PublishSubscribe > PubSubConfiguration > CloseAndUpdate > OutputArguments |
 
-### Orphan Properties (32 nodes)
+### Orphan Properties (26 nodes)
 
-Variable nodes with **no `ParentNodeId`**. These are canonical type-level property definitions
-(e.g., `NodeVersion`, `Icon`, `InputArguments`, `EnumStrings`) that serve as templates.
-They are referenced by types via ModellingRules but are not standalone runtime nodes.
+Variable nodes with no `ParentNodeId`. Canonical type-level property definitions
+(NodeVersion, Icon, InputArguments, EnumStrings, etc.) used as templates by types.
 
-**Fix needed: No.** Design-time property templates, not runtime address-space nodes.
+**Fix needed: No.** Design-time templates, not runtime nodes.
 
 | NodeId | BrowseName | NodeClass |
 |--------|------------|-----------|
@@ -628,30 +650,24 @@ They are referenced by types via ModellingRules but are not standalone runtime n
 | i=11512 | MaxArrayLength | Variable |
 | i=11513 | EngineeringUnits | Variable |
 | i=12170 | ViewVersion | Variable |
-| i=12522 | TrustListType | ObjectType |
-| i=12555 | CertificateGroupType | ObjectType |
 | i=12745 | OptionSetValues | Variable |
 | i=12908 | MaxByteStringLength | Variable |
 | i=14415 | ServerNetworkGroups | Variable |
 | i=15002 | MaxCharacters | Variable |
-| i=15452 | SecurityGroupFolderType | ObjectType |
-| i=15471 | SecurityGroupType | ObjectType |
 | i=16314 | FileSystem | Object |
 | i=17605 | DefaultInstanceBrowseName | Variable |
 | i=23501 | CurrencyUnit | Variable |
-| i=25337 | PubSubKeyPushTargetType | ObjectType |
-| i=25346 | PubSubKeyPushTargetFolderType | ObjectType |
 | i=32750 | OptionSetLength | Variable |
 
 ## Fix Summary
 
 | Category | Count | Fix Needed | Effort |
 |----------|------:|------------|--------|
-| Type-level children (ObjectType definitions) | 212 | No | - |
-| Server diagnostics sub-variables | 16 | No (deliberate simplification) | - |
+| Type-level children | 261 | No | - |
+| Server diagnostics | 16 | No (deliberate) | - |
 | Server.Auditing | 1 | **Recommended** | Trivial |
-| HA Configuration | 6 | No (optional capability) | - |
-| FileSystem | 11 | No (optional capability) | - |
-| PublishSubscribe children | 14 | No (optional capability) | Large |
-| Orphan property templates | 32 | No (design-time only) | - |
-| **Total** | **292** | **1 recommended** | |
+| HA Configuration | 6 | No (optional) | - |
+| FileSystem | 11 | No (optional) | - |
+| PublishSubscribe | 14 | No (optional) | Large |
+| Orphan templates | 26 | No (design-time) | - |
+| **Total** | **335** | **1 recommended** | |
