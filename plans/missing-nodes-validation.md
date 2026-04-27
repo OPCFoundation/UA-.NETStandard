@@ -42,12 +42,28 @@ the export cannot traverse dynamic/non-browseable paths.
 ### Type Children with Access-Restricted Methods/Variables (164 nodes)
 
 **All present.** The parent ObjectTypes are now fully readable (no access restrictions
-on type definitions). However, individual child nodes — particularly security-sensitive
-methods like `AddSecurityGroup`, `RemoveSecurityGroup`, `AddRole`, `UpdateCertificate` —
-have their own `DefaultRolePermissions` that require authenticated users. This is correct
-per the spec; these methods should not be callable by anonymous users.
+on type definitions per [Part 3, 5.2.11](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.2.11/)).
+Individual child nodes (methods and variables) carry `DefaultRolePermissions` from
+the model design to enforce the security model defined by the spec authors.
 
-**Fix needed: No.** Individual method/variable access restrictions are correct.
+The `DefaultRolePermissions` mechanism is defined in [Part 3, 5.2.9](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.2.9/):
+the `NamespaceMetadata` object provides `DefaultRolePermissions` that apply to all
+nodes in a namespace unless overridden. In the source-generated address space, these
+defaults are baked into individual node states because the `NamespaceMetadata` node's
+`DefaultRolePermissions` property is empty in the NodeSet2.xml -- the model design
+XML's `<DefaultRolePermissions>` elements are the sole source of these restrictions.
+
+Per [Part 3, 6.3.3](https://reference.opcfoundation.org/v105/Core/docs/Part3/6.3.3/),
+InstanceDeclarations on type definitions are children with a ModellingRule.
+"Hierarchical References to Nodes without a ModellingRule are not considered" --
+these exist purely for browsing the type hierarchy and should be universally
+accessible. The access restrictions on these children are inherited from
+the model design's `DefaultRolePermissions`, not from explicit per-node
+`RolePermissions` in the NodeSet2.xml (which has none on these nodes).
+
+**Fix needed: No.** These nodes exist in the server. The access restrictions come
+from the model design's security model and prevent anonymous access to sensitive
+methods. To verify all nodes, use an authenticated+encrypted connection.
 
 <details>
 <summary>Type-level children by parent ObjectType</summary>
@@ -626,9 +642,12 @@ server address space. The gaps are entirely due to export methodology limitation
 
 ### Source Generator Fixes Applied
 
-1. **`ModellingRule=None` children** — Extended `GetChildren` to include Variables and Methods
-   (not just Objects) with `ModellingRule=None` when explicitly defined on a type. Added ~52 nodes.
+1. **`ModellingRule=None` children** ([Part 3, 6.3.3](https://reference.opcfoundation.org/v105/Core/docs/Part3/6.3.3/))
+   -- Extended `GetChildren` to include Variables and Methods (not just Objects) with
+   `ModellingRule=None` when explicitly defined on a type. Added ~52 nodes including
+   `ConditionRefresh`, `SupportsFilteredRetain`, `Creatable`, TrueState/FalseState properties.
 
-2. **`DefaultAccessRestrictions` on type definitions** — Stopped applying `DefaultAccessRestrictions`
-   and `DefaultRolePermissions` to ObjectType/VariableType nodes. These defaults are meant for
-   instances, not type definitions. ObjectTypes should always be universally readable.
+2. **`DefaultAccessRestrictions` on type definitions** ([Part 3, 5.2.11](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.2.11/))
+   -- Stopped applying `DefaultAccessRestrictions` and `DefaultRolePermissions` to
+   ObjectType/VariableType nodes. These defaults are meant for instances and their
+   children, not type definitions. ObjectTypes should always be universally readable.
