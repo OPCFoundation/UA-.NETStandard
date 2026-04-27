@@ -1,4 +1,3 @@
-#if OPCUA_CLIENT_V2
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
@@ -36,8 +35,8 @@ namespace Opc.Ua.Client.Subscriptions
 
     /// <summary>
     /// Non sdk interface that allows subscription manager to manage
-    /// subcriptions. Must be implemted by subscriptions to be
-    /// manageable by the <see cref="SubscriptionManager"/>.
+    /// subcriptions. Must be implemented by subscriptions to be
+    /// manageable by the subscription manager.
     /// </summary>
     internal interface IManagedSubscription : ISubscription, IMessageProcessor
     {
@@ -68,4 +67,3 @@ namespace Opc.Ua.Client.Subscriptions
         void NotifySubscriptionManagerPaused(bool paused);
     }
 }
-#endif

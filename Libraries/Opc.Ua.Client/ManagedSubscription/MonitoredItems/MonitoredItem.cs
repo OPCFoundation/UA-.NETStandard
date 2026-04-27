@@ -1,4 +1,3 @@
-#if OPCUA_CLIENT_V2
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
@@ -246,7 +245,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <param name="serverHandle"></param>
         internal void SetTransferResult(uint clientHandle, uint serverHandle)
         {
-            ObjectDisposedException.ThrowIf(_disposedValue, this);
+            if (_disposedValue)
+            {
+                throw new ObjectDisposedException(GetType().FullName);
+            }
 
             // ensure the global counter is not duplicating future handle ids
             if (clientHandle != ClientHandle)
@@ -273,7 +275,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         internal void Reset()
         {
-            ObjectDisposedException.ThrowIf(_disposedValue, this);
+            if (_disposedValue)
+            {
+                throw new ObjectDisposedException(GetType().FullName);
+            }
 
             _logger.LogDebug("{Item}: RESET.", this);
             ServerId = 0;
@@ -728,4 +733,3 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         private IOptionsMonitor<MonitoredItemOptions> _options;
     }
 }
-#endif

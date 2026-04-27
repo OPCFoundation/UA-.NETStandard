@@ -61,6 +61,14 @@ namespace System
         }
 
         /// <summary>
+        /// Replace line endings with a specified string
+        /// </summary>
+        public static string ReplaceLineEndings(this string target, string replacementText)
+        {
+            return target.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", replacementText);
+        }
+
+        /// <summary>
         /// Contains a character in a string using a specified comparison type assuming ordinal.
         /// </summary>
         public static bool Contains(this string target, char value, StringComparison comparisonType)
