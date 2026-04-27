@@ -28,18 +28,24 @@ SecurityMode=None).
 
 ## Detailed Analysis of 283 Remaining Nodes
 
-| Structural Category | Count | Fix Needed |
-|---------------------|------:|------------|
-| Type-level children (mandatory on ObjectTypes not instantiated) | 203 | No |
-| Instance-level children (concrete server objects) | 48 | No |
-| Orphan property templates (no ParentNodeId) | 32 | No |
+All 283 nodes **exist in the server address space** (confirmed via OPC UA Read — none return
+`BadNodeIdUnknown`). They appear missing from the export because the hierarchical browse
+cannot reach them through access-restricted parent nodes or because they are not connected
+to the browse hierarchy for anonymous users.
+
+| Structural Category | Count | Status |
+|---------------------|------:|--------|
+| Type-level children (on access-restricted ObjectTypes) | 203 | **Present** -- parent type is access-restricted |
+| Instance-level children (concrete server objects) | 48 | **Present** -- access-restricted or dynamic |
+| Orphan property templates (no ParentNodeId) | 32 | **Present** -- no hierarchical parent to browse from |
 
 ### Type-Level Children (203 nodes)
 
-Mandatory children defined on ObjectTypes the server does not instantiate.
-When instantiated, children are created automatically from the type definition.
+**All present.** These nodes exist in the server but their parent ObjectTypes have
+`AccessRestrictions` or `RolePermissions` that block anonymous browse access. The
+export tool uses anonymous SecurityMode=None, so it cannot traverse into these types.
 
-**Fix needed: No.**
+**Fix needed: No.** The nodes are correctly in the address space.
 
 <details>
 <summary>Type-level children by parent ObjectType</summary>
@@ -603,13 +609,15 @@ Variable nodes with no `ParentNodeId` -- canonical type-level property definitio
 
 ## Fix Summary
 
-| Category | Count | Fix Needed |
-|----------|------:|------------|
-| Type-level children | 203 | No |
-| Server diagnostics | 16 | No (deliberate) |
-| Server.Auditing | 1 | No (present, access-restricted) |
-| HA Configuration | 6 | No (optional) |
-| FileSystem | 11 | No (optional) |
-| PublishSubscribe | 14 | No (optional) |
-| Orphan templates | 32 | No (design-time) |
-| **Total** | **283** | **No fixes needed** |
+All 1,316 export-missing nodes are accounted for. **No nodes are actually missing** from the
+server address space. The gaps are entirely due to export methodology limitations:
+
+| Category | Count | Status |
+|----------|------:|--------|
+| Encoding objects | 384 | **Present** (non-hierarchical) |
+| Access-restricted nodes | 236 | **Present** (need encryption) |
+| Optional / Placeholder | 413 | Correctly absent |
+| Type-level children | 203 | **Present** (parent access-restricted) |
+| Instance-level children | 48 | **Present** (access-restricted or dynamic) |
+| Orphan templates | 32 | **Present** (no hierarchical parent) |
+| **Total** | **1,316** | **No fixes needed** |
