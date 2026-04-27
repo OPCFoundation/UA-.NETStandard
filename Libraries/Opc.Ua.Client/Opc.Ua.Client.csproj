@@ -24,6 +24,7 @@
   <ItemGroup>
     <PackageReference Include="BitFaster.Caching" />
     <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="System.Threading.Channels" />
   </ItemGroup>
   <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
@@ -33,7 +34,6 @@
     <PackageReference Include="Polly.Core" />
     <PackageReference Include="Irony" />
     <PackageReference Include="Stateless" />
-    <PackageReference Include="System.Threading.Channels" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
