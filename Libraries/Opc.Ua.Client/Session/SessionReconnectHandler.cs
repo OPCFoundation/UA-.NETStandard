@@ -633,8 +633,7 @@ namespace Opc.Ua.Client
                 // The original endpoint security configuration is no longer available on the server.
                 // Fall back to the best available endpoint without security constraints.
                 m_logger.LogWarning(
-                    "Original endpoint security configuration not available on server, " +
-                    "falling back to best available endpoint. {Message}",
+                    "Original endpoint security configuration not available on server, falling back to best available endpoint. {Message}",
                     sre.Message);
                 if (connection != null)
                 {
