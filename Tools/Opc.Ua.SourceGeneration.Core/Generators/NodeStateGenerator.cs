@@ -1433,9 +1433,12 @@ namespace Opc.Ua.SourceGeneration
                     : null);
 
             // Access restrictions
-            // DefaultAccessRestrictions apply to instances of the type, not to the
-            // type definition itself. Type definitions (ObjectType, VariableType)
-            // should only use their own explicit AccessRestrictions.
+            // DefaultAccessRestrictions are a model authoring convenience. For type
+            // definitions (ObjectType, VariableType) they must not be applied — types
+            // should always be universally browseable and readable.
+            // For instances and their children, defaults are applied to ensure the
+            // security model defined in the model design is enforced.
+            // See Part 3, 5.2.11: https://reference.opcfoundation.org/v105/Core/docs/Part3/5.2.11/
             bool isTypeDefinition = root is ObjectTypeDesign or VariableTypeDesign;
             string accessRestrictions =
                 root.AccessRestrictions.GetAccessRestrictionsAsCode(
@@ -2898,9 +2901,10 @@ namespace Opc.Ua.SourceGeneration
         private HashSet<RolePermission> GetRolePermissions(NodeDesign node)
         {
             var rolePermissions = new HashSet<RolePermission>();
-            // DefaultRolePermissions apply to instances of the type, not to the
-            // type definition itself. Type definitions should only use their own
-            // explicit RolePermissions.
+            // DefaultRolePermissions must not be applied to type definitions
+            // (ObjectType, VariableType) — types should be universally accessible.
+            // For instances and their children, defaults provide the security model.
+            // See Part 3, 5.2.9: https://reference.opcfoundation.org/v105/Core/docs/Part3/5.2.9/
             bool isTypeDefinition = node is ObjectTypeDesign or VariableTypeDesign;
             RolePermission[] nodeRolePermissions =
                 node.RolePermissions?.RolePermission;
