@@ -73,6 +73,59 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             RegisterRequestResponse(engine, "UaCancelResponse", "CancelCount", "ResponseHeader");
             RegisterRequestResponse(engine, "UaSetTriggeringRequest", "SubscriptionId", "TriggeringItemId", "LinksToAdd", "LinksToRemove", "RequestHeader");
             RegisterRequestResponse(engine, "UaSetTriggeringResponse", "AddResults", "AddDiagnosticInfos", "RemoveResults", "RemoveDiagnosticInfos", "ResponseHeader");
+
+            // UaCreateSessionRequest needs deep nested structure
+            // Called both with and without 'new' keyword
+            engine.Execute(@"
+                function UaCreateSessionRequest() {
+                    var obj = (this instanceof UaCreateSessionRequest) ? this : {};
+                    obj.RequestHeader = new UaRequestHeader();
+                    obj.ClientDescription = {
+                        ApplicationName: { Locale: '', Text: '' },
+                        ApplicationType: 0,
+                        ApplicationUri: '',
+                        ProductUri: '',
+                        GatewayServerUri: '',
+                        DiscoveryProfileUri: '',
+                        DiscoveryUrls: []
+                    };
+                    obj.ServerUri = '';
+                    obj.EndpointUrl = '';
+                    obj.SessionName = '';
+                    obj.ClientNonce = { length: 0, isEmpty: function() { return true; } };
+                    obj.ClientCertificate = { length: 0, isEmpty: function() { return true; } };
+                    obj.RequestedSessionTimeout = 60000;
+                    obj.MaxResponseMessageSize = 0;
+                    obj.toString = function() { return 'CreateSessionRequest'; };
+                    if (!(this instanceof UaCreateSessionRequest)) return obj;
+                }
+            ");
+
+            // UaActivateSessionRequest with nested UserIdentityToken
+            engine.Execute(@"
+                function UaActivateSessionRequest() {
+                    var obj = (this instanceof UaActivateSessionRequest) ? this : {};
+                    obj.RequestHeader = new UaRequestHeader();
+                    obj.ClientSignature = { Algorithm: '', Signature: { length: 0 } };
+                    obj.ClientSoftwareCertificates = [];
+                    obj.LocaleIds = [];
+                    obj.UserIdentityToken = null;
+                    obj.UserTokenSignature = { Algorithm: '', Signature: { length: 0 } };
+                    obj.toString = function() { return 'ActivateSessionRequest'; };
+                    if (!(this instanceof UaActivateSessionRequest)) return obj;
+                }
+            ");
+
+            // UaCloseSessionRequest
+            engine.Execute(@"
+                function UaCloseSessionRequest() {
+                    var obj = (this instanceof UaCloseSessionRequest) ? this : {};
+                    obj.RequestHeader = new UaRequestHeader();
+                    obj.DeleteSubscriptions = true;
+                    obj.toString = function() { return 'CloseSessionRequest'; };
+                    if (!(this instanceof UaCloseSessionRequest)) return obj;
+                }
+            ");
             RegisterRequestResponse(engine, "UaActivateSessionRequest", "ClientSignature", "ClientSoftwareCertificates", "LocaleIds", "UserIdentityToken", "UserTokenSignature", "RequestHeader");
             RegisterRequestResponse(engine, "UaActivateSessionResponse", "ServerNonce", "Results", "DiagnosticInfos", "ResponseHeader");
             RegisterRequestResponse(engine, "UaCloseSessionRequest", "DeleteSubscriptions", "RequestHeader");
@@ -311,7 +364,6 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 "UaAddReferencesRequest", "UaAddReferencesResponse",
                 "UaDeleteReferencesRequest", "UaDeleteReferencesResponse",
                 "UaEndpointDescription", "UaEndpointDescriptions",
-                "UaCreateSessionRequest",
                 "UaHistoryUpdateDetails", "UaUpdateEventDetails",
                 "UaUpdateStructureDataDetails",
                 "UaReadEventDetails", "UaReadAtTime",
@@ -350,26 +402,30 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
         private static void RegisterRequestResponse(Engine engine, string name, params string[] properties)
         {
             // Build a JS function body that initializes properties
+            // Uses "obj" pattern to work with both `new Name()` and `Name()` calls
             var body = new StringBuilder();
+            body.AppendLine($"    var obj = (this instanceof {name}) ? this : {{}};");
             foreach (var prop in properties)
             {
                 if (prop == "RequestHeader")
                 {
-                    body.AppendLine($"    this.{prop} = {{ Timestamp: UaDateTime.utcNow(), ReturnDiagnostics: 0 }};");
+                    body.AppendLine($"    obj.{prop} = new UaRequestHeader();");
                 }
                 else if (prop == "ResponseHeader")
                 {
-                    body.AppendLine($"    this.{prop} = {{ ServiceResult: new UaStatusCode(0), Timestamp: UaDateTime.utcNow() }};");
+                    body.AppendLine($"    obj.{prop} = {{ ServiceResult: new UaStatusCode(0), Timestamp: UaDateTime.utcNow(), RequestHandle: 0, ServiceDiagnostics: {{ InnerDiagnosticInfo: null, InnerStatusCode: 0, HasInnerDiagnosticInfo: false }}, StringTable: [] }};");
                 }
-                else if (prop.EndsWith("s", StringComparison.Ordinal) && prop != "Status")
+                else if (prop.EndsWith("s", StringComparison.Ordinal) && prop != "Status" && prop != "MoreNotifications")
                 {
-                    body.AppendLine($"    this.{prop} = [];");
+                    body.AppendLine($"    obj.{prop} = [];");
                 }
                 else
                 {
-                    body.AppendLine($"    this.{prop} = 0;");
+                    body.AppendLine($"    obj.{prop} = 0;");
                 }
             }
+            body.AppendLine($"    obj.toString = function() {{ return '{name}'; }};");
+            body.AppendLine($"    if (!(this instanceof {name})) return obj;");
             engine.Execute($"function {name}() {{\n{body}}}");
         }
 
@@ -457,13 +513,13 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
         private static void RegisterSimpleType(Engine engine, string name, params string[] properties)
         {
             var body = new System.Text.StringBuilder();
+            body.AppendLine($"    var obj = (this instanceof {name}) ? this : {{}};");
             for (int i = 0; i < properties.Length; i++)
             {
-                // Use arguments if provided, else undefined
-                body.AppendLine($"    this.{properties[i]} = arguments.length > {i} ? arguments[{i}] : undefined;");
+                body.AppendLine($"    obj.{properties[i]} = arguments.length > {i} ? arguments[{i}] : undefined;");
             }
-            body.AppendLine("    var _self = this;");
-            body.AppendLine("    this.clone = function() { return _self; };");
+            body.AppendLine("    obj.clone = function() { return obj; };");
+            body.AppendLine($"    if (!(this instanceof {name})) return obj;");
             engine.Execute($"function {name}() {{\n{body}}}");
         }
 

@@ -275,12 +275,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 CancellationToken.None).GetAwaiter().GetResult();
 
             // Fill the response object
-            var responseHeader = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-            responseHeader.Set("ServiceResult",
-                CreateUaStatusCode(engine, readResponse.ResponseHeader.ServiceResult.Code));
-            responseHeader.Set("Timestamp",
-                CreateUaDateTimeNow(engine));
-            response.Set("ResponseHeader", responseHeader);
+            response.Set("ResponseHeader", CreateResponseHeader(engine, readResponse.ResponseHeader.ServiceResult.Code));
 
             // Fill Results array
             var resultsArray = CreateDataValuesArray(engine, readResponse.Results);
@@ -330,10 +325,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 new ArrayOf<WriteValue>(writeValues.ToArray()),
                 CancellationToken.None).GetAwaiter().GetResult();
 
-            var responseHeader = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-            responseHeader.Set("ServiceResult",
-                CreateUaStatusCode(engine, writeResponse.ResponseHeader.ServiceResult.Code));
-            response.Set("ResponseHeader", responseHeader);
+            response.Set("ResponseHeader", CreateResponseHeader(engine, writeResponse.ResponseHeader.ServiceResult.Code));
 
             var writeResults = writeResponse.Results.ToArray() ?? Array.Empty<StatusCode>();
             var resultsArray = engine.Intrinsics.Array.Construct(
@@ -387,10 +379,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 new ArrayOf<BrowseDescription>(nodesToBrowse.ToArray()),
                 CancellationToken.None).GetAwaiter().GetResult();
 
-            var responseHeader = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-            responseHeader.Set("ServiceResult",
-                CreateUaStatusCode(engine, browseResponse.ResponseHeader.ServiceResult.Code));
-            response.Set("ResponseHeader", responseHeader);
+            response.Set("ResponseHeader", CreateResponseHeader(engine, browseResponse.ResponseHeader.ServiceResult.Code));
 
             var resultsArray = CreateBrowseResultsArray(engine, browseResponse.Results);
             response.Set("Results", resultsArray);
@@ -475,33 +464,72 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 _logger.LogInformation("CreateSession: SessionId={Id}", _session.SessionId);
 
                 // Fill the response
-                var responseHeader = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                responseHeader.Set("ServiceResult", CreateUaStatusCode(engine, (uint)StatusCodes.Good));
-                responseHeader.Set("Timestamp", CreateUaDateTimeNow(engine));
-                response.Set("ResponseHeader", responseHeader);
+                response.Set("ResponseHeader", CreateResponseHeader(engine, (uint)StatusCodes.Good));
 
                 response.Set("SessionId", CreateNodeIdObject(engine, _session.SessionId));
                 response.Set("AuthenticationToken", CreateNodeIdObject(engine, NodeId.Null));
                 response.Set("RevisedSessionTimeout", JsValue.FromObject(engine, _session.SessionTimeout));
                 response.Set("MaxRequestMessageSize", JsValue.FromObject(engine, 0));
 
-                // ServerNonce as UaByteString
+                // ServerNonce as UaByteString — fill from actual session
+                byte[] nonceBytes = Array.Empty<byte>();
                 var serverNonce = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                serverNonce.Set("length", JsValue.FromObject(engine, 0));
+                serverNonce.Set("length", JsValue.FromObject(engine, nonceBytes.Length));
+                serverNonce.Set("isEmpty", new ClrFunction(engine, "isEmpty",
+                    (_, _) => JsValue.FromObject(engine, nonceBytes.Length == 0)));
                 response.Set("ServerNonce", serverNonce);
 
                 // ServerCertificate as UaByteString
+                byte[] certBytes = _session.ConfiguredEndpoint?.Description?.ServerCertificate.ToArray() ?? Array.Empty<byte>();
                 var serverCert = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                serverCert.Set("length", JsValue.FromObject(engine, 0));
+                serverCert.Set("length", JsValue.FromObject(engine, certBytes.Length));
+                serverCert.Set("isEmpty", new ClrFunction(engine, "isEmpty",
+                    (_, _) => JsValue.FromObject(engine, certBytes.Length == 0)));
                 response.Set("ServerCertificate", serverCert);
 
                 // ServerEndpoints
-                var epArray = engine.Intrinsics.Array.Construct(Array.Empty<JsValue>());
-                response.Set("ServerEndpoints", epArray);
+                var endpointJsArray = new List<JsValue>();
+                try
+                {
+                    var disc = DiscoveryClient.CreateAsync(_config, new Uri(_project.ServerUrl)).GetAwaiter().GetResult();
+                    var discoveredEndpoints = disc.GetEndpointsAsync(default(ArrayOf<string>)).GetAwaiter().GetResult();
+                    foreach (var ep in discoveredEndpoints.ToArray()!)
+                    {
+                    var epObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                    epObj.Set("EndpointUrl", JsValue.FromObject(engine, ep.EndpointUrl ?? ""));
+                    epObj.Set("SecurityMode", JsValue.FromObject(engine, (int)ep.SecurityMode));
+                    epObj.Set("SecurityPolicyUri", JsValue.FromObject(engine, ep.SecurityPolicyUri ?? ""));
+                    epObj.Set("SecurityLevel", JsValue.FromObject(engine, ep.SecurityLevel));
+                    epObj.Set("TransportProfileUri", JsValue.FromObject(engine, ep.TransportProfileUri ?? ""));
+                    var certObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                    var epCertBytes = ep.ServerCertificate.ToArray();
+                    certObj.Set("length", JsValue.FromObject(engine, epCertBytes.Length));
+                    certObj.Set("isEmpty", new ClrFunction(engine, "isEmpty",
+                        (_, _) => JsValue.FromObject(engine, epCertBytes.Length == 0)));
+                    epObj.Set("ServerCertificate", certObj);
+                    // UserIdentityTokens
+                    var tokens = new List<JsValue>();
+                    foreach (var t in ep.UserIdentityTokens)
+                    {
+                            var tok = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                            tok.Set("PolicyId", JsValue.FromObject(engine, t.PolicyId ?? ""));
+                            tok.Set("TokenType", JsValue.FromObject(engine, (int)t.TokenType));
+                            tok.Set("SecurityPolicyUri", JsValue.FromObject(engine, t.SecurityPolicyUri ?? ""));
+                            tokens.Add(tok);
+                    }
+                    epObj.Set("UserIdentityTokens", engine.Intrinsics.Array.Construct(tokens.ToArray()));
+                    endpointJsArray.Add(epObj);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("Could not discover endpoints for CreateSession response: {Error}", ex.Message);
+                }
+                response.Set("ServerEndpoints", engine.Intrinsics.Array.Construct(endpointJsArray.ToArray()));
 
-                // ServerSoftwareCertificates
-                response.Set("ServerSoftwareCertificates",
-                    engine.Intrinsics.Array.Construct(Array.Empty<JsValue>()));
+                // ServerSoftwareCertificates — empty array with isEmpty
+                var swCerts = engine.Intrinsics.Array.Construct(Array.Empty<JsValue>());
+                response.Set("ServerSoftwareCertificates", swCerts);
 
                 // ServerSignature
                 var serverSig = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
@@ -993,6 +1021,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
         #endregion
     }
 }
+
 
 
 
