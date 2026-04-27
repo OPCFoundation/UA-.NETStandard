@@ -793,6 +793,14 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(notification.Value.StatusCode.SemanticsChanged, Is.True);
                 Assert.That(diagnostics, Has.Count.EqualTo(2));
             }
+
+            Assert.That(hadMore, Is.False);
+
+            // Verify a semantic change event was correctly reported and queued
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
+                Times.Once);
+                        
             Assert.That(monitoredItem.IsReadyToPublish, Is.False);
         }
 
