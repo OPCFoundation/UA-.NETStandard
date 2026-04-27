@@ -2953,6 +2953,23 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <inheritdoc/>
+        protected override void RequestCompleted(
+            IServiceRequest request,
+            IServiceResponse response,
+            string serviceName)
+        {
+            StatusCode? sr = response?.ResponseHeader?.ServiceResult;
+            if (sr != null && StatusCode.IsGood(sr.Value))
+            {
+                // Any successful response proves the server is alive —
+                // reset keep-alive so we don't send a redundant read.
+                ResetKeepAliveTimer();
+            }
+
+            base.RequestCompleted(request, response, serviceName);
+        }
+
         /// <summary>
         /// Reset the timer used to send keep alive messages.
         /// </summary>
