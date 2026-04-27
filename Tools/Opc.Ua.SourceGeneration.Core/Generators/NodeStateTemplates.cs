@@ -1200,6 +1200,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfChildNodeStates}}
                 if (!forInstance)
                 {
+                    state.IsPartOfTypeHierarchy = true;
                     {{Tokens.ModellingRuleId}}
                     {{Tokens.ListOfOptionalChildNodeStates}}
                 }
@@ -1245,6 +1246,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfChildNodeStates}}
                 if (!forInstance)
                 {
+                    state.IsPartOfTypeHierarchy = true;
                     {{Tokens.ModellingRuleId}}
                     {{Tokens.ListOfOptionalChildNodeStates}}
                 }

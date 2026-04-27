@@ -1432,22 +1432,14 @@ namespace Opc.Ua.SourceGeneration
                     ? CoreUtils.Format("state.Specification = \"Part{0}\";", root.PartNo)
                     : null);
 
-            // Access restrictions
-            // DefaultAccessRestrictions are a model authoring convenience. For type
-            // definitions (ObjectType, VariableType) they must not be applied — types
-            // should always be universally browseable and readable.
-            // For instances and their children, defaults are applied to ensure the
-            // security model defined in the model design is enforced.
-            // See Part 3, 5.2.11: https://reference.opcfoundation.org/v105/Core/docs/Part3/5.2.11/
-            bool isTypeDefinition = root is ObjectTypeDesign or VariableTypeDesign;
+            // Access restrictions — emit on all nodes (type and instance).
+            // Type hierarchy nodes carry restrictions as metadata but the server
+            // bypasses enforcement via IsPartOfTypeHierarchy at runtime.
             string accessRestrictions =
                 root.AccessRestrictions.GetAccessRestrictionsAsCode(
-                    root.AccessRestrictionsSpecified);
-            if (accessRestrictions == null && !isTypeDefinition)
-            {
-                accessRestrictions = root.DefaultAccessRestrictions.GetAccessRestrictionsAsCode(
+                    root.AccessRestrictionsSpecified) ??
+                root.DefaultAccessRestrictions.GetAccessRestrictionsAsCode(
                     root.DefaultAccessRestrictionsSpecified);
-            }
             context.Template.AddReplacement(
                 Tokens.AccessRestrictionsValue,
                 accessRestrictions != null
@@ -1517,7 +1509,9 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            string forInstanceVariableValue = (node.Parent?.InstanceOf != null || node.Parent?.Parent == null) ? "true" : "forInstance";
+            string forInstanceVariableValue =
+                node.RootIsTypeDefinition ? "forInstance" :
+                (node.Parent?.InstanceOf != null || node.Parent?.Parent == null) ? "true" : "forInstance";
             if (node.Parent != null && IsInAddressSpace(node.Parent))
             {
                 switch (node.Parent.Design)
@@ -2901,17 +2895,12 @@ namespace Opc.Ua.SourceGeneration
         private HashSet<RolePermission> GetRolePermissions(NodeDesign node)
         {
             var rolePermissions = new HashSet<RolePermission>();
-            // DefaultRolePermissions must not be applied to type definitions
-            // (ObjectType, VariableType) — types should be universally accessible.
-            // For instances and their children, defaults provide the security model.
-            // See Part 3, 5.2.9: https://reference.opcfoundation.org/v105/Core/docs/Part3/5.2.9/
-            bool isTypeDefinition = node is ObjectTypeDesign or VariableTypeDesign;
+            // Emit RolePermissions on all nodes (type and instance).
+            // Type hierarchy nodes carry permissions as metadata but the server
+            // bypasses enforcement via IsPartOfTypeHierarchy at runtime.
             RolePermission[] nodeRolePermissions =
-                node.RolePermissions?.RolePermission;
-            if (nodeRolePermissions == null && !isTypeDefinition)
-            {
-                nodeRolePermissions = node.DefaultRolePermissions?.RolePermission;
-            }
+                node.RolePermissions?.RolePermission ??
+                node.DefaultRolePermissions?.RolePermission;
             if (nodeRolePermissions != null)
             {
                 foreach (RolePermission rp in nodeRolePermissions)
