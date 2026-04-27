@@ -1,4 +1,3 @@
-#if OPCUA_CLIENT_V2
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
@@ -81,4 +80,3 @@ namespace Opc.Ua.Client.Subscriptions
         Completed = 1 << 7,
     }
 }
-#endif
