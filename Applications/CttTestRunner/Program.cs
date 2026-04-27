@@ -47,21 +47,21 @@ namespace Opc.Ua.CttTestRunner
     {
         public static async Task<int> Main(string[] args)
         {
-            var settingsOption = new Option<string>("--settings", "Path to .ctt.xml project file");
+            var settingsOption = new Option<string>("--settings") { Description = "Path to .ctt.xml project file" };
 
-            var fileOption = new Option<string>("--file", "Specific .js test script to run");
+            var fileOption = new Option<string>("--file") { Description = "Specific .js test script to run" };
 
-            var cttDirOption = new Option<string>("--ctt-dir", "CTT installation directory (where library/ and maintree/ are)");
+            var cttDirOption = new Option<string>("--ctt-dir") { Description = "CTT installation directory (where library/ and maintree/ are)" };
 
-            var resultOption = new Option<string>("--result", "Path for XML result output");
+            var resultOption = new Option<string>("--result") { Description = "Path for XML result output" };
 
-            var conformanceUnitOption = new Option<string>("--conformance-unit", "Run all tests in a conformance unit (e.g. 'Attribute Read')");
+            var conformanceUnitOption = new Option<string>("--conformance-unit") { Description = "Run all tests in a conformance unit (e.g. 'Attribute Read')" };
 
-            var listOption = new Option<bool>("--list", "List available conformance units without running tests");
+            var listOption = new Option<bool>("--list") { Description = "List available conformance units without running tests" };
 
-            var verboseOption = new Option<bool>("--verbose", "Enable verbose logging of JS\u2194.NET calls");
+            var verboseOption = new Option<bool>("--verbose") { Description = "Enable verbose logging of JS\u2194.NET calls" };
 
-            var jsonOption = new Option<bool>("--json", "Emit JSON lines to stdout for machine-readable output");
+            var jsonOption = new Option<bool>("--json") { Description = "Emit JSON lines to stdout for machine-readable output" };
 
             var rootCommand = new RootCommand("OPC UA CTT JavaScript Test Runner \u2014 executes CTT test scripts using the .NET Standard stack")
             {

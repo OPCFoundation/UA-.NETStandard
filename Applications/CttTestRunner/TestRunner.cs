@@ -210,8 +210,22 @@ namespace Opc.Ua.CttTestRunner
                 host.TestContext.AddSkipped("Test stopped by stopTest()");
             }));
 
-            // _warning helper used by some scripts
+            // _warning and _error helpers used by some scripts
             engine.Execute("var _warning = { store: function(msg) { addWarning(msg); } };");
+            engine.Execute("var _error = { store: function(msg) { addError(msg); } };");
+
+            // MessageSecurityMode.toString helper
+            engine.Execute(@"
+                MessageSecurityMode.toString = function(v) {
+                    switch(v) {
+                        case 0: return 'Invalid';
+                        case 1: return 'None';
+                        case 2: return 'Sign';
+                        case 3: return 'SignAndEncrypt';
+                        default: return 'Unknown(' + v + ')';
+                    }
+                };
+            ");
 
             // HostInfo — C++ bound helper for host machine info
             string hostName = System.Net.Dns.GetHostName();

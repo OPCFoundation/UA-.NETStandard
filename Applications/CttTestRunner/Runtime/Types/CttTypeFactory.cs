@@ -133,7 +133,43 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
             // Individual value types
             RegisterNodeIdConstructor(engine);
-            RegisterSimpleType(engine, "UaVariant", "DataType", "Value");
+            // UaVariant — full implementation with setter methods
+            engine.Execute(@"
+                function UaVariant() {
+                    this.DataType = 0;
+                    this.Value = undefined;
+                    this.ArrayType = 0;
+                    var _self = this;
+                    this.clone = function() { var c = new UaVariant(); c.DataType = _self.DataType; c.Value = _self.Value; return c; };
+                    this.setBoolean = function(v) { _self.DataType = 1; _self.Value = v; };
+                    this.setByte = function(v) { _self.DataType = 3; _self.Value = v; };
+                    this.setSByte = function(v) { _self.DataType = 2; _self.Value = v; };
+                    this.setInt16 = function(v) { _self.DataType = 4; _self.Value = v; };
+                    this.setUInt16 = function(v) { _self.DataType = 5; _self.Value = v; };
+                    this.setInt32 = function(v) { _self.DataType = 6; _self.Value = v; };
+                    this.setUInt32 = function(v) { _self.DataType = 7; _self.Value = v; };
+                    this.setInt64 = function(v) { _self.DataType = 8; _self.Value = v; };
+                    this.setUInt64 = function(v) { _self.DataType = 9; _self.Value = v; };
+                    this.setFloat = function(v) { _self.DataType = 10; _self.Value = v; };
+                    this.setDouble = function(v) { _self.DataType = 11; _self.Value = v; };
+                    this.setString = function(v) { _self.DataType = 12; _self.Value = v; };
+                    this.setDateTime = function(v) { _self.DataType = 13; _self.Value = v; };
+                    this.setGuid = function(v) { _self.DataType = 14; _self.Value = v; };
+                    this.setByteString = function(v) { _self.DataType = 15; _self.Value = v; };
+                    this.setNodeId = function(v) { _self.DataType = 17; _self.Value = v; };
+                    this.setExpandedNodeId = function(v) { _self.DataType = 18; _self.Value = v; };
+                    this.setStatusCode = function(v) { _self.DataType = 19; _self.Value = v; };
+                    this.setQualifiedName = function(v) { _self.DataType = 20; _self.Value = v; };
+                    this.setLocalizedText = function(v) { _self.DataType = 21; _self.Value = v; };
+                    this.setExtensionObject = function(v) { _self.DataType = 22; _self.Value = v; };
+                    this.toBoolean = function() { return !!_self.Value; };
+                    this.toInt32 = function() { return parseInt(_self.Value) || 0; };
+                    this.toUInt32 = function() { return (parseInt(_self.Value) || 0) >>> 0; };
+                    this.toDouble = function() { return parseFloat(_self.Value) || 0; };
+                    this.toString = function() { return '' + _self.Value; };
+                    this.getArraySize = function() { return Array.isArray(_self.Value) ? _self.Value.length : -1; };
+                }
+            ");
             RegisterSimpleType(engine, "UaDataValue", "Value", "StatusCode", "SourceTimestamp", "ServerTimestamp");
             RegisterUaStatusCodeConstructor(engine);
             RegisterSimpleType(engine, "UaLocalizedText", "Text", "Locale");
@@ -246,7 +282,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 "UaModelMap",
                 "UaNetworkAddressUrlDataType",
                 "UaPausePublishRequest",
-                "UaPkiPrivateKey", "UaPkiUtility",
+                "UaPkiPrivateKey",
                 "UaPublishedDataItemsDataType", "UaPublishedDataSetDataType",
                 "UaPublishedDataSetDataTypes", "UaPublishedVariableDataTypes",
                 "UaPubSubConfiguration2DataType",
@@ -339,11 +375,18 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
 
         private static void RegisterTypedArray(Engine engine, string name)
         {
+            // UaVariants and UaQualifiedNames need specialized elements with setter methods
+            string elementInit = name switch {
+                "UaVariants" => "new UaVariant()",
+                "UaQualifiedNames" => "new UaQualifiedName()",
+                "UaLocalizedTexts" => "new UaLocalizedText()",
+                _ => "{}"
+            };
             engine.Execute($@"
                 function {name}(size) {{
                     var arr = [];
                     if (typeof size === 'number') {{
-                        for (var i = 0; i < size; i++) arr.push(undefined);
+                        for (var i = 0; i < size; i++) arr.push({elementInit});
                     }}
                     return arr;
                 }}
@@ -569,16 +612,20 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
         private static void RegisterRequestHeaderHelper(Engine engine)
         {
             engine.Execute(@"
-                var UaRequestHeader = {
-                    New: function(args) {
-                        var h = {};
-                        h.Timestamp = UaDateTime.utcNow();
-                        h.ReturnDiagnostics = 0;
-                        if (args && args.ReturnDiagnostics !== undefined) {
-                            h.ReturnDiagnostics = args.ReturnDiagnostics;
-                        }
-                        return h;
+                function UaRequestHeader() {
+                    this.Timestamp = UaDateTime.utcNow();
+                    this.ReturnDiagnostics = 0;
+                    this.RequestHandle = 0;
+                    this.AuditEntryId = '';
+                    this.TimeoutHint = 0;
+                    this.AdditionalHeader = null;
+                }
+                UaRequestHeader.New = function(args) {
+                    var h = new UaRequestHeader();
+                    if (args && args.ReturnDiagnostics !== undefined) {
+                        h.ReturnDiagnostics = args.ReturnDiagnostics;
                     }
+                    return h;
                 };
             ");
         }
@@ -607,11 +654,18 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 function UaPkiCertificate() {
                     this.ApplicationUri = '';
                     this.SubjectName = '';
+                    this.Thumbprint = 'thumb=000000000000000000000000000000000000000000';
+                    this.IssuerName = '';
+                    this.ValidFrom = '';
+                    this.ValidTo = '';
                 }
                 UaPkiCertificate.fromDER = function(byteString) {
                     var cert = new UaPkiCertificate();
                     cert.ApplicationUri = '';
                     cert.SubjectName = '';
+                    cert.Thumbprint = 'thumb=000000000000000000000000000000000000000000';
+                    cert.toDERFile = function(filename) { return true; };
+                    cert.toFile = function(filename) { return true; };
                     return cert;
                 };
             ");
@@ -629,8 +683,26 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     this.CertificateRevocationListLocation = '';
                     this.IssuersListLocation = '';
                     this.IssuersCrlListLocation = '';
+                    this.loadCertificateFromFile = function(path, outCert) {
+                        // Stub - pretend we loaded a certificate
+                        var result = {};
+                        result.StatusCode = 0;
+                        result.isGood = function() { return true; };
+                        result.isBad = function() { return false; };
+                        result.isUncertain = function() { return false; };
+                        result.toString = function() { return '0x00000000'; };
+                        return result;
+                    };
+                    this.loadPrivateKeyFromFile = function(path, outKey) {
+                        var result = {};
+                        result.StatusCode = 0;
+                        result.isGood = function() { return true; };
+                        result.isBad = function() { return false; };
+                        result.isUncertain = function() { return false; };
+                        result.toString = function() { return '0x00000000'; };
+                        return result;
+                    };
                 }
-                UaPkiUtility.prototype.loadCertificateFromFile = function() { return new UaPkiCertificate(); };
             ");
         }
 
