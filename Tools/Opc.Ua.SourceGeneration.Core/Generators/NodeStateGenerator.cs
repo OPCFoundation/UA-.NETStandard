@@ -2677,11 +2677,12 @@ namespace Opc.Ua.SourceGeneration
                         add = true;
                     }
                     else if (child.ModellingRule == ModellingRule.None &&
-                        current.ExplicitlyDefined &&
-                        current.Instance is ObjectDesign)
+                        current.ExplicitlyDefined)
                     {
-                        // Include ModellingRule=None Object children that are explicitly defined
-                        // on this type (e.g., state machine states and transitions).
+                        // Include ModellingRule=None children that are explicitly defined
+                        // on this type (e.g., state machine states/transitions, type-level
+                        // methods like ConditionRefresh, and type-level properties like
+                        // Creatable or SupportsFilteredRetain).
                         add = true;
                     }
                     else if (child.ModellingRule is not ModellingRule.None)
