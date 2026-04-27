@@ -616,7 +616,7 @@ namespace Opc.Ua.Client
                     foreach (var registeredItems in registrations
                         .Select(r => r.Options.CurrentValue.MonitoredItems
                             .Select(m => (r, m.Key, m.Value))
-                            .ToList())
+                            .ToArrayOf())
                         .OrderByDescending(tl => tl.Count))
                     {
                         var placed = false;
@@ -633,7 +633,7 @@ namespace Opc.Ua.Client
                         if (!placed)
                         {
                             // Break items into batches of max here and add partition each
-                            foreach (var batch in registeredItems.Batch(maxMonitoredItems))
+                            foreach (var batch in registeredItems.Batch((int)maxMonitoredItems))
                             {
                                 var newPartition = new BagPackedPartition();
                                 newPartition.Items.AddRange(batch);

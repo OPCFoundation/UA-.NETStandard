@@ -54,8 +54,10 @@ namespace Opc.Ua.Client.Services
         /// <param name="nodesToBrowse"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        IAsyncEnumerable<BrowseDescriptionResult> BrowseAsync(RequestHeader? requestHeader,
-            ViewDescription? view, ArrayOf<BrowseDescription> nodesToBrowse,
+        IAsyncEnumerable<BrowseDescriptionResult> BrowseAsync(
+            RequestHeader? requestHeader,
+            ViewDescription? view,
+            ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken ct = default);
     }
 }
