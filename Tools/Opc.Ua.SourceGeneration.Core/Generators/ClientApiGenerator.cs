@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -52,9 +53,37 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static List<ServiceSet> ServiceSets =>
         [
-            new ServiceSet("Session", ServiceCategory.Session, ServiceCategory.Test),
-            new ServiceSet("Discovery", ServiceCategory.Discovery),
-            new ServiceSet("Registration", ServiceCategory.Registration)
+            new ServiceSet("AttributeServiceSet", [], ServiceCategory.Attribute),
+            new ServiceSet("ViewServiceSet", [], ServiceCategory.View),
+            new ServiceSet("MethodServiceSet", [], ServiceCategory.Method),
+            new ServiceSet("MonitoredItemServiceSet", [], ServiceCategory.MonitoredItem),
+            new ServiceSet("SubscriptionServiceSet", [], ServiceCategory.Subscription),
+            new ServiceSet("NodeManagementServiceSet", [], ServiceCategory.NodeManagement),
+            new ServiceSet("QueryServiceSet", [], ServiceCategory.Query),
+            new ServiceSet("Session",
+            [
+                "IAttributeServiceSetClientMethods",
+                "IViewServiceSetClientMethods",
+                "IMethodServiceSetClientMethods",
+                "IMonitoredItemServiceSetClientMethods",
+                "ISubscriptionServiceSetClientMethods",
+                "INodeManagementServiceSetClientMethods",
+                "IQueryServiceSetClientMethods"
+            ],
+            [ServiceCategory.Session, ServiceCategory.Test],
+            [
+                ServiceCategory.Session,
+                ServiceCategory.Attribute,
+                ServiceCategory.View,
+                ServiceCategory.Method,
+                ServiceCategory.MonitoredItem,
+                ServiceCategory.Subscription,
+                ServiceCategory.NodeManagement,
+                ServiceCategory.Query,
+                ServiceCategory.Test
+            ]),
+            new ServiceSet("Discovery", [], ServiceCategory.Discovery),
+            new ServiceSet("Registration", [], ServiceCategory.Registration)
         ];
 
         /// <inheritdoc/>
@@ -91,19 +120,32 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            // get datatypes.
-            Service[] serviceTypes = m_context.ModelDesign.GetListOfServices(serviceSet.Categories);
-            if (serviceTypes.Length == 0)
+            // get service types for interface (may be a subset).
+            Service[] interfaceServiceTypes = m_context.ModelDesign.GetListOfServices(serviceSet.InterfaceCategories);
+            if (interfaceServiceTypes.Length == 0 && serviceSet.BaseInterfaces.Length == 0)
+            {
+                return false;
+            }
+
+            // get service types for class (may include inherited categories).
+            Service[] classServiceTypes = m_context.ModelDesign.GetListOfServices(serviceSet.ClassCategories);
+            if (classServiceTypes.Length == 0)
             {
                 return false;
             }
 
             context.Template.AddReplacement(Tokens.ServiceSet, serviceSet.Name);
 
+            string baseInterfaces = serviceSet.BaseInterfaces.Length > 0
+                ? " :\n        " + string.Join(",\n        ", serviceSet.BaseInterfaces.Select(
+                    b => CoreUtils.Format("global::Opc.Ua.{0}", b)))
+                : string.Empty;
+            context.Template.AddReplacement(Tokens.BaseInterfaces, baseInterfaces);
+
             context.Template.AddReplacement(
                 Tokens.ClientMethod,
                 ClientApiTemplates.InterfaceMethods,
-                serviceTypes,
+                interfaceServiceTypes,
                 context => WriteTemplate_ClientApiMethod(
                     context,
                     isInterface: true));
@@ -111,7 +153,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.ClientApi,
                 ClientApiTemplates.Methods,
-                serviceTypes,
+                classServiceTypes,
                 context => WriteTemplate_ClientApiMethod(
                     context,
                     isInterface: false));
@@ -479,7 +521,17 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// A set of services that are grouped into a single interface.
         /// </summary>
-        private sealed record class ServiceSet(string Name, params ServiceCategory[] Categories);
+        private sealed record class ServiceSet(
+            string Name,
+            string[] BaseInterfaces,
+            ServiceCategory[] InterfaceCategories,
+            ServiceCategory[] ClassCategories)
+        {
+            public ServiceSet(string Name, string[] BaseInterfaces, params ServiceCategory[] Categories)
+                : this(Name, BaseInterfaces, Categories, Categories)
+            {
+            }
+        };
 
         private readonly IGeneratorContext m_context;
     }

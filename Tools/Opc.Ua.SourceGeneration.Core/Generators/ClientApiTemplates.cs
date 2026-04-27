@@ -58,7 +58,7 @@ namespace Opc.Ua.SourceGeneration
             /// An interface used by by clients to access a UA server.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-            public interface I{{Tokens.ServiceSet}}ClientMethods
+            public interface I{{Tokens.ServiceSet}}ClientMethods{{Tokens.BaseInterfaces}}
             {
                 {{Tokens.ClientMethod}}
             }

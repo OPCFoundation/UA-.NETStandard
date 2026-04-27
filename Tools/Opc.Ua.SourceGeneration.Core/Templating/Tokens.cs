@@ -33,6 +33,7 @@ namespace Opc.Ua.SourceGeneration
     {
         public static string ArrayDimensions => nameof(ArrayDimensions);
         public static string BaseClassName => nameof(BaseClassName);
+        public static string BaseInterfaces => nameof(BaseInterfaces);
         public static string BaseType => nameof(BaseType);
         public static string BaseTypeNamespacePrefix => nameof(BaseTypeNamespacePrefix);
         public static string BaseTypeNamespaceUri => nameof(BaseTypeNamespaceUri);
