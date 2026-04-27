@@ -192,7 +192,7 @@ namespace Opc.Ua.Client.Sessions
         protected SessionBase(ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint, SessionCreateOptions options,
             ITelemetryContext telemetry, ReverseConnectManager? reverseConnect,
-            IChannelFactory? channelFactory = null)
+            ITransportChannelManager? channelFactory = null)
             : base(telemetry, options.Channel)
         {
             Options = options;
@@ -205,7 +205,7 @@ namespace Opc.Ua.Client.Sessions
             _configuration = configuration;
             _reverseConnect = reverseConnect;
             _channelFactory = channelFactory
-                ?? new ChannelFactory(configuration, telemetry);
+                ?? new ClientChannelManager(configuration);
 
             CreatedAt = TimeProvider.System.GetUtcNow();
             ConfiguredEndpoint = endpoint;
@@ -2090,8 +2090,8 @@ namespace Opc.Ua.Client.Sessions
                 _configuration.SecurityConfiguration.SendCertificateChain ?
                 _clientCertificateChain : null;
 
-            return _channelFactory.CreateChannel(endpoint, MessageContext,
-                clientCertificate, clientCertificateChain);
+            return await _channelFactory.CreateChannelAsync(endpoint, MessageContext,
+                clientCertificate, clientCertificateChain, ct: ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -2539,7 +2539,7 @@ namespace Opc.Ua.Client.Sessions
         private readonly Task _sessionWorker;
         private readonly Nito.AsyncEx.AsyncAutoResetEvent _trigger = new();
         private readonly ReverseConnectManager? _reverseConnect;
-        private readonly IChannelFactory _channelFactory;
+        private readonly ITransportChannelManager _channelFactory;
         private readonly ApplicationConfiguration _configuration;
         private readonly ITimer _keepAliveTimer;
         private readonly CancellationTokenSource _cts = new();

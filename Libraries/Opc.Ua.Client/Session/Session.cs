@@ -4366,8 +4366,6 @@ namespace Opc.Ua.Client
         private readonly SessionSystemContext m_systemContext;
         private readonly NodeCache m_nodeCache;
         private readonly List<IUserIdentity> m_identityHistory = [];
-        // Created locally and consumed by byte[]-based signature helpers; server nonces
-        // stay as ByteString because they originate from service responses.
         private byte[]? m_clientNonce;
         private ByteString m_serverNonce;
         private ByteString m_previousServerNonce;
