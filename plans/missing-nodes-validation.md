@@ -3,67 +3,54 @@
 **Date:** 2026-04-27  
 **Server:** ConsoleReferenceServer with GDS (`opc.tcp://localhost:48010`)  
 **Spec:** `Opc.Ua.NodeSet2.xml` v1.05.07  
-**Commit:** `2c675052b` (asfixes branch, local)
+**Commit:** `7c5665d17` (asfixes branch, local)
 
 ## Result
 
 | Metric | Value |
 |--------|------:|
 | Spec ns=0 nodes | 5,283 |
-| Server ns=0 nodes (export) | 6,106 |
-| Missing from export | 1,146 |
+| Server ns=0 nodes (export) | 6,250 |
+| Missing from export | 998 |
 
-All encoding nodes and access-restricted role children **exist in the server**.
-They appear missing only due to export methodology limitations (hierarchical browse,
-SecurityMode=None).
+All nodes **exist in the server address space**. The export-missing count is due to
+methodology limitations (non-hierarchical encoding nodes, export tool browse path
+not reaching all types, and access-restricted instance nodes requiring encryption).
 
 | Category | Count | Status |
 |----------|------:|--------|
 | Encoding objects | 384 | **Present** -- non-hierarchical; not reachable by browse from Root |
 | Access-restricted nodes (spec-defined) | 236 | **Present** -- require SignAndEncrypt to read |
-| Optional / Placeholder (direct) | 116 | Correctly absent |
-| Optional ancestor missing | 172 | Correctly absent |
-| Other (see detailed analysis) | 238 | See below |
-| **Total** | **1,146** | |
+| Optional / Placeholder (direct) | 33 | Correctly absent |
+| Optional ancestor missing | 166 | Correctly absent |
+| Other (see detailed analysis) | 179 | See below |
+| **Total** | **998** | |
 
-## Detailed Analysis of 238 Remaining Nodes
+## Detailed Analysis of 179 Remaining Nodes
 
-All 238 nodes **exist in the server** (verified via OPC UA Read — none return
-`BadNodeIdUnknown`). They appear missing from the export due to access restrictions
-on the individual nodes (methods/variables with `DefaultRolePermissions`) or because
-the export cannot traverse dynamic/non-browseable paths.
+All 179 nodes **exist in the server** (verified via OPC UA Read — none return
+`BadNodeIdUnknown`). They appear missing from the export because the export tool's
+hierarchical browse does not reach certain type subtrees, or because the nodes are
+in dynamic/non-browseable paths.
 
 | Structural Category | Count | Status |
 |---------------------|------:|--------|
-| Type children with access-restricted methods/variables | 164 | **Present** -- individual nodes require authentication |
+| Type children (in server, not in export browse path) | 99 | **Present** -- export tool limitation |
 | Instance-level children (diagnostics, HA, PubSub, FileSystem) | 48 | **Present** -- access-restricted or dynamic |
-| Orphan property templates (no ParentNodeId) | 26 | **Present** -- no hierarchical parent to browse from |
+| Orphan property templates (no ParentNodeId) | 32 | **Present** -- no hierarchical parent to browse from |
 
-### Type Children with Access-Restricted Methods/Variables (164 nodes)
+### Type Children Not Reached by Export (99 nodes)
 
-**All present.** The parent ObjectTypes are now fully readable (no access restrictions
-on type definitions per [Part 3, 5.2.11](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.2.11/)).
-Individual child nodes (methods and variables) carry `DefaultRolePermissions` from
-the model design to enforce the security model defined by the spec authors.
+**All present.** The `IsPartOfTypeHierarchy` runtime bypass ensures these nodes are
+universally accessible regardless of `AccessRestrictions` and `RolePermissions`
+([Part 3, 5.2.11](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.2.11/)).
 
-The `DefaultRolePermissions` mechanism is defined in [Part 3, 5.2.9](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.2.9/):
-the `NamespaceMetadata` object provides `DefaultRolePermissions` that apply to all
-nodes in a namespace unless overridden. In the source-generated address space, these
-defaults are baked into individual node states because the `NamespaceMetadata` node's
-`DefaultRolePermissions` property is empty in the NodeSet2.xml -- the model design
-XML's `<DefaultRolePermissions>` elements are the sole source of these restrictions.
+These 99 nodes belong to types that the export tool's browse traversal does not
+reach from Root (e.g., CertificateGroupType, TrustListType, PubSubKeyPushTargetType).
+The types and their children exist in the server and are browseable/readable by
+any client that browses them directly.
 
-Per [Part 3, 6.3.3](https://reference.opcfoundation.org/v105/Core/docs/Part3/6.3.3/),
-InstanceDeclarations on type definitions are children with a ModellingRule.
-"Hierarchical References to Nodes without a ModellingRule are not considered" --
-these exist purely for browsing the type hierarchy and should be universally
-accessible. The access restrictions on these children are inherited from
-the model design's `DefaultRolePermissions`, not from explicit per-node
-`RolePermissions` in the NodeSet2.xml (which has none on these nodes).
-
-**Fix needed: No.** These nodes exist in the server. The access restrictions come
-from the model design's security model and prevent anonymous access to sensitive
-methods. To verify all nodes, use an authenticated+encrypted connection.
+**Fix needed: No.** This is an export tool limitation, not a server issue.
 
 <details>
 <summary>Type-level children by parent ObjectType</summary>
@@ -627,27 +614,35 @@ Variable nodes with no `ParentNodeId` -- canonical type-level property definitio
 
 ## Fix Summary
 
-All 1,146 export-missing nodes are accounted for. **No nodes are actually missing** from the
+All 998 export-missing nodes are accounted for. **No nodes are actually missing** from the
 server address space. The gaps are entirely due to export methodology limitations:
 
 | Category | Count | Status |
 |----------|------:|--------|
 | Encoding objects | 384 | **Present** (non-hierarchical) |
 | Access-restricted (spec-defined) | 236 | **Present** (need encryption) |
-| Optional / Placeholder | 288 | Correctly absent |
-| Type children (method/variable access restricted) | 164 | **Present** (need authentication) |
+| Optional / Placeholder | 199 | Correctly absent |
+| Type children (not in export path) | 99 | **Present** (export tool limitation) |
 | Instance-level (diagnostics, HA, PubSub, FileSystem) | 48 | **Present** (access-restricted or dynamic) |
-| Orphan templates | 26 | **Present** (no hierarchical parent) |
-| **Total** | **1,146** | **No fixes needed** |
+| Orphan templates | 32 | **Present** (no hierarchical parent) |
+| **Total** | **998** | **No fixes needed** |
 
 ### Source Generator Fixes Applied
 
 1. **`ModellingRule=None` children** ([Part 3, 6.3.3](https://reference.opcfoundation.org/v105/Core/docs/Part3/6.3.3/))
-   -- Extended `GetChildren` to include Variables and Methods (not just Objects) with
-   `ModellingRule=None` when explicitly defined on a type. Added ~52 nodes including
-   `ConditionRefresh`, `SupportsFilteredRetain`, `Creatable`, TrueState/FalseState properties.
+   — Extended `GetChildren` to include Variables and Methods (not just Objects) with
+   `ModellingRule=None` when explicitly defined on a type. Added ~52 nodes.
 
 2. **`DefaultAccessRestrictions` on type definitions** ([Part 3, 5.2.11](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.2.11/))
-   -- Stopped applying `DefaultAccessRestrictions` and `DefaultRolePermissions` to
-   ObjectType/VariableType nodes. These defaults are meant for instances and their
-   children, not type definitions. ObjectTypes should always be universally readable.
+   — AccessRestrictions and RolePermissions are now emitted on all nodes as metadata,
+   but enforcement is bypassed for type hierarchy nodes via `IsPartOfTypeHierarchy`.
+
+3. **`IsPartOfTypeHierarchy` runtime bypass** — New flag on `NodeState` and `NodeMetadata`.
+   Set on ObjectType/VariableType nodes in generated `!forInstance` block, propagated
+   to children in `AddPredefinedNode`. `ValidateRolePermissions` and
+   `ValidateAccessRestrictions` early-return Good when flag is set.
+
+4. **`forInstance` propagation in type factories** — Type factory children now use
+   `forInstance: forInstance` instead of `forInstance: true` when `RootIsTypeDefinition`,
+   ensuring deep children (TrueState/FalseState, TransitionTime, etc.) are included.
+   Resolved 102 previously missing type-level nodes.
