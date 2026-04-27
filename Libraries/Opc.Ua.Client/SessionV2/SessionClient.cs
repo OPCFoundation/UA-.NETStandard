@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.Sessions
         /// <summary>
         /// The operation limits are used to batch the service requests.
         /// </summary>
-        public Limits OperationLimits { get; } = new();
+        public OperationLimits OperationLimits { get; } = new();
 
         /// <summary>
         /// Whether to log all activity to the logger

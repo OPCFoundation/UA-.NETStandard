@@ -1445,6 +1445,66 @@ namespace Opc.Ua
         /// </summary>
         [DataTypeField(Order = 11)]
         public uint MaxMonitoredItemsPerCall { get; set; }
+
+        /// <summary>Max browse continuation points the server supports.</summary>
+        [DataTypeField(Order = 12)]
+        public ushort MaxBrowseContinuationPoints { get; set; }
+
+        /// <summary>Max query continuation points the server supports.</summary>
+        [DataTypeField(Order = 13)]
+        public ushort MaxQueryContinuationPoints { get; set; }
+
+        /// <summary>Max history continuation points the server supports.</summary>
+        [DataTypeField(Order = 14)]
+        public ushort MaxHistoryContinuationPoints { get; set; }
+
+        /// <summary>Min supported sampling rate in milliseconds.</summary>
+        [DataTypeField(Order = 15)]
+        public double MinSupportedSampleRate { get; set; }
+
+        /// <summary>Max array length the server supports.</summary>
+        [DataTypeField(Order = 16)]
+        public uint MaxArrayLength { get; set; }
+
+        /// <summary>Max string length the server supports.</summary>
+        [DataTypeField(Order = 17)]
+        public uint MaxStringLength { get; set; }
+
+        /// <summary>Max byte string length the server supports.</summary>
+        [DataTypeField(Order = 18)]
+        public uint MaxByteStringLength { get; set; }
+
+        /// <summary>Max sessions the server can handle.</summary>
+        [DataTypeField(Order = 19)]
+        public uint MaxSessions { get; set; }
+
+        /// <summary>Max subscriptions the server can handle across all sessions.</summary>
+        [DataTypeField(Order = 20)]
+        public uint MaxSubscriptions { get; set; }
+
+        /// <summary>Max monitored items the server can handle across all sessions.</summary>
+        [DataTypeField(Order = 21)]
+        public uint MaxMonitoredItems { get; set; }
+
+        /// <summary>Max subscriptions per session.</summary>
+        [DataTypeField(Order = 22)]
+        public uint MaxSubscriptionsPerSession { get; set; }
+
+        /// <summary>Max monitored items per subscription.</summary>
+        [DataTypeField(Order = 23)]
+        public uint MaxMonitoredItemsPerSubscription { get; set; }
+
+        /// <summary>Max monitored items queue size.</summary>
+        [DataTypeField(Order = 24)]
+        public uint MaxMonitoredItemsQueueSize { get; set; }
+
+        /// <summary>Max select clause parameters for events.</summary>
+        [DataTypeField(Order = 25)]
+        public uint MaxSelectClauseParameters { get; set; }
+
+        /// <summary>Max where clause parameters for events.</summary>
+        [DataTypeField(Order = 26)]
+        public uint MaxWhereClauseParameters { get; set; }
     }
 
     /// <summary>

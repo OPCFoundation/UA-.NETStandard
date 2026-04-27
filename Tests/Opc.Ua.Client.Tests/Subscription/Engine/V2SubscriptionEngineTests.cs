@@ -107,13 +107,13 @@ namespace Opc.Ua.Client.V2.Tests
         public void FactoryCreateReturnsV2Engine()
         {
             ISubscriptionEngine engine =
-                V2SubscriptionEngineFactory.Instance.Create(
+                DefaultSubscriptionEngineFactory.Instance.Create(
                     m_mockContext.Object);
 
             Assert.That(engine, Is.Not.Null);
             Assert.That(
                 engine,
-                Is.InstanceOf<V2SubscriptionEngine>());
+                Is.InstanceOf<DefaultSubscriptionEngine>());
 
             engine.Dispose();
         }
@@ -121,10 +121,10 @@ namespace Opc.Ua.Client.V2.Tests
         [Test]
         public void FactoryInstanceIsSingleton()
         {
-            V2SubscriptionEngineFactory first =
-                V2SubscriptionEngineFactory.Instance;
-            V2SubscriptionEngineFactory second =
-                V2SubscriptionEngineFactory.Instance;
+            DefaultSubscriptionEngineFactory first =
+                DefaultSubscriptionEngineFactory.Instance;
+            DefaultSubscriptionEngineFactory second =
+                DefaultSubscriptionEngineFactory.Instance;
 
             Assert.That(first, Is.SameAs(second));
         }
@@ -137,7 +137,7 @@ namespace Opc.Ua.Client.V2.Tests
         public void ConstructorThrowsOnNullContext()
         {
             Assert.That(
-                () => new V2SubscriptionEngine(null!),
+                () => new DefaultSubscriptionEngine(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -145,7 +145,7 @@ namespace Opc.Ua.Client.V2.Tests
         public void StartPublishingDoesNotThrow()
         {
             using var engine =
-                new V2SubscriptionEngine(m_mockContext.Object);
+                new DefaultSubscriptionEngine(m_mockContext.Object);
 
             Assert.That(
                 () => engine.StartPublishing(
@@ -157,7 +157,7 @@ namespace Opc.Ua.Client.V2.Tests
         public void PauseAndResumeDoNotThrow()
         {
             using var engine =
-                new V2SubscriptionEngine(m_mockContext.Object);
+                new DefaultSubscriptionEngine(m_mockContext.Object);
 
             Assert.That(
                 () => engine.PausePublishing(),
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client.V2.Tests
         public async Task StopPublishingDisposesCleanly()
         {
             using var engine =
-                new V2SubscriptionEngine(m_mockContext.Object);
+                new DefaultSubscriptionEngine(m_mockContext.Object);
 
             await engine.StopPublishingAsync(CancellationToken.None)
                 .ConfigureAwait(false);
@@ -181,7 +181,7 @@ namespace Opc.Ua.Client.V2.Tests
         public void DisposeIsIdempotent()
         {
             var engine =
-                new V2SubscriptionEngine(m_mockContext.Object);
+                new DefaultSubscriptionEngine(m_mockContext.Object);
 
             Assert.That(() => engine.Dispose(), Throws.Nothing);
             Assert.That(() => engine.Dispose(), Throws.Nothing);
@@ -191,7 +191,7 @@ namespace Opc.Ua.Client.V2.Tests
         public void NotifySubscriptionsChangedDoesNotThrow()
         {
             using var engine =
-                new V2SubscriptionEngine(m_mockContext.Object);
+                new DefaultSubscriptionEngine(m_mockContext.Object);
 
             Assert.That(
                 () => engine.NotifySubscriptionsChanged(),
@@ -202,7 +202,7 @@ namespace Opc.Ua.Client.V2.Tests
         public void GoodPublishRequestCountDefaultsToZero()
         {
             using var engine =
-                new V2SubscriptionEngine(m_mockContext.Object);
+                new DefaultSubscriptionEngine(m_mockContext.Object);
 
             Assert.That(
                 engine.GoodPublishRequestCount, Is.EqualTo(0));
@@ -212,7 +212,7 @@ namespace Opc.Ua.Client.V2.Tests
         public void BadPublishRequestCountDefaultsToZero()
         {
             using var engine =
-                new V2SubscriptionEngine(m_mockContext.Object);
+                new DefaultSubscriptionEngine(m_mockContext.Object);
 
             Assert.That(
                 engine.BadPublishRequestCount, Is.EqualTo(0));
@@ -222,7 +222,7 @@ namespace Opc.Ua.Client.V2.Tests
         public void MinMaxPublishRequestCountCanBeSet()
         {
             using var engine =
-                new V2SubscriptionEngine(m_mockContext.Object);
+                new DefaultSubscriptionEngine(m_mockContext.Object);
 
             engine.MinPublishRequestCount = 3;
             engine.MaxPublishRequestCount = 20;
@@ -241,7 +241,7 @@ namespace Opc.Ua.Client.V2.Tests
         public void BridgeConstructorThrowsOnNullSink()
         {
             Assert.That(
-                () => new V2SubscriptionBridge(null!),
+                () => new SubscriptionBridge(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -250,7 +250,7 @@ namespace Opc.Ua.Client.V2.Tests
         {
             var mockSink = new Mock<ISubscriptionMessageSink>();
 
-            var bridge = new V2SubscriptionBridge(
+            var bridge = new SubscriptionBridge(
                 mockSink.Object);
 
             Assert.That(bridge, Is.Not.Null);
@@ -260,7 +260,7 @@ namespace Opc.Ua.Client.V2.Tests
         public async Task BridgeOnKeepAliveForwardsToCacheSink()
         {
             var mockSink = new Mock<ISubscriptionMessageSink>();
-            var bridge = new V2SubscriptionBridge(
+            var bridge = new SubscriptionBridge(
                 mockSink.Object);
             var mockSubscription = new Mock<ISubscription>();
 
@@ -283,7 +283,7 @@ namespace Opc.Ua.Client.V2.Tests
         public async Task BridgeOnDataChangeForwardsToCacheSink()
         {
             var mockSink = new Mock<ISubscriptionMessageSink>();
-            var bridge = new V2SubscriptionBridge(
+            var bridge = new SubscriptionBridge(
                 mockSink.Object);
             var mockSubscription = new Mock<ISubscription>();
 
@@ -316,7 +316,7 @@ namespace Opc.Ua.Client.V2.Tests
         public async Task BridgeOnEventNotificationForwardsToCacheSink()
         {
             var mockSink = new Mock<ISubscriptionMessageSink>();
-            var bridge = new V2SubscriptionBridge(
+            var bridge = new SubscriptionBridge(
                 mockSink.Object);
             var mockSubscription = new Mock<ISubscription>();
 
@@ -357,7 +357,7 @@ namespace Opc.Ua.Client.V2.Tests
                 .Callback<ArrayOf<uint>, NotificationMessage>(
                     (_, msg) => captured = msg);
 
-            var bridge = new V2SubscriptionBridge(
+            var bridge = new SubscriptionBridge(
                 mockSink.Object);
             var mockSubscription = new Mock<ISubscription>();
 

@@ -1,4 +1,3 @@
-#if OPCUA_CLIENT_V2
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
@@ -32,13 +31,13 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     using Microsoft.Extensions.Diagnostics.Metrics;
     using Microsoft.Extensions.Logging;
-    using Opc.Ua.Client;
+    using Opc.Ua;
     using System;
 
     /// <summary>
     /// Service collection extensions
     /// </summary>
-    public static class DependencyInjectionExtensions
+    public static class DiagnosticsExtensions
     {
         /// <summary>
         /// Add logging to the builder
@@ -90,4 +89,3 @@ namespace Microsoft.Extensions.DependencyInjection
         }
     }
 }
-#endif

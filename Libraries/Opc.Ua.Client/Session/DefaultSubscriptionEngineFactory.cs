@@ -31,23 +31,23 @@
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Factory that creates <see cref="V2SubscriptionEngine"/>
+    /// Factory that creates <see cref="DefaultSubscriptionEngine"/>
     /// instances backed by the V2 channel-based publish pipeline.
     /// </summary>
-    public sealed class V2SubscriptionEngineFactory
+    public sealed class DefaultSubscriptionEngineFactory
         : ISubscriptionEngineFactory
     {
         /// <summary>
         /// Shared singleton instance.
         /// </summary>
-        public static V2SubscriptionEngineFactory Instance { get; }
+        public static DefaultSubscriptionEngineFactory Instance { get; }
             = new();
 
         /// <inheritdoc/>
         public ISubscriptionEngine Create(
             ISubscriptionEngineContext context)
         {
-            return new V2SubscriptionEngine(context);
+            return new DefaultSubscriptionEngine(context);
         }
     }
 }

@@ -68,7 +68,7 @@ namespace Opc.Ua.Client.Subscriptions.Engine
     /// them to an <see cref="ISubscriptionMessageSink"/>, which is
     /// typically implemented by the V1 <c>Subscription</c> class.
     /// </remarks>
-    internal sealed class V2SubscriptionBridge : ISubscriptionNotificationHandler
+    internal sealed class SubscriptionBridge : ISubscriptionNotificationHandler
     {
         private readonly ISubscriptionMessageSink m_messageSink;
 
@@ -78,7 +78,7 @@ namespace Opc.Ua.Client.Subscriptions.Engine
         /// <param name="messageSink">
         /// The sink that receives translated V1 notification messages.
         /// </param>
-        public V2SubscriptionBridge(ISubscriptionMessageSink messageSink)
+        public SubscriptionBridge(ISubscriptionMessageSink messageSink)
         {
             m_messageSink = messageSink
                 ?? throw new ArgumentNullException(nameof(messageSink));

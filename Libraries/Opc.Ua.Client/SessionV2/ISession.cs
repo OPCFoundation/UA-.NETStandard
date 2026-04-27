@@ -95,7 +95,7 @@ namespace Opc.Ua.Client.Sessions
         /// <summary>
         /// Operation limits for this session
         /// </summary>
-        Limits OperationLimits { get; }
+        OperationLimits OperationLimits { get; }
 
         /// <summary>
         /// System context (legacy)

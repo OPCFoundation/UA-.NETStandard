@@ -536,7 +536,7 @@ namespace Opc.Ua.Client
             /// <param name="ct"></param>
             /// <returns></returns>
             /// <exception cref="ServiceResultException"></exception>
-            internal async ValueTask SyncAsync(Limits limits, CancellationToken ct)
+            internal async ValueTask SyncAsync(OperationLimits limits, CancellationToken ct)
             {
                 var maxMonitoredItems = limits.MaxMonitoredItemsPerSubscription;
                 if (maxMonitoredItems == 0)

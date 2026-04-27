@@ -1,4 +1,3 @@
-#if OPCUA_CLIENT_V2
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
@@ -28,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client
+namespace Opc.Ua
 {
     using Microsoft.Extensions.DependencyInjection;
 
@@ -43,4 +42,3 @@ namespace Opc.Ua.Client
         IServiceCollection Services { get; }
     }
 }
-#endif
