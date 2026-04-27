@@ -6,6 +6,7 @@
 
 using System;
 using System.Reflection;
+using System.Text;
 using Jint;
 using Jint.Native;
 using Jint.Native.Object;
@@ -134,7 +135,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             RegisterNodeIdConstructor(engine);
             RegisterSimpleType(engine, "UaVariant", "DataType", "Value");
             RegisterSimpleType(engine, "UaDataValue", "Value", "StatusCode", "SourceTimestamp", "ServerTimestamp");
-            RegisterSimpleType(engine, "UaStatusCode", "StatusCode");
+            RegisterUaStatusCodeConstructor(engine);
             RegisterSimpleType(engine, "UaLocalizedText", "Text", "Locale");
             RegisterSimpleType(engine, "UaQualifiedName", "Name", "NamespaceIndex");
             RegisterSimpleType(engine, "UaExpandedNodeId", "NodeId", "NamespaceUri", "ServerIndex");
@@ -173,6 +174,15 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             RegisterSimpleType(engine, "UaStructureDefinition");
             RegisterSimpleType(engine, "UaStructureField");
             RegisterSimpleType(engine, "UaNode");
+            RegisterSimpleType(engine, "UaNodeAttributes");
+            RegisterSimpleType(engine, "UaObjectAttributes");
+            RegisterSimpleType(engine, "UaObjectTypeAttributes");
+            RegisterSimpleType(engine, "UaVariableAttributes");
+            RegisterSimpleType(engine, "UaVariableTypeAttributes");
+            RegisterSimpleType(engine, "UaReferenceTypeAttributes");
+            RegisterSimpleType(engine, "UaDataTypeAttributes");
+            RegisterSimpleType(engine, "UaMethodAttributes");
+            RegisterSimpleType(engine, "UaViewAttributes");
             RegisterSimpleType(engine, "UaAddNodesItem");
             RegisterSimpleType(engine, "UaAddReferencesItem");
             RegisterSimpleType(engine, "UaDeleteNodesItem");
@@ -205,161 +215,355 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             RegisterDiscoveryConstructor(engine);
             RegisterDateTimeConstructor(engine);
             RegisterCryptoProviderConstructor(engine);
+            RegisterPkiTypes(engine);
+            RegisterByteStringHelpers(engine);
             RegisterRequestHeaderHelper(engine);
             RegisterResponseHeaderHelper(engine);
+            RegisterUserIdentityTokenHelpers(engine);
+
+            // Catch-all: register any remaining Ua* types that CTT scripts use
+            // These all become generic JS object constructors
+            string[] additionalTypes = new[] {
+                "UaAddMonitoredItemToThreadRequest", "UaAddMonitoredItemToThreadResponse",
+                "UaAddSubscriptionToThreadRequest", "UaAddSubscriptionToThreadResponse",
+                "UaAuditEventParams", "UaBrowseAddressSpaceRequest", "UaBrowseAddressSpaceResponse",
+                "UaClearThreadDataRequest", "UaConfigurationVersionDataType",
+                "UaDataSetMetaDataType", "UaDataSetReaderDataTypes", "UaDataSetWriterDataTypes",
+                "UaDiagnosticInfo", "UaDiagnosticInfos",
+                "UaDropAuditRecordRequest", "UaDropAuditRecordResponse",
+                "UaExecuteAggregateQueryCachedRequest", "UaExecuteAggregateQueryCachedResponse",
+                "UaExecuteAggregateQueryReadRequest", "UaExecuteAggregateQueryReadResponse",
+                "UaExecuteAggregateQueryReadResultsRequest", "UaExecuteAggregateQueryReadResultsResponse",
+                "UaExpandedNIDHelper",
+                "UaFindEntryRequest", "UaFindEntryResponse",
+                "UaFindObjectsOfTypeRequest", "UaFindObjectsOfTypeResponse",
+                "UaGetAuditEventParamsRequest", "UaGetAuditEventParamsResponse",
+                "UaGetBufferRequest", "UaGetBufferResponse",
+                "UaGetDataValuesRequest", "UaGetDataValuesResponse",
+                "UaGetThreadPublishStatisticsRequest", "UaGetThreadPublishStatisticsResponse",
+                "UaHistoryUpdateRequest", "UaHistoryUpdateResponse",
+                "UaIsSubTypeOfTypeRequest", "UaIsSubTypeOfTypeResponse",
+                "UaModelMap",
+                "UaNetworkAddressUrlDataType",
+                "UaPausePublishRequest",
+                "UaPkiPrivateKey", "UaPkiUtility",
+                "UaPublishedDataItemsDataType", "UaPublishedDataSetDataType",
+                "UaPublishedDataSetDataTypes", "UaPublishedVariableDataTypes",
+                "UaPubSubConfiguration2DataType",
+                "UaPubSubConfigurationRefDataType", "UaPubSubConfigurationRefDataTypes",
+                "UaPubSubConnectionDataType", "UaPubSubTraceNetworkMessage",
+                "UaPushAuditRecordRequest", "UaPushAuditRecordResponse",
+                "UaReaderGroupDataTypes",
+                "UaRegisterServerRequest", "UaRegisterServerResponse",
+                "UaRemoveEntryRequest", "UaRemoveEntryResponse",
+                "UaSecurityGroupDataType", "UaSecurityGroupDataTypes",
+                "UaStandaloneSubscribedDataSetDataType", "UaStandaloneSubscribedDataSetDataTypes",
+                "UaStandaloneSubscribedDataSetRefDataType",
+                "UaStartThreadPublishRequest", "UaStartThreadSessionResponse",
+                "UaStopThreadRequest",
+                "UaSubscriptionAcknowledgements",
+                "UaTargetVariablesDataType", "UaTargetVariablesDataTypes",
+                "UaTest",
+                "UaTypeHierarchyRequest", "UaTypeHierarchyResponse",
+                "UaWriterGroupDataTypes",
+                "UaBrokerConnectionTransportDataType", "UaBrokerDataSetReaderTransportDataType",
+                "UaBrokerWriterGroupTransportDataType",
+                "UaDatagramConnectionTransportDataType", "UaDatagramWriterGroupTransport2DataType",
+                "UaJsonDataSetWriterMessageDataType", "UaJsonWriterGroupMessageDataType",
+                "UaUadpDataSetReaderMessageDataType", "UaUadpDataSetWriterMessageDataType",
+                "UaUadpWriterGroupMessageDataType",
+                "UaAddReferencesRequest", "UaAddReferencesResponse",
+                "UaDeleteReferencesRequest", "UaDeleteReferencesResponse",
+                "UaEndpointDescription", "UaEndpointDescriptions",
+                "UaCreateSessionRequest",
+                "UaHistoryUpdateDetails", "UaUpdateEventDetails",
+                "UaUpdateStructureDataDetails",
+                "UaReadEventDetails", "UaReadAtTime",
+                "UaNodeTypeDescriptions",
+                "UaReferenceDescription", "UaReferenceDescriptions",
+                "UaVariantArray", "UaVariantArray1d",
+                "UaDataSetReaderDataType",
+                "UaSubscriptionAcknowledgement",
+                "UaSignature", "UaSignatureData",
+                // ClassBased and additional type stubs
+                "UaSubscriptionDiagnosticsDataType", "UaSubscriptionDiagnostic",
+                "UaSessionDiagnosticsDataType",
+                "UaServerDiagnosticsSummaryDataType",
+                "UaNodeType", "UaObjectType", "UaVariableType",
+                "UaReferenceType", "UaDataType", "UaAuditType",
+                "UaHistoryUpdateResult", "UaHistoryUpdateResults",
+                "UaHistoryModifiedData", "UaHistoricalData",
+                "UaFieldMetaData", "UaFieldMetaDatas",
+                "UaServerOnNetwork", "UaStatus",
+                "UaNodes", "UaVariables",
+                "UaViewDescription", "UaBrowsePathTargets",
+                "UaGenericStructureValues", "UaBrowseResult",
+                "UaDataSetWriterDataType", "UaReaderGroupDataType",
+                "UaWriterGroupDataType",
+                "UaPubSubTraceDataSetMessage", "UaPubSubTraceGroupHeader",
+                "UaPubSubTracePayloadHeader", "UaRawPubSubNetworkMessage",
+                "UaVersionTime", "UaUInt32",
+                "UaComplianceTestTool", "UaInstanceAsMonitoredItem",
+            };
+            foreach (var typeName in additionalTypes)
+            {
+                RegisterSimpleType(engine, typeName);
+            }
         }
 
         private static void RegisterRequestResponse(Engine engine, string name, params string[] properties)
         {
-            engine.SetValue(name, new ClrFunction(engine, name, (thisObj, args) =>
+            // Build a JS function body that initializes properties
+            var body = new StringBuilder();
+            foreach (var prop in properties)
             {
-                var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                foreach (var prop in properties)
+                if (prop == "RequestHeader")
                 {
-                    if (prop == "RequestHeader")
-                    {
-                        var header = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                        header.Set("Timestamp", JsValue.FromObject(engine, DateTime.UtcNow.ToString("o")));
-                        header.Set("ReturnDiagnostics", JsValue.FromObject(engine, 0));
-                        obj.Set(prop, header);
-                    }
-                    else if (prop.EndsWith("s", StringComparison.Ordinal) && prop != "Status")
-                    {
-                        obj.Set(prop, engine.Intrinsics.Array.Construct(Array.Empty<JsValue>()));
-                    }
-                    else
-                    {
-                        obj.Set(prop, JsValue.FromObject(engine, 0));
-                    }
+                    body.AppendLine($"    this.{prop} = {{ Timestamp: UaDateTime.utcNow(), ReturnDiagnostics: 0 }};");
                 }
-                return obj;
-            }));
+                else if (prop == "ResponseHeader")
+                {
+                    body.AppendLine($"    this.{prop} = {{ ServiceResult: new UaStatusCode(0), Timestamp: UaDateTime.utcNow() }};");
+                }
+                else if (prop.EndsWith("s", StringComparison.Ordinal) && prop != "Status")
+                {
+                    body.AppendLine($"    this.{prop} = [];");
+                }
+                else
+                {
+                    body.AppendLine($"    this.{prop} = 0;");
+                }
+            }
+            engine.Execute($"function {name}() {{\n{body}}}");
         }
 
         private static void RegisterTypedArray(Engine engine, string name)
         {
-            engine.SetValue(name, new ClrFunction(engine, name, (thisObj, args) =>
-            {
-                if (args.Length > 0 && args[0].IsNumber())
-                {
-                    int size = (int)args[0].AsNumber();
-                    var items = new JsValue[size];
-                    for (int i = 0; i < size; i++) items[i] = JsValue.Undefined;
-                    return engine.Intrinsics.Array.Construct(items);
-                }
-                return engine.Intrinsics.Array.Construct(Array.Empty<JsValue>());
-            }));
+            engine.Execute($@"
+                function {name}(size) {{
+                    var arr = [];
+                    if (typeof size === 'number') {{
+                        for (var i = 0; i < size; i++) arr.push(undefined);
+                    }}
+                    return arr;
+                }}
+            ");
         }
 
         private static void RegisterNodeIdConstructor(Engine engine)
         {
-            engine.SetValue("UaNodeId", new ClrFunction(engine, "UaNodeId", (thisObj, args) =>
-            {
-                var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                if (args.Length >= 1)
-                {
-                    if (args[0].IsNumber())
-                    {
-                        uint id = (uint)args[0].AsNumber();
-                        ushort ns = args.Length >= 2 ? (ushort)args[1].AsNumber() : (ushort)0;
-                        obj.Set("IdentifierNumeric", JsValue.FromObject(engine, (double)id));
-                        obj.Set("NamespaceIndex", JsValue.FromObject(engine, (double)ns));
-                        obj.Set("toString", new ClrFunction(engine, "toString",
-                            (_, _) => JsValue.FromObject(engine, ns == 0 ? $"i={id}" : $"ns={ns};i={id}")));
+            engine.Execute(@"
+                function UaNodeId(idOrString, ns) {
+                    this.NamespaceIndex = 0;
+                    this.IdentifierNumeric = 0;
+                    if (typeof idOrString === 'number') {
+                        this.IdentifierNumeric = idOrString;
+                        this.IdentifierType = 0; // Numeric
+                        if (typeof ns === 'number') this.NamespaceIndex = ns;
+                        var _id = idOrString, _ns = this.NamespaceIndex;
+                        this.toString = function() { return _ns === 0 ? 'i=' + _id : 'ns=' + _ns + ';i=' + _id; };
+                        this.getIdentifierNumeric = function() { return _id; };
+                    } else if (typeof idOrString === 'string') {
+                        this.IdentifierString = idOrString;
+                        this.IdentifierType = 1; // String
+                        if (typeof ns === 'number') this.NamespaceIndex = ns;
+                        var _s = idOrString, _ns2 = this.NamespaceIndex;
+                        this.toString = function() { return _ns2 === 0 ? 's=' + _s : 'ns=' + _ns2 + ';s=' + _s; };
+                        this.getIdentifierNumeric = function() { return 0; };
+                    } else if (idOrString !== undefined && idOrString !== null && typeof idOrString === 'object') {
+                        // Copy constructor
+                        if (idOrString.IdentifierNumeric !== undefined) {
+                            this.IdentifierNumeric = idOrString.IdentifierNumeric;
+                            this.IdentifierType = 0;
+                        }
+                        if (idOrString.IdentifierString !== undefined) {
+                            this.IdentifierString = idOrString.IdentifierString;
+                            this.IdentifierType = 1;
+                        }
+                        if (idOrString.NamespaceIndex !== undefined) this.NamespaceIndex = idOrString.NamespaceIndex;
+                        var _src = idOrString;
+                        this.toString = function() { return _src.toString ? _src.toString() : 'i=0'; };
+                        this.getIdentifierNumeric = function() { return _src.IdentifierNumeric || 0; };
+                    } else {
+                        this.IdentifierType = 0;
+                        this.toString = function() { return 'i=0'; };
+                        this.getIdentifierNumeric = function() { return 0; };
                     }
-                    else if (args[0].IsString())
-                    {
-                        string s = args[0].AsString();
-                        obj.Set("IdentifierString", JsValue.FromObject(engine, s));
-                        ushort ns = args.Length >= 2 ? (ushort)args[1].AsNumber() : (ushort)0;
-                        obj.Set("NamespaceIndex", JsValue.FromObject(engine, (double)ns));
-                        obj.Set("toString", new ClrFunction(engine, "toString",
-                            (_, _) => JsValue.FromObject(engine, ns == 0 ? $"s={s}" : $"ns={ns};s={s}")));
-                    }
+                    this.clone = function() { return new UaNodeId(this.IdentifierNumeric || this.IdentifierString, this.NamespaceIndex); };
+                    this.equals = function(other) {
+                        if (!other) return false;
+                        return this.IdentifierNumeric === other.IdentifierNumeric &&
+                               this.NamespaceIndex === other.NamespaceIndex;
+                    };
                 }
-                else
-                {
-                    obj.Set("IdentifierNumeric", JsValue.FromObject(engine, 0));
-                    obj.Set("NamespaceIndex", JsValue.FromObject(engine, 0));
-                    obj.Set("toString", new ClrFunction(engine, "toString",
-                        (_, _) => JsValue.FromObject(engine, "i=0")));
-                }
-                return obj;
-            }));
+                UaNodeId.fromString = function(str) {
+                    if (!str) return new UaNodeId();
+                    // Parse 'ns=X;i=Y' or 'i=Y' or 'ns=X;s=Y' or 's=Y'
+                    var ns = 0, m;
+                    m = str.match(/ns=(\d+);/);
+                    if (m) ns = parseInt(m[1]);
+                    m = str.match(/i=(\d+)/);
+                    if (m) return new UaNodeId(parseInt(m[1]), ns);
+                    m = str.match(/s=(.+)/);
+                    if (m) return new UaNodeId(m[1], ns);
+                    return new UaNodeId();
+                };
+            ");
         }
 
         private static void RegisterSimpleType(Engine engine, string name, params string[] properties)
         {
-            engine.SetValue(name, new ClrFunction(engine, name, (thisObj, args) =>
+            var body = new System.Text.StringBuilder();
+            for (int i = 0; i < properties.Length; i++)
             {
-                var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                for (int i = 0; i < properties.Length; i++)
-                {
-                    JsValue val = i < args.Length ? args[i] : JsValue.Undefined;
-                    obj.Set(properties[i], val);
+                // Use arguments if provided, else undefined
+                body.AppendLine($"    this.{properties[i]} = arguments.length > {i} ? arguments[{i}] : undefined;");
+            }
+            body.AppendLine("    var _self = this;");
+            body.AppendLine("    this.clone = function() { return _self; };");
+            engine.Execute($"function {name}() {{\n{body}}}");
+        }
+
+        private static void RegisterUaStatusCodeConstructor(Engine engine)
+        {
+            // UaStatusCode with isGood()/isBad()/isUncertain() methods
+            engine.Execute(@"
+                function UaStatusCode(code) {
+                    this.StatusCode = (typeof code === 'number') ? code : 0;
+                    var _code = this.StatusCode;
+                    this.isGood = function() { return (_code & 0xC0000000) === 0; };
+                    this.isBad = function() { return (_code & 0x80000000) !== 0; };
+                    this.isUncertain = function() { return (_code & 0xC0000000) === 0x40000000; };
+                    this.toString = function() {
+                        var hex = _code.toString(16).toUpperCase();
+                        while (hex.length < 8) hex = '0' + hex;
+                        return '0x' + hex;
+                    };
+                    this.clone = function() { return new UaStatusCode(_code); };
+                    this.setStatusCode = function(newCode) {
+                        _code = newCode;
+                        this.StatusCode = newCode;
+                    };
                 }
-                obj.Set("clone", new ClrFunction(engine, "clone",
-                    (_, _) => obj));
-                return obj;
-            }));
+            ");
         }
 
         private static void RegisterChannelConstructor(Engine engine)
         {
-            engine.SetValue("UaChannel", new ClrFunction(engine, "UaChannel", (_, _) =>
-            {
-                var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                obj.Set("Connected", JsValue.FromObject(engine, false));
-                return obj;
-            }));
+            // Use JS function so 'new UaChannel()' works (ClrFunction doesn't support [[Construct]])
+            engine.Execute(@"
+                function UaChannel() {
+                    this.Connected = false;
+                    this.ClientCertificate = { length: 0 };
+                    this.RequestedLifetime = 0;
+                    this.SecurityMode = 1; // None
+                    this.SecurityPolicy = '';
+                    this.ServerCertificate = { length: 0 };
+                    this.connect = function(url) {
+                        this.Connected = true;
+                        this._url = url;
+                        var sc = new UaStatusCode(0);
+                        return sc;
+                    };
+                    this.disconnect = function() {
+                        this.Connected = false;
+                        var sc = new UaStatusCode(0);
+                        return sc;
+                    };
+                }
+            ");
         }
 
         private static void RegisterSessionConstructor(Engine engine, CttHostEnvironment host)
         {
-            engine.SetValue("UaSession", new ClrFunction(engine, "UaSession", (_, args) =>
-            {
-                // UaSession takes a channel argument
-                var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                if (args.Length > 0)
+            // Define a JS constructor that delegates to the host to attach service methods.
+            // 'new UaSession(channel)' must work, so we use a JS function, not ClrFunction.
+            engine.SetValue("__createUaSession", new ClrFunction(engine, "__createUaSession",
+                (_, args) =>
                 {
-                    obj.Set("Channel", args[0]);
+                    var sessionObj = host.CreateUaSessionObject(engine);
+                    if (args.Length > 0)
+                    {
+                        sessionObj.Set("Channel", args[0]);
+                    }
+                    return sessionObj;
+                }));
+
+            engine.Execute(@"
+                function UaSession(channel) {
+                    var s = __createUaSession(channel);
+                    for (var k in s) {
+                        if (s.hasOwnProperty(k)) this[k] = s[k];
+                    }
                 }
-                return obj;
-            }));
+            ");
         }
 
         private static void RegisterDiscoveryConstructor(Engine engine)
         {
-            engine.SetValue("UaDiscovery", new ClrFunction(engine, "UaDiscovery", (_, _) =>
-            {
-                var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                return obj;
-            }));
+            // UaDiscovery needs getEndpoints/findServers — delegate to __discoverySession
+            // which is set up by CttHostEnvironment (provides actual OPC UA discovery).
+            engine.Execute(@"
+                function UaDiscovery(channelOrArgs) {
+                    if (channelOrArgs && channelOrArgs.Channel) {
+                        this.Channel = channelOrArgs.Channel;
+                    } else if (channelOrArgs) {
+                        this.Channel = channelOrArgs;
+                    }
+                    // Copy service methods from the global __discoverySession if available
+                    if (typeof __discoveryGetEndpoints === 'function') {
+                        this.getEndpoints = __discoveryGetEndpoints;
+                    }
+                    if (typeof __discoveryFindServers === 'function') {
+                        this.findServers = __discoveryFindServers;
+                    }
+                }
+            ");
         }
 
         private static void RegisterDateTimeConstructor(Engine engine)
         {
-            engine.SetValue("UaDateTime", new ClrFunction(engine, "UaDateTime", (_, _) =>
-            {
-                var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-                obj.Set("toString", new ClrFunction(engine, "toString",
-                    (_, _) => JsValue.FromObject(engine, DateTime.UtcNow.ToString("o"))));
-                return obj;
-            }));
-
-            // UaDateTime.utcNow() static method
+            // Pure JS function so 'new UaDateTime()' works
             engine.Execute(@"
+                function UaDateTime() {
+                    this._date = new Date();
+                    this.toString = function() {
+                        return this._date.toISOString();
+                    };
+                    this.equals = function(other) {
+                        if (other && other._date) return this._date.getTime() === other._date.getTime();
+                        return false;
+                    };
+                    this.msecsTo = function(other) {
+                        if (other && other._date) return other._date.getTime() - this._date.getTime();
+                        return 0;
+                    };
+                    this.addMSecs = function(ms) {
+                        this._date = new Date(this._date.getTime() + ms);
+                        return this;
+                    };
+                    this.addSecs = function(s) {
+                        this._date = new Date(this._date.getTime() + s * 1000);
+                        return this;
+                    };
+                    this.toFileTime = function() {
+                        return this._date.getTime() * 10000 + 116444736000000000;
+                    };
+                }
                 UaDateTime.utcNow = function() {
-                    var dt = new UaDateTime();
-                    return dt;
+                    return new UaDateTime();
+                };
+                UaDateTime.Now = function() {
+                    this.toString = function() {
+                        return new Date().toISOString();
+                    };
                 };
             ");
         }
 
         private static void RegisterCryptoProviderConstructor(Engine engine)
         {
-            engine.SetValue("UaCryptoProvider", new ClrFunction(engine, "UaCryptoProvider", (_, _) =>
-                (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>())));
+            engine.Execute("function UaCryptoProvider() {}");
         }
 
         private static void RegisterRequestHeaderHelper(Engine engine)
@@ -392,6 +596,95 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                         if (typeof sc.isGood === 'function') return sc.isGood();
                         return true;
                     }
+                };
+            ");
+        }
+
+        private static void RegisterPkiTypes(Engine engine)
+        {
+            // UaPkiCertificate with fromDER static method
+            engine.Execute(@"
+                function UaPkiCertificate() {
+                    this.ApplicationUri = '';
+                    this.SubjectName = '';
+                }
+                UaPkiCertificate.fromDER = function(byteString) {
+                    var cert = new UaPkiCertificate();
+                    cert.ApplicationUri = '';
+                    cert.SubjectName = '';
+                    return cert;
+                };
+            ");
+
+            // PkiType enum
+            engine.Execute(@"
+                var PkiType = { OpenSSL: 0, MbedTLS: 1, Windows: 2 };
+            ");
+
+            // UaPkiUtility
+            engine.Execute(@"
+                function UaPkiUtility() {
+                    this.PkiType = 0;
+                    this.CertificateTrustListLocation = '';
+                    this.CertificateRevocationListLocation = '';
+                    this.IssuersListLocation = '';
+                    this.IssuersCrlListLocation = '';
+                }
+                UaPkiUtility.prototype.loadCertificateFromFile = function() { return new UaPkiCertificate(); };
+            ");
+        }
+
+        private static void RegisterByteStringHelpers(Engine engine)
+        {
+            // Add fromStringData static method to UaByteString
+            engine.Execute(@"
+                UaByteString.fromStringData = function(str) {
+                    var bs = new UaByteString();
+                    if (str && typeof str === 'string') {
+                        bs.length = str.length;
+                    } else {
+                        bs.length = 0;
+                    }
+                    bs.Data = str || '';
+                    return bs;
+                };
+            ");
+        }
+
+        private static void RegisterUserIdentityTokenHelpers(Engine engine)
+        {
+            // UaUserIdentityToken.FromUserCredentials — maps UserCredentials to token
+            engine.Execute(@"
+                var UaUserIdentityToken = {
+                    FromUserCredentials: function(args) {
+                        var token = {};
+                        token.PolicyId = '';
+                        token.Type = 0;
+                        if (args && args.UserCredentials) {
+                            token.UserName = args.UserCredentials.UserName || '';
+                            token.Password = args.UserCredentials.Password || '';
+                        }
+                        return token;
+                    }
+                };
+            ");
+
+            // Nonce helper for CreateSession's ClientNonce
+            engine.Execute(@"
+                var Nonce = {
+                    Next: function() {
+                        return 'nonce_' + Math.random().toString(36).substring(2);
+                    }
+                };
+            ");
+
+            // UaSignatureData.New
+            engine.Execute(@"
+                UaSignatureData.New = function(args) {
+                    var sig = new UaSignatureData();
+                    sig.Algorithm = '';
+                    sig.Signature = null;
+                    return sig;
                 };
             ");
         }

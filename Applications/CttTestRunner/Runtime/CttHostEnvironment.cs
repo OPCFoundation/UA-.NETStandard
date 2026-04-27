@@ -123,7 +123,37 @@ namespace Opc.Ua.CttTestRunner.Runtime
             }
 
             string source = File.ReadAllText(resolved);
-            engine.Execute(source, resolved);
+            try
+            {
+                engine.Execute(source, resolved);
+            }
+            catch (Jint.Runtime.JavaScriptException jsEx) when (
+                jsEx.Message.Contains("Unexpected end of input") ||
+                jsEx.Message.Contains("Unexpected token"))
+            {
+                // Some CTT JS files are fragments (e.g., multi-file namespace objects)
+                // that don't parse standalone. Log and continue.
+                _logger.LogWarning("Include parse error in {Path}: {Error}",
+                    Path.GetRelativePath(_libraryDir, resolved), jsEx.Message);
+            }
+
+            // After warnOnce.js, patch baseLogger.prototype.store to avoid Function.caller issues
+            if (resolved.EndsWith("warnOnce.js", StringComparison.OrdinalIgnoreCase))
+            {
+                engine.Execute(@"
+                    // Override all loggers' store to use simple addWarning/addError
+                    if (typeof baseLogger === 'function') {
+                        baseLogger.prototype.store = function(msg, extra) {
+                            if (this.baseOutput) this.baseOutput(this.baseMessage + msg);
+                        };
+                    }
+                    if (typeof _warning !== 'undefined') _warning.store = function(msg) { addWarning(msg); };
+                    if (typeof _error !== 'undefined') _error.store = function(msg, sc) { addError(msg); };
+                    if (typeof _notSupported !== 'undefined') _notSupported.store = function(msg) { addNotSupported(msg); };
+                    if (typeof _dataTypeUnavailable !== 'undefined') _dataTypeUnavailable.store = function(msg) { addWarning('DataType unavailable: ' + msg); };
+                    if (typeof _skipped !== 'undefined') _skipped.store = function(msg) { addSkipped(msg); };
+                ");
+            }
         }
 
         public string ReadSetting(string path)
@@ -167,6 +197,52 @@ namespace Opc.Ua.CttTestRunner.Runtime
             // Test.Session - the shared session object for tests
             var sessionObj = CreateSessionWrapper(engine);
             test.Set("Session", sessionObj);
+
+            // Expose discovery service methods as globals for UaDiscovery to pick up
+            _session ??= new CttUaSession(_appConfig, _project, _loggerFactory, _verbose);
+            var discoverySession = _session.CreateServiceObject(engine);
+            test.Set("DiscoverySession", discoverySession);
+
+            // Register global discovery functions that UaDiscovery constructor references
+            var getEndpointsFunc = discoverySession.Get("getEndpoints");
+            var findServersFunc = discoverySession.Get("findServers");
+            engine.SetValue("__discoveryGetEndpoints", getEndpointsFunc);
+            engine.SetValue("__discoveryFindServers", findServersFunc);
+
+            // Test.Connect() — connects session to server and initializes helpers
+            test.Set("Connect", new ClrFunction(engine, "Connect",
+                (thisObj, _) =>
+                {
+                    try
+                    {
+                        _session?.EnsureConnected();
+
+                        // After connecting, call InstanciateHelpers if available
+                        try
+                        {
+                            var instFunc = engine.GetValue("InstanciateHelpers");
+                            if (instFunc.IsObject())
+                            {
+                                var argsObj = (ObjectInstance)engine.Intrinsics.Object.Construct(
+                                    Array.Empty<JsValue>());
+                                argsObj.Set("Session", sessionObj.Get("Session"));
+                                argsObj.Set("DiscoverySession", discoverySession);
+                                instFunc.Call(JsValue.Undefined, new[] { (JsValue)argsObj });
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogDebug("InstanciateHelpers call: {Error}", ex.Message);
+                        }
+
+                        return JsValue.FromObject(engine, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError("Test.Connect() failed: {Error}", ex.Message);
+                        return JsValue.FromObject(engine, false);
+                    }
+                }));
 
             // Test.Execute({ Procedure: func })
             test.Set("Execute", new ClrFunction(engine, "Execute",
@@ -277,6 +353,17 @@ namespace Opc.Ua.CttTestRunner.Runtime
         {
             _session = new CttUaSession(_appConfig, _project, _loggerFactory, _verbose);
             return _session.CreateJsObject(engine);
+        }
+
+        /// <summary>
+        /// Creates a JS object with all OPC UA service methods for use as a UaSession instance.
+        /// Called from the UaSession constructor when CTT scripts do new UaSession(channel).
+        /// </summary>
+        public ObjectInstance CreateUaSessionObject(Engine engine)
+        {
+            // Ensure the backing CttUaSession exists
+            _session ??= new CttUaSession(_appConfig, _project, _loggerFactory, _verbose);
+            return _session.CreateServiceObject(engine);
         }
     }
 }

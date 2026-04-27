@@ -95,6 +95,26 @@ namespace Opc.Ua.CttTestRunner
 
                 var engine = CreateEngine(host);
 
+                // Load initialize.js from the conformance unit if it exists
+                string? initScript = FindInitializeScript(testFile);
+                if (initScript != null)
+                {
+                    if (_verbose) _logger.LogDebug("Loading initialize.js: {Path}", initScript);
+                    string initSource = File.ReadAllText(initScript);
+
+                    // Pre-define a safe _warning.store before includes
+                    // (warnOnce.js overrides this, but its Function.caller usage
+                    // doesn't work in Jint, so we patch it after include)
+                    engine.Execute(initSource, initScript);
+                }
+
+                // Override _warning.store to avoid Function.caller issues in Jint
+                engine.Execute(@"
+                    if (typeof _warning !== 'undefined') {
+                        _warning.store = function(msg) { addWarning(msg); };
+                    }
+                ");
+
                 // Load the test script
                 string script = File.ReadAllText(testFile);
                 engine.Execute(script, testFile);
@@ -146,7 +166,9 @@ namespace Opc.Ua.CttTestRunner
             engine.SetValue("print", new Action<object>(host.Print));
             engine.SetValue("isDefined", new Func<object?, bool>(CttGlobals.IsDefined));
             engine.SetValue("CheckResourceError", new Action(host.CheckResourceError));
+            engine.SetValue("checkResourceError", new Action(host.CheckResourceError));
             engine.SetValue("CheckUserStop", new Action(host.CheckUserStop));
+            engine.SetValue("checkUserStop", new Action(host.CheckUserStop));
 
             // Register the Test object
             engine.SetValue("Test", host.CreateTestObject(engine));
@@ -175,12 +197,67 @@ namespace Opc.Ua.CttTestRunner
             // Register helper objects used by CTT scripts
             engine.SetValue("SETTING_UNDEFINED_SCALARSTATIC",
                 "Setting undefined: /Server Test/NodeIds/Static/All Profiles/Scalar");
-            engine.SetValue("MAXMONITOREDITEMLIMITS", 100);
+
+            // stopCurrentUnit() — called by initialize.js on failure
+            engine.SetValue("stopCurrentUnit", new Action(() =>
+            {
+                host.TestContext.AddSkipped("Conformance unit stopped by initialize.js");
+            }));
+
+            // stopTest() — called when a test can't continue
+            engine.SetValue("stopTest", new Action(() =>
+            {
+                host.TestContext.AddSkipped("Test stopped by stopTest()");
+            }));
+
+            // _warning helper used by some scripts
+            engine.Execute("var _warning = { store: function(msg) { addWarning(msg); } };");
+
+            // HostInfo — C++ bound helper for host machine info
+            string hostName = System.Net.Dns.GetHostName();
+            engine.Execute($@"
+                function HostInfo() {{}}
+                HostInfo.localHostName = function() {{ return '{hostName}'; }};
+                HostInfo.prototype.localHostName = function() {{ return '{hostName}'; }};
+                HostInfo.prototype.lookupHost = function(host) {{
+                    this._host = host || 'localhost';
+                    var result = {{}};
+                    result.StatusCode = 0;
+                    result.isGood = function() {{ return true; }};
+                    result.isBad = function() {{ return false; }};
+                    result.isUncertain = function() {{ return false; }};
+                    result.toString = function() {{ return '0x00000000'; }};
+                    return result;
+                }};
+                HostInfo.prototype.hostName = function() {{ return [ '{hostName}' ]; }};
+                HostInfo.prototype.addresses = function() {{ return [ '127.0.0.1', '::1' ]; }};
+                HostInfo.prototype.errorString = function() {{ return ''; }};
+            ");
 
             // Register gServerCapabilities (global cache)
-            engine.Execute("var gServerCapabilities = { OperationLimits: null, _configured: false };");
+            engine.Execute(@"
+                var gServerCapabilities = {
+                    OperationLimits: null,
+                    _configured: false,
+                    ServerDiagnostics_EnabledFlag: false,
+                    ServerCertificate: null
+                };
+            ");
 
             return engine;
+        }
+
+        /// <summary>
+        /// Finds the initialize.js for the conformance unit containing the given test file.
+        /// Path: maintree/.../Test Cases/initialize.js (sibling of the test file)
+        /// </summary>
+        private static string? FindInitializeScript(string testFile)
+        {
+            string? dir = Path.GetDirectoryName(testFile);
+            if (dir == null) return null;
+
+            string initPath = Path.Combine(dir, "initialize.js");
+            return File.Exists(initPath) ? initPath : null;
         }
     }
 }

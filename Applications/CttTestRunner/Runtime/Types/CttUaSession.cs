@@ -110,19 +110,39 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
         /// <summary>
         /// Synchronous wrapper for EnsureConnectedAsync.
         /// </summary>
-        private ISession EnsureConnected()
+        public ISession EnsureConnected()
         {
             return EnsureConnectedAsync().GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Creates the JavaScript UaSession object with service methods.
+        /// Used for Test.Session which wraps in a .Session property.
         /// </summary>
         public ObjectInstance CreateJsObject(Engine engine)
         {
             var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
 
             // The CTT wraps session in a Test.Session.Session pattern
+            var sessionInner = CreateServiceObject(engine);
+
+            // CTT scripts use Test.Session.Session.read(req,resp)
+            obj.Set("Session", sessionInner);
+
+            // Also expose Channel property for discovery session construction
+            var channel = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+            channel.Set("Connected", JsValue.FromObject(engine, false));
+            obj.Set("Channel", channel);
+
+            return obj;
+        }
+
+        /// <summary>
+        /// Creates a flat JS object with all OPC UA service methods registered.
+        /// Used both for Test.Session.Session and for new UaSession(channel) objects.
+        /// </summary>
+        public ObjectInstance CreateServiceObject(Engine engine)
+        {
             var sessionInner = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
 
             // Register all service methods
@@ -161,9 +181,6 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             RegisterServiceMethod(engine, sessionInner, "setTriggering", ServiceSetTriggering);
             RegisterServiceMethod(engine, sessionInner, "transferSubscriptions", ServiceTransferSubscriptions);
 
-            // CTT scripts use Test.Session.Session.read(req,resp)
-            obj.Set("Session", sessionInner);
-
             // Also expose buildRequestHeader
             sessionInner.Set("buildRequestHeader",
                 new ClrFunction(engine, "buildRequestHeader", (_, args) =>
@@ -171,11 +188,11 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     // Return a stub request header
                     var header = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
                     header.Set("Timestamp",
-                        JsValue.FromObject(engine, DateTime.UtcNow.ToString("o")));
+                        CreateUaDateTimeNow(engine));
                     return header;
                 }));
 
-            return obj;
+            return sessionInner;
         }
 
         private void RegisterServiceMethod(Engine engine, ObjectInstance obj, string name,
@@ -262,7 +279,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             responseHeader.Set("ServiceResult",
                 CreateUaStatusCode(engine, readResponse.ResponseHeader.ServiceResult.Code));
             responseHeader.Set("Timestamp",
-                JsValue.FromObject(engine, DateTime.UtcNow.ToString("o")));
+                CreateUaDateTimeNow(engine));
             response.Set("ResponseHeader", responseHeader);
 
             // Fill Results array
@@ -406,9 +423,161 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
         private JsValue ServiceQueryFirst(Engine e, JsValue[] a) => ServiceStub(e, "queryFirst");
         private JsValue ServiceQueryNext(Engine e, JsValue[] a) => ServiceStub(e, "queryNext");
         private JsValue ServiceCancel(Engine e, JsValue[] a) => ServiceStub(e, "cancel");
-        private JsValue ServiceActivateSession(Engine e, JsValue[] a) => ServiceStub(e, "activateSession");
-        private JsValue ServiceCloseSession(Engine e, JsValue[] a) => ServiceStub(e, "closeSession");
-        private JsValue ServiceCreateSession(Engine e, JsValue[] a) => ServiceStub(e, "createSession");
+        private JsValue ServiceCreateSession(Engine engine, JsValue[] args)
+        {
+            if (args.Length < 2) return CreateUaStatusCode(engine, (uint)StatusCodes.BadInvalidArgument);
+            var request = args[0].AsObject();
+            var response = args[1].AsObject();
+
+            try
+            {
+                // Extract the endpoint URL from the request or fall back to project settings
+                string endpointUrl = _project.ServerUrl;
+                var reqUrl = request.Get("EndpointUrl");
+                if (CttGlobals.IsDefined(reqUrl))
+                {
+                    endpointUrl = reqUrl.ToString();
+                }
+
+                _logger.LogInformation("CreateSession: connecting to {Url}", endpointUrl);
+
+                // Select endpoint (SecurityMode=None for now)
+                var endpointDescription = CoreClientUtils.SelectEndpointAsync(
+                    _config, endpointUrl, useSecurity: false,
+                    _config.CreateMessageContext().Telemetry,
+                    CancellationToken.None).GetAwaiter().GetResult();
+
+                var endpointConfig = EndpointConfiguration.Create(_config);
+                var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfig);
+
+                // Extract requested session timeout
+                double sessionTimeout = 60000;
+                var reqTimeout = request.Get("RequestedSessionTimeout");
+                if (CttGlobals.IsDefined(reqTimeout) && reqTimeout.IsNumber())
+                {
+                    sessionTimeout = reqTimeout.AsNumber();
+                }
+
+                // Create and activate session
+                var factory = new DefaultSessionFactory(_config.CreateMessageContext().Telemetry);
+                _session = factory.CreateAsync(
+                    _config,
+                    endpoint,
+                    updateBeforeConnect: false,
+                    checkDomain: false,
+                    sessionName: "CTT Session",
+                    sessionTimeout: (uint)sessionTimeout,
+                    identity: new UserIdentity(new AnonymousIdentityToken()),
+                    preferredLocales: new ArrayOf<string>(),
+                    ct: CancellationToken.None).GetAwaiter().GetResult();
+                _connected = true;
+
+                _logger.LogInformation("CreateSession: SessionId={Id}", _session.SessionId);
+
+                // Fill the response
+                var responseHeader = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                responseHeader.Set("ServiceResult", CreateUaStatusCode(engine, (uint)StatusCodes.Good));
+                responseHeader.Set("Timestamp", CreateUaDateTimeNow(engine));
+                response.Set("ResponseHeader", responseHeader);
+
+                response.Set("SessionId", CreateNodeIdObject(engine, _session.SessionId));
+                response.Set("AuthenticationToken", CreateNodeIdObject(engine, NodeId.Null));
+                response.Set("RevisedSessionTimeout", JsValue.FromObject(engine, _session.SessionTimeout));
+                response.Set("MaxRequestMessageSize", JsValue.FromObject(engine, 0));
+
+                // ServerNonce as UaByteString
+                var serverNonce = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                serverNonce.Set("length", JsValue.FromObject(engine, 0));
+                response.Set("ServerNonce", serverNonce);
+
+                // ServerCertificate as UaByteString
+                var serverCert = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                serverCert.Set("length", JsValue.FromObject(engine, 0));
+                response.Set("ServerCertificate", serverCert);
+
+                // ServerEndpoints
+                var epArray = engine.Intrinsics.Array.Construct(Array.Empty<JsValue>());
+                response.Set("ServerEndpoints", epArray);
+
+                // ServerSoftwareCertificates
+                response.Set("ServerSoftwareCertificates",
+                    engine.Intrinsics.Array.Construct(Array.Empty<JsValue>()));
+
+                // ServerSignature
+                var serverSig = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                serverSig.Set("Algorithm", JsValue.FromObject(engine, ""));
+                serverSig.Set("Signature", JsValue.Null);
+                response.Set("ServerSignature", serverSig);
+
+                return CreateUaStatusCode(engine, (uint)StatusCodes.Good);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "CreateSession failed");
+                uint errorCode = ex is ServiceResultException sre
+                    ? sre.StatusCode.Code
+                    : (uint)StatusCodes.BadUnexpectedError;
+
+                var responseHeader = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                responseHeader.Set("ServiceResult", CreateUaStatusCode(engine, errorCode));
+                response.Set("ResponseHeader", responseHeader);
+
+                return CreateUaStatusCode(engine, errorCode);
+            }
+        }
+
+        private JsValue ServiceActivateSession(Engine engine, JsValue[] args)
+        {
+            if (args.Length < 2) return CreateUaStatusCode(engine, (uint)StatusCodes.BadInvalidArgument);
+            var response = args[1].AsObject();
+
+            // Session.CreateAsync already activates the session, so just return Good
+            var responseHeader = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+            responseHeader.Set("ServiceResult", CreateUaStatusCode(engine, (uint)StatusCodes.Good));
+            responseHeader.Set("Timestamp", CreateUaDateTimeNow(engine));
+            response.Set("ResponseHeader", responseHeader);
+
+            // ServerNonce
+            var serverNonce = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+            serverNonce.Set("length", JsValue.FromObject(engine, 0));
+            response.Set("ServerNonce", serverNonce);
+
+            // Results (empty status code array)
+            response.Set("Results", engine.Intrinsics.Array.Construct(Array.Empty<JsValue>()));
+
+            // DiagnosticInfos
+            response.Set("DiagnosticInfos", engine.Intrinsics.Array.Construct(Array.Empty<JsValue>()));
+
+            return CreateUaStatusCode(engine, (uint)StatusCodes.Good);
+        }
+
+        private JsValue ServiceCloseSession(Engine engine, JsValue[] args)
+        {
+            if (args.Length >= 2)
+            {
+                var response = args[1].AsObject();
+                var responseHeader = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                responseHeader.Set("ServiceResult", CreateUaStatusCode(engine, (uint)StatusCodes.Good));
+                response.Set("ResponseHeader", responseHeader);
+            }
+
+            if (_session != null)
+            {
+                try
+                {
+                    _session.CloseAsync(CancellationToken.None).GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "CloseSession error (ignored)");
+                }
+                _session.Dispose();
+                _session = null;
+                _connected = false;
+            }
+
+            return CreateUaStatusCode(engine, (uint)StatusCodes.Good);
+        }
         private JsValue ServiceSetTriggering(Engine e, JsValue[] a) => ServiceStub(e, "setTriggering");
         private JsValue ServiceTransferSubscriptions(Engine e, JsValue[] a) => ServiceStub(e, "transferSubscriptions");
 
@@ -463,10 +632,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 _config, new Uri(endpointUrl), ct: CancellationToken.None).GetAwaiter().GetResult();
             var endpoints = epDiscoveryClient.GetEndpointsAsync(default, CancellationToken.None).GetAwaiter().GetResult();
 
-            var responseHeader = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
-            responseHeader.Set("ServiceResult",
-                CreateUaStatusCode(engine, (uint)StatusCodes.Good));
-            response.Set("ResponseHeader", responseHeader);
+            response.Set("ResponseHeader", CreateResponseHeader(engine, (uint)StatusCodes.Good));
 
             var endpointsList = endpoints.ToArray() ?? Array.Empty<EndpointDescription>();
             var epArray = engine.Intrinsics.Array.Construct(
@@ -481,6 +647,60 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                         JsValue.FromObject(engine, ep.SecurityPolicyUri));
                     epObj.Set("SecurityLevel",
                         JsValue.FromObject(engine, ep.SecurityLevel));
+
+                    // Server (ApplicationDescription)
+                    var serverObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                    var appName = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                    appName.Set("Text", JsValue.FromObject(engine,
+                        ep.Server.ApplicationName.Text ?? ""));
+                    appName.Set("Locale", JsValue.FromObject(engine,
+                        ep.Server.ApplicationName.Locale ?? ""));
+                    serverObj.Set("ApplicationName", appName);
+                    serverObj.Set("ApplicationUri", JsValue.FromObject(engine,
+                        ep.Server.ApplicationUri ?? ""));
+                    serverObj.Set("ProductUri", JsValue.FromObject(engine,
+                        ep.Server.ProductUri ?? ""));
+                    serverObj.Set("ApplicationType", JsValue.FromObject(engine,
+                        (int)ep.Server.ApplicationType));
+                    // DiscoveryUrls
+                    var discUrlsList = new List<JsValue>();
+                    foreach (var url in ep.Server.DiscoveryUrls)
+                    {
+                        discUrlsList.Add(JsValue.FromObject(engine, url));
+                    }
+                    serverObj.Set("DiscoveryUrls",
+                        engine.Intrinsics.Array.Construct(discUrlsList.ToArray()));
+                    epObj.Set("Server", serverObj);
+
+                    // ServerCertificate (UaByteString-like with isEmpty)
+                    var certLen = ep.ServerCertificate.Length;
+                    var certObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                    certObj.Set("length", JsValue.FromObject(engine, certLen));
+                    certObj.Set("isEmpty", new ClrFunction(engine, "isEmpty",
+                        (_, _) => JsValue.FromObject(engine, certLen == 0)));
+                    epObj.Set("ServerCertificate", certObj);
+
+                    // UserIdentityTokens
+                    var tokensList = new List<JsValue>();
+                    foreach (var token in ep.UserIdentityTokens)
+                        {
+                            var tokObj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                            tokObj.Set("PolicyId", JsValue.FromObject(engine, token.PolicyId ?? ""));
+                            tokObj.Set("TokenType", JsValue.FromObject(engine, (int)token.TokenType));
+                            tokObj.Set("SecurityPolicyUri", JsValue.FromObject(engine,
+                                token.SecurityPolicyUri ?? ""));
+                            tokensList.Add(tokObj);
+                    }
+                    epObj.Set("UserIdentityTokens",
+                        engine.Intrinsics.Array.Construct(tokensList.ToArray()));
+
+                    // TransportProfileUri
+                    epObj.Set("TransportProfileUri", JsValue.FromObject(engine,
+                        ep.TransportProfileUri ?? ""));
+
+                    // clone method
+                    epObj.Set("clone", new ClrFunction(engine, "clone", (_, _) => epObj));
+
                     return (JsValue)epObj;
                 }).ToArray());
             response.Set("Endpoints", epArray);
@@ -497,6 +717,31 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
         #endregion
 
         #region Helpers
+
+        /// <summary>
+        /// Creates a JS UaDateTime object by calling UaDateTime.utcNow() in the engine.
+        /// </summary>
+        private static JsValue CreateUaDateTimeNow(Engine engine)
+        {
+            return engine.Evaluate("UaDateTime.utcNow()");
+        }
+
+        /// <summary>
+        /// Creates a JS response header with ServiceResult, Timestamp, and diagnostic fields.
+        /// </summary>
+        private static ObjectInstance CreateResponseHeader(Engine engine, uint statusCode)
+        {
+            var header = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+            header.Set("ServiceResult", CreateUaStatusCode(engine, statusCode));
+            header.Set("Timestamp", CreateUaDateTimeNow(engine));
+            header.Set("RequestHandle", JsValue.FromObject(engine, 0));
+            // Diagnostic fields expected by UaR.js validation
+            var diag = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+            diag.Set("InnerDiagnosticInfo", JsValue.Null);
+            header.Set("ServiceDiagnostics", diag);
+            header.Set("StringTable", engine.Intrinsics.Array.Construct(Array.Empty<JsValue>()));
+            return header;
+        }
 
         private static ObjectInstance CreateUaStatusCode(Engine engine, uint code)
         {
