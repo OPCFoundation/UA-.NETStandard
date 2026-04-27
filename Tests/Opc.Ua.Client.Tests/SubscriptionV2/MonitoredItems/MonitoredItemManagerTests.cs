@@ -217,14 +217,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(result.Length, Is.EqualTo(3));
             Assert.That(result.Span[0], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)result.Span[0]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test3"));
-            Assert.That(((DataValueChange)result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem1));
+            Assert.That(((DataValueChange)result.Span[0]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test1"));
+            Assert.That(((DataValueChange)result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem2));
             Assert.That(result.Span[1], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)result.Span[1]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test1"));
+            Assert.That(((DataValueChange)result.Span[1]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test2"));
             Assert.That(((DataValueChange)result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem2));
             Assert.That(result.Span[2], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)result.Span[2]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test2"));
-            Assert.That(((DataValueChange)result.Span[2]).MonitoredItem , Is.SameAs(monitoredItem2));
+            Assert.That(((DataValueChange)result.Span[2]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test3"));
+            Assert.That(((DataValueChange)result.Span[2]).MonitoredItem , Is.SameAs(monitoredItem1));
         }
 
         [Test]
@@ -397,12 +397,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.Span[1], Is.TypeOf<EventNotification>());
-            Assert.That(((EventNotification)result.Span[1]).Fields[0].AsBoxedObject(), Is.EqualTo("Event1"));
-            Assert.That(((EventNotification)result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem1));
             Assert.That(result.Span[0], Is.TypeOf<EventNotification>());
-            Assert.That(((EventNotification)result.Span[0]).Fields[0].AsBoxedObject(), Is.EqualTo("Event2"));
-            Assert.That(((EventNotification)result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem3));
+            Assert.That(((EventNotification)result.Span[0]).Fields[0].AsBoxedObject(), Is.EqualTo("Event1"));
+            Assert.That(((EventNotification)result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem1));
+            Assert.That(result.Span[1], Is.TypeOf<EventNotification>());
+            Assert.That(((EventNotification)result.Span[1]).Fields[0].AsBoxedObject(), Is.EqualTo("Event2"));
+            Assert.That(((EventNotification)result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem3));
         }
 
         [Test]

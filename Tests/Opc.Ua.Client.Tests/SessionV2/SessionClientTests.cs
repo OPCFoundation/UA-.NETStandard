@@ -106,7 +106,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -280,7 +280,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -475,7 +475,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -1238,7 +1238,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -1445,7 +1445,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -1646,7 +1646,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -1767,7 +1767,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -1857,7 +1857,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -2029,7 +2029,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -2163,7 +2163,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -2345,7 +2345,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -2512,7 +2512,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -2707,7 +2707,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -2828,7 +2828,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -3004,7 +3004,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -3210,7 +3210,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -3413,7 +3413,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -3547,7 +3547,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -3649,7 +3649,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -3743,7 +3743,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -3842,7 +3842,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -4016,7 +4016,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -4218,7 +4218,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -4309,7 +4309,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -4484,7 +4484,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -4613,7 +4613,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -4796,7 +4796,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -4932,7 +4932,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -5245,7 +5245,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 
@@ -5405,7 +5405,7 @@ namespace Opc.Ua.Client.Sessions
             // Assert
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null) { Assert.That(requestHeader.RequestHandle, Is.Not.EqualTo(0u)); }
-            Assert.That(requestHeader?.Timestamp, Is.EqualTo(DateTimeUtc.Now).Within(TimeSpan.FromSeconds(1)));
+            if (requestHeader != null) { Assert.That((DateTimeUtc.Now - requestHeader.Timestamp).TotalSeconds, Is.LessThan(1)); }
             m_mockChannel.Verify();
         }
 

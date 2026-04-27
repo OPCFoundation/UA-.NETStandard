@@ -664,8 +664,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
                 var outputArguments = results[0].OutputArguments;
                 if (outputArguments.Count != 2 ||
-                    outputArguments[0].AsBoxedObject() is not uint[] serverHandles ||
-                    outputArguments[1].AsBoxedObject() is not uint[] clientHandles ||
+                    outputArguments[0].AsBoxedObject(Variant.BoxingBehavior.Legacy) is not uint[] serverHandles ||
+                    outputArguments[1].AsBoxedObject(Variant.BoxingBehavior.Legacy) is not uint[] clientHandles ||
                     clientHandles.Length != serverHandles.Length)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,

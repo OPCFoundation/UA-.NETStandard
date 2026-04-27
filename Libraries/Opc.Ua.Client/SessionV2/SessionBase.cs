@@ -214,13 +214,13 @@ namespace Opc.Ua.Client.Sessions
             SessionTimeout = GetSessionTimeout(Options);
             _clientCertificate = Options.ClientCertificate;
 
-            _nodeCache = new NodeCache(this, Observability);
             _factory = EncodeableFactory.Create();
             var messageContext =
                 Options.Channel?.MessageContext as ServiceMessageContext
                     ?? configuration.CreateMessageContext(_factory);
 
             MessageContext = messageContext;
+            _nodeCache = new NodeCache(this, Observability);
             _systemContext = new SessionSystemContext((Opc.Ua.ITelemetryContext?)null)
             {
                 SystemHandle = this,
@@ -299,7 +299,7 @@ namespace Opc.Ua.Client.Sessions
                 }
 
                 // check for valid node class.
-                if ((object)nodeClassValues[index].WrappedValue is not int and not NodeClass)
+                if (nodeClassValues[index].WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy) is not int and not NodeClass)
                 {
                     nodeCollection.Add(node);
                     serviceResults.Add(ServiceResult.Create(StatusCodes.BadUnexpectedError,
@@ -309,7 +309,7 @@ namespace Opc.Ua.Client.Sessions
                     continue;
                 }
 
-                node.NodeClass = (NodeClass)(object)nodeClassValues[index].WrappedValue;
+                node.NodeClass = (NodeClass)nodeClassValues[index].WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                 var attributes = CreateAttributes(node.NodeClass);
                 foreach (var attributeId in attributes.Keys)
@@ -1219,7 +1219,7 @@ namespace Opc.Ua.Client.Sessions
                 throw new ServiceResultException(errors[0]);
             }
             // validate namespace is a string array.
-            if ((object)values[0].WrappedValue is not string[] namespaces)
+            if (values[0].WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy) is not string[] namespaces)
             {
                 throw ServiceResultException.Create(StatusCodes.BadTypeMismatch,
                     $"{this}: Returned namespace array in wrong type!");
@@ -1236,7 +1236,7 @@ namespace Opc.Ua.Client.Sessions
                     this, errors[1]);
                 return;
             }
-            if ((object)values[1].WrappedValue is not string[] serverUris)
+            if (values[1].WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy) is not string[] serverUris)
             {
                 throw ServiceResultException.Create(StatusCodes.BadTypeMismatch,
                     $"{this}: Returned server array with wrong type!");
@@ -1379,7 +1379,7 @@ namespace Opc.Ua.Client.Sessions
                 var value = values[index];
                 var error = errors.Count > 0 ? errors[index] : ServiceResult.Good;
                 index++;
-                if (ServiceResult.IsNotBad(error) && (object)value.WrappedValue is T retVal)
+                if (ServiceResult.IsNotBad(error) && value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy) is T retVal)
                 {
                     return retVal;
                 }
@@ -1436,7 +1436,7 @@ namespace Opc.Ua.Client.Sessions
                     ReturnDiagnostics = 0
                 }, VariableIds.Server_ServerStatus_State, ct).ConfigureAwait(false);
 
-                if ((object)serverState.WrappedValue is not int and not ServerState)
+                if (serverState.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy) is not int and not ServerState)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadDataUnavailable,
                         "Keep alive returned invalid server state");
@@ -1542,13 +1542,13 @@ namespace Opc.Ua.Client.Sessions
                     }
 
                     // check for valid node class.
-                    if ((object)values[index].WrappedValue is not int and not NodeClass)
+                    if (values[index].WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy) is not int and not NodeClass)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
                             "Node does not have a valid value for NodeClass: {0}.",
                             values[index].WrappedValue);
                     }
-                    nodeClass = (int)(object)values[index].WrappedValue;
+                    nodeClass = (int)values[index].WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                 }
                 else
                 {
@@ -1603,7 +1603,7 @@ namespace Opc.Ua.Client.Sessions
                             "Object does not support the EventNotifier attribute.");
                     }
 
-                    objectNode.EventNotifier = (byte)(object)value.WrappedValue;
+                    objectNode.EventNotifier = (byte)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     node = objectNode;
                     break;
                 case NodeClass.ObjectType:
@@ -1616,7 +1616,7 @@ namespace Opc.Ua.Client.Sessions
                             "ObjectType does not support the IsAbstract attribute.");
                     }
 
-                    objectTypeNode.IsAbstract = (bool)(object)value.WrappedValue;
+                    objectTypeNode.IsAbstract = (bool)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     node = objectTypeNode;
                     break;
                 case NodeClass.Variable:
@@ -1630,7 +1630,7 @@ namespace Opc.Ua.Client.Sessions
                             "Variable does not support the DataType attribute.");
                     }
 
-                    variableNode.DataType = (NodeId)(object)value.WrappedValue;
+                    variableNode.DataType = (NodeId)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     // ValueRank Attribute
                     value = attributes[Attributes.ValueRank];
 
@@ -1640,7 +1640,7 @@ namespace Opc.Ua.Client.Sessions
                             "Variable does not support the ValueRank attribute.");
                     }
 
-                    variableNode.ValueRank = (int)(object)value.WrappedValue;
+                    variableNode.ValueRank = (int)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                     // ArrayDimensions Attribute
                     value = attributes[Attributes.ArrayDimensions];
@@ -1653,7 +1653,7 @@ namespace Opc.Ua.Client.Sessions
                         }
                         else
                         {
-                            variableNode.ArrayDimensions = (uint[])(object)value.WrappedValue;
+                            variableNode.ArrayDimensions = (uint[])value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                         }
                     }
 
@@ -1666,7 +1666,7 @@ namespace Opc.Ua.Client.Sessions
                             "Variable does not support the AccessLevel attribute.");
                     }
 
-                    variableNode.AccessLevel = (byte)(object)value.WrappedValue;
+                    variableNode.AccessLevel = (byte)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                     // UserAccessLevel Attribute
                     value = attributes[Attributes.UserAccessLevel];
@@ -1677,7 +1677,7 @@ namespace Opc.Ua.Client.Sessions
                             "Variable does not support the UserAccessLevel attribute.");
                     }
 
-                    variableNode.UserAccessLevel = (byte)(object)value.WrappedValue;
+                    variableNode.UserAccessLevel = (byte)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                     // Historizing Attribute
                     value = attributes[Attributes.Historizing];
@@ -1688,7 +1688,7 @@ namespace Opc.Ua.Client.Sessions
                             "Variable does not support the Historizing attribute.");
                     }
 
-                    variableNode.Historizing = (bool)(object)value.WrappedValue;
+                    variableNode.Historizing = (bool)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                     // MinimumSamplingInterval Attribute
                     value = attributes[Attributes.MinimumSamplingInterval];
@@ -1705,7 +1705,7 @@ namespace Opc.Ua.Client.Sessions
 
                     if (value != null)
                     {
-                        variableNode.AccessLevelEx = (uint)(object)value.WrappedValue;
+                        variableNode.AccessLevelEx = (uint)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     }
 
                     node = variableNode;
@@ -1722,7 +1722,7 @@ namespace Opc.Ua.Client.Sessions
                             "VariableType does not support the IsAbstract attribute.");
                     }
 
-                    variableTypeNode.IsAbstract = (bool)(object)value.WrappedValue;
+                    variableTypeNode.IsAbstract = (bool)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                     // DataType Attribute
                     value = attributes[Attributes.DataType];
@@ -1733,7 +1733,7 @@ namespace Opc.Ua.Client.Sessions
                             "VariableType does not support the DataType attribute.");
                     }
 
-                    variableTypeNode.DataType = (NodeId)(object)value.WrappedValue;
+                    variableTypeNode.DataType = (NodeId)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                     // ValueRank Attribute
                     value = attributes[Attributes.ValueRank];
@@ -1744,14 +1744,14 @@ namespace Opc.Ua.Client.Sessions
                             "VariableType does not support the ValueRank attribute.");
                     }
 
-                    variableTypeNode.ValueRank = (int)(object)value.WrappedValue;
+                    variableTypeNode.ValueRank = (int)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                     // ArrayDimensions Attribute
                     value = attributes[Attributes.ArrayDimensions];
 
                     if (value != null && !value.WrappedValue.IsNull)
                     {
-                        variableTypeNode.ArrayDimensions = (uint[])(object)value.WrappedValue;
+                        variableTypeNode.ArrayDimensions = (uint[])value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     }
                     node = variableTypeNode;
                     break;
@@ -1765,7 +1765,7 @@ namespace Opc.Ua.Client.Sessions
                             "Method does not support the Executable attribute.");
                     }
 
-                    methodNode.Executable = (bool)(object)value.WrappedValue;
+                    methodNode.Executable = (bool)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                     // UserExecutable Attribute
                     value = attributes[Attributes.UserExecutable];
@@ -1776,7 +1776,7 @@ namespace Opc.Ua.Client.Sessions
                             "Method does not support the UserExecutable attribute.");
                     }
 
-                    methodNode.UserExecutable = (bool)(object)value.WrappedValue;
+                    methodNode.UserExecutable = (bool)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     node = methodNode;
                     break;
                 case NodeClass.DataType:
@@ -1791,14 +1791,14 @@ namespace Opc.Ua.Client.Sessions
                             "DataType does not support the IsAbstract attribute.");
                     }
 
-                    dataTypeNode.IsAbstract = (bool)(object)value.WrappedValue;
+                    dataTypeNode.IsAbstract = (bool)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                     // DataTypeDefinition Attribute
                     value = attributes[Attributes.DataTypeDefinition];
 
                     if (value != null && !value.WrappedValue.IsNull)
                     {
-                        dataTypeNode.DataTypeDefinition = (ExtensionObject)(object)value.WrappedValue;
+                        dataTypeNode.DataTypeDefinition = (ExtensionObject)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     }
 
                     node = dataTypeNode;
@@ -1814,7 +1814,7 @@ namespace Opc.Ua.Client.Sessions
                             "ReferenceType does not support the IsAbstract attribute.");
                     }
 
-                    referenceTypeNode.IsAbstract = (bool)(object)value.WrappedValue;
+                    referenceTypeNode.IsAbstract = (bool)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                     // Symmetric Attribute
                     value = attributes[Attributes.Symmetric];
@@ -1825,7 +1825,7 @@ namespace Opc.Ua.Client.Sessions
                             "ReferenceType does not support the Symmetric attribute.");
                     }
 
-                    referenceTypeNode.Symmetric = (bool)(object)value.WrappedValue;
+                    referenceTypeNode.Symmetric = (bool)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                     // InverseName Attribute
                     value = attributes[Attributes.InverseName];
@@ -1833,7 +1833,7 @@ namespace Opc.Ua.Client.Sessions
                     if (value != null && !value.WrappedValue.IsNull)
                     {
                         referenceTypeNode.InverseName =
-                            (LocalizedText)(object)value.WrappedValue;
+                            (LocalizedText)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     }
 
                     node = referenceTypeNode;
@@ -1849,7 +1849,7 @@ namespace Opc.Ua.Client.Sessions
                             "View does not support the EventNotifier attribute.");
                     }
 
-                    viewNode.EventNotifier = (byte)(object)value.WrappedValue;
+                    viewNode.EventNotifier = (byte)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
                     // ContainsNoLoops Attribute
                     value = attributes[Attributes.ContainsNoLoops];
@@ -1860,7 +1860,7 @@ namespace Opc.Ua.Client.Sessions
                             "View does not support the ContainsNoLoops attribute.");
                     }
 
-                    viewNode.ContainsNoLoops = (bool)(object)value.WrappedValue;
+                    viewNode.ContainsNoLoops = (bool)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     node = viewNode;
                     break;
                 default:
@@ -1876,7 +1876,7 @@ namespace Opc.Ua.Client.Sessions
                     "Node does not support the NodeId attribute.");
             }
 
-            node.NodeId = (NodeId)(object)value.WrappedValue;
+            node.NodeId = (NodeId)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
             node.NodeClass = (NodeClass)nodeClass;
 
             // BrowseName Attribute
@@ -1887,7 +1887,7 @@ namespace Opc.Ua.Client.Sessions
                     "Node does not support the BrowseName attribute.");
             }
 
-            node.BrowseName = (QualifiedName)(object)value.WrappedValue;
+            node.BrowseName = (QualifiedName)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
             // DisplayName Attribute
             value = attributes[Attributes.DisplayName];
@@ -1896,35 +1896,35 @@ namespace Opc.Ua.Client.Sessions
                 throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
                     "Node does not support the DisplayName attribute.");
             }
-            node.DisplayName = (LocalizedText)(object)value.WrappedValue;
+            node.DisplayName = (LocalizedText)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
             // all optional attributes follow
             // Description Attribute
             if (attributes.TryGetValue(Attributes.Description, out value) &&
                 value != null && !value.WrappedValue.IsNull)
             {
-                node.Description = (LocalizedText)(object)value.WrappedValue;
+                node.Description = (LocalizedText)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
             }
 
             // WriteMask Attribute
             if (attributes.TryGetValue(Attributes.WriteMask, out value) &&
                 value != null)
             {
-                node.WriteMask = (uint)(object)value.WrappedValue;
+                node.WriteMask = (uint)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
             }
 
             // UserWriteMask Attribute
             if (attributes.TryGetValue(Attributes.UserWriteMask, out value) &&
                 value != null)
             {
-                node.UserWriteMask = (uint)(object)value.WrappedValue;
+                node.UserWriteMask = (uint)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
             }
 
             // RolePermissions Attribute
             if (attributes.TryGetValue(Attributes.RolePermissions, out value) &&
                 value != null)
             {
-                if ((object)value.WrappedValue is ExtensionObject[] rolePermissions)
+                if (value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy) is ExtensionObject[] rolePermissions)
                 {
                     var rpList = new List<RolePermissionType>();
                     foreach (var rolePermission in rolePermissions)
@@ -1943,7 +1943,7 @@ namespace Opc.Ua.Client.Sessions
             if (attributes.TryGetValue(Attributes.UserRolePermissions, out value) &&
                 value != null)
             {
-                if ((object)value.WrappedValue is ExtensionObject[] userRolePermissions)
+                if (value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy) is ExtensionObject[] userRolePermissions)
                 {
                     var urpList = new List<RolePermissionType>();
                     foreach (var rolePermission in userRolePermissions)
@@ -1962,7 +1962,7 @@ namespace Opc.Ua.Client.Sessions
             if (attributes.TryGetValue(Attributes.AccessRestrictions, out value) &&
                 value != null)
             {
-                node.AccessRestrictions = (ushort)(object)value.WrappedValue;
+                node.AccessRestrictions = (ushort)value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
             }
             return node;
         }

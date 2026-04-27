@@ -17,6 +17,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Client.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes.Tests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
