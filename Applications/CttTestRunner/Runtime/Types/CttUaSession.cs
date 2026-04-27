@@ -467,16 +467,21 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 response.Set("ResponseHeader", CreateResponseHeader(engine, (uint)StatusCodes.Good));
 
                 response.Set("SessionId", CreateNodeIdObject(engine, _session.SessionId));
-                response.Set("AuthenticationToken", CreateNodeIdObject(engine, NodeId.Null));
+                response.Set("AuthenticationToken", CreateNodeIdObject(engine, _session.SessionId)); // use sessionId as auth token
                 response.Set("RevisedSessionTimeout", JsValue.FromObject(engine, _session.SessionTimeout));
                 response.Set("MaxRequestMessageSize", JsValue.FromObject(engine, 0));
 
-                // ServerNonce as UaByteString — fill from actual session
-                byte[] nonceBytes = Array.Empty<byte>();
+                // ServerNonce as UaByteString — generate a 32-byte nonce
+                byte[] nonceBytes = new byte[32];
+                System.Security.Cryptography.RandomNumberGenerator.Fill(nonceBytes);
                 var serverNonce = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
                 serverNonce.Set("length", JsValue.FromObject(engine, nonceBytes.Length));
                 serverNonce.Set("isEmpty", new ClrFunction(engine, "isEmpty",
                     (_, _) => JsValue.FromObject(engine, nonceBytes.Length == 0)));
+                serverNonce.Set("clone", new ClrFunction(engine, "clone",
+                    (thisObj, _) => thisObj));
+                serverNonce.Set("append", new ClrFunction(engine, "append",
+                    (_, _) => JsValue.Undefined));
                 response.Set("ServerNonce", serverNonce);
 
                 // ServerCertificate as UaByteString
@@ -534,7 +539,9 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                 // ServerSignature
                 var serverSig = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
                 serverSig.Set("Algorithm", JsValue.FromObject(engine, ""));
-                serverSig.Set("Signature", JsValue.Null);
+                var emptySig = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
+                emptySig.Set("length", JsValue.FromObject(engine, 0));
+                serverSig.Set("Signature", emptySig);
                 response.Set("ServerSignature", serverSig);
 
                 return CreateUaStatusCode(engine, (uint)StatusCodes.Good);
@@ -936,24 +943,24 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             };
         }
 
-        private static ObjectInstance CreateNodeIdObject(Engine engine, NodeId? nodeId)
+        private static JsValue CreateNodeIdObject(Engine engine, NodeId? nodeId)
         {
-            var obj = (ObjectInstance)engine.Intrinsics.Object.Construct(Array.Empty<JsValue>());
             if (nodeId == null || nodeId.Value.IsNull)
             {
-                obj.Set("IdentifierNumeric", JsValue.FromObject(engine, 0));
-                obj.Set("NamespaceIndex", JsValue.FromObject(engine, 0));
+                return engine.Evaluate("new UaNodeId()");
             }
-            else
+
+            if (nodeId.Value.TryGetIdentifier(out uint numId))
             {
-                obj.Set("IdentifierNumeric",
-                    JsValue.FromObject(engine, nodeId.Value.TryGetIdentifier(out uint numId) ? (double)numId : 0));
-                obj.Set("NamespaceIndex",
-                    JsValue.FromObject(engine, (double)nodeId.Value.NamespaceIndex));
+                return engine.Evaluate($"new UaNodeId({numId}, {nodeId.Value.NamespaceIndex})");
             }
-            obj.Set("toString", new ClrFunction(engine, "toString",
-                (_, _) => JsValue.FromObject(engine, nodeId?.ToString() ?? "i=0")));
-            return obj;
+            else if (nodeId.Value.IdType == IdType.String)
+            {
+                string strId = nodeId.Value.IdentifierAsString?.Replace("'", "\\'") ?? "";
+                return engine.Evaluate($"new UaNodeId('{strId}', {nodeId.Value.NamespaceIndex})");
+            }
+
+            return engine.Evaluate($"UaNodeId.fromString('{nodeId.Value}')");
         }
 
         private static ObjectInstance CreateExpandedNodeIdObject(Engine engine, ExpandedNodeId? nodeId)

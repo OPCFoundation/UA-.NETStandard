@@ -210,9 +210,10 @@ namespace Opc.Ua.CttTestRunner
                 host.TestContext.AddSkipped("Test stopped by stopTest()");
             }));
 
-            // _warning and _error helpers used by some scripts
+            // _warning and _error and _log helpers used by some scripts
             engine.Execute("var _warning = { store: function(msg) { addWarning(msg); } };");
             engine.Execute("var _error = { store: function(msg) { addError(msg); } };");
+            engine.Execute("var _log = { store: function(msg) { addLog(msg); } };");
 
             // MessageSecurityMode.toString helper
             engine.Execute(@"
@@ -256,6 +257,32 @@ namespace Opc.Ua.CttTestRunner
                     ServerDiagnostics_EnabledFlag: false,
                     ServerCertificate: null
                 };
+            ");
+
+            // HOSTNAMES helper for certificate hostname validation
+            engine.Execute($@"
+                var HOSTNAMES = {{
+                    _hostnames: ['{hostName}', 'localhost', '127.0.0.1'],
+                    QueryHostnames: function(host) {{
+                        if (host && this._hostnames.indexOf(host) < 0) this._hostnames.push(host);
+                    }},
+                    Contains: function(host) {{
+                        if (!host) return false;
+                        for (var i = 0; i < this._hostnames.length; i++) {{
+                            if (this._hostnames[i].toLowerCase() === host.toLowerCase()) return true;
+                        }}
+                        return false;
+                    }}
+                }};
+            ");
+
+            // HostnameFromUrl helper
+            engine.Execute(@"
+                function HostnameFromUrl(url) {
+                    if (!url) return '';
+                    var m = url.match(/\/\/([^:\/]+)/);
+                    return m ? m[1] : '';
+                }
             ");
 
             return engine;

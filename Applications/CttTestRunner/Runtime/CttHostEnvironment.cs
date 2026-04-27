@@ -117,6 +117,26 @@ namespace Opc.Ua.CttTestRunner.Runtime
                 return;
             }
 
+            // Intercept warnOnce.js — its Function.caller usage isn't compatible with Jint
+            string fileName = Path.GetFileName(resolved);
+            if (string.Equals(fileName, "warnOnce.js", StringComparison.OrdinalIgnoreCase))
+            {
+                if (_verbose) _logger.LogDebug("Replacing warnOnce.js with Jint-compatible version");
+                engine.Execute(@"
+                    var _warning = {
+                        scripts: [],
+                        store: function(msg) { addWarning(msg); },
+                        addScript: function(name) {
+                            if (name && this.scripts.indexOf(name) < 0) this.scripts.push(name);
+                        },
+                        wasWarned: function(name) {
+                            return this.scripts.indexOf(name) >= 0;
+                        }
+                    };
+                ");
+                return;
+            }
+
             if (_verbose)
             {
                 _logger.LogDebug("include({Path})", Path.GetRelativePath(_libraryDir, resolved));

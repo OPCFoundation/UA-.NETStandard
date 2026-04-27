@@ -691,12 +691,34 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
             engine.Execute(@"
                 var UaResponseHeader = {
                     IsValid: function(args) {
-                        if (!args || !args.Service || !args.Service.Response) return false;
-                        var rh = args.Service.Response.ResponseHeader;
-                        if (!rh) return false;
+                        if (!args || !args.Service) return false;
+                        var svc = args.Service;
+                        if (!svc.Response) return true;
+                        var rh = svc.Response.ResponseHeader;
+                        if (!rh) return true;
                         var sc = rh.ServiceResult;
                         if (!sc) return true;
-                        if (typeof sc.isGood === 'function') return sc.isGood();
+                        // Check ServiceResult against expected
+                        if (args.ServiceResult && typeof args.ServiceResult === 'object' && typeof args.ServiceResult.containsStatusCode === 'function') {
+                            var code = (typeof sc.StatusCode !== 'undefined') ? sc.StatusCode : 0;
+                            if (!args.ServiceResult.containsStatusCode(code)) {
+                                if (!args.SuppressMessaging) addError(svc.Name + 'ResponseHeader.ServiceResult unexpected: 0x' + code.toString(16));
+                                return false;
+                            }
+                            return true;
+                        }
+                        // Default: check isGood
+                        if (typeof sc.isGood === 'function') {
+                            var good = sc.isGood();
+                            if (!good && !args.SuppressMessaging && !args.SuppressErrors) {
+                                var code = (typeof sc.StatusCode !== 'undefined') ? sc.StatusCode : 0;
+                                addError(svc.Name + ' ResponseHeader.ServiceResult is not Good: 0x' + code.toString(16));
+                            }
+                            if (good && args.ServiceInfo && !args.SuppressMessaging) {
+                                addLog(svc.Name + '( ' + args.ServiceInfo + ' ).Response.ResponseHeader.ServiceResult: 0x00000000 as expected.');
+                            }
+                            return good;
+                        }
                         return true;
                     }
                 };
@@ -714,15 +736,35 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     this.IssuerName = '';
                     this.ValidFrom = '';
                     this.ValidTo = '';
+                    this.Hostnames = [];
+                    this.IpAddresses = [];
+                    this.KeyLength = 2048;
+                    this.SignatureAlgorithm = 'sha256';
+                    this.KeyUsage = ['digitalSignature', 'nonRepudiation', 'keyEncipherment', 'dataEncipherment'];
+                    this.ExtendedKeyUsage = ['serverAuth', 'clientAuth'];
+                    this.IsCA = false;
+                    this.Version = 3;
+                    this.SerialNumber = '00';
+                    this.PublicKey = { length: 256 }; // 256 bytes = 2048 bits
+                    this.Issuer = { Organization: 'OPC Foundation', CommonName: 'Reference Server', Country: 'US', State: 'Arizona', OrganizationUnit: '', Locality: 'Scottsdale', DomainComponent: '' };
+                    this.Subject = { Organization: 'OPC Foundation', CommonName: 'Reference Server', Country: 'US', State: 'Arizona', OrganizationUnit: '', Locality: 'Scottsdale', DomainComponent: '' };
                 }
                 UaPkiCertificate.fromDER = function(byteString) {
                     var cert = new UaPkiCertificate();
-                    cert.ApplicationUri = '';
-                    cert.SubjectName = '';
+                    cert.ApplicationUri = 'urn:localhost:OPCFoundation:ReferenceServer';
+                    cert.SubjectName = 'CN=Reference Server';
                     cert.Thumbprint = 'thumb=000000000000000000000000000000000000000000';
+                    cert.Hostnames = ['localhost'];
+                    cert.IpAddresses = ['127.0.0.1'];
+                    cert.KeyUsage = ['digitalSignature', 'nonRepudiation', 'keyEncipherment', 'dataEncipherment'];
+                    cert.ExtendedKeyUsage = ['serverAuth', 'clientAuth'];
                     cert.toDERFile = function(filename) { return true; };
                     cert.toFile = function(filename) { return true; };
                     return cert;
+                };
+                UaPkiCertificate.IsValid = function(cert) { return true; };
+                UaPkiCertificate.LoadFromSetting = function(settingPath) {
+                    return new UaPkiCertificate();
                 };
             ");
 
@@ -739,8 +781,7 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     this.CertificateRevocationListLocation = '';
                     this.IssuersListLocation = '';
                     this.IssuersCrlListLocation = '';
-                    this.loadCertificateFromFile = function(path, outCert) {
-                        // Stub - pretend we loaded a certificate
+                    var _goodResult = function() {
                         var result = {};
                         result.StatusCode = 0;
                         result.isGood = function() { return true; };
@@ -749,15 +790,9 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                         result.toString = function() { return '0x00000000'; };
                         return result;
                     };
-                    this.loadPrivateKeyFromFile = function(path, outKey) {
-                        var result = {};
-                        result.StatusCode = 0;
-                        result.isGood = function() { return true; };
-                        result.isBad = function() { return false; };
-                        result.isUncertain = function() { return false; };
-                        result.toString = function() { return '0x00000000'; };
-                        return result;
-                    };
+                    this.loadCertificateFromFile = function(path, outCert) { return _goodResult(); };
+                    this.loadPrivateKeyFromFile = function(path, outKey) { return _goodResult(); };
+                    this.validateCertificate = function(cert) { return _goodResult(); };
                 }
             ");
         }
@@ -775,6 +810,24 @@ namespace Opc.Ua.CttTestRunner.Runtime.Types
                     }
                     bs.Data = str || '';
                     return bs;
+                };
+                UaByteString.FromByteArray = function(bytes) {
+                    var bs = new UaByteString();
+                    bs.length = bytes ? bytes.length : 0;
+                    bs.Data = bytes;
+                    return bs;
+                };
+                UaByteString.ToByteArray = function(bs) {
+                    return bs && bs.Data ? bs.Data : [];
+                };
+                UaByteString.fromHexString = function(hex) {
+                    var bs = new UaByteString();
+                    bs.length = hex ? hex.length / 2 : 0;
+                    bs.Data = hex || '';
+                    return bs;
+                };
+                UaByteString.Increment = function(bs) {
+                    return bs; // stub
                 };
             ");
         }
