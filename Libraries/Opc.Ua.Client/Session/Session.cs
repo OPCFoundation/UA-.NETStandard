@@ -33,6 +33,9 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+using System.Runtime.CompilerServices;
+#endif
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -2967,7 +2970,7 @@ namespace Opc.Ua.Client
                 ResetKeepAliveTimer();
             }
 
-            base.RequestCompleted(request, response, serviceName);
+            base.RequestCompleted(request, response!, serviceName);
         }
 
         /// <summary>
@@ -4496,6 +4499,108 @@ namespace Opc.Ua.Client
         private event EventHandler? m_SubscriptionsChanged;
         private event EventHandler? m_SessionClosing;
         private event EventHandler? m_SessionConfigurationChanged;
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+        /// <inheritdoc/>
+        public async IAsyncEnumerable<BrowseResult> BrowseStreamAsync(
+            RequestHeader? requestHeader,
+            ViewDescription? view,
+            ArrayOf<BrowseDescription> nodesToBrowse,
+            [EnumeratorCancellation] CancellationToken ct = default)
+        {
+            var first = await BrowseAsync(
+                requestHeader, view, 0, nodesToBrowse, ct).ConfigureAwait(false);
+            ClientBase.ValidateResponse(first.Results, nodesToBrowse);
+            ClientBase.ValidateDiagnosticInfos(first.DiagnosticInfos, nodesToBrowse);
+
+            var continuationPoints = new List<ByteString>();
+            for (int i = 0; i < first.Results.Count; i++)
+            {
+                BrowseResult result = first.Results[i];
+                if (StatusCode.IsGood(result.StatusCode) &&
+                    !result.ContinuationPoint.IsNull &&
+                    result.ContinuationPoint.Length != 0)
+                {
+                    if (result.References.Count > 0)
+                    {
+                        continuationPoints.Add(result.ContinuationPoint);
+                    }
+                    else
+                    {
+                        m_logger.LogWarning(
+                            "{Session}: Server returned empty references but a " +
+                            "continuation point. Stopping to prevent denial of service.",
+                            this);
+                        yield return new BrowseResult {
+                            StatusCode = StatusCodes.BadNoData
+                        };
+                        continue;
+                    }
+                }
+                yield return result;
+            }
+
+            try
+            {
+                while (continuationPoints.Count > 0)
+                {
+                    var next = await BrowseNextAsync(
+                        requestHeader, false,
+                        continuationPoints.ToArrayOf(), ct).ConfigureAwait(false);
+                    ClientBase.ValidateResponse(
+                        next.Results, continuationPoints.ToArrayOf());
+                    ClientBase.ValidateDiagnosticInfos(
+                        next.DiagnosticInfos, continuationPoints.ToArrayOf());
+
+                    continuationPoints = new List<ByteString>();
+                    for (int i = 0; i < next.Results.Count; i++)
+                    {
+                        BrowseResult result = next.Results[i];
+                        if (StatusCode.IsGood(result.StatusCode) &&
+                            !result.ContinuationPoint.IsNull &&
+                            result.ContinuationPoint.Length != 0)
+                        {
+                            if (result.References.Count > 0)
+                            {
+                                continuationPoints.Add(result.ContinuationPoint);
+                            }
+                            else
+                            {
+                                m_logger.LogWarning(
+                                    "{Session}: Server returned empty references " +
+                                    "but a continuation point. Stopping to prevent " +
+                                    "denial of service.", this);
+                                yield return new BrowseResult {
+                                    StatusCode = StatusCodes.BadNoData
+                                };
+                                continue;
+                            }
+                        }
+                        yield return result;
+                    }
+                }
+            }
+            finally
+            {
+                if (continuationPoints.Count > 0)
+                {
+                    try
+                    {
+                        await BrowseNextAsync(
+                            requestHeader, true,
+                            continuationPoints.ToArrayOf(),
+                            default).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogError(ex,
+                            "{Session}: Failed to release continuation points.",
+                            this);
+                    }
+                }
+            }
+        }
+#endif
     }
 
     /// <summary>

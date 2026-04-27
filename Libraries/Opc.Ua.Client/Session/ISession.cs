@@ -30,6 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+using System.Runtime.CompilerServices;
+#endif
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -533,5 +536,22 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             uint sequenceNumber,
             CancellationToken ct = default);
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+        /// <summary>
+        /// Browse the server address space returning results as an async stream.
+        /// Automatically handles continuation points and releases them on disposal.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="view">The view to browse.</param>
+        /// <param name="nodesToBrowse">The set of browse operations to perform.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>An async stream of browse results.</returns>
+        IAsyncEnumerable<BrowseResult> BrowseStreamAsync(
+            RequestHeader? requestHeader,
+            ViewDescription? view,
+            ArrayOf<BrowseDescription> nodesToBrowse,
+            CancellationToken ct = default);
+#endif
     }
 }
