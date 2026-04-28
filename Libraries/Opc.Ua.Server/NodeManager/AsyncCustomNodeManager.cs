@@ -2295,9 +2295,46 @@ namespace Opc.Ua.Server
                         }
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
+
+                        RaiseSemanticChangeEvent(systemContext, node, property);
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Raises a semantic change event to notify clients that the structure or meaning of a node has changed.
+        /// </summary>
+        protected void RaiseSemanticChangeEvent(ISystemContext systemContext, NodeState node, PropertyState property)
+        {
+            using var e = new SemanticChangeEventState(null);
+
+            var message = new TranslationInfo(
+                "SemanticChangeEvent",
+                "en-US",
+                "SemanticChangeEvent.");
+
+            e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message));
+
+            e.SetChildValue(
+                systemContext,
+                BrowseNames.SourceNode,
+                ObjectIds.Server,
+                false);
+            e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
+
+            e.CreateOrReplaceChanges(systemContext, null);
+
+            e.Changes.Value = new[]
+                            {
+                                new SemanticChangeStructureDataType
+                                {
+                                    Affected = node.NodeId,
+                                    AffectedType = property.TypeDefinitionId
+                                }
+                            }.ToArrayOf();
+
+            Server.ReportEvent(e);
         }
 
         /// <summary>
@@ -4344,6 +4381,7 @@ namespace Opc.Ua.Server
             {
                 result.FilterToUse = deadbandFilter;
                 result.StatusCode = StatusCodes.Good;
+                return result;
             }
 
             // deadband filters can only be used for numeric values.
