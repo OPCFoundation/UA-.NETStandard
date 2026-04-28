@@ -27,51 +27,29 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client
+namespace Opc.Ua.Client.Sessions
 {
+    using System;
+    using System.Threading;
+
     /// <summary>
-    /// Certificate store names
+    /// Defines a reconnection policy for ManagedSession.
+    /// Controls backoff timing, retry limits, and jitter for
+    /// automatic reconnection attempts.
     /// </summary>
-    public enum CertificateStoreName
+    public interface IReconnectPolicy
     {
         /// <summary>
-        /// Own store
+        /// Get the delay before the next reconnection attempt.
         /// </summary>
-        Application,
+        /// <param name="attempt">Zero-based attempt number.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>Delay before next attempt, or null to stop retrying.</returns>
+        TimeSpan? GetNextDelay(int attempt, CancellationToken ct = default);
 
         /// <summary>
-        /// Rejected store
+        /// Reset the policy state (e.g., after successful reconnection).
         /// </summary>
-        Rejected,
-
-        /// <summary>
-        /// Trusted store
-        /// </summary>
-        Trusted,
-
-        /// <summary>
-        /// Https certificates
-        /// </summary>
-        Https,
-
-        /// <summary>
-        /// User store
-        /// </summary>
-        User,
-
-        /// <summary>
-        /// Opc Ua certificate issuer store
-        /// </summary>
-        Issuer,
-
-        /// <summary>
-        /// Https certificate issuer store
-        /// </summary>
-        HttpsIssuer,
-
-        /// <summary>
-        /// User issuer store
-        /// </summary>
-        UserIssuer,
+        void Reset();
     }
 }

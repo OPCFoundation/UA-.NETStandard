@@ -29,23 +29,50 @@
 
 namespace Opc.Ua.Client
 {
-    using Microsoft.Extensions.Options;
     using System.Threading;
     using System.Threading.Tasks;
 
     /// <summary>
-    /// Subscribe to notifications
+    /// Handles server redundancy detection and failover target
+    /// selection for a managed session.
     /// </summary>
-    public interface ISubscribe
+    /// <remarks>
+    /// See OPC UA Part 4 §6.6.2 for the server redundancy model.
+    /// </remarks>
+    public interface IServerRedundancyHandler
     {
         /// <summary>
-        /// Subscribe to notifications
+        /// Reads redundancy information from the connected session.
         /// </summary>
-        /// <param name="subscription"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask<IReader<Notification>> SubscribeAsync(
-            IOptionsMonitor<SubscriptionClientOptions> subscription,
+        /// <param name="session">The active session to read from.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>
+        /// A <see cref="ServerRedundancyInfo"/> describing the server's
+        /// redundancy configuration.
+        /// </returns>
+        ValueTask<ServerRedundancyInfo> FetchRedundancyInfoAsync(
+            ISession session,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Selects the best server to fail over to from the redundant
+        /// server set.
+        /// </summary>
+        /// <param name="redundancyInfo">
+        /// The redundancy information previously obtained via
+        /// <see cref="FetchRedundancyInfoAsync"/>.
+        /// </param>
+        /// <param name="currentEndpoint">
+        /// The endpoint the session is currently connected to.
+        /// </param>
+        /// <returns>
+        /// A <see cref="ConfiguredEndpoint"/> for the best failover
+        /// target, or <see langword="null"/> if no failover target is
+        /// available (e.g., transparent redundancy or no suitable
+        /// backup server).
+        /// </returns>
+        ConfiguredEndpoint? SelectFailoverTarget(
+            ServerRedundancyInfo redundancyInfo,
+            ConfiguredEndpoint currentEndpoint);
     }
 }

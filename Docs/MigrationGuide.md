@@ -53,6 +53,7 @@
     - [GDS Client API modernization](#gds-client-api-modernization)
       - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
       - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
+    - [ManagedSession and Automatic Reconnection](#managedsession-and-automatic-reconnection)
   - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
     - [Asynchronous as default](#asynchronous-as-default)
     - [Observability](#observability)
@@ -786,6 +787,82 @@ var caps = ServerCapability.GDS;
 ```
 
 If you currently rely on a `[Obsolete]` member, switch to the `Async` equivalent and apply the `ValueTask` migration notes above. If a particular API has no direct replacement, the migration is described inline in the XML doc comment of the replacement member.
+
+### ManagedSession and Automatic Reconnection
+
+Version 1.6 introduces `ManagedSession`, a wrapper around `Session` that automatically handles connection lifecycle including reconnection and server redundancy failover.
+
+#### Key Changes
+
+- **`DefaultSessionFactory`** now returns `ManagedSession` instead of raw `Session`. This means all code using `DefaultSessionFactory` or `ISessionFactory` automatically gets managed session behavior.
+- **`ClassicSessionFactory`** is the renamed original factory that returns raw `Session` for code that needs direct session control.
+- **`SessionReconnectHandler`** is deprecated — `ManagedSession` handles reconnection internally.
+
+#### Migration Steps
+
+**If you use `DefaultSessionFactory` (most common):**
+No code changes needed. Sessions are now automatically reconnected on failure.
+
+**If you use `SessionReconnectHandler`:**
+
+Before (1.5.x):
+```csharp
+var session = await Session.CreateAsync(...);
+var reconnectHandler = new SessionReconnectHandler();
+session.KeepAlive += (s, e) => {
+    if (e.Status != null && ServiceResult.IsNotGood(e.Status))
+        reconnectHandler.BeginReconnect(session, 1000, callback);
+};
+```
+
+After (1.6.x):
+```csharp
+var session = await ManagedSession.CreateAsync(
+    configuration, endpoint,
+    reconnectPolicy: new ReconnectPolicy
+    {
+        Strategy = BackoffStrategy.Exponential,
+        InitialDelay = TimeSpan.FromSeconds(1),
+        MaxDelay = TimeSpan.FromSeconds(30)
+    });
+// Reconnection is automatic — no manual handler needed
+session.StateChanged += (s, e) => {
+    Console.WriteLine($"Session state: {e.NewState}");
+};
+```
+
+**If you need raw Session behavior:**
+```csharp
+var factory = new ClassicSessionFactory(telemetry);
+var session = await factory.CreateAsync(...);
+```
+
+#### Configuring Reconnection Policy
+
+```csharp
+var policy = new ReconnectPolicy
+{
+    Strategy = BackoffStrategy.Exponential,  // or Linear, Constant
+    InitialDelay = TimeSpan.FromSeconds(1),
+    MaxDelay = TimeSpan.FromSeconds(30),
+    MaxRetries = 0,         // 0 = unlimited
+    JitterFactor = 0.1      // ±10% jitter
+};
+```
+
+#### Server Redundancy
+
+`ManagedSession` automatically reads server redundancy information and can failover to backup servers:
+
+```csharp
+var session = await ManagedSession.CreateAsync(
+    configuration, endpoint,
+    redundancyHandler: new DefaultServerRedundancyHandler());
+```
+
+#### Service Call Behavior During Reconnect
+
+When the session is reconnecting, service calls (Read, Write, Browse, etc.) automatically wait until the session is reconnected. This is transparent to the caller — no special handling needed. If reconnection fails permanently, calls will throw `ServiceResultException`.
 
 ## Migrating from 1.05.377 to 1.05.378
 
