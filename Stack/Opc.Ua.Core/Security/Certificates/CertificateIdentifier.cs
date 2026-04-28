@@ -578,49 +578,72 @@ namespace Opc.Ua
 
             CertificateCollection? matchesOnCriteria = null;
 
-            // find by subject name.
-            if (!string.IsNullOrEmpty(subjectName))
+            try
             {
-                List<string> parsedSubjectName = X509Utils.ParseDistinguishedName(subjectName!);
-
-                foreach (Certificate certificate in collection)
+                // find by subject name.
+                if (!string.IsNullOrEmpty(subjectName))
                 {
-                    if (ValidateCertificateType(certificate, certificateType) &&
-                        X509Utils.CompareDistinguishedName(certificate, parsedSubjectName))
+                    List<string> parsedSubjectName = X509Utils.ParseDistinguishedName(subjectName!);
+
+                    foreach (Certificate certificate in collection)
                     {
-                        if (!needPrivateKey || certificate.HasPrivateKey)
+                        if (ValidateCertificateType(certificate, certificateType) &&
+                            X509Utils.CompareDistinguishedName(certificate, parsedSubjectName))
                         {
-                            (matchesOnCriteria ??= []).Add(certificate);
+                            if (!needPrivateKey || certificate.HasPrivateKey)
+                            {
+                                (matchesOnCriteria ??= []).Add(certificate);
+                            }
                         }
                     }
-                }
-                if (matchesOnCriteria?.Count > 0)
-                {
-                    return PickBestCertificate(matchesOnCriteria);
-                }
-
-                bool hasCommonName = subjectName.Contains("CN=", StringComparison.OrdinalIgnoreCase);
-
-                // If parsedSubjectName did not match the certificate distinguished name
-                // If "CN=" exists in the subject name than an exact match on CN is required
-                if (hasCommonName)
-                {
-                    string? commonNameEntry = parsedSubjectName
-                        .FirstOrDefault(s => s.StartsWith("CN=", StringComparison.OrdinalIgnoreCase));
-                    string? commonName = commonNameEntry?.Length > 3
-                        ? commonNameEntry[3..].Trim()
-                        : null;
-
-                    if (!string.IsNullOrEmpty(commonName))
+                    if (matchesOnCriteria?.Count > 0)
                     {
-                        foreach (Certificate certificate in collection)
+                        return PickBestCertificate(matchesOnCriteria);
+                    }
+
+                    bool hasCommonName = subjectName.Contains("CN=", StringComparison.OrdinalIgnoreCase);
+
+                    // If parsedSubjectName did not match the certificate distinguished name
+                    // If "CN=" exists in the subject name than an exact match on CN is required
+                    if (hasCommonName)
+                    {
+                        string? commonNameEntry = parsedSubjectName
+                            .FirstOrDefault(s => s.StartsWith("CN=", StringComparison.OrdinalIgnoreCase));
+                        string? commonName = commonNameEntry?.Length > 3
+                            ? commonNameEntry[3..].Trim()
+                            : null;
+
+                        if (!string.IsNullOrEmpty(commonName))
+                        {
+                            foreach (Certificate certificate in collection)
+                            {
+                                if (ValidateCertificateType(certificate, certificateType) &&
+                                    (!needPrivateKey || certificate.HasPrivateKey) &&
+                                    string.Equals(
+                                        certificate.GetNameInfo(X509NameType.SimpleName, false),
+                                        commonName,
+                                        StringComparison.Ordinal))
+                                {
+                                    (matchesOnCriteria ??= []).Add(certificate);
+                                }
+                            }
+                            if (matchesOnCriteria?.Count > 0)
+                            {
+                                return PickBestCertificate(matchesOnCriteria);
+                            }
+                        }
+                    }
+                    // If no "CN=" specified than a fuzzy match is allowed
+                    else
+                    {
+                        using CertificateCollection fuzzyMatches = collection.Find(
+                            X509FindType.FindBySubjectName,
+                            subjectName!,
+                            false);
+                        foreach (Certificate certificate in fuzzyMatches)
                         {
                             if (ValidateCertificateType(certificate, certificateType) &&
-                                (!needPrivateKey || certificate.HasPrivateKey) &&
-                                string.Equals(
-                                    certificate.GetNameInfo(X509NameType.SimpleName, false),
-                                    commonName,
-                                    StringComparison.Ordinal))
+                                (!needPrivateKey || certificate.HasPrivateKey))
                             {
                                 (matchesOnCriteria ??= []).Add(certificate);
                             }
@@ -631,16 +654,14 @@ namespace Opc.Ua
                         }
                     }
                 }
-                // If no "CN=" specified than a fuzzy match is allowed
-                else
+
+                //find by application uri
+                if (!string.IsNullOrEmpty(applicationUri))
                 {
-                    using CertificateCollection fuzzyMatches = collection.Find(
-                        X509FindType.FindBySubjectName,
-                        subjectName!,
-                        false);
-                    foreach (Certificate certificate in fuzzyMatches)
+                    foreach (Certificate certificate in collection)
                     {
-                        if (ValidateCertificateType(certificate, certificateType) &&
+                        if (X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri!) &&
+                            ValidateCertificateType(certificate, certificateType) &&
                             (!needPrivateKey || certificate.HasPrivateKey))
                         {
                             (matchesOnCriteria ??= []).Add(certificate);
@@ -651,28 +672,14 @@ namespace Opc.Ua
                         return PickBestCertificate(matchesOnCriteria);
                     }
                 }
-            }
 
-            //find by application uri
-            if (!string.IsNullOrEmpty(applicationUri))
+                // certificate not found.
+                return null;
+            }
+            finally
             {
-                foreach (Certificate certificate in collection)
-                {
-                    if (X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri!) &&
-                        ValidateCertificateType(certificate, certificateType) &&
-                        (!needPrivateKey || certificate.HasPrivateKey))
-                    {
-                        (matchesOnCriteria ??= []).Add(certificate);
-                    }
-                }
-                if (matchesOnCriteria?.Count > 0)
-                {
-                    return PickBestCertificate(matchesOnCriteria);
-                }
+                matchesOnCriteria?.Dispose();
             }
-
-            // certificate not found.
-            return null;
         }
 
         /// <summary>

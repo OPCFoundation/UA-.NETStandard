@@ -165,22 +165,29 @@ namespace Opc.Ua.Security.Certificates
                 try
                 {
                     // merge first cert with private key into Certificate
+#pragma warning disable CA2000 // Disposed in finally; null-after-transfer guards return path
                     certificate = Certificate.From(
                         X509CertificateLoader.LoadPkcs12(
                             rawData,
                             password,
                             flag));
+#pragma warning restore CA2000
                     if (VerifyKeyPair(certificate, certificate, true))
                     {
                         // Found
-                        return certificate;
+                        Certificate result = certificate;
+                        certificate = null;
+                        return result;
                     }
                 }
                 catch (Exception e)
                 {
                     ex = e;
                 }
-                certificate?.Dispose();
+                finally
+                {
+                    certificate?.Dispose();
+                }
             }
             if (ex != null)
             {

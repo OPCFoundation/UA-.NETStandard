@@ -229,7 +229,9 @@ namespace Opc.Ua
             {
                 if (certificate.Thumbprint == thumbprint)
                 {
-                    collection.Add(Certificate.From(certificate));
+                    Certificate cert = Certificate.From(certificate);
+                    collection.Add(cert);
+                    cert.Dispose();
                 }
             }
 
@@ -400,7 +402,7 @@ namespace Opc.Ua
             }
 
             Certificate? issuer = null;
-            CertificateCollection certificates = await EnumerateAsync(ct).ConfigureAwait(
+            using CertificateCollection certificates = await EnumerateAsync(ct).ConfigureAwait(
                 false);
             foreach (Certificate certificate in certificates)
             {

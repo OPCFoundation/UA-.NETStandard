@@ -146,7 +146,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             var adapter = new CertificateValidatorAdapter(manager);
-            var chain = new CertificateCollection { cert };
+            using var chain = new CertificateCollection { cert };
 
             Assert.DoesNotThrowAsync(
                 async () => await adapter.ValidateAsync(chain, CancellationToken.None)
@@ -166,7 +166,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
 
             var adapter = new CertificateValidatorAdapter(manager);
-            var chain = new CertificateCollection { cert };
+            using var chain = new CertificateCollection { cert };
 
             Assert.ThrowsAsync<ServiceResultException>(
                 async () => await adapter.ValidateAsync(chain, CancellationToken.None)

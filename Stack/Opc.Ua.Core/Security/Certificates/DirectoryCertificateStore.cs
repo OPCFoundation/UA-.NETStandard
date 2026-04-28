@@ -638,10 +638,10 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            certificatesInFile = new CertificateCollection();
-                            certificatesInFile.Add(
-                                Certificate.From(
-                                    X509CertificateLoader.LoadCertificateFromFile(file.FullName)));
+                            certificatesInFile = CertificateCollection.From(
+                                new X509Certificate2Collection {
+                                    X509CertificateLoader.LoadCertificateFromFile(file.FullName)
+                                });
                         }
 
                         using (certificatesInFile)
@@ -1043,7 +1043,7 @@ namespace Opc.Ua
             }
 
             Certificate? issuer = null;
-            CertificateCollection certificates = await EnumerateAsync(ct).ConfigureAwait(
+            using CertificateCollection certificates = await EnumerateAsync(ct).ConfigureAwait(
                 false);
             foreach (Certificate certificate in certificates)
             {

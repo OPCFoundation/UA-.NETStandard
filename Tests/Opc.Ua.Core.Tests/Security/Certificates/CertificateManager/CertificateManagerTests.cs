@@ -154,7 +154,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            var certId = new CertificateIdentifier(cert) {
+            using var certId = new CertificateIdentifier(cert) {
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
 
@@ -207,8 +207,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
+            using var certCollection = new CertificateCollection { cert };
             CertificateValidationResult result = await manager.ValidateAsync(
-                new CertificateCollection { cert },
+                certCollection,
                 TrustListIdentifier.Peers).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
@@ -231,8 +232,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await store.AddAsync(cert).ConfigureAwait(false);
             }
 
+            using var trustedCollection = new CertificateCollection { cert };
             CertificateValidationResult result = await manager.ValidateAsync(
-                new CertificateCollection { cert },
+                trustedCollection,
                 TrustListIdentifier.Peers).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.True);
@@ -279,9 +281,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
+            using var rejectedCollection = new CertificateCollection { cert };
             Assert.DoesNotThrowAsync(async () =>
                 await manager.RejectCertificateAsync(
-                    new CertificateCollection { cert }).ConfigureAwait(false));
+                    rejectedCollection).ConfigureAwait(false));
         }
 
         #endregion

@@ -530,7 +530,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async Task ValidateAsync(Certificate certificate, CancellationToken ct)
         {
-            var chain = new CertificateCollection { certificate };
+            using var chain = new CertificateCollection { certificate };
             await ValidateAsync(chain, ct).ConfigureAwait(false);
         }
 
@@ -710,6 +710,11 @@ namespace Opc.Ua
                 }
             } while (issuer != null);
 
+            foreach (CertificateIdentifier untrusted in untrustedList)
+            {
+                untrusted.Dispose();
+            }
+
             return isTrusted;
         }
 
@@ -803,7 +808,15 @@ namespace Opc.Ua
                 {
                     rejectedChain.Add(c);
                 }
-                m_rejectedWriter?.Enqueue(rejectedChain);
+
+                if (m_rejectedWriter != null)
+                {
+                    m_rejectedWriter.Enqueue(rejectedChain);
+                }
+                else
+                {
+                    rejectedChain.Dispose();
+                }
 
                 LogInnerServiceResults(LogLevel.Information, se.Result.InnerResult);
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
@@ -872,7 +885,15 @@ namespace Opc.Ua
                 {
                     rejectedChain2.Add(c);
                 }
-                m_rejectedWriter?.Enqueue(rejectedChain2);
+
+                if (m_rejectedWriter != null)
+                {
+                    m_rejectedWriter.Enqueue(rejectedChain2);
+                }
+                else
+                {
+                    rejectedChain2.Dispose();
+                }
 
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
             }
@@ -999,8 +1020,13 @@ namespace Opc.Ua
                             trusted.Thumbprint == certificate.Thumbprint &&
                             Utils.IsEqual(trusted.RawData, certificate.RawData))
                         {
-                            return m_trustedCertificateList[ii];
+                            // return an owned copy so the caller can safely dispose it
+                            return new CertificateIdentifier(
+                                trusted,
+                                m_trustedCertificateList[ii].ValidationOptions);
                         }
+
+                        trusted?.Dispose();
                     }
                 }
 
@@ -1021,14 +1047,14 @@ namespace Opc.Ua
                                 if (Utils.IsEqual(trusted[ii].RawData, certificate.RawData))
                                 {
                                     return new CertificateIdentifier(
-                                        trusted[ii],
+                                        trusted[ii].AddRef(),
                                         m_trustedCertificateStore.ValidationOptions);
                                 }
                             }
                         }
                         finally
                         {
-                            store.Close();
+                            store.Dispose();
                         }
                     }
                 }
@@ -1230,7 +1256,7 @@ namespace Opc.Ua
                                 options
                                     |= CertificateValidationOptions.SuppressRevocationStatusUnknown;
 
-                                return (new CertificateIdentifier(issuer, options), serviceResult);
+                                return (new CertificateIdentifier(issuer.AddRef(), options), serviceResult);
                             }
                         }
                     }
@@ -1314,6 +1340,8 @@ namespace Opc.Ua
             var issuers = new List<CertificateIdentifier>();
             var validationErrors = new Dictionary<Certificate, ServiceResultException>();
 
+            try
+            {
             bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuerAsync(
                 certificates,
                 issuers,
@@ -1325,7 +1353,11 @@ namespace Opc.Ua
 
             foreach (Certificate key in validationErrors.Keys)
             {
-                key.Dispose();
+                // skip the leaf certificate which is owned by the caller
+                if (!ReferenceEquals(key, certificate))
+                {
+                    key.Dispose();
+                }
             }
 
             // setup policy chain
@@ -1369,10 +1401,11 @@ namespace Opc.Ua
                 chain.Build(certX509);
 
                 // check the chain results.
-                CertificateIdentifier target = trustedCertificate ??
-                    new CertificateIdentifier(certificate);
+                using CertificateIdentifier? fallbackTarget = trustedCertificate == null
+                    ? new CertificateIdentifier(certificate) : null;
+                CertificateIdentifier target = trustedCertificate ?? fallbackTarget!;
 
-                foreach (X509ChainStatus chainStatus in chain.ChainStatus)
+                foreach (X509ChainStatus chainStatus in chain.ChainStatus ?? [])
                 {
                     switch (chainStatus.Status)
                     {
@@ -1648,6 +1681,15 @@ namespace Opc.Ua
             if (sresult != null)
             {
                 throw new ServiceResultException(sresult);
+            }
+            }
+            finally
+            {
+                trustedCertificate?.Dispose();
+                foreach (CertificateIdentifier issuer in issuers)
+                {
+                    issuer.Dispose();
+                }
             }
         }
 

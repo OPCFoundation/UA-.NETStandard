@@ -54,6 +54,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
+            (m_telemetry as IDisposable)?.Dispose();
+
             if (Directory.Exists(m_tempDir))
             {
                 Directory.Delete(m_tempDir, true);
@@ -148,7 +150,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
+            using CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(certs, Is.Not.Null);
             Assert.That(certs.Count, Is.Zero);
         }
@@ -159,7 +161,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            CertificateCollection certs = await store.FindByThumbprintAsync("0000000000000000000000000000000000000000")
+            using CertificateCollection certs = await store.FindByThumbprintAsync("0000000000000000000000000000000000000000")
                 .ConfigureAwait(false);
             Assert.That(certs, Is.Not.Null);
             Assert.That(certs.Count, Is.Zero);
@@ -210,7 +212,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using Certificate publicKey = CertificateFactory.Create(cert.RawData);
             await store.AddAsync(publicKey).ConfigureAwait(false);
 
-            CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
+            using CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(certs.Count, Is.EqualTo(1));
             Assert.That(certs[0].Thumbprint, Is.EqualTo(publicKey.Thumbprint));
         }
@@ -229,7 +231,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using Certificate publicKey = CertificateFactory.Create(cert.RawData);
             await store.AddAsync(publicKey).ConfigureAwait(false);
 
-            CertificateCollection found = await store.FindByThumbprintAsync(publicKey.Thumbprint)
+            using CertificateCollection found = await store.FindByThumbprintAsync(publicKey.Thumbprint)
                 .ConfigureAwait(false);
             Assert.That(found.Count, Is.EqualTo(1));
             Assert.That(found[0].Thumbprint, Is.EqualTo(publicKey.Thumbprint));
@@ -271,7 +273,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             bool deleted = await store.DeleteAsync(publicKey.Thumbprint).ConfigureAwait(false);
             Assert.That(deleted, Is.True);
 
-            CertificateCollection remaining = await store.EnumerateAsync().ConfigureAwait(false);
+            using CertificateCollection remaining = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(remaining.Count, Is.Zero);
         }
 
@@ -313,7 +315,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(true, m_telemetry);
             store.Open(m_tempDir);
 
-            CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
+            using CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(certs, Is.Not.Null);
             Assert.That(certs.Count, Is.Zero);
         }
@@ -324,7 +326,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-            var certs = new CertificateCollection();
+            using var certs = new CertificateCollection();
             for (int i = 0; i < 3; i++)
             {
                 using Certificate cert = CertificateBuilder
@@ -336,13 +338,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             await store.AddRejectedAsync(certs, 5).ConfigureAwait(false);
 
-            CertificateCollection found = await store.EnumerateAsync().ConfigureAwait(false);
+            using CertificateCollection found = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(found.Count, Is.EqualTo(3));
-
-            foreach (Certificate cert in certs)
-            {
-                cert.Dispose();
-            }
         }
 
         [Test]
@@ -379,7 +376,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await store.AddAsync(publicKey).ConfigureAwait(false);
 
                 store.Open(tempDir2);
-                CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
+                using CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
                 Assert.That(certs.Count, Is.Zero);
             }
             finally

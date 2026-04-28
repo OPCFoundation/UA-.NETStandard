@@ -335,15 +335,16 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<CertificateValidationResult> ValidateAsync(
+        public async Task<CertificateValidationResult> ValidateAsync(
             Certificate certificate,
             TrustListIdentifier? trustList = null,
             CancellationToken ct = default)
         {
-            return ValidateAsync(
-                new CertificateCollection { certificate },
+            using var chain = new CertificateCollection { certificate };
+            return await ValidateAsync(
+                chain,
                 trustList,
-                ct: ct);
+                ct: ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -594,8 +595,11 @@ namespace Opc.Ua
                         .AsTask().GetAwaiter().GetResult();
                 }
 
+                m_peerValidator?.ResetValidatedCertificates();
                 m_peerValidator = null;
+                m_userValidator?.ResetValidatedCertificates();
                 m_userValidator = null;
+                m_httpsValidator?.ResetValidatedCertificates();
                 m_httpsValidator = null;
 
                 foreach (CertificateEntry entry in m_applicationCertificates)

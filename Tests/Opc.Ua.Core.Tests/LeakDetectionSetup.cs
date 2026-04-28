@@ -29,6 +29,7 @@
 
 using System;
 using NUnit.Framework;
+using System.Linq;
 using Opc.Ua.Security.Certificates;
 
 /// <summary>
@@ -38,6 +39,9 @@ using Opc.Ua.Security.Certificates;
 [SetUpFixture]
 public class LeakDetectionSetup
 {
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (long created, long disposed)>
+        s_fixtureLeaks = new();
+
     [OneTimeSetUp]
     public void GlobalSetup()
     {
@@ -55,10 +59,26 @@ public class LeakDetectionSetup
         long leaked = Certificate.InstancesLeaked;
         if (leaked > 0)
         {
+            string details = string.Join("\n",
+                s_fixtureLeaks
+                    .Where(kv => kv.Value.created > kv.Value.disposed)
+                    .OrderByDescending(kv => kv.Value.created - kv.Value.disposed)
+                    .Select(kv => $"  {kv.Key}: leaked={kv.Value.created - kv.Value.disposed} (created={kv.Value.created}, disposed={kv.Value.disposed})"));
+
             Assert.Fail(
                 $"Certificate leak detected: {leaked} instance(s) created " +
                 $"but not disposed (created={Certificate.InstancesCreated}, " +
-                $"disposed={Certificate.InstancesDisposed}).");
+                $"disposed={Certificate.InstancesDisposed}).\n" +
+                $"Per-fixture breakdown:\n{details}");
         }
+    }
+
+    /// <summary>
+    /// Records the certificate creation/disposal delta for a fixture.
+    /// Call from fixture OneTimeSetUp/OneTimeTearDown.
+    /// </summary>
+    public static void RecordFixture(string fixtureName, long created, long disposed)
+    {
+        s_fixtureLeaks[fixtureName] = (created, disposed);
     }
 }

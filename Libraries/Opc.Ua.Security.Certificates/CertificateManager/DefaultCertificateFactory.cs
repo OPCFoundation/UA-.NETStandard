@@ -207,14 +207,14 @@ namespace Opc.Ua.Security.Certificates
                 using ECDsa ecdsaPrivateKey =
                     PEMReader.ImportECDsaPrivateKeyFromPEM(
                         pemDataBlob, password);
-                return Certificate.FromRawData(certificate.RawData)
-                    .CopyWithPrivateKey(ecdsaPrivateKey);
+                using Certificate cert = Certificate.FromRawData(certificate.RawData);
+                return cert.CopyWithPrivateKey(ecdsaPrivateKey);
             }
 
             using RSA rsaPrivateKey =
                 PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
-            return Certificate.FromRawData(certificate.RawData)
-                .CopyWithPrivateKey(rsaPrivateKey);
+            using Certificate rsaCert = Certificate.FromRawData(certificate.RawData);
+            return rsaCert.CopyWithPrivateKey(rsaPrivateKey);
         }
 
         /// <inheritdoc/>

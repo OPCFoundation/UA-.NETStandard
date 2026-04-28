@@ -92,6 +92,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void ValidateAppConfigWithoutAppCert()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var appCertId = new CertificateIdentifier();
 
             var appConfig = new ApplicationConfiguration(telemetry)
             {
@@ -99,7 +100,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 ClientConfiguration = new ClientConfiguration(),
                 SecurityConfiguration = new SecurityConfiguration
                 {
-                    ApplicationCertificate = new CertificateIdentifier(),
+                    ApplicationCertificate = appCertId,
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
                 }

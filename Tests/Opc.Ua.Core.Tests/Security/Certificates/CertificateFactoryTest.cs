@@ -113,7 +113,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 rsa.ExportParameters(false);
             }
-            Certificate plainCert = CertificateFactory.Create(cert.RawData);
+            using Certificate plainCert = CertificateFactory.Create(cert.RawData);
             Assert.That(plainCert, Is.Not.Null);
             VerifyApplicationCert(app, plainCert);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
@@ -173,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(cert, Is.Not.Null);
             Assert.That(cert.RawData, Is.Not.Null);
             Assert.That(cert.HasPrivateKey, Is.True);
-            Certificate plainCert = CertificateFactory.Create(cert.RawData);
+            using Certificate plainCert = CertificateFactory.Create(cert.RawData);
             Assert.That(plainCert, Is.Not.Null);
             VerifyCACert(plainCert, subject, pathLengthConstraint);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
@@ -200,7 +200,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
             Assert.That(X509Utils.VerifySelfSigned(otherIssuerCertificate), Is.True);
 
-            var revokedCerts = new CertificateCollection();
+            using var revokedCerts = new CertificateCollection();
             try
             {
                 for (int i = 0; i < 10; i++)
@@ -212,6 +212,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             (ushort)(keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048))
                         .CreateForRSA();
                     revokedCerts.Add(cert);
+                    cert.Dispose();
                     Assert.That(X509Utils.VerifySelfSigned(cert), Is.False);
                 }
 
@@ -246,10 +247,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.Throws<CryptographicException>(() =>
                         crl.VerifySignature(otherIssuerCertificate, true));
                     Assert.That(crl.IsRevoked(cert), Is.False);
+                    using var tempCerts = new CertificateCollection([cert]);
                     X509CRL nextCrl = s_issuer.RevokeCertificates(
                         issuerCertificate,
                         revokedList,
-                        new CertificateCollection([cert]));
+                        tempCerts);
                     crlCounter++;
                     Assert.That(nextCrl, Is.Not.Null);
                     Assert.That(nextCrl.IsRevoked(cert), Is.True);
@@ -267,10 +269,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             finally
             {
-                foreach (Certificate cert in revokedCerts)
-                {
-                    cert?.Dispose();
-                }
             }
         }
 
@@ -290,20 +288,21 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 TestContext.Out.WriteLine("testing {0} certificates", certArray.Length);
 
-                byte[] certBlob = Utils.CreateCertificateChainBlob([.. certArray]);
+                using var chainCollection = new CertificateCollection([.. certArray]);
+                byte[] certBlob = Utils.CreateCertificateChainBlob(chainCollection);
 
                 byte[] singleBlob = AsnUtils.ParseX509Blob(certBlob).ToArray();
                 Assert.That(singleBlob, Is.Not.Null);
-                Certificate certX = CertificateFactory.Create(singleBlob);
+                using Certificate certX = CertificateFactory.Create(singleBlob);
                 Assert.That(certX, Is.Not.Null);
                 Assert.That(singleBlob, Is.EqualTo(certArray[0].RawData));
                 Assert.That(certX.RawData, Is.EqualTo(singleBlob));
                 Assert.That(certX.RawData, Is.EqualTo(certArray[0].RawData));
 
-                Certificate cert = Utils.ParseCertificateBlob(certBlob, telemetry);
+                using Certificate cert = Utils.ParseCertificateBlob(certBlob, telemetry);
                 Assert.That(cert, Is.Not.Null);
                 Assert.That(certArray[0].RawData, Is.EqualTo(cert.RawData));
-                CertificateCollection certChain = Utils.ParseCertificateChainBlob(certBlob, telemetry);
+                using CertificateCollection certChain = Utils.ParseCertificateChainBlob(certBlob, telemetry);
                 Assert.That(certChain, Is.Not.Null);
                 for (int i = 0; i < certArray.Length; i++)
                 {
