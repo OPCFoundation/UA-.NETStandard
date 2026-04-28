@@ -607,6 +607,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Indicates this node is part of a type hierarchy (ObjectType/VariableType
+        /// or a child thereof). Type hierarchy nodes are universally accessible
+        /// regardless of AccessRestrictions and RolePermissions.
+        /// </summary>
+        public bool IsPartOfTypeHierarchy { get; set; }
+
+        /// <summary>
         /// Gets or sets the extensions of the node set. Property used when importing NodeSet2.xml files.
         /// </summary>
         /// <value>

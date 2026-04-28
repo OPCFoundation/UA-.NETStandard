@@ -846,6 +846,8 @@ namespace Opc.Ua.SourceGeneration
                 public class StateMachineTransitionState : StateMachineStateState
                 {
                     public StateMachineTransitionState(NodeState? parent) : base(parent) { }
+                    public void CreateOrReplaceTransitionNumber(
+                        ISystemContext context, BaseInstanceState replacement) { }
                 }
                 public class StateMachineState : BaseObjectState
                 {

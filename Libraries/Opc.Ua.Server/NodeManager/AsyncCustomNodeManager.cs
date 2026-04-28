@@ -662,6 +662,12 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < children.Count; ii++)
             {
+                // Propagate type hierarchy flag from parent to children
+                if (activeNode.IsPartOfTypeHierarchy)
+                {
+                    children[ii].IsPartOfTypeHierarchy = true;
+                }
+
                 await AddPredefinedNodeAsync(context, children[ii], cancellationToken).ConfigureAwait(false);
             }
         }
@@ -1173,7 +1179,8 @@ namespace Opc.Ua.Server
             {
                 NodeClass = target.NodeClass,
                 BrowseName = target.BrowseName,
-                DisplayName = target.DisplayName
+                DisplayName = target.DisplayName,
+                IsPartOfTypeHierarchy = target.IsPartOfTypeHierarchy
             };
 
             if (nodeMetadataValues[0].TryGet(out uint writeMask) &&
@@ -2295,9 +2302,46 @@ namespace Opc.Ua.Server
                         }
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
+
+                        RaiseSemanticChangeEvent(systemContext, node, property);
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Raises a semantic change event to notify clients that the structure or meaning of a node has changed.
+        /// </summary>
+        protected void RaiseSemanticChangeEvent(ISystemContext systemContext, NodeState node, PropertyState property)
+        {
+            using var e = new SemanticChangeEventState(null);
+
+            var message = new TranslationInfo(
+                "SemanticChangeEvent",
+                "en-US",
+                "SemanticChangeEvent.");
+
+            e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message));
+
+            e.SetChildValue(
+                systemContext,
+                BrowseNames.SourceNode,
+                ObjectIds.Server,
+                false);
+            e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
+
+            e.CreateOrReplaceChanges(systemContext, null);
+
+            e.Changes.Value = new[]
+                            {
+                                new SemanticChangeStructureDataType
+                                {
+                                    Affected = node.NodeId,
+                                    AffectedType = property.TypeDefinitionId
+                                }
+                            }.ToArrayOf();
+
+            Server.ReportEvent(e);
         }
 
         /// <summary>
@@ -4344,6 +4388,7 @@ namespace Opc.Ua.Server
             {
                 result.FilterToUse = deadbandFilter;
                 result.StatusCode = StatusCodes.Good;
+                return result;
             }
 
             // deadband filters can only be used for numeric values.
@@ -5050,7 +5095,10 @@ namespace Opc.Ua.Server
             var values = new Variant[3];
 
             // construct the meta-data object.
-            var metadata = new NodeMetadata(target, target.NodeId);
+            var metadata = new NodeMetadata(target, target.NodeId)
+            {
+                IsPartOfTypeHierarchy = target.IsPartOfTypeHierarchy
+            };
 
             // Treat the case of calls originating from the optimized services that use the cache (Read, Browse and Call services)
             if (uniqueNodesServiceAttributesCache != null)

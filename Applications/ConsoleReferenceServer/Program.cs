@@ -35,6 +35,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Gds.Server;
+using Opc.Ua.Gds.Server.Database.Linq;
 using System.CommandLine;
 
 namespace Quickstarts.ReferenceServer
@@ -187,6 +189,15 @@ namespace Quickstarts.ReferenceServer
 
                     // Create and add the node managers
                     server.Create(Servers.Utils.NodeManagerFactories);
+
+                    // Add GDS node manager if configured
+                    var gdsConfig = server.Configuration
+                        .ParseExtension<GlobalDiscoveryServerConfiguration>();
+                    if (gdsConfig != null)
+                    {
+                        Console.WriteLine("GDS configuration found. Adding GDS node manager.");
+                        server.Server.AddNodeManager(new GdsNodeManagerFactory(gdsConfig));
+                    }
 
                     // enable provisioning mode if requested
                     if (provisioningMode)

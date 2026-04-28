@@ -5,6 +5,7 @@
     <Project Path="Applications/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
     <Project Path="Applications/MinimalBoilerServer/MinimalBoilerServer.csproj" />
     <Project Path="Applications/ConsoleReferenceSubscriber/ConsoleReferenceSubscriber.csproj" />
+    <Project Path="Applications/McpServer/Opc.Ua.Mcp.csproj" />
     <Project Path="Applications/Quickstarts.Servers/Quickstarts.Servers.csproj" />
   </Folder>
   <Folder Name="/Fuzzing/">
@@ -100,6 +101,7 @@
     <File Path="Docs/ReverseConnect.md" />
     <File Path="Docs/RoleBasedUserManagement.md" />
     <File Path="Docs/TransferSubscription.md" />
+    <File Path="Docs/McpServer.md" />
     <File Path="Docs/MigrationGuide.md" />
     <File Path="Docs/NugetREADME.md" />
     <File Path="Docs/README.md" />

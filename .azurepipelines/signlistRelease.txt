@@ -78,3 +78,4 @@ Libraries\Opc.Ua.PubSub\bin\Release\net48\Opc.Ua.PubSub.dll
 Libraries\Opc.Ua.PubSub\bin\Release\net8.0\Opc.Ua.PubSub.dll
 Libraries\Opc.Ua.PubSub\bin\Release\net9.0\Opc.Ua.PubSub.dll
 Libraries\Opc.Ua.PubSub\bin\Release\net10.0\Opc.Ua.PubSub.dll
+Applications\McpServer\bin\Release\net10.0\Opc.Ua.Mcp.dll

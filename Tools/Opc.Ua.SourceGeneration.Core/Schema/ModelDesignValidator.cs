@@ -3738,6 +3738,44 @@ namespace Opc.Ua.Schema.Model
                 }
 
                 node.References = [.. references];
+
+                // Auto-set SupportsEvents when the node has forward HasEventSource
+                // or HasNotifier references. Per OPC UA Part 3, the EventNotifier
+                // attribute must be set on the source node of these references.
+                if (node is ObjectDesign objectNode &&
+                    !objectNode.SupportsEvents &&
+                    !objectNode.SupportsEventsSpecified)
+                {
+                    foreach (Reference reference in references)
+                    {
+                        if (!reference.IsInverse &&
+                            reference.ReferenceType != null &&
+                            (reference.ReferenceType.Name == "HasEventSource" ||
+                             reference.ReferenceType.Name == "HasNotifier"))
+                        {
+                            objectNode.SupportsEvents = true;
+                            objectNode.SupportsEventsSpecified = true;
+                            break;
+                        }
+                    }
+                }
+                else if (node is ObjectTypeDesign objectTypeNode &&
+                    !objectTypeNode.SupportsEvents &&
+                    !objectTypeNode.SupportsEventsSpecified)
+                {
+                    foreach (Reference reference in references)
+                    {
+                        if (!reference.IsInverse &&
+                            reference.ReferenceType != null &&
+                            (reference.ReferenceType.Name == "HasEventSource" ||
+                             reference.ReferenceType.Name == "HasNotifier"))
+                        {
+                            objectTypeNode.SupportsEvents = true;
+                            objectTypeNode.SupportsEventsSpecified = true;
+                            break;
+                        }
+                    }
+                }
             }
         }
 

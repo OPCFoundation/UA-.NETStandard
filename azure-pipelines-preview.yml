@@ -12,6 +12,7 @@ trigger:
     include:
     - 'Stack/'
     - 'Libraries/'
+    - 'Applications/McpServer/'
 
 stages:
 - stage: nugetpreview

@@ -17,6 +17,8 @@ COPY ["Libraries/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.cspro
 COPY ["Libraries/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj", "Libraries/Opc.Ua.Configuration/"]
 COPY ["Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj", "Libraries/Opc.Ua.Server/"]
 COPY ["Applications/Quickstarts.Servers/Quickstarts.Servers.csproj", "Applications/Quickstarts.Servers/"]
+COPY ["Libraries/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj", "Libraries/Opc.Ua.Gds.Common/"]
+COPY ["Libraries/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj", "Libraries/Opc.Ua.Gds.Server.Common/"]
 ENV DOTNET_EnableWriteXorExecute=0
 RUN dotnet restore "Applications/ConsoleReferenceServer/ConsoleReferenceServer.csproj" --force -p:NoHttps=true -p:CustomTestTarget=net10.0
 COPY . .

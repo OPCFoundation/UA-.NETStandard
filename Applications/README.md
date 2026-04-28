@@ -24,7 +24,7 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
 
 1. Open a command prompt.
 2. Navigate to the folder **Applications/ConsoleReferenceServer**.
-3. To run the server sample type `dotnet run --project NetCoreReferenceServer.csproj`. The server is now running and waiting for the connection of the UACTT.
+3. To run the server sample type `dotnet run --project ConsoleReferenceServer.csproj`. The server is now running and waiting for the connection of the UACTT.
 
 ## UACTT test certificates
 
@@ -71,7 +71,7 @@ Note: Access to the UACTT is granted to OPC Foundation Corporate Members.
 
 ### UACTT sample configuration
 
-A sample configuration for the UACTT Version [1.04.9.398](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/) can be found in [UAReferenceServer.ctt.xml](./UAReferenceServer.ctt.xml). Originally the reference server was certified only against the **Standard UA Server** profile, the **Method Server Facet** and the **DataAccess Server Facet**, in addition to all security related profiles. During release testing all Conformance Units should be enabled / checked. 
+A sample configuration for the UACTT Version [1.04.9.398](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/) can be found in [UAReferenceServer.ctt.xml](./UAReferenceServer.ctt.xml). Originally the reference server was certified only against the **Standard UA Server** profile, the **Method Server Facet** and the **DataAccess Server Facet**, in addition to all security related profiles. During release testing all Conformance Units should be enabled / checked.
 
 ### Enabling Alarms & Conditions
 
