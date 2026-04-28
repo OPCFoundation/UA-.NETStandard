@@ -27,10 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+
 namespace Opc.Ua.Client
 {
-    using System.Collections.Generic;
-
     /// <summary>
     /// Redundancy support mode reported by the server.
     /// </summary>

@@ -27,12 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Client.Subscriptions
 {
-    using Opc.Ua;
-    using System.Threading;
-    using System.Threading.Tasks;
-
     /// <summary>
     /// Message acknoledgement queue
     /// </summary>

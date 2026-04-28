@@ -27,10 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Client
 {
-    using System;
-
     /// <summary>
     /// Connection states for a ManagedSession, following OPC UA
     /// client connectivity guidance.

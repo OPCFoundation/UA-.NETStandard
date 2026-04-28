@@ -3,15 +3,15 @@
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using Microsoft.Extensions.Options;
+using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
+
 namespace Opc.Ua
 {
-    using Microsoft.Extensions.Options;
-    using System;
-    using System.Diagnostics.CodeAnalysis;
-    using System.Threading;
-    using System.Threading.Channels;
-    using System.Threading.Tasks;
-
     /// <summary>
     /// Convert option changes to queue of changels
     /// </summary>

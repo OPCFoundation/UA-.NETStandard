@@ -3,13 +3,13 @@
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
+using Microsoft.Extensions.Options;
+using System;
+using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
+
 namespace Opc.Ua
 {
-    using Microsoft.Extensions.Options;
-    using System;
-    using System.Collections.Concurrent;
-    using System.Diagnostics.CodeAnalysis;
-
     /// <summary>
     /// Options monitor adapter
     /// </summary>

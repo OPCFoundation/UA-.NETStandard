@@ -27,11 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Client.Services;
+using System;
+
 namespace Opc.Ua.Client.Subscriptions
 {
-    using Opc.Ua.Client.Services;
-    using System;
-
     /// <summary>
     /// Subscription context
     /// </summary>

@@ -27,17 +27,17 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Opc.Ua.Client.Services;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Client.Subscriptions
 {
-    using Microsoft.Extensions.Logging;
-    using Microsoft.Extensions.Options;
-    using Opc.Ua.Client.Services;
-    using Opc.Ua.Client.Subscriptions.MonitoredItems;
-    using System;
-    using System.Collections.Generic;
-    using System.Threading;
-    using System.Threading.Tasks;
-
     /// <summary>
     /// A managed subscription inside a subscription manager. Can be
     /// extended to provide custom subscription implementations on
@@ -264,8 +264,8 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public MonitoredItem CreateMonitoredItem(string name,
-            IOptionsMonitor<MonitoredItemOptions> options, IMonitoredItemContext context)
+        public MonitoredItems.MonitoredItem CreateMonitoredItem(string name,
+            IOptionsMonitor<MonitoredItems.MonitoredItemOptions> options, IMonitoredItemContext context)
         {
             return CreateMonitoredItem(name, options, context, Observability);
         }
@@ -278,8 +278,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="context"></param>
         /// <param name="telemetry"></param>
         /// <returns></returns>
-        protected abstract MonitoredItem CreateMonitoredItem(string name,
-            IOptionsMonitor<MonitoredItemOptions> options, IMonitoredItemContext context,
+        protected abstract MonitoredItems.MonitoredItem CreateMonitoredItem(string name,
+            IOptionsMonitor<MonitoredItems.MonitoredItemOptions> options, IMonitoredItemContext context,
             ITelemetryContext telemetry);
 
         /// <summary>

@@ -27,12 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua;
+using System.Collections.Generic;
+using System.Threading;
+
 namespace Opc.Ua.Client.Services
 {
-    using Opc.Ua;
-    using System.Collections.Generic;
-    using System.Threading;
-
     /// <summary>
     /// Browse result for async enumerator
     /// </summary>

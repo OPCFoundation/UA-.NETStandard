@@ -27,11 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Client.Services
 {
-    using System.Threading;
-    using System.Threading.Tasks;
-
     /// <summary>
     /// Method services
     /// <see href="https://reference.opcfoundation.org/Core/Part4/v105/docs/5.12"/>

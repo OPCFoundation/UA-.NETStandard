@@ -27,13 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Nito.AsyncEx;
+
 namespace Opc.Ua.Client
 {
-    using System;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using Nito.AsyncEx;
-
     /// <summary>
     /// Service method delegations for <see cref="ManagedSession"/>.
     /// All async methods are gated with a reader lock so that service

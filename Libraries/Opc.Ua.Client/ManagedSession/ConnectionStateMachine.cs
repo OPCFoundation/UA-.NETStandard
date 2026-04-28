@@ -27,14 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Client.Sessions;
+
 namespace Opc.Ua.Client
 {
-    using System;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using Microsoft.Extensions.Logging;
-    using Opc.Ua.Client.Sessions;
-
     /// <summary>
     /// Manages the connection lifecycle state machine for ManagedSession.
     /// Runs a background worker that handles connect, reconnect, and

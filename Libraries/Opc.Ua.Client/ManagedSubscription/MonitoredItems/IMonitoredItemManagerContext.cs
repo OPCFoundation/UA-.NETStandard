@@ -27,11 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.Options;
+using Opc.Ua.Client.Services;
+
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
-    using Microsoft.Extensions.Options;
-    using Opc.Ua.Client.Services;
-
     /// <summary>
     /// Context for monitored item manager. The monitored item
     /// manager manages the state of the monitored items in the

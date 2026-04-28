@@ -27,11 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Client
 {
-    using System.Threading;
-    using System.Threading.Tasks;
-
     /// <summary>
     /// Handles server redundancy detection and failover target
     /// selection for a managed session.

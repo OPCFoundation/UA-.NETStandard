@@ -27,12 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.Options;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Client.Subscriptions
 {
-    using Microsoft.Extensions.Options;
-    using System.Threading;
-    using System.Threading.Tasks;
-
     /// <summary>
     /// Subscription manager context
     /// </summary>

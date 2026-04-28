@@ -27,12 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua;
+using Microsoft.Extensions.Options;
+using System.Collections.Generic;
+
 namespace Opc.Ua.Client.Subscriptions
 {
-    using Opc.Ua;
-    using Microsoft.Extensions.Options;
-    using System.Collections.Generic;
-
     /// <summary>
     /// Subscription manager manages all subscription in a session
     /// </summary>

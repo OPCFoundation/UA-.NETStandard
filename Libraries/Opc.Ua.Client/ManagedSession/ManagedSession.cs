@@ -27,20 +27,20 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+using System.Runtime.CompilerServices;
+#endif
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Nito.AsyncEx;
+using Opc.Ua.Client.Sessions;
+
 namespace Opc.Ua.Client
 {
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-    using System.Runtime.CompilerServices;
-#endif
-    using System.Threading;
-    using System.Threading.Tasks;
-    using Microsoft.Extensions.Logging;
-    using Nito.AsyncEx;
-    using Opc.Ua.Client.Sessions;
-
     /// <summary>
     /// A managed session that wraps a V1 <see cref="Session"/> and
     /// automatically handles connection lifecycle, reconnection with

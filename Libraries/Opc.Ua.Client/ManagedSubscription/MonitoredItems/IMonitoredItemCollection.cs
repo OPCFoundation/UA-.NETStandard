@@ -27,11 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.Options;
+using System.Collections.Generic;
+
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
-    using Microsoft.Extensions.Options;
-    using System.Collections.Generic;
-
     /// <summary>
     /// Collection of managed monitored items
     /// </summary>

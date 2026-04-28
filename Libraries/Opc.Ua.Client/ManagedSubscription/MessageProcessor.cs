@@ -27,18 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Client.Services;
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Client.Subscriptions
 {
-    using Microsoft.Extensions.Logging;
-    using Opc.Ua.Client.Services;
-    using System;
-    using System.Collections.Generic;
-    using System.Collections.Immutable;
-    using System.Linq;
-    using System.Threading;
-    using System.Threading.Channels;
-    using System.Threading.Tasks;
-
     /// <summary>
     /// Processes messages inside a subscription, it is the base class for all
     /// subscription objects but basis to support better testing in isolation.

@@ -27,11 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Threading;
+
 namespace Opc.Ua.Client.Sessions
 {
-    using System;
-    using System.Threading;
-
     /// <summary>
     /// Defines a reconnection policy for ManagedSession.
     /// Controls backoff timing, retry limits, and jitter for

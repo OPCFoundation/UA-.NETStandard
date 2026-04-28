@@ -27,10 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
-    using System;
-
     /// <summary>
     /// Monitored item options base
     /// </summary>
