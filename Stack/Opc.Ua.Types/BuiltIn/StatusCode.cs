@@ -572,7 +572,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(StatusCode other)
         {
-            return CodeBits == other.CodeBits;
+            return Code == other.Code;
         }
 
         /// <inheritdoc/>
