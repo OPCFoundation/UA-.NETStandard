@@ -3331,7 +3331,7 @@
                   </Column>
                   <Column column="1">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data=""/>
+                    <Value typename="QString" type="10" data="ns=2;s=Scalar_Static_Arrays_Variant"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -4092,7 +4092,7 @@
                   </Column>
                   <Column column="1">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data=""/>
+                    <Value typename="QString" type="10" data="ns=2;s=Scalar_Static_Arrays2D_Variant"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5046,7 +5046,7 @@
                   </Column>
                   <Column column="1">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data=""/>
+                    <Value typename="QString" type="10" data="ns=2;s=DataAccess_ArrayItemType_Cube"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5084,7 +5084,7 @@
                   </Column>
                   <Column column="1">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data=""/>
+                    <Value typename="QString" type="10" data="ns=2;s=DataAccess_ArrayItemType_Image"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5122,7 +5122,7 @@
                   </Column>
                   <Column column="1">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data=""/>
+                    <Value typename="QString" type="10" data="ns=2;s=DataAccess_ArrayItemType_NDimension"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5160,7 +5160,7 @@
                   </Column>
                   <Column column="1">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data=""/>
+                    <Value typename="QString" type="10" data="ns=2;s=DataAccess_ArrayItemType_XYArray"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5198,7 +5198,7 @@
                   </Column>
                   <Column column="1">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data=""/>
+                    <Value typename="QString" type="10" data="ns=2;s=DataAccess_ArrayItemType_YArray"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -13224,7 +13224,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value typename="QString" type="10" data=""/>
+              <Value typename="QString" type="10" data="ns=2;s=NodeIds_Events_TriggerNode01"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -13262,7 +13262,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value typename="QString" type="10" data=""/>
+              <Value typename="QString" type="10" data="ns=2;s=NodeIds_Events_TriggerNode02"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
