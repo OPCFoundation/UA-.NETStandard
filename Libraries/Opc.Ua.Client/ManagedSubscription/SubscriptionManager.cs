@@ -80,9 +80,9 @@ namespace Opc.Ua.Client.Subscriptions
         {
             get
             {
-                lock (_subscriptionLock)
+                lock (m_subscriptionLock)
                 {
-                    return _subscriptions.ToList();
+                    return m_subscriptions.ToList();
                 }
             }
         }
@@ -92,18 +92,18 @@ namespace Opc.Ua.Client.Subscriptions
         {
             get
             {
-                lock (_subscriptionLock)
+                lock (m_subscriptionLock)
                 {
-                    return _subscriptions.Count;
+                    return m_subscriptions.Count;
                 }
             }
         }
 
         /// <inheritdoc/>
-        public int GoodPublishRequestCount => _goodPublishRequestCount;
+        public int GoodPublishRequestCount => m_goodPublishRequestCount;
 
         /// <inheritdoc/>
-        public int BadPublishRequestCount => _badPublishRequestCount;
+        public int BadPublishRequestCount => m_badPublishRequestCount;
 
         /// <inheritdoc/>
         public int PublishWorkerCount { get; private set; }
@@ -118,9 +118,9 @@ namespace Opc.Ua.Client.Subscriptions
         {
             get
             {
-                lock (_subscriptionLock)
+                lock (m_subscriptionLock)
                 {
-                    return [.. _subscriptions.Where(s => s.Created)];
+                    return [.. m_subscriptions.Where(s => s.Created)];
                 }
             }
         }
@@ -132,9 +132,9 @@ namespace Opc.Ua.Client.Subscriptions
         {
             get
             {
-                lock (_subscriptionLock)
+                lock (m_subscriptionLock)
                 {
-                    return _subscriptions.Count(s => s.Created);
+                    return m_subscriptions.Count(s => s.Created);
                 }
             }
         }
@@ -148,13 +148,13 @@ namespace Opc.Ua.Client.Subscriptions
         public SubscriptionManager(ISubscriptionManagerContext session,
             ILoggerFactory loggerFactory, DiagnosticsMasks returnDiagnostics)
         {
-            _session = session;
-            _loggerFactory = loggerFactory;
-            _logger = loggerFactory.CreateLogger<SubscriptionManager>();
+            m_session = session;
+            m_loggerFactory = loggerFactory;
+            m_logger = loggerFactory.CreateLogger<SubscriptionManager>();
             ReturnDiagnostics = returnDiagnostics;
-            _publishController = PublishControllerAsync(_cts.Token);
+            m_publishController = PublishControllerAsync(m_cts.Token);
 #if NET8_0_OR_GREATER
-            _acks = Channel.CreateUnboundedPrioritized<SubscriptionAcknowledgement>(
+            m_acks = Channel.CreateUnboundedPrioritized<SubscriptionAcknowledgement>(
                 new UnboundedPrioritizedChannelOptions<SubscriptionAcknowledgement>
                 {
                     Comparer = Comparer<SubscriptionAcknowledgement>
@@ -162,7 +162,7 @@ namespace Opc.Ua.Client.Subscriptions
                 });
 #else
             // TODO: polyfill ordering or use blocking queue
-            _acks = Channel.CreateUnbounded<SubscriptionAcknowledgement>();
+            m_acks = Channel.CreateUnbounded<SubscriptionAcknowledgement>();
 #endif
         }
 
@@ -171,30 +171,30 @@ namespace Opc.Ua.Client.Subscriptions
         {
             try
             {
-                _cts.Cancel();
-                _publishControl.Set();
-                await _publishController.ConfigureAwait(false);
+                m_cts.Cancel();
+                m_publishControl.Set();
+                await m_publishController.ConfigureAwait(false);
 
                 List<IManagedSubscription>? subscriptions = null;
-                lock (_subscriptionLock)
+                lock (m_subscriptionLock)
                 {
-                    subscriptions = [.. _subscriptions];
-                    _subscriptions.Clear();
+                    subscriptions = [.. m_subscriptions];
+                    m_subscriptions.Clear();
                 }
                 foreach (var subscription in subscriptions)
                 {
                     await subscription.DisposeAsync().ConfigureAwait(false);
                 }
                 subscriptions.Clear();
-                _subscriptionHistory.Clear();
+                m_subscriptionHistory.Clear();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Exception during dispose");
+                m_logger.LogError(ex, "Exception during dispose");
             }
             finally
             {
-                _cts.Dispose();
+                m_cts.Dispose();
             }
         }
 
@@ -203,38 +203,38 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         public void Update()
         {
-            _publishControl.Set();
+            m_publishControl.Set();
         }
 
         /// <inheritdoc/>
         public ValueTask QueueAsync(
             SubscriptionAcknowledgement ack, CancellationToken ct)
         {
-            return _acks.Writer.WriteAsync(ack, ct);
+            return m_acks.Writer.WriteAsync(ack, ct);
         }
 
         /// <inheritdoc/>
         public ValueTask CompleteAsync(uint subscriptionId, CancellationToken ct)
         {
             IManagedSubscription? subscription;
-            lock (_subscriptionLock)
+            lock (m_subscriptionLock)
             {
                 // find the subscription.
-                subscription = _subscriptions
+                subscription = m_subscriptions
                     .FirstOrDefault(s => s.Id == subscriptionId);
                 if (subscription == null ||
-                    !_subscriptions.Remove(subscription))
+                    !m_subscriptions.Remove(subscription))
                 {
                     return default;
                 }
-                _subscriptionHistory.Enqueue(subscriptionId);
+                m_subscriptionHistory.Enqueue(subscriptionId);
             }
-            while (_subscriptionHistory.Count > kMaxSubscriptionHistory)
+            while (m_subscriptionHistory.Count > kMaxSubscriptionHistory)
             {
-                _subscriptionHistory.TryDequeue(out _);
+                m_subscriptionHistory.TryDequeue(out _);
             }
-            _logger.LogInformation("{Subscription} REMOVED.", subscription);
-            _publishControl.Set();
+            m_logger.LogInformation("{Subscription} REMOVED.", subscription);
+            m_publishControl.Set();
             return default;
         }
 
@@ -242,17 +242,17 @@ namespace Opc.Ua.Client.Subscriptions
         public ISubscription Add(ISubscriptionNotificationHandler handler,
             IOptionsMonitor<SubscriptionOptions> options)
         {
-            var subscription = _session.CreateSubscription(handler, options, this);
-            lock (_subscriptionLock)
+            var subscription = m_session.CreateSubscription(handler, options, this);
+            lock (m_subscriptionLock)
             {
-                if (!_subscriptions.Add(subscription))
+                if (!m_subscriptions.Add(subscription))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
                         "Failed to add subscription.");
                 }
-                _logger.LogInformation("{Subscription} ADDED.", subscription);
+                m_logger.LogInformation("{Subscription} ADDED.", subscription);
             }
-            _publishControl.Set();
+            m_publishControl.Set();
             return subscription;
         }
 
@@ -261,14 +261,14 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         internal void Resume()
         {
-            lock (_subscriptionLock)
+            lock (m_subscriptionLock)
             {
-                foreach (var item in _subscriptions)
+                foreach (var item in m_subscriptions)
                 {
                     item.NotifySubscriptionManagerPaused(false);
                 }
             }
-            _running.Set();
+            m_running.Set();
         }
 
         /// <summary>
@@ -276,14 +276,14 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         internal void Pause()
         {
-            lock (_subscriptionLock)
+            lock (m_subscriptionLock)
             {
-                foreach (var item in _subscriptions)
+                foreach (var item in m_subscriptions)
                 {
                     item.NotifySubscriptionManagerPaused(true);
                 }
             }
-            _running.Reset();
+            m_running.Reset();
         }
 
         /// <summary>
@@ -301,7 +301,7 @@ namespace Opc.Ua.Client.Subscriptions
                 return;
             }
 
-            IReadOnlyList<IManagedSubscription> subscriptions = [.. _subscriptions];
+            IReadOnlyList<IManagedSubscription> subscriptions = [.. m_subscriptions];
             if (TransferSubscriptionsOnRecreate && previousSessionId != null)
             {
                 subscriptions = await TransferSubscriptionsAsync(subscriptions,
@@ -313,7 +313,7 @@ namespace Opc.Ua.Client.Subscriptions
                 var force = previousSessionId != null && subscription.Created;
                 await subscription.RecreateAsync(ct).ConfigureAwait(false);
             }
-            _publishControl.Set();
+            m_publishControl.Set();
 
             // Helper to try and transfer the subscriptions
             async Task<IReadOnlyList<IManagedSubscription>> TransferSubscriptionsAsync(
@@ -328,7 +328,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 var subscriptionIds = new ArrayOf<uint>(subscriptions
                     .Select(s => s.Id).ToArray());
-                var response = await _session.TransferSubscriptionsAsync(null,
+                var response = await m_session.TransferSubscriptionsAsync(null,
                     subscriptionIds, sendInitialValues, ct).ConfigureAwait(false);
 
                 var responseHeader = response.ResponseHeader;
@@ -337,12 +337,12 @@ namespace Opc.Ua.Client.Subscriptions
                     if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
                     {
                         TransferSubscriptionsOnRecreate = false;
-                        _logger.LogWarning("Transfer subscription unsupported, " +
+                        m_logger.LogWarning("Transfer subscription unsupported, " +
                             "TransferSubscriptionsOnReconnect set to false.");
                     }
                     else
                     {
-                        _logger.LogError(
+                        m_logger.LogError(
                             "Transfer subscriptions failed with error {Error}.",
                             responseHeader.ServiceResult);
                     }
@@ -358,14 +358,14 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     if (transferResults[index].StatusCode == StatusCodes.BadNothingToDo)
                     {
-                        _logger.LogDebug(
+                        m_logger.LogDebug(
                             "Subscription {Id} is already member of the session.",
                             subscriptionIds[index]);
                         // Done
                     }
                     else if (!StatusCode.IsGood(transferResults[index].StatusCode))
                     {
-                        _logger.LogError(
+                        m_logger.LogError(
                             "Subscription {Id} failed to transfer, StatusCode={Status}",
                             subscriptionIds[index], transferResults[index].StatusCode);
                         remaining.Add(subscriptions[index]);
@@ -397,10 +397,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <returns></returns>
         private IManagedSubscription? GetById(uint subscriptionId)
         {
-            lock (_subscriptionLock)
+            lock (m_subscriptionLock)
             {
                 // find the subscription.
-                foreach (var subscription in _subscriptions)
+                foreach (var subscription in m_subscriptions)
                 {
                     if (subscription.Id == subscriptionId)
                     {
@@ -433,7 +433,7 @@ namespace Opc.Ua.Client.Subscriptions
                         foreach (var worker in publishWorkers.Skip(desiredWorkerCount))
 #endif
                         {
-                            _logger.LogInformation("Removing publish worker {Index}",
+                            m_logger.LogInformation("Removing publish worker {Index}",
                                 worker.Index);
                             await worker.DisposeAsync().ConfigureAwait(false);
                         }
@@ -454,7 +454,7 @@ namespace Opc.Ua.Client.Subscriptions
                     PublishWorkerCount = publishWorkers.Count;
                     var waiting = publishWorkers
                         .Select(w => w.Task)
-                        .Prepend(_publishControl.WaitAsync(ct))
+                        .Prepend(m_publishControl.WaitAsync(ct))
                         .ToArray();
                     await Task.WhenAny(waiting).ConfigureAwait(false);
                     PublishControlCycles++;
@@ -464,7 +464,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (item.IsCompleted)
                         {
                             var worker = publishWorkers[index];
-                            _logger.LogInformation("Publish worker {Index} exited",
+                            m_logger.LogInformation("Publish worker {Index} exited",
                                 worker.Index);
                             await worker.DisposeAsync().ConfigureAwait(false);
                             publishWorkers.RemoveAt(index);
@@ -552,10 +552,10 @@ namespace Opc.Ua.Client.Subscriptions
             public PublishWorker(SubscriptionManager outer, int index)
             {
                 Index = index;
-                _outer = outer;
-                _cts = CancellationTokenSource.CreateLinkedTokenSource(outer._cts.Token);
-                _logger = _outer._loggerFactory.CreateLogger<PublishWorker>();
-                Task = PublishWorkerAsync(_cts.Token);
+                m_outer = outer;
+                m_cts = CancellationTokenSource.CreateLinkedTokenSource(outer.m_cts.Token);
+                m_logger = m_outer.m_loggerFactory.CreateLogger<PublishWorker>();
+                Task = PublishWorkerAsync(m_cts.Token);
             }
 
             /// <inheritdoc/>
@@ -563,7 +563,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 try
                 {
-                    await _cts.CancelAsync().ConfigureAwait(false);
+                    await m_cts.CancelAsync().ConfigureAwait(false);
                     if (!Task.IsCompleted)
                     {
                         try
@@ -575,7 +575,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 finally
                 {
-                    _cts.Dispose();
+                    m_cts.Dispose();
                 }
             }
 
@@ -594,16 +594,16 @@ namespace Opc.Ua.Client.Subscriptions
                 var publishLatency = new Stopwatch();
                 var timeoutHint = 0u;
                 var moreNotifications = true; // Dont wait first time we enter the loop.
-                _logger.LogInformation("PUBLISH Worker #{Handle} - STARTED.", Index);
+                m_logger.LogInformation("PUBLISH Worker #{Handle} - STARTED.", Index);
                 while (!ct.IsCancellationRequested)
                 {
-                    if (!_outer._running.IsSet)
+                    if (!m_outer.m_running.IsSet)
                     {
-                        _logger.LogInformation("PUBLISH Worker #{Handle} - PAUSED.", Index);
+                        m_logger.LogInformation("PUBLISH Worker #{Handle} - PAUSED.", Index);
                         try
                         {
-                            await _outer._running.WaitAsync(ct).ConfigureAwait(false);
-                            _logger.LogInformation("PUBLISH Worker #{Handle} - RESUMED.",
+                            await m_outer.m_running.WaitAsync(ct).ConfigureAwait(false);
+                            m_logger.LogInformation("PUBLISH Worker #{Handle} - RESUMED.",
                                 Index);
                         }
                         catch (OperationCanceledException)
@@ -612,7 +612,7 @@ namespace Opc.Ua.Client.Subscriptions
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex, "PUBLISH Worker #{Handle} - " +
+                            m_logger.LogError(ex, "PUBLISH Worker #{Handle} - " +
                                 "Unexpected exception while waiting to connect.", Index);
                             break;
                         }
@@ -620,7 +620,7 @@ namespace Opc.Ua.Client.Subscriptions
                     var ackWaitTimeout = CalculateTimeouts(
                         publishLatency.ElapsedMilliseconds, ref timeoutHint);
                     var acks = GetAcksReadyToSend();
-                    var handle = Utils.IncrementIdentifier(ref _outer._publishRequestCounter);
+                    var handle = Utils.IncrementIdentifier(ref m_outer.m_publishRequestCounter);
                     try
                     {
                         if (acks.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
@@ -629,10 +629,10 @@ namespace Opc.Ua.Client.Subscriptions
                             acks = await WaitForAcksAsync(ackWaitTimeout, ct).ConfigureAwait(false);
                         }
                         publishLatency.Restart();
-                        var response = await _outer._session.PublishAsync(new RequestHeader
+                        var response = await m_outer.m_session.PublishAsync(new RequestHeader
                         {
                             TimeoutHint = timeoutHint,
-                            ReturnDiagnostics = (uint)(int)_outer.ReturnDiagnostics,
+                            ReturnDiagnostics = (uint)(int)m_outer.ReturnDiagnostics,
                             RequestHandle = handle
                         }, acks, ct).ConfigureAwait(false);
 
@@ -648,7 +648,7 @@ namespace Opc.Ua.Client.Subscriptions
                         TooManyPublishRequests = false;
 
                         // Get the subscription with the provided identifier
-                        var subscription = _outer.GetById(subscriptionId);
+                        var subscription = m_outer.GetById(subscriptionId);
                         publishLatency.Stop();
                         if (subscription != null)
                         {
@@ -656,19 +656,19 @@ namespace Opc.Ua.Client.Subscriptions
                             await subscription.OnPublishReceivedAsync(notificationMessage,
                                 availableSequenceNumbers.ToList(),
                                 response.ResponseHeader.StringTable.ToList()).ConfigureAwait(false);
-                            Interlocked.Increment(ref _outer._goodPublishRequestCount);
+                            Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
                         }
                         else if (!ct.IsCancellationRequested &&
-                            !_outer._subscriptionHistory.Contains(subscriptionId))
+                            !m_outer.m_subscriptionHistory.Contains(subscriptionId))
                         {
                             // ignore messages with a subscription that was deleted
                             // Do not delete publish requests of stale subscriptions
-                            _logger.LogInformation(
+                            m_logger.LogInformation(
                                 "PUBLISH Worker #{Handle}-{Id} - Received Publish Response " +
                                 "for Unknown SubscriptionId={SubscriptionId}. Deleting...",
                                 Index, handle, subscriptionId);
-                            Interlocked.Increment(ref _outer._badPublishRequestCount);
-                            await _outer._session.DeleteSubscriptionsAsync(null,
+                            Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
+                            await m_outer.m_session.DeleteSubscriptionsAsync(null,
                                 [subscriptionId], ct).ConfigureAwait(false);
                             moreNotifications = true;
                         }
@@ -689,14 +689,14 @@ namespace Opc.Ua.Client.Subscriptions
                             break;
                         }
 
-                        Interlocked.Increment(ref _outer._badPublishRequestCount);
+                        Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
                         // Rollback acks we collected
-                        acks.ForEach(ack => _outer._acks.Writer.TryWrite(ack));
+                        acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
 
                         // ignore errors if paused.
-                        if (!_outer._running.IsSet)
+                        if (!m_outer.m_running.IsSet)
                         {
-                            _logger.LogWarning("PUBLISH Worker #{Handle}-{Id} - Publish " +
+                            m_logger.LogWarning("PUBLISH Worker #{Handle}-{Id} - Publish " +
                                 "abandoned after error due to reconnect: {Message}",
                                 Index, handle, e.Message);
                             continue;
@@ -731,7 +731,7 @@ namespace Opc.Ua.Client.Subscriptions
                             statusCode == StatusCodes.BadServerTooBusy)
                         {
                             // throttle the next publish to reduce server load
-                            _logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
+                            m_logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
                                 "Server busy, throttling worker.",
                                 Index, handle);
                             moreNotifications = false; // throttle
@@ -741,20 +741,20 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             // Timed out - retry with larger timeout
                             timeoutHint += 1000; // Increase by seconds
-                            _logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
+                            m_logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
                                 "Timed out, increasing timeout to {Timeout}.",
                                 Index, handle, timeoutHint);
                             moreNotifications = true;
                         }
                         else
                         {
-                            _logger.LogError(e, "PUBLISH Worker #{Handle}-{Id} - " +
+                            m_logger.LogError(e, "PUBLISH Worker #{Handle}-{Id} - " +
                                 "Unhandled error {Status} during Publish.",
                                 Index, handle, error.StatusCode);
                         }
                     }
                 }
-                _logger.LogInformation("PUBLISH Worker #{Handle} - STOPPED.", Index);
+                m_logger.LogInformation("PUBLISH Worker #{Handle} - STOPPED.", Index);
             }
 
             /// <summary>
@@ -772,7 +772,7 @@ namespace Opc.Ua.Client.Subscriptions
                 if (maxWaitTime != Timeout.Infinite)
                 {
 #if FALSE
-                    var workers = _outer.PublishWorkerCount;
+                    var workers = m_outer.PublishWorkerCount;
                     if (workers == 0)
                     {
                         Debug.Fail("Must have at least this worker here.");
@@ -780,32 +780,32 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     maxWaitTime /= workers;
 #endif
-                    _logger.LogInformation(
+                    m_logger.LogInformation(
                         "PUBLISH Worker #{Handle} - Waiting max {Time}ms for acks to arrive.",
                         Index, maxWaitTime);
                     cts.CancelAfter(maxWaitTime);
                 }
                 else
                 {
-                    _logger.LogDebug("PUBLISH Worker #{Handle} - Waiting for acks to arrive.",
+                    m_logger.LogDebug("PUBLISH Worker #{Handle} - Waiting for acks to arrive.",
                         Index);
                 }
                 try
                 {
-                    var firstAck = await _outer._acks.Reader.ReadAsync(
+                    var firstAck = await m_outer.m_acks.Reader.ReadAsync(
                         cts.Token).ConfigureAwait(false);
                     var restAcks = GetAcksReadyToSend();
                     var ackList = restAcks.ToList();
                     ackList.Insert(0, firstAck);
                     ArrayOf<SubscriptionAcknowledgement> acks = ackList;
-                    _logger.LogInformation(
+                    m_logger.LogInformation(
                         "PUBLISH Worker #{Handle} - Publish {Count} acks after pausing {Duration}.",
                         Index, acks.Count, sw.Elapsed);
                     return acks;
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
-                    _logger.LogInformation(
+                    m_logger.LogInformation(
                         "PUBLISH Worker #{Handle} - Publish with no acks after waiting {Duration}.",
                         Index, sw.Elapsed);
                     return [];
@@ -821,16 +821,16 @@ namespace Opc.Ua.Client.Subscriptions
                 var acks = new List<SubscriptionAcknowledgement>();
 
                 // TODO: Is this something that we can get from ops limit?
-                var available = _outer._acks.Reader.Count;
-                var maxAcks = available / Math.Max(_outer.PublishWorkerCount, 1);
+                var available = m_outer.m_acks.Reader.Count;
+                var maxAcks = available / Math.Max(m_outer.PublishWorkerCount, 1);
                 for (var i = 0; i < maxAcks
-                    && _outer._acks.Reader.TryRead(out var ack); i++)
+                    && m_outer.m_acks.Reader.TryRead(out var ack); i++)
                 {
                     acks.Add(ack);
                 }
                 if (acks.Count != 0)
                 {
-                    _logger.LogDebug(
+                    m_logger.LogDebug(
                         "PUBLISH Worker #{Handle} - Acknoledging {Count} of {Total} messages.",
                         Index, acks.Count, available);
                 }
@@ -845,7 +845,7 @@ namespace Opc.Ua.Client.Subscriptions
             /// <returns>Max time to throttle the publish</returns>
             private int CalculateTimeouts(long latency, ref uint currentTimeout)
             {
-                var created = _outer.Created;
+                var created = m_outer.Created;
                 if (created.Count == 0)
                 {
                     return 0;
@@ -899,29 +899,29 @@ namespace Opc.Ua.Client.Subscriptions
                 return minPublishInterval - (int)latency;
             }
 
-            private readonly ILogger _logger;
-            private readonly SubscriptionManager _outer;
-            private readonly CancellationTokenSource _cts;
+            private readonly ILogger m_logger;
+            private readonly SubscriptionManager m_outer;
+            private readonly CancellationTokenSource m_cts;
         }
 
         private static readonly TimeSpan kMaxOperationTimeout = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan kMinOperationTimeout = TimeSpan.FromSeconds(1);
         private const int kMaxSubscriptionHistory = 10;
-        private uint _publishRequestCounter;
+        private uint m_publishRequestCounter;
 #pragma warning disable IDE0032 // Use auto property
-        private int _badPublishRequestCount;
-        private int _goodPublishRequestCount;
+        private int m_badPublishRequestCount;
+        private int m_goodPublishRequestCount;
 #pragma warning restore IDE0032 // Use auto property
-        private readonly Channel<SubscriptionAcknowledgement> _acks;
-        private readonly Nito.AsyncEx.AsyncManualResetEvent _running = new();
-        private readonly Nito.AsyncEx.AsyncAutoResetEvent _publishControl = new();
-        private readonly ConcurrentQueue<uint> _subscriptionHistory = new();
-        private readonly Task _publishController;
-        private readonly Lock _subscriptionLock = new();
-        private readonly HashSet<IManagedSubscription> _subscriptions = [];
-        private readonly CancellationTokenSource _cts = new();
-        private readonly ISubscriptionManagerContext _session;
-        private readonly ILoggerFactory _loggerFactory;
-        private readonly ILogger _logger;
+        private readonly Channel<SubscriptionAcknowledgement> m_acks;
+        private readonly Nito.AsyncEx.AsyncManualResetEvent m_running = new();
+        private readonly Nito.AsyncEx.AsyncAutoResetEvent m_publishControl = new();
+        private readonly ConcurrentQueue<uint> m_subscriptionHistory = new();
+        private readonly Task m_publishController;
+        private readonly Lock m_subscriptionLock = new();
+        private readonly HashSet<IManagedSubscription> m_subscriptions = [];
+        private readonly CancellationTokenSource m_cts = new();
+        private readonly ISubscriptionManagerContext m_session;
+        private readonly ILoggerFactory m_loggerFactory;
+        private readonly ILogger m_logger;
     }
 }

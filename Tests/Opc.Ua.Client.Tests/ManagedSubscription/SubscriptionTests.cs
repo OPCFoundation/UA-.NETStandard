@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Subscriptions
                 .Setup(m_mockSession => m_mockSession.MonitoredItemServiceSet)
                 .Returns(m_mockMonitoredItemServices.Object);
             m_mockCompletion = new Mock<IMessageAckQueue>();
-            _options = OptionsFactory.Create<SubscriptionOptions>();
+            m_options = OptionsFactory.Create<SubscriptionOptions>();
 
             m_mockObservability = new Mock<ITelemetryContext>();
             m_mockLogger = new Mock<ILogger<Subscription>>();
@@ -78,7 +78,7 @@ namespace Opc.Ua.Client.Subscriptions
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
 
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object);
 
             // Act
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
@@ -108,9 +108,9 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            _options.Configure(o => o with { Disabled = true });
+            m_options.Configure(o => o with { Disabled = true });
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object);
             Assert.That(sut.Created, Is.False);
             Assert.That(sut.CurrentPublishingInterval, Is.EqualTo(TimeSpan.Zero));
             Assert.That(sut.CurrentKeepAliveCount, Is.EqualTo(0));
@@ -120,7 +120,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Act
             sut.SubscriptionStateChanged.Reset();
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 Disabled = false,
                 PublishingEnabled = true,
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client.Subscriptions
                 .Verifiable(Times.Once);
 
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 22);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 22);
 
             Assert.That(sut.Created, Is.True);
             Assert.That(sut.CurrentPublishingEnabled, Is.False);
@@ -183,7 +183,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Act
             sut.SubscriptionStateChanged.Reset();
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 Disabled = false,
                 PublishingInterval = publishingInterval,
@@ -220,14 +220,14 @@ namespace Opc.Ua.Client.Subscriptions
                 .Verifiable(Times.Once);
 
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 22);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 22);
 
             Assert.That(sut.Created, Is.True);
             Assert.That(sut.CurrentPublishingEnabled, Is.False);
 
             // Act
             sut.SubscriptionStateChanged.Reset();
-            _options.Configure(o => o with
+            m_options.Configure(o => o with
             {
                 Disabled = false,
                 PublishingEnabled = true,
@@ -268,7 +268,7 @@ namespace Opc.Ua.Client.Subscriptions
                 .Verifiable(Times.Once);
 
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-              m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+              m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
 
             sut.SubscriptionStateChanged.Reset();
             var success = sut.MonitoredItems.TryAdd("Test", OptionsFactory.Create(new MonitoredItems.MonitoredItemOptions
@@ -293,7 +293,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-              m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+              m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
@@ -345,7 +345,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-              m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+              m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
@@ -407,7 +407,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
@@ -448,7 +448,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-              m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+              m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
             Assert.That(success, Is.True);
@@ -484,7 +484,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-              m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+              m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
@@ -531,7 +531,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
 
             // Assert
             m_mockMethodServices
@@ -562,7 +562,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object);
 
             // Act
             Func<Task> act = async () => await sut.ConditionRefreshAsync(CancellationToken.None);
@@ -579,7 +579,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Arrange
 
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 22);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 22);
 
             m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
@@ -603,7 +603,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Arrange
 
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 22);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 22);
 
             m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
@@ -627,7 +627,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 22);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 22);
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
             Assert.That(success, Is.True);
@@ -644,7 +644,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Act
             sut.SubscriptionStateChanged.Reset();
-            _options.Configure(o => o with { Disabled = true });
+            m_options.Configure(o => o with { Disabled = true });
             await sut.SubscriptionStateChanged.WaitAsync();
 
             // Assert
@@ -657,7 +657,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 22);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 22);
 
             m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
@@ -680,7 +680,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task DisposeAsyncShouldDisposeCleanlyAsync()
         {
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object);
             // Act & Assert - should not throw
             await sut.DisposeAsync();
         }
@@ -691,7 +691,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Arrange
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object);
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(success, Is.True);
@@ -711,7 +711,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Arrange
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object);
             var success = sut.MonitoredItems.TryAdd("Test", options, out _);
             Assert.That(success, Is.True);
 
@@ -731,7 +731,7 @@ namespace Opc.Ua.Client.Subscriptions
             var message = new NotificationMessage();
 
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object);
 
             // Act & Assert - should not throw
             await sut.OnPublishReceivedAsync(message, null, null!);
@@ -742,7 +742,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 10);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 10);
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
@@ -804,7 +804,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Arrange
 
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 10);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 10);
 
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
@@ -866,7 +866,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Arrange
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object);
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(success, Is.True);
@@ -884,7 +884,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
@@ -929,7 +929,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
@@ -974,7 +974,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
@@ -1022,7 +1022,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Arrange
 
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
 
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
@@ -1071,7 +1071,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Arrange
 
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
 
             m_mockMethodServices
                 .Setup(s => s.CallAsync(
@@ -1121,7 +1121,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
@@ -1164,7 +1164,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
@@ -1214,7 +1214,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, _options, m_mockObservability.Object, 2);
+                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
             var options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             var success = sut.MonitoredItems.TryAdd("Test", options, out var monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
@@ -1403,7 +1403,7 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         private Mock<IMessageAckQueue> m_mockCompletion;
-        private Opc.Ua.OptionsMonitor<SubscriptionOptions> _options;
+        private Opc.Ua.OptionsMonitor<SubscriptionOptions> m_options;
         private Mock<ITelemetryContext> m_mockObservability;
         private Mock<ISubscriptionServiceSet> m_mockSubscriptionServices;
         private Mock<IMonitoredItemServiceSet> m_mockMonitoredItemServices;

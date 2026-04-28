@@ -23,7 +23,7 @@ namespace Opc.Ua
         /// Create options
         /// </summary>
         /// <param name="option"></param>
-        public OptionsMonitor(T option) => _currentValue = option;
+        public OptionsMonitor(T option) => m_currentValue = option;
 
         /// <summary>
         /// Configure options
@@ -31,18 +31,18 @@ namespace Opc.Ua
         /// <param name="configure"></param>
         public OptionsMonitor<T> Configure(Func<T, T> configure)
         {
-            CurrentValue = configure(_currentValue);
+            CurrentValue = configure(m_currentValue);
             return this;
         }
 
         /// <inheritdoc/>
         public T CurrentValue
         {
-            get => _currentValue;
+            get => m_currentValue;
             set
             {
-                _currentValue = value;
-                foreach (var listener in _listeners)
+                m_currentValue = value;
+                foreach (var listener in m_listeners)
                 {
                     listener.Value(value, null);
                 }
@@ -70,20 +70,20 @@ namespace Opc.Ua
             public Listener(OptionsMonitor<T> monitor,
                 Action<T, string?> listener)
             {
-                _monitor = monitor;
-                _monitor._listeners.TryAdd(this, listener);
+                m_monitor = monitor;
+                m_monitor.m_listeners.TryAdd(this, listener);
             }
 
             /// <inheritdoc/>
             public void Dispose()
             {
-                _monitor._listeners.TryRemove(this, out _);
+                m_monitor.m_listeners.TryRemove(this, out _);
             }
 
-            private readonly OptionsMonitor<T> _monitor;
+            private readonly OptionsMonitor<T> m_monitor;
         }
 
-        private readonly ConcurrentDictionary<Listener, Action<T, string?>> _listeners = new();
-        private T _currentValue;
+        private readonly ConcurrentDictionary<Listener, Action<T, string?>> m_listeners = new();
+        private T m_currentValue;
     }
 }

@@ -42,14 +42,14 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class SessionStateEncoderTests
     {
-        private ServiceMessageContext _context = null!;
+        private ServiceMessageContext m_context = null!;
 
         [SetUp]
         public void SetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            _context = ServiceMessageContext.Create(telemetry);
-            _context.Factory.Builder.AddOpcUaClientDataTypes();
+            m_context = ServiceMessageContext.Create(telemetry);
+            m_context.Factory.Builder.AddOpcUaClientDataTypes();
         }
 
         [Test]
@@ -624,10 +624,10 @@ namespace Opc.Ua.Client.Tests
             byte[] data;
             using (var ms = new MemoryStream())
             {
-                using (var encoder = new BinaryEncoder(ms, _context, true))
+                using (var encoder = new BinaryEncoder(ms, m_context, true))
                 {
-                    encoder.WriteStringArray(null, _context.NamespaceUris.ToArray());
-                    encoder.WriteStringArray(null, _context.ServerUris.ToArray());
+                    encoder.WriteStringArray(null, m_context.NamespaceUris.ToArray());
+                    encoder.WriteStringArray(null, m_context.ServerUris.ToArray());
                     original.Encode(encoder);
                 }
                 data = ms.ToArray();
@@ -796,11 +796,11 @@ public void SubscriptionStateSaveLoadRoundTripMimicsSessionSaveLoad()
 
     // Encode exactly like Session.Save does
     using var ms = new MemoryStream();
-    using (var encoder = new BinaryEncoder(ms, _context, true))
+    using (var encoder = new BinaryEncoder(ms, m_context, true))
     {
         // Session.Save writes: nsUris, serverUris, count, then each state.Encode
-        encoder.WriteStringArray(null, _context.NamespaceUris.ToArrayOf());
-        encoder.WriteStringArray(null, _context.ServerUris.ToArrayOf());
+        encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
+        encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
         encoder.WriteInt32(null, 1); // count = 1
         original.Encode(encoder);
     }
@@ -809,7 +809,7 @@ public void SubscriptionStateSaveLoadRoundTripMimicsSessionSaveLoad()
 
     // Decode exactly like Session.Load does
     ms.Position = 0;
-    using var decoder = new BinaryDecoder(ms, _context);
+    using var decoder = new BinaryDecoder(ms, m_context);
     var nsUris = decoder.ReadStringArray(null);
     var serverUris = decoder.ReadStringArray(null);
     int count = decoder.ReadInt32(null);
@@ -965,13 +965,13 @@ public void SubscriptionStateDecodeDebugByteLevelVerification()
         private T RoundTrip<T>(T original) where T : IEncodeable, new()
         {
             using var ms = new MemoryStream();
-            using (var encoder = new BinaryEncoder(ms, _context, true))
+            using (var encoder = new BinaryEncoder(ms, m_context, true))
             {
                 original.Encode(encoder);
             }
 
             ms.Position = 0;
-            using var decoder = new BinaryDecoder(ms, _context);
+            using var decoder = new BinaryDecoder(ms, m_context);
             var decoded = new T();
             decoded.Decode(decoder);
             return decoded;

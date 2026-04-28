@@ -69,18 +69,18 @@ namespace Opc.Ua.Client.Subscriptions
         public uint CurrentMaxNotificationsPerPublish { get; private set; }
 
         /// <inheritdoc/>
-        public IMonitoredItemCollection MonitoredItems => _monitoredItems;
+        public IMonitoredItemCollection MonitoredItems => m_monitoredItems;
 
         /// <inheritdoc/>
         public bool Created => Id != 0;
 
         /// <inheritdoc/>
         public IMonitoredItemServiceSet MonitoredItemServiceSet
-            => _context.MonitoredItemServiceSet;
+            => m_context.MonitoredItemServiceSet;
 
         /// <inheritdoc/>
         public IMethodServiceSet MethodServiceSet
-            => _context.MethodServiceSet;
+            => m_context.MethodServiceSet;
 
         /// <summary>
         /// Returns true if the subscription is not receiving publishes.
@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Subscriptions
                 var timeSinceLastNotification = TimeProvider.System
                     .GetElapsedTime(lastNotificationTimestamp);
                 return timeSinceLastNotification >
-                    _keepAliveInterval + kKeepAliveTimerMargin;
+                    m_keepAliveInterval + kKeepAliveTimerMargin;
             }
         }
 
@@ -118,20 +118,20 @@ namespace Opc.Ua.Client.Subscriptions
             IMessageAckQueue completion, IOptionsMonitor<SubscriptionOptions> options,
             ITelemetryContext telemetry) : base(context.SubscriptionServiceSet, completion, telemetry)
         {
-            _handler = handler;
-            _context = context;
-            _monitoredItems = new MonitoredItemManager(this, telemetry);
-            _publishTimer = TimeProvider.System.CreateTimer(OnKeepAlive,
+            m_handler = handler;
+            m_context = context;
+            m_monitoredItems = new MonitoredItemManager(this, telemetry);
+            m_publishTimer = TimeProvider.System.CreateTimer(OnKeepAlive,
                 null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             OnOptionsChanged(options.CurrentValue);
-            _changeTracking = options.OnChange((o, _) => OnOptionsChanged(o));
-            _stateManagement = StateManagerAsync(_cts.Token);
+            m_changeTracking = options.OnChange((o, _) => OnOptionsChanged(o));
+            m_stateManagement = StateManagerAsync(m_cts.Token);
         }
 
         /// <inheritdoc/>
         public override string ToString()
         {
-            return $"{_context}:{Id}";
+            return $"{m_context}:{Id}";
         }
 
         /// <inheritdoc/>
@@ -150,14 +150,14 @@ namespace Opc.Ua.Client.Subscriptions
                     InputArguments = [new Variant(Id)]
                 }
             };
-            await _context.MethodServiceSet.CallAsync(null, methodsToCall,
+            await m_context.MethodServiceSet.CallAsync(null, methodsToCall,
                 ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async ValueTask RecreateAsync(CancellationToken ct)
         {
-            await _stateLock.WaitAsync(ct).ConfigureAwait(false);
+            await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 _lastSequenceNumberProcessed = 0;
@@ -172,30 +172,30 @@ namespace Opc.Ua.Client.Subscriptions
                 // Recreate subscription
                 await CreateAsync(Options, ct).ConfigureAwait(false);
 
-                await _monitoredItems.ApplyChangesAsync(true, true,
+                await m_monitoredItems.ApplyChangesAsync(true, true,
                     ct).ConfigureAwait(false);
             }
             finally
             {
-                _stateLock.Release();
+                m_stateLock.Release();
             }
         }
 
         /// <inheritdoc/>
         public void NotifySubscriptionManagerPaused(bool paused)
         {
-            _monitoredItems.NotifySubscriptionManagerPaused(paused);
+            m_monitoredItems.NotifySubscriptionManagerPaused(paused);
         }
 
         /// <inheritdoc/>
         public async ValueTask<bool> TryCompleteTransferAsync(
             IReadOnlyList<uint> availableSequenceNumbers, CancellationToken ct)
         {
-            await _stateLock.WaitAsync(ct).ConfigureAwait(false);
+            await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 StopKeepAliveTimer();
-                var success = await _monitoredItems.TrySynchronizeHandlesAsync(
+                var success = await m_monitoredItems.TrySynchronizeHandlesAsync(
                     ct).ConfigureAwait(false);
                 if (!success)
                 {
@@ -205,14 +205,14 @@ namespace Opc.Ua.Client.Subscriptions
                 // save available sequence numbers
                 _availableInRetransmissionQueue = availableSequenceNumbers;
 
-                await _monitoredItems.ApplyChangesAsync(true, false,
+                await m_monitoredItems.ApplyChangesAsync(true, false,
                     ct).ConfigureAwait(false);
                 StartKeepAliveTimer();
                 return true;
             }
             finally
             {
-                _stateLock.Release();
+                m_stateLock.Release();
             }
         }
 
@@ -222,7 +222,7 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<string> stringTable)
         {
             // Reset the keep alive timer
-            _publishTimer.Change(_keepAliveInterval, _keepAliveInterval);
+            m_publishTimer.Change(m_keepAliveInterval, m_keepAliveInterval);
 
             // send notification that publishing received a keep alive
             // or has to republish.
@@ -241,17 +241,17 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 try
                 {
-                    await _cts.CancelAsync().ConfigureAwait(false);
-                    await _stateManagement.ConfigureAwait(false);
+                    await m_cts.CancelAsync().ConfigureAwait(false);
+                    await m_stateManagement.ConfigureAwait(false);
 
-                    await _monitoredItems.DisposeAsync().ConfigureAwait(false);
+                    await m_monitoredItems.DisposeAsync().ConfigureAwait(false);
                 }
                 finally
                 {
-                    _publishTimer.Dispose();
-                    _changeTracking?.Dispose();
-                    _cts.Dispose();
-                    _stateLock.Dispose();
+                    m_publishTimer.Dispose();
+                    m_changeTracking?.Dispose();
+                    m_cts.Dispose();
+                    m_stateLock.Dispose();
                 }
             }
             await base.DisposeAsync(disposing).ConfigureAwait(false);
@@ -260,7 +260,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public void Update()
         {
-            _stateControl.Set();
+            m_stateControl.Set();
         }
 
         /// <inheritdoc/>
@@ -294,14 +294,14 @@ namespace Opc.Ua.Client.Subscriptions
                 return;
             }
             Options = options;
-            _stateControl.Set();
+            m_stateControl.Set();
         }
 
         /// <inheritdoc/>
         protected override ValueTask OnKeepAliveNotificationAsync(uint sequenceNumber,
             DateTime publishTime, PublishState publishStateMask)
         {
-            return _handler.OnKeepAliveNotificationAsync(this, sequenceNumber,
+            return m_handler.OnKeepAliveNotificationAsync(this, sequenceNumber,
                 publishTime, publishStateMask);
         }
 
@@ -310,8 +310,8 @@ namespace Opc.Ua.Client.Subscriptions
             DateTime publishTime, DataChangeNotification notification,
             PublishState publishStateMask, IReadOnlyList<string> stringTable)
         {
-            return _handler.OnDataChangeNotificationAsync(this, sequenceNumber,
-                publishTime, _monitoredItems.CreateNotification(notification),
+            return m_handler.OnDataChangeNotificationAsync(this, sequenceNumber,
+                publishTime, m_monitoredItems.CreateNotification(notification),
                 publishStateMask, stringTable);
         }
 
@@ -320,8 +320,8 @@ namespace Opc.Ua.Client.Subscriptions
             DateTime publishTime, EventNotificationList notification,
             PublishState publishStateMask, IReadOnlyList<string> stringTable)
         {
-            return _handler.OnEventDataNotificationAsync(this, sequenceNumber,
-                publishTime, _monitoredItems.CreateNotification(notification),
+            return m_handler.OnEventDataNotificationAsync(this, sequenceNumber,
+                publishTime, m_monitoredItems.CreateNotification(notification),
                 publishStateMask, stringTable);
         }
 
@@ -356,8 +356,8 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    await _stateControl.WaitAsync(ct).ConfigureAwait(false);
-                    await _stateLock.WaitAsync(ct).ConfigureAwait(false);
+                    await m_stateControl.WaitAsync(ct).ConfigureAwait(false);
+                    await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
                     var options = Options;
                     try
                     {
@@ -378,7 +378,7 @@ namespace Opc.Ua.Client.Subscriptions
                                 await ModifyAsync(options, ct).ConfigureAwait(false);
                             }
 
-                            var modified = await _monitoredItems.ApplyChangesAsync(
+                            var modified = await m_monitoredItems.ApplyChangesAsync(
                                 false, false, ct).ConfigureAwait(false);
                             if (modified)
                             {
@@ -394,7 +394,7 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     finally
                     {
-                        _stateLock.Release();
+                        m_stateLock.Release();
                     }
                 }
             }
@@ -421,7 +421,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 // delete the subscription.
                 ArrayOf<uint> subscriptionIds = new uint[] { Id };
-                var response = await _context.SubscriptionServiceSet.DeleteSubscriptionsAsync(null,
+                var response = await m_context.SubscriptionServiceSet.DeleteSubscriptionsAsync(null,
                     subscriptionIds, ct).ConfigureAwait(false);
                 // validate response.
                 Ua.ClientBase.ValidateResponse(response.Results, subscriptionIds);
@@ -452,7 +452,7 @@ namespace Opc.Ua.Client.Subscriptions
             // create the subscription.
             AdjustCounts(options, out var revisedMaxKeepAliveCount, out var revisedLifetimeCount);
 
-            var response = await _context.SubscriptionServiceSet.CreateSubscriptionAsync(null,
+            var response = await m_context.SubscriptionServiceSet.CreateSubscriptionAsync(null,
                 options.PublishingInterval.TotalMilliseconds, revisedLifetimeCount,
                 revisedMaxKeepAliveCount, options.MaxNotificationsPerPublish,
                 options.PublishingEnabled, options.Priority, ct).ConfigureAwait(false);
@@ -481,7 +481,7 @@ namespace Opc.Ua.Client.Subscriptions
                 options.MaxNotificationsPerPublish != CurrentMaxNotificationsPerPublish ||
                 options.PublishingInterval != CurrentPublishingInterval)
             {
-                var response = await _context.SubscriptionServiceSet.ModifySubscriptionAsync(null, Id,
+                var response = await m_context.SubscriptionServiceSet.ModifySubscriptionAsync(null, Id,
                     options.PublishingInterval.TotalMilliseconds, revisedLifetimeCount,
                     revisedMaxKeepAliveCount, options.MaxNotificationsPerPublish, options.Priority,
                     ct).ConfigureAwait(false);
@@ -510,7 +510,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 // modify the subscription.
                 ArrayOf<uint> subscriptionIds = new uint[] { Id };
-                var response = await _context.SubscriptionServiceSet.SetPublishingModeAsync(
+                var response = await m_context.SubscriptionServiceSet.SetPublishingModeAsync(
                     null, options.PublishingEnabled, subscriptionIds, ct).ConfigureAwait(false);
 
                 // validate response.
@@ -605,7 +605,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Notify all monitored items of the changes
             var state = created ?
                 SubscriptionState.Created : SubscriptionState.Modified;
-            _monitoredItems.OnSubscriptionStateChange(state, CurrentPublishingInterval);
+            m_monitoredItems.OnSubscriptionStateChange(state, CurrentPublishingInterval);
             OnSubscriptionStateChanged(state);
         }
 
@@ -624,10 +624,10 @@ namespace Opc.Ua.Client.Subscriptions
             CurrentPublishingEnabled = false;
             CurrentPriority = 0;
 
-            _deletedItems.Clear();
+            m_deletedItems.Clear();
 
             // Notify all monitored items of the changes
-            _monitoredItems.OnSubscriptionStateChange(SubscriptionState.Deleted,
+            m_monitoredItems.OnSubscriptionStateChange(SubscriptionState.Deleted,
                 CurrentPublishingInterval);
             OnSubscriptionStateChanged(SubscriptionState.Deleted);
         }
@@ -637,7 +637,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private void StopKeepAliveTimer()
         {
-            _publishTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            m_publishTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         }
 
         /// <summary>
@@ -648,20 +648,20 @@ namespace Opc.Ua.Client.Subscriptions
         {
             var options = Options;
             _lastNotificationTimestamp = TimeProvider.System.GetTimestamp();
-            _keepAliveInterval = CurrentPublishingInterval.Multiply(CurrentKeepAliveCount + 1);
-            if (_keepAliveInterval < kMinKeepAliveTimerInterval)
+            m_keepAliveInterval = CurrentPublishingInterval.Multiply(CurrentKeepAliveCount + 1);
+            if (m_keepAliveInterval < kMinKeepAliveTimerInterval)
             {
-                _keepAliveInterval = options.PublishingInterval.Multiply(options.KeepAliveCount + 1);
+                m_keepAliveInterval = options.PublishingInterval.Multiply(options.KeepAliveCount + 1);
             }
-            if (_keepAliveInterval > Timeout.InfiniteTimeSpan)
+            if (m_keepAliveInterval > Timeout.InfiniteTimeSpan)
             {
-                _keepAliveInterval = Timeout.InfiniteTimeSpan;
+                m_keepAliveInterval = Timeout.InfiniteTimeSpan;
             }
-            if (_keepAliveInterval < kMinKeepAliveTimerInterval)
+            if (m_keepAliveInterval < kMinKeepAliveTimerInterval)
             {
-                _keepAliveInterval = kMinKeepAliveTimerInterval;
+                m_keepAliveInterval = kMinKeepAliveTimerInterval;
             }
-            _publishTimer.Change(_keepAliveInterval, _keepAliveInterval);
+            m_publishTimer.Change(m_keepAliveInterval, m_keepAliveInterval);
         }
 
         /// <summary>
@@ -673,7 +673,7 @@ namespace Opc.Ua.Client.Subscriptions
             // check if a publish has arrived.
             if (PublishingStopped)
             {
-                Interlocked.Increment(ref _publishLateCount);
+                Interlocked.Increment(ref m_publishLateCount);
                 OnPublishStateChanged(PublishState.Stopped);
             }
         }
@@ -704,12 +704,12 @@ namespace Opc.Ua.Client.Subscriptions
             if (options.PublishingInterval > TimeSpan.Zero)
             {
                 if (options.MinLifetimeInterval > TimeSpan.Zero &&
-                    options.MinLifetimeInterval < _context.SessionTimeout)
+                    options.MinLifetimeInterval < m_context.SessionTimeout)
                 {
                     _logger.LogWarning(
                         "{Subscription}: A smaller minimum LifetimeInterval " +
                         "{Counter}ms than session timeout {Timeout}ms configured.",
-                        this, options.MinLifetimeInterval, _context.SessionTimeout);
+                        this, options.MinLifetimeInterval, m_context.SessionTimeout);
                 }
 
                 var minLifetimeInterval = (uint)options.MinLifetimeInterval.TotalMilliseconds;
@@ -728,12 +728,12 @@ namespace Opc.Ua.Client.Subscriptions
                         this, lifetimeCount);
                 }
 
-                if (options.PublishingInterval.Multiply(lifetimeCount) < _context.SessionTimeout)
+                if (options.PublishingInterval.Multiply(lifetimeCount) < m_context.SessionTimeout)
                 {
                     _logger.LogWarning(
                         "{Subscription}: Lifetime {LifeTime}ms configured is less " +
                         "than session timeout {Timeout}ms.", this,
-                        options.PublishingInterval.Multiply(lifetimeCount), _context.SessionTimeout);
+                        options.PublishingInterval.Multiply(lifetimeCount), m_context.SessionTimeout);
                 }
             }
             else if (lifetimeCount == 0)
@@ -759,17 +759,17 @@ namespace Opc.Ua.Client.Subscriptions
 
         private static readonly TimeSpan kMinKeepAliveTimerInterval = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan kKeepAliveTimerMargin = TimeSpan.FromSeconds(1);
-        private TimeSpan _keepAliveInterval;
-        private int _publishLateCount;
-        private readonly Nito.AsyncEx.AsyncAutoResetEvent _stateControl = new();
-        private readonly CancellationTokenSource _cts = new();
-        private readonly Task _stateManagement;
-        private readonly SemaphoreSlim _stateLock = new(1, 1);
-        private readonly List<uint> _deletedItems = [];
-        private readonly ITimer _publishTimer;
-        private readonly IDisposable? _changeTracking;
-        private readonly ISubscriptionNotificationHandler _handler;
-        private readonly ISubscriptionContext _context;
-        private readonly MonitoredItemManager _monitoredItems;
+        private TimeSpan m_keepAliveInterval;
+        private int m_publishLateCount;
+        private readonly Nito.AsyncEx.AsyncAutoResetEvent m_stateControl = new();
+        private readonly CancellationTokenSource m_cts = new();
+        private readonly Task m_stateManagement;
+        private readonly SemaphoreSlim m_stateLock = new(1, 1);
+        private readonly List<uint> m_deletedItems = [];
+        private readonly ITimer m_publishTimer;
+        private readonly IDisposable? m_changeTracking;
+        private readonly ISubscriptionNotificationHandler m_handler;
+        private readonly ISubscriptionContext m_context;
+        private readonly MonitoredItemManager m_monitoredItems;
     }
 }

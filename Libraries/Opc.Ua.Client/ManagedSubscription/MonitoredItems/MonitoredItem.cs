@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public string Name { get; }
 
         /// <inheritdoc/>
-        public uint Order => _currentOptions?.Order ?? 0u;
+        public uint Order => m_currentOptions?.Order ?? 0u;
 
         /// <inheritdoc/>
         public uint ServerId { get; private set; }
@@ -84,15 +84,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         internal IOptionsMonitor<MonitoredItemOptions> Options
         {
-            get => _options;
+            get => m_options;
             set
             {
-                if (_options != value)
+                if (m_options != value)
                 {
-                    _options = value;
-                    QueuePendingChanges(_options.CurrentValue, _currentOptions);
-                    _changeTracking?.Dispose();
-                    _changeTracking = _options.OnChange(
+                    m_options = value;
+                    QueuePendingChanges(m_options.CurrentValue, m_currentOptions);
+                    m_changeTracking?.Dispose();
+                    m_changeTracking = m_options.OnChange(
                         (o, _) => OnOptionsChanged(o));
                 }
             }
@@ -113,9 +113,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Error = ServiceResult.Good;
             ClientHandle = Utils.IncrementIdentifier(ref _globalClientHandleUint);
 
-            _logger = logger;
-            _options = Options = options;
-            _logger.LogDebug("{Item} CREATED.", this);
+            m_logger = logger;
+            m_options = Options = options;
+            m_logger.LogDebug("{Item} CREATED.", this);
         }
 
         /// <inheritdoc/>
@@ -146,7 +146,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <param name="disposing"></param>
         protected virtual ValueTask DisposeAsync(bool disposing)
         {
-            if (disposing && !_disposedValue)
+            if (disposing && !m_disposedValue)
             {
                 while (TryGetPendingChange(out var change))
                 {
@@ -154,11 +154,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
 
                 Context.NotifyItemChange(this, true);
-                _logger.LogDebug("{Item} REMOVED.", this);
+                m_logger.LogDebug("{Item} REMOVED.", this);
 
                 ServerId = 0;
-                _changeTracking?.Dispose();
-                _disposedValue = true;
+                m_changeTracking?.Dispose();
+                m_disposedValue = true;
             }
             return default;
         }
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         protected internal virtual void OnSubscriptionStateChange(
             SubscriptionState state, TimeSpan publishingInterval)
         {
-            var options = _currentOptions;
+            var options = m_currentOptions;
             if (options == null ||
                 (state != SubscriptionState.Created &&
                  state != SubscriptionState.Modified))
@@ -212,7 +212,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <param name="options"></param>
         protected virtual void OnOptionsChanged(MonitoredItemOptions options)
         {
-            QueuePendingChanges(options, _currentOptions);
+            QueuePendingChanges(options, m_currentOptions);
             Context.NotifyItemChange(this);
         }
 
@@ -235,7 +235,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <returns></returns>
         internal bool TryGetPendingChange([NotNullWhen(true)] out Change? change)
         {
-            return _pendingChanges.TryPeek(out change);
+            return m_pendingChanges.TryPeek(out change);
         }
 
         /// <summary>
@@ -245,7 +245,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <param name="serverHandle"></param>
         internal void SetTransferResult(uint clientHandle, uint serverHandle)
         {
-            if (_disposedValue)
+            if (m_disposedValue)
             {
                 throw new ObjectDisposedException(GetType().FullName);
             }
@@ -253,7 +253,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // ensure the global counter is not duplicating future handle ids
             if (clientHandle != ClientHandle)
             {
-                _logger.LogInformation("{Item}: UPDATE CLIENT ID from {Old} to {New}.",
+                m_logger.LogInformation("{Item}: UPDATE CLIENT ID from {Old} to {New}.",
                     this, ClientHandle, clientHandle);
 
                 ClientHandle = clientHandle;
@@ -262,7 +262,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             if (serverHandle != ServerId)
             {
-                _logger.LogInformation("{Item}: UPDATE SERVER ID from {Old} to {New}.",
+                m_logger.LogInformation("{Item}: UPDATE SERVER ID from {Old} to {New}.",
                     this, ServerId, serverHandle);
 
                 ServerId = serverHandle;
@@ -275,21 +275,21 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         internal void Reset()
         {
-            if (_disposedValue)
+            if (m_disposedValue)
             {
                 throw new ObjectDisposedException(GetType().FullName);
             }
 
-            _logger.LogDebug("{Item}: RESET.", this);
+            m_logger.LogDebug("{Item}: RESET.", this);
             ServerId = 0;
 
-            var options = _currentOptions;
+            var options = m_currentOptions;
             while (TryGetPendingChange(out var change))
             {
                 change.Abandon();
                 options = change.Options;
             }
-            _currentOptions = null;
+            m_currentOptions = null;
             if (options == null)
             {
                 return;
@@ -320,8 +320,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     StatusCodes.BadNodeIdInvalid), true, null);
                 return;
             }
-            _currentOptions = options;
-            _pendingChanges.Enqueue(new Change(this, options, currentOptions));
+            m_currentOptions = options;
+            m_pendingChanges.Enqueue(new Change(this, options, currentOptions));
         }
 
         /// <summary>
@@ -331,7 +331,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <returns></returns>
         internal bool CompleteChange(Change change)
         {
-            return _pendingChanges.TryDequeue(out var completed)
+            return m_pendingChanges.TryDequeue(out var completed)
                 && change == completed;
         }
 
@@ -692,7 +692,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             if (options.SamplingInterval != CurrentSamplingInterval &&
                 options.QueueSize != CurrentQueueSize && CurrentQueueSize != 0)
             {
-                _logger.LogInformation(
+                m_logger.LogInformation(
                     "{Item}: {Action} SamplingInterval was " +
                     "revised from {SamplingInterval} to {CurrentSamplingInterval} " +
                     "and QueueSize from {QueueSize} to {CurrentQueueSize}.",
@@ -702,7 +702,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             else if (options.SamplingInterval != CurrentSamplingInterval)
             {
-                _logger.LogInformation(
+                m_logger.LogInformation(
                     "{Item}: {Action} SamplingInterval was " +
                     "revised from {SamplingInterval} to {CurrentSamplingInterval}.",
                     this, created ? "CREATED" : "UPDATED",
@@ -710,7 +710,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             else if (options.QueueSize != CurrentQueueSize && CurrentQueueSize != 0)
             {
-                _logger.LogInformation(
+                m_logger.LogInformation(
                     "{Item}: {Action} QueueSize was " +
                     "revised from {QueueSize} to {CurrentQueueSize}.",
                     this, created ? "CREATED" : "UPDATED",
@@ -718,18 +718,18 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             else
             {
-                _logger.LogDebug(
+                m_logger.LogDebug(
                     "{Item}: {Action} with desired configuration.",
                     this, created ? "CREATED" : "UPDATED");
             }
         }
 
-        private bool _disposedValue;
-        private MonitoredItemOptions? _currentOptions;
-        private IDisposable? _changeTracking;
-        private readonly ConcurrentQueue<Change> _pendingChanges = new();
-        private readonly ILogger _logger;
+        private bool m_disposedValue;
+        private MonitoredItemOptions? m_currentOptions;
+        private IDisposable? m_changeTracking;
+        private readonly ConcurrentQueue<Change> m_pendingChanges = new();
+        private readonly ILogger m_logger;
         internal static uint _globalClientHandleUint;
-        private IOptionsMonitor<MonitoredItemOptions> _options;
+        private IOptionsMonitor<MonitoredItemOptions> m_options;
     }
 }

@@ -30,7 +30,7 @@ namespace Opc.Ua
         public OptionsReader(IOptionsMonitor<TOptions> options,
             Func<TOptions, TChange?> convert)
         {
-            _changes = Channel.CreateUnbounded<TChange>(
+            m_changes = Channel.CreateUnbounded<TChange>(
                 new UnboundedChannelOptions
                 {
                     SingleReader = true
@@ -40,7 +40,7 @@ namespace Opc.Ua
                 var change = convert(o);
                 if (change != null)
                 {
-                    _changes.Writer.TryWrite(change.Value);
+                    m_changes.Writer.TryWrite(change.Value);
                 }
             });
         }
@@ -52,7 +52,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public ValueTask<bool> WaitAsync(CancellationToken ct)
         {
-            return _changes.Reader.WaitToReadAsync(ct);
+            return m_changes.Reader.WaitToReadAsync(ct);
         }
 
         /// <summary>
@@ -62,10 +62,10 @@ namespace Opc.Ua
         /// <returns></returns>
         public bool TryGetNextChange(out TChange change)
         {
-            return _changes.Reader.TryRead(out change);
+            return m_changes.Reader.TryRead(out change);
         }
 
-        private readonly Channel<TChange> _changes;
+        private readonly Channel<TChange> m_changes;
     }
 
     /// <summary>
@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// <param name="capacity"></param>
         public OptionsReader(IOptionsMonitor<TOptions> options, int capacity = 5)
         {
-            _changes = Channel.CreateBounded<TOptions>(
+            m_changes = Channel.CreateBounded<TOptions>(
                 new BoundedChannelOptions(capacity)
                 {
                     SingleReader = true,
@@ -96,12 +96,12 @@ namespace Opc.Ua
                 {
                     return;
                 }
-                var last = Interlocked.Exchange(ref _current, o);
+                var last = Interlocked.Exchange(ref m_current, o);
                 if (o.Equals(last))
                 {
                     return;
                 }
-                _changes.Writer.TryWrite(o);
+                m_changes.Writer.TryWrite(o);
             });
         }
 
@@ -112,7 +112,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public ValueTask<bool> WaitAsync(CancellationToken ct)
         {
-            return _changes.Reader.WaitToReadAsync(ct);
+            return m_changes.Reader.WaitToReadAsync(ct);
         }
 
         /// <summary>
@@ -122,10 +122,10 @@ namespace Opc.Ua
         /// <returns></returns>
         public bool TryGet([MaybeNullWhen(false)] out TOptions? change)
         {
-            return _changes.Reader.TryRead(out change);
+            return m_changes.Reader.TryRead(out change);
         }
 
-        private readonly Channel<TOptions> _changes;
-        private TOptions? _current;
+        private readonly Channel<TOptions> m_changes;
+        private TOptions? m_current;
     }
 }

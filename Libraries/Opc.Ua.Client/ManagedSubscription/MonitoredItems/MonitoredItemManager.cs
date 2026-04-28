@@ -50,9 +50,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             get
             {
-                lock (_monitoredItemsLock)
+                lock (m_monitoredItemsLock)
                 {
-                    return new List<IMonitoredItem>(_monitoredItems.Values);
+                    return new List<IMonitoredItem>(m_monitoredItems.Values);
                 }
             }
         }
@@ -62,9 +62,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             get
             {
-                lock (_monitoredItemsLock)
+                lock (m_monitoredItemsLock)
                 {
-                    return (uint)_monitoredItems.Count;
+                    return (uint)m_monitoredItems.Count;
                 }
             }
         }
@@ -77,8 +77,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public MonitoredItemManager(IMonitoredItemManagerContext context,
             ITelemetryContext telemetry)
         {
-            _logger = telemetry.LoggerFactory.CreateLogger<MonitoredItemManager>();
-            _context = context;
+            m_logger = telemetry.LoggerFactory.CreateLogger<MonitoredItemManager>();
+            m_context = context;
         }
 
         /// <inheritdoc/>
@@ -86,15 +86,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             try
             {
-                foreach (var monitoredItem in _monitoredItems.Values.ToList())
+                foreach (var monitoredItem in m_monitoredItems.Values.ToList())
                 {
                     await monitoredItem.DisposeAsync().ConfigureAwait(false);
                 }
             }
             finally
             {
-                _monitoredItems.Clear();
-                _monitoredItemsByName.Clear();
+                m_monitoredItems.Clear();
+                m_monitoredItemsByName.Clear();
             }
         }
 
@@ -102,19 +102,19 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public bool TryAdd(string name, IOptionsMonitor<MonitoredItemOptions> options,
             out IMonitoredItem? monitoredItem)
         {
-            lock (_monitoredItemsLock)
+            lock (m_monitoredItemsLock)
             {
-                if (_monitoredItemsByName.TryGetValue(name, out var item))
+                if (m_monitoredItemsByName.TryGetValue(name, out var item))
                 {
                     monitoredItem = item;
                     return false;
                 }
-                item = _context.CreateMonitoredItem(name, options, this);
-                _monitoredItems.Add(item.ClientHandle, item);
-                _monitoredItemsByName.Add(name, item);
+                item = m_context.CreateMonitoredItem(name, options, this);
+                m_monitoredItems.Add(item.ClientHandle, item);
+                m_monitoredItemsByName.Add(name, item);
                 monitoredItem = item;
             }
-            _context.Update();
+            m_context.Update();
             return true;
         }
 
@@ -122,9 +122,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public bool TryGetMonitoredItemByClientHandle(uint clientHandle,
             [MaybeNullWhen(false)] out IMonitoredItem? monitoredItem)
         {
-            lock (_monitoredItemsLock)
+            lock (m_monitoredItemsLock)
             {
-                var result = _monitoredItems.TryGetValue(clientHandle, out var item);
+                var result = m_monitoredItems.TryGetValue(clientHandle, out var item);
                 monitoredItem = item;
                 return result;
             }
@@ -134,9 +134,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public bool TryGetMonitoredItemByName(string name,
             [MaybeNullWhen(false)] out IMonitoredItem? monitoredItem)
         {
-            lock (_monitoredItemsLock)
+            lock (m_monitoredItemsLock)
             {
-                var result = _monitoredItemsByName.TryGetValue(name, out var item);
+                var result = m_monitoredItemsByName.TryGetValue(name, out var item);
                 monitoredItem = item;
                 return result;
             }
@@ -145,16 +145,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <inheritdoc/>
         public bool TryRemove(uint clientHandle)
         {
-            lock (_monitoredItemsLock)
+            lock (m_monitoredItemsLock)
             {
-                if (!_monitoredItems.Remove(clientHandle, out var monitoredItem))
+                if (!m_monitoredItems.Remove(clientHandle, out var monitoredItem))
                 {
                     return false;
                 }
-                _monitoredItemsByName.Remove(monitoredItem.Name);
-                _deletedItems.Add(monitoredItem);
+                m_monitoredItemsByName.Remove(monitoredItem.Name);
+                m_deletedItems.Add(monitoredItem);
             }
-            _context.Update();
+            m_context.Update();
             return true;
         }
 
@@ -163,20 +163,20 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             string Name, IOptionsMonitor<MonitoredItemOptions> Options)> state)
         {
             var monitoredItems = new List<IMonitoredItem>(state.Count);
-            lock (_monitoredItemsLock)
+            lock (m_monitoredItemsLock)
             {
                 // Capture current state
-                var remove = _monitoredItems.ToDictionary();
+                var remove = m_monitoredItems.ToDictionary();
 
                 // Generate items
                 foreach (var (name, options) in state)
                 {
-                    if (!_monitoredItemsByName.TryGetValue(name, out var item))
+                    if (!m_monitoredItemsByName.TryGetValue(name, out var item))
                     {
                         // Create new item
-                        item = _context.CreateMonitoredItem(name, options, this);
-                        _monitoredItems.Add(item.ClientHandle, item);
-                        _monitoredItemsByName.Add(name, item);
+                        item = m_context.CreateMonitoredItem(name, options, this);
+                        m_monitoredItems.Add(item.ClientHandle, item);
+                        m_monitoredItemsByName.Add(name, item);
                     }
                     else
                     {
@@ -189,14 +189,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 // Remove all items not in state
                 foreach (var clientHandle in remove.Keys)
                 {
-                    if (_monitoredItems.Remove(clientHandle, out var monitoredItem))
+                    if (m_monitoredItems.Remove(clientHandle, out var monitoredItem))
                     {
-                        _monitoredItemsByName.Remove(monitoredItem.Name);
-                        _deletedItems.Add(monitoredItem);
+                        m_monitoredItemsByName.Remove(monitoredItem.Name);
+                        m_deletedItems.Add(monitoredItem);
                     }
                 }
             }
-            _context.Update();
+            m_context.Update();
             return monitoredItems;
         }
 
@@ -206,7 +206,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Debug.Assert(monitoredItem != null);
             if (!itemDisposed)
             {
-                _context.Update();
+                m_context.Update();
             }
         }
 
@@ -227,12 +227,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             DataChangeNotification notification)
         {
             var memory = new DataValueChange[notification.MonitoredItems.Count];
-            lock (_monitoredItemsLock)
+            lock (m_monitoredItemsLock)
             {
                 for (var i = 0; i < notification.MonitoredItems.Count; i++)
                 {
                     var item = notification.MonitoredItems[i];
-                    _monitoredItems.TryGetValue(item.ClientHandle, out var monitored);
+                    m_monitoredItems.TryGetValue(item.ClientHandle, out var monitored);
                     memory[i] = new DataValueChange(monitored,
                         item.Value, item.DiagnosticInfo);
                 }
@@ -252,12 +252,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             EventNotificationList notification)
         {
             var memory = new EventNotification[notification.Events.Count];
-            lock (_monitoredItemsLock)
+            lock (m_monitoredItemsLock)
             {
                 for (var i = 0; i < notification.Events.Count; i++)
                 {
                     var item = notification.Events[i];
-                    _monitoredItems.TryGetValue(item.ClientHandle, out var monitored);
+                    m_monitoredItems.TryGetValue(item.ClientHandle, out var monitored);
                     memory[i] = new EventNotification(monitored, item.EventFields);
                 }
             }
@@ -300,9 +300,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         internal void OnSubscriptionStateChange(SubscriptionState state,
             TimeSpan currentPublishingInterval)
         {
-            lock (_monitoredItemsLock)
+            lock (m_monitoredItemsLock)
             {
-                foreach (var item in _monitoredItems.Values)
+                foreach (var item in m_monitoredItems.Values)
                 {
                     item.OnSubscriptionStateChange(state, currentPublishingInterval);
                 }
@@ -315,9 +315,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <param name="paused"></param>
         internal void NotifySubscriptionManagerPaused(bool paused)
         {
-            lock (_monitoredItemsLock)
+            lock (m_monitoredItemsLock)
             {
-                foreach (var item in _monitoredItems.Values)
+                foreach (var item in m_monitoredItems.Values)
                 {
                     item.NotifySubscriptionManagerPaused(paused);
                 }
@@ -348,7 +348,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     var monitoredItemIds = new ArrayOf<uint>(itemsToDelete
                         .Select(m => m.ServerId).ToArray());
-                    var response = await _context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(null, _context.Id,
+                    var response = await m_context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(null, m_context.Id,
                         monitoredItemIds, ct).ConfigureAwait(false);
                     Ua.ClientBase.ValidateResponse(response.Results, monitoredItemIds);
                     Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos,
@@ -363,14 +363,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             await itemsToDelete[index].DisposeAsync().ConfigureAwait(false);
                             continue;
                         }
-                        _deletedItems.Add(itemsToDelete[index]); // Retry this
+                        m_deletedItems.Add(itemsToDelete[index]); // Retry this
                         // TODO: Give up after a while
                     }
                 }
                 catch (Exception ex)
                 {
-                    _deletedItems.AddRange(itemsToDelete);
-                    _logger.LogInformation(ex, "Failed to delete monitored items.");
+                    m_deletedItems.AddRange(itemsToDelete);
+                    m_logger.LogInformation(ex, "Failed to delete monitored items.");
                 }
             }
 
@@ -381,7 +381,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             if (deletes.Count > 0)
             {
                 var monitoredItemIds = new ArrayOf<uint>(deletes.Select(c => c.Item.ServerId).ToArray());
-                var response = await _context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(null, _context.Id,
+                var response = await m_context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(null, m_context.Id,
                     monitoredItemIds, ct).ConfigureAwait(false);
                 Ua.ClientBase.ValidateResponse(response.Results, monitoredItemIds);
                 Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
@@ -405,7 +405,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 var requests = new ArrayOf<MonitoredItemModifyRequest>(group.Select(c => c.Modify!).ToArray());
                 if (requests.Count > 0)
                 {
-                    var response = await _context.MonitoredItemServiceSet.ModifyMonitoredItemsAsync(null, _context.Id,
+                    var response = await m_context.MonitoredItemServiceSet.ModifyMonitoredItemsAsync(null, m_context.Id,
                         group.Key, requests, ct).ConfigureAwait(false);
                     Ua.ClientBase.ValidateResponse(response.Results, requests);
                     Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
@@ -430,7 +430,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 var requests = new ArrayOf<uint>(monitoredItems.Select(c => c.Item.ServerId).ToArray());
                 if (requests.Count > 0)
                 {
-                    var response = await _context.MonitoredItemServiceSet.SetMonitoringModeAsync(null, _context.Id,
+                    var response = await m_context.MonitoredItemServiceSet.SetMonitoringModeAsync(null, m_context.Id,
                         mode.Key, requests, ct).ConfigureAwait(false);
                     Ua.ClientBase.ValidateResponse(response.Results, requests);
                     Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
@@ -456,7 +456,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 var requests = new ArrayOf<MonitoredItemCreateRequest>(group.Select(c => c.Create!).ToArray());
                 if (requests.Count > 0)
                 {
-                    var response = await _context.MonitoredItemServiceSet.CreateMonitoredItemsAsync(null, _context.Id,
+                    var response = await m_context.MonitoredItemServiceSet.CreateMonitoredItemsAsync(null, m_context.Id,
                         group.Key, requests, ct).ConfigureAwait(false);
                     Ua.ClientBase.ValidateResponse(response.Results, requests);
                     Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
@@ -483,12 +483,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             // modify the subscription.
             itemsToModify = [];
-            lock (_monitoredItemsLock)
+            lock (m_monitoredItemsLock)
             {
-                itemsToDelete = [.. _deletedItems];
-                _deletedItems.Clear();
+                itemsToDelete = [.. m_deletedItems];
+                m_deletedItems.Clear();
 
-                foreach (var monitoredItem in _monitoredItems.Values)
+                foreach (var monitoredItem in m_monitoredItems.Values)
                 {
                     if (resetAll)
                     {
@@ -533,20 +533,20 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ct).ConfigureAwait(false);
 
             ArrayOf<uint> itemsToDelete;
-            lock (_monitoredItemsLock)
+            lock (m_monitoredItemsLock)
             {
                 if (!success)
                 {
                     // Reset all items
-                    foreach (var monitoredItem in _monitoredItems.Values)
+                    foreach (var monitoredItem in m_monitoredItems.Values)
                     {
                         monitoredItem.Reset();
                     }
                     return false;
                 }
 
-                var monitoredItems = _monitoredItems.ToDictionary();
-                _monitoredItems.Clear();
+                var monitoredItems = m_monitoredItems.ToDictionary();
+                m_monitoredItems.Clear();
 
                 //
                 // Assign the server id to the item with the matching client handle. This
@@ -566,7 +566,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     {
                         monitoredItem.Value.SetTransferResult(clientHandle, serverHandle);
                         monitoredItems.Remove(monitoredItem.Key);
-                        _monitoredItems.Add(clientHandle, monitoredItem.Value);
+                        m_monitoredItems.Add(clientHandle, monitoredItem.Value);
                     }
                 }
 
@@ -588,11 +588,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         //
                         monitoredItem.Value.SetTransferResult(clientHandle, serverHandle);
                         monitoredItems.Remove(monitoredItem.Key);
-                        _monitoredItems.Add(clientHandle, monitoredItem.Value);
+                        m_monitoredItems.Add(clientHandle, monitoredItem.Value);
                     }
                 }
 
-                _deletedItems.Clear();
+                m_deletedItems.Clear();
                 itemsToDelete = new ArrayOf<uint>(serverClientHandleMap.Keys.ToArray());
 
                 // Remaining items do not exist anymore on the server and need to be recreated
@@ -600,11 +600,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     if (missingOnServer.Created)
                     {
-                        _logger.LogDebug("{Subscription}: Recreate client item {Item}.", this,
+                        m_logger.LogDebug("{Subscription}: Recreate client item {Item}.", this,
                             missingOnServer);
                         missingOnServer.Reset();
                     }
-                    _monitoredItems.Add(missingOnServer.ClientHandle, missingOnServer);
+                    m_monitoredItems.Add(missingOnServer.ClientHandle, missingOnServer);
                 }
             }
             if (itemsToDelete.Count == 0)
@@ -616,13 +616,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Ensure all items on the server that are not in the subscription are deleted
             try
             {
-                await _context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(null, _context.Id, itemsToDelete,
+                await m_context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(null, m_context.Id, itemsToDelete,
                     ct).ConfigureAwait(false);
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "{Subscription}: Failed to delete missing items.", this);
+                m_logger.LogError(ex, "{Subscription}: Failed to delete missing items.", this);
                 return false;
             }
         }
@@ -645,11 +645,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     {
                         ObjectId = ObjectIds.Server,
                         MethodId = MethodIds.Server_GetMonitoredItems,
-                        InputArguments = [new Variant(_context.Id)]
+                        InputArguments = [new Variant(m_context.Id)]
                     }
                 });
 
-                var response = await _context.MethodServiceSet.CallAsync(null, requests,
+                var response = await m_context.MethodServiceSet.CallAsync(null, requests,
                     ct).ConfigureAwait(false);
                 var results = response.Results;
                 var diagnosticInfos = response.DiagnosticInfos;
@@ -674,17 +674,17 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             catch (ServiceResultException sre)
             {
-                _logger.LogError(sre,
+                m_logger.LogError(sre,
                     "{Subscription}: Failed to call GetMonitoredItems on server", this);
                 return new MonitoredItemsHandles(false, []);
             }
         }
 
-        private readonly IMonitoredItemManagerContext _context;
-        private readonly List<MonitoredItem> _deletedItems = [];
-        private readonly Lock _monitoredItemsLock = new();
-        private readonly Dictionary<uint, MonitoredItem> _monitoredItems = [];
-        private readonly Dictionary<string, MonitoredItem> _monitoredItemsByName = [];
-        private readonly ILogger _logger;
+        private readonly IMonitoredItemManagerContext m_context;
+        private readonly List<MonitoredItem> m_deletedItems = [];
+        private readonly Lock m_monitoredItemsLock = new();
+        private readonly Dictionary<uint, MonitoredItem> m_monitoredItems = [];
+        private readonly Dictionary<string, MonitoredItem> m_monitoredItemsByName = [];
+        private readonly ILogger m_logger;
     }
 }

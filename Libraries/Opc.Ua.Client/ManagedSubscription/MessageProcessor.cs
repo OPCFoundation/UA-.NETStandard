@@ -65,10 +65,10 @@ namespace Opc.Ua.Client.Subscriptions
             Observability = telemetry;
             _availableInRetransmissionQueue = [];
             _logger = Observability.LoggerFactory.CreateLogger<Subscription>();
-            _services = services;
-            _completion = completion;
+            m_services = services;
+            m_completion = completion;
 #if NET8_0_OR_GREATER
-            _messages = Channel.CreateUnboundedPrioritized<IncomingMessage>(
+            m_messages = Channel.CreateUnboundedPrioritized<IncomingMessage>(
                 new UnboundedPrioritizedChannelOptions<IncomingMessage>
                 {
                     SingleReader = true,
@@ -77,13 +77,13 @@ namespace Opc.Ua.Client.Subscriptions
                 });
 #else
             // TODO: create polyfill for prioritized channel to avoid processing messages out of order when republishing missing messages.
-            _messages = Channel.CreateUnbounded<IncomingMessage>(
+            m_messages = Channel.CreateUnbounded<IncomingMessage>(
                 new UnboundedChannelOptions
                 {
                     SingleReader = true
                 });
 #endif
-            _messageWorkerTask = ProcessReceivedMessagesAsync(_cts.Token);
+            m_messageWorkerTask = ProcessReceivedMessagesAsync(m_cts.Token);
         }
 
         /// <inheritdoc/>
@@ -103,7 +103,7 @@ namespace Opc.Ua.Client.Subscriptions
                 _availableInRetransmissionQueue = availableSequenceNumbers;
             }
             _lastNotificationTimestamp = TimeProvider.System.GetTimestamp();
-            await _messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
+            await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
                 TimeProvider.System.GetUtcNow())).ConfigureAwait(false);
         }
 
@@ -117,14 +117,14 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 try
                 {
-                    _messages.Writer.TryComplete();
-                    _cts.Cancel();
+                    m_messages.Writer.TryComplete();
+                    m_cts.Cancel();
 
-                    await _messageWorkerTask.ConfigureAwait(false);
+                    await m_messageWorkerTask.ConfigureAwait(false);
                 }
                 finally
                 {
-                    _cts.Dispose();
+                    m_cts.Dispose();
                     _disposed = true;
                 }
             }
@@ -215,7 +215,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // form of semaphore to block the publisher.
                 // Unless we get https://github.com/dotnet/runtime/issues/101292
                 //
-                var reader = _messages.Reader.ReadAllAsync(ct);
+                var reader = m_messages.Reader.ReadAllAsync(ct);
                 await foreach (var incoming in reader.ConfigureAwait(false))
                 {
                     await ProcessMessageAsync(incoming, ct).ConfigureAwait(false);
@@ -232,7 +232,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // to be removed
                 throw;
             }
-            await _completion.CompleteAsync(Id, default).ConfigureAwait(false);
+            await m_completion.CompleteAsync(Id, default).ConfigureAwait(false);
             OnPublishStateChanged(PublishState.Completed);
         }
 
@@ -304,7 +304,7 @@ namespace Opc.Ua.Client.Subscriptions
                 _logger.LogInformation("{Subscription}: Republishing missing message " +
                     "with sequence number #{Missing} to catch up to message " +
                     "with sequence number #{SeqNumber}...", this, missing, curSeqNum);
-                var republish = await _services.RepublishAsync(null, Id, missing,
+                var republish = await m_services.RepublishAsync(null, Id, missing,
                     ct).ConfigureAwait(false);
 
                 if (ServiceResult.IsGood(republish.ResponseHeader.ServiceResult))
@@ -351,7 +351,7 @@ namespace Opc.Ua.Client.Subscriptions
                             message.NotificationData[i]).ConfigureAwait(false);
                     }
                 }
-                await _completion.QueueAsync(new SubscriptionAcknowledgement
+                await m_completion.QueueAsync(new SubscriptionAcknowledgement
                 {
                     SequenceNumber = message.SequenceNumber,
                     SubscriptionId = Id
@@ -437,10 +437,10 @@ namespace Opc.Ua.Client.Subscriptions
 #pragma warning disable IDE1006 // Naming Styles
         internal readonly ILogger _logger;
 #pragma warning restore IDE1006 // Naming Styles
-        private readonly ISubscriptionServiceSet _services;
-        private readonly CancellationTokenSource _cts = new();
-        private readonly IMessageAckQueue _completion;
-        private readonly Task _messageWorkerTask;
-        private readonly Channel<IncomingMessage> _messages;
+        private readonly ISubscriptionServiceSet m_services;
+        private readonly CancellationTokenSource m_cts = new();
+        private readonly IMessageAckQueue m_completion;
+        private readonly Task m_messageWorkerTask;
+        private readonly Channel<IncomingMessage> m_messages;
     }
 }
