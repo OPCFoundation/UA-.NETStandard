@@ -133,6 +133,24 @@ namespace System
         {
             return target.Replace(oldValue, newValue);
         }
+
+        /// <summary>
+        /// Multiply the timespan with a factor
+        /// </summary>
+        /// <returns></returns>
+        public static TimeSpan Multiply(this TimeSpan timespan, double factor)
+        {
+            return new TimeSpan((long)(timespan.Ticks * factor));
+        }
+
+        /// <summary>
+        /// Divide the timespan by a factor
+        /// </summary>
+        /// <returns></returns>
+        public static TimeSpan Divide(this TimeSpan timespan, double factor)
+        {
+            return new TimeSpan((long)(timespan.Ticks / factor));
+        }
 #endif
     }
 }

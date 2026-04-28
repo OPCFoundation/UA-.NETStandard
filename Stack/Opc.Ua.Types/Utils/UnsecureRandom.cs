@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace Opc.Ua
 {
@@ -118,6 +120,28 @@ namespace Opc.Ua
             m_random.NextBytes(buffer);
 #pragma warning restore CA5394 // Do not use insecure randomness
             return ByteString.From(buffer);
+        }
+
+        /// <summary>
+        /// Shuffle a span
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public void Shuffle<T>(Span<T> source)
+        {
+#if NET8_0_OR_GREATER
+#pragma warning disable CA5394 // Do not use insecure randomness
+            m_random.Shuffle(source);
+#pragma warning restore CA5394 // Do not use insecure randomness
+#else
+            int count = source.Length;
+            for (int i = 0; i < count; i++)
+            {
+                int j = Next(i, count);
+                T temp = source[i];
+                source[i] = source[j];
+                source[j] = temp;
+            }
+#endif
         }
 
         private readonly Random m_random;

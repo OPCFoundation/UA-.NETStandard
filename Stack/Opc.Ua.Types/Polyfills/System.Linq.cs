@@ -27,52 +27,46 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Diagnostics.CodeAnalysis;
+using System.Collections.Generic;
 
-namespace System.Collections.Generic
+namespace System.Linq
 {
     /// <summary>
-    /// Polyfills for System.Collections.Generic methods that are not available
-    /// in .NET Standard 2.0 or .NET Framework.
+    /// Polyfills for System.Linq methods that are not available in .NET Standard 2.0 or .NET Framework.
     /// </summary>
     public static class Polyfills
     {
-#if NETSTANDARD2_0 || NETFRAMEWORK
+#if NETSTANDARD2_0_OR_GREATER || NETFRAMEWORK
         /// <summary>
-        /// Try add value
-        /// </summary>
-        /// <typeparam name="TKey"></typeparam>
-        /// <typeparam name="TValue"></typeparam>
-        public static bool TryAdd<TKey, TValue>(
-            this IDictionary<TKey, TValue> target,
-            TKey key,
-            TValue value)
-        {
-            if (!target.ContainsKey(key))
-            {
-                target.Add(key, value);
-                return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Remove from dictionary
+        /// Create new dictionary
         /// </summary>
         /// <typeparam name="TKey"></typeparam>
         /// <typeparam name="TValue"></typeparam>
         /// <returns></returns>
-        public static bool Remove<TKey, TValue>(
-            this IDictionary<TKey, TValue> target,
-            TKey key,
-            [MaybeNullWhen(false)] out TValue value)
+        public static IDictionary<TKey, TValue> ToDictionary<TKey, TValue>(
+            this IDictionary<TKey, TValue> target)
         {
-            if (target.TryGetValue(key, out value))
+            return target.ToDictionary(kv => kv.Key, kv => kv.Value);
+        }
+
+        /// <summary>
+        /// Zip two sequences together into a single sequence of tuples. The resulting
+        /// sequence is as long as the shorter of the two input sequences.
+        /// </summary>
+        /// <typeparam name="TFirst"></typeparam>
+        /// <typeparam name="TSecond"></typeparam>
+        public static IEnumerable<(TFirst First, TSecond Second)> Zip<TFirst, TSecond>(
+            this IEnumerable<TFirst> first,
+            IEnumerable<TSecond> second)
+        {
+            using (var e1 = first.GetEnumerator())
+            using (var e2 = second.GetEnumerator())
             {
-                target.Remove(key);
-                return true;
+                while (e1.MoveNext() && e2.MoveNext())
+                {
+                    yield return (e1.Current, e2.Current);
+                }
             }
-            return false;
         }
 #endif
     }

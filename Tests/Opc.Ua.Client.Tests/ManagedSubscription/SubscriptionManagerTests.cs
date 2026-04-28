@@ -1,4 +1,3 @@
-#if OPCUA_CLIENT_V2
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
@@ -494,4 +493,3 @@ namespace Opc.Ua.Client.Subscriptions
         private SubscriptionManager m_subscriptionManager;
     }
 }
-#endif

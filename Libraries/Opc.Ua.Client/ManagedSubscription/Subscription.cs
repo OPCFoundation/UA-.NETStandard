@@ -1,4 +1,3 @@
-#if OPCUA_CLIENT_V2
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
@@ -649,10 +648,10 @@ namespace Opc.Ua.Client.Subscriptions
         {
             var options = Options;
             _lastNotificationTimestamp = TimeProvider.System.GetTimestamp();
-            _keepAliveInterval = CurrentPublishingInterval * (CurrentKeepAliveCount + 1);
+            _keepAliveInterval = CurrentPublishingInterval.Multiply(CurrentKeepAliveCount + 1);
             if (_keepAliveInterval < kMinKeepAliveTimerInterval)
             {
-                _keepAliveInterval = options.PublishingInterval * (options.KeepAliveCount + 1);
+                _keepAliveInterval = options.PublishingInterval.Multiply(options.KeepAliveCount + 1);
             }
             if (_keepAliveInterval > Timeout.InfiniteTimeSpan)
             {
@@ -729,12 +728,12 @@ namespace Opc.Ua.Client.Subscriptions
                         this, lifetimeCount);
                 }
 
-                if (lifetimeCount * options.PublishingInterval < _context.SessionTimeout)
+                if (options.PublishingInterval.Multiply(lifetimeCount) < _context.SessionTimeout)
                 {
                     _logger.LogWarning(
                         "{Subscription}: Lifetime {LifeTime}ms configured is less " +
                         "than session timeout {Timeout}ms.", this,
-                        lifetimeCount * options.PublishingInterval, _context.SessionTimeout);
+                        options.PublishingInterval.Multiply(lifetimeCount), _context.SessionTimeout);
                 }
             }
             else if (lifetimeCount == 0)
@@ -774,4 +773,3 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly MonitoredItemManager _monitoredItems;
     }
 }
-#endif

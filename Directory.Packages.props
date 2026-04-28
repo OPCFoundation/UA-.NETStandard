@@ -17,6 +17,7 @@
     <PackageVersion Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
     <PackageVersion Include="Irony" Version="1.5.3" />
     <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Bcl.TimeProvider" Version="10.0.7" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
@@ -39,7 +40,7 @@
     <PackageVersion Include="System.CommandLine" Version="2.0.7" />
     <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.7.37220.1" />
     <PackageVersion Include="Moq" Version="4.20.72" />
-    <PackageVersion Include="TUnit" Version="1.37.24" />
+    <PackageVersion Include="TUnit" Version="1.40.10" />
     <PackageVersion Include="MQTTnet" Version="5.1.0.1559" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.9.50" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />

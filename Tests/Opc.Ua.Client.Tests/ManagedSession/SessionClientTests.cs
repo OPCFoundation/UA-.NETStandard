@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Sessions
             m_sessionServices.Dispose();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ActivateSessionAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -110,7 +110,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ActivateSessionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ActivateSessionAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -181,7 +181,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddNodesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -217,7 +217,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddNodesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -255,7 +255,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddNodesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -284,7 +284,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -317,7 +317,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -345,7 +345,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddNodesAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -376,7 +376,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddReferencesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -412,7 +412,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddReferencesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -450,7 +450,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddReferencesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -479,7 +479,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddReferencesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -512,7 +512,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddReferencesAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -540,7 +540,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task AddReferencesAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -571,7 +571,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -610,7 +610,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldContainTraceContextInRequestHeaderAsync(
             EncodeableTestData<RequestHeader> header)
@@ -665,7 +665,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Once);
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldContainTraceContextInRequestHeaderWhenBatchedAsync(
             EncodeableTestData<RequestHeader> header)
@@ -721,7 +721,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -764,7 +764,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldHandleDiagnosticInfosCorrectlyAsync(
             EncodeableTestData<RequestHeader> header)
@@ -826,7 +826,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldHandleEmptyDiagnosticInfosCorrectlyAsync(
             EncodeableTestData<RequestHeader> header)
@@ -867,7 +867,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldHandleEmptyStringTablesInDiagnosticInfosAsync(
             EncodeableTestData<RequestHeader> header)
@@ -931,7 +931,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldHandleMixedDiagnosticInfosCorrectlyAsync(
             EncodeableTestData<RequestHeader> header)
@@ -980,7 +980,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldRecombineStringTablesInDiagnosticInfos1Async(
             EncodeableTestData<RequestHeader> header)
@@ -1050,7 +1050,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldRecombineStringTablesInDiagnosticInfos2Async(
             EncodeableTestData<RequestHeader> header)
@@ -1128,7 +1128,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldRecombineStringTablesInDiagnosticInfos3Async(
             EncodeableTestData<RequestHeader> header)
@@ -1211,7 +1211,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1242,7 +1242,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1277,7 +1277,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1307,7 +1307,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1340,7 +1340,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseNextAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1378,7 +1378,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseNextAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1419,7 +1419,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseNextAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1449,7 +1449,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseNextAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1483,7 +1483,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseNextAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1512,7 +1512,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task BrowseNextAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1545,7 +1545,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CallAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1581,7 +1581,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CallAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1621,7 +1621,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CallAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1650,7 +1650,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CallAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1683,7 +1683,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CallAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1711,7 +1711,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CallAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1742,7 +1742,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CancelAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1771,7 +1771,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CancelAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1804,7 +1804,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CancelAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1832,7 +1832,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CloseSessionAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1861,7 +1861,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CloseSessionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1894,7 +1894,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CloseSessionAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1922,7 +1922,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateMonitoredItemsAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -1961,7 +1961,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateMonitoredItemsAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2002,7 +2002,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateMonitoredItemsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2033,7 +2033,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateMonitoredItemsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2068,7 +2068,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateMonitoredItemsAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2098,7 +2098,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateMonitoredItemsAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2132,7 +2132,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateSubscriptionAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2167,7 +2167,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateSubscriptionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2206,7 +2206,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task CreateSubscriptionAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2240,7 +2240,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteMonitoredItemsAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2278,7 +2278,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteMonitoredItemsAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2319,7 +2319,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteMonitoredItemsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2349,7 +2349,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteMonitoredItemsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2383,7 +2383,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteMonitoredItemsAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2412,7 +2412,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteNodesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2448,7 +2448,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteNodesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2487,7 +2487,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteNodesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2516,7 +2516,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2549,7 +2549,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2577,7 +2577,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteNodesAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2608,7 +2608,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteReferencesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2644,7 +2644,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteReferencesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2682,7 +2682,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteReferencesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2711,7 +2711,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteReferencesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2744,7 +2744,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteReferencesAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2772,7 +2772,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteReferencesAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2803,7 +2803,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteSubscriptionsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2832,7 +2832,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteSubscriptionsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2865,7 +2865,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task DeleteSubscriptionsAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2893,7 +2893,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryReadAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2933,7 +2933,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryReadAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -2975,7 +2975,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryReadAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3008,7 +3008,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryReadAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3045,7 +3045,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryReadAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3077,7 +3077,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryReadAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3112,7 +3112,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryUpdateAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3147,7 +3147,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryUpdateAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3185,7 +3185,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryUpdateAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3214,7 +3214,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryUpdateAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3247,7 +3247,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryUpdateAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3275,7 +3275,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task HistoryUpdateAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3306,7 +3306,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifyMonitoredItemsAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3345,7 +3345,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifyMonitoredItemsAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3386,7 +3386,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifyMonitoredItemsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3417,7 +3417,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifyMonitoredItemsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3452,7 +3452,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifyMonitoredItemsAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3482,7 +3482,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifyMonitoredItemsAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3516,7 +3516,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifySubscriptionAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3551,7 +3551,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifySubscriptionAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3590,7 +3590,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ModifySubscriptionAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3624,7 +3624,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task PublishAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3653,7 +3653,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task PublishAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3686,7 +3686,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task PublishAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3714,7 +3714,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task QueryFirstAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3747,7 +3747,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task QueryFirstAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3784,7 +3784,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task QueryFirstAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3816,7 +3816,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task QueryNextAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3846,7 +3846,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task QueryNextAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3880,7 +3880,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task QueryNextAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3909,7 +3909,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ReadAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3948,7 +3948,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ReadAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -3989,7 +3989,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ReadAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4020,7 +4020,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ReadAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4055,7 +4055,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ReadAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4085,7 +4085,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task ReadAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4119,7 +4119,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RegisterNodesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4154,7 +4154,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RegisterNodesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4193,7 +4193,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RegisterNodesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4222,7 +4222,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RegisterNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4255,7 +4255,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RegisterNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4283,7 +4283,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RepublishAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4313,7 +4313,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RepublishAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4347,7 +4347,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task RepublishAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4376,7 +4376,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetMonitoringModeAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4415,7 +4415,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetMonitoringModeAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4457,7 +4457,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetMonitoringModeAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4488,7 +4488,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetMonitoringModeAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4523,7 +4523,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetMonitoringModeAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4553,7 +4553,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetMonitoringModeAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4587,7 +4587,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetPublishingModeAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4617,7 +4617,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetPublishingModeAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4651,7 +4651,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetPublishingModeAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4680,7 +4680,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetTriggeringAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4726,7 +4726,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(3));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetTriggeringAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4768,7 +4768,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetTriggeringAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4800,7 +4800,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetTriggeringAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4836,7 +4836,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetTriggeringAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4867,7 +4867,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task SetTriggeringAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4906,7 +4906,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.RemoveDiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TransferSubscriptionsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4936,7 +4936,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TransferSubscriptionsAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4970,7 +4970,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TransferSubscriptionsAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -4999,7 +4999,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TransferSubscriptionsAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -5032,7 +5032,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TranslateBrowsePathsToNodeIdsAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -5067,7 +5067,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TranslateBrowsePathsToNodeIdsAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -5105,7 +5105,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TranslateBrowsePathsToNodeIdsAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(EncodeableTestData<RequestHeader> header)
         {
@@ -5130,7 +5130,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response, Is.Not.Null);
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task TranslateBrowsePathsToNodeIdsAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)
@@ -5161,7 +5161,7 @@ namespace Opc.Ua.Client.Sessions
             Assert.That(response.DiagnosticInfos, Has.Count.EqualTo(1));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task UnregisterNodesAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(EncodeableTestData<RequestHeader> header)
         {
@@ -5188,7 +5188,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task UnregisterNodesAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(EncodeableTestData<RequestHeader> header)
         {
@@ -5221,7 +5221,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task UnregisterNodesAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(EncodeableTestData<RequestHeader> header)
         {
@@ -5249,7 +5249,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task UnregisterNodesAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(EncodeableTestData<RequestHeader> header)
         {
@@ -5281,7 +5281,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task UnregisterNodesAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -5309,7 +5309,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task WriteAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(EncodeableTestData<RequestHeader> header)
         {
@@ -5344,7 +5344,7 @@ namespace Opc.Ua.Client.Sessions
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task WriteAsyncShouldHandleBatchingWhenSecondOperationFailsAsync(EncodeableTestData<RequestHeader> header)
         {
@@ -5381,7 +5381,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task WriteAsyncShouldSimplyCallBaseMethodWhenNoLimitsSetAsync(EncodeableTestData<RequestHeader> header)
         {
@@ -5409,7 +5409,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task WriteAsyncShouldThrowExceptionWhenResponseContainsBadStatusCodeAsync(EncodeableTestData<RequestHeader> header)
         {
@@ -5441,7 +5441,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task WriteAsyncShouldThrowExceptionWhenSendRequestAsyncThrowsAsync(
             EncodeableTestData<RequestHeader> header)
@@ -5469,7 +5469,7 @@ namespace Opc.Ua.Client.Sessions
             m_mockChannel.Verify();
         }
 
-        
+
         [TestCaseSource(typeof(RequestHeaderData))]
         public async Task WriteAsyncShouldValidateResponseAndHandleDiagnosticInfoAsync(
             EncodeableTestData<RequestHeader> header)

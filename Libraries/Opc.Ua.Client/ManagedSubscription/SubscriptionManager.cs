@@ -1,4 +1,3 @@
-#if OPCUA_CLIENT_V2
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
@@ -154,12 +153,17 @@ namespace Opc.Ua.Client.Subscriptions
             _logger = loggerFactory.CreateLogger<SubscriptionManager>();
             ReturnDiagnostics = returnDiagnostics;
             _publishController = PublishControllerAsync(_cts.Token);
+#if NET8_0_OR_GREATER
             _acks = Channel.CreateUnboundedPrioritized<SubscriptionAcknowledgement>(
                 new UnboundedPrioritizedChannelOptions<SubscriptionAcknowledgement>
                 {
                     Comparer = Comparer<SubscriptionAcknowledgement>
                         .Create((x, y) => x.SequenceNumber.CompareTo(y.SequenceNumber))
                 });
+#else
+            // TODO: polyfill ordering or use blocking queue
+            _acks = Channel.CreateUnbounded<SubscriptionAcknowledgement>();
+#endif
         }
 
         /// <inheritdoc/>
@@ -221,7 +225,7 @@ namespace Opc.Ua.Client.Subscriptions
                 if (subscription == null ||
                     !_subscriptions.Remove(subscription))
                 {
-                    return ValueTask.CompletedTask;
+                    return default;
                 }
                 _subscriptionHistory.Enqueue(subscriptionId);
             }
@@ -231,7 +235,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             _logger.LogInformation("{Subscription} REMOVED.", subscription);
             _publishControl.Set();
-            return ValueTask.CompletedTask;
+            return default;
         }
 
         /// <inheritdoc/>
@@ -423,13 +427,21 @@ namespace Opc.Ua.Client.Subscriptions
                     if (publishWorkers.Count > desiredWorkerCount)
                     {
                         // Too many workers, reduce
+#if NET8_0_OR_GREATER
                         foreach (var worker in publishWorkers[desiredWorkerCount..])
+#else
+                        foreach (var worker in publishWorkers.Skip(desiredWorkerCount))
+#endif
                         {
                             _logger.LogInformation("Removing publish worker {Index}",
                                 worker.Index);
                             await worker.DisposeAsync().ConfigureAwait(false);
                         }
+#if NET8_0_OR_GREATER
                         publishWorkers = publishWorkers[..desiredWorkerCount];
+#else
+                        publishWorkers = publishWorkers.Take(desiredWorkerCount).ToList();
+#endif
                     }
                     else if (desiredWorkerCount > publishWorkers.Count)
                     {
@@ -844,7 +856,7 @@ namespace Opc.Ua.Client.Subscriptions
                 foreach (var s in created)
                 {
                     var publishingInterval = s.CurrentPublishingInterval;
-                    var keepAlive = publishingInterval * s.CurrentKeepAliveCount;
+                    var keepAlive = publishingInterval.Multiply(s.CurrentKeepAliveCount);
                     if (timeout < keepAlive)
                     {
                         timeout = keepAlive;
@@ -866,7 +878,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // value for PublishingInterval * KeepAliveCount
                 // TODO: Validate this against spec
                 //
-                timeout *= 2;
+                timeout = timeout.Multiply(2);
                 if (timeout < kMinOperationTimeout)
                 {
                     timeout = kMinOperationTimeout;
@@ -913,4 +925,3 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly ILogger _logger;
     }
 }
-#endif

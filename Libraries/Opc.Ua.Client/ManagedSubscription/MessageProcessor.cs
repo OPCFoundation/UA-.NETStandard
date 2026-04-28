@@ -1,4 +1,3 @@
-#if OPCUA_CLIENT_V2
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
@@ -68,6 +67,7 @@ namespace Opc.Ua.Client.Subscriptions
             _logger = Observability.LoggerFactory.CreateLogger<Subscription>();
             _services = services;
             _completion = completion;
+#if NET8_0_OR_GREATER
             _messages = Channel.CreateUnboundedPrioritized<IncomingMessage>(
                 new UnboundedPrioritizedChannelOptions<IncomingMessage>
                 {
@@ -75,6 +75,14 @@ namespace Opc.Ua.Client.Subscriptions
                     Comparer = Comparer<IncomingMessage>.Create(
                         IncomingMessage.Compare)
                 });
+#else
+            // TODO: create polyfill for prioritized channel to avoid processing messages out of order when republishing missing messages.
+            _messages = Channel.CreateUnbounded<IncomingMessage>(
+                new UnboundedChannelOptions
+                {
+                    SingleReader = true
+                });
+#endif
             _messageWorkerTask = ProcessReceivedMessagesAsync(_cts.Token);
         }
 
@@ -436,4 +444,3 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly Channel<IncomingMessage> _messages;
     }
 }
-#endif

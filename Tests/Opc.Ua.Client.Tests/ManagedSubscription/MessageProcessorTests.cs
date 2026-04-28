@@ -1,4 +1,3 @@
-#if OPCUA_CLIENT_V2
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
@@ -68,7 +67,7 @@ namespace Opc.Ua.Client.Subscriptions
                 .Setup(c => c.CompleteAsync(
                     It.Is<uint>(i => i == 3),
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask)
+                .Returns(default(ValueTask))
                 .Verifiable(Times.Once);
 
             // Act
@@ -214,9 +213,7 @@ namespace Opc.Ua.Client.Subscriptions
                 SequenceNumber = (uint)i
             }).ToArray();
 
-#pragma warning disable CA5394 // Do not use insecure randomness
-            Random.Shared.Shuffle(messages);
-#pragma warning restore CA5394 // Do not use insecure randomness
+            UnsecureRandom.Shared.Shuffle(messages);
 
             await using var sut = new TestMessageProcessor(m_mockServices.Object,
                 m_mockCompletion.Object, m_mockObservability.Object)
@@ -396,4 +393,3 @@ namespace Opc.Ua.Client.Subscriptions
         private Mock<ISubscriptionServiceSet> m_mockServices;
     }
 }
-#endif

@@ -1,4 +1,3 @@
-#if OPCUA_CLIENT_V2
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
@@ -30,6 +29,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -61,7 +61,8 @@ namespace Opc.Ua.Client
         public DefaultSubscriptionEngine(
             ISubscriptionEngineContext context)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
             var loggerFactory = context.Telemetry.LoggerFactory;
             m_manager = new SubscriptionManager(
                 new EngineContextAdapter(context),
@@ -98,7 +99,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void StartPublishing(int timeout, bool fullQueue)
         {
-            ObjectDisposedException.ThrowIf(m_disposed, this);
+            ThrowIfDisposed();
             m_manager.Update();
         }
 
@@ -117,14 +118,14 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void PausePublishing()
         {
-            ObjectDisposedException.ThrowIf(m_disposed, this);
+            ThrowIfDisposed();
             m_manager.Pause();
         }
 
         /// <inheritdoc/>
         public void ResumePublishing()
         {
-            ObjectDisposedException.ThrowIf(m_disposed, this);
+            ThrowIfDisposed();
             m_manager.Resume();
         }
 
@@ -148,6 +149,19 @@ namespace Opc.Ua.Client
                     .GetResult();
                 m_disposed = true;
             }
+        }
+
+        private void ThrowIfDisposed()
+        {
+#if NET8_0_OR_GREATER
+            ObjectDisposedException.ThrowIf(m_disposed, this);
+#else
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(
+                    typeof(DefaultSubscriptionEngine).FullName);
+            }
+#endif
         }
 
         #region Nested adapters
@@ -516,4 +530,3 @@ namespace Opc.Ua.Client
         #endregion
     }
 }
-#endif
