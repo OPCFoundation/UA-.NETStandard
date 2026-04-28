@@ -65,7 +65,6 @@ namespace Opc.Ua.Client
         , IAsyncDisposable
 #endif
     {
-        #region Fields
 
         private volatile Session? m_session;
         private readonly ConnectionStateMachine m_stateMachine;
@@ -83,10 +82,6 @@ namespace Opc.Ua.Client
         private bool m_checkDomain;
         private ServerRedundancyInfo? m_redundancyInfo;
         private int m_disposed;
-
-        #endregion
-
-        #region Constructor / Factory
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedSession"/>
@@ -192,10 +187,6 @@ namespace Opc.Ua.Client
             return managed;
         }
 
-        #endregion
-
-        #region Inner Session Access
-
         /// <summary>
         /// Gets the inner V1 session. Throws if no session is available.
         /// </summary>
@@ -219,10 +210,6 @@ namespace Opc.Ua.Client
         /// Gets the connection state machine.
         /// </summary>
         internal ConnectionStateMachine StateMachine => m_stateMachine;
-
-        #endregion
-
-        #region ISession Properties
 
         /// <inheritdoc/>
         public ISessionFactory SessionFactory => m_sessionFactory;
@@ -441,10 +428,6 @@ namespace Opc.Ua.Client
             }
         }
 
-        #endregion
-
-        #region ISessionClient / IClientBase Properties
-
         /// <inheritdoc/>
         public NodeId SessionId
             => m_session?.SessionId ?? NodeId.Null;
@@ -532,10 +515,6 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool Disposed => m_disposed != 0;
 
-        #endregion
-
-        #region ISession Events
-
         /// <inheritdoc/>
         public event KeepAliveEventHandler KeepAlive
         {
@@ -608,10 +587,6 @@ namespace Opc.Ua.Client
         /// </summary>
         public event EventHandler<ConnectionStateChangedEventArgs>?
             ConnectionStateChanged;
-
-        #endregion
-
-        #region ISession Methods (non-service)
 
         /// <inheritdoc/>
         public async Task ReconnectAsync(
@@ -882,10 +857,6 @@ namespace Opc.Ua.Client
         }
 #endif
 
-        #endregion
-
-        #region IClientBase Methods
-
         /// <inheritdoc/>
         public void AttachChannel(ITransportChannel channel)
             => InnerSession.AttachChannel(channel);
@@ -912,10 +883,6 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public uint NewRequestHandle()
             => InnerSession.NewRequestHandle();
-
-        #endregion
-
-        #region Connection Lifecycle
 
         private void WireStateMachineCallbacks()
         {
@@ -1118,10 +1085,6 @@ namespace Opc.Ua.Client
             }
         }
 
-        #endregion
-
-        #region Session Event Wiring
-
         private void WireSessionEvents(Session session)
         {
             session.KeepAlive += OnInnerKeepAlive;
@@ -1202,10 +1165,6 @@ namespace Opc.Ua.Client
             ConnectionStateChanged?.Invoke(this, e);
         }
 
-        #endregion
-
-        #region IDisposable / IAsyncDisposable
-
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -1276,7 +1235,5 @@ namespace Opc.Ua.Client
             GC.SuppressFinalize(this);
         }
 #endif
-
-        #endregion
     }
 }

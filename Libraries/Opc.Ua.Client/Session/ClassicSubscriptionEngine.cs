@@ -43,15 +43,11 @@ namespace Opc.Ua.Client
     /// </summary>
     public class ClassicSubscriptionEngine : ISubscriptionEngine
     {
-        #region Constants
         private const int kMinPublishRequestCountMax = 100;
         private const int kMaxPublishRequestCountMax = ushort.MaxValue;
         private const int kDefaultPublishRequestCount = 1;
         private const int kPublishRequestSequenceNumberOutOfOrderThreshold = 10;
         private const int kPublishRequestSequenceNumberOutdatedThreshold = 100;
-        #endregion
-
-        #region Fields
         private readonly ISubscriptionEngineContext m_context;
         private readonly ILogger m_logger;
         private readonly object m_acknowledgementsToSendLock = new();
@@ -64,9 +60,6 @@ namespace Opc.Ua.Client
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;
         private bool m_disposed;
-        #endregion
-
-        #region Constructor
         /// <summary>
         /// Initializes a new instance of the
         /// <see cref="ClassicSubscriptionEngine"/> class.
@@ -82,9 +75,6 @@ namespace Opc.Ua.Client
             m_minPublishRequestCount = kDefaultPublishRequestCount;
             m_maxPublishRequestCount = kMaxPublishRequestCountMax;
         }
-        #endregion
-
-        #region ISubscriptionEngine
         /// <inheritdoc/>
         public int GoodPublishRequestCount
             => m_context.GoodPublishRequestCount;
@@ -189,9 +179,6 @@ namespace Opc.Ua.Client
         {
             QueueBeginPublish();
         }
-        #endregion
-
-        #region IDisposable
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -209,9 +196,6 @@ namespace Opc.Ua.Client
         {
             m_disposed = true;
         }
-        #endregion
-
-        #region Internal Methods
         /// <summary>
         /// Sends a publish request to the server.
         /// </summary>
@@ -1164,6 +1148,5 @@ namespace Opc.Ua.Client
 
             return (result, error);
         }
-        #endregion
     }
 }

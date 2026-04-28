@@ -100,8 +100,6 @@ namespace Opc.Ua.Client.V2.Tests
 #endif
         }
 
-        #region V2SubscriptionEngineFactory tests
-
         [Test]
         public void FactoryCreateReturnsV2Engine()
         {
@@ -127,10 +125,6 @@ namespace Opc.Ua.Client.V2.Tests
 
             Assert.That(first, Is.SameAs(second));
         }
-
-        #endregion
-
-        #region V2SubscriptionEngine tests
 
         [Test]
         public void ConstructorThrowsOnNullContext()
@@ -231,10 +225,6 @@ namespace Opc.Ua.Client.V2.Tests
             Assert.That(
                 engine.MaxPublishRequestCount, Is.EqualTo(20));
         }
-
-        #endregion
-
-        #region V2SubscriptionBridge tests
 
         [Test]
         public void BridgeConstructorThrowsOnNullSink()
@@ -396,7 +386,5 @@ namespace Opc.Ua.Client.V2.Tests
                 dcn.DiagnosticInfos[0].AdditionalInfo,
                 Is.EqualTo("test-diag"));
         }
-
-        #endregion
     }
 }

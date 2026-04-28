@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -42,7 +42,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public partial class ManagedSession
     {
-        #region IAttributeServiceSetClientMethods
 
         /// <inheritdoc/>
         public async ValueTask<ReadResponse> ReadAsync(
@@ -210,10 +209,6 @@ namespace Opc.Ua.Client
             out ArrayOf<HistoryUpdateResult> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
             => InnerSession.EndHistoryUpdate(result, out results, out diagnosticInfos);
-
-        #endregion
-
-        #region IViewServiceSetClientMethods
 
         /// <inheritdoc/>
         public async ValueTask<BrowseResponse> BrowseAsync(
@@ -408,10 +403,6 @@ namespace Opc.Ua.Client
             IAsyncResult result)
             => InnerSession.EndUnregisterNodes(result);
 
-        #endregion
-
-        #region IMethodServiceSetClientMethods
-
         /// <inheritdoc/>
         public async ValueTask<CallResponse> CallAsync(
             RequestHeader? requestHeader,
@@ -449,10 +440,6 @@ namespace Opc.Ua.Client
             out ArrayOf<CallMethodResult> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
             => InnerSession.EndCall(result, out results, out diagnosticInfos);
-
-        #endregion
-
-        #region IMonitoredItemServiceSetClientMethods
 
         /// <inheritdoc/>
         public async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
@@ -677,10 +664,6 @@ namespace Opc.Ua.Client
             out ArrayOf<StatusCode> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
             => InnerSession.EndDeleteMonitoredItems(result, out results, out diagnosticInfos);
-
-        #endregion
-
-        #region ISubscriptionServiceSetClientMethods
 
         /// <inheritdoc/>
         public async ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
@@ -999,10 +982,6 @@ namespace Opc.Ua.Client
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
             => InnerSession.EndDeleteSubscriptions(result, out results, out diagnosticInfos);
 
-        #endregion
-
-        #region INodeManagementServiceSetClientMethods
-
         /// <inheritdoc/>
         public async ValueTask<AddNodesResponse> AddNodesAsync(
             RequestHeader? requestHeader,
@@ -1155,10 +1134,6 @@ namespace Opc.Ua.Client
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
             => InnerSession.EndDeleteReferences(result, out results, out diagnosticInfos);
 
-        #endregion
-
-        #region IQueryServiceSetClientMethods
-
         /// <inheritdoc/>
         public async ValueTask<QueryFirstResponse> QueryFirstAsync(
             RequestHeader? requestHeader,
@@ -1255,10 +1230,6 @@ namespace Opc.Ua.Client
             out ArrayOf<QueryDataSet> queryDataSets,
             out ByteString revisedContinuationPoint)
             => InnerSession.EndQueryNext(result, out queryDataSets, out revisedContinuationPoint);
-
-        #endregion
-
-        #region ISessionClientMethods
 
         /// <inheritdoc/>
         public async ValueTask<CreateSessionResponse> CreateSessionAsync(
@@ -1454,8 +1425,6 @@ namespace Opc.Ua.Client
             IAsyncResult result,
             out uint cancelCount)
             => InnerSession.EndCancel(result, out cancelCount);
-
-        #endregion
 
     }
 }

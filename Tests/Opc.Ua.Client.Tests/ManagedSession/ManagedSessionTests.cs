@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if OPCUA_CLIENT_V2
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -49,7 +47,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
     [TestFixture]
     public sealed class ManagedSessionTests
     {
-        #region ReconnectPolicy Tests
 
         [Test]
         public void ExponentialBackoffIncreasesDelay()
@@ -201,10 +198,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 "Jitter should produce varying delays");
         }
 
-        #endregion
-
-        #region ConnectionState Tests
-
         [Test]
         public void ConnectionStateChangedEventArgsHasCorrectProperties()
         {
@@ -222,10 +215,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(args.Error!.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
             Assert.That(args.ReconnectAttempt, Is.EqualTo(3));
         }
-
-        #endregion
-
-        #region ConnectionStateMachine Tests
 
         [Test]
         public void InitialStateIsDisconnected()
@@ -252,10 +241,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(sm.State, Is.EqualTo(ConnectionState.Closed));
         }
-
-        #endregion
-
-        #region ManagedSession Construction Tests
 
         [Test]
         public void CreateAsyncThrowsOnNullConfiguration()
@@ -296,9 +281,5 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     endpoint: null!,
                     sessionFactory: mockFactory.Object).ConfigureAwait(false));
         }
-
-        #endregion
     }
 }
-
-#endif

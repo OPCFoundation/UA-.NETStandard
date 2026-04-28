@@ -164,8 +164,6 @@ namespace Opc.Ua.Client
 #endif
         }
 
-        #region Nested adapters
-
         /// <summary>
         /// Adapts <see cref="ISubscriptionEngineContext"/> to
         /// <see cref="ISubscriptionManagerContext"/> so the V2
@@ -526,7 +524,5 @@ namespace Opc.Ua.Client
             {
             }
         }
-
-        #endregion
     }
 }
