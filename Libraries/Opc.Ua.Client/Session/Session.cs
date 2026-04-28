@@ -386,14 +386,12 @@ namespace Opc.Ua.Client
             }
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
             GC.SuppressFinalize(this);
             await DisposeAsyncCore(true).ConfigureAwait(false);
         }
-#endif
 
         /// <summary>
         /// Core async dispose logic for the session.

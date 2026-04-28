@@ -68,7 +68,10 @@ namespace Opc.Ua.Client
         public async ValueTask<ServerRedundancyInfo> FetchRedundancyInfoAsync(
             ISession session, CancellationToken ct = default)
         {
-            if (session is null) throw new ArgumentNullException(nameof(session));
+            if (session is null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
 
             // Read redundancy support mode and service level in one call.
             ArrayOf<NodeId> nodeIds =
@@ -113,8 +116,15 @@ namespace Opc.Ua.Client
             ServerRedundancyInfo redundancyInfo,
             ConfiguredEndpoint currentEndpoint)
         {
-            if (redundancyInfo is null) throw new ArgumentNullException(nameof(redundancyInfo));
-            if (currentEndpoint is null) throw new ArgumentNullException(nameof(currentEndpoint));
+            if (redundancyInfo is null)
+            {
+                throw new ArgumentNullException(nameof(redundancyInfo));
+            }
+
+            if (currentEndpoint is null)
+            {
+                throw new ArgumentNullException(nameof(currentEndpoint));
+            }
 
             if (redundancyInfo.Mode is RedundancyMode.None
                 or RedundancyMode.Transparent)

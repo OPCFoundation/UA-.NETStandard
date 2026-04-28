@@ -60,10 +60,7 @@ namespace Opc.Ua.Client
     /// delegated to the inner session.
     /// </para>
     /// </remarks>
-    public partial class ManagedSession : ISession
-#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER
-        , IAsyncDisposable
-#endif
+    public partial class ManagedSession : ISession, IAsyncDisposable
     {
 
         private volatile Session? m_session;
@@ -1199,7 +1196,6 @@ namespace Opc.Ua.Client
             }
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
@@ -1234,6 +1230,5 @@ namespace Opc.Ua.Client
 
             GC.SuppressFinalize(this);
         }
-#endif
     }
 }

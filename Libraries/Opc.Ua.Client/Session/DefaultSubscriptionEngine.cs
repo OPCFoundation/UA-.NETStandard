@@ -62,7 +62,9 @@ namespace Opc.Ua.Client
             ISubscriptionEngineContext context)
         {
             if (context == null)
+            {
                 throw new ArgumentNullException(nameof(context));
+            }
             var loggerFactory = context.Telemetry.LoggerFactory;
             m_manager = new SubscriptionManager(
                 new EngineContextAdapter(context),

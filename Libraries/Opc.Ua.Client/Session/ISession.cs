@@ -70,10 +70,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public interface ISession : ISessionClient
-#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER
-        , IAsyncDisposable
-#endif
+    public interface ISession : ISessionClient, IAsyncDisposable
     {
         /// <summary>
         /// Raised when a keep alive arrives from the server or an error is detected.

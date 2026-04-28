@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -53,7 +53,8 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.ReadAsync(requestHeader, maxAge, timestampsToReturn, nodesToRead, ct).ConfigureAwait(false);
+                return await InnerSession.ReadAsync(
+                    requestHeader, maxAge, timestampsToReturn, nodesToRead, ct).ConfigureAwait(false);
             }
         }
 
@@ -68,7 +69,9 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.HistoryReadAsync(requestHeader, historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead, ct).ConfigureAwait(false);
+                return await InnerSession.HistoryReadAsync(
+                    requestHeader, historyReadDetails, timestampsToReturn,
+                    releaseContinuationPoints, nodesToRead, ct).ConfigureAwait(false);
             }
         }
 
@@ -92,12 +95,13 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.HistoryUpdateAsync(requestHeader, historyUpdateDetails, ct).ConfigureAwait(false);
+                return await InnerSession.HistoryUpdateAsync(
+                    requestHeader, historyUpdateDetails, ct).ConfigureAwait(false);
             }
         }
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? Read(
             RequestHeader? requestHeader,
             double maxAge,
@@ -105,10 +109,11 @@ namespace Opc.Ua.Client
             ArrayOf<ReadValueId> nodesToRead,
             out ArrayOf<DataValue> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.Read(requestHeader, maxAge, timestampsToReturn, nodesToRead, out results, out diagnosticInfos);
+            => InnerSession.Read(
+                requestHeader, maxAge, timestampsToReturn, nodesToRead, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? HistoryRead(
             RequestHeader? requestHeader,
             ExtensionObject historyReadDetails,
@@ -117,10 +122,12 @@ namespace Opc.Ua.Client
             ArrayOf<HistoryReadValueId> nodesToRead,
             out ArrayOf<HistoryReadResult> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.HistoryRead(requestHeader, historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead, out results, out diagnosticInfos);
+            => InnerSession.HistoryRead(
+                requestHeader, historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead,
+                out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? Write(
             RequestHeader? requestHeader,
             ArrayOf<WriteValue> nodesToWrite,
@@ -129,7 +136,7 @@ namespace Opc.Ua.Client
             => InnerSession.Write(requestHeader, nodesToWrite, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? HistoryUpdate(
             RequestHeader? requestHeader,
             ArrayOf<ExtensionObject> historyUpdateDetails,
@@ -138,7 +145,7 @@ namespace Opc.Ua.Client
             => InnerSession.HistoryUpdate(requestHeader, historyUpdateDetails, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginRead(
             RequestHeader? requestHeader,
             double maxAge,
@@ -149,7 +156,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginRead(requestHeader, maxAge, timestampsToReturn, nodesToRead, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginHistoryRead(
             RequestHeader? requestHeader,
             ExtensionObject historyReadDetails,
@@ -158,10 +165,12 @@ namespace Opc.Ua.Client
             ArrayOf<HistoryReadValueId> nodesToRead,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginHistoryRead(requestHeader, historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead, callback, asyncState);
+            => InnerSession.BeginHistoryRead(
+                requestHeader, historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead,
+                callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginWrite(
             RequestHeader? requestHeader,
             ArrayOf<WriteValue> nodesToWrite,
@@ -170,7 +179,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginWrite(requestHeader, nodesToWrite, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginHistoryUpdate(
             RequestHeader? requestHeader,
             ArrayOf<ExtensionObject> historyUpdateDetails,
@@ -179,7 +188,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginHistoryUpdate(requestHeader, historyUpdateDetails, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndRead(
             IAsyncResult result,
             out ArrayOf<DataValue> results,
@@ -187,7 +196,7 @@ namespace Opc.Ua.Client
             => InnerSession.EndRead(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndHistoryRead(
             IAsyncResult result,
             out ArrayOf<HistoryReadResult> results,
@@ -195,7 +204,7 @@ namespace Opc.Ua.Client
             => InnerSession.EndHistoryRead(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndWrite(
             IAsyncResult result,
             out ArrayOf<StatusCode> results,
@@ -203,7 +212,7 @@ namespace Opc.Ua.Client
             => InnerSession.EndWrite(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndHistoryUpdate(
             IAsyncResult result,
             out ArrayOf<HistoryUpdateResult> results,
@@ -220,7 +229,8 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.BrowseAsync(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, ct).ConfigureAwait(false);
+                return await InnerSession.BrowseAsync(
+                    requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, ct).ConfigureAwait(false);
             }
         }
 
@@ -233,7 +243,8 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.BrowseNextAsync(requestHeader, releaseContinuationPoints, continuationPoints, ct).ConfigureAwait(false);
+                return await InnerSession.BrowseNextAsync(
+                    requestHeader, releaseContinuationPoints, continuationPoints, ct).ConfigureAwait(false);
             }
         }
 
@@ -245,7 +256,8 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.TranslateBrowsePathsToNodeIdsAsync(requestHeader, browsePaths, ct).ConfigureAwait(false);
+                return await InnerSession.TranslateBrowsePathsToNodeIdsAsync(
+                    requestHeader, browsePaths, ct).ConfigureAwait(false);
             }
         }
 
@@ -269,12 +281,13 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.UnregisterNodesAsync(requestHeader, nodesToUnregister, ct).ConfigureAwait(false);
+                return await InnerSession.UnregisterNodesAsync(
+                    requestHeader, nodesToUnregister, ct).ConfigureAwait(false);
             }
         }
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? Browse(
             RequestHeader? requestHeader,
             ViewDescription? view,
@@ -282,20 +295,22 @@ namespace Opc.Ua.Client
             ArrayOf<BrowseDescription> nodesToBrowse,
             out ArrayOf<BrowseResult> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.Browse(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, out results, out diagnosticInfos);
+            => InnerSession.Browse(
+                requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? BrowseNext(
             RequestHeader? requestHeader,
             bool releaseContinuationPoints,
             ArrayOf<ByteString> continuationPoints,
             out ArrayOf<BrowseResult> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.BrowseNext(requestHeader, releaseContinuationPoints, continuationPoints, out results, out diagnosticInfos);
+            => InnerSession.BrowseNext(
+                requestHeader, releaseContinuationPoints, continuationPoints, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? TranslateBrowsePathsToNodeIds(
             RequestHeader? requestHeader,
             ArrayOf<BrowsePath> browsePaths,
@@ -304,7 +319,7 @@ namespace Opc.Ua.Client
             => InnerSession.TranslateBrowsePathsToNodeIds(requestHeader, browsePaths, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? RegisterNodes(
             RequestHeader? requestHeader,
             ArrayOf<NodeId> nodesToRegister,
@@ -312,14 +327,14 @@ namespace Opc.Ua.Client
             => InnerSession.RegisterNodes(requestHeader, nodesToRegister, out registeredNodeIds);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? UnregisterNodes(
             RequestHeader? requestHeader,
             ArrayOf<NodeId> nodesToUnregister)
             => InnerSession.UnregisterNodes(requestHeader, nodesToUnregister);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginBrowse(
             RequestHeader? requestHeader,
             ViewDescription? view,
@@ -327,20 +342,22 @@ namespace Opc.Ua.Client
             ArrayOf<BrowseDescription> nodesToBrowse,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginBrowse(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, callback, asyncState);
+            => InnerSession.BeginBrowse(
+                requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginBrowseNext(
             RequestHeader? requestHeader,
             bool releaseContinuationPoints,
             ArrayOf<ByteString> continuationPoints,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginBrowseNext(requestHeader, releaseContinuationPoints, continuationPoints, callback, asyncState);
+            => InnerSession.BeginBrowseNext(
+                requestHeader, releaseContinuationPoints, continuationPoints, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginTranslateBrowsePathsToNodeIds(
             RequestHeader? requestHeader,
             ArrayOf<BrowsePath> browsePaths,
@@ -349,7 +366,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginTranslateBrowsePathsToNodeIds(requestHeader, browsePaths, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginRegisterNodes(
             RequestHeader? requestHeader,
             ArrayOf<NodeId> nodesToRegister,
@@ -358,7 +375,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginRegisterNodes(requestHeader, nodesToRegister, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginUnregisterNodes(
             RequestHeader? requestHeader,
             ArrayOf<NodeId> nodesToUnregister,
@@ -367,7 +384,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginUnregisterNodes(requestHeader, nodesToUnregister, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndBrowse(
             IAsyncResult result,
             out ArrayOf<BrowseResult> results,
@@ -375,7 +392,7 @@ namespace Opc.Ua.Client
             => InnerSession.EndBrowse(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndBrowseNext(
             IAsyncResult result,
             out ArrayOf<BrowseResult> results,
@@ -383,7 +400,7 @@ namespace Opc.Ua.Client
             => InnerSession.EndBrowseNext(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndTranslateBrowsePathsToNodeIds(
             IAsyncResult result,
             out ArrayOf<BrowsePathResult> results,
@@ -391,14 +408,14 @@ namespace Opc.Ua.Client
             => InnerSession.EndTranslateBrowsePathsToNodeIds(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndRegisterNodes(
             IAsyncResult result,
             out ArrayOf<NodeId> registeredNodeIds)
             => InnerSession.EndRegisterNodes(result, out registeredNodeIds);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndUnregisterNodes(
             IAsyncResult result)
             => InnerSession.EndUnregisterNodes(result);
@@ -416,7 +433,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? Call(
             RequestHeader? requestHeader,
             ArrayOf<CallMethodRequest> methodsToCall,
@@ -425,7 +442,7 @@ namespace Opc.Ua.Client
             => InnerSession.Call(requestHeader, methodsToCall, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginCall(
             RequestHeader? requestHeader,
             ArrayOf<CallMethodRequest> methodsToCall,
@@ -434,7 +451,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginCall(requestHeader, methodsToCall, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndCall(
             IAsyncResult result,
             out ArrayOf<CallMethodResult> results,
@@ -451,7 +468,8 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.CreateMonitoredItemsAsync(requestHeader, subscriptionId, timestampsToReturn, itemsToCreate, ct).ConfigureAwait(false);
+                return await InnerSession.CreateMonitoredItemsAsync(
+                    requestHeader, subscriptionId, timestampsToReturn, itemsToCreate, ct).ConfigureAwait(false);
             }
         }
 
@@ -465,7 +483,8 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.ModifyMonitoredItemsAsync(requestHeader, subscriptionId, timestampsToReturn, itemsToModify, ct).ConfigureAwait(false);
+                return await InnerSession.ModifyMonitoredItemsAsync(
+                    requestHeader, subscriptionId, timestampsToReturn, itemsToModify, ct).ConfigureAwait(false);
             }
         }
 
@@ -479,7 +498,8 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.SetMonitoringModeAsync(requestHeader, subscriptionId, monitoringMode, monitoredItemIds, ct).ConfigureAwait(false);
+                return await InnerSession.SetMonitoringModeAsync(
+                    requestHeader, subscriptionId, monitoringMode, monitoredItemIds, ct).ConfigureAwait(false);
             }
         }
 
@@ -494,7 +514,9 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.SetTriggeringAsync(requestHeader, subscriptionId, triggeringItemId, linksToAdd, linksToRemove, ct).ConfigureAwait(false);
+                return await InnerSession.SetTriggeringAsync(
+                    requestHeader, subscriptionId, triggeringItemId,
+                    linksToAdd, linksToRemove, ct).ConfigureAwait(false);
             }
         }
 
@@ -507,12 +529,13 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.DeleteMonitoredItemsAsync(requestHeader, subscriptionId, monitoredItemIds, ct).ConfigureAwait(false);
+                return await InnerSession.DeleteMonitoredItemsAsync(
+                    requestHeader, subscriptionId, monitoredItemIds, ct).ConfigureAwait(false);
             }
         }
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? CreateMonitoredItems(
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -520,10 +543,11 @@ namespace Opc.Ua.Client
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             out ArrayOf<MonitoredItemCreateResult> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.CreateMonitoredItems(requestHeader, subscriptionId, timestampsToReturn, itemsToCreate, out results, out diagnosticInfos);
+            => InnerSession.CreateMonitoredItems(
+                requestHeader, subscriptionId, timestampsToReturn, itemsToCreate, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? ModifyMonitoredItems(
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -531,10 +555,11 @@ namespace Opc.Ua.Client
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             out ArrayOf<MonitoredItemModifyResult> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.ModifyMonitoredItems(requestHeader, subscriptionId, timestampsToReturn, itemsToModify, out results, out diagnosticInfos);
+            => InnerSession.ModifyMonitoredItems(
+                requestHeader, subscriptionId, timestampsToReturn, itemsToModify, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? SetMonitoringMode(
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -542,10 +567,11 @@ namespace Opc.Ua.Client
             ArrayOf<uint> monitoredItemIds,
             out ArrayOf<StatusCode> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.SetMonitoringMode(requestHeader, subscriptionId, monitoringMode, monitoredItemIds, out results, out diagnosticInfos);
+            => InnerSession.SetMonitoringMode(
+                requestHeader, subscriptionId, monitoringMode, monitoredItemIds, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? SetTriggering(
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -556,20 +582,23 @@ namespace Opc.Ua.Client
             out ArrayOf<DiagnosticInfo> addDiagnosticInfos,
             out ArrayOf<StatusCode> removeResults,
             out ArrayOf<DiagnosticInfo> removeDiagnosticInfos)
-            => InnerSession.SetTriggering(requestHeader, subscriptionId, triggeringItemId, linksToAdd, linksToRemove, out addResults, out addDiagnosticInfos, out removeResults, out removeDiagnosticInfos);
+            => InnerSession.SetTriggering(
+                requestHeader, subscriptionId, triggeringItemId, linksToAdd, linksToRemove, out addResults,
+                out addDiagnosticInfos, out removeResults, out removeDiagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? DeleteMonitoredItems(
             RequestHeader? requestHeader,
             uint subscriptionId,
             ArrayOf<uint> monitoredItemIds,
             out ArrayOf<StatusCode> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.DeleteMonitoredItems(requestHeader, subscriptionId, monitoredItemIds, out results, out diagnosticInfos);
+            => InnerSession.DeleteMonitoredItems(
+                requestHeader, subscriptionId, monitoredItemIds, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginCreateMonitoredItems(
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -577,10 +606,11 @@ namespace Opc.Ua.Client
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginCreateMonitoredItems(requestHeader, subscriptionId, timestampsToReturn, itemsToCreate, callback, asyncState);
+            => InnerSession.BeginCreateMonitoredItems(
+                requestHeader, subscriptionId, timestampsToReturn, itemsToCreate, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginModifyMonitoredItems(
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -588,10 +618,11 @@ namespace Opc.Ua.Client
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginModifyMonitoredItems(requestHeader, subscriptionId, timestampsToReturn, itemsToModify, callback, asyncState);
+            => InnerSession.BeginModifyMonitoredItems(
+                requestHeader, subscriptionId, timestampsToReturn, itemsToModify, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginSetMonitoringMode(
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -599,10 +630,11 @@ namespace Opc.Ua.Client
             ArrayOf<uint> monitoredItemIds,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginSetMonitoringMode(requestHeader, subscriptionId, monitoringMode, monitoredItemIds, callback, asyncState);
+            => InnerSession.BeginSetMonitoringMode(
+                requestHeader, subscriptionId, monitoringMode, monitoredItemIds, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginSetTriggering(
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -611,20 +643,22 @@ namespace Opc.Ua.Client
             ArrayOf<uint> linksToRemove,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginSetTriggering(requestHeader, subscriptionId, triggeringItemId, linksToAdd, linksToRemove, callback, asyncState);
+            => InnerSession.BeginSetTriggering(
+                requestHeader, subscriptionId, triggeringItemId, linksToAdd, linksToRemove, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginDeleteMonitoredItems(
             RequestHeader? requestHeader,
             uint subscriptionId,
             ArrayOf<uint> monitoredItemIds,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginDeleteMonitoredItems(requestHeader, subscriptionId, monitoredItemIds, callback, asyncState);
+            => InnerSession.BeginDeleteMonitoredItems(
+                requestHeader, subscriptionId, monitoredItemIds, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndCreateMonitoredItems(
             IAsyncResult result,
             out ArrayOf<MonitoredItemCreateResult> results,
@@ -632,7 +666,7 @@ namespace Opc.Ua.Client
             => InnerSession.EndCreateMonitoredItems(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndModifyMonitoredItems(
             IAsyncResult result,
             out ArrayOf<MonitoredItemModifyResult> results,
@@ -640,7 +674,7 @@ namespace Opc.Ua.Client
             => InnerSession.EndModifyMonitoredItems(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndSetMonitoringMode(
             IAsyncResult result,
             out ArrayOf<StatusCode> results,
@@ -648,17 +682,18 @@ namespace Opc.Ua.Client
             => InnerSession.EndSetMonitoringMode(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndSetTriggering(
             IAsyncResult result,
             out ArrayOf<StatusCode> addResults,
             out ArrayOf<DiagnosticInfo> addDiagnosticInfos,
             out ArrayOf<StatusCode> removeResults,
             out ArrayOf<DiagnosticInfo> removeDiagnosticInfos)
-            => InnerSession.EndSetTriggering(result, out addResults, out addDiagnosticInfos, out removeResults, out removeDiagnosticInfos);
+            => InnerSession.EndSetTriggering(
+                result, out addResults, out addDiagnosticInfos, out removeResults, out removeDiagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndDeleteMonitoredItems(
             IAsyncResult result,
             out ArrayOf<StatusCode> results,
@@ -678,7 +713,9 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.CreateSubscriptionAsync(requestHeader, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish, publishingEnabled, priority, ct).ConfigureAwait(false);
+                return await InnerSession.CreateSubscriptionAsync(
+                    requestHeader, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount,
+                    maxNotificationsPerPublish, publishingEnabled, priority, ct).ConfigureAwait(false);
             }
         }
 
@@ -695,7 +732,9 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.ModifySubscriptionAsync(requestHeader, subscriptionId, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish, priority, ct).ConfigureAwait(false);
+                return await InnerSession.ModifySubscriptionAsync(
+                    requestHeader, subscriptionId, requestedPublishingInterval, requestedLifetimeCount,
+                    requestedMaxKeepAliveCount, maxNotificationsPerPublish, priority, ct).ConfigureAwait(false);
             }
         }
 
@@ -708,7 +747,8 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.SetPublishingModeAsync(requestHeader, publishingEnabled, subscriptionIds, ct).ConfigureAwait(false);
+                return await InnerSession.SetPublishingModeAsync(
+                    requestHeader, publishingEnabled, subscriptionIds, ct).ConfigureAwait(false);
             }
         }
 
@@ -720,7 +760,8 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.PublishAsync(requestHeader, subscriptionAcknowledgements, ct).ConfigureAwait(false);
+                return await InnerSession.PublishAsync(
+                    requestHeader, subscriptionAcknowledgements, ct).ConfigureAwait(false);
             }
         }
 
@@ -733,7 +774,8 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.RepublishAsync(requestHeader, subscriptionId, retransmitSequenceNumber, ct).ConfigureAwait(false);
+                return await InnerSession.RepublishAsync(
+                    requestHeader, subscriptionId, retransmitSequenceNumber, ct).ConfigureAwait(false);
             }
         }
 
@@ -746,7 +788,8 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.TransferSubscriptionsAsync(requestHeader, subscriptionIds, sendInitialValues, ct).ConfigureAwait(false);
+                return await InnerSession.TransferSubscriptionsAsync(
+                    requestHeader, subscriptionIds, sendInitialValues, ct).ConfigureAwait(false);
             }
         }
 
@@ -758,12 +801,13 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.DeleteSubscriptionsAsync(requestHeader, subscriptionIds, ct).ConfigureAwait(false);
+                return await InnerSession.DeleteSubscriptionsAsync(
+                    requestHeader, subscriptionIds, ct).ConfigureAwait(false);
             }
         }
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? CreateSubscription(
             RequestHeader? requestHeader,
             double requestedPublishingInterval,
@@ -776,10 +820,13 @@ namespace Opc.Ua.Client
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
             out uint revisedMaxKeepAliveCount)
-            => InnerSession.CreateSubscription(requestHeader, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish, publishingEnabled, priority, out subscriptionId, out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
+            => InnerSession.CreateSubscription(
+                requestHeader, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount,
+                maxNotificationsPerPublish, publishingEnabled, priority, out subscriptionId,
+                out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? ModifySubscription(
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -791,20 +838,24 @@ namespace Opc.Ua.Client
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
             out uint revisedMaxKeepAliveCount)
-            => InnerSession.ModifySubscription(requestHeader, subscriptionId, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish, priority, out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
+            => InnerSession.ModifySubscription(
+                requestHeader, subscriptionId, requestedPublishingInterval, requestedLifetimeCount,
+                requestedMaxKeepAliveCount, maxNotificationsPerPublish, priority, out revisedPublishingInterval,
+                out revisedLifetimeCount, out revisedMaxKeepAliveCount);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? SetPublishingMode(
             RequestHeader? requestHeader,
             bool publishingEnabled,
             ArrayOf<uint> subscriptionIds,
             out ArrayOf<StatusCode> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.SetPublishingMode(requestHeader, publishingEnabled, subscriptionIds, out results, out diagnosticInfos);
+            => InnerSession.SetPublishingMode(
+                requestHeader, publishingEnabled, subscriptionIds, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? Publish(
             RequestHeader? requestHeader,
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
@@ -814,10 +865,12 @@ namespace Opc.Ua.Client
             out NotificationMessage? notificationMessage,
             out ArrayOf<StatusCode> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.Publish(requestHeader, subscriptionAcknowledgements, out subscriptionId, out availableSequenceNumbers, out moreNotifications, out notificationMessage, out results, out diagnosticInfos);
+            => InnerSession.Publish(
+                requestHeader, subscriptionAcknowledgements, out subscriptionId, out availableSequenceNumbers,
+                out moreNotifications, out notificationMessage, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? Republish(
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -826,17 +879,18 @@ namespace Opc.Ua.Client
             => InnerSession.Republish(requestHeader, subscriptionId, retransmitSequenceNumber, out notificationMessage);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? TransferSubscriptions(
             RequestHeader? requestHeader,
             ArrayOf<uint> subscriptionIds,
             bool sendInitialValues,
             out ArrayOf<TransferResult> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialValues, out results, out diagnosticInfos);
+            => InnerSession.TransferSubscriptions(
+                requestHeader, subscriptionIds, sendInitialValues, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? DeleteSubscriptions(
             RequestHeader? requestHeader,
             ArrayOf<uint> subscriptionIds,
@@ -845,7 +899,7 @@ namespace Opc.Ua.Client
             => InnerSession.DeleteSubscriptions(requestHeader, subscriptionIds, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginCreateSubscription(
             RequestHeader? requestHeader,
             double requestedPublishingInterval,
@@ -856,10 +910,12 @@ namespace Opc.Ua.Client
             byte priority,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginCreateSubscription(requestHeader, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish, publishingEnabled, priority, callback, asyncState);
+            => InnerSession.BeginCreateSubscription(
+                requestHeader, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount,
+                maxNotificationsPerPublish, publishingEnabled, priority, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginModifySubscription(
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -870,20 +926,23 @@ namespace Opc.Ua.Client
             byte priority,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginModifySubscription(requestHeader, subscriptionId, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish, priority, callback, asyncState);
+            => InnerSession.BeginModifySubscription(
+                requestHeader, subscriptionId, requestedPublishingInterval, requestedLifetimeCount,
+                requestedMaxKeepAliveCount, maxNotificationsPerPublish, priority, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginSetPublishingMode(
             RequestHeader? requestHeader,
             bool publishingEnabled,
             ArrayOf<uint> subscriptionIds,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginSetPublishingMode(requestHeader, publishingEnabled, subscriptionIds, callback, asyncState);
+            => InnerSession.BeginSetPublishingMode(
+                requestHeader, publishingEnabled, subscriptionIds, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginPublish(
             RequestHeader? requestHeader,
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
@@ -892,27 +951,29 @@ namespace Opc.Ua.Client
             => InnerSession.BeginPublish(requestHeader, subscriptionAcknowledgements, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginRepublish(
             RequestHeader? requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginRepublish(requestHeader, subscriptionId, retransmitSequenceNumber, callback, asyncState);
+            => InnerSession.BeginRepublish(
+                requestHeader, subscriptionId, retransmitSequenceNumber, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginTransferSubscriptions(
             RequestHeader? requestHeader,
             ArrayOf<uint> subscriptionIds,
             bool sendInitialValues,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginTransferSubscriptions(requestHeader, subscriptionIds, sendInitialValues, callback, asyncState);
+            => InnerSession.BeginTransferSubscriptions(
+                requestHeader, subscriptionIds, sendInitialValues, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginDeleteSubscriptions(
             RequestHeader? requestHeader,
             ArrayOf<uint> subscriptionIds,
@@ -921,26 +982,29 @@ namespace Opc.Ua.Client
             => InnerSession.BeginDeleteSubscriptions(requestHeader, subscriptionIds, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndCreateSubscription(
             IAsyncResult result,
             out uint subscriptionId,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
             out uint revisedMaxKeepAliveCount)
-            => InnerSession.EndCreateSubscription(result, out subscriptionId, out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
+            => InnerSession.EndCreateSubscription(
+                result, out subscriptionId, out revisedPublishingInterval,
+                out revisedLifetimeCount, out revisedMaxKeepAliveCount);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndModifySubscription(
             IAsyncResult result,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
             out uint revisedMaxKeepAliveCount)
-            => InnerSession.EndModifySubscription(result, out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
+            => InnerSession.EndModifySubscription(
+                result, out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndSetPublishingMode(
             IAsyncResult result,
             out ArrayOf<StatusCode> results,
@@ -948,7 +1012,7 @@ namespace Opc.Ua.Client
             => InnerSession.EndSetPublishingMode(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndPublish(
             IAsyncResult result,
             out uint subscriptionId,
@@ -957,17 +1021,19 @@ namespace Opc.Ua.Client
             out NotificationMessage? notificationMessage,
             out ArrayOf<StatusCode> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.EndPublish(result, out subscriptionId, out availableSequenceNumbers, out moreNotifications, out notificationMessage, out results, out diagnosticInfos);
+            => InnerSession.EndPublish(
+                result, out subscriptionId, out availableSequenceNumbers, out moreNotifications,
+                out notificationMessage, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndRepublish(
             IAsyncResult result,
             out NotificationMessage? notificationMessage)
             => InnerSession.EndRepublish(result, out notificationMessage);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndTransferSubscriptions(
             IAsyncResult result,
             out ArrayOf<TransferResult> results,
@@ -975,7 +1041,7 @@ namespace Opc.Ua.Client
             => InnerSession.EndTransferSubscriptions(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndDeleteSubscriptions(
             IAsyncResult result,
             out ArrayOf<StatusCode> results,
@@ -1026,12 +1092,13 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.DeleteReferencesAsync(requestHeader, referencesToDelete, ct).ConfigureAwait(false);
+                return await InnerSession.DeleteReferencesAsync(
+                    requestHeader, referencesToDelete, ct).ConfigureAwait(false);
             }
         }
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? AddNodes(
             RequestHeader? requestHeader,
             ArrayOf<AddNodesItem> nodesToAdd,
@@ -1040,7 +1107,7 @@ namespace Opc.Ua.Client
             => InnerSession.AddNodes(requestHeader, nodesToAdd, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? AddReferences(
             RequestHeader? requestHeader,
             ArrayOf<AddReferencesItem> referencesToAdd,
@@ -1049,7 +1116,7 @@ namespace Opc.Ua.Client
             => InnerSession.AddReferences(requestHeader, referencesToAdd, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? DeleteNodes(
             RequestHeader? requestHeader,
             ArrayOf<DeleteNodesItem> nodesToDelete,
@@ -1058,7 +1125,7 @@ namespace Opc.Ua.Client
             => InnerSession.DeleteNodes(requestHeader, nodesToDelete, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? DeleteReferences(
             RequestHeader? requestHeader,
             ArrayOf<DeleteReferencesItem> referencesToDelete,
@@ -1067,7 +1134,7 @@ namespace Opc.Ua.Client
             => InnerSession.DeleteReferences(requestHeader, referencesToDelete, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginAddNodes(
             RequestHeader? requestHeader,
             ArrayOf<AddNodesItem> nodesToAdd,
@@ -1076,7 +1143,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginAddNodes(requestHeader, nodesToAdd, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginAddReferences(
             RequestHeader? requestHeader,
             ArrayOf<AddReferencesItem> referencesToAdd,
@@ -1085,7 +1152,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginAddReferences(requestHeader, referencesToAdd, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginDeleteNodes(
             RequestHeader? requestHeader,
             ArrayOf<DeleteNodesItem> nodesToDelete,
@@ -1094,7 +1161,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginDeleteNodes(requestHeader, nodesToDelete, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginDeleteReferences(
             RequestHeader? requestHeader,
             ArrayOf<DeleteReferencesItem> referencesToDelete,
@@ -1103,7 +1170,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginDeleteReferences(requestHeader, referencesToDelete, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndAddNodes(
             IAsyncResult result,
             out ArrayOf<AddNodesResult> results,
@@ -1111,7 +1178,7 @@ namespace Opc.Ua.Client
             => InnerSession.EndAddNodes(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndAddReferences(
             IAsyncResult result,
             out ArrayOf<StatusCode> results,
@@ -1119,7 +1186,7 @@ namespace Opc.Ua.Client
             => InnerSession.EndAddReferences(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndDeleteNodes(
             IAsyncResult result,
             out ArrayOf<StatusCode> results,
@@ -1127,7 +1194,7 @@ namespace Opc.Ua.Client
             => InnerSession.EndDeleteNodes(result, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndDeleteReferences(
             IAsyncResult result,
             out ArrayOf<StatusCode> results,
@@ -1146,7 +1213,9 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.QueryFirstAsync(requestHeader, view, nodeTypes, filter, maxDataSetsToReturn, maxReferencesToReturn, ct).ConfigureAwait(false);
+                return await InnerSession.QueryFirstAsync(
+                    requestHeader, view, nodeTypes, filter,
+                    maxDataSetsToReturn, maxReferencesToReturn, ct).ConfigureAwait(false);
             }
         }
 
@@ -1159,12 +1228,13 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.QueryNextAsync(requestHeader, releaseContinuationPoint, continuationPoint, ct).ConfigureAwait(false);
+                return await InnerSession.QueryNextAsync(
+                    requestHeader, releaseContinuationPoint, continuationPoint, ct).ConfigureAwait(false);
             }
         }
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? QueryFirst(
             RequestHeader? requestHeader,
             ViewDescription? view,
@@ -1177,20 +1247,24 @@ namespace Opc.Ua.Client
             out ArrayOf<ParsingResult> parsingResults,
             out ArrayOf<DiagnosticInfo> diagnosticInfos,
             out ContentFilterResult? filterResult)
-            => InnerSession.QueryFirst(requestHeader, view, nodeTypes, filter, maxDataSetsToReturn, maxReferencesToReturn, out queryDataSets, out continuationPoint, out parsingResults, out diagnosticInfos, out filterResult);
+            => InnerSession.QueryFirst(
+                requestHeader, view, nodeTypes, filter, maxDataSetsToReturn, maxReferencesToReturn, out queryDataSets,
+                out continuationPoint, out parsingResults, out diagnosticInfos, out filterResult);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? QueryNext(
             RequestHeader? requestHeader,
             bool releaseContinuationPoint,
             ByteString continuationPoint,
             out ArrayOf<QueryDataSet> queryDataSets,
             out ByteString revisedContinuationPoint)
-            => InnerSession.QueryNext(requestHeader, releaseContinuationPoint, continuationPoint, out queryDataSets, out revisedContinuationPoint);
+            => InnerSession.QueryNext(
+                requestHeader, releaseContinuationPoint, continuationPoint,
+                out queryDataSets, out revisedContinuationPoint);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginQueryFirst(
             RequestHeader? requestHeader,
             ViewDescription? view,
@@ -1200,20 +1274,23 @@ namespace Opc.Ua.Client
             uint maxReferencesToReturn,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginQueryFirst(requestHeader, view, nodeTypes, filter, maxDataSetsToReturn, maxReferencesToReturn, callback, asyncState);
+            => InnerSession.BeginQueryFirst(
+                requestHeader, view, nodeTypes, filter, maxDataSetsToReturn,
+                maxReferencesToReturn, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginQueryNext(
             RequestHeader? requestHeader,
             bool releaseContinuationPoint,
             ByteString continuationPoint,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginQueryNext(requestHeader, releaseContinuationPoint, continuationPoint, callback, asyncState);
+            => InnerSession.BeginQueryNext(
+                requestHeader, releaseContinuationPoint, continuationPoint, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndQueryFirst(
             IAsyncResult result,
             out ArrayOf<QueryDataSet> queryDataSets,
@@ -1221,10 +1298,12 @@ namespace Opc.Ua.Client
             out ArrayOf<ParsingResult> parsingResults,
             out ArrayOf<DiagnosticInfo> diagnosticInfos,
             out ContentFilterResult? filterResult)
-            => InnerSession.EndQueryFirst(result, out queryDataSets, out continuationPoint, out parsingResults, out diagnosticInfos, out filterResult);
+            => InnerSession.EndQueryFirst(
+                result, out queryDataSets, out continuationPoint,
+                out parsingResults, out diagnosticInfos, out filterResult);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndQueryNext(
             IAsyncResult result,
             out ArrayOf<QueryDataSet> queryDataSets,
@@ -1246,7 +1325,9 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.CreateSessionAsync(requestHeader, clientDescription, serverUri, endpointUrl, sessionName, clientNonce, clientCertificate, requestedSessionTimeout, maxResponseMessageSize, ct).ConfigureAwait(false);
+                return await InnerSession.CreateSessionAsync(
+                    requestHeader, clientDescription, serverUri, endpointUrl, sessionName, clientNonce,
+                    clientCertificate, requestedSessionTimeout, maxResponseMessageSize, ct).ConfigureAwait(false);
             }
         }
 
@@ -1262,7 +1343,9 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.ActivateSessionAsync(requestHeader, clientSignature, clientSoftwareCertificates, localeIds, userIdentityToken, userTokenSignature, ct).ConfigureAwait(false);
+                return await InnerSession.ActivateSessionAsync(
+                    requestHeader, clientSignature, clientSoftwareCertificates, localeIds, userIdentityToken,
+                    userTokenSignature, ct).ConfigureAwait(false);
             }
         }
 
@@ -1274,7 +1357,8 @@ namespace Opc.Ua.Client
         {
             using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
             {
-                return await InnerSession.CloseSessionAsync(requestHeader, deleteSubscriptions, ct).ConfigureAwait(false);
+                return await InnerSession.CloseSessionAsync(
+                    requestHeader, deleteSubscriptions, ct).ConfigureAwait(false);
             }
         }
 
@@ -1291,7 +1375,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? CreateSession(
             RequestHeader? requestHeader,
             ApplicationDescription? clientDescription,
@@ -1311,10 +1395,14 @@ namespace Opc.Ua.Client
             out ArrayOf<SignedSoftwareCertificate> serverSoftwareCertificates,
             out SignatureData? serverSignature,
             out uint maxRequestMessageSize)
-            => InnerSession.CreateSession(requestHeader, clientDescription, serverUri, endpointUrl, sessionName, clientNonce, clientCertificate, requestedSessionTimeout, maxResponseMessageSize, out sessionId, out authenticationToken, out revisedSessionTimeout, out serverNonce, out serverCertificate, out serverEndpoints, out serverSoftwareCertificates, out serverSignature, out maxRequestMessageSize);
+            => InnerSession.CreateSession(
+                requestHeader, clientDescription, serverUri, endpointUrl, sessionName, clientNonce, clientCertificate,
+                requestedSessionTimeout, maxResponseMessageSize, out sessionId, out authenticationToken,
+                out revisedSessionTimeout, out serverNonce, out serverCertificate, out serverEndpoints,
+                out serverSoftwareCertificates, out serverSignature, out maxRequestMessageSize);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? ActivateSession(
             RequestHeader? requestHeader,
             SignatureData? clientSignature,
@@ -1325,17 +1413,19 @@ namespace Opc.Ua.Client
             out ByteString serverNonce,
             out ArrayOf<StatusCode> results,
             out ArrayOf<DiagnosticInfo> diagnosticInfos)
-            => InnerSession.ActivateSession(requestHeader, clientSignature, clientSoftwareCertificates, localeIds, userIdentityToken, userTokenSignature, out serverNonce, out results, out diagnosticInfos);
+            => InnerSession.ActivateSession(
+                requestHeader, clientSignature, clientSoftwareCertificates, localeIds, userIdentityToken,
+                userTokenSignature, out serverNonce, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? CloseSession(
             RequestHeader? requestHeader,
             bool deleteSubscriptions)
             => InnerSession.CloseSession(requestHeader, deleteSubscriptions);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? Cancel(
             RequestHeader? requestHeader,
             uint requestHandle,
@@ -1343,7 +1433,7 @@ namespace Opc.Ua.Client
             => InnerSession.Cancel(requestHeader, requestHandle, out cancelCount);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginCreateSession(
             RequestHeader? requestHeader,
             ApplicationDescription? clientDescription,
@@ -1356,10 +1446,12 @@ namespace Opc.Ua.Client
             uint maxResponseMessageSize,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginCreateSession(requestHeader, clientDescription, serverUri, endpointUrl, sessionName, clientNonce, clientCertificate, requestedSessionTimeout, maxResponseMessageSize, callback, asyncState);
+            => InnerSession.BeginCreateSession(
+                requestHeader, clientDescription, serverUri, endpointUrl, sessionName, clientNonce, clientCertificate,
+                requestedSessionTimeout, maxResponseMessageSize, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginActivateSession(
             RequestHeader? requestHeader,
             SignatureData? clientSignature,
@@ -1369,10 +1461,12 @@ namespace Opc.Ua.Client
             SignatureData? userTokenSignature,
             AsyncCallback callback,
             object asyncState)
-            => InnerSession.BeginActivateSession(requestHeader, clientSignature, clientSoftwareCertificates, localeIds, userIdentityToken, userTokenSignature, callback, asyncState);
+            => InnerSession.BeginActivateSession(
+                requestHeader, clientSignature, clientSoftwareCertificates, localeIds, userIdentityToken,
+                userTokenSignature, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginCloseSession(
             RequestHeader? requestHeader,
             bool deleteSubscriptions,
@@ -1381,7 +1475,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginCloseSession(requestHeader, deleteSubscriptions, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public IAsyncResult BeginCancel(
             RequestHeader? requestHeader,
             uint requestHandle,
@@ -1390,7 +1484,7 @@ namespace Opc.Ua.Client
             => InnerSession.BeginCancel(requestHeader, requestHandle, callback, asyncState);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndCreateSession(
             IAsyncResult result,
             out NodeId sessionId,
@@ -1402,10 +1496,13 @@ namespace Opc.Ua.Client
             out ArrayOf<SignedSoftwareCertificate> serverSoftwareCertificates,
             out SignatureData? serverSignature,
             out uint maxRequestMessageSize)
-            => InnerSession.EndCreateSession(result, out sessionId, out authenticationToken, out revisedSessionTimeout, out serverNonce, out serverCertificate, out serverEndpoints, out serverSoftwareCertificates, out serverSignature, out maxRequestMessageSize);
+            => InnerSession.EndCreateSession(
+                result, out sessionId, out authenticationToken, out revisedSessionTimeout, out serverNonce,
+                out serverCertificate, out serverEndpoints,
+                out serverSoftwareCertificates, out serverSignature, out maxRequestMessageSize);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndActivateSession(
             IAsyncResult result,
             out ByteString serverNonce,
@@ -1414,13 +1511,13 @@ namespace Opc.Ua.Client
             => InnerSession.EndActivateSession(result, out serverNonce, out results, out diagnosticInfos);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndCloseSession(
             IAsyncResult result)
             => InnerSession.EndCloseSession(result);
 
         /// <inheritdoc/>
-        [Obsolete]
+        [Obsolete("Use the async method instead.")]
         public ResponseHeader? EndCancel(
             IAsyncResult result,
             out uint cancelCount)
