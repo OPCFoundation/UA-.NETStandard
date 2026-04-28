@@ -1179,7 +1179,8 @@ namespace Opc.Ua.Server
             {
                 NodeClass = target.NodeClass,
                 BrowseName = target.BrowseName,
-                DisplayName = target.DisplayName
+                DisplayName = target.DisplayName,
+                IsPartOfTypeHierarchy = target.IsPartOfTypeHierarchy
             };
 
             if (nodeMetadataValues[0].TryGet(out uint writeMask) &&
