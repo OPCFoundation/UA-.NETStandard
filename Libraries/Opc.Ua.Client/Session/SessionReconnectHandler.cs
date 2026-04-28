@@ -38,6 +38,8 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Attempts to reconnect to the server.
     /// </summary>
+    [Obsolete("Use ManagedSession which handles reconnection automatically. " +
+        "Create sessions via DefaultSessionFactory.")]
     public class SessionReconnectHandler : IDisposable
     {
         /// <summary>

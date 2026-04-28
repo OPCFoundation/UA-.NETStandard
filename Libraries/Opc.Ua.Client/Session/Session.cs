@@ -201,7 +201,7 @@ namespace Opc.Ua.Client
             m_telemetry = messageContext.Telemetry;
             m_logger = m_telemetry.CreateLogger<Session>();
 
-            SessionFactory ??= new DefaultSessionFactory(m_telemetry)
+            SessionFactory ??= new ClassicSessionFactory(m_telemetry)
             {
                 ReturnDiagnostics = ReturnDiagnostics
             };

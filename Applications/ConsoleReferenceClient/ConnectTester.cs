@@ -73,6 +73,7 @@ namespace Quickstarts
         {
             try
             {
+#pragma warning disable CS0618 // SessionReconnectHandler is obsolete; TODO: migrate to ManagedSession
                 m_reconnectHandler = new SessionReconnectHandler(
                     m_telemetry,
                     true,
@@ -120,7 +121,7 @@ namespace Quickstarts
                     ct).ConfigureAwait(false);
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
-                var sessionFactory = new DefaultSessionFactory(m_telemetry);
+                var sessionFactory = new ClassicSessionFactory(m_telemetry);
                 var userNameidentity = new UserIdentity(kUserName, new UTF8Encoding(false).GetBytes(kPassword));
 
                 foreach (EndpointDescription ii in endpoints.ToArray())
@@ -241,7 +242,7 @@ namespace Quickstarts
 
         internal async Task<SessionWrapper> RunTestAsync(
             EndpointConfiguration endpointConfiguration,
-            DefaultSessionFactory sessionFactory,
+            ClassicSessionFactory sessionFactory,
             EndpointDescription endpointDescription,
             UserIdentity identity,
             CancellationToken ct)
@@ -394,6 +395,7 @@ namespace Quickstarts
                             Client_ReconnectComplete
                             );
                     if (state == SessionReconnectHandler.ReconnectState.Triggered)
+#pragma warning restore CS0618
                     {
                         m_logger.LogInformation(
                             "KeepAlive status {StatusCode}, reconnect status {State}, reconnect period {ReconnectPeriod}ms.",
@@ -484,7 +486,9 @@ namespace Quickstarts
         }
 
         private readonly Lock m_lock = new();
+#pragma warning disable CS0618 // SessionReconnectHandler is obsolete; TODO: migrate to ManagedSession
         private SessionReconnectHandler m_reconnectHandler;
+#pragma warning restore CS0618
         private ApplicationConfiguration m_configuration;
         private SessionWrapper m_wrapper;
         private ILogger m_logger;

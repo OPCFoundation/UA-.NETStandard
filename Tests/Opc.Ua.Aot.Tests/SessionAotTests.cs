@@ -48,6 +48,7 @@ namespace Opc.Ua.Aot.Tests
             await Task.Delay(500).ConfigureAwait(false);
 
             var reconnected = new TaskCompletionSource<bool>();
+#pragma warning disable CS0618 // SessionReconnectHandler is obsolete; TODO: migrate to ManagedSession
             using var handler = new SessionReconnectHandler(fixture.Telemetry);
 
             handler.BeginReconnect(session, 1000, (_, _) =>
@@ -63,6 +64,7 @@ namespace Opc.Ua.Aot.Tests
             bool result = await reconnected.Task.ConfigureAwait(false);
 
             handler.CancelReconnect();
+#pragma warning restore CS0618
             await Assert.That(result).IsTrue();
 
             ISession reconnectedSession = handler.Session ?? session;

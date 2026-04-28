@@ -38,10 +38,10 @@ namespace Opc.Ua.Client.Tests
 {
     [TestFixture]
     [Category("Client")]
-    [Category("DefaultSessionFactory")]
+    [Category("ClassicSessionFactory")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public sealed class DefaultSessionFactoryTests
+    public sealed class ClassicSessionFactoryTests
     {
         private ITelemetryContext _telemetry = null!;
 
@@ -54,7 +54,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ConstructorSetsTelemetry()
         {
-            var factory = new DefaultSessionFactory(_telemetry);
+            var factory = new ClassicSessionFactory(_telemetry);
 
             Assert.That(factory.Telemetry, Is.SameAs(_telemetry));
         }
@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ReturnDiagnosticsDefaultIsNone()
         {
-            var factory = new DefaultSessionFactory(_telemetry);
+            var factory = new ClassicSessionFactory(_telemetry);
 
             Assert.That(factory.ReturnDiagnostics, Is.EqualTo(DiagnosticsMasks.None));
         }
@@ -70,7 +70,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ReturnDiagnosticsCanBeSet()
         {
-            var factory = new DefaultSessionFactory(_telemetry)
+            var factory = new ClassicSessionFactory(_telemetry)
             {
                 ReturnDiagnostics = DiagnosticsMasks.All
             };
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void CreateReturnsSessionWithCorrectEndpoint()
         {
-            var factory = new DefaultSessionFactory(_telemetry);
+            var factory = new ClassicSessionFactory(_telemetry);
             var channel = new Mock<ITransportChannel>();
             channel
                 .SetupGet(c => c.MessageContext)
@@ -113,7 +113,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void CreateSetsReturnDiagnosticsOnSession()
         {
-            var factory = new DefaultSessionFactory(_telemetry)
+            var factory = new ClassicSessionFactory(_telemetry)
             {
                 ReturnDiagnostics = DiagnosticsMasks.ServiceSymbolicId
             };
@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void RecreateAsyncThrowsWhenSessionIsNotSessionType()
         {
-            var factory = new DefaultSessionFactory(_telemetry);
+            var factory = new ClassicSessionFactory(_telemetry);
             var mockSession = new Mock<ISession>();
 
             Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void RecreateAsyncWithConnectionThrowsWhenSessionIsNotSessionType()
         {
-            var factory = new DefaultSessionFactory(_telemetry);
+            var factory = new ClassicSessionFactory(_telemetry);
             var mockSession = new Mock<ISession>();
             var mockConnection = new Mock<ITransportWaitingConnection>();
 
@@ -169,7 +169,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void RecreateAsyncWithChannelThrowsWhenSessionIsNotSessionType()
         {
-            var factory = new DefaultSessionFactory(_telemetry);
+            var factory = new ClassicSessionFactory(_telemetry);
             var mockSession = new Mock<ISession>();
             var mockChannel = new Mock<ITransportChannel>();
 
@@ -180,7 +180,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void CreateAsyncWithNullReverseConnectManagerForwardsToSimpleOverload()
         {
-            var factory = new Mock<DefaultSessionFactory>(_telemetry) { CallBase = true };
+            var factory = new Mock<ClassicSessionFactory>(_telemetry) { CallBase = true };
 
             var configuration = new ApplicationConfiguration(_telemetry)
             {
@@ -230,7 +230,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void CreateWithAvailableEndpointsReturnsSession()
         {
-            var factory = new DefaultSessionFactory(_telemetry);
+            var factory = new ClassicSessionFactory(_telemetry);
             var channel = new Mock<ITransportChannel>();
             channel
                 .SetupGet(c => c.MessageContext)
@@ -281,7 +281,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void RecreateAsyncThrowsWithCorrectParameterName()
         {
-            var factory = new DefaultSessionFactory(_telemetry);
+            var factory = new ClassicSessionFactory(_telemetry);
             var mockSession = new Mock<ISession>();
 
             ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -293,7 +293,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void RecreateAsyncWithConnectionThrowsWithCorrectParameterName()
         {
-            var factory = new DefaultSessionFactory(_telemetry);
+            var factory = new ClassicSessionFactory(_telemetry);
             var mockSession = new Mock<ISession>();
             var mockConnection = new Mock<ITransportWaitingConnection>();
 
@@ -306,7 +306,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void RecreateAsyncWithChannelThrowsWithCorrectParameterName()
         {
-            var factory = new DefaultSessionFactory(_telemetry);
+            var factory = new ClassicSessionFactory(_telemetry);
             var mockSession = new Mock<ISession>();
             var mockChannel = new Mock<ITransportChannel>();
 
@@ -319,7 +319,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void TelemetryCanBeSetViaInitializer()
         {
-            var factory = new DefaultSessionFactory(_telemetry)
+            var factory = new ClassicSessionFactory(_telemetry)
             {
                 Telemetry = _telemetry
             };
@@ -330,7 +330,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void CreateAsyncOverloadWithConnectionForwardsThroughChain()
         {
-            var factory = new Mock<DefaultSessionFactory>(_telemetry) { CallBase = true };
+            var factory = new Mock<ClassicSessionFactory>(_telemetry) { CallBase = true };
 
             var configuration = new ApplicationConfiguration(_telemetry)
             {
