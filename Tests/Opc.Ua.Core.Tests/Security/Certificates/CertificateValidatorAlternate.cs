@@ -324,7 +324,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             const string subCASubject = "CN=Sub";
             const string leafSubject = "CN=Leaf";
 
-            var rsa = RSA.Create();
+            using var rsa = RSA.Create();
             var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
 
             using Certificate rootCert = s_factory
@@ -358,7 +358,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             // validate using server/client chain sent over the wire
-            var collection = new CertificateCollection {
+            using var collection = new CertificateCollection {
                 leafCert,
                 subCACert,
                 rootReverseCert };
