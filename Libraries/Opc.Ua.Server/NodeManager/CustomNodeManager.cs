@@ -610,6 +610,12 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < children.Count; ii++)
             {
+                // Propagate type hierarchy flag from parent to children
+                if (activeNode.IsPartOfTypeHierarchy)
+                {
+                    children[ii].IsPartOfTypeHierarchy = true;
+                }
+
                 AddPredefinedNode(context, children[ii]);
             }
         }
@@ -4904,7 +4910,10 @@ namespace Opc.Ua.Server
                 ArrayOf<Variant> values = default;
 
                 // construct the meta-data object.
-                var metadata = new NodeMetadata(target, target.NodeId);
+                var metadata = new NodeMetadata(target, target.NodeId)
+                {
+                    IsPartOfTypeHierarchy = target.IsPartOfTypeHierarchy
+                };
 
                 // Treat the case of calls originating from the optimized services that use the cache (Read, Browse and Call services)
                 if (uniqueNodesServiceAttributesCache != null)

@@ -323,6 +323,7 @@
     <ShutdownDelay>5</ShutdownDelay>
     <ServerCapabilities>
       <ua:String>DA</ua:String>
+      <ua:String>GDS</ua:String>
     </ServerCapabilities>
     <SupportedPrivateKeyFormats>
       <ua:String>PFX</ua:String>
@@ -367,6 +368,35 @@
     <MaxDurableSubscriptionLifetimeInHours>10</MaxDurableSubscriptionLifetimeInHours>
   </ServerConfiguration>
   <Extensions>
+    <ua:XmlElement>
+      <GlobalDiscoveryServerConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd">
+        <AuthoritiesStorePath>%LocalApplicationData%/OPC Foundation/GDS/authorities</AuthoritiesStorePath>
+        <ApplicationCertificatesStorePath>%LocalApplicationData%/OPC Foundation/GDS/applications</ApplicationCertificatesStorePath>
+        <DefaultSubjectNameContext>O=OPC Foundation</DefaultSubjectNameContext>
+        <CertificateGroups>
+          <CertificateGroupConfiguration>
+            <Id>Default</Id>
+            <CertificateTypes>
+              <ua:String>RsaSha256ApplicationCertificateType</ua:String>
+              <ua:String>EccNistP256ApplicationCertificateType</ua:String>
+              <ua:String>EccNistP384ApplicationCertificateType</ua:String>
+              <ua:String>EccBrainpoolP256r1ApplicationCertificateType</ua:String>
+              <ua:String>EccBrainpoolP384r1ApplicationCertificateType</ua:String>
+            </CertificateTypes>
+            <SubjectName>CN=Reference Server CA, O=OPC Foundation</SubjectName>
+            <BaseStorePath>%LocalApplicationData%/OPC Foundation/GDS/CA/default</BaseStorePath>
+            <DefaultCertificateLifetime>12</DefaultCertificateLifetime>
+            <DefaultCertificateKeySize>2048</DefaultCertificateKeySize>
+            <DefaultCertificateHashSize>256</DefaultCertificateHashSize>
+            <CACertificateLifetime>60</CACertificateLifetime>
+            <CACertificateKeySize>4096</CACertificateKeySize>
+            <CACertificateHashSize>512</CACertificateHashSize>
+          </CertificateGroupConfiguration>
+        </CertificateGroups>
+        <KnownHostNames />
+        <DatabaseStorePath>%LocalApplicationData%/OPC Foundation/GDS/gdsdb.json</DatabaseStorePath>
+      </GlobalDiscoveryServerConfiguration>
+    </ua:XmlElement>
     <ua:XmlElement>
       <MemoryBufferConfiguration xmlns="http://samples.org/UA/MemoryBuffer">
         <Buffers>
