@@ -73,7 +73,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             using Certificate appCert = issuer.IssueCertificate(appBuilder, caCert);
 
-            var revokedCerts = new CertificateCollection { appCert };
+            using var revokedCerts = new CertificateCollection { appCert };
 
             X509CRL crl = issuer.RevokeCertificates(
                 caCert,

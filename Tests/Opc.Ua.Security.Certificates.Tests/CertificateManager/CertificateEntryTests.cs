@@ -141,6 +141,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // CertificateEntry AddRefs both cert and chain, so dispose
             // the caller's references first.
             cert.Dispose();
+            issuer.Dispose();
             chain.Dispose();
 
             // Entry still holds the last ref; disposing the entry

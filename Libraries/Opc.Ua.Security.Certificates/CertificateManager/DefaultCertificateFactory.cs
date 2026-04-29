@@ -59,8 +59,16 @@ namespace Opc.Ua.Security.Certificates
             {
                 ReadOnlyMemory<byte> remaining = chainBlob[offset..];
                 ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(remaining);
-                collection.Add(Certificate.FromRawData(certBlob.ToArray()));
-                offset += certBlob.Length;
+                Certificate cert = Certificate.FromRawData(certBlob.ToArray());
+                try
+                {
+                    collection.Add(cert);
+                    offset += certBlob.Length;
+                }
+                finally
+                {
+                    cert.Dispose();
+                }
             }
 
             return collection;

@@ -328,9 +328,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
+                using Certificate issuer = CertificateFactory.Create(signingCert.RawData);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
-                    .SetIssuer(CertificateFactory.Create(signingCert.RawData))
+                    .SetIssuer(issuer)
                     .CreateForRSA(generator);
                 Assert.That(cert, Is.Not.Null);
                 WriteCertificate(cert, "Default signed ECDsa cert");
@@ -340,10 +341,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (ECDsa ecdsaPublicKey = signingCert.GetECDsaPublicKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
+                using Certificate issuer = CertificateFactory.Create(signingCert.RawData);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                    .SetIssuer(CertificateFactory.Create(signingCert.RawData))
+                    .SetIssuer(issuer)
                     .SetECDsaPublicKey(ecdsaPublicKey)
                     .CreateForECDsa(generator);
                 Assert.That(cert, Is.Not.Null);
@@ -353,10 +355,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
+                using Certificate issuer = CertificateFactory.Create(signingCert.RawData);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                    .SetIssuer(CertificateFactory.Create(signingCert.RawData))
+                    .SetIssuer(issuer)
                     .SetECCurve(ecCurveHashPair.Curve)
                     .CreateForECDsa(generator);
                 Assert.That(cert, Is.Not.Null);
@@ -397,10 +400,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] pubKeyBytes = GetPublicKey(ecdsaPublicKey);
 
             var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
+            using Certificate issuer = CertificateFactory.Create(signingCert.RawData);
             using Certificate cert = CertificateBuilder
                 .Create("CN=App Cert")
                 .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                .SetIssuer(CertificateFactory.Create(signingCert.RawData))
+                .SetIssuer(issuer)
                 .SetECDsaPublicKey(pubKeyBytes)
                 .CreateForECDsa(generator);
             Assert.That(cert, Is.Not.Null);

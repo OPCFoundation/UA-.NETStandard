@@ -351,24 +351,20 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void CreateIssuerRSAWithSuppliedKeyPair()
         {
-            Certificate issuer = null;
             using var rsaKeyPair = RSA.Create();
             // create cert with supplied keys
             var generator = X509SignatureGenerator.CreateForRSA(
                 rsaKeyPair,
                 RSASignaturePadding.Pkcs1);
-            using (
-                Certificate cert = CertificateBuilder
-                    .Create("CN=Root Cert")
-                    .SetCAConstraint(-1)
-                    .SetRSAPublicKey(rsaKeyPair)
-                    .CreateForRSA(generator))
-            {
-                Assert.That(cert, Is.Not.Null);
-                issuer = CertificateFactory.Create(cert.RawData);
-                WriteCertificate(cert, "Default root cert with supplied RSA cert");
-                CheckPEMWriter(cert);
-            }
+            using Certificate rootCert = CertificateBuilder
+                .Create("CN=Root Cert")
+                .SetCAConstraint(-1)
+                .SetRSAPublicKey(rsaKeyPair)
+                .CreateForRSA(generator);
+            Assert.That(rootCert, Is.Not.Null);
+            using Certificate issuer = CertificateFactory.Create(rootCert.RawData);
+            WriteCertificate(rootCert, "Default root cert with supplied RSA cert");
+            CheckPEMWriter(rootCert);
 
             // now sign a cert with supplied private key
             using Certificate appCert = CertificateBuilder
@@ -388,7 +384,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 Assert.Ignore("Cng provider only available on windows");
             }
-            Certificate issuer = null;
 #pragma warning disable IDE0079 // Remove unnecessary suppression
 #pragma warning disable CA1416 // Validate platform compatibility
 #pragma warning restore IDE0079 // Remove unnecessary suppression
@@ -407,18 +402,15 @@ namespace Opc.Ua.Security.Certificates.Tests
             var generator = X509SignatureGenerator.CreateForRSA(
                 rsaKeyPair,
                 RSASignaturePadding.Pkcs1);
-            using (
-                Certificate cert = CertificateBuilder
-                    .Create("CN=Root Cert")
-                    .SetCAConstraint(-1)
-                    .SetRSAPublicKey(rsaKeyPair)
-                    .CreateForRSA(generator))
-            {
-                Assert.That(cert, Is.Not.Null);
-                issuer = CertificateFactory.Create(cert.RawData);
-                WriteCertificate(cert, "Default root cert with supplied RSA cert");
-                CheckPEMWriter(cert);
-            }
+            using Certificate rootCert = CertificateBuilder
+                .Create("CN=Root Cert")
+                .SetCAConstraint(-1)
+                .SetRSAPublicKey(rsaKeyPair)
+                .CreateForRSA(generator);
+            Assert.That(rootCert, Is.Not.Null);
+            using Certificate issuer = CertificateFactory.Create(rootCert.RawData);
+            WriteCertificate(rootCert, "Default root cert with supplied RSA cert");
+            CheckPEMWriter(rootCert);
 
             // now sign a cert with supplied private key
             using Certificate appCert = CertificateBuilder
