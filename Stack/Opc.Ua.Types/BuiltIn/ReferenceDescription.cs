@@ -41,7 +41,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class ReferenceDescription :
         IEncodeable,
-        IJsonEncodeable,
         IEquatable<ReferenceDescription>,
         IFormattable
     {
@@ -118,9 +117,6 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceDescription_Encoding_DefaultXml;
-
-        /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceDescription_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)

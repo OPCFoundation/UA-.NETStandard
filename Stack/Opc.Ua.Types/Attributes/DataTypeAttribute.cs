@@ -123,13 +123,6 @@ namespace Opc.Ua
         public string? XmlEncodingId { get; set; }
 
         /// <summary>
-        /// The optional Json encoding id. The identifier must
-        /// be prefixed with i=, s=, g=, or b= everything else is
-        /// an error. Namespace indexes are discarded.
-        /// </summary>
-        public string? JsonEncodingId { get; set; }
-
-        /// <summary>
         /// Try get the type ids from the attribute of the type.
         /// Parses the information in the data type attribute
         /// according to the documented rules and returns the
@@ -143,8 +136,7 @@ namespace Opc.Ua
             Type type,
             out ExpandedNodeId typeId,
             out ExpandedNodeId binaryEncodingId,
-            out ExpandedNodeId xmlEncodingId,
-            out ExpandedNodeId jsonEncodingId)
+            out ExpandedNodeId xmlEncodingId)
         {
             DataTypeAttribute? attribute =
                 type.GetCustomAttribute<DataTypeAttribute>(false);
@@ -154,7 +146,6 @@ namespace Opc.Ua
                 typeId = default;
                 binaryEncodingId = default;
                 xmlEncodingId = default;
-                jsonEncodingId = default;
                 return false;
             }
 
@@ -170,12 +161,10 @@ namespace Opc.Ua
                 attribute.DataTypeId,
                 attribute.BinaryEncodingId,
                 attribute.XmlEncodingId,
-                attribute.JsonEncodingId,
                 typename,
                 out typeId,
                 out binaryEncodingId,
-                out xmlEncodingId,
-                out jsonEncodingId);
+                out xmlEncodingId);
         }
 
         /// <summary>
@@ -191,17 +180,14 @@ namespace Opc.Ua
             string? dataTypeIdString,
             string? binaryEncodingIdString,
             string? xmlEncodingIdString,
-            string? jsonEncodingIdString,
             string typename,
             out ExpandedNodeId typeId,
             out ExpandedNodeId binaryEncodingId,
-            out ExpandedNodeId xmlEncodingId,
-            out ExpandedNodeId jsonEncodingId)
+            out ExpandedNodeId xmlEncodingId)
         {
             typeId = default;
             binaryEncodingId = default;
             xmlEncodingId = default;
-            jsonEncodingId = default;
 
             string? nodeIdString = dataTypeIdString;
             // Parsing null string succeeds with true and returns NodeId.Null
@@ -226,13 +212,6 @@ namespace Opc.Ua
                 return false;
             }
             xmlEncodingId = nodeId.IsNull ?
-                default :
-                new ExpandedNodeId(nodeId, namespaceUri);
-            if (!NodeId.TryParse(jsonEncodingIdString, out nodeId))
-            {
-                return false;
-            }
-            jsonEncodingId = nodeId.IsNull ?
                 default :
                 new ExpandedNodeId(nodeId, namespaceUri);
             return true;

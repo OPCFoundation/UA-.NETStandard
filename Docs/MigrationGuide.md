@@ -41,6 +41,7 @@
       - [IEncodeableFactoryBuilder changes](#iencodeablefactorybuilder-changes)
       - [EncodeableFactory.GlobalFactory removed](#encodeablefactoryglobalfactory-removed)
       - [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
+      - [IJsonEncodeable interface removed](#ijsonencodeable-interface-removed)
     - [Complex Types](#complex-types)
       - [ComplexTypes moved to Opc.Ua.Client assembly](#complextypes-moved-to-opcuaclient-assembly)
       - [OptionSet DataType support](#optionset-datatype-support)
@@ -616,6 +617,25 @@ The `[Obsolete]` static `EncodeableFactory.GlobalFactory` was removed. `Encodeab
 #### ExtensionObject array helpers changed
 
 `ExtensionObject.ToArray(object, Type)` and `ToList<T>(object)` removed. Use `extensionObjects.GetStructuresOf<T>()` or `ExtensionObject.ToArray<T>(ArrayOf<ExtensionObject>)`.
+
+#### IJsonEncodeable interface removed
+
+The `IJsonEncodeable` interface and the entire "Default JSON Encoding" infrastructure have been removed. OPC UA JSON encoding is handled by the `JsonEncoder`/`JsonDecoder` classes which do not require per-type encoding node IDs — those classes are unaffected by this change.
+
+**Migration steps:**
+
+1. Remove `IJsonEncodeable` from any custom class that implements it:
+
+    ```diff
+    - public class MyType : IEncodeable, IJsonEncodeable
+    + public class MyType : IEncodeable
+    ```
+
+2. Remove the `JsonEncodingId` property from those classes:
+
+    ```diff
+    - public ExpandedNodeId JsonEncodingId => ...;
+    ```
 
 ### Complex Types
 

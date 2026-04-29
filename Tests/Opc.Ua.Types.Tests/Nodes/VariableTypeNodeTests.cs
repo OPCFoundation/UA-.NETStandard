@@ -174,12 +174,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.XmlEncodingId, Is.EqualTo(ObjectIds.VariableTypeNode_Encoding_DefaultXml));
         }
 
-        [Test]
-        public void JsonEncodingIdReturnsExpectedValue()
-        {
-            var node = new VariableTypeNode();
-            Assert.That(node.JsonEncodingId, Is.EqualTo(ObjectIds.VariableTypeNode_Encoding_DefaultJson));
-        }
 
         [Test]
         public void EncodeDecodeRoundTripPreservesAllProperties()

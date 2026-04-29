@@ -109,9 +109,6 @@ namespace Opc.Ua.SourceGeneration
                     nameof(DataTypeAttribute.BinaryEncodingId));
             string xmlEncodingId =
                 dataTypeAttr.GetValue(nameof(DataTypeAttribute.XmlEncodingId));
-            string jsonEncodingId =
-                dataTypeAttr.GetValue(
-                    nameof(DataTypeAttribute.JsonEncodingId));
 
             try
             {
@@ -119,7 +116,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     Model = BuildEnumModel(
                         symbol, dataTypeNamespace, dataTypeId,
-                        binaryEncodingId, xmlEncodingId, jsonEncodingId);
+                        binaryEncodingId, xmlEncodingId);
                     ValidFields = System.Array.Empty<TypeFieldModel>();
                     Diagnostics =
                         System.Array.Empty<TypeSourceGeneratorDiagnostic>();
@@ -156,7 +153,7 @@ namespace Opc.Ua.SourceGeneration
 
                 Model = BuildClassModel(
                     symbol, dataTypeNamespace, dataTypeId,
-                    binaryEncodingId, xmlEncodingId, jsonEncodingId,
+                    binaryEncodingId, xmlEncodingId,
                     cancellationToken);
 
                 IReadOnlyList<TypeSourceGeneratorDiagnostic> diags =
@@ -258,7 +255,6 @@ namespace Opc.Ua.SourceGeneration
             string dataTypeId,
             string binaryEncodingId,
             string xmlEncodingId,
-            string jsonEncodingId,
             CancellationToken ct)
         {
             string ns = symbol.GetFullNamespace();
@@ -276,7 +272,6 @@ namespace Opc.Ua.SourceGeneration
                 DataTypeId = dataTypeId,
                 BinaryEncodingId = binaryEncodingId,
                 XmlEncodingId = xmlEncodingId,
-                JsonEncodingId = jsonEncodingId,
                 IsRecord = symbol.IsRecord,
                 IsEnum = false,
                 IsSealed = symbol.IsSealed,
@@ -300,8 +295,7 @@ namespace Opc.Ua.SourceGeneration
             string dataTypeNamespace,
             string dataTypeId,
             string binaryEncodingId,
-            string xmlEncodingId,
-            string jsonEncodingId)
+            string xmlEncodingId)
         {
             string ns = symbol.GetFullNamespace();
             var members = new List<TypeEnumMember>();
@@ -327,7 +321,6 @@ namespace Opc.Ua.SourceGeneration
                 DataTypeId = dataTypeId,
                 BinaryEncodingId = binaryEncodingId,
                 XmlEncodingId = xmlEncodingId,
-                JsonEncodingId = jsonEncodingId,
                 IsEnum = true,
                 IsFlags = symbol.GetAttributes().Any(a =>
                     a.AttributeClass?.Name == "FlagsAttribute"),

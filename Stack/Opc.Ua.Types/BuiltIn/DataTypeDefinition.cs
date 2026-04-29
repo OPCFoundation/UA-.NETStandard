@@ -36,7 +36,7 @@ namespace Opc.Ua
     /// Data type definition
     /// </summary>
     [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
-    public abstract class DataTypeDefinition : IEncodeable, IJsonEncodeable
+    public abstract class DataTypeDefinition : IEncodeable
     {
         /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataTypeDefinition;
@@ -46,9 +46,6 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeDefinition_Encoding_DefaultXml;
-
-        /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataTypeDefinition_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public abstract void Encode(IEncoder encoder);

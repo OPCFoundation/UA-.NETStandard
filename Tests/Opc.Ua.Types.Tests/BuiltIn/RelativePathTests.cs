@@ -136,12 +136,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(path.XmlEncodingId, Is.EqualTo(ObjectIds.RelativePath_Encoding_DefaultXml));
         }
 
-        [Test]
-        public void JsonEncodingIdReturnsExpectedValue()
-        {
-            var path = new RelativePath();
-            Assert.That(path.JsonEncodingId, Is.EqualTo(ObjectIds.RelativePath_Encoding_DefaultJson));
-        }
 
         [Test]
         public void EncodeWritesElementsArray()
@@ -566,12 +560,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(element.XmlEncodingId, Is.EqualTo(ObjectIds.RelativePathElement_Encoding_DefaultXml));
         }
 
-        [Test]
-        public void RelativePathElementJsonEncodingIdReturnsExpectedValue()
-        {
-            var element = new RelativePathElement();
-            Assert.That(element.JsonEncodingId, Is.EqualTo(ObjectIds.RelativePathElement_Encoding_DefaultJson));
-        }
 
         [Test]
         public void RelativePathElementEncodeWritesAllFields()

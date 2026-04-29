@@ -195,8 +195,7 @@ namespace Opc.Ua.SourceGeneration
             builder = builder
                 .AddEncodeableType(DataTypeIds.{{Tokens.BrowseName}}, {{Tokens.ClassName}}Activator.Instance)
                 .AddEncodeableType({{Tokens.BinaryEncodingId}}, {{Tokens.ClassName}}Activator.Instance)
-                .AddEncodeableType({{Tokens.XmlEncodingId}}, {{Tokens.ClassName}}Activator.Instance)
-                .AddEncodeableType({{Tokens.JsonEncodingId}}, {{Tokens.ClassName}}Activator.Instance);
+                .AddEncodeableType({{Tokens.XmlEncodingId}}, {{Tokens.ClassName}}Activator.Instance);
             """);
 
         /// <summary>
@@ -229,8 +228,7 @@ namespace Opc.Ua.SourceGeneration
             builder = builder
                 .AddEnumeratedType(DataTypeIds.{{Tokens.BrowseName}}, {{Tokens.ClassName}}Activator.Instance)
                 .AddEnumeratedType({{Tokens.BinaryEncodingId}}, {{Tokens.ClassName}}Activator.Instance)
-                .AddEnumeratedType({{Tokens.XmlEncodingId}}, {{Tokens.ClassName}}Activator.Instance)
-                .AddEnumeratedType({{Tokens.JsonEncodingId}}, {{Tokens.ClassName}}Activator.Instance);
+                .AddEnumeratedType({{Tokens.XmlEncodingId}}, {{Tokens.ClassName}}Activator.Instance);
             """);
 
         /// <summary>
@@ -255,8 +253,7 @@ namespace Opc.Ua.SourceGeneration
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} :
                 global::System.IEquatable<{{Tokens.ClassName}}>,
-                global::Opc.Ua.IEncodeable,
-                global::Opc.Ua.IJsonEncodeable
+                global::Opc.Ua.IEncodeable
             {
                 /// <summary>
                 /// The default constructor.
@@ -298,9 +295,6 @@ namespace Opc.Ua.SourceGeneration
 
                 /// <inheritdoc/>
                 public virtual global::Opc.Ua.ExpandedNodeId XmlEncodingId => {{Tokens.XmlEncodingId}};
-
-                /// <inheritdoc/>
-                public virtual global::Opc.Ua.ExpandedNodeId JsonEncodingId => {{Tokens.JsonEncodingId}};
 
                 /// <inheritdoc/>
                 public virtual void Encode(global::Opc.Ua.IEncoder encoder)
@@ -515,9 +509,6 @@ namespace Opc.Ua.SourceGeneration
                 public override global::Opc.Ua.ExpandedNodeId XmlEncodingId  => {{Tokens.XmlEncodingId}};
 
                 /// <inheritdoc/>
-                public override global::Opc.Ua.ExpandedNodeId JsonEncodingId  => {{Tokens.JsonEncodingId}};
-
-                /// <inheritdoc/>
                 public override void Encode(global::Opc.Ua.IEncoder encoder)
                 {
                     encoder.PushNamespace({{Tokens.XmlNamespaceUri}});
@@ -658,8 +649,7 @@ namespace Opc.Ua.SourceGeneration
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} :
                 global::System.IEquatable<{{Tokens.ClassName}}>,
-                global::Opc.Ua.IEncodeable,
-                global::Opc.Ua.IJsonEncodeable
+                global::Opc.Ua.IEncodeable
             {
                 /// <summary>
                 /// The default constructor.
@@ -701,9 +691,6 @@ namespace Opc.Ua.SourceGeneration
 
                 /// <inheritdoc/>
                 public virtual global::Opc.Ua.ExpandedNodeId XmlEncodingId  => {{Tokens.XmlEncodingId}};
-
-                /// <inheritdoc/>
-                public virtual global::Opc.Ua.ExpandedNodeId JsonEncodingId => {{Tokens.JsonEncodingId}};
 
                 /// <inheritdoc/>
                 public virtual void Encode(global::Opc.Ua.IEncoder encoder)
@@ -829,8 +816,7 @@ namespace Opc.Ua.SourceGeneration
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public {{Tokens.IsAbstract}}partial class {{Tokens.ClassName}} :
                 {{Tokens.ExtraInterfaces}}global::System.IEquatable<{{Tokens.ClassName}}>,
-                global::Opc.Ua.IEncodeable,
-                global::Opc.Ua.IJsonEncodeable
+                global::Opc.Ua.IEncodeable
             {
                 /// <summary>
                 /// The default constructor.
@@ -865,9 +851,6 @@ namespace Opc.Ua.SourceGeneration
 
                 /// <inheritdoc/>
                 public virtual global::Opc.Ua.ExpandedNodeId XmlEncodingId => {{Tokens.XmlEncodingId}};
-
-                /// <inheritdoc/>
-                public virtual global::Opc.Ua.ExpandedNodeId JsonEncodingId => {{Tokens.JsonEncodingId}};
 
                 /// <inheritdoc/>
                 public virtual void Encode(global::Opc.Ua.IEncoder encoder)
@@ -1016,9 +999,6 @@ namespace Opc.Ua.SourceGeneration
 
                 /// <inheritdoc/>
                 public override global::Opc.Ua.ExpandedNodeId XmlEncodingId => {{Tokens.XmlEncodingId}};
-
-                /// <inheritdoc/>
-                public override global::Opc.Ua.ExpandedNodeId JsonEncodingId => {{Tokens.JsonEncodingId}};
 
                 /// <inheritdoc/>
                 public override void Encode(global::Opc.Ua.IEncoder encoder)
