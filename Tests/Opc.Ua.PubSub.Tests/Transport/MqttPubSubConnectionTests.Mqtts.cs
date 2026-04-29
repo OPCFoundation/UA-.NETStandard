@@ -319,12 +319,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 File.WriteAllBytes(ClientCertificatePfxPath, m_clientCert.Export(X509ContentType.Pfx));
                 File.WriteAllBytes(clientCertificateDerPath, m_clientCert.Export(X509ContentType.Cert));
 #if NET7_0_OR_GREATER
-                string clientCertificatePem = m_clientCert.X509.ExportCertificatePem();
+                string clientCertificatePem = m_clientCert.AsX509Certificate2().ExportCertificatePem();
                 File.WriteAllText(clientCertificateCrtPath, clientCertificatePem);
 
                 ServerCertificateCertPath = CombinePath("server.crt");
 
-                string serverCertificatePem = m_serverCert.X509.ExportCertificatePem();
+                string serverCertificatePem = m_serverCert.AsX509Certificate2().ExportCertificatePem();
 
                 AsymmetricAlgorithm key = m_serverCert.GetRSAPrivateKey();
                 string privKeyPem = key.ExportPkcs8PrivateKeyPem();

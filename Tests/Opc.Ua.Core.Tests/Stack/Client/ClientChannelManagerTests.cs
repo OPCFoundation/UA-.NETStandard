@@ -72,10 +72,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     It.IsAny<CancellationToken>()))
                 .Callback<ITransportWaitingConnection, TransportChannelSettings, CancellationToken>(
                     (_, s, _) => parsedServerCert = s.ServerCertificate)
-                .Returns(ValueTask.CompletedTask);
+                .Returns(new ValueTask());
 
             var transportWaitingConnectionMock = new Mock<ITransportWaitingConnection>();
-            var serviceMessageContextMock = new Mock<IServiceMessageContext>();
+            var serviceMessageContextMock= new Mock<IServiceMessageContext>();
             serviceMessageContextMock.SetupGet(x => x.Telemetry).Returns(telemetry);
             var configuration = new ApplicationConfiguration(telemetry);
             var socket = new Mock<IMessageSocket>();
@@ -113,7 +113,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     It.IsAny<CancellationToken>()))
                 .Callback<Uri, TransportChannelSettings, CancellationToken>(
                     (_, s, _) => parsedServerCert = s.ServerCertificate)
-                .Returns(ValueTask.CompletedTask);
+                .Returns(new ValueTask());
 
             var serviceMessageContextMock = new Mock<IServiceMessageContext>();
             serviceMessageContextMock.SetupGet(x => x.Telemetry).Returns(telemetry);
