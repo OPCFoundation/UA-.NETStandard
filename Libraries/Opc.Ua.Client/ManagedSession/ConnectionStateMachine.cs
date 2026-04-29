@@ -155,6 +155,7 @@ namespace Opc.Ua.Client
                         ConnectionState.Reconnecting,
                         error: null,
                         reconnectAttempt: 0);
+                    m_connected.Reset();
                 }
             }
 
