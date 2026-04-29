@@ -54,7 +54,7 @@ namespace Opc.Ua.Core.Tests
         {
             if (store != null)
             {
-                Opc.Ua.Security.Certificates.CertificateCollection certs
+                using Opc.Ua.Security.Certificates.CertificateCollection certs
                     = await store
                     .EnumerateAsync()
                     .ConfigureAwait(false);

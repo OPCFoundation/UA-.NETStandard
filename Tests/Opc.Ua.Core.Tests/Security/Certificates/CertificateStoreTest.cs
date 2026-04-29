@@ -126,7 +126,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(publicKey, Is.Not.Null);
             Assert.That(publicKey.HasPrivateKey, Is.False);
 
-            var id = new CertificateIdentifier
+            using var id = new CertificateIdentifier
             {
                 Thumbprint = publicKey.Thumbprint,
                 StorePath = storePath,
@@ -175,7 +175,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(publicKey, Is.Not.Null);
             Assert.That(publicKey.HasPrivateKey, Is.False);
 
-            var id = new CertificateIdentifier
+            using var id = new CertificateIdentifier
             {
                 Thumbprint = publicKey.Thumbprint,
                 StorePath = storePath,

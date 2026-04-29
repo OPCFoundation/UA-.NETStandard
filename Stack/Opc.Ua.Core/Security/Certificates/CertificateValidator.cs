@@ -97,6 +97,9 @@ namespace Opc.Ua
         {
             if (disposing)
             {
+                m_rejectedWriter?.Dispose();
+                m_rejectedWriter = null;
+
                 InternalResetValidatedCertificates();
 
                 foreach (Certificate cert in m_applicationCertificates)
@@ -105,6 +108,20 @@ namespace Opc.Ua
                 }
 
                 m_applicationCertificates.Clear();
+
+                foreach (CertificateIdentifier certId in m_trustedCertificateList)
+                {
+                    certId?.Dispose();
+                }
+
+                m_trustedCertificateList = default;
+
+                foreach (CertificateIdentifier certId in m_issuerCertificateList)
+                {
+                    certId?.Dispose();
+                }
+
+                m_issuerCertificateList = default;
             }
         }
 
@@ -303,6 +320,11 @@ namespace Opc.Ua
                             cert => Utils.IsEqual(cert.RawData, certificate.RawData)))
                         {
                             m_applicationCertificates.Add(certificate);
+                        }
+                        else
+                        {
+                            // Release the AddRef'd certificate returned by FindAsync
+                            certificate.Dispose();
                         }
                     }
                 }
@@ -1297,7 +1319,7 @@ namespace Opc.Ua
                 }
                 finally
                 {
-                    store?.Close();
+                    store?.Dispose();
                 }
             }
 
