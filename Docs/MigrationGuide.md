@@ -41,6 +41,7 @@
       - [IEncodeableFactoryBuilder changes](#iencodeablefactorybuilder-changes)
       - [EncodeableFactory.GlobalFactory removed](#encodeablefactoryglobalfactory-removed)
       - [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
+      - [IJsonEncodeable interface removed](#ijsonencodeable-interface-removed)
     - [Complex Types](#complex-types)
       - [ComplexTypes moved to Opc.Ua.Client assembly](#complextypes-moved-to-opcuaclient-assembly)
       - [OptionSet DataType support](#optionset-datatype-support)
@@ -616,6 +617,55 @@ The `[Obsolete]` static `EncodeableFactory.GlobalFactory` was removed. `Encodeab
 #### ExtensionObject array helpers changed
 
 `ExtensionObject.ToArray(object, Type)` and `ToList<T>(object)` removed. Use `extensionObjects.GetStructuresOf<T>()` or `ExtensionObject.ToArray<T>(ArrayOf<ExtensionObject>)`.
+
+#### IJsonEncodeable interface removed
+
+The `IJsonEncodeable` interface and the entire "Default JSON Encoding" infrastructure have been removed. OPC UA JSON encoding is handled by the `JsonEncoder`/`JsonDecoder` classes which do not require per-type encoding node IDs — those classes are unaffected by this change.
+
+**What was removed:**
+
+- The `IJsonEncodeable` interface (which declared `ExpandedNodeId JsonEncodingId { get; }`)
+- The `DataTypeAttribute.JsonEncodingId` property
+- All `*_Encoding_DefaultJson` constants from `ObjectIds` and `Objects`
+- The `BrowseNames.DefaultJson` constant
+- JSON encoding ID registration in `EncodeableFactory`
+- The `jsonEncodingId` parameter from `DataTypeAttribute.TryGetTypeIdsFromType`, `IComplexTypeBuilder.AddOptionSetType`, and the `OptionSet` constructor
+
+**Migration steps:**
+
+1. Remove `IJsonEncodeable` from any custom class that implements it:
+
+    ```diff
+    - public class MyType : IEncodeable, IJsonEncodeable
+    + public class MyType : IEncodeable
+    ```
+
+2. Remove the `JsonEncodingId` property from those classes:
+
+    ```diff
+    - public ExpandedNodeId JsonEncodingId => ...;
+    ```
+
+3. If using `DataTypeAttribute`, remove the `JsonEncodingId` named parameter:
+
+    ```diff
+    - [DataType(DataTypeId = "i=1000", BinaryEncodingId = "i=1001", XmlEncodingId = "i=1002", JsonEncodingId = "i=1003")]
+    + [DataType(DataTypeId = "i=1000", BinaryEncodingId = "i=1001", XmlEncodingId = "i=1002")]
+    ```
+
+4. Update any calls to `DataTypeAttribute.TryGetTypeIdsFromType` — the `jsonEncodingId` out parameter has been removed:
+
+    ```diff
+    - DataTypeAttribute.TryGetTypeIdsFromType(type, out typeId, out binaryId, out xmlId, out jsonId);
+    + DataTypeAttribute.TryGetTypeIdsFromType(type, out typeId, out binaryId, out xmlId);
+    ```
+
+5. If implementing `IComplexTypeBuilder.AddOptionSetType`, remove the `jsonEncodingId` parameter:
+
+    ```diff
+    - IEncodeableType AddOptionSetType(QualifiedName typeName, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, ExpandedNodeId jsonEncodingId, EnumDefinition enumDefinition);
+    + IEncodeableType AddOptionSetType(QualifiedName typeName, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, EnumDefinition enumDefinition);
+    ```
 
 ### Complex Types
 
