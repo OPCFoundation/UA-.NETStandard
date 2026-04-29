@@ -372,11 +372,13 @@ namespace Opc.Ua
                 using ECDsa ecdsaPrivateKey = PEMReader.ImportECDsaPrivateKeyFromPEM(
                     pemDataBlob,
                     password);
-                return Create(certificate.RawData).CopyWithPrivateKey(ecdsaPrivateKey);
+                using Certificate publicKeyCert = Create(certificate.RawData);
+                return publicKeyCert.CopyWithPrivateKey(ecdsaPrivateKey);
             }
             using RSA rsaPrivateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
 
-            return Create(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
+            using Certificate rsaPublicKeyCert = Create(certificate.RawData);
+            return rsaPublicKeyCert.CopyWithPrivateKey(rsaPrivateKey);
         }
 
         /// <summary>

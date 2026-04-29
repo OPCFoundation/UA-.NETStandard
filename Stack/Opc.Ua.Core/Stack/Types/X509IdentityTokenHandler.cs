@@ -159,13 +159,21 @@ namespace Opc.Ua
             string securityPolicyUri)
         {
             SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+            Certificate ownedCert = null;
             Certificate certificate = Certificate ??
-                CertificateFactory.Create(m_token.CertificateData);
+                (ownedCert = CertificateFactory.Create(m_token.CertificateData));
 
-            return SecurityPolicies.CreateSignatureData(
-                info,
-                certificate,
-                dataToSign);
+            try
+            {
+                return SecurityPolicies.CreateSignatureData(
+                    info,
+                    certificate,
+                    dataToSign);
+            }
+            finally
+            {
+                ownedCert?.Dispose();
+            }
         }
 
         /// <inheritdoc/>
@@ -177,14 +185,22 @@ namespace Opc.Ua
             try
             {
                 SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+                Certificate ownedCert = null;
                 Certificate certificate = Certificate ??
-                    CertificateFactory.Create(m_token.CertificateData);
+                    (ownedCert = CertificateFactory.Create(m_token.CertificateData));
 
-                return SecurityPolicies.VerifySignatureData(
-                    signatureData,
-                    info,
-                    certificate,
-                    dataToVerify);
+                try
+                {
+                    return SecurityPolicies.VerifySignatureData(
+                        signatureData,
+                        info,
+                        certificate,
+                        dataToVerify);
+                }
+                finally
+                {
+                    ownedCert?.Dispose();
+                }
             }
             catch (Exception e)
             {

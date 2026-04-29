@@ -192,7 +192,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     /// <summary>
     /// A Certificate as test asset.
     /// </summary>
-    public class CertificateAsset : IAsset, IFormattable
+    public class CertificateAsset : IAsset, IFormattable, IDisposable
     {
         public string Path { get; private set; }
         public byte[] Cert { get; private set; }
@@ -209,6 +209,12 @@ namespace Opc.Ua.Security.Certificates.Tests
             catch
             {
             }
+        }
+
+        public void Dispose()
+        {
+            X509Certificate?.Dispose();
+            X509Certificate = null;
         }
 
         public string ToString(string format, IFormatProvider formatProvider)

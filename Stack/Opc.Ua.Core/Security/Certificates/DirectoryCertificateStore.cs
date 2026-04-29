@@ -742,6 +742,7 @@ namespace Opc.Ua
                                         m_logger.LogDebug(
                                             "PFX Private key could not be verified for {Certificate}.",
                                             certificate);
+                                        certificate.Dispose();
                                     }
                                     catch (Exception ex)
                                     {

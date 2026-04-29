@@ -375,7 +375,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void DisposeDoesNotThrow()
         {
-            Certificate cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create(TestSubject)
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
@@ -386,7 +386,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void DisposeMultipleTimesDoesNotThrow()
         {
-            Certificate cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create(TestSubject)
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
@@ -445,8 +445,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void EnumerableConstructorPopulatesCollection()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Enum1");
-            Certificate cert2 = CreateTestCertificate("CN=Enum2");
+            using Certificate cert1 = CreateTestCertificate("CN=Enum1");
+            using Certificate cert2 = CreateTestCertificate("CN=Enum2");
             var list = new List<Certificate> { cert1, cert2 };
 
             using var collection = new CertificateCollection(list);
@@ -460,8 +460,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void AddIncreasesCount()
         {
             using var collection = new CertificateCollection();
-            Certificate cert1 = CreateTestCertificate("CN=Add1");
-            Certificate cert2 = CreateTestCertificate("CN=Add2");
+            using Certificate cert1 = CreateTestCertificate("CN=Add1");
+            using Certificate cert2 = CreateTestCertificate("CN=Add2");
 
             collection.Add(cert1);
 
@@ -511,7 +511,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void AsX509Certificate2CollectionReturnsCopies()
         {
-            Certificate cert = CreateTestCertificate();
+            using Certificate cert = CreateTestCertificate();
             using var collection = new CertificateCollection();
             collection.Add(cert);
 
@@ -529,8 +529,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void FindByThumbprintReturnsMatchingCert()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Find1");
-            Certificate cert2 = CreateTestCertificate("CN=Find2");
+            using Certificate cert1 = CreateTestCertificate("CN=Find1");
+            using Certificate cert2 = CreateTestCertificate("CN=Find2");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
             collection.Add(cert2);
@@ -547,7 +547,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void FindByThumbprintReturnsEmptyWhenNoMatch()
         {
-            Certificate cert = CreateTestCertificate();
+            using Certificate cert = CreateTestCertificate();
             using var collection = new CertificateCollection();
             collection.Add(cert);
 
@@ -562,8 +562,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void FindBySubjectDistinguishedNameReturnsMatch()
         {
-            Certificate cert1 = CreateTestCertificate("CN=SubjectA");
-            Certificate cert2 = CreateTestCertificate("CN=SubjectB");
+            using Certificate cert1 = CreateTestCertificate("CN=SubjectA");
+            using Certificate cert2 = CreateTestCertificate("CN=SubjectB");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
             collection.Add(cert2);
@@ -580,8 +580,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void FindBySerialNumberReturnsMatch()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Serial1");
-            Certificate cert2 = CreateTestCertificate("CN=Serial2");
+            using Certificate cert1 = CreateTestCertificate("CN=Serial1");
+            using Certificate cert2 = CreateTestCertificate("CN=Serial2");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
             collection.Add(cert2);
@@ -600,7 +600,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void ContainsReturnsTrueForAddedCert()
         {
-            Certificate cert = CreateTestCertificate();
+            using Certificate cert = CreateTestCertificate();
             using var collection = new CertificateCollection();
             collection.Add(cert);
 
@@ -610,8 +610,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void ContainsReturnsFalseForMissingCert()
         {
-            Certificate cert = CreateTestCertificate("CN=InCollection");
-            Certificate other = CreateTestCertificate("CN=NotInCollection");
+            using Certificate cert = CreateTestCertificate("CN=InCollection");
+            using Certificate other = CreateTestCertificate("CN=NotInCollection");
             using var collection = new CertificateCollection();
             collection.Add(cert);
 
@@ -625,8 +625,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void IndexOfReturnsCorrectIndex()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Idx0");
-            Certificate cert2 = CreateTestCertificate("CN=Idx1");
+            using Certificate cert1 = CreateTestCertificate("CN=Idx0");
+            using Certificate cert2 = CreateTestCertificate("CN=Idx1");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
             collection.Add(cert2);
@@ -640,8 +640,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void RemoveDeletesEntry()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Rem1");
-            Certificate cert2 = CreateTestCertificate("CN=Rem2");
+            using Certificate cert1 = CreateTestCertificate("CN=Rem1");
+            using Certificate cert2 = CreateTestCertificate("CN=Rem2");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
             collection.Add(cert2);
@@ -658,8 +658,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void RemoveAtDeletesByIndex()
         {
-            Certificate cert1 = CreateTestCertificate("CN=RemAt0");
-            Certificate cert2 = CreateTestCertificate("CN=RemAt1");
+            using Certificate cert1 = CreateTestCertificate("CN=RemAt0");
+            using Certificate cert2 = CreateTestCertificate("CN=RemAt1");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
             collection.Add(cert2);
@@ -677,8 +677,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void ClearRemovesAllEntries()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Clr1");
-            Certificate cert2 = CreateTestCertificate("CN=Clr2");
+            using Certificate cert1 = CreateTestCertificate("CN=Clr1");
+            using Certificate cert2 = CreateTestCertificate("CN=Clr2");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
             collection.Add(cert2);
@@ -696,8 +696,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void IndexerGetReturnsCorrectCertificate()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Get0");
-            Certificate cert2 = CreateTestCertificate("CN=Get1");
+            using Certificate cert1 = CreateTestCertificate("CN=Get0");
+            using Certificate cert2 = CreateTestCertificate("CN=Get1");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
             collection.Add(cert2);
@@ -709,8 +709,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void IndexerSetReplacesCertificate()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Set0");
-            Certificate replacement = CreateTestCertificate("CN=Replaced");
+            using Certificate cert1 = CreateTestCertificate("CN=Set0");
+            using Certificate replacement = CreateTestCertificate("CN=Replaced");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
 
@@ -727,9 +727,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void InsertAddsAtCorrectPosition()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Ins0");
-            Certificate cert2 = CreateTestCertificate("CN=Ins2");
-            Certificate inserted = CreateTestCertificate("CN=Ins1");
+            using Certificate cert1 = CreateTestCertificate("CN=Ins0");
+            using Certificate cert2 = CreateTestCertificate("CN=Ins2");
+            using Certificate inserted = CreateTestCertificate("CN=Ins1");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
             collection.Add(cert2);
@@ -745,8 +745,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void CopyToCopiesElements()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Cpy1");
-            Certificate cert2 = CreateTestCertificate("CN=Cpy2");
+            using Certificate cert1 = CreateTestCertificate("CN=Cpy1");
+            using Certificate cert2 = CreateTestCertificate("CN=Cpy2");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
             collection.Add(cert2);
@@ -763,9 +763,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void ForeachEnumeratesAllCertificates()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Each1");
-            Certificate cert2 = CreateTestCertificate("CN=Each2");
-            Certificate cert3 = CreateTestCertificate("CN=Each3");
+            using Certificate cert1 = CreateTestCertificate("CN=Each1");
+            using Certificate cert2 = CreateTestCertificate("CN=Each2");
+            using Certificate cert3 = CreateTestCertificate("CN=Each3");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
             collection.Add(cert2);
@@ -787,8 +787,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void LinqWorksOnCollection()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Linq1");
-            Certificate cert2 = CreateTestCertificate("CN=Linq2");
+            using Certificate cert1 = CreateTestCertificate("CN=Linq1");
+            using Certificate cert2 = CreateTestCertificate("CN=Linq2");
             using var collection = new CertificateCollection();
             collection.Add(cert1);
             collection.Add(cert2);
@@ -815,8 +815,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void DisposeDisposesAllContainedCertificates()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Disp1");
-            Certificate cert2 = CreateTestCertificate("CN=Disp2");
+            using Certificate cert1 = CreateTestCertificate("CN=Disp1");
+            using Certificate cert2 = CreateTestCertificate("CN=Disp2");
             X509Certificate2 inner1 = cert1.X509;
             X509Certificate2 inner2 = cert2.X509;
 
@@ -846,7 +846,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void DisposeMultipleTimesDoesNotThrow()
         {
             var collection = new CertificateCollection();
-            collection.Add(CreateTestCertificate());
+            using Certificate cert = CreateTestCertificate();
+            collection.Add(cert);
 
             Assert.DoesNotThrow(() =>
             {
@@ -860,12 +861,14 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void AccessAfterDisposeThrowsObjectDisposedException()
         {
             var collection = new CertificateCollection();
-            collection.Add(CreateTestCertificate("CN=X"));
+            using Certificate certX = CreateTestCertificate("CN=X");
+            collection.Add(certX);
             collection.Dispose();
 
             Assert.Throws<ObjectDisposedException>(() => _ = collection.Count);
+            using Certificate certY = CreateTestCertificate("CN=Y");
             Assert.Throws<ObjectDisposedException>(
-                () => collection.Add(CreateTestCertificate("CN=Y")));
+                () => collection.Add(certY));
         }
         #endregion
 
@@ -874,7 +877,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void CertificateEntryOwnsIndependentRefs()
         {
-            Certificate cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create("CN=EntryTest")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
@@ -899,7 +902,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void FindReturnsIndependentlyDisposableCollection()
         {
             using var source = new CertificateCollection();
-            Certificate cert = CreateTestCertificate("CN=FindTest");
+            using Certificate cert = CreateTestCertificate("CN=FindTest");
             source.Add(cert);
 
             CertificateCollection found = source.Find(
@@ -917,8 +920,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void AddRefIncreasesAllMemberRefCounts()
         {
-            Certificate cert1 = CreateTestCertificate("CN=Ref1");
-            Certificate cert2 = CreateTestCertificate("CN=Ref2");
+            using Certificate cert1 = CreateTestCertificate("CN=Ref1");
+            using Certificate cert2 = CreateTestCertificate("CN=Ref2");
             var collection = new CertificateCollection { cert1, cert2 };
 
             collection.AddRef();

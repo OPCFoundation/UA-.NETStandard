@@ -1047,27 +1047,30 @@ namespace Opc.Ua.Bindings
                     out CertificateCollection senderCertificateChain,
                     out string securityPolicyUri);
 
-                if (senderCertificateChain != null && senderCertificateChain.Count > 0)
+                using (senderCertificateChain)
                 {
-                    senderCertificate = senderCertificateChain[0];
-                }
-                else
-                {
-                    senderCertificate = null;
-                }
-
-                // validate the sender certificate.
-                if (senderCertificate != null &&
-                    Quotas.CertificateValidator != null &&
-                    securityPolicyUri != SecurityPolicies.None)
-                {
-                    if (Quotas.CertificateValidator is CertificateValidator certificateValidator)
+                    if (senderCertificateChain != null && senderCertificateChain.Count > 0)
                     {
-                        certificateValidator.ValidateAsync(senderCertificateChain, default).GetAwaiter().GetResult();
+                        senderCertificate = senderCertificateChain[0].AddRef();
                     }
                     else
                     {
-                        Quotas.CertificateValidator.ValidateAsync(senderCertificate, default).GetAwaiter().GetResult();
+                        senderCertificate = null;
+                    }
+
+                    // validate the sender certificate.
+                    if (senderCertificate != null &&
+                        Quotas.CertificateValidator != null &&
+                        securityPolicyUri != SecurityPolicies.None)
+                    {
+                        if (Quotas.CertificateValidator is CertificateValidator certificateValidator)
+                        {
+                            certificateValidator.ValidateAsync(senderCertificateChain, default).GetAwaiter().GetResult();
+                        }
+                        else
+                        {
+                            Quotas.CertificateValidator.ValidateAsync(senderCertificate, default).GetAwaiter().GetResult();
+                        }
                     }
                 }
 

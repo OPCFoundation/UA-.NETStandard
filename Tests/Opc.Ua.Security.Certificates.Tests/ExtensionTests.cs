@@ -50,6 +50,15 @@ namespace Opc.Ua.Security.Certificates.Tests
                 TestUtils.EnumerateTestAssets("*.?er"))
         ];
 
+        [OneTimeTearDown]
+        protected void OneTimeTearDown()
+        {
+            foreach (CertificateAsset asset in CertificateTestCases)
+            {
+                asset?.Dispose();
+            }
+        }
+
         [Theory]
         public void DecodeExtensions(CertificateAsset certAsset)
         {

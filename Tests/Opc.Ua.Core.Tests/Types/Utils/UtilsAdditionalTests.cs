@@ -309,7 +309,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 .CreateForRSA();
             byte[] raw = cert.RawData;
 
-            CertificateCollection chain = Utils.ParseCertificateChainBlob(raw, telemetry);
+            using CertificateCollection chain = Utils.ParseCertificateChainBlob(raw, telemetry);
             Assert.That(chain, Has.Count.EqualTo(1));
             Assert.That(chain[0].Subject, Does.Contain("ChainTest"));
         }

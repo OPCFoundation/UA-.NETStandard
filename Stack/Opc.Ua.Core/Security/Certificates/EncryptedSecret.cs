@@ -872,13 +872,11 @@ namespace Opc.Ua
             }
             else
             {
-#pragma warning disable CA2000 // Certificates are stored in SenderCertificate/SenderIssuerCertificates fields
-                CertificateCollection senderCertificateChain = Utils.ParseCertificateChainBlob(
+                using CertificateCollection senderCertificateChain = Utils.ParseCertificateChainBlob(
                     senderCertificate.ToArray(),
                     telemetry);
-#pragma warning restore CA2000
 
-                SenderCertificate = senderCertificateChain[0];
+                SenderCertificate = senderCertificateChain[0].AddRef();
                 SenderIssuerCertificates = [];
 
                 for (int ii = 1; ii < senderCertificateChain.Count; ii++)

@@ -348,11 +348,11 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        CertificateCollection clientCertificateChain
+                        using CertificateCollection clientCertificateChain
                             = Utils.ParseCertificateChainBlob(
                                 clientCertificate,
                                 m_serverInternal.Telemetry);
-                        parsedClientCertificate = clientCertificateChain[0];
+                        parsedClientCertificate = clientCertificateChain[0].AddRef();
 
                         if (clientCertificateChain.Count > 1)
                         {

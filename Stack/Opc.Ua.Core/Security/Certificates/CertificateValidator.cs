@@ -49,7 +49,7 @@ namespace Opc.Ua
     /// <summary>
     /// Validates certificates.
     /// </summary>
-    public class CertificateValidator : ICertificateValidator
+    public class CertificateValidator : ICertificateValidator, IDisposable
     {
         /// <summary>
         /// default number of rejected certificates for history
@@ -81,6 +81,31 @@ namespace Opc.Ua
             m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
             m_useValidatedCertificates = false;
             m_maxRejectedCertificates = kDefaultMaxRejectedCertificates;
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Releases the resources used by the <see cref="CertificateValidator"/>.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                InternalResetValidatedCertificates();
+
+                foreach (Certificate cert in m_applicationCertificates)
+                {
+                    cert?.Dispose();
+                }
+
+                m_applicationCertificates.Clear();
+            }
         }
 
         /// <summary>
@@ -589,6 +614,7 @@ namespace Opc.Ua
             CertificateIdentifier? issuer = null;
             ServiceResultException? revocationStatus = null;
             Certificate? certificate = certificates[0];
+            Certificate? ownedCertificate = null;
 
             var untrustedList = new List<CertificateIdentifier>();
             for (int ii = 1; ii < certificates.Count; ii++)
@@ -702,6 +728,7 @@ namespace Opc.Ua
                             applicationUri: null,
                             m_telemetry,
                             ct).ConfigureAwait(false);
+                        ownedCertificate = certificate;
                     }
                 }
                 finally
@@ -709,6 +736,10 @@ namespace Opc.Ua
                     m_semaphore.Release();
                 }
             } while (issuer != null);
+
+            // dispose the last certificate from the issuer chain walk
+            // (intermediate ones are owned by validationErrors and disposed at line ~1384)
+            ownedCertificate?.Dispose();
 
             foreach (CertificateIdentifier untrusted in untrustedList)
             {
@@ -1166,6 +1197,7 @@ namespace Opc.Ua
                     {
                         if (!X509Utils.IsIssuerAllowed(issuer))
                         {
+                            issuer.Dispose();
                             continue;
                         }
 
@@ -1179,6 +1211,8 @@ namespace Opc.Ua
                                 ),
                                 null);
                         }
+
+                        issuer.Dispose();
                     }
                 }
             }

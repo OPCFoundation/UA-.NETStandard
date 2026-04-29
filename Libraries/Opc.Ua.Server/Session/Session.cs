@@ -512,45 +512,46 @@ namespace Opc.Ua.Server
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
-                        CertificateCollection serverCertificateChain =
+                        using (CertificateCollection serverCertificateChain =
                             Utils.ParseCertificateChainBlob(
                                 EndpointDescription.ServerCertificate,
-                                m_server.Telemetry);
-
-                        if (serverCertificateChain.Count > 1)
+                                m_server.Telemetry))
                         {
-                            var serverCertificateChainList = new List<byte>();
-
-                            for (int i = 0; i < serverCertificateChain.Count; i++)
+                            if (serverCertificateChain.Count > 1)
                             {
-                                serverCertificateChainList.AddRange(
-                                    serverCertificateChain[i].RawData);
+                                var serverCertificateChainList = new List<byte>();
+
+                                for (int i = 0; i < serverCertificateChain.Count; i++)
+                                {
+                                    serverCertificateChainList.AddRange(
+                                        serverCertificateChain[i].RawData);
+                                }
+
+                                byte[] serverCertificateChainData = [.. serverCertificateChainList];
+
+                                dataToSign = securityPolicy.GetClientSignatureData(
+                                    context.ChannelContext.ChannelThumbprint,
+                                    m_serverNonce.Data,
+                                    serverCertificateChainData,
+                                    context.ChannelContext.ServerChannelCertificate,
+                                    context.ChannelContext.ClientChannelCertificate,
+                                    ClientNonce.ToArray());
+
+                                if (!SecurityPolicies.VerifySignatureData(
+                                      clientSignature,
+                                      EndpointDescription.SecurityPolicyUri,
+                                      ClientCertificate,
+                                      dataToSign))
+                                {
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadApplicationSignatureInvalid);
+                                }
                             }
-
-                            byte[] serverCertificateChainData = [.. serverCertificateChainList];
-
-                            dataToSign = securityPolicy.GetClientSignatureData(
-                                context.ChannelContext.ChannelThumbprint,
-                                m_serverNonce.Data,
-                                serverCertificateChainData,
-                                context.ChannelContext.ServerChannelCertificate,
-                                context.ChannelContext.ClientChannelCertificate,
-                                ClientNonce.ToArray());
-
-                            if (!SecurityPolicies.VerifySignatureData(
-                                  clientSignature,
-                                  EndpointDescription.SecurityPolicyUri,
-                                  ClientCertificate,
-                                  dataToSign))
+                            else
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadApplicationSignatureInvalid);
                             }
-                        }
-                        else
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadApplicationSignatureInvalid);
                         }
                     }
                 }
@@ -1049,42 +1050,43 @@ namespace Opc.Ua.Server
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
-                        CertificateCollection serverCertificateChain =
+                        using (CertificateCollection serverCertificateChain =
                             Utils.ParseCertificateChainBlob(
                                 EndpointDescription.ServerCertificate,
-                                m_server.Telemetry);
-
-                        if (serverCertificateChain.Count > 1)
+                                m_server.Telemetry))
                         {
-                            var serverCertificateChainList = new List<byte>();
-
-                            for (int i = 0; i < serverCertificateChain.Count; i++)
+                            if (serverCertificateChain.Count > 1)
                             {
-                                serverCertificateChainList.AddRange(
-                                    serverCertificateChain[i].RawData);
+                                var serverCertificateChainList = new List<byte>();
+
+                                for (int i = 0; i < serverCertificateChain.Count; i++)
+                                {
+                                    serverCertificateChainList.AddRange(
+                                        serverCertificateChain[i].RawData);
+                                }
+
+                                dataToSign = securityPolicy.GetUserTokenSignatureData(
+                                    context.ChannelContext.ChannelThumbprint,
+                                    m_serverNonce.Data,
+                                    [.. serverCertificateChainList],
+                                    context.ChannelContext.ServerChannelCertificate,
+                                    ClientCertificate?.RawData,
+                                    context.ChannelContext.ClientChannelCertificate,
+                                    ClientNonce.ToArray());
+
+                                if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
+                                {
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadIdentityTokenRejected,
+                                        "Invalid user signature!");
+                                }
                             }
-
-                            dataToSign = securityPolicy.GetUserTokenSignatureData(
-                                context.ChannelContext.ChannelThumbprint,
-                                m_serverNonce.Data,
-                                [.. serverCertificateChainList],
-                                context.ChannelContext.ServerChannelCertificate,
-                                ClientCertificate?.RawData,
-                                context.ChannelContext.ClientChannelCertificate,
-                                ClientNonce.ToArray());
-
-                            if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
+                            else
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadIdentityTokenRejected,
                                     "Invalid user signature!");
                             }
-                        }
-                        else
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadIdentityTokenRejected,
-                                "Invalid user signature!");
                         }
                     }
                 }

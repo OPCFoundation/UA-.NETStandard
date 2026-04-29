@@ -1150,7 +1150,7 @@ namespace Opc.Ua.Client
 
                 if (serverCertificateChain.Count > 0)
                 {
-                    serverCertificate = serverCertificateChain[0];
+                    serverCertificate = serverCertificateChain[0].AddRef();
                 }
 
                 if (requireEncryption)
@@ -1450,6 +1450,7 @@ namespace Opc.Ua.Client
                 {
                     await CloseChannelAsync(CancellationToken.None).ConfigureAwait(false);
                 }
+                serverCertificate?.Dispose();
                 throw;
             }
         }

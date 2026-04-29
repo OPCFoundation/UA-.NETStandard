@@ -80,6 +80,10 @@ namespace Opc.Ua.Security.Certificates.Tests
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
+            foreach (CertificateAsset asset in CertificateTestCases)
+            {
+                asset?.Dispose();
+            }
         }
 
         /// <summary>

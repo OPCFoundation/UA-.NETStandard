@@ -166,6 +166,7 @@ namespace Opc.Ua.Core.Tests
         /// </summary>
         public async Task CleanupValidatorAndStoresAsync(bool dispose = false)
         {
+            m_certificateValidator?.Dispose();
             await TestUtils.CleanupTrustListAsync(m_issuerStore, dispose).ConfigureAwait(false);
             await TestUtils.CleanupTrustListAsync(m_trustedStore, dispose).ConfigureAwait(false);
             await TestUtils.CleanupTrustListAsync(m_rejectedStore, dispose).ConfigureAwait(false);
