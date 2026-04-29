@@ -73,9 +73,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected override void Dispose(bool disposing)
         {
-            lock (DataLock)
+            if (disposing)
             {
-                base.Dispose(disposing);
+                lock (DataLock)
+                {
+                    ClientCertificate?.Dispose();
+                    ClientCertificate = null;
+                    base.Dispose(disposing);
+                }
             }
         }
 
@@ -599,6 +604,9 @@ namespace Opc.Ua.Bindings
                 // report the audit event for open certificate error
                 ReportAuditCertificateEvent?.Invoke(clientCertificate, e);
 
+                // dispose the client certificate since it will not be stored
+                clientCertificate?.Dispose();
+
                 // If the certificate structure, signature and trust list checks pass,
                 // return the other specific validation errors instead of BadSecurityChecksFailed
                 if (e.InnerException is ServiceResultException innerException)
@@ -648,6 +656,7 @@ namespace Opc.Ua.Bindings
                 if (ClientCertificate != null)
                 {
                     CompareCertificates(ClientCertificate, clientCertificate, false);
+                    clientCertificate?.Dispose();
                 }
                 else
                 {

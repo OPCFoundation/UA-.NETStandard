@@ -290,7 +290,7 @@ namespace Opc.Ua.Server.Tests
                 };
 
                 // Create client application configuration
-                var clientApp = new ApplicationInstance(telemetry)
+                await using var clientApp = new ApplicationInstance(telemetry)
                 {
                     ApplicationName = "TestClient",
                     ApplicationType = ApplicationType.Client

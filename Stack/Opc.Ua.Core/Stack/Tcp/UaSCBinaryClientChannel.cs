@@ -636,7 +636,7 @@ namespace Opc.Ua.Bindings
             // parse the security header.
             uint channelId;
 
-            Certificate serverCertificate;
+            Certificate? serverCertificate = null;
 
             uint requestId;
 
@@ -661,6 +661,8 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                serverCertificate?.Dispose();
+
                 m_logger.LogDebug(e,
                    "ChannelId {ChannelId}: Could not verify security on OpenSecureChannel response",
                    ChannelId);
@@ -772,6 +774,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
+                serverCertificate?.Dispose();
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelResponse");
             }
 

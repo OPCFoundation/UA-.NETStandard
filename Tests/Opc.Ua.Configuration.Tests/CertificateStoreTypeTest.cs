@@ -73,7 +73,7 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var application = new ApplicationInstance(telemetry) { ApplicationName = "Application" };
+            await using var application = new ApplicationInstance(telemetry) { ApplicationName = "Application" };
 
             string appStorePath = m_tempPath + Path.DirectorySeparatorChar + "own";
             string trustedStorePath = m_tempPath + Path.DirectorySeparatorChar + "trusted";
@@ -130,7 +130,7 @@ namespace Opc.Ua.Configuration.Tests
         private static async Task OpenCertStoreAsync(CertificateTrustList trustList, ITelemetryContext telemetry)
         {
             using ICertificateStore trustListStore = trustList.OpenStore(telemetry);
-            CertificateCollection certs = await trustListStore.EnumerateAsync()
+            using CertificateCollection certs = await trustListStore.EnumerateAsync()
                 .ConfigureAwait(false);
             X509CRLCollection crls = await trustListStore.EnumerateCRLsAsync()
                 .ConfigureAwait(false);

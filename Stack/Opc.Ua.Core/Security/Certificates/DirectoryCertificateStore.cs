@@ -1228,14 +1228,19 @@ namespace Opc.Ua
 
                         m_certificates[entry.Certificate.Thumbprint] = entry;
 
-                        if (!string.IsNullOrEmpty(thumbprint) &&
+                        if (!incompleteSearch &&
+                            !string.IsNullOrEmpty(thumbprint) &&
                             thumbprint!.Equals(
                                 entry.Certificate.Thumbprint,
                                 StringComparison.OrdinalIgnoreCase))
                         {
                             incompleteSearch = true;
-                            break;
                         }
+                    }
+
+                    if (incompleteSearch)
+                    {
+                        break;
                     }
                 }
                 catch (Exception e)

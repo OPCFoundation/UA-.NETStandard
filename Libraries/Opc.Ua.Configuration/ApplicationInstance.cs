@@ -60,6 +60,20 @@ namespace Opc.Ua.Configuration
                 Server.Dispose();
                 Server = null;
             }
+
+            ApplicationConfiguration?.CertificateValidator?.Dispose();
+
+            if (ApplicationConfiguration?.SecurityConfiguration?.ApplicationCertificates != null)
+            {
+                foreach (CertificateIdentifier certId in
+                    ApplicationConfiguration.SecurityConfiguration.ApplicationCertificates)
+                {
+                    certId?.Dispose();
+                }
+            }
+
+            CertificateManager?.Dispose();
+
             GC.SuppressFinalize(this);
         }
 
@@ -661,11 +675,12 @@ namespace Opc.Ua.Configuration
             {
                 // validate certificate.
                 configuration.CertificateValidator.CertificateValidation += OnCertificateValidation;
+                using Certificate publicKeyCert = certificate.HasPrivateKey
+                    ? CertificateFactory.Create(certificate.RawData)
+                    : null;
                 await configuration
                     .CertificateValidator.ValidateAsync(
-                        certificate.HasPrivateKey
-                            ? CertificateFactory.Create(certificate.RawData)
-                            : certificate,
+                        publicKeyCert ?? certificate,
                         ct)
                     .ConfigureAwait(false);
             }
@@ -975,6 +990,7 @@ namespace Opc.Ua.Configuration
             // delete certificate and private key.
             Certificate certificate = await id.FindAsync(configuration.ApplicationUri, m_telemetry, ct)
                 .ConfigureAwait(false);
+
             if (certificate != null)
             {
                 m_logger.LogInformation(
@@ -996,26 +1012,19 @@ namespace Opc.Ua.Configuration
 
                 if (!string.IsNullOrEmpty(thumbprint))
                 {
-                    ICertificateStore store = configuration.SecurityConfiguration
+                    using ICertificateStore store = configuration.SecurityConfiguration
                         .TrustedPeerCertificates
                         .OpenStore(m_telemetry);
                     if (store != null)
                     {
-                        try
+                        bool deleted = await store.DeleteAsync(thumbprint, ct)
+                            .ConfigureAwait(false);
+                        if (deleted)
                         {
-                            bool deleted = await store.DeleteAsync(thumbprint, ct)
-                                .ConfigureAwait(false);
-                            if (deleted)
-                            {
-                                m_logger.LogInformation(
-                                    Utils.TraceMasks.Security,
-                                    "Application Instance Certificate [{Thumbprint}] deleted from trusted store.",
-                                    thumbprint);
-                            }
-                        }
-                        finally
-                        {
-                            store.Close();
+                            m_logger.LogInformation(
+                                Utils.TraceMasks.Security,
+                                "Application Instance Certificate [{Thumbprint}] deleted from trusted store.",
+                                thumbprint);
                         }
                     }
                 }
@@ -1074,7 +1083,7 @@ namespace Opc.Ua.Configuration
 
             try
             {
-                ICertificateStore store = configuration.SecurityConfiguration
+                using ICertificateStore store = configuration.SecurityConfiguration
                     .TrustedPeerCertificates
                     .OpenStore(m_telemetry);
 
@@ -1084,28 +1093,26 @@ namespace Opc.Ua.Configuration
                     return;
                 }
 
-                try
+                // check if it already exists.
+                using CertificateCollection existingCertificates = await store
+                    .FindByThumbprintAsync(certificate.Thumbprint, ct)
+                    .ConfigureAwait(false);
+
+                if (existingCertificates.Count > 0)
                 {
-                    // check if it already exists.
-                    using CertificateCollection existingCertificates = await store
-                        .FindByThumbprintAsync(certificate.Thumbprint, ct)
-                        .ConfigureAwait(false);
+                    return;
+                }
 
-                    if (existingCertificates.Count > 0)
-                    {
-                        return;
-                    }
+                m_logger.LogInformation(
+                    "Adding application certificate {Certificate} to trusted peer store.",
+                    certificate);
 
-                    m_logger.LogInformation(
-                        "Adding application certificate {Certificate} to trusted peer store.",
-                        certificate);
+                List<string> subjectName = X509Utils.ParseDistinguishedName(
+                    certificate.Subject);
 
-                    List<string> subjectName = X509Utils.ParseDistinguishedName(
-                        certificate.Subject);
-
-                    // check for old certificate.
-                    using CertificateCollection certificates = await store.EnumerateAsync(ct)
-                        .ConfigureAwait(false);
+                // check for old certificate.
+                using CertificateCollection certificates = await store.EnumerateAsync(ct)
+                    .ConfigureAwait(false);
 
                     for (int ii = 0; ii < certificates.Count; ii++)
                     {
@@ -1152,11 +1159,6 @@ namespace Opc.Ua.Configuration
                     await store.AddAsync(publicKey, ct: ct).ConfigureAwait(false);
 
                     m_logger.LogInformation("Added application certificate to trusted peer store.");
-                }
-                finally
-                {
-                    store.Close();
-                }
             }
             catch (Exception e)
             {

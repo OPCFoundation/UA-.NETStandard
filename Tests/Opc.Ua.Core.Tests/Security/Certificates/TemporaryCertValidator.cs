@@ -136,6 +136,7 @@ namespace Opc.Ua.Core.Tests
         /// </summary>
         public CertificateValidator Update()
         {
+            m_certificateValidator?.Dispose();
             var certValidator = new CertificateValidator(m_telemetry);
             var issuerTrustList = new CertificateTrustList
             {

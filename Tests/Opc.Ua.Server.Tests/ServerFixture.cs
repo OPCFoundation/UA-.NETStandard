@@ -440,6 +440,12 @@ namespace Opc.Ua.Server.Tests
                 Server.Dispose();
                 Server = null;
             }
+            if (Application != null)
+            {
+                await Application.DisposeAsync().ConfigureAwait(false);
+                Application = null;
+            }
+            Config = null;
             ActivityListener?.Dispose();
             ActivityListener = null;
             await Task.Delay(100).ConfigureAwait(false);

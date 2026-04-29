@@ -52,7 +52,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             using var entry = new CertificateEntry(cert, chain, certType);
 
             Assert.That(entry.Certificate, Is.SameAs(cert));
-            Assert.That(entry.IssuerChain, Is.SameAs(chain));
+            Assert.That(entry.IssuerChain, Is.Not.SameAs(chain));
+            Assert.That(entry.IssuerChain, Has.Count.EqualTo(chain.Count));
             Assert.That(entry.CertificateType, Is.EqualTo(certType));
         }
 
@@ -133,7 +134,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetCAConstraint()
                 .CreateForRSA();
 
-            var chain = new CertificateCollection { issuer };
+            using var chain = new CertificateCollection { issuer };
             var certType = new NodeId(12345);
 
             var entry = new CertificateEntry(cert, chain, certType);

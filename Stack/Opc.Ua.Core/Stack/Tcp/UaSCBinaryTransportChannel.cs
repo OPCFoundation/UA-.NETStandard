@@ -89,6 +89,8 @@ namespace Opc.Ua.Bindings
                     m_connecting.Release();
                     m_connecting.Dispose();
                 }
+
+                m_settings?.ServerCertificate?.Dispose();
             }
         }
 

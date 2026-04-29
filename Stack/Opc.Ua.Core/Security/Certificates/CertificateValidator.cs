@@ -347,6 +347,11 @@ namespace Opc.Ua
 
             try
             {
+                foreach (Certificate cert in m_applicationCertificates)
+                {
+                    cert?.Dispose();
+                }
+
                 m_applicationCertificates.Clear();
                 //
                 // crash occurs if the cert is in use still and this has not run yet.
@@ -740,6 +745,7 @@ namespace Opc.Ua
                                     StringComparison.OrdinalIgnoreCase)
                             ) != default(CertificateIdentifier))
                         {
+                            issuer.Dispose();
                             break;
                         }
 

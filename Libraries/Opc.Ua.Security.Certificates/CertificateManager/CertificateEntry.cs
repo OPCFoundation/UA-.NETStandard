@@ -63,10 +63,7 @@ namespace Opc.Ua.Security.Certificates
             NodeId certificateType)
         {
             Certificate = certificate?.AddRef() ?? throw new ArgumentNullException(nameof(certificate));
-            IssuerChain = issuerChain ?? throw new ArgumentNullException(nameof(issuerChain));
-#pragma warning disable CA2000 // AddRef() returns 'this', not a new disposable object
-            _ = IssuerChain.AddRef();
-#pragma warning restore CA2000
+            IssuerChain = issuerChain?.AddRef() ?? throw new ArgumentNullException(nameof(issuerChain));
             CertificateType = certificateType;
         }
 

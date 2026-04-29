@@ -96,7 +96,7 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
             string configPath = Utils.GetAbsoluteFilePath(
                 "Opc.Ua.Configuration.Tests.Config.xml",
@@ -118,7 +118,7 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             ArrayOf<CertificateIdentifier> applicationCerts =
@@ -145,7 +145,7 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             ArrayOf<CertificateIdentifier> applicationCerts =
@@ -171,7 +171,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(certOK, Is.True);
 
             CertificateIdentifier certId = config.SecurityConfiguration.ApplicationCertificates[0];
-            Certificate certificate = await certId
+            using Certificate certificate = await certId
                 .FindAsync(
                     true,
                     config.ApplicationUri,
@@ -309,7 +309,7 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             ArrayOf<CertificateIdentifier> applicationCerts =
@@ -337,7 +337,7 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             ArrayOf<CertificateIdentifier> applicationCerts =
@@ -388,7 +388,7 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             ArrayOf<CertificateIdentifier> applicationCerts =
@@ -437,7 +437,7 @@ namespace Opc.Ua.Configuration.Tests
 #endif
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             ArrayOf<CertificateIdentifier> applicationCerts =
@@ -478,7 +478,8 @@ namespace Opc.Ua.Configuration.Tests
             {
                 // store public key in trusted store
                 byte[] rawData = applicationCertificate.Certificate.RawData;
-                await store.AddAsync(CertificateFactory.Create(rawData))
+                using Certificate publicKey = CertificateFactory.Create(rawData);
+                await store.AddAsync(publicKey)
                     .ConfigureAwait(false);
             }
 
@@ -507,7 +508,7 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             ArrayOf<CertificateIdentifier> applicationCerts =
@@ -565,7 +566,7 @@ namespace Opc.Ua.Configuration.Tests
                 Path.GetRandomFileName() +
                 Path.DirectorySeparatorChar;
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             ArrayOf<CertificateIdentifier> applicationCerts =
@@ -664,7 +665,7 @@ namespace Opc.Ua.Configuration.Tests
                 Path.GetRandomFileName() +
                 Path.DirectorySeparatorChar;
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             ArrayOf<CertificateIdentifier> applicationCerts =
@@ -700,7 +701,7 @@ namespace Opc.Ua.Configuration.Tests
                 .ApplicationCertificate;
             Assert.That(applicationCertificate.Certificate, Is.Null);
 
-            CertificateCollection testCerts = CreateInvalidCertChain(certType);
+            using CertificateCollection testCerts = CreateInvalidCertChain(certType);
             if (certType != InvalidCertType.NoIssuer)
             {
                 using Certificate issuerCert = testCerts[1];
@@ -766,7 +767,7 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             //Arrange Application Instance
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             ApplicationConfiguration configuration = await applicationInstance
                 .Build(ApplicationUri, ProductUri)
                 .SetOperationTimeout(10000)
@@ -789,9 +790,9 @@ namespace Opc.Ua.Configuration.Tests
             await applicationInstance
                 .AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken())
                 .ConfigureAwait(false);
-            ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates
+            using ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates
                 .OpenStore(telemetry);
-            CertificateCollection storedCertificates = await store
+            using CertificateCollection storedCertificates = await store
                 .FindByThumbprintAsync(cert.Thumbprint)
                 .ConfigureAwait(false);
 
@@ -820,7 +821,7 @@ namespace Opc.Ua.Configuration.Tests
 
             string subjectName = SubjectName;
             //Arrange Application Instance
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             ApplicationConfiguration configuration = await applicationInstance
                 .Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -836,7 +837,7 @@ namespace Opc.Ua.Configuration.Tests
                 async () => await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
 
             subjectName = "UA";// UA is a substring of the previous certificate SubjectName CN
-            var applicationInstance2 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance2 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             ApplicationConfiguration configuration2 = await applicationInstance2
                 .Build(ApplicationUri + "2", ProductUri + "2")
                 .AsClient()
@@ -858,7 +859,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
 
             subjectName = "CN=UA";// UA is a substring of the previous certificate SubjectName CN
-            var applicationInstance3 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance3 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             ApplicationConfiguration configuration3 = await applicationInstance3
                 .Build(ApplicationUri + "3", ProductUri + "3")
                 .AsClient()
@@ -890,7 +891,7 @@ namespace Opc.Ua.Configuration.Tests
                 Path.GetRandomFileName() +
                 Path.DirectorySeparatorChar;
 
-            var applicationInstance = new ApplicationInstance(telemetry)
+            await using var applicationInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 DisableCertificateAutoCreation = disableCertificateAutoCreation
@@ -957,21 +958,21 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             // Create two certificates with different ApplicationUris
             const string uri1 = "urn:localhost:opcfoundation.org:App1";
             const string uri2 = "urn:localhost:opcfoundation.org:App2";
 
-            Certificate cert1 = CertificateFactory
+            using Certificate cert1 = CertificateFactory
                 .CreateCertificate(uri1, ApplicationName, SubjectName, [Utils.GetHostName()])
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddYears(1))
                 .CreateForRSA();
 
             const string subjectName2 = "CN=UA Configuration Test 2, O=OPC Foundation, C=US, S=Arizona";
-            Certificate cert2 = CertificateFactory
+            using Certificate cert2 = CertificateFactory
                 .CreateCertificate(uri2, ApplicationName, subjectName2, [Utils.GetHostName()])
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddYears(1))
@@ -1035,18 +1036,18 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             // Create two certificates with the same ApplicationUri
-            Certificate cert1 = CertificateFactory
+            using Certificate cert1 = CertificateFactory
                 .CreateCertificate(ApplicationUri, ApplicationName, SubjectName, [Utils.GetHostName()])
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddYears(1))
                 .CreateForRSA();
 
             const string subjectName2 = "CN=UA Configuration Test RSA, O=OPC Foundation, C=US, S=Arizona";
-            Certificate cert2 = CertificateFactory
+            using Certificate cert2 = CertificateFactory
                 .CreateCertificate(ApplicationUri, ApplicationName, subjectName2, [Utils.GetHostName()])
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddYears(1))
@@ -1116,7 +1117,7 @@ namespace Opc.Ua.Configuration.Tests
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             // Create a certificate with multiple URIs in SAN, including the ApplicationUri
@@ -1124,7 +1125,7 @@ namespace Opc.Ua.Configuration.Tests
             const string uri2 = ApplicationUri; // This matches
             const string uri3 = "https://localhost:8080/OpcUaApp";
 
-            Certificate cert = CreateCertificateWithMultipleUris(
+            using Certificate cert = CreateCertificateWithMultipleUris(
                 [uri1, uri2, uri3],
                 SubjectName,
                 [Utils.GetHostName()],
@@ -1165,7 +1166,7 @@ namespace Opc.Ua.Configuration.Tests
 
             // Verify the certificate has multiple URIs
             // Load the certificate to check its URIs
-            Certificate loadedCert = await certId.FindAsync(false, null, telemetry).ConfigureAwait(false);
+            using Certificate loadedCert = await certId.FindAsync(false, null, telemetry).ConfigureAwait(false);
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(loadedCert);
             Assert.That(uris.Count, Is.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
@@ -1189,7 +1190,7 @@ namespace Opc.Ua.Configuration.Tests
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             // Create a certificate with multiple URIs in SAN, but none matching ApplicationUri
@@ -1197,7 +1198,7 @@ namespace Opc.Ua.Configuration.Tests
             const string uri2 = "urn:localhost:opcfoundation.org:App2";
             const string uri3 = "https://localhost:8080/OpcUaApp";
 
-            Certificate cert = CreateCertificateWithMultipleUris(
+            using Certificate cert = CreateCertificateWithMultipleUris(
                 [uri1, uri2, uri3],
                 SubjectName,
                 [Utils.GetHostName()],
@@ -1254,11 +1255,11 @@ namespace Opc.Ua.Configuration.Tests
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             // Create first certificate with multiple URIs including ApplicationUri
-            Certificate cert1 = CreateCertificateWithMultipleUris(
+            using Certificate cert1 = CreateCertificateWithMultipleUris(
                 [ApplicationUri, "https://localhost:8080/Test1", "opc.tcp://localhost:4840/Test1"],
                 SubjectName,
                 [Utils.GetHostName()],
@@ -1266,7 +1267,7 @@ namespace Opc.Ua.Configuration.Tests
 
             const string subjectName2 = "CN=UA Configuration Test 2, O=OPC Foundation, C=US, S=Arizona";
             // Create second certificate with multiple URIs including ApplicationUri
-            Certificate cert2 = CreateCertificateWithMultipleUris(
+            using Certificate cert2 = CreateCertificateWithMultipleUris(
                 ["urn:localhost:opcfoundation.org:OtherApp", ApplicationUri, "https://localhost:9443/Test2"],
                 subjectName2,
                 [Utils.GetHostName()],
@@ -1335,11 +1336,11 @@ namespace Opc.Ua.Configuration.Tests
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             Assert.That(applicationInstance, Is.Not.Null);
 
             // Create first certificate with ApplicationUri
-            Certificate cert1 = CreateCertificateWithMultipleUris(
+            using Certificate cert1 = CreateCertificateWithMultipleUris(
                 [ApplicationUri, "https://localhost:8080/Test1"],
                 SubjectName,
                 [Utils.GetHostName()],
@@ -1347,7 +1348,7 @@ namespace Opc.Ua.Configuration.Tests
 
             const string subjectName2 = "CN=UA Configuration Test 2, O=OPC Foundation, C=US, S=Arizona";
             // Create second certificate WITHOUT ApplicationUri
-            Certificate cert2 = CreateCertificateWithMultipleUris(
+            using Certificate cert2 = CreateCertificateWithMultipleUris(
                 ["urn:localhost:opcfoundation.org:OtherApp", "https://localhost:9443/Test2"],
                 subjectName2,
                 [Utils.GetHostName()],
