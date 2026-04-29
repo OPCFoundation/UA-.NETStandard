@@ -81,8 +81,7 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             {{Tokens.AccessModifier}} partial class {{Tokens.ClassName}} :
-                global::Opc.Ua.IEncodeable,
-                global::Opc.Ua.IJsonEncodeable
+                global::Opc.Ua.IEncodeable
             {
                 {{Tokens.ListOfInitOnlyBackingFields}}
                 /// <inheritdoc/>
@@ -96,10 +95,6 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public virtual global::Opc.Ua.ExpandedNodeId XmlEncodingId
                     => {{Tokens.XmlEncodingId}};
-
-                /// <inheritdoc/>
-                public virtual global::Opc.Ua.ExpandedNodeId JsonEncodingId
-                    => {{Tokens.JsonEncodingId}};
 
                 /// <inheritdoc/>
                 public virtual void Encode(global::Opc.Ua.IEncoder encoder)
@@ -153,8 +148,7 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             {{Tokens.AccessModifier}} partial class {{Tokens.ClassName}} :
-                global::Opc.Ua.IEncodeable,
-                global::Opc.Ua.IJsonEncodeable
+                global::Opc.Ua.IEncodeable
             {
                 {{Tokens.ListOfInitOnlyBackingFields}}
                 /// <inheritdoc/>
@@ -168,10 +162,6 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public global::Opc.Ua.ExpandedNodeId XmlEncodingId
                     => {{Tokens.XmlEncodingId}};
-
-                /// <inheritdoc/>
-                public global::Opc.Ua.ExpandedNodeId JsonEncodingId
-                    => {{Tokens.JsonEncodingId}};
 
                 /// <inheritdoc/>
                 public void Encode(global::Opc.Ua.IEncoder encoder)
@@ -241,10 +231,6 @@ namespace Opc.Ua.SourceGeneration
                     => {{Tokens.XmlEncodingId}};
 
                 /// <inheritdoc/>
-                public override global::Opc.Ua.ExpandedNodeId JsonEncodingId
-                    => {{Tokens.JsonEncodingId}};
-
-                /// <inheritdoc/>
                 public override void Encode(global::Opc.Ua.IEncoder encoder)
                 {
                     base.Encode(encoder);
@@ -298,8 +284,7 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             partial record class {{Tokens.ClassName}} :
-                global::Opc.Ua.IEncodeable,
-                global::Opc.Ua.IJsonEncodeable
+                global::Opc.Ua.IEncodeable
             {
                 {{Tokens.ListOfInitOnlyBackingFields}}
                 /// <inheritdoc/>
@@ -313,10 +298,6 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public virtual global::Opc.Ua.ExpandedNodeId XmlEncodingId
                     => {{Tokens.XmlEncodingId}};
-
-                /// <inheritdoc/>
-                public virtual global::Opc.Ua.ExpandedNodeId JsonEncodingId
-                    => {{Tokens.JsonEncodingId}};
 
                 /// <inheritdoc/>
                 public virtual void Encode(global::Opc.Ua.IEncoder encoder)
@@ -352,8 +333,7 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             partial record class {{Tokens.ClassName}} :
-                global::Opc.Ua.IEncodeable,
-                global::Opc.Ua.IJsonEncodeable
+                global::Opc.Ua.IEncodeable
             {
                 {{Tokens.ListOfInitOnlyBackingFields}}
                 /// <inheritdoc/>
@@ -367,10 +347,6 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public global::Opc.Ua.ExpandedNodeId XmlEncodingId
                     => {{Tokens.XmlEncodingId}};
-
-                /// <inheritdoc/>
-                public global::Opc.Ua.ExpandedNodeId JsonEncodingId
-                    => {{Tokens.JsonEncodingId}};
 
                 /// <inheritdoc/>
                 public void Encode(global::Opc.Ua.IEncoder encoder)
@@ -420,10 +396,6 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public override global::Opc.Ua.ExpandedNodeId XmlEncodingId
                     => {{Tokens.XmlEncodingId}};
-
-                /// <inheritdoc/>
-                public override global::Opc.Ua.ExpandedNodeId JsonEncodingId
-                    => {{Tokens.JsonEncodingId}};
 
                 /// <inheritdoc/>
                 public override void Encode(global::Opc.Ua.IEncoder encoder)
@@ -490,8 +462,7 @@ namespace Opc.Ua.SourceGeneration
             builder = builder
                 .AddEncodeableType({{Tokens.DataTypeIdConstant}}, {{Tokens.ClassName}}Activator.Instance)
                 .AddEncodeableType({{Tokens.BinaryEncodingId}}, {{Tokens.ClassName}}Activator.Instance)
-                .AddEncodeableType({{Tokens.XmlEncodingId}}, {{Tokens.ClassName}}Activator.Instance)
-                .AddEncodeableType({{Tokens.JsonEncodingId}}, {{Tokens.ClassName}}Activator.Instance);
+                .AddEncodeableType({{Tokens.XmlEncodingId}}, {{Tokens.ClassName}}Activator.Instance);
             """);
 
         /// <summary>

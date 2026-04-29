@@ -166,7 +166,7 @@ namespace Opc.Ua
                     DynamicallyAccessedMemberTypes.PublicConstructors)]
                 Type systemType)
             {
-                AddType(systemType, null);
+                AddType(systemType);
                 return this;
             }
 
@@ -178,7 +178,7 @@ namespace Opc.Ua
                 {
                     throw new ArgumentNullException(nameof(type));
                 }
-                AddEncodeableType(type, null);
+                AddEncodeableTypeInternal(type);
                 m_xmlNameToType[type.XmlName] = type;
                 return this;
             }
@@ -195,8 +195,7 @@ namespace Opc.Ua
                     type.Type,
                     out ExpandedNodeId typeId,
                     out ExpandedNodeId binaryEncodingId,
-                    out ExpandedNodeId xmlEncodingId,
-                    out ExpandedNodeId jsonEncodingId))
+                    out ExpandedNodeId xmlEncodingId))
                 {
                     if (!typeId.IsNull)
                     {
@@ -209,10 +208,6 @@ namespace Opc.Ua
                     if (!xmlEncodingId.IsNull)
                     {
                         m_enumeratedTypes[xmlEncodingId] = type;
-                    }
-                    if (!jsonEncodingId.IsNull)
-                    {
-                        m_enumeratedTypes[jsonEncodingId] = type;
                     }
                 }
                 m_xmlNameToType[type.XmlName] = type;
@@ -282,45 +277,6 @@ namespace Opc.Ua
                 }
 
                 Type[] systemTypes = assembly.GetExportedTypes();
-                var unboundTypeIds = new Dictionary<string, ExpandedNodeId>();
-
-                const string jsonEncodingSuffix = "_Encoding_DefaultJson";
-
-                for (int ii = 0; ii < systemTypes.Length; ii++)
-                {
-                    if (systemTypes[ii].Name != "ObjectIds")
-                    {
-                        continue;
-                    }
-
-                    foreach (
-                        FieldInfo field in systemTypes[ii].GetFields(
-                            BindingFlags.Static | BindingFlags.Public))
-                    {
-                        if (field.Name.EndsWith(
-                            jsonEncodingSuffix, StringComparison.Ordinal))
-                        {
-                            try
-                            {
-                                string name = field.Name[..^jsonEncodingSuffix.Length];
-                                object? value = field.GetValue(null);
-
-                                if (value is NodeId nodeId)
-                                {
-                                    unboundTypeIds[name] = new ExpandedNodeId(nodeId);
-                                }
-                                else if (value is ExpandedNodeId expandedNodeId)
-                                {
-                                    unboundTypeIds[name] = expandedNodeId;
-                                }
-                            }
-                            catch
-                            {
-                                // ignore errors.
-                            }
-                        }
-                    }
-                }
 
                 for (int ii = 0; ii < systemTypes.Length; ii++)
                 {
@@ -329,11 +285,9 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    AddType(systemTypes[ii], unboundTypeIds);
+                    AddType(systemTypes[ii]);
                 }
 
-                // only needed while adding assembly types
-                unboundTypeIds.Clear();
                 return this;
             }
 
@@ -436,18 +390,15 @@ namespace Opc.Ua
             /// Adds an extension type to the factory.
             /// </summary>
             /// <param name="systemType">The underlying system type to add to the factory</param>
-            /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids
-            /// referenced by object name.</param>
             private void AddType(
                 [DynamicallyAccessedMembers(
                     DynamicallyAccessedMemberTypes.PublicConstructors)]
-                Type systemType,
-                Dictionary<string, ExpandedNodeId>? unboundTypeIds)
+                Type systemType)
             {
                 switch (ReflectionBasedType.From(systemType))
                 {
                     case IEncodeableType encodeableType:
-                        AddEncodeableType(encodeableType, unboundTypeIds);
+                        AddEncodeableTypeInternal(encodeableType);
                         break;
                     case IEnumeratedType enumeratedType:
                         AddEnumeratedType(enumeratedType);
@@ -459,19 +410,15 @@ namespace Opc.Ua
             /// Adds an encodeable type to the factory.
             /// </summary>
             /// <param name="encodeableType">The encodeable type to add to the factory</param>
-            /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids
-            /// referenced by object name.</param>
             /// <exception cref="InvalidOperationException"></exception>
-            private void AddEncodeableType(
-                IEncodeableType encodeableType,
-                Dictionary<string, ExpandedNodeId>? unboundTypeIds)
+            private void AddEncodeableTypeInternal(
+                IEncodeableType encodeableType)
             {
                 if (DataTypeAttribute.TryGetTypeIdsFromType(
                     encodeableType.Type,
                     out ExpandedNodeId typeId,
                     out ExpandedNodeId binaryEncodingId,
-                    out ExpandedNodeId xmlEncodingId,
-                    out ExpandedNodeId jsonEncodingId) &&
+                    out ExpandedNodeId xmlEncodingId) &&
                     !typeId.IsNull &&
                     !binaryEncodingId.IsNull &&
                     !xmlEncodingId.IsNull)
@@ -479,17 +426,7 @@ namespace Opc.Ua
                     m_encodeableTypes[Fix(typeId)] = encodeableType;
                     m_encodeableTypes[Fix(binaryEncodingId)] = encodeableType;
                     m_encodeableTypes[Fix(xmlEncodingId)] = encodeableType;
-                    if (!jsonEncodingId.IsNull ||
-                        (unboundTypeIds != null &&
-                            unboundTypeIds.TryGetValue(
-                                encodeableType.Type.Name,
-                                out jsonEncodingId) &&
-                            !jsonEncodingId.IsNull))
-                    {
-                        m_encodeableTypes[Fix(jsonEncodingId)] = encodeableType;
-                    }
                     return;
-                    // Else fallback to creating the type
                 }
 
                 IEncodeable encodeable = encodeableType.CreateInstance() ??
@@ -523,30 +460,6 @@ namespace Opc.Ua
                 if (!nodeId.IsNull)
                 {
                     m_encodeableTypes[Fix(nodeId)] = encodeableType;
-                }
-
-                if (encodeable is IJsonEncodeable jsonEncodeable)
-                {
-                    try
-                    {
-                        nodeId = jsonEncodeable.JsonEncodingId;
-                    }
-                    catch (NotSupportedException)
-                    {
-                        nodeId = ExpandedNodeId.Null;
-                    }
-                    if (!nodeId.IsNull)
-                    {
-                        m_encodeableTypes[Fix(nodeId)] = encodeableType;
-                    }
-                }
-                else if (unboundTypeIds != null &&
-                    unboundTypeIds.TryGetValue(
-                        encodeableType.Type.Name,
-                        out jsonEncodingId) &&
-                    !jsonEncodingId.IsNull)
-                {
-                    m_encodeableTypes[jsonEncodingId] = encodeableType;
                 }
 
                 static ExpandedNodeId Fix(ExpandedNodeId nodeId)

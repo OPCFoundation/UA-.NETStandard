@@ -206,7 +206,7 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(vn.TypeId, Is.EqualTo(DataTypeIds.VariableNode));
             Assert.That(vn.BinaryEncodingId, Is.EqualTo(ObjectIds.VariableNode_Encoding_DefaultBinary));
             Assert.That(vn.XmlEncodingId, Is.EqualTo(ObjectIds.VariableNode_Encoding_DefaultXml));
-            Assert.That(vn.JsonEncodingId, Is.EqualTo(ObjectIds.VariableNode_Encoding_DefaultJson));
+
         }
 
         [Test]

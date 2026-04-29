@@ -150,55 +150,5 @@ namespace Opc.Ua.Types
         public static readonly NodeId RelativePathElement_Encoding_DefaultXml = new(Objects.RelativePathElement_Encoding_DefaultXml);
 
         public static readonly NodeId RelativePath_Encoding_DefaultXml = new(Objects.RelativePath_Encoding_DefaultXml);
-
-        public static readonly NodeId RolePermissionType_Encoding_DefaultJson = new(Objects.RolePermissionType_Encoding_DefaultJson);
-
-        public static readonly NodeId DataTypeDefinition_Encoding_DefaultJson = new(Objects.DataTypeDefinition_Encoding_DefaultJson);
-
-        public static readonly NodeId StructureField_Encoding_DefaultJson = new(Objects.StructureField_Encoding_DefaultJson);
-
-        public static readonly NodeId StructureDefinition_Encoding_DefaultJson = new(Objects.StructureDefinition_Encoding_DefaultJson);
-
-        public static readonly NodeId EnumDefinition_Encoding_DefaultJson = new(Objects.EnumDefinition_Encoding_DefaultJson);
-
-        public static readonly NodeId Node_Encoding_DefaultJson = new(Objects.Node_Encoding_DefaultJson);
-
-        public static readonly NodeId InstanceNode_Encoding_DefaultJson = new(Objects.InstanceNode_Encoding_DefaultJson);
-
-        public static readonly NodeId TypeNode_Encoding_DefaultJson = new(Objects.TypeNode_Encoding_DefaultJson);
-
-        public static readonly NodeId ObjectNode_Encoding_DefaultJson = new(Objects.ObjectNode_Encoding_DefaultJson);
-
-        public static readonly NodeId ObjectTypeNode_Encoding_DefaultJson = new(Objects.ObjectTypeNode_Encoding_DefaultJson);
-
-        public static readonly NodeId VariableNode_Encoding_DefaultJson = new(Objects.VariableNode_Encoding_DefaultJson);
-
-        public static readonly NodeId VariableTypeNode_Encoding_DefaultJson = new(Objects.VariableTypeNode_Encoding_DefaultJson);
-
-        public static readonly NodeId ReferenceTypeNode_Encoding_DefaultJson = new(Objects.ReferenceTypeNode_Encoding_DefaultJson);
-
-        public static readonly NodeId MethodNode_Encoding_DefaultJson = new(Objects.MethodNode_Encoding_DefaultJson);
-
-        public static readonly NodeId ViewNode_Encoding_DefaultJson = new(Objects.ViewNode_Encoding_DefaultJson);
-
-        public static readonly NodeId DataTypeNode_Encoding_DefaultJson = new(Objects.DataTypeNode_Encoding_DefaultJson);
-
-        public static readonly NodeId ReferenceNode_Encoding_DefaultJson = new(Objects.ReferenceNode_Encoding_DefaultJson);
-
-        public static readonly NodeId Argument_Encoding_DefaultJson = new(Objects.Argument_Encoding_DefaultJson);
-
-        public static readonly NodeId EnumValueType_Encoding_DefaultJson = new(Objects.EnumValueType_Encoding_DefaultJson);
-
-        public static readonly NodeId EnumField_Encoding_DefaultJson = new(Objects.EnumField_Encoding_DefaultJson);
-
-        public static readonly NodeId ViewDescription_Encoding_DefaultJson = new(Objects.ViewDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId BrowseDescription_Encoding_DefaultJson = new(Objects.BrowseDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId ReferenceDescription_Encoding_DefaultJson = new(Objects.ReferenceDescription_Encoding_DefaultJson);
-
-        public static readonly NodeId RelativePathElement_Encoding_DefaultJson = new(Objects.RelativePathElement_Encoding_DefaultJson);
-
-        public static readonly NodeId RelativePath_Encoding_DefaultJson = new(Objects.RelativePath_Encoding_DefaultJson);
     }
 }

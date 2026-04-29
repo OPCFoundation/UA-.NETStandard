@@ -39,7 +39,7 @@ namespace Opc.Ua
     /// A node in the server address space.
     /// </summary>
     [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
-    public class Node : IEncodeable, IJsonEncodeable, IFormattable, ILocalNode
+    public class Node : IEncodeable, IFormattable, ILocalNode
     {
         /// <summary>
         /// Creates a node from a reference description.
@@ -178,9 +178,6 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Node_Encoding_DefaultXml;
-
-        /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Node_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)

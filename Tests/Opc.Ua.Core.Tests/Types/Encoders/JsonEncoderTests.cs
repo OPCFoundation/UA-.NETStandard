@@ -1419,7 +1419,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 ExpandedNodeId.Parse("ns=2;s=test_dyn_typeid"),
                 ExpandedNodeId.Parse("s=test_dyn_binaryencodingid"),
                 ExpandedNodeId.Parse("s=test_dyn_xmlencodingid"),
-                ExpandedNodeId.Parse("s=test_dyn_jsonencodingid"),
                 new Dictionary<string, (int, string)>
                 {
                     { "Foo", (1, "bar_1") }
@@ -1467,7 +1466,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 ExpandedNodeId.Parse("s=test_dyn2_typeid"),
                 ExpandedNodeId.Parse("s=test_dyn2_binaryencodingid"),
                 ExpandedNodeId.Parse("s=test_dyn2_xmlencodingid"),
-                ExpandedNodeId.Parse("ns=1;s=test_dyn2_jsonencodingid"),
                 new Dictionary<string, (int, string)>
                 {
                     { "Foo", (1, "bar_1") },

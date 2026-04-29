@@ -112,13 +112,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(rd.XmlEncodingId, Is.EqualTo(ObjectIds.ReferenceDescription_Encoding_DefaultXml));
         }
 
-        [Test]
-        public void JsonEncodingIdReturnsExpectedValue()
-        {
-            var rd = new ReferenceDescription();
-
-            Assert.That(rd.JsonEncodingId, Is.EqualTo(ObjectIds.ReferenceDescription_Encoding_DefaultJson));
-        }
 
         [Test]
         public void EncodeDecodeRoundTripPreservesAllProperties()

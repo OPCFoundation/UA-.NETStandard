@@ -225,15 +225,12 @@ namespace Opc.Ua.SourceGeneration
                 model.BinaryEncodingId, model.NamespaceUri);
             string xmlIdExpr = FormatOptionalExpandedNodeIdExpression(
                 model.XmlEncodingId, model.NamespaceUri);
-            string jsonIdExpr = FormatOptionalExpandedNodeIdExpression(
-                model.JsonEncodingId, model.NamespaceUri);
 
             context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
             context.Template.AddReplacement(Tokens.BrowseName, model.ClassName);
             context.Template.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
             context.Template.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
             context.Template.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
-            context.Template.AddReplacement(Tokens.JsonEncodingId, jsonIdExpr);
             context.Template.AddReplacement(Tokens.XmlNamespaceUri,
                 $"\"{model.NamespaceUri.Escape()}\"");
             context.Template.AddReplacement(Tokens.AccessModifier,
@@ -653,16 +650,12 @@ namespace Opc.Ua.SourceGeneration
             string xmlIdExpr = FormatOptionalExpandedNodeIdExpression(
                 model.XmlEncodingId,
                 model.NamespaceUri);
-            string jsonIdExpr = FormatOptionalExpandedNodeIdExpression(
-                model.JsonEncodingId,
-                model.NamespaceUri);
 
             context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
             context.Template.AddReplacement(Tokens.BrowseName, model.ClassName);
             context.Template.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
             context.Template.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
             context.Template.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
-            context.Template.AddReplacement(Tokens.JsonEncodingId, jsonIdExpr);
             context.Template.AddReplacement(Tokens.XmlNamespaceUri,
                 $"""
                 "{model.NamespaceUri.Escape()}"

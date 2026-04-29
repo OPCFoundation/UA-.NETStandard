@@ -40,7 +40,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class RelativePathElement :
         IEncodeable,
-        IJsonEncodeable,
         IEquatable<RelativePathElement>
     {
         /// <inheritdoc/>
@@ -93,9 +92,6 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RelativePathElement_Encoding_DefaultXml;
-
-        /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RelativePathElement_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
