@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !NET9_0_OR_GREATER
+#if !NET8_0_OR_GREATER
 
 using System.Collections.Generic;
 using System.Threading;

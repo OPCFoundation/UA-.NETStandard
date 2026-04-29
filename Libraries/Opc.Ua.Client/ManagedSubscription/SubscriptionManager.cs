@@ -153,7 +153,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_logger = loggerFactory.CreateLogger<SubscriptionManager>();
             ReturnDiagnostics = returnDiagnostics;
             m_publishController = PublishControllerAsync(m_cts.Token);
-#if NET9_0_OR_GREATER
+#if NET8_0_OR_GREATER
             m_acks = Channel.CreateUnboundedPrioritized<SubscriptionAcknowledgement>(
                 new UnboundedPrioritizedChannelOptions<SubscriptionAcknowledgement>
                 {

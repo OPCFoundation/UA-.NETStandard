@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.Subscriptions
             _logger = Observability.LoggerFactory.CreateLogger<Subscription>();
             m_services = services;
             m_completion = completion;
-#if NET9_0_OR_GREATER
+#if NET8_0_OR_GREATER
             m_messages = Channel.CreateUnboundedPrioritized<IncomingMessage>(
                 new UnboundedPrioritizedChannelOptions<IncomingMessage>
                 {
