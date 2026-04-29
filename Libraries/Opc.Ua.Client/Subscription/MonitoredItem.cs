@@ -27,1317 +27,709 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
-namespace Opc.Ua.Client
+namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
     /// <summary>
-    /// A monitored item.
+    /// A monitored item that can be extended to add extra
+    /// information as context in the subscription.
     /// </summary>
-    public class MonitoredItem : ISnapshotRestore<MonitoredItemState>, ICloneable
+    internal abstract class MonitoredItem : IMonitoredItem, IAsyncDisposable
     {
-        private static readonly TimeSpan s_time_epsilon = TimeSpan.FromMilliseconds(500);
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
-        /// </summary>
-        public MonitoredItem(
-            ITelemetryContext telemetry,
-            MonitoredItemOptions? options = null)
-            : this(Utils.IncrementIdentifier(ref s_globalClientHandle), telemetry, options)
-        {
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
-        /// </summary>
-        /// <param name="clientHandle">The client handle. The caller must ensure it
-        /// uniquely identifies the monitored item.</param>
-        /// <param name="telemetry"></param>
-        /// <param name="options"></param>
-        public MonitoredItem(
-            uint clientHandle,
-            ITelemetryContext telemetry,
-            MonitoredItemOptions? options = null)
-        {
-            State = options ?? new MonitoredItemOptions();
-            Status = new MonitoredItemStatus();
-            m_logger = telemetry.CreateLogger<MonitoredItem>();
-            ClientHandle = clientHandle;
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MonitoredItem"/> class from a template.
-        /// </summary>
-        public MonitoredItem(
-            MonitoredItem template,
-            bool copyEventHandlers = false,
-            bool copyClientHandle = false)
-        {
-            Status = new MonitoredItemStatus();
-            if (template == null)
-            {
-                throw new ArgumentNullException(nameof(template));
-            }
-            m_logger = template.m_logger;
-
-            State = template.State;
-            ClientHandle = 0;
-            AttributesModified = true;
-            m_logger ??= LoggerUtils.Null.Logger;
-
-            string displayName = template.DisplayName;
-            if (displayName != null)
-            {
-                int index = displayName.LastIndexOf(' ');
-                if (index != -1)
-                {
-                    displayName = displayName[..index];
-                }
-            }
-
-            Handle = template.Handle;
-            DisplayName = Utils.Format("{0} {1}", displayName, ClientHandle);
-            // copy state (except client handle logic handled below)
-            State = template.State with { DisplayName = DisplayName };
-            if (copyEventHandlers)
-            {
-                m_Notification = template.m_Notification;
-            }
-            if (copyClientHandle)
-            {
-                ClientHandle = template.ClientHandle;
-            }
-            else
-            {
-                ClientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
-            }
-            // ensure state consistency with node class transitions
-            NodeClass = State.NodeClass;
-        }
-
-        /// <summary>
-        /// Public parameterless ctor for serialization/deserialization scenarios.
-        /// </summary>
-        [Obsolete("Use constructor with ITelemetryContext argument")]
-        public MonitoredItem()
-            : this(null!, null)
-        {
-        }
+        /// <inheritdoc/>
+        public string Name { get; }
 
         /// <inheritdoc/>
-        public virtual void Restore(MonitoredItemState state)
-        {
-            State = state;
-            ClientHandle = state.ClientId;
-            ServerId = state.ServerId;
-            TriggeringItemId = state.TriggeringItemId;
-            TriggeredItems = state.TriggeredItems;
-            CacheQueueSize = state.CacheQueueSize < 1 ? 1 : state.CacheQueueSize;
-        }
+        public uint Order => m_currentOptions?.Order ?? 0u;
 
         /// <inheritdoc/>
-        public virtual void Snapshot(out MonitoredItemState state)
-        {
-            state = new MonitoredItemState(State)
-            {
-                ServerId = Status.Id,
-                ClientId = ClientHandle,
-                TriggeringItemId = TriggeringItemId,
-                TriggeredItems = TriggeredItems,
-                CacheQueueSize = CacheQueueSize
-            };
-        }
+        public uint ServerId { get; private set; }
 
-        /// <summary>
-        /// Monitored item state/options.
-        /// </summary>
-        public MonitoredItemOptions State { get; internal set; }
+        /// <inheritdoc/>
+        public bool Created => ServerId != 0;
 
-        /// <summary>
-        /// A display name for the monitored item
-        /// </summary>
-        public string DisplayName
-        {
-            get => State.DisplayName ?? "MonitoredItem";
-            set => State = State with { DisplayName = value };
-        }
+        /// <inheritdoc/>
+        public ServiceResult Error { get; private set; }
 
-        /// <summary>
-        /// The start node id
-        /// </summary>
-        public NodeId StartNodeId
-        {
-            get => State.StartNodeId;
-            set => State = State with { StartNodeId = value };
-        }
+        /// <inheritdoc/>
+        public MonitoringFilterResult? FilterResult { get; private set; }
 
-        /// <summary>
-        /// The relative path
-        /// </summary>
-        public string? RelativePath
-        {
-            get => State.RelativePath;
-            set
-            {
-                if (value != State.RelativePath)
-                {
-                    m_resolvedNodeId = NodeId.Null;
-                }
-                State = State with { RelativePath = value };
-            }
-        }
+        /// <inheritdoc/>
+        public MonitoringMode CurrentMonitoringMode { get; internal set; }
 
-        /// <summary>
-        /// The node class
-        /// </summary>
-        public NodeClass NodeClass
-        {
-            get => State.NodeClass;
-            set
-            {
-                if (State.NodeClass == value)
-                {
-                    return;
-                }
-                if (((int)value & ((int)NodeClass.Object | (int)NodeClass.View)) != 0)
-                {
-                    State = State with
-                    {
-                        NodeClass = value,
-                        AttributeId = Attributes.EventNotifier,
-                        QueueSize = State.QueueSize <= 1 ? int.MaxValue : State.QueueSize,
-                        Filter = State.Filter is not EventFilter ?
-                            GetDefaultEventFilter() : State.Filter
-                    };
-                }
-                else
-                {
-                    State = State with
-                    {
-                        NodeClass = value,
-                        AttributeId = Attributes.Value,
-                        QueueSize = State.QueueSize == int.MaxValue ? 1 : State.QueueSize,
-                        Filter = State.Filter is EventFilter ?
-                            null : State.Filter,
-                    };
-                }
-                m_dataCache = null;
-                m_eventCache = null;
-            }
-        }
+        /// <inheritdoc/>
+        public TimeSpan CurrentSamplingInterval { get; private set; }
 
-        /// <summary>
-        /// The attribute id
-        /// </summary>
-        public uint AttributeId
-        {
-            get => State.AttributeId;
-            set => State = State with { AttributeId = value };
-        }
+        /// <inheritdoc/>
+        public uint CurrentQueueSize { get; private set; }
 
-        /// <summary>
-        /// The index range
-        /// </summary>
-        public string? IndexRange
-        {
-            get => State.IndexRange;
-            set => State = State with { IndexRange = value };
-        }
-
-        /// <summary>
-        /// The data encoding
-        /// </summary>
-        public QualifiedName Encoding
-        {
-            get => State.Encoding;
-            set => State = State with { Encoding = value };
-        }
-
-        /// <summary>
-        /// The monitoring mode
-        /// </summary>
-        public MonitoringMode MonitoringMode
-        {
-            get => State.MonitoringMode;
-            set => State = State with { MonitoringMode = value };
-        }
-
-        /// <summary>
-        /// The sampling interval
-        /// </summary>
-        public int SamplingInterval
-        {
-            get => State.SamplingInterval;
-            set
-            {
-                if (State.SamplingInterval != value)
-                {
-                    AttributesModified = true;
-                }
-                State = State with { SamplingInterval = value };
-            }
-        }
-
-        /// <summary>
-        /// The monitoring filter
-        /// </summary>
-        public MonitoringFilter? Filter
-        {
-            get => State.Filter;
-            set
-            {
-                if (!Equals(State.Filter, value))
-                {
-                    ValidateFilter(NodeClass, value);
-                    AttributesModified = true;
-                }
-                State = State with { Filter = value };
-            }
-        }
-
-        /// <summary>
-        /// The queue size
-        /// </summary>
-        public uint QueueSize
-        {
-            get => State.QueueSize;
-            set
-            {
-                if (State.QueueSize != value)
-                {
-                    AttributesModified = true;
-                }
-                State = State with { QueueSize = value };
-            }
-        }
-
-        /// <summary>
-        /// Discard oldest when full
-        /// </summary>
-        public bool DiscardOldest
-        {
-            get => State.DiscardOldest;
-            set
-            {
-                if (State.DiscardOldest != value)
-                {
-                    AttributesModified = true;
-                }
-                State = State with { DiscardOldest = value };
-            }
-        }
-
-        /// <summary>
-        /// Server-assigned id for the MonitoredItem.
-        /// </summary>
-        public uint ServerId
-        {
-            get => Status.Id;
-            set => Status.Id = value;
-        }
+        /// <inheritdoc/>
+        public uint ClientHandle { get; private set; }
 
         /// <summary>
         /// The subscription that owns the monitored item.
         /// </summary>
-        public Subscription? Subscription
+        protected IMonitoredItemContext Context { get; }
+
+        /// <summary>
+        /// Current monitored item options
+        /// </summary>
+        internal IOptionsMonitor<MonitoredItemOptions> Options
         {
-            get => m_subscription;
-            internal set
-            {
-                if (m_subscription == null && value?.Telemetry != null)
-                {
-                    m_logger = value.Telemetry.CreateLogger<MonitoredItem>();
-                }
-                m_subscription = value;
-            }
-        }
-
-        /// <summary>
-        /// A local handle assigned to the monitored item.
-        /// </summary>
-        public object? Handle { get; set; }
-
-        /// <summary>
-        /// Whether the item has been created on the server.
-        /// </summary>
-        public bool Created => Status.Created;
-
-        /// <summary>
-        /// The identifier assigned by the client.
-        /// </summary>
-        public uint ClientHandle { get; private set; }
-
-        /// <summary>
-        /// The node id to monitor after applying any relative path.
-        /// </summary>
-        public NodeId ResolvedNodeId
-        {
-            get
-            {
-                // just return the start id if relative path is empty.
-                if (string.IsNullOrEmpty(State.RelativePath))
-                {
-                    return StartNodeId;
-                }
-                return m_resolvedNodeId;
-            }
-            internal set => m_resolvedNodeId = value;
-        }
-
-        /// <summary>
-        /// Whether the monitoring attributes have been modified since the item was created.
-        /// </summary>
-        public bool AttributesModified { get; private set; } = true;
-
-        /// <summary>
-        /// The status associated with the monitored item.
-        /// </summary>
-        public MonitoredItemStatus Status { get; }
-
-        /// <summary>
-        /// Returns the queue size used by the cache.
-        /// </summary>
-        public uint CacheQueueSize
-        {
-            get
-            {
-                lock (m_cache)
-                {
-                    if (m_dataCache != null)
-                    {
-                        return m_dataCache.QueueSize;
-                    }
-
-                    if (m_eventCache != null)
-                    {
-                        return m_eventCache.QueueSize;
-                    }
-
-                    return 0;
-                }
-            }
+            get => m_options;
             set
             {
-                lock (m_cache)
+                if (m_options != value)
                 {
-                    EnsureCacheIsInitialized();
-
-                    m_dataCache?.SetQueueSize(value);
-
-                    m_eventCache?.SetQueueSize(value);
+                    m_options = value;
+                    QueuePendingChanges(m_options.CurrentValue, m_currentOptions);
+                    m_changeTracking?.Dispose();
+                    m_changeTracking = m_options.OnChange(
+                        (o, _) => OnOptionsChanged(o));
                 }
             }
         }
 
         /// <summary>
-        /// The last value or event received from the server.
+        /// Create monitored item
         /// </summary>
-        public IEncodeable? LastValue
+        /// <param name="context"></param>
+        /// <param name="name"></param>
+        /// <param name="options"></param>
+        /// <param name="logger"></param>
+        protected MonitoredItem(IMonitoredItemContext context, string name,
+            IOptionsMonitor<MonitoredItemOptions> options, ILogger logger)
         {
-            get
-            {
-                lock (m_cache)
-                {
-                    return m_lastNotification;
-                }
-            }
-        }
+            Context = context;
+            Name = name;
+            Error = ServiceResult.Good;
+            ClientHandle = Utils.IncrementIdentifier(ref _globalClientHandleUint);
 
-        /// <summary>
-        /// Read all values in the cache queue.
-        /// </summary>
-        public IList<DataValue> DequeueValues()
-        {
-            lock (m_cache)
-            {
-                if (m_dataCache != null)
-                {
-                    return m_dataCache.Publish();
-                }
-
-                return [];
-            }
-        }
-
-        /// <summary>
-        /// Read all events in the cache queue.
-        /// </summary>
-        public IList<EventFieldList> DequeueEvents()
-        {
-            lock (m_cache)
-            {
-                if (m_eventCache != null)
-                {
-                    return m_eventCache.Publish();
-                }
-
-                return [];
-            }
-        }
-
-        /// <summary>
-        /// The last message containing a notification for the item.
-        /// </summary>
-        public NotificationMessage? LastMessage
-        {
-            get
-            {
-                lock (m_cache)
-                {
-                    if (m_dataCache != null)
-                    {
-                        return ((MonitoredItemNotification?)m_lastNotification)?.Message;
-                    }
-
-                    if (m_eventCache != null)
-                    {
-                        return ((EventFieldList?)m_lastNotification)?.Message;
-                    }
-
-                    return null;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Raised when a new notification arrives.
-        /// </summary>
-        public event MonitoredItemNotificationEventHandler Notification
-        {
-            add
-            {
-                lock (m_cache)
-                {
-                    m_Notification += value;
-                }
-            }
-            remove
-            {
-                lock (m_cache)
-                {
-                    m_Notification -= value;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Reset the notification event handler.
-        /// </summary>
-        public void DetachNotificationEventHandlers()
-        {
-            lock (m_cache)
-            {
-                m_Notification = null;
-            }
-        }
-
-        /// <summary>
-        /// Saves a data change or event in the cache.
-        /// </summary>
-        public void SaveValueInCache(IEncodeable newValue)
-        {
-            lock (m_cache)
-            {
-                EnsureCacheIsInitialized();
-
-                // only validate timestamp on first sample
-                bool validateTimestamp = m_lastNotification == null;
-
-                m_lastNotification = newValue;
-
-                if (m_dataCache != null && newValue is MonitoredItemNotification datachange)
-                {
-                    if (datachange.Value != null)
-                    {
-                        if (validateTimestamp)
-                        {
-                            DateTime now = DateTime.UtcNow.Add(s_time_epsilon);
-
-                            // validate the ServerTimestamp of the notification.
-                            if (datachange.Value.ServerTimestamp > now)
-                            {
-                                m_logger.LogWarning(
-                                    "Received ServerTimestamp {ServerTimestamp} is in the future for MonitoredItemId {MonitoredItemId}",
-                                    datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
-                                    ClientHandle);
-                            }
-
-                            // validate SourceTimestamp of the notification.
-                            if (datachange.Value.SourceTimestamp > now)
-                            {
-                                m_logger.LogWarning(
-                                    "Received SourceTimestamp {SourceTimestamp} is in the future for MonitoredItemId {MonitoredItemId}",
-                                    datachange.Value.SourceTimestamp.ToDateTime().ToLocalTime(),
-                                    ClientHandle);
-                            }
-                        }
-
-                        if (datachange.Value.StatusCode.Overflow)
-                        {
-                            m_logger.LogWarning(
-                                "Overflow bit set for data change with ServerTimestamp {ServerTimestamp} " +
-                                "and value {Value} for MonitoredItemId {MonitoredItemId}",
-                                datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
-                                datachange.Value.WrappedValue,
-                                ClientHandle);
-                        }
-                    }
-
-                    m_dataCache.OnNotification(datachange);
-                }
-
-                if (m_eventCache != null && newValue is EventFieldList eventchange)
-                {
-                    m_eventCache.OnNotification(eventchange);
-                }
-                m_Notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
-            }
+            m_logger = logger;
+            m_options = Options = options;
+            m_logger.LogDebug("{Item} CREATED.", this);
         }
 
         /// <inheritdoc/>
-        public virtual object Clone()
+        public ValueTask DisposeAsync()
         {
-            return MemberwiseClone();
+            GC.SuppressFinalize(this);
+            return DisposeAsync(disposing: true);
+        }
+
+        /// <inheritdoc/>
+        public override string? ToString()
+        {
+            var sb = new StringBuilder()
+              .Append(Context)
+              .Append('#')
+              .Append(ClientHandle)
+              .Append('|')
+              .Append(ServerId)
+              .Append(" (")
+              .Append(Name)
+              .Append(')');
+            return sb.ToString();
         }
 
         /// <summary>
-        /// Creates a deep copy of the object.
+        /// Dispose monitored item
         /// </summary>
-        public new object MemberwiseClone()
+        /// <param name="disposing"></param>
+        protected virtual ValueTask DisposeAsync(bool disposing)
         {
-            return new MonitoredItem(this);
-        }
-
-        /// <summary>
-        /// Clones a monitored item or the subclass with an option to copy event handlers.
-        /// </summary>
-        /// <returns>A cloned instance of the monitored item or a subclass.</returns>
-        public virtual MonitoredItem CloneMonitoredItem(
-            bool copyEventHandlers,
-            bool copyClientHandle)
-        {
-            return new MonitoredItem(this, copyEventHandlers, copyClientHandle);
-        }
-
-        /// <summary>
-        /// Sets the error status for the monitored item.
-        /// </summary>
-        public void SetError(ServiceResult error)
-        {
-            Status.SetError(error);
-        }
-
-        /// <summary>
-        /// Updates the object with the results of a translate browse path request.
-        /// </summary>
-        protected internal void SetResolvePathResult(
-            BrowsePathResult result,
-            int index,
-            ArrayOf<DiagnosticInfo> diagnosticInfos,
-            ResponseHeader responseHeader)
-        {
-            ServiceResult? error = null;
-
-            if (StatusCode.IsBad(result.StatusCode))
+            if (disposing && !m_disposedValue)
             {
-                error = ClientBase.GetResult(
-                    result.StatusCode,
-                    index,
-                    diagnosticInfos,
-                    responseHeader);
-            }
-            else
-            {
-                ResolvedNodeId = NodeId.Null;
-
-                // update the node id.
-                if (result.Targets.Count > 0 && Subscription?.Session != null)
+                while (TryGetPendingChange(out var change))
                 {
-                    ResolvedNodeId = ExpandedNodeId.ToNodeId(
-                        result.Targets[0].TargetId,
-                        Subscription.Session.NamespaceUris);
+                    change.Abandon();
                 }
-            }
 
-            Status.SetResolvePathResult(error);
+                Context.NotifyItemChange(this, true);
+                m_logger.LogDebug("{Item} REMOVED.", this);
+
+                ServerId = 0;
+                m_changeTracking?.Dispose();
+                m_disposedValue = true;
+            }
+            return default;
         }
 
         /// <summary>
-        /// Updates the object with the results of a create monitored item request.
+        /// Called when the subscription state changed
         /// </summary>
-        protected internal void SetCreateResult(
-            MonitoredItemCreateRequest request,
-            MonitoredItemCreateResult result,
-            int index,
-            ArrayOf<DiagnosticInfo> diagnosticInfos,
-            ResponseHeader responseHeader)
+        /// <param name="state"></param>
+        /// <param name="publishingInterval"></param>
+        protected internal virtual void OnSubscriptionStateChange(
+            SubscriptionState state, TimeSpan publishingInterval)
         {
-            ServiceResult? error = null;
-
-            if (StatusCode.IsBad(result.StatusCode))
+            var options = m_currentOptions;
+            if (options == null ||
+                (state != SubscriptionState.Created &&
+                 state != SubscriptionState.Modified))
             {
-                error = ClientBase.GetResult(
-                    result.StatusCode,
-                    index,
-                    diagnosticInfos,
-                    responseHeader);
+                return;
             }
-
-            Status.SetCreateResult(request, result, error);
-            AttributesModified = false;
+            var queueSize = options.QueueSize;
+            if (!options.AutoSetQueueSize)
+            {
+                return;
+            }
+            if (publishingInterval == TimeSpan.Zero)
+            {
+                return;
+            }
+            var samplingInterval = CurrentSamplingInterval;
+            if (samplingInterval == TimeSpan.Zero)
+            {
+                samplingInterval = options.SamplingInterval;
+            }
+            if (samplingInterval <= TimeSpan.Zero)
+            {
+                return;
+            }
+            queueSize = Math.Max(queueSize, (uint)Math.Ceiling(
+                publishingInterval.TotalMilliseconds / samplingInterval.TotalMilliseconds))
+                + 1;
+            if (queueSize == options.QueueSize)
+            {
+                return;
+            }
+            OnOptionsChanged(options with { QueueSize = queueSize });
         }
 
         /// <summary>
-        /// Updates the object with the results of a modify monitored item request.
+        /// Called when the options change
         /// </summary>
-        protected internal void SetModifyResult(
-            MonitoredItemModifyRequest request,
-            MonitoredItemModifyResult result,
-            int index,
-            ArrayOf<DiagnosticInfo> diagnosticInfos,
-            ResponseHeader responseHeader)
+        /// <param name="options"></param>
+        protected virtual void OnOptionsChanged(MonitoredItemOptions options)
         {
-            ServiceResult? error = null;
+            QueuePendingChanges(options, m_currentOptions);
+            Context.NotifyItemChange(this);
+        }
 
-            if (StatusCode.IsBad(result.StatusCode))
-            {
-                error = ClientBase.GetResult(
-                    result.StatusCode,
-                    index,
-                    diagnosticInfos,
-                    responseHeader);
-            }
+        /// <summary>
+        /// Notify subscription that the subscription manager has paused or
+        /// resumed operations.
+        /// </summary>
+        /// <param name="paused"></param>
+        protected internal virtual void NotifySubscriptionManagerPaused(bool paused)
+        {
+            // empty
+        }
 
-            Status.SetModifyResult(request, result, error);
-            AttributesModified = false;
+        /// <summary>
+        /// Get the current pending change in the change list. The change list
+        /// collects the changes to be made to the monitored item while the
+        /// subscription is applying state changes.
+        /// </summary>
+        /// <param name="change"></param>
+        /// <returns></returns>
+        internal bool TryGetPendingChange([NotNullWhen(true)] out Change? change)
+        {
+            return m_pendingChanges.TryPeek(out change);
         }
 
         /// <summary>
         /// Updates the object with the results of a transfer subscription request.
         /// </summary>
-        protected internal void SetTransferResult(uint clientHandle)
+        /// <param name="clientHandle"></param>
+        /// <param name="serverHandle"></param>
+        internal void SetTransferResult(uint clientHandle, uint serverHandle)
         {
+            if (m_disposedValue)
+            {
+                throw new ObjectDisposedException(GetType().FullName);
+            }
+
             // ensure the global counter is not duplicating future handle ids
-            Utils.SetIdentifierToAtLeast(ref s_globalClientHandle, clientHandle);
-            ClientHandle = clientHandle;
-            Status.SetTransferResult(this);
-            AttributesModified = false;
+            if (clientHandle != ClientHandle)
+            {
+                m_logger.LogInformation("{Item}: UPDATE CLIENT ID from {Old} to {New}.",
+                    this, ClientHandle, clientHandle);
+
+                ClientHandle = clientHandle;
+
+                Utils.SetIdentifierToAtLeast(ref _globalClientHandleUint, clientHandle);
+            }
+            if (serverHandle != ServerId)
+            {
+                m_logger.LogInformation("{Item}: UPDATE SERVER ID from {Old} to {New}.",
+                    this, ServerId, serverHandle);
+
+                ServerId = serverHandle;
+            }
         }
 
         /// <summary>
-        /// Updates the object with the results of a delete monitored item request.
+        /// Reset the monitored item to its initial state for recreation
+        /// on server side.
         /// </summary>
-        protected internal void SetDeleteResult(
-            StatusCode result,
-            int index,
-            ArrayOf<DiagnosticInfo> diagnosticInfos,
-            ResponseHeader? responseHeader)
+        internal void Reset()
         {
-            ServiceResult? error = null;
-
-            if (StatusCode.IsBad(result))
+            if (m_disposedValue)
             {
-                error = ClientBase.GetResult(result, index, diagnosticInfos, responseHeader);
+                throw new ObjectDisposedException(GetType().FullName);
             }
 
-            Status.SetDeleteResult(error);
+            m_logger.LogDebug("{Item}: RESET.", this);
+            ServerId = 0;
+
+            var options = m_currentOptions;
+            while (TryGetPendingChange(out var change))
+            {
+                change.Abandon();
+                options = change.Options;
+            }
+            m_currentOptions = null;
+            if (options == null)
+            {
+                return;
+            }
+            QueuePendingChanges(options, null);
         }
 
         /// <summary>
-        /// Returns the field name the specified SelectClause in the EventFilter.
+        /// Queues changes into the change queue for the item
         /// </summary>
-        public string? GetFieldName(int index)
+        /// <param name="options"></param>
+        /// <param name="currentOptions"></param>
+        private void QueuePendingChanges(MonitoredItemOptions options,
+            MonitoredItemOptions? currentOptions)
         {
-            if (State.Filter is not EventFilter filter)
+            if (currentOptions != null && currentOptions == options)
             {
-                return null;
+                // No changes
+                Context.NotifyItemChangeResult(this, 0, options, new ServiceResult(
+                    StatusCodes.BadNothingToDo), true, null);
+                return;
             }
 
-            if (index < 0 || index >= filter.SelectClauses.Count)
+            if (options.StartNodeId.IsNull)
             {
-                return null;
+                // Not valid
+                Context.NotifyItemChangeResult(this, 0, options, new ServiceResult(
+                    StatusCodes.BadNodeIdInvalid), true, null);
+                return;
             }
-
-            return Utils.Format(
-                "{0}",
-                SimpleAttributeOperand.Format(filter.SelectClauses[index].BrowsePath));
+            m_currentOptions = options;
+            m_pendingChanges.Enqueue(new Change(this, options, currentOptions));
         }
 
         /// <summary>
-        /// Returns value of the field name containing the event type.
+        /// Complete a change
         /// </summary>
-        public object? GetFieldValue(
-            EventFieldList eventFields,
-            NodeId eventTypeId,
-            string browsePath,
-            uint attributeId)
+        /// <param name="change"></param>
+        /// <returns></returns>
+        internal bool CompleteChange(Change change)
         {
-            ArrayOf<QualifiedName> browseNames = SimpleAttributeOperand.Parse(browsePath);
-            return GetFieldValue(eventFields, eventTypeId, browseNames, attributeId);
+            return m_pendingChanges.TryDequeue(out var completed)
+                && change == completed;
         }
 
         /// <summary>
-        /// Returns value of the field name containing the event type.
+        /// Change steps to apply to the monitored items in the
+        /// subscription context. The change list is a queue of
+        /// steps to perform inside the subscription.
+        /// see Subscription.ApplyMonitoredItemChangesAsync for
+        /// more information
         /// </summary>
-        public object? GetFieldValue(
-            EventFieldList eventFields,
-            NodeId eventTypeId,
-            QualifiedName browseName)
+        internal sealed class Change
         {
-            ArrayOf<QualifiedName> browsePath = [browseName];
-            return GetFieldValue(eventFields, eventTypeId, browsePath, Attributes.Value);
-        }
+            /// <summary>
+            /// The item on which the changes are applied
+            /// </summary>
+            public MonitoredItem Item { get; }
 
-        /// <summary>
-        /// Returns value of the field name containing the event type.
-        /// </summary>
-        public object? GetFieldValue(
-            EventFieldList eventFields,
-            NodeId eventTypeId,
-            ArrayOf<QualifiedName> browsePath,
-            uint attributeId)
-        {
-            if (eventFields == null)
-            {
-                return null;
-            }
+            /// <summary>
+            /// Timestamps to return
+            /// </summary>
+            public TimestampsToReturn Timestamps => Options.TimestampsToReturn;
 
-            if (State.Filter is not EventFilter filter)
-            {
-                return null;
-            }
+            /// <summary>
+            /// Create request if the item is not yet created
+            /// </summary>
+            public MonitoredItemCreateRequest? Create { get; }
 
-            for (int ii = 0; ii < filter.SelectClauses.Count; ii++)
+            /// <summary>
+            /// Modification request if the item is already created
+            /// </summary>
+            public MonitoredItemModifyRequest? Modify { get; private set; }
+
+            /// <summary>
+            /// Monitoring mode change pending
+            /// </summary>
+            public MonitoringMode? MonitoringModeChange { get; private set; }
+
+            /// <summary>
+            /// Force recreating the item due to changes in the
+            /// read item information.
+            /// </summary>
+            public bool ForceRecreate { get; private set; }
+
+            /// <summary>
+            /// Current retry count of this change
+            /// </summary>
+            public int RetryCount { get; private set; }
+
+            /// <summary>
+            /// Options that are the source of the change
+            /// </summary>
+            public MonitoredItemOptions Options { get; }
+
+            /// <summary>
+            /// Create change
+            /// </summary>
+            /// <param name="item"></param>
+            /// <param name="options"></param>
+            /// <param name="currentOptions"></param>
+            public Change(MonitoredItem item, MonitoredItemOptions options,
+                MonitoredItemOptions? currentOptions)
             {
-                if (ii >= eventFields.EventFields.Count)
+                Debug.Assert(!options.StartNodeId.IsNull);
+                Options = options;
+                Item = item;
+
+                var parameters = new MonitoringParameters
                 {
-                    return null;
-                }
+                    ClientHandle = item.ClientHandle,
+                    SamplingInterval = (int)options.SamplingInterval.TotalMilliseconds,
+                    QueueSize = options.QueueSize,
+                    DiscardOldest = options.DiscardOldest,
+                    Filter = options.Filter != null ?
+                        new ExtensionObject(options.Filter) : default
+                };
 
-                // check for match.
-                SimpleAttributeOperand clause = filter.SelectClauses[ii];
-
-                // attribute id
-                if (clause.AttributeId != attributeId)
+                Create = new MonitoredItemCreateRequest
                 {
-                    continue;
-                }
-
-                // match null browse path.
-                if (browsePath.IsEmpty)
-                {
-                    if (!clause.BrowsePath.IsEmpty)
+                    ItemToMonitor = new ReadValueId
                     {
-                        continue;
-                    }
+                        NodeId = options.StartNodeId,
+                        AttributeId = options.AttributeId,
+                        IndexRange = options.IndexRange,
+                        DataEncoding = options.Encoding ?? QualifiedName.Null
+                    },
+                    MonitoringMode = options.MonitoringMode,
+                    RequestedParameters = parameters
+                };
 
-                    // ignore event type id when matching null browse paths.
-                    return eventFields.EventFields[ii].AsBoxedObject();
-                }
-
-                // match browse path.
-
-                // event type id.
-                if (clause.TypeDefinitionId != eventTypeId)
+                if (currentOptions == null ||
+                    currentOptions.StartNodeId != options.StartNodeId ||
+                    currentOptions.AttributeId != options.AttributeId ||
+                    currentOptions.IndexRange != options.IndexRange ||
+                    currentOptions.Encoding != options.Encoding)
                 {
-                    continue;
-                }
-
-                // match element count.
-                if (clause.BrowsePath.Count != browsePath.Count)
-                {
-                    continue;
-                }
-
-                // check each element.
-                bool match = true;
-
-                for (int jj = 0; jj < clause.BrowsePath.Count; jj++)
-                {
-                    if (clause.BrowsePath[jj] != browsePath[jj])
-                    {
-                        match = false;
-                        break;
-                    }
-                }
-
-                // check of no match.
-                if (!match)
-                {
-                    continue;
-                }
-
-                // return value.
-                return eventFields.EventFields[ii].AsBoxedObject();
-            }
-
-            // no event type in event field list.
-            return null;
-        }
-
-        /// <summary>
-        /// Returns value of the field name containing the event type.
-        /// </summary>
-        public async ValueTask<INode?> GetEventTypeAsync(
-            EventFieldList eventFields,
-            CancellationToken ct = default)
-        {
-            // get event type.
-            if (GetFieldValue(
-                eventFields,
-                ObjectTypeIds.BaseEventType,
-                QualifiedName.From(BrowseNames.EventType)) is not NodeId eventTypeId)
-            {
-                return null;
-            }
-
-            if (!eventTypeId.IsNull &&
-                Subscription != null &&
-                Subscription.Session != null)
-            {
-                return await Subscription.Session.NodeCache.FindAsync(
-                    eventTypeId,
-                    ct).ConfigureAwait(false);
-            }
-
-            // no event type in event field list.
-            return null;
-        }
-
-        /// <summary>
-        /// Returns value of the field name containing the event type.
-        /// </summary>
-        public DateTime GetEventTime(EventFieldList eventFields)
-        {
-            // get event time.
-            var eventTime = GetFieldValue(
-                eventFields,
-                ObjectTypeIds.BaseEventType,
-                QualifiedName.From(BrowseNames.Time)) as DateTime?;
-
-            if (eventTime != null)
-            {
-                return eventTime.Value;
-            }
-
-            // no event time in event field list.
-            return DateTime.MinValue;
-        }
-
-        /// <summary>
-        /// The service result for a data change notification.
-        /// </summary>
-        public static ServiceResult? GetServiceResult(IEncodeable notification)
-        {
-            if (notification is not MonitoredItemNotification datachange)
-            {
-                return null;
-            }
-
-            NotificationMessage message = datachange.Message;
-
-            if (message == null)
-            {
-                return null;
-            }
-
-            return new ServiceResult(
-                datachange.Value.StatusCode,
-                datachange.DiagnosticInfo,
-                message.StringTable);
-        }
-
-        /// <summary>
-        /// The service result for a field in an notification
-        /// (the field must contain a Status object).
-        /// </summary>
-        public static ServiceResult? GetServiceResult(IEncodeable notification, int index)
-        {
-            if (notification is not EventFieldList eventFields)
-            {
-                return null;
-            }
-
-            NotificationMessage message = eventFields.Message;
-
-            if (message == null)
-            {
-                return null;
-            }
-
-            if (index < 0 || index >= eventFields.EventFields.Count)
-            {
-                return null;
-            }
-
-            if (ExtensionObject.ToEncodeable(
-                eventFields.EventFields[index].GetExtensionObject()) is not StatusResult status)
-            {
-                return null;
-            }
-
-            return new ServiceResult(status.StatusCode, status.DiagnosticInfo, message.StringTable);
-        }
-
-        /// <summary>
-        /// To save memory the cache is by default not initialized
-        /// until <see cref="SaveValueInCache(IEncodeable)"/> is called.
-        /// </summary>
-        private void EnsureCacheIsInitialized()
-        {
-            if (m_dataCache == null && m_eventCache == null)
-            {
-                if (((int)State.NodeClass & ((int)NodeClass.Object | (int)NodeClass.View)) != 0)
-                {
-                    m_eventCache = new MonitoredItemEventCache(100);
+                    Modify = null;
+                    MonitoringModeChange = null;
+                    ForceRecreate = true;
                 }
                 else
                 {
-                    m_dataCache = new MonitoredItemDataCache(Subscription?.Telemetry, 1);
+                    Modify = new MonitoredItemModifyRequest
+                    {
+                        MonitoredItemId = item.ServerId,
+                        RequestedParameters = parameters
+                    };
+
+                    if (currentOptions.MonitoringMode != options.MonitoringMode)
+                    {
+                        MonitoringModeChange = options.MonitoringMode;
+
+                        // If only monitoring mode changed, no need to modify
+                        if (currentOptions with
+                        {
+                            MonitoringMode = MonitoringModeChange.Value
+                        } == options)
+                        {
+                            Modify = null;
+                        }
+                    }
+                    else
+                    {
+                        MonitoringModeChange = null;
+                    }
                 }
             }
-        }
 
-        /// <summary>
-        /// Throws an exception if the flter cannot be used with the node class.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private void ValidateFilter(NodeClass nodeClass, MonitoringFilter? filter)
-        {
-            if (filter == null)
+            /// <summary>
+            /// Updates the object with the results of a create monitored item request.
+            /// </summary>
+            /// <param name="request"></param>
+            /// <param name="result"></param>
+            /// <param name="index"></param>
+            /// <param name="diagnosticInfos"></param>
+            /// <param name="responseHeader"></param>
+            internal void SetCreateResult(MonitoredItemCreateRequest request,
+                MonitoredItemCreateResult result, int index,
+                ArrayOf<DiagnosticInfo> diagnosticInfos, ResponseHeader responseHeader)
             {
-                return;
-            }
+                Debug.Assert(request.RequestedParameters.ClientHandle == Item.ClientHandle);
+                var error = ServiceResult.Good;
 
-            switch (nodeClass)
-            {
-                case NodeClass.Variable:
-                case NodeClass.VariableType:
-                    if (!typeof(DataChangeFilter).IsInstanceOfType(filter))
-                    {
-                        State = State with { NodeClass = NodeClass.Variable };
-                    }
-
-                    break;
-                case NodeClass.Object:
-                case NodeClass.View:
-                    if (!typeof(EventFilter).IsInstanceOfType(filter))
-                    {
-                        State = State with { NodeClass = NodeClass.Object };
-                    }
-
-                    break;
-                case NodeClass.Method:
-                case NodeClass.ObjectType:
-                case NodeClass.ReferenceType:
-                case NodeClass.DataType:
-                case NodeClass.Unspecified:
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadFilterNotAllowed,
-                        "Filters may not be specified for nodes of class '{0}'.",
-                        nodeClass);
-                default:
-                    throw ServiceResultException.Unexpected(
-                        $"Unexpected NodeClass: {nodeClass}.");
-            }
-        }
-
-        /// <summary>
-        /// Sets the default event filter.
-        /// </summary>
-        private static EventFilter GetDefaultEventFilter()
-        {
-            var filter = new EventFilter();
-
-            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventId));
-            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
-            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
-            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceName));
-            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Time));
-            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.ReceiveTime));
-            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.LocalTime));
-            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Message));
-            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Severity));
-
-            return filter;
-        }
-
-        private static uint s_globalClientHandle;
-        private NodeId m_resolvedNodeId = NodeId.Null;
-        private Subscription? m_subscription;
-        private ILogger m_logger = LoggerUtils.Null.Logger;
-        private readonly Lock m_cache = new();
-        private MonitoredItemDataCache? m_dataCache;
-        private MonitoredItemEventCache? m_eventCache;
-        private IEncodeable? m_lastNotification;
-        private event MonitoredItemNotificationEventHandler? m_Notification;
-
-        /// <summary>
-        /// Server-side identifier of the triggering item if this monitored item
-        /// is triggered by another item. 0 indicates this item is not triggered.
-        /// </summary>
-        internal uint TriggeringItemId { get; set; }
-
-        /// <summary>
-        /// Collection of server-side identifiers of monitored items that are
-        /// triggered by this item. Null if this item does not trigger any other items.
-        /// </summary>
-        internal ArrayOf<uint> TriggeredItems { get; set; } = [];
-    }
-
-    /// <summary>
-    /// The event arguments provided when a new notification message arrives.
-    /// </summary>
-    public class MonitoredItemNotificationEventArgs : EventArgs
-    {
-        /// <summary>
-        /// Creates a new instance.
-        /// </summary>
-        internal MonitoredItemNotificationEventArgs(IEncodeable notificationValue)
-        {
-            NotificationValue = notificationValue;
-        }
-
-        /// <summary>
-        /// The new notification.
-        /// </summary>
-        public IEncodeable NotificationValue { get; }
-    }
-
-    /// <summary>
-    /// The delegate used to receive monitored item value notifications.
-    /// </summary>
-    public delegate void MonitoredItemNotificationEventHandler(
-        MonitoredItem monitoredItem,
-        MonitoredItemNotificationEventArgs e);
-
-    /// <summary>
-    /// A client cache which can hold the last monitored items in a queue.
-    /// By default (1) only the last value is cached.
-    /// </summary>
-    public class MonitoredItemDataCache
-    {
-        /// <summary>
-        /// Constructs a cache for a monitored item.
-        /// </summary>
-        public MonitoredItemDataCache(ITelemetryContext? telemetry, uint queueSize = 1)
-        {
-            QueueSize = queueSize;
-            m_logger = telemetry.CreateLogger<MonitoredItemDataCache>();
-            if (queueSize > 1)
-            {
-                m_values = new ConcurrentQueue<DataValue>();
-            }
-            else
-            {
-                QueueSize = 1;
-            }
-        }
-
-        /// <summary>
-        /// The size of the queue to maintain.
-        /// </summary>
-        public uint QueueSize { get; private set; }
-
-        /// <summary>
-        /// The last value received from the server.
-        /// </summary>
-        public DataValue? LastValue { get; private set; }
-
-        /// <summary>
-        /// Returns all values in the queue.
-        /// </summary>
-        public IList<DataValue> Publish()
-        {
-            List<DataValue> values;
-            if (m_values != null)
-            {
-                values = new List<DataValue>(m_values.Count);
-                while (m_values.TryDequeue(out DataValue? dequeued))
+                if (StatusCode.IsBad(result.StatusCode))
                 {
-                    values.Add(dequeued);
+                    error = Ua.ClientBase.GetResult(result.StatusCode, index,
+                        diagnosticInfos, responseHeader);
                 }
+
+                Item.CurrentMonitoringMode = request.MonitoringMode;
+                Item.CurrentSamplingInterval = TimeSpan.FromMilliseconds(
+                    request.RequestedParameters.SamplingInterval);
+                Item.CurrentQueueSize = request.RequestedParameters.QueueSize;
+
+                if (ServiceResult.IsGood(error))
+                {
+                    Item.ServerId = result.MonitoredItemId;
+                    Item.CurrentSamplingInterval =
+                        TimeSpan.FromMilliseconds(result.RevisedSamplingInterval);
+                    Item.CurrentQueueSize = result.RevisedQueueSize;
+
+                    Item.LogRevisedSamplingRateAndQueueSize(Options, true);
+                    Notify(error, true, result.FilterResult);
+                    return;
+                }
+
+                // Declare final if not communication error which includes success
+                RetryCount++;
+                Notify(error, false, result.FilterResult);
             }
-            else if (LastValue == null)
+
+            /// <summary>
+            /// Updates the object with the results of a modify monitored item request.
+            /// </summary>
+            /// <param name="request"></param>
+            /// <param name="result"></param>
+            /// <param name="index"></param>
+            /// <param name="diagnosticInfos"></param>
+            /// <param name="responseHeader"></param>
+            internal void SetModifyResult(MonitoredItemModifyRequest request,
+                MonitoredItemModifyResult result, int index,
+                ArrayOf<DiagnosticInfo> diagnosticInfos, ResponseHeader responseHeader)
             {
-                values = [];
+                Debug.Assert(request.RequestedParameters.ClientHandle == Item.ClientHandle);
+                var error = ServiceResult.Good;
+                if (StatusCode.IsBad(result.StatusCode))
+                {
+                    error = Ua.ClientBase.GetResult(result.StatusCode, index,
+                        diagnosticInfos, responseHeader);
+                }
+
+                if (ServiceResult.IsGood(error))
+                {
+                    Item.CurrentSamplingInterval = TimeSpan.FromMilliseconds(
+                        request.RequestedParameters.SamplingInterval);
+                    Item.CurrentQueueSize = request.RequestedParameters.QueueSize;
+
+                    Item.CurrentSamplingInterval = TimeSpan.FromMilliseconds(
+                        result.RevisedSamplingInterval);
+                    Item.CurrentQueueSize = result.RevisedQueueSize;
+
+                    if (MonitoringModeChange == null)
+                    {
+                        Item.LogRevisedSamplingRateAndQueueSize(Options, false);
+                    }
+
+                    // Declare final
+                    Notify(error, MonitoringModeChange == null, result.FilterResult);
+                    return;
+                }
+
+                if (!IsCommunicationError(error))
+                {
+                    // Do not apply the mode change but force a recreate
+                    MonitoringModeChange = null;
+                    Modify = null;
+                    ForceRecreate = true;
+                }
+
+                if (MonitoringModeChange == null)
+                {
+                    // Retry the modification request
+                    RetryCount++;
+                }
+                Notify(error, false, result.FilterResult);
             }
-            else
+
+            /// <summary>
+            /// Set monitoring mode result
+            /// </summary>
+            /// <param name="monitoringMode"></param>
+            /// <param name="statusCode"></param>
+            /// <param name="index"></param>
+            /// <param name="diagnosticInfos"></param>
+            /// <param name="responseHeader"></param>
+            /// <exception cref="NotImplementedException"></exception>
+            internal void SetMonitoringModeResult(MonitoringMode monitoringMode,
+                StatusCode statusCode, int index, ArrayOf<DiagnosticInfo> diagnosticInfos,
+                ResponseHeader responseHeader)
             {
-                values = [LastValue];
+                var error = ServiceResult.Good;
+                if (StatusCode.IsBad(statusCode))
+                {
+                    error = Ua.ClientBase.GetResult(statusCode, index, diagnosticInfos,
+                        responseHeader);
+                }
+
+                if (ServiceResult.IsGood(error))
+                {
+                    Item.CurrentMonitoringMode = monitoringMode;
+                    Item.LogRevisedSamplingRateAndQueueSize(Options, false);
+
+                    Notify(error, true);
+                    return;
+                }
+
+                if (!IsCommunicationError(error))
+                {
+                    // Reapply the mode change
+                    Modify = null;
+                    ForceRecreate = true;
+                }
+                // Retry
+                RetryCount++;
+                Notify(error, false);
             }
-            return values;
+
+            /// <summary>
+            /// Set result of delete
+            /// </summary>
+            /// <param name="statusCode"></param>
+            /// <param name="index"></param>
+            /// <param name="diagnosticInfos"></param>
+            /// <param name="responseHeader"></param>
+            internal void SetDeleteResult(StatusCode statusCode, int index,
+                ArrayOf<DiagnosticInfo> diagnosticInfos, ResponseHeader responseHeader)
+            {
+                var error = ServiceResult.Good;
+                if (StatusCode.IsBad(statusCode))
+                {
+                    error = Ua.ClientBase.GetResult(statusCode, index, diagnosticInfos,
+                        responseHeader);
+                }
+
+                var final = Create == null && Modify == null;
+                if (ServiceResult.IsGood(error) ||
+                    error.StatusCode == StatusCodes.BadMonitoredItemIdInvalid ||
+                    final)
+                {
+                    Item.ServerId = 0;
+                    ForceRecreate = false;
+                    // Now state is !Created so continue here to recreate
+                }
+                else
+                {
+                    // Retry
+                    RetryCount++;
+                }
+                Notify(error, final);
+            }
+
+            /// <summary>
+            /// Abandon the change
+            /// </summary>
+            internal void Abandon()
+            {
+                Notify(new ServiceResult(StatusCodes.BadOperationAbandoned), true);
+            }
+
+            /// <summary>
+            /// Notify and handle retries
+            /// </summary>
+            /// <param name="error"></param>
+            /// <param name="final"></param>
+            /// <param name="filterResultExtensionObject"></param>
+            private void Notify(ServiceResult error, bool final,
+                ExtensionObject? filterResultExtensionObject = null)
+            {
+                MonitoringFilterResult? filterResult = null;
+                if (filterResultExtensionObject.HasValue &&
+                    filterResultExtensionObject.Value.TryGetEncodeable(out MonitoringFilterResult fr))
+                {
+                    filterResult = fr;
+                }
+                var stop = Item.Context.NotifyItemChangeResult(
+                    Item, RetryCount, Options, error, final, filterResult);
+                if (final || stop)
+                {
+                    Item.CompleteChange(this);
+                }
+                Item.Error = error;
+                Item.FilterResult = filterResult == null ? Item.FilterResult :
+                    (MonitoringFilterResult)filterResult.Clone();
+            }
+
+            /// <summary>
+            /// Returns true if communication issue and not an error
+            /// in subscription or even success or uncertain states
+            /// </summary>
+            /// <param name="error"></param>
+            /// <returns></returns>
+            private static bool IsCommunicationError(ServiceResult error)
+            {
+                var code = error.StatusCode;
+                return code == StatusCodes.BadCommunicationError ||
+                    code == StatusCodes.BadNotConnected ||
+                    code == StatusCodes.BadSecureChannelClosed;
+            }
         }
 
         /// <summary>
-        /// Saves a notification in the cache.
+        /// Log revised sampling rate and queue size
         /// </summary>
-        public void OnNotification(MonitoredItemNotification notification)
+        /// <param name="options"></param>
+        /// <param name="created"></param>
+        public void LogRevisedSamplingRateAndQueueSize(MonitoredItemOptions options,
+            bool created)
         {
-            LastValue = notification.Value;
-
-            if (CoreClientUtils.EventLog.IsEnabled())
+            if (options.SamplingInterval != CurrentSamplingInterval &&
+                options.QueueSize != CurrentQueueSize && CurrentQueueSize != 0)
             {
-                CoreClientUtils.EventLog.Notification(
-                    (int)notification.ClientHandle,
-                    LastValue.WrappedValue.ToString());
+                m_logger.LogInformation(
+                    "{Item}: {Action} SamplingInterval was " +
+                    "revised from {SamplingInterval} to {CurrentSamplingInterval} " +
+                    "and QueueSize from {QueueSize} to {CurrentQueueSize}.",
+                    this, created ? "CREATED" : "UPDATED",
+                    options.SamplingInterval, CurrentSamplingInterval,
+                    options.QueueSize, CurrentQueueSize);
             }
-
-            if (m_logger.IsEnabled(LogLevel.Debug))
+            else if (options.SamplingInterval != CurrentSamplingInterval)
+            {
+                m_logger.LogInformation(
+                    "{Item}: {Action} SamplingInterval was " +
+                    "revised from {SamplingInterval} to {CurrentSamplingInterval}.",
+                    this, created ? "CREATED" : "UPDATED",
+                    options.SamplingInterval, CurrentSamplingInterval);
+            }
+            else if (options.QueueSize != CurrentQueueSize && CurrentQueueSize != 0)
+            {
+                m_logger.LogInformation(
+                    "{Item}: {Action} QueueSize was " +
+                    "revised from {QueueSize} to {CurrentQueueSize}.",
+                    this, created ? "CREATED" : "UPDATED",
+                    options.QueueSize, CurrentQueueSize);
+            }
+            else
             {
                 m_logger.LogDebug(
-                    "Notification: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
-                    notification.ClientHandle,
-                    notification.Value.WrappedValue,
-                    notification.Value.SourceTimestamp);
-            }
-
-            if (m_values != null)
-            {
-                m_values.Enqueue(notification.Value);
-                while (m_values.Count > QueueSize)
-                {
-                    if (!m_values.TryDequeue(out DataValue? dropped))
-                    {
-                        break;
-                    }
-                    if (m_logger.IsEnabled(LogLevel.Information))
-                    {
-                        m_logger.LogInformation(
-                            "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
-                            notification.ClientHandle,
-                            dropped.WrappedValue,
-                            dropped.SourceTimestamp);
-                    }
-                }
+                    "{Item}: {Action} with desired configuration.",
+                    this, created ? "CREATED" : "UPDATED");
             }
         }
 
-        /// <summary>
-        /// Changes the queue size.
-        /// </summary>
-        public void SetQueueSize(uint queueSize)
-        {
-            if (queueSize == QueueSize)
-            {
-                return;
-            }
-
-            if (queueSize <= 1)
-            {
-                queueSize = 1;
-                m_values = null;
-            }
-            else
-            {
-                m_values ??= new ConcurrentQueue<DataValue>();
-            }
-
-            QueueSize = queueSize;
-
-            if (m_values == null)
-            {
-                return;
-            }
-            while (m_values.Count > QueueSize)
-            {
-                if (!m_values.TryDequeue(out DataValue? dropped))
-                {
-                    break;
-                }
-                m_logger.LogDebug(
-                    "Setting queue size dropped value: Value={Value}, SourceTime={SourceTime}",
-                    dropped.WrappedValue,
-                    dropped.SourceTimestamp);
-            }
-        }
-
-        private ConcurrentQueue<DataValue>? m_values;
+        private bool m_disposedValue;
+        private MonitoredItemOptions? m_currentOptions;
+        private IDisposable? m_changeTracking;
+        private readonly ConcurrentQueue<Change> m_pendingChanges = new();
         private readonly ILogger m_logger;
-    }
-
-    /// <summary>
-    /// Saves the events received from the server.
-    /// </summary>
-    public class MonitoredItemEventCache
-    {
-        /// <summary>
-        /// Constructs a cache for a monitored item.
-        /// </summary>
-        public MonitoredItemEventCache(uint queueSize)
-        {
-            QueueSize = queueSize;
-            m_events = new Queue<EventFieldList>();
-        }
-
-        /// <summary>
-        /// The size of the queue to maintain.
-        /// </summary>
-        public uint QueueSize { get; private set; }
-
-        /// <summary>
-        /// The last event received.
-        /// </summary>
-        public EventFieldList? LastEvent { get; private set; }
-
-        /// <summary>
-        /// Returns all events in the queue.
-        /// </summary>
-        public IList<EventFieldList> Publish()
-        {
-            var events = new EventFieldList[m_events.Count];
-
-            for (int ii = 0; ii < events.Length; ii++)
-            {
-                events[ii] = m_events.Dequeue();
-            }
-
-            return events;
-        }
-
-        /// <summary>
-        /// Saves a notification in the cache.
-        /// </summary>
-        public void OnNotification(EventFieldList notification)
-        {
-            m_events.Enqueue(notification);
-            LastEvent = notification;
-
-            while (m_events.Count > QueueSize)
-            {
-                m_events.Dequeue();
-            }
-        }
-
-        /// <summary>
-        /// Changes the queue size.
-        /// </summary>
-        public void SetQueueSize(uint queueSize)
-        {
-            if (queueSize == QueueSize)
-            {
-                return;
-            }
-
-            if (queueSize < 1)
-            {
-                queueSize = 1;
-            }
-
-            QueueSize = queueSize;
-
-            while (m_events.Count > QueueSize)
-            {
-                m_events.Dequeue();
-            }
-        }
-
-        private readonly Queue<EventFieldList> m_events;
+        internal static uint _globalClientHandleUint;
+        private IOptionsMonitor<MonitoredItemOptions> m_options;
     }
 }
