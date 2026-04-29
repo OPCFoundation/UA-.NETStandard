@@ -98,8 +98,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 }
 
                 using var cts = new CancellationTokenSource(timeoutMs);
-                await using (cts.Token.Register(
-                    () => tcs.TrySetCanceled()).ConfigureAwait(false))
+                using (cts.Token.Register(() => tcs.TrySetCanceled()))
                 {
                     await tcs.Task.ConfigureAwait(false);
                 }
@@ -160,8 +159,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 }
 
                 using var cts = new CancellationTokenSource(timeoutMs);
-                await using (cts.Token.Register(
-                    () => m_done.TrySetCanceled()).ConfigureAwait(false))
+                using (cts.Token.Register(
+                    () => m_done.TrySetCanceled()))
                 {
                     await m_done.Task.ConfigureAwait(false);
                 }
