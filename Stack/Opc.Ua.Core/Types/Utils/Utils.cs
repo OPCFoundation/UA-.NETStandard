@@ -1816,11 +1816,14 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    certificate?.Dispose();
                     throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
                         "Could not parse DER encoded form of a X509 certificate.",
                         e);
+                }
+                finally
+                {
+                    certificate?.Dispose();
                 }
             }
 
