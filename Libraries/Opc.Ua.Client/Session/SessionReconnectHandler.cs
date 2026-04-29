@@ -529,15 +529,9 @@ namespace Opc.Ua.Client
 
                         if (m_updateFromServer)
                         {
-                            ConfiguredEndpoint endpoint = current.ConfiguredEndpoint;
-                            await endpoint
-                                .UpdateFromServerAsync(
-                                    endpoint.EndpointUrl,
-                                    connection,
-                                    endpoint.Description.SecurityMode,
-                                    endpoint.Description.SecurityPolicyUri,
-                                    m_telemetry)
-                                .ConfigureAwait(false);
+                            await UpdateEndpointFromServerAsync(
+                                current.ConfiguredEndpoint,
+                                connection).ConfigureAwait(false);
                             m_updateFromServer = false;
                             connection = null;
                         }
@@ -550,14 +544,8 @@ namespace Opc.Ua.Client
                 {
                     if (m_updateFromServer)
                     {
-                        ConfiguredEndpoint endpoint = current.ConfiguredEndpoint;
-                        await endpoint
-                            .UpdateFromServerAsync(
-                                endpoint.EndpointUrl,
-                                endpoint.Description.SecurityMode,
-                                endpoint.Description.SecurityPolicyUri,
-                                m_telemetry)
-                            .ConfigureAwait(false);
+                        await UpdateEndpointFromServerAsync(
+                            current.ConfiguredEndpoint).ConfigureAwait(false);
                         m_updateFromServer = false;
                     }
                     session = transportChannel == null
@@ -602,6 +590,74 @@ namespace Opc.Ua.Client
             {
                 m_logger.LogError("Could not reconnect the Session. {ErrorMessage}", Redact.Create(exception));
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Updates the configured endpoint from the server discovery endpoint.
+        /// Falls back to the best available endpoint if the original security
+        /// configuration is no longer supported by the server.
+        /// </summary>
+        /// <param name="endpoint">The configured endpoint to update.</param>
+        /// <param name="connection">The optional transport connection for reverse connect.</param>
+        protected virtual async Task UpdateEndpointFromServerAsync(
+            ConfiguredEndpoint endpoint,
+            ITransportWaitingConnection? connection = null)
+        {
+            try
+            {
+                if (connection != null)
+                {
+                    await endpoint
+                        .UpdateFromServerAsync(
+                            endpoint.EndpointUrl,
+                            connection,
+                            endpoint.Description.SecurityMode,
+                            endpoint.Description.SecurityPolicyUri,
+                            m_telemetry)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await endpoint
+                        .UpdateFromServerAsync(
+                            endpoint.EndpointUrl,
+                            endpoint.Description.SecurityMode,
+                            endpoint.Description.SecurityPolicyUri,
+                            m_telemetry)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (ServiceResultException sre) when (
+                sre.StatusCode == StatusCodes.BadSecurityPolicyRejected ||
+                sre.StatusCode == StatusCodes.BadSecurityModeRejected)
+            {
+                // The original endpoint security configuration is no longer available on the server.
+                // Fall back to the best available endpoint without security constraints.
+                m_logger.LogWarning(
+                    "Original endpoint security configuration not available on server, falling back to best available endpoint. {Message}",
+                    sre.Message);
+                if (connection != null)
+                {
+                    await endpoint
+                        .UpdateFromServerAsync(
+                            endpoint.EndpointUrl,
+                            connection,
+                            MessageSecurityMode.Invalid,
+                            null,
+                            m_telemetry)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await endpoint
+                        .UpdateFromServerAsync(
+                            endpoint.EndpointUrl,
+                            MessageSecurityMode.Invalid,
+                            null,
+                            m_telemetry)
+                        .ConfigureAwait(false);
+                }
             }
         }
 

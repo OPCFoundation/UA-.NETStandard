@@ -1003,5 +1003,12 @@ namespace Opc.Ua.Server
         /// The value reflects the DefaultUserRolePermissions Property from the NamespaceMetadata Object associated with the Node.
         /// </summary>
         public ArrayOf<RolePermissionType> DefaultUserRolePermissions { get; set; }
+
+        /// <summary>
+        /// Indicates this node is part of a type hierarchy (ObjectType/VariableType
+        /// or a child thereof). Type hierarchy nodes bypass access restriction and
+        /// role permission validation.
+        /// </summary>
+        public bool IsPartOfTypeHierarchy { get; set; }
     }
 }

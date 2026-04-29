@@ -629,12 +629,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void EqualsStatusCodeComparesCodeBitsOnly()
+        public void EqualsStatusCodeComparesFullCode()
         {
-            // Same code bits, different flag bits should be equal
+            // Same code bits but different flag bits must NOT be equal
             var sc1 = new StatusCode(0x80010001);
             var sc2 = new StatusCode(0x80010002);
-            Assert.That(sc1, Is.EqualTo(sc2));
+            Assert.That(sc1, Is.Not.EqualTo(sc2));
+
+            // Identical full codes must be equal
+            var sc3 = new StatusCode(0x80010001);
+            Assert.That(sc1, Is.EqualTo(sc3));
         }
 
         [Test]
@@ -737,12 +741,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void EqualityOperatorStatusCodeComparesByCodeBits()
+        public void EqualityOperatorStatusCodeComparesFullCode()
         {
             var sc1 = new StatusCode(0x80010001);
             var sc2 = new StatusCode(0x80010002);
-            // Same code bits, different flags -> should be equal
-            Assert.That(sc1, Is.EqualTo(sc2));
+            // Same code bits, different flag bits -> must NOT be equal after fix
+            Assert.That(sc1, Is.Not.EqualTo(sc2));
+
+            // Identical full codes must be equal
+            var sc3 = new StatusCode(0x80010001);
+            Assert.That(sc1, Is.EqualTo(sc3));
         }
 
         [Test]
@@ -751,6 +759,41 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sc1 = new StatusCode(0x80010000);
             var sc2 = new StatusCode(0x80020000);
             Assert.That(sc1, Is.Not.EqualTo(sc2));
+        }
+
+        [Test]
+        public void GoodIsNotEqualToGoodWithSemanticsChangedFlag()
+        {
+            // StatusCode.Good (0x00000000) must NOT equal Good with SemanticsChanged bit (0x00004000)
+            var good = StatusCodes.Good;
+            StatusCode goodWithSemanticsChanged = good.SetSemanticsChanged(true);
+            Assert.That(good, Is.Not.EqualTo(goodWithSemanticsChanged));
+        }
+
+        [Test]
+        public void GoodIsNotEqualToGoodWithStructureChangedFlag()
+        {
+            // StatusCode.Good (0x00000000) must NOT equal Good with StructureChanged bit (0x00008000)
+            var good = StatusCodes.Good;
+            StatusCode goodWithStructureChanged = good.SetStructureChanged(true);
+            Assert.That(good, Is.Not.EqualTo(goodWithStructureChanged));
+        }
+
+        [Test]
+        public void GoodIsEqualToGoodWithNoFlags()
+        {
+            var good1 = StatusCodes.Good;
+            var good2 = new StatusCode(0x00000000);
+            Assert.That(good1, Is.EqualTo(good2));
+        }
+
+        [Test]
+        public void StatusCodeWithFlagsIsNotEqualToSameCodeWithoutFlags()
+        {
+            // A Bad code with a flag set must not equal the same Bad code without the flag
+            var bad = new StatusCode(0x80010000);
+            StatusCode badWithSemanticsChanged = bad.SetSemanticsChanged(true);
+            Assert.That(bad, Is.Not.EqualTo(badWithSemanticsChanged));
         }
 
         [Test]

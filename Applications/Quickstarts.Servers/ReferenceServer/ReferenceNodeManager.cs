@@ -4286,7 +4286,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+            double number = value.GetDouble();
 
             if (number >= variable.EnumStrings.Value.Count || number < 0)
             {
@@ -4319,7 +4319,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            int number = Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            int number = (int)value.GetUInt32();
             if (number >= variable.EnumValues.Value.Count || number < 0)
             {
                 return StatusCodes.BadOutOfRange;
@@ -4388,7 +4388,7 @@ namespace Quickstarts.ReferenceServer
                     return StatusCodes.BadIndexRangeInvalid;
                 }
 
-                double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+                double number = value.GetDouble();
 
                 if (variable.InstrumentRange != null &&
                     (number < variable.InstrumentRange.Value.Low ||

@@ -3792,6 +3792,14 @@ namespace Opc.Ua.Server
             NodeMetadata nodeMetadata)
         {
             ServiceResult serviceResult = StatusCodes.Good;
+
+            // Type hierarchy nodes (ObjectType/VariableType and their children)
+            // are universally accessible regardless of AccessRestrictions.
+            if (nodeMetadata.IsPartOfTypeHierarchy)
+            {
+                return serviceResult;
+            }
+
             AccessRestrictionType restrictions = AccessRestrictionType.None;
 
             if (nodeMetadata.AccessRestrictions != AccessRestrictionType.None)
@@ -3865,6 +3873,13 @@ namespace Opc.Ua.Server
             if (nodeMetadata == null || requestedPermission == PermissionType.None)
             {
                 // no permission is required hence the validation passes
+                return StatusCodes.Good;
+            }
+
+            // Type hierarchy nodes (ObjectType/VariableType and their children)
+            // are universally accessible regardless of RolePermissions.
+            if (nodeMetadata.IsPartOfTypeHierarchy)
+            {
                 return StatusCodes.Good;
             }
 

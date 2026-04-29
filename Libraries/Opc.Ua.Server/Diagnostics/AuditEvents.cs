@@ -721,6 +721,8 @@ namespace Opc.Ua.Server
                         false);
 
                     server.ReportAuditEvent(systemContext, auditCertificateEventState);
+
+                    auditCertificateEventState.Dispose();
                 }
             }
             catch (Exception ex)

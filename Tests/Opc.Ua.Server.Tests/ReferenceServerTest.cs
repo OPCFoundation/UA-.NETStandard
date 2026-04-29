@@ -1274,6 +1274,189 @@ namespace Opc.Ua.Server.Tests
                 logger);
         }
 
+        [Test]
+        public async Task SemanticChangeNotificationTestAsync()
+        {
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTime.UtcNow;
+
+            // Step 1: Create a subscription
+            CreateSubscriptionResponse createSubscriptionResponse = await services.CreateSubscriptionAsync(
+                requestHeader,
+                100,
+                100,
+                10,
+                0,
+                true,
+                0).ConfigureAwait(false);
+
+            uint subscriptionId = createSubscriptionResponse.SubscriptionId;
+
+            // We monitor the server EventNotifier for SemanticChangeEventType
+            var serverObject = new ReadValueId { NodeId = ObjectIds.Server, AttributeId = Attributes.EventNotifier };
+            var eventFilter = new EventFilter();
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.SemanticChangeEventType,
+                QualifiedName.From(BrowseNames.EventId));
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.SemanticChangeEventType,
+                QualifiedName.From(BrowseNames.Changes));
+
+            // Monitor a variable from ReferenceNodeManager (AnalogItem with EngineeringUnits)
+            var nodeId = new NodeId("DataAccess_AnalogType_Double",
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer));
+
+            ArrayOf<MonitoredItemCreateRequest> monitoredItems =
+            [
+                new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = serverObject,
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 1,
+                        SamplingInterval = 0,
+                        QueueSize = 100,
+                        DiscardOldest = true,
+                        Filter = new ExtensionObject(eventFilter)
+                    }
+                },
+                new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 2,
+                        SamplingInterval = 0,
+                        QueueSize = 10,
+                        DiscardOldest = true
+                    }
+                }
+            ];
+
+            CreateMonitoredItemsResponse createItemsResponse = await services.CreateMonitoredItemsAsync(
+                requestHeader,
+                subscriptionId,
+                TimestampsToReturn.Both,
+                monitoredItems).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(createItemsResponse.ResponseHeader, createItemsResponse.Results, monitoredItems);
+            Assert.AreEqual(2, createItemsResponse.Results.Count);
+            Assert.IsTrue(StatusCode.IsGood(createItemsResponse.Results[0].StatusCode));
+            Assert.IsTrue(StatusCode.IsGood(createItemsResponse.Results[1].StatusCode));
+
+            // Initial publish to clear any initial data change notifications
+            var acknowledgements = new ArrayOf<SubscriptionAcknowledgement>();
+            PublishResponse publishResponse = await services.PublishAsync(requestHeader, acknowledgements).ConfigureAwait(false);
+
+            if (publishResponse.NotificationMessage.NotificationData.Count > 0)
+            {
+                acknowledgements =
+                [
+                    new SubscriptionAcknowledgement
+                   {
+                       SubscriptionId = subscriptionId,
+                       SequenceNumber = publishResponse.NotificationMessage.SequenceNumber
+                   }
+                ];
+            }
+
+            // Step 2: Write a new value to a semantic property (EngineeringUnits)
+            var euNodeId = new NodeId("DataAccess_AnalogType_DataAccess_AnalogType_Double_EngineeringUnits",
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer));
+            var engUnits = new EUInformation("V", "volt", "http://www.opcfoundation.org/UA/units/un/cefact")
+            {
+                UnitId = 4274026 // "V"
+            };
+
+            var writeValues = new WriteValue[]
+            {
+                new WriteValue
+                {
+                    NodeId = euNodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(new ExtensionObject(engUnits))
+                }
+            }.ToArrayOf();
+
+            requestHeader.Timestamp = DateTime.UtcNow;
+            WriteResponse writeResponse = await m_server.WriteAsync(
+                m_secureChannelContext,
+                requestHeader,
+                writeValues, RequestLifetime.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(writeResponse.ResponseHeader, writeResponse.Results, writeValues);
+            Assert.IsTrue(StatusCode.IsGood(writeResponse.Results[0]));
+
+            // Wait for subscription to deliver the event and data change notification
+            await Task.Delay(200).ConfigureAwait(false);
+
+            // Step 3: Issue publish to receive DataChangeNotification and SemanticChangeEvent
+            publishResponse = await services.PublishAsync(
+                requestHeader,
+                acknowledgements).ConfigureAwait(false);
+
+            Assert.IsNotNull(publishResponse.NotificationMessage);
+            Assert.IsNotNull(publishResponse.NotificationMessage.NotificationData);
+            Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count > 0);
+
+            bool dataChangeReceived = false;
+            bool semanticsChangedBitSet = false;
+            bool eventReceived = false;
+
+            foreach (ExtensionObject data in publishResponse.NotificationMessage.NotificationData)
+            {
+                if (data.TryGetEncodeable(out DataChangeNotification dcn))
+                {
+                    foreach (MonitoredItemNotification item in dcn.MonitoredItems)
+                    {
+                        if (item.ClientHandle == 2)
+                        {
+                            dataChangeReceived = true;
+                            if (item.Value.StatusCode.SemanticsChanged)
+                            {
+                                semanticsChangedBitSet = true;
+                            }
+                        }
+                    }
+                }
+                else if (data.TryGetEncodeable(out EventNotificationList enl))
+                {
+                    foreach (EventFieldList e in enl.Events)
+                    {
+                        if (e.ClientHandle == 1 && e.EventFields.Count >= 2)
+                        {
+                            var success = e.EventFields[1]
+                                .TryGetStructure<SemanticChangeStructureDataType>(out ArrayOf<SemanticChangeStructureDataType> semanticChangeEvent);
+
+                            if (success && !semanticChangeEvent.IsNull && semanticChangeEvent.Count > 0)
+                            {
+                                foreach (SemanticChangeStructureDataType change in semanticChangeEvent)
+                                {
+                                    if (change.Affected == nodeId)
+                                    {
+                                        eventReceived = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Assert.IsTrue(dataChangeReceived, "Did not receive DataChangeNotification.");
+            Assert.IsTrue(semanticsChangedBitSet, "SemanticsChanged bit is not set.");
+            Assert.IsTrue(eventReceived, "Did not receive SemanticChangeEvent.");
+
+            // Delete subscription
+            await services.DeleteSubscriptionsAsync(
+                requestHeader,
+                [subscriptionId]).ConfigureAwait(false);
+        }
+
         /// <summary>
         /// Test that Server object EventNotifier has HistoryRead bit set when history capabilities are enabled.
         /// </summary>

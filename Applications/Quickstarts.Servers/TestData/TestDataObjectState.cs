@@ -174,7 +174,7 @@ namespace TestData
                     return ServiceResult.Good;
                 }
 
-                double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+                double number = value.GetDouble();
 
                 if (number > range.High || number < range.Low)
                 {
