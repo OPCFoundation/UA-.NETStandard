@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using Microsoft.Extensions.Options;
-using Opc.Ua.Client.Services;
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
@@ -47,12 +46,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <summary>
         /// Monitored item services
         /// </summary>
-        IMonitoredItemServiceSet MonitoredItemServiceSet { get; }
+        IMonitoredItemServiceSetClientMethods MonitoredItemServiceSet { get; }
 
         /// <summary>
         /// Method call services
         /// </summary>
-        IMethodServiceSet MethodServiceSet { get; }
+        IMethodServiceSetClientMethods MethodServiceSet { get; }
 
         /// <summary>
         /// Create monitored item

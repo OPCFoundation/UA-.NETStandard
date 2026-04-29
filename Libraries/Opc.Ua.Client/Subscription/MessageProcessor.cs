@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Client.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -59,7 +58,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="services"></param>
         /// <param name="completion"></param>
         /// <param name="telemetry"></param>
-        protected MessageProcessor(ISubscriptionServiceSet services,
+        protected MessageProcessor(ISubscriptionServiceSetClientMethods services,
             IMessageAckQueue completion, ITelemetryContext telemetry)
         {
             Observability = telemetry;
@@ -439,7 +438,7 @@ namespace Opc.Ua.Client.Subscriptions
 #pragma warning disable IDE1006 // Naming Styles
         internal readonly ILogger _logger;
 #pragma warning restore IDE1006 // Naming Styles
-        private readonly ISubscriptionServiceSet m_services;
+        private readonly ISubscriptionServiceSetClientMethods m_services;
         // CA2213: m_cts is disposed in DisposeAsync(bool) — suppressed because
         // the analyzer does not track IAsyncDisposable disposal paths.
 #pragma warning disable CA2213

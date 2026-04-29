@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Nito.AsyncEx;
-using Opc.Ua.Client.Services;
 using NUnit.Framework;
 
 namespace Opc.Ua.Client.Subscriptions
@@ -48,7 +47,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             m_mockCompletion = new Mock<IMessageAckQueue>();
             m_mockObservability = new Mock<ITelemetryContext>();
-            m_mockServices = new Mock<ISubscriptionServiceSet>();
+            m_mockServices = new Mock<ISubscriptionServiceSetClientMethods>();
             m_mockLogger = new Mock<ILogger<Subscription>>();
             m_mockObservability.Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
                 .Returns(m_mockLogger.Object);
@@ -299,7 +298,7 @@ namespace Opc.Ua.Client.Subscriptions
 
         private sealed class TestMessageProcessor : MessageProcessor
         {
-            public TestMessageProcessor(ISubscriptionServiceSet session,
+            public TestMessageProcessor(ISubscriptionServiceSetClientMethods session,
                 IMessageAckQueue completion, ITelemetryContext telemetry)
                 : base(session, completion, telemetry)
             {
@@ -390,6 +389,6 @@ namespace Opc.Ua.Client.Subscriptions
         private Mock<IMessageAckQueue> m_mockCompletion;
         private Mock<ILogger<Subscription>> m_mockLogger;
         private Mock<ITelemetryContext> m_mockObservability;
-        private Mock<ISubscriptionServiceSet> m_mockServices;
+        private Mock<ISubscriptionServiceSetClientMethods> m_mockServices;
     }
 }

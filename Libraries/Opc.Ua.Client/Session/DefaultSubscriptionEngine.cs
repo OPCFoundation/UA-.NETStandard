@@ -243,8 +243,7 @@ namespace Opc.Ua.Client
         private sealed class SubscriptionContextAdapter
             : ISubscriptionContext
         {
-            private readonly ISubscriptionEngineContext
-                m_context;
+            private readonly ISubscriptionEngineContext m_context;
             private readonly ServiceSetAdapter m_services;
 
             public SubscriptionContextAdapter(
@@ -260,15 +259,15 @@ namespace Opc.Ua.Client
                     m_context.OperationTimeout);
 
             /// <inheritdoc/>
-            public Services.ISubscriptionServiceSet
+            public ISubscriptionServiceSetClientMethods
                 SubscriptionServiceSet => m_services;
 
             /// <inheritdoc/>
-            public Services.IMonitoredItemServiceSet
+            public IMonitoredItemServiceSetClientMethods
                 MonitoredItemServiceSet => m_services;
 
             /// <inheritdoc/>
-            public Services.IMethodServiceSet
+            public IMethodServiceSetClientMethods
                 MethodServiceSet => m_services;
 
             /// <inheritdoc/>
@@ -286,9 +285,9 @@ namespace Opc.Ua.Client
         /// management are delegated to the underlying session.
         /// </summary>
         private sealed class ServiceSetAdapter
-            : Services.ISubscriptionServiceSet,
-              Services.IMonitoredItemServiceSet,
-              Services.IMethodServiceSet
+            : ISubscriptionServiceSetClientMethods,
+              IMonitoredItemServiceSetClientMethods,
+              IMethodServiceSetClientMethods
         {
             private readonly ISubscriptionEngineContext
                 m_context;
@@ -469,6 +468,46 @@ namespace Opc.Ua.Client
                 throw new NotSupportedException(
                     "Call is not yet supported through " +
                     "the V2 engine.");
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<PublishResponse> PublishAsync(
+                RequestHeader? requestHeader,
+                ArrayOf<SubscriptionAcknowledgement>
+                    subscriptionAcknowledgements,
+                CancellationToken ct)
+            {
+                throw new NotSupportedException(
+                    "Publish is not yet supported " +
+                    "through the V2 engine.");
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<TransferSubscriptionsResponse>
+                TransferSubscriptionsAsync(
+                    RequestHeader? requestHeader,
+                    ArrayOf<uint> subscriptionIds,
+                    bool sendInitialValues,
+                    CancellationToken ct)
+            {
+                throw new NotSupportedException(
+                    "TransferSubscriptions is not yet " +
+                    "supported through the V2 engine.");
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<SetTriggeringResponse>
+                SetTriggeringAsync(
+                    RequestHeader? requestHeader,
+                    uint subscriptionId,
+                    uint triggeringItemId,
+                    ArrayOf<uint> linksToAdd,
+                    ArrayOf<uint> linksToRemove,
+                    CancellationToken ct)
+            {
+                throw new NotSupportedException(
+                    "SetTriggering is not yet supported " +
+                    "through the V2 engine.");
             }
         }
 

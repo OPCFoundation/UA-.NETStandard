@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Client.Services;
 using System;
 
 namespace Opc.Ua.Client.Subscriptions
@@ -45,16 +44,16 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Get subscription services
         /// </summary>
-        ISubscriptionServiceSet SubscriptionServiceSet { get; }
+        ISubscriptionServiceSetClientMethods SubscriptionServiceSet { get; }
 
         /// <summary>
         /// Get monitored item services
         /// </summary>
-        IMonitoredItemServiceSet MonitoredItemServiceSet { get; }
+        IMonitoredItemServiceSetClientMethods MonitoredItemServiceSet { get; }
 
         /// <summary>
         /// Call methods
         /// </summary>
-        IMethodServiceSet MethodServiceSet { get; }
+        IMethodServiceSetClientMethods MethodServiceSet { get; }
     }
 }

@@ -29,7 +29,6 @@
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Opc.Ua.Client.Services;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using System;
 using System.Collections.Generic;
@@ -75,11 +74,11 @@ namespace Opc.Ua.Client.Subscriptions
         public bool Created => Id != 0;
 
         /// <inheritdoc/>
-        public IMonitoredItemServiceSet MonitoredItemServiceSet
+        public IMonitoredItemServiceSetClientMethods MonitoredItemServiceSet
             => m_context.MonitoredItemServiceSet;
 
         /// <inheritdoc/>
-        public IMethodServiceSet MethodServiceSet
+        public IMethodServiceSetClientMethods MethodServiceSet
             => m_context.MethodServiceSet;
 
         /// <summary>

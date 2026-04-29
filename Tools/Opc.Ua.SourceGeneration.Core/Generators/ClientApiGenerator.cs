@@ -53,13 +53,13 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static List<ServiceSet> ServiceSets =>
         [
-            new ServiceSet("AttributeServiceSet", [], ServiceCategory.Attribute),
-            new ServiceSet("ViewServiceSet", [], ServiceCategory.View),
-            new ServiceSet("MethodServiceSet", [], ServiceCategory.Method),
-            new ServiceSet("MonitoredItemServiceSet", [], ServiceCategory.MonitoredItem),
-            new ServiceSet("SubscriptionServiceSet", [], ServiceCategory.Subscription),
-            new ServiceSet("NodeManagementServiceSet", [], ServiceCategory.NodeManagement),
-            new ServiceSet("QueryServiceSet", [], ServiceCategory.Query),
+            new ServiceSet("AttributeServiceSet", [], EmitClass: false, ServiceCategory.Attribute),
+            new ServiceSet("ViewServiceSet", [], EmitClass: false, ServiceCategory.View),
+            new ServiceSet("MethodServiceSet", [], EmitClass: false, ServiceCategory.Method),
+            new ServiceSet("MonitoredItemServiceSet", [], EmitClass: false, ServiceCategory.MonitoredItem),
+            new ServiceSet("SubscriptionServiceSet", [], EmitClass: false, ServiceCategory.Subscription),
+            new ServiceSet("NodeManagementServiceSet", [], EmitClass: false, ServiceCategory.NodeManagement),
+            new ServiceSet("QueryServiceSet", [], EmitClass: false, ServiceCategory.Query),
             new ServiceSet("Session",
             [
                 "IAttributeServiceSetClientMethods",
@@ -104,10 +104,26 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.ServiceSets,
                 ClientApiTemplates.ServiceSet,
                 serviceSets,
-                WriteTemplate_ClientApiServiceSet);
+                onLoad: SelectServiceSetTemplate,
+                onWrite: WriteTemplate_ClientApiServiceSet);
 
             template.Render();
             return [fileName.AsTextFileResource()];
+        }
+
+        /// <summary>
+        /// Selects the appropriate template based on whether
+        /// the service set should emit a class or only an interface.
+        /// </summary>
+        private static TemplateString SelectServiceSetTemplate(ILoadContext context)
+        {
+            if (context.Target is ServiceSet serviceSet &&
+                !serviceSet.EmitClass)
+            {
+                return ClientApiTemplates.ServiceSetInterfaceOnly;
+            }
+
+            return context.TemplateString;
         }
 
         /// <summary>
@@ -123,13 +139,6 @@ namespace Opc.Ua.SourceGeneration
             // get service types for interface (may be a subset).
             Service[] interfaceServiceTypes = m_context.ModelDesign.GetListOfServices(serviceSet.InterfaceCategories);
             if (interfaceServiceTypes.Length == 0 && serviceSet.BaseInterfaces.Length == 0)
-            {
-                return false;
-            }
-
-            // get service types for class (may include inherited categories).
-            Service[] classServiceTypes = m_context.ModelDesign.GetListOfServices(serviceSet.ClassCategories);
-            if (classServiceTypes.Length == 0)
             {
                 return false;
             }
@@ -150,13 +159,23 @@ namespace Opc.Ua.SourceGeneration
                     context,
                     isInterface: true));
 
-            context.Template.AddReplacement(
-                Tokens.ClientApi,
-                ClientApiTemplates.Methods,
-                classServiceTypes,
-                context => WriteTemplate_ClientApiMethod(
-                    context,
-                    isInterface: false));
+            if (serviceSet.EmitClass)
+            {
+                // get service types for class (may include inherited categories).
+                Service[] classServiceTypes = m_context.ModelDesign.GetListOfServices(serviceSet.ClassCategories);
+                if (classServiceTypes.Length == 0)
+                {
+                    return false;
+                }
+
+                context.Template.AddReplacement(
+                    Tokens.ClientApi,
+                    ClientApiTemplates.Methods,
+                    classServiceTypes,
+                    context => WriteTemplate_ClientApiMethod(
+                        context,
+                        isInterface: false));
+            }
 
             return context.Template.Render();
         }
@@ -525,10 +544,16 @@ namespace Opc.Ua.SourceGeneration
             string Name,
             string[] BaseInterfaces,
             ServiceCategory[] InterfaceCategories,
-            ServiceCategory[] ClassCategories)
+            ServiceCategory[] ClassCategories,
+            bool EmitClass = true)
         {
             public ServiceSet(string Name, string[] BaseInterfaces, params ServiceCategory[] Categories)
-                : this(Name, BaseInterfaces, Categories, Categories)
+                : this(Name, BaseInterfaces, Categories, Categories, EmitClass: true)
+            {
+            }
+
+            public ServiceSet(string Name, string[] BaseInterfaces, bool EmitClass, params ServiceCategory[] Categories)
+                : this(Name, BaseInterfaces, Categories, Categories, EmitClass)
             {
             }
         };

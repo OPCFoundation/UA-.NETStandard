@@ -34,7 +34,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Nito.AsyncEx;
-using Opc.Ua.Client.Services;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using NUnit.Framework;
 
@@ -46,10 +45,10 @@ namespace Opc.Ua.Client.Subscriptions
         [SetUp]
         public void SetUp()
         {
-            m_mockSubscriptionServices = new Mock<ISubscriptionServiceSet>();
-            m_mockMonitoredItemServices = new Mock<IMonitoredItemServiceSet>();
-            m_mockMethodServices = new Mock<IMethodServiceSet>();
-            m_mockSubscriptionServices = new Mock<ISubscriptionServiceSet>();
+            m_mockSubscriptionServices = new Mock<ISubscriptionServiceSetClientMethods>();
+            m_mockMonitoredItemServices = new Mock<IMonitoredItemServiceSetClientMethods>();
+            m_mockMethodServices = new Mock<IMethodServiceSetClientMethods>();
+            m_mockSubscriptionServices = new Mock<ISubscriptionServiceSetClientMethods>();
             m_mockSession = new Mock<ISubscriptionContext>();
             m_mockSession
                 .Setup(m_mockSession => m_mockSession.SubscriptionServiceSet)
@@ -1405,9 +1404,9 @@ namespace Opc.Ua.Client.Subscriptions
         private Mock<IMessageAckQueue> m_mockCompletion;
         private Opc.Ua.OptionsMonitor<SubscriptionOptions> m_options;
         private Mock<ITelemetryContext> m_mockObservability;
-        private Mock<ISubscriptionServiceSet> m_mockSubscriptionServices;
-        private Mock<IMonitoredItemServiceSet> m_mockMonitoredItemServices;
-        private Mock<IMethodServiceSet> m_mockMethodServices;
+        private Mock<ISubscriptionServiceSetClientMethods> m_mockSubscriptionServices;
+        private Mock<IMonitoredItemServiceSetClientMethods> m_mockMonitoredItemServices;
+        private Mock<IMethodServiceSetClientMethods> m_mockMethodServices;
         private Mock<ISubscriptionContext> m_mockSession;
         private Mock<ISubscriptionNotificationHandler> m_mockNotificationDataHandler;
         private Mock<ILogger<Subscription>> m_mockLogger;
