@@ -860,11 +860,12 @@ namespace Opc.Ua.Server
                         updateCertificate.CertificateWithPrivateKey.Dispose();
                         updateCertificate.CertificateWithPrivateKey = certOnly;
                         // update certificate identifier with new certificate
-                        await existingCertIdentifier.FindAsync(
+                        using (Certificate _ = await existingCertIdentifier.FindAsync(
                             m_configuration.ApplicationUri,
                             Server.Telemetry,
                             ct)
-                            .ConfigureAwait(false);
+                            .ConfigureAwait(false))
+                        { }
                     }
 
                     ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore(Server.Telemetry);

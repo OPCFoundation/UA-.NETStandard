@@ -40,7 +40,7 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// The provider for the X509 application certificates.
     /// </summary>
-    public class CertificateTypesProvider
+    public class CertificateTypesProvider : IDisposable
     {
         /// <summary>
         /// Disallow to create types provider without configuration.
@@ -63,6 +63,25 @@ namespace Opc.Ua.Security.Certificates
                 = new ConcurrentDictionary<string, Tuple<CertificateCollection, byte[]>>();
         }
 
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Releases the resources used by the certificate types provider.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                ClearCachedChains();
+                m_certificateValidator?.Dispose();
+            }
+        }
+
         /// <summary>
         /// Initialize the certificate Validator.
         /// </summary>
@@ -75,7 +94,7 @@ namespace Opc.Ua.Security.Certificates
             m_certificateValidator.AutoAcceptUntrustedCertificates = true;
             m_certificateValidator.UseValidatedCertificates = true;
 
-            m_certificateChain.Clear();
+            ClearCachedChains();
         }
 
         /// <summary>
@@ -190,9 +209,6 @@ namespace Opc.Ua.Security.Certificates
 
             byte[] certificateChainRaw = Utils.CreateCertificateChainBlob(certificateChain);
 
-            // AddRef the chain so the cache owns one set of references.
-            certificateChain.AddRef();
-
             // update cached values
             m_certificateChain[certificate.Thumbprint]
                 = new Tuple<CertificateCollection, byte[]>(
@@ -233,7 +249,7 @@ namespace Opc.Ua.Security.Certificates
         public void Update(SecurityConfiguration securityConfiguration)
         {
             m_securityConfiguration = securityConfiguration;
-            m_certificateChain.Clear();
+            ClearCachedChains();
             //ToDo intialize internal CertificateValidator after Certificate Update to clear cache of old application certificates
         }
 
@@ -251,6 +267,18 @@ namespace Opc.Ua.Security.Certificates
                 result.Add(cert);
             }
             return result;
+        }
+
+        /// <summary>
+        /// Disposes all cached certificate chains and clears the dictionary.
+        /// </summary>
+        private void ClearCachedChains()
+        {
+            foreach (var kvp in m_certificateChain)
+            {
+                kvp.Value.Item1?.Dispose();
+            }
+            m_certificateChain.Clear();
         }
 
         private readonly CertificateValidator m_certificateValidator;

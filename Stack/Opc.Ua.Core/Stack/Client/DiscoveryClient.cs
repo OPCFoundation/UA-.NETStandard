@@ -362,17 +362,27 @@ namespace Opc.Ua
                 // ignore errors
             }
 
-            ITransportChannel channel = await CreateChannelAsync(
-                applicationConfiguration,
-                discoveryUrl,
-                endpointConfiguration,
-                messageContext,
-                clientCertificate,
-                ct).ConfigureAwait(false);
-            return new DiscoveryClient(channel, messageContext.Telemetry)
+            try
             {
-                ReturnDiagnostics = returnDiagnostics
-            };
+                ITransportChannel channel = await CreateChannelAsync(
+                    applicationConfiguration,
+                    discoveryUrl,
+                    endpointConfiguration,
+                    messageContext,
+                    clientCertificate,
+                    ct).ConfigureAwait(false);
+                return new DiscoveryClient(channel, messageContext.Telemetry)
+                {
+                    ReturnDiagnostics = returnDiagnostics
+                };
+            }
+            finally
+            {
+                // The channel stores the cert reference in TransportChannelSettings
+                // but does not take ownership. Discovery uses SecurityMode.None so
+                // the cert is not needed after the channel is opened.
+                clientCertificate?.Dispose();
+            }
         }
 
         /// <summary>

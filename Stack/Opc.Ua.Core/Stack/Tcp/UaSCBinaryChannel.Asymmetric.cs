@@ -921,6 +921,7 @@ namespace Opc.Ua.Bindings
 
                 if (loadChain)
                 {
+                    ServerCertificateChain?.Dispose();
                     ServerCertificateChain =
                         m_serverCertificateTypesProvider?.LoadCertificateChain(
                             receiverCertificate);
@@ -958,6 +959,7 @@ namespace Opc.Ua.Bindings
                                 m_serverCertificateTypesProvider
                                     .GetInstanceCertificate(
                                         SecurityPolicyUri);
+                            ServerCertificateChain?.Dispose();
                             ServerCertificateChain =
                                 m_serverCertificateTypesProvider
                                     .LoadCertificateChain(
@@ -1008,6 +1010,7 @@ namespace Opc.Ua.Bindings
                 ServerCertificate =
                     m_serverCertificateTypesProvider.GetInstanceCertificate(
                         SecurityPolicyUri);
+                ServerCertificateChain?.Dispose();
                 ServerCertificateChain =
                     m_serverCertificateTypesProvider
                         .LoadCertificateChainAsync(ServerCertificate)

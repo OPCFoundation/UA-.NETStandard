@@ -225,6 +225,9 @@ namespace Opc.Ua.Bindings
                 DiscardTokens();
                 Socket?.Dispose();
 
+                ServerCertificateChain?.Dispose();
+                ServerCertificateChain = null;
+
                 m_localNonce?.Dispose();
                 m_localNonce = null;
 

@@ -104,6 +104,8 @@ namespace Opc.Ua
                 }
 
                 m_requestQueue?.Dispose();
+
+                InstanceCertificateTypesProvider?.Dispose();
             }
         }
 
@@ -785,9 +787,10 @@ namespace Opc.Ua
                 {
                     CertificateIdentifier certificateIdentifier = applicationCertificates[i];
                     // preload chain
-                    Certificate certificate = await certificateIdentifier.FindAsync(false)
+                    using Certificate certificate = await certificateIdentifier.FindAsync(false)
                         .ConfigureAwait(false);
-                    await InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate)
+                    using CertificateCollection chain =
+                        await InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate)
                         .ConfigureAwait(false);
                 }
 
@@ -1479,7 +1482,8 @@ namespace Opc.Ua
                 InstanceCertificateTypesProvider
                     .LoadCertificateChainAsync(instanceCertificate)
                     .GetAwaiter()
-                    .GetResult();
+                    .GetResult()
+                    ?.Dispose();
             }
 
             // assign a unique identifier if none specified.
