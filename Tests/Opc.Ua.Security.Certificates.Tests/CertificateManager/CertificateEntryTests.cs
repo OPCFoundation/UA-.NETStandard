@@ -138,14 +138,13 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             var entry = new CertificateEntry(cert, chain, certType);
 
-            // CertificateEntry AddRefs both cert and chain, so dispose
-            // the caller's references first.
+            // CertificateEntry AddRefs both cert and the certs in chain.
+            // Dispose the caller's original references first.
             cert.Dispose();
             issuer.Dispose();
-            chain.Dispose();
 
-            // Entry still holds the last ref; disposing the entry
-            // should release the underlying certificates.
+            // Entry holds AddRef'd references to cert and each cert in
+            // chain. Disposing the entry releases its references.
             entry.Dispose();
 
             // After both refs are disposed, accessing RawData should throw
