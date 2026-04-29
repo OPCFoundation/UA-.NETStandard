@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// Argument
     /// </summary>
     [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
-    public class Argument : IEncodeable, IJsonEncodeable, IEquatable<Argument>
+    public class Argument : IEncodeable, IEquatable<Argument>
     {
         /// <summary>
         /// Initializes an instance of the argument.
@@ -100,9 +100,6 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Argument_Encoding_DefaultXml;
-
-        /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Argument_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)

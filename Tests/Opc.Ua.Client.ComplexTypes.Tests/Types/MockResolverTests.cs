@@ -57,7 +57,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public readonly string[] DefaultEncodings =
         [
             BrowseNames.DefaultBinary,
-            BrowseNames.DefaultJson,
             BrowseNames.DefaultXml
         ];
 

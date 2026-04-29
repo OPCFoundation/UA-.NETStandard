@@ -26,9 +26,9 @@ namespace MyApp.Configuration
 ```
 
 The source generator will produce a partial class file that implements
-`IEncodeable` and `IJsonEncodeable`, including:
+`IEncodeable`, including:
 
-- `TypeId`, `BinaryEncodingId`, `XmlEncodingId`, `JsonEncodingId` properties
+- `TypeId`, `BinaryEncodingId`, `XmlEncodingId` properties
 - `Encode(IEncoder)` and `Decode(IDecoder)` methods
 - `IsEqual(IEncodeable)` for value comparison
 - `Clone()` for deep copy
@@ -81,7 +81,6 @@ public sealed class DataTypeAttribute : Attribute
     public string? DataTypeId { get; set; }
     public string? BinaryEncodingId { get; set; }
     public string? XmlEncodingId { get; set; }
-    public string? JsonEncodingId { get; set; }
 }
 ```
 
@@ -93,7 +92,6 @@ public sealed class DataTypeAttribute : Attribute
 | `DataTypeId` | Node ID string for the data type (e.g. `"i=12345"`, `"s=MyType"`, `"g=<guid>"`). Must be prefixed with `i=`, `s=`, `g=`, or `b=`. If omitted, defaults to a string identifier with the class name (`"s=DeviceConfiguration"`). |
 | `BinaryEncodingId` | Optional binary encoding Node ID. Same prefix rules. |
 | `XmlEncodingId` | Optional XML encoding Node ID. Same prefix rules. |
-| `JsonEncodingId` | Optional JSON encoding Node ID. Same prefix rules. |
 
 ### Namespace Resolution Order
 
@@ -502,7 +500,7 @@ public partial record class DeviceConfig
 The generator produces:
 
 ```csharp
-partial record class DeviceConfig : IEncodeable, IJsonEncodeable
+partial record class DeviceConfig : IEncodeable
 {
     private string __Name = "Default";
     public partial string Name { get => __Name; init => __Name = value; }

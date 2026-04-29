@@ -2437,7 +2437,7 @@ namespace Opc.Ua
             if (DataTypeAttribute.TryGetTypeIdsFromType(
                 systemType,
                 out ExpandedNodeId typeId,
-                out _, out _, out _) &&
+                out _, out _) &&
                 !typeId.IsNull)
             {
                 return new XmlQualifiedName(systemType.Name, typeId.NamespaceUri);

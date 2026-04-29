@@ -1021,7 +1021,6 @@ namespace Opc.Ua.Client.ComplexTypes
                                             typeId,
                                             binaryEncodingId,
                                             xmlEncodingId,
-                                            ExpandedNodeId.Null,
                                             ct)
                                         .ConfigureAwait(false);
                                     if (newType != null)
@@ -1358,7 +1357,6 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId typeId,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId,
-            ExpandedNodeId jsonEncodingId,
             CancellationToken ct = default)
         {
             QualifiedName name = dataTypeNode.BrowseName;
@@ -1398,7 +1396,6 @@ namespace Opc.Ua.Client.ComplexTypes
                 typeId,
                 binaryEncodingId,
                 xmlEncodingId,
-                jsonEncodingId,
                 enumDefinition);
         }
 
@@ -1721,8 +1718,7 @@ namespace Opc.Ua.Client.ComplexTypes
         private static readonly string[] s_supportedEncodings =
         [
             BrowseNames.DefaultBinary,
-            BrowseNames.DefaultXml,
-            BrowseNames.DefaultJson
+            BrowseNames.DefaultXml
         ];
     }
 }

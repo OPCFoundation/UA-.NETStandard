@@ -87,15 +87,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Is.EqualTo(ObjectIds.StructureDefinition_Encoding_DefaultXml));
         }
 
-        [Test]
-        public void JsonEncodingIdReturnsCorrectValue()
-        {
-            var definition = new StructureDefinition();
-
-            Assert.That(
-                definition.JsonEncodingId,
-                Is.EqualTo(ObjectIds.StructureDefinition_Encoding_DefaultJson));
-        }
 
         [Test]
         public void EncodeDecodeRoundTripWithAllFieldsSet()
@@ -436,21 +427,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 () => definition.SetDefaultEncodingId(null, typeId, dataEncoding));
         }
 
-        [Test]
-        public void SetDefaultEncodingIdWithDefaultJsonSetsEncodingId()
-        {
-            var definition = new StructureDefinition();
-            var typeId = new NodeId(42);
-            var dataEncoding = new QualifiedName(BrowseNames.DefaultJson);
-
-            var namespaceUris = new NamespaceTable();
-            var contextMock = new Mock<ISystemContext>();
-            contextMock.Setup(c => c.NamespaceUris).Returns(namespaceUris);
-
-            definition.SetDefaultEncodingId(contextMock.Object, typeId, dataEncoding);
-
-            Assert.That(definition.DefaultEncodingId, Is.EqualTo(typeId));
-        }
 
         [Test]
         public void SetDefaultEncodingIdWithDefaultBinarySetsFromFactory()

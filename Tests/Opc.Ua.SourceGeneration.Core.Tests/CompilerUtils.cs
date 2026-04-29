@@ -583,7 +583,6 @@ namespace Opc.Ua.SourceGeneration
                     public ExpandedNodeId TypeId => default;
                     public ExpandedNodeId BinaryEncodingId => default;
                     public ExpandedNodeId XmlEncodingId => default;
-                    public ExpandedNodeId JsonEncodingId => default;
                     public void Encode(IEncoder encoder) { }
                     public void Decode(IDecoder decoder) { }
                     public bool IsEqual(IEncodeable encodeable) { return true; }

@@ -80,7 +80,6 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId typeId,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId,
-            ExpandedNodeId jsonEncodingId,
             EnumDefinition enumDefinition)
         {
             var xmlName = new XmlQualifiedName(typeName.Name, TargetNamespace);
@@ -89,7 +88,6 @@ namespace Opc.Ua.Client.ComplexTypes
                 typeId,
                 binaryEncodingId,
                 xmlEncodingId,
-                jsonEncodingId,
                 enumDefinition);
             OnTypeCreated(type);
             return type;

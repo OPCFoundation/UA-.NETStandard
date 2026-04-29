@@ -826,7 +826,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected class DynamicEncodeable :
             IEncodeable,
-            IJsonEncodeable,
             IDisposable,
             IDynamicComplexTypeInstance
         {
@@ -841,15 +840,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 string xmlNamespace,
                 ExpandedNodeId typeId,
                 ExpandedNodeId binaryEncodingId,
-                ExpandedNodeId xmlEncodingId,
-                ExpandedNodeId jsonEncodingId)
+                ExpandedNodeId xmlEncodingId)
                 : this(
                     xmlName,
                     xmlNamespace,
                     typeId,
                     binaryEncodingId,
                     xmlEncodingId,
-                    jsonEncodingId,
                     (Dictionary<string, (int, string)>)null)
             {
                 m_resetCounter = true;
@@ -864,7 +861,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 ExpandedNodeId typeId,
                 ExpandedNodeId binaryEncodingId,
                 ExpandedNodeId xmlEncodingId,
-                ExpandedNodeId jsonEncodingId,
                 int count)
                 : this(
                     xmlName,
@@ -872,7 +868,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     typeId,
                     binaryEncodingId,
                     xmlEncodingId,
-                    jsonEncodingId,
                     new Dictionary<string, (int, string)> { { "Foo", (1, $"bar_{count}") } })
             {
                 Count = count;
@@ -884,7 +879,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 ExpandedNodeId typeId,
                 ExpandedNodeId binaryEncodingId,
                 ExpandedNodeId xmlEncodingId,
-                ExpandedNodeId jsonEncodingId,
                 string foo)
                 : this(
                     xmlName,
@@ -892,7 +886,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     typeId,
                     binaryEncodingId,
                     xmlEncodingId,
-                    jsonEncodingId,
                     new Dictionary<string, (int, string)> { { "Foo", (1, foo) } })
             {
             }
@@ -903,7 +896,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 ExpandedNodeId typeId,
                 ExpandedNodeId binaryEncodingId,
                 ExpandedNodeId xmlEncodingId,
-                ExpandedNodeId jsonEncodingId,
                 Dictionary<string, (int, string)> fields)
             {
                 m_xmlName = xmlName;
@@ -911,7 +903,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TypeId = typeId;
                 BinaryEncodingId = binaryEncodingId;
                 XmlEncodingId = xmlEncodingId;
-                JsonEncodingId = jsonEncodingId;
 
                 m_fields = fields;
             }
@@ -921,7 +912,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public ExpandedNodeId TypeId { get; set; }
             public ExpandedNodeId BinaryEncodingId { get; set; }
             public ExpandedNodeId XmlEncodingId { get; set; }
-            public ExpandedNodeId JsonEncodingId { get; set; }
 
             public void Encode(IEncoder encoder)
             {
@@ -968,7 +958,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     // Read the type information
                     TypeId = encodeable?.TypeId ?? default;
                     XmlEncodingId = encodeable?.XmlEncodingId ?? default;
-                    JsonEncodingId = encodeable?.JsonEncodingId ?? default;
                     BinaryEncodingId = encodeable?.BinaryEncodingId ?? default;
                     Count = encodeable?.Count ?? 0;
                     m_fields = encodeable?.m_fields.ToDictionary(
@@ -1017,7 +1006,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     TypeId,
                     BinaryEncodingId,
                     XmlEncodingId,
-                    JsonEncodingId,
                     m_fields.ToDictionary(kv => kv.Key, kv => kv.Value))
                 {
                     Count = Count
@@ -1062,11 +1050,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public void AddDynamicEncodeable(DynamicEncodeable encodeable)
             {
                 m_dynamicEncodeables[encodeable.XmlEncodingId] = encodeable;
-                m_dynamicEncodeables[encodeable.JsonEncodingId] = encodeable;
                 m_dynamicEncodeables[encodeable.BinaryEncodingId] = encodeable;
                 m_dynamicEncodeables[encodeable.TypeId] = encodeable;
                 m_inner.AddEncodeableType(encodeable.XmlEncodingId, typeof(DynamicEncodeable));
-                m_inner.AddEncodeableType(encodeable.JsonEncodingId, typeof(DynamicEncodeable));
                 m_inner.AddEncodeableType(encodeable.BinaryEncodingId, typeof(DynamicEncodeable));
                 m_inner.AddEncodeableType(encodeable.TypeId, typeof(DynamicEncodeable));
             }

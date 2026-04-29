@@ -316,22 +316,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(110002), out _), Is.False);
         }
 
-        [Test]
-        public void Builder_AddJsonEncodeableType_AddsJsonEncodingId()
-        {
-            // Arrange
-            IEncodeableFactory factory = EncodeableFactory.Create();
-            IEncodeableFactoryBuilder builder = factory.Builder;
-
-            // Act
-            builder.AddEncodeableType(typeof(TestJsonEncodeable));
-            builder.Commit();
-
-            // Assert - Should be able to find by JSON encoding ID
-            bool foundByJson = factory.TryGetEncodeableType(new ExpandedNodeId(100003), out IEncodeableType jsonType);
-            Assert.That(foundByJson, Is.True);
-            Assert.That(jsonType.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
-        }
 
         [Test]
         public void Builder_MultipleTypes_AllTypesAdded()
@@ -342,15 +326,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Act
             builder.AddEncodeableType(typeof(TestEncodeable))
-                   .AddEncodeableType(typeof(TestJsonEncodeable));
+                   .AddEncodeableType(typeof(TestEncodeableWithDefaultNamespace));
             builder.Commit();
 
             // Assert
             bool foundTest = factory.TryGetEncodeableType(new ExpandedNodeId(100000), out IEncodeableType testType);
-            bool foundJsonTest = factory.TryGetEncodeableType(new ExpandedNodeId(100004), out _);
+            bool foundDefaultNs = factory.TryGetEncodeableType(new ExpandedNodeId(140000), out _);
 
             Assert.That(foundTest, Is.True);
-            Assert.That(foundJsonTest, Is.True);
+            Assert.That(foundDefaultNs, Is.True);
             Assert.That(testType.Type, Is.EqualTo(typeof(TestEncodeable)));
         }
 
@@ -467,7 +451,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var clonedFactory = (EncodeableFactory)concreteFactory.Clone();
 
             // Add type to original
-            factory.Builder.AddType(newTypeId, typeof(TestJsonEncodeable)).Commit();
+            factory.Builder.AddType(newTypeId, typeof(TestEncodeableWithDefaultNamespace)).Commit();
 
             // Assert - Clone should not have the new type
             bool originalHasNewType = factory.TryGetEncodeableType(newTypeId, out _);
@@ -614,33 +598,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(0)); // Should have pre-loaded types
         }
 
-        [Test]
-        public void Builder_MultipleEncodingIds_AllRegistered()
-        {
-            // Arrange
-            IEncodeableFactory factory = EncodeableFactory.Create();
-            IEncodeableFactoryBuilder builder = factory.Builder;
-
-            // Act
-            builder.AddEncodeableType(typeof(TestJsonEncodeable));
-            builder.Commit();
-
-            // Assert - Should find type by all encoding IDs
-            bool foundByBinary = factory.TryGetEncodeableType(new ExpandedNodeId(100001), out IEncodeableType typeByBinaryId);
-            bool foundByXml = factory.TryGetEncodeableType(new ExpandedNodeId(100002), out IEncodeableType typeByXmlId);
-            bool foundByJson = factory.TryGetEncodeableType(new ExpandedNodeId(100003), out IEncodeableType typeByJsonId);
-            bool foundByType = factory.TryGetEncodeableType(new ExpandedNodeId(100004), out IEncodeableType typeByTypeId);
-
-            Assert.That(foundByType, Is.True);
-            Assert.That(foundByBinary, Is.True);
-            Assert.That(foundByXml, Is.True);
-            Assert.That(foundByJson, Is.True);
-
-            Assert.That(typeByTypeId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
-            Assert.That(typeByBinaryId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
-            Assert.That(typeByXmlId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
-            Assert.That(typeByJsonId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
-        }
 
         [Test]
         public void Builder_ReuseAfterCommit_CanAddMoreTypes()
@@ -651,7 +608,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Act
             builder.AddType(new ExpandedNodeId(9200), typeof(TestEncodeable)).Commit();
-            builder.AddType(new ExpandedNodeId(9201), typeof(TestJsonEncodeable)).Commit();
+            builder.AddType(new ExpandedNodeId(9201), typeof(TestEncodeableWithDefaultNamespace)).Commit();
 
             // Assert
             bool foundFirst = factory.TryGetEncodeableType(new ExpandedNodeId(9200), out IEncodeableType firstType);
@@ -660,7 +617,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.That(foundFirst, Is.True);
             Assert.That(foundSecond, Is.True);
             Assert.That(firstType.Type, Is.EqualTo(typeof(TestEncodeable)));
-            Assert.That(secondType.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
+            Assert.That(secondType.Type, Is.EqualTo(typeof(TestEncodeableWithDefaultNamespace)));
         }
 
         [Test]
@@ -730,29 +687,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
-        /// <summary>
-        /// Test class for JSON encodeable objects used in factory tests.
-        /// </summary>
-        public class TestJsonEncodeable : TestEncodeable, IJsonEncodeable
-        {
-            public TestJsonEncodeable()
-            {
-            }
-
-            public TestJsonEncodeable(string value)
-                : base(value)
-            {
-            }
-
-            public override ExpandedNodeId TypeId => new(100004);
-
-            public ExpandedNodeId JsonEncodingId => new(100003);
-
-            public override object Clone()
-            {
-                return new TestJsonEncodeable(Value);
-            }
-        }
 
         public class TestNoDefaultConstructorEncodeable : IEncodeable
         {
@@ -1029,55 +963,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.That(resultType.Type, Is.EqualTo(typeof(TestEncodeableWithoutXml)));
         }
 
-        [Test]
-        public void Builder_AddEncodeableType_WithIEncodeableTypeNotSupportingJsonEncoding_HandlesGracefully()
-        {
-            // Arrange
-            IEncodeableFactory factory = EncodeableFactory.Create();
-            IEncodeableFactoryBuilder builder = factory.Builder;
-            var encodeableType = new TestEncodeableType(typeof(TestEncodeableWithoutJson));
-
-            // Act & Assert - Should not throw even if JsonEncodingId throws NotSupportedException
-            Assert.DoesNotThrow(() =>
-            {
-                builder.AddEncodeableType(encodeableType);
-                builder.Commit();
-            });
-
-            // Should still register other encoding IDs
-            bool found = factory.TryGetEncodeableType(new ExpandedNodeId(130000), out IEncodeableType resultType);
-            Assert.That(found, Is.True);
-            Assert.That(resultType.Type, Is.EqualTo(typeof(TestEncodeableWithoutJson)));
-        }
-
-        [Test]
-        public void Builder_AddEncodeableType_WithIEncodeableTypeHavingJsonEncoding_RegistersAllEncodingIds()
-        {
-            // Arrange
-            IEncodeableFactory factory = EncodeableFactory.Create();
-            IEncodeableFactoryBuilder builder = factory.Builder;
-            var encodeableType = new TestEncodeableType(typeof(TestJsonEncodeable));
-
-            // Act
-            builder.AddEncodeableType(encodeableType);
-            builder.Commit();
-
-            // Assert - Should find type by all encoding IDs
-            bool foundByType = factory.TryGetEncodeableType(new ExpandedNodeId(100004), out IEncodeableType typeByTypeId);
-            bool foundByBinary = factory.TryGetEncodeableType(new ExpandedNodeId(100001), out IEncodeableType typeByBinaryId);
-            bool foundByXml = factory.TryGetEncodeableType(new ExpandedNodeId(100002), out IEncodeableType typeByXmlId);
-            bool foundByJson = factory.TryGetEncodeableType(new ExpandedNodeId(100003), out IEncodeableType typeByJsonId);
-
-            Assert.That(foundByType, Is.True);
-            Assert.That(foundByBinary, Is.True);
-            Assert.That(foundByXml, Is.True);
-            Assert.That(foundByJson, Is.True);
-
-            Assert.That(typeByTypeId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
-            Assert.That(typeByBinaryId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
-            Assert.That(typeByXmlId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
-            Assert.That(typeByJsonId.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
-        }
 
         [Test]
         public void Builder_AddEncodeableType_WithDefaultNamespaceNormalization_HandlesCorrectly()
@@ -1130,14 +1015,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Add different type to builder with same ID
             IEncodeableFactoryBuilder builder = factory.Builder;
-            builder.AddType(typeId, typeof(TestJsonEncodeable));
+            builder.AddType(typeId, typeof(TestEncodeableWithDefaultNamespace));
 
             // Act
             bool found = builder.TryGetEncodeableType(typeId, out IEncodeableType encodeableType);
 
             // Assert - Should prefer builder's type over factory's type
             Assert.That(found, Is.True);
-            Assert.That(encodeableType.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
+            Assert.That(encodeableType.Type, Is.EqualTo(typeof(TestEncodeableWithDefaultNamespace)));
         }
 
         /// <summary>
@@ -1165,35 +1050,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public object Clone()
             {
                 return new TestEncodeableWithoutXml();
-            }
-        }
-
-        /// <summary>
-        /// Test encodeable that throws NotSupportedException for JsonEncodingId.
-        /// </summary>
-        public class TestEncodeableWithoutJson : IEncodeable, IJsonEncodeable
-        {
-            public ExpandedNodeId TypeId => new(130000);
-            public ExpandedNodeId BinaryEncodingId => new(130001);
-            public ExpandedNodeId XmlEncodingId => new(130002);
-            public ExpandedNodeId JsonEncodingId => throw new NotSupportedException("JSON encoding not supported");
-
-            public void Encode(IEncoder encoder)
-            {
-            }
-
-            public void Decode(IDecoder decoder)
-            {
-            }
-
-            public bool IsEqual(IEncodeable encodeable)
-            {
-                return encodeable is TestEncodeableWithoutJson;
-            }
-
-            public object Clone()
-            {
-                return new TestEncodeableWithoutJson();
             }
         }
 
@@ -1226,40 +1082,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [Test]
-        public void Builder_AddEncodeableTypes_ResolvesJsonEncodingIdsFromObjectIds()
-        {
-            // Arrange - Create a minimal assembly structure to test JSON ID resolution
-            IEncodeableFactory factory = EncodeableFactory.Create();
-            IEncodeableFactoryBuilder builder = factory.Builder;
-
-            // Act - Add types from current assembly which should include our test types
-            builder.AddEncodeableTypes(Assembly.GetExecutingAssembly());
-            builder.Commit();
-
-            // Assert - Our test types should be registered
-            Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(100000), out IEncodeableType testType), Is.True);
-            Assert.That(testType.Type, Is.EqualTo(typeof(TestEncodeable)));
-        }
-
-        [Test]
-        public void Builder_AddEncodeableTypes_HandlesJsonEncodingSuffixParsing()
-        {
-            // This test verifies the JSON encoding suffix parsing logic in AddEncodeableTypes
-            // The method looks for fields ending with "_Encoding_DefaultJson" in ObjectIds classes
-
-            // Arrange
-            IEncodeableFactory factory = EncodeableFactory.Create();
-            IEncodeableFactoryBuilder builder = factory.Builder;
-
-            // Act - This should process ObjectIds classes and parse JSON encoding suffixes
-            builder.AddEncodeableTypes(typeof(EncodeableFactory).Assembly);
-            builder.Commit();
-
-            // Assert - Should have many types including core OPC UA types
-            Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(1000));
-        }
-
-        [Test]
         public void Integration_FactorySupportsComplexTypeRegistration()
         {
             // Arrange
@@ -1268,17 +1090,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Act - Register multiple types with different encoding patterns
             builder.AddEncodeableType(typeof(TestEncodeable))
-                   .AddEncodeableType(typeof(TestJsonEncodeable))
                    .AddType(new ExpandedNodeId(99999), typeof(TestEncodeableWithDefaultNamespace));
             builder.Commit();
 
             // Assert - All types should be accessible
             Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(100000), out IEncodeableType type1), Is.True);
-            Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(100004), out IEncodeableType type2), Is.True);
             Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(99999), out IEncodeableType type3), Is.True);
 
             Assert.That(type1.Type, Is.EqualTo(typeof(TestEncodeable)));
-            Assert.That(type2.Type, Is.EqualTo(typeof(TestJsonEncodeable)));
             Assert.That(type3.Type, Is.EqualTo(typeof(TestEncodeableWithDefaultNamespace)));
         }
 
