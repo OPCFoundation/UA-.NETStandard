@@ -62,23 +62,6 @@ namespace Opc.Ua.Client
     /// </remarks>
     public partial class ManagedSession : ISession, IAsyncDisposable
     {
-        private volatile Session? m_session;
-        private readonly ConnectionStateMachine m_stateMachine;
-        private readonly AsyncReaderWriterLock m_serviceLock = new();
-        private readonly ApplicationConfiguration m_configuration;
-        private readonly ConfiguredEndpoint m_endpoint;
-        private readonly IReconnectPolicy m_reconnectPolicy;
-        private readonly IServerRedundancyHandler? m_redundancyHandler;
-        private readonly ISessionFactory m_sessionFactory;
-        private readonly ILogger m_logger;
-        private IUserIdentity? m_identity;
-        private ArrayOf<string> m_preferredLocales;
-        private string m_sessionName;
-        private uint m_sessionTimeout;
-        private bool m_checkDomain;
-        private ServerRedundancyInfo? m_redundancyInfo;
-        private int m_disposed;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedSession"/>
         /// class. Use <see cref="CreateAsync"/> to create a connected
@@ -191,13 +174,9 @@ namespace Opc.Ua.Client
         {
             get
             {
-                Session? session = m_session;
-                if (session == null)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadNotConnected,
-                        "The managed session is not connected.");
-                }
+                Session? session = m_session ?? throw new ServiceResultException(
+                    StatusCodes.BadNotConnected,
+                    "The managed session is not connected.");
 
                 return session;
             }
@@ -226,13 +205,7 @@ namespace Opc.Ua.Client
         public object? Handle
         {
             get => m_session?.Handle;
-            set
-            {
-                if (m_session != null)
-                {
-                    m_session.Handle = value;
-                }
-            }
+            set => m_session?.Handle = value;
         }
 
         /// <inheritdoc/>
@@ -287,28 +260,14 @@ namespace Opc.Ua.Client
         public bool DeleteSubscriptionsOnClose
         {
             get => m_session?.DeleteSubscriptionsOnClose ?? true;
-            set
-            {
-                if (m_session != null)
-                {
-                    m_session.DeleteSubscriptionsOnClose = value;
-                }
-            }
+            set => m_session?.DeleteSubscriptionsOnClose = value;
         }
 
         /// <inheritdoc/>
         public int PublishRequestCancelDelayOnCloseSession
         {
-            get => m_session?.PublishRequestCancelDelayOnCloseSession
-                ?? 5000;
-            set
-            {
-                if (m_session != null)
-                {
-                    m_session.PublishRequestCancelDelayOnCloseSession
-                        = value;
-                }
-            }
+            get => m_session?.PublishRequestCancelDelayOnCloseSession ?? 5000;
+            set => m_session?.PublishRequestCancelDelayOnCloseSession = value;
         }
 
         /// <inheritdoc/>
@@ -322,13 +281,7 @@ namespace Opc.Ua.Client
         public int KeepAliveInterval
         {
             get => m_session?.KeepAliveInterval ?? 5000;
-            set
-            {
-                if (m_session != null)
-                {
-                    m_session.KeepAliveInterval = value;
-                }
-            }
+            set => m_session?.KeepAliveInterval = value;
         }
 
         /// <inheritdoc/>
@@ -359,32 +312,19 @@ namespace Opc.Ua.Client
         public int MinPublishRequestCount
         {
             get => m_session?.MinPublishRequestCount ?? 1;
-            set
-            {
-                if (m_session != null)
-                {
-                    m_session.MinPublishRequestCount = value;
-                }
-            }
+            set => m_session?.MinPublishRequestCount = value;
         }
 
         /// <inheritdoc/>
         public int MaxPublishRequestCount
         {
             get => m_session?.MaxPublishRequestCount ?? 20;
-            set
-            {
-                if (m_session != null)
-                {
-                    m_session.MaxPublishRequestCount = value;
-                }
-            }
+            set => m_session?.MaxPublishRequestCount = value;
         }
 
         /// <inheritdoc/>
         public bool Reconnecting
-            => m_stateMachine.State is ConnectionState.Reconnecting
-                or ConnectionState.Failover;
+            => m_stateMachine.State is ConnectionState.Reconnecting or ConnectionState.Failover;
 
         /// <inheritdoc/>
         public OperationLimits OperationLimits
@@ -398,13 +338,7 @@ namespace Opc.Ua.Client
         public bool TransferSubscriptionsOnReconnect
         {
             get => m_session?.TransferSubscriptionsOnReconnect ?? false;
-            set
-            {
-                if (m_session != null)
-                {
-                    m_session.TransferSubscriptionsOnReconnect = value;
-                }
-            }
+            set => m_session?.TransferSubscriptionsOnReconnect = value;
         }
 
         /// <inheritdoc/>
@@ -414,15 +348,8 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ContinuationPointPolicy ContinuationPointPolicy
         {
-            get => m_session?.ContinuationPointPolicy
-                ?? ContinuationPointPolicy.Default;
-            set
-            {
-                if (m_session != null)
-                {
-                    m_session.ContinuationPointPolicy = value;
-                }
-            }
+            get => m_session?.ContinuationPointPolicy ?? ContinuationPointPolicy.Default;
+            set => m_session?.ContinuationPointPolicy = value;
         }
 
         /// <inheritdoc/>
@@ -436,15 +363,8 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ClientTraceFlags ActivityTraceFlags
         {
-            get => m_session?.ActivityTraceFlags
-                ?? ClientTraceFlags.None;
-            set
-            {
-                if (m_session != null)
-                {
-                    m_session.ActivityTraceFlags = value;
-                }
-            }
+            get => m_session?.ActivityTraceFlags ?? ClientTraceFlags.None;
+            set => m_session?.ActivityTraceFlags = value;
         }
 
         /// <inheritdoc/>
@@ -472,41 +392,22 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics
         {
-            get => m_session?.ReturnDiagnostics
-                ?? DiagnosticsMasks.None;
-            set
-            {
-                if (m_session != null)
-                {
-                    m_session.ReturnDiagnostics = value;
-                }
-            }
+            get => m_session?.ReturnDiagnostics ?? DiagnosticsMasks.None;
+            set => m_session?.ReturnDiagnostics = value;
         }
 
         /// <inheritdoc/>
         public int OperationTimeout
         {
             get => m_session?.OperationTimeout ?? 0;
-            set
-            {
-                if (m_session != null)
-                {
-                    m_session.OperationTimeout = value;
-                }
-            }
+            set => m_session?.OperationTimeout = value;
         }
 
         /// <inheritdoc/>
         public int DefaultTimeoutHint
         {
             get => m_session?.DefaultTimeoutHint ?? 0;
-            set
-            {
-                if (m_session != null)
-                {
-                    m_session.DefaultTimeoutHint = value;
-                }
-            }
+            set => m_session?.DefaultTimeoutHint = value;
         }
 
         /// <inheritdoc/>
@@ -569,16 +470,6 @@ namespace Opc.Ua.Client
             remove => m_renewUserIdentity -= value;
         }
 
-        private KeepAliveEventHandler? m_keepAlive;
-        private NotificationEventHandler? m_notification;
-        private PublishErrorEventHandler? m_publishError;
-        private PublishSequenceNumbersToAcknowledgeEventHandler?
-            m_publishSequenceNumbersToAcknowledge;
-        private EventHandler? m_subscriptionsChanged;
-        private EventHandler? m_sessionClosing;
-        private EventHandler? m_sessionConfigurationChanged;
-        private RenewUserIdentityEventHandler? m_renewUserIdentity;
-
         /// <summary>
         /// Raised when the connection state changes.
         /// </summary>
@@ -616,26 +507,32 @@ namespace Opc.Ua.Client
             Stream stream,
             IEnumerable<Subscription> subscriptions,
             IEnumerable<Type>? knownTypes = null)
-            => InnerSession.Save(stream, subscriptions, knownTypes);
+        {
+            InnerSession.Save(stream, subscriptions, knownTypes);
+        }
 
         /// <inheritdoc/>
         public IEnumerable<Subscription> Load(
             Stream stream,
             bool transferSubscriptions = false,
             IEnumerable<Type>? knownTypes = null)
-            => InnerSession.Load(
-                stream, transferSubscriptions, knownTypes);
+        {
+            return InnerSession.Load(stream, transferSubscriptions, knownTypes);
+        }
 
         /// <inheritdoc/>
         public SessionConfiguration SaveSessionConfiguration(
             Stream? stream = null)
-            => InnerSession.SaveSessionConfiguration(stream);
+        {
+            return InnerSession.SaveSessionConfiguration(stream);
+        }
 
         /// <inheritdoc/>
         public bool ApplySessionConfiguration(
             SessionConfiguration sessionConfiguration)
-            => InnerSession
-                .ApplySessionConfiguration(sessionConfiguration);
+        {
+            return InnerSession.ApplySessionConfiguration(sessionConfiguration);
+        }
 
         /// <inheritdoc/>
         public async Task FetchNamespaceTablesAsync(
@@ -743,13 +640,17 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public bool AddSubscription(Subscription subscription)
-            => InnerSession.AddSubscription(subscription);
+        {
+            return InnerSession.AddSubscription(subscription);
+        }
 
         /// <inheritdoc/>
         public bool RemoveTransferredSubscription(
             Subscription subscription)
-            => InnerSession
-                .RemoveTransferredSubscription(subscription);
+        {
+            return InnerSession
+                        .RemoveTransferredSubscription(subscription);
+        }
 
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionAsync(
@@ -811,11 +712,15 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public bool BeginPublish(int timeout)
-            => InnerSession.BeginPublish(timeout);
+        {
+            return InnerSession.BeginPublish(timeout);
+        }
 
         /// <inheritdoc/>
         public void StartPublishing(int timeout, bool fullQueue)
-            => InnerSession.StartPublishing(timeout, fullQueue);
+        {
+            InnerSession.StartPublishing(timeout, fullQueue);
+        }
 
         /// <inheritdoc/>
         public async Task<(bool, ServiceResult)> RepublishAsync(
@@ -856,11 +761,15 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public void AttachChannel(ITransportChannel channel)
-            => InnerSession.AttachChannel(channel);
+        {
+            InnerSession.AttachChannel(channel);
+        }
 
         /// <inheritdoc/>
         public void DetachChannel()
-            => InnerSession.DetachChannel();
+        {
+            InnerSession.DetachChannel();
+        }
 
         /// <inheritdoc/>
         public async Task<StatusCode> CloseAsync(
@@ -879,7 +788,9 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public uint NewRequestHandle()
-            => InnerSession.NewRequestHandle();
+        {
+            return InnerSession.NewRequestHandle();
+        }
 
         private void WireStateMachineCallbacks()
         {
@@ -1128,33 +1039,47 @@ namespace Opc.Ua.Client
 
         private void OnInnerNotification(
             ISession session, NotificationEventArgs e)
-            => m_notification?.Invoke(this, e);
+        {
+            m_notification?.Invoke(this, e);
+        }
 
         private void OnInnerPublishError(
             ISession session, PublishErrorEventArgs e)
-            => m_publishError?.Invoke(this, e);
+        {
+            m_publishError?.Invoke(this, e);
+        }
 
         private void OnInnerPublishSequenceNumbers(
             ISession session,
             PublishSequenceNumbersToAcknowledgeEventArgs e)
-            => m_publishSequenceNumbersToAcknowledge?.Invoke(this, e);
+        {
+            m_publishSequenceNumbersToAcknowledge?.Invoke(this, e);
+        }
 
         private void OnInnerSubscriptionsChanged(
             object? sender, EventArgs e)
-            => m_subscriptionsChanged?.Invoke(this, e);
+        {
+            m_subscriptionsChanged?.Invoke(this, e);
+        }
 
         private void OnInnerSessionClosing(
             object? sender, EventArgs e)
-            => m_sessionClosing?.Invoke(this, e);
+        {
+            m_sessionClosing?.Invoke(this, e);
+        }
 
         private void OnInnerSessionConfigurationChanged(
             object? sender, EventArgs e)
-            => m_sessionConfigurationChanged?.Invoke(this, e);
+        {
+            m_sessionConfigurationChanged?.Invoke(this, e);
+        }
 
         private IUserIdentity OnInnerRenewUserIdentity(
             ISession session, IUserIdentity identity)
-            => m_renewUserIdentity?.Invoke(this, identity)
-                ?? identity;
+        {
+            return m_renewUserIdentity?.Invoke(this, identity)
+                        ?? identity;
+        }
 
         private void OnStateChanged(
             object? sender, ConnectionStateChangedEventArgs e)
@@ -1230,5 +1155,30 @@ namespace Opc.Ua.Client
 
             GC.SuppressFinalize(this);
         }
+
+        private KeepAliveEventHandler? m_keepAlive;
+        private NotificationEventHandler? m_notification;
+        private PublishErrorEventHandler? m_publishError;
+        private PublishSequenceNumbersToAcknowledgeEventHandler? m_publishSequenceNumbersToAcknowledge;
+        private EventHandler? m_subscriptionsChanged;
+        private EventHandler? m_sessionClosing;
+        private EventHandler? m_sessionConfigurationChanged;
+        private RenewUserIdentityEventHandler? m_renewUserIdentity;
+        private volatile Session? m_session;
+        private readonly ConnectionStateMachine m_stateMachine;
+        private readonly AsyncReaderWriterLock m_serviceLock = new();
+        private readonly ApplicationConfiguration m_configuration;
+        private readonly ConfiguredEndpoint m_endpoint;
+        private readonly IReconnectPolicy m_reconnectPolicy;
+        private readonly IServerRedundancyHandler? m_redundancyHandler;
+        private readonly ISessionFactory m_sessionFactory;
+        private readonly ILogger m_logger;
+        private IUserIdentity? m_identity;
+        private ArrayOf<string> m_preferredLocales;
+        private string m_sessionName;
+        private uint m_sessionTimeout;
+        private bool m_checkDomain;
+        private ServerRedundancyInfo? m_redundancyInfo;
+        private int m_disposed;
     }
 }

@@ -226,15 +226,9 @@ namespace Opc.Ua.Client
         protected virtual void Dispose(bool disposing)
         {
             // close the watcher.
-            if (m_configurationWatcher != null)
-            {
-                m_configurationWatcher.Dispose();
-                m_configurationWatcher = null;
-            }
-            if (m_cts != null)
-            {
-                m_cts.Dispose();
-            }
+            m_configurationWatcher?.Dispose();
+            m_configurationWatcher = null;
+            m_cts?.Dispose();
             DisposeHosts();
         }
 
