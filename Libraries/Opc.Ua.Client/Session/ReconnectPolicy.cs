@@ -30,20 +30,26 @@
 using System;
 using System.Threading;
 
-namespace Opc.Ua.Client.Sessions
+namespace Opc.Ua.Client
 {
     /// <summary>
     /// Backoff strategy for reconnection delays.
     /// </summary>
     public enum BackoffStrategy
     {
-        /// <summary>Constant delay between attempts.</summary>
+        /// <summary>
+        /// Constant delay between attempts.
+        /// </summary>
         Constant,
 
-        /// <summary>Linearly increasing delay.</summary>
+        /// <summary>
+        /// Linearly increasing delay.
+        /// </summary>
         Linear,
 
-        /// <summary>Exponentially increasing delay.</summary>
+        /// <summary>
+        /// Exponentially increasing delay.
+        /// </summary>
         Exponential
     }
 
@@ -53,22 +59,34 @@ namespace Opc.Ua.Client.Sessions
     /// </summary>
     public class ReconnectPolicy : IReconnectPolicy
     {
-        /// <summary>Default initial delay (1 second).</summary>
+        /// <summary>
+        /// Default initial delay (1 second).
+        /// </summary>
         public static readonly TimeSpan DefaultInitialDelay = TimeSpan.FromSeconds(1);
 
-        /// <summary>Default max delay (30 seconds).</summary>
+        /// <summary>
+        /// Default max delay (30 seconds).
+        /// </summary>
         public static readonly TimeSpan DefaultMaxDelay = TimeSpan.FromSeconds(30);
 
-        /// <summary>Initial delay between reconnect attempts.</summary>
+        /// <summary>
+        /// Initial delay between reconnect attempts.
+        /// </summary>
         public TimeSpan InitialDelay { get; set; } = DefaultInitialDelay;
 
-        /// <summary>Maximum delay between attempts.</summary>
+        /// <summary>
+        /// Maximum delay between attempts.
+        /// </summary>
         public TimeSpan MaxDelay { get; set; } = DefaultMaxDelay;
 
-        /// <summary>Maximum number of retries (0 = unlimited).</summary>
+        /// <summary>
+        /// Maximum number of retries (0 = unlimited).
+        /// </summary>
         public int MaxRetries { get; set; }
 
-        /// <summary>Backoff strategy.</summary>
+        /// <summary>
+        /// Backoff strategy.
+        /// </summary>
         public BackoffStrategy Strategy { get; set; } = BackoffStrategy.Exponential;
 
         /// <summary>
@@ -84,7 +102,8 @@ namespace Opc.Ua.Client.Sessions
                 return null;
             }
 
-            double delayMs = Strategy switch {
+            double delayMs = Strategy switch
+            {
                 BackoffStrategy.Constant => InitialDelay.TotalMilliseconds,
                 BackoffStrategy.Linear => InitialDelay.TotalMilliseconds * (attempt + 1),
                 BackoffStrategy.Exponential => InitialDelay.TotalMilliseconds * Math.Pow(2, attempt),

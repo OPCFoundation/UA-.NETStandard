@@ -27,40 +27,29 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Security.Cryptography.X509Certificates;
+using System;
+using System.Threading;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Object that creates an instance of a Session object.
-    /// It can be used to create instances of enhanced Session
-    /// classes with added functionality or overridden methods.
+    /// Defines a reconnection policy for ManagedSession.
+    /// Controls backoff timing, retry limits, and jitter for
+    /// automatic reconnection attempts.
     /// </summary>
-    public class TraceableRequestHeaderClientSessionFactory : DefaultSessionFactory
+    public interface IReconnectPolicy
     {
-        public TraceableRequestHeaderClientSessionFactory(ITelemetryContext telemetry)
-            : base(telemetry)
-        {
-            ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
-        }
+        /// <summary>
+        /// Get the delay before the next reconnection attempt.
+        /// </summary>
+        /// <param name="attempt">Zero-based attempt number.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>Delay before next attempt, or null to stop retrying.</returns>
+        TimeSpan? GetNextDelay(int attempt, CancellationToken ct = default);
 
-        /// <inheritdoc/>
-        public override ISession Create(
-            ITransportChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
-            ArrayOf<EndpointDescription> availableEndpoints,
-            ArrayOf<string> discoveryProfileUris)
-        {
-            return new TraceableRequestHeaderClientSession(
-                channel,
-                configuration,
-                endpoint,
-                clientCertificate,
-                availableEndpoints,
-                discoveryProfileUris);
-        }
+        /// <summary>
+        /// Reset the policy state (e.g., after successful reconnection).
+        /// </summary>
+        void Reset();
     }
 }

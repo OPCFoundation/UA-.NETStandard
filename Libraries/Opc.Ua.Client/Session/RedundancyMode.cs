@@ -27,40 +27,45 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Security.Cryptography.X509Certificates;
-
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Object that creates an instance of a Session object.
-    /// It can be used to create instances of enhanced Session
-    /// classes with added functionality or overridden methods.
+    /// Redundancy support mode reported by the server.
     /// </summary>
-    public class TraceableRequestHeaderClientSessionFactory : DefaultSessionFactory
+    /// <remarks>
+    /// Maps to the OPC UA <c>RedundancySupport</c> enumeration
+    /// defined in Part 5 §6.3.7.
+    /// </remarks>
+    public enum RedundancyMode
     {
-        public TraceableRequestHeaderClientSessionFactory(ITelemetryContext telemetry)
-            : base(telemetry)
-        {
-            ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
-        }
+        /// <summary>
+        /// No redundancy.
+        /// </summary>
+        None = 0,
 
-        /// <inheritdoc/>
-        public override ISession Create(
-            ITransportChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
-            ArrayOf<EndpointDescription> availableEndpoints,
-            ArrayOf<string> discoveryProfileUris)
-        {
-            return new TraceableRequestHeaderClientSession(
-                channel,
-                configuration,
-                endpoint,
-                clientCertificate,
-                availableEndpoints,
-                discoveryProfileUris);
-        }
+        /// <summary>
+        /// Cold redundancy – backup servers are available but not running.
+        /// </summary>
+        Cold = 1,
+
+        /// <summary>
+        /// Warm redundancy – backup servers are running but not processing.
+        /// </summary>
+        Warm = 2,
+
+        /// <summary>
+        /// Hot redundancy – backup servers are running and processing.
+        /// </summary>
+        Hot = 3,
+
+        /// <summary>
+        /// Transparent redundancy – handled by infrastructure, invisible to clients.
+        /// </summary>
+        Transparent = 4,
+
+        /// <summary>
+        /// Hot and mirrored redundancy.
+        /// </summary>
+        HotAndMirrored = 5,
     }
 }

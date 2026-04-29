@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client.Sessions;
+using Opc.Ua.Client;
 using Opc.Ua.Tests;
 
 using ManagedSessionClass = Opc.Ua.Client.ManagedSession;
@@ -71,7 +71,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             m_innerSession?.Dispose();
         }
 
-        #region Property delegation tests
 
         [Test]
         public void SessionIdDelegatesToInnerSession()
@@ -137,9 +136,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Is.EqualTo(9876));
         }
 
-        #endregion
 
-        #region Event forwarding tests
 
         [Test]
         public void KeepAliveEventForwardsToConsumer()
@@ -211,9 +208,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(receivedSender, Is.SameAs(m_managedSession));
         }
 
-        #endregion
 
-        #region Subscription management tests
 
         [Test]
         public void AddSubscriptionDelegatesToInnerSession()
@@ -257,9 +252,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(m_managedSession.SubscriptionCount, Is.EqualTo(0));
         }
 
-        #endregion
 
-        #region Helpers
 
         /// <summary>
         /// Creates a <see cref="ManagedSessionClass"/> with
@@ -392,6 +385,5 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             handler?.Invoke(session, EventArgs.Empty);
         }
 
-        #endregion
     }
 }

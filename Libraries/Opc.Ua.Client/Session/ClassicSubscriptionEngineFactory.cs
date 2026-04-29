@@ -40,12 +40,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the singleton instance of the factory.
         /// </summary>
-        public static ClassicSubscriptionEngineFactory Instance { get; }
-            = new();
+        public static ClassicSubscriptionEngineFactory Instance { get; } = new();
 
         /// <inheritdoc/>
-        public ISubscriptionEngine Create(
-            ISubscriptionEngineContext context)
+        public ISubscriptionEngine Create(ISubscriptionEngineContext context)
         {
             return new ClassicSubscriptionEngine(context);
         }

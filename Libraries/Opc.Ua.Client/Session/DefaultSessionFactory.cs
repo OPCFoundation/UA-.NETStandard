@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,46 +35,47 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// The default session factory that creates <see cref="ManagedSession"/>
-    /// instances which automatically handle reconnection and failover.
+    /// Session factory that creates raw <see cref="Session"/> instances
+    /// without automatic reconnection or failover.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// Each <c>CreateAsync</c> overload creates a raw
-    /// <see cref="Session"/> via an inner <see cref="ClassicSessionFactory"/>
-    /// and wraps it in a <see cref="ManagedSession"/>.
-    /// </para>
-    /// <para>
-    /// Use <see cref="ClassicSessionFactory"/> directly if you need raw
-    /// <see cref="Session"/> instances without automatic reconnection.
-    /// </para>
+    /// Use <see cref="ManagedSessionFactory"/> instead to get
+    /// <see cref="ManagedSession"/> instances that handle reconnection
+    /// and failover automatically.
     /// </remarks>
     public class DefaultSessionFactory : ISessionFactory
     {
-        private readonly ClassicSessionFactory m_innerFactory;
+        /// <summary>
+        /// The default instance of the factory.
+        /// </summary>
+        [Obsolete("Use new ClassicSessionFactory instead.")]
+        public static readonly DefaultSessionFactory Instance = new(null!);
 
         /// <inheritdoc/>
         public ITelemetryContext Telemetry { get; init; }
 
         /// <inheritdoc/>
-        public DiagnosticsMasks ReturnDiagnostics
+        public DiagnosticsMasks ReturnDiagnostics { get; set; }
+
+        /// <summary>
+        /// Obsolete default constructor
+        /// </summary>
+        [Obsolete("Use ClassicSessionFactory(ITelemetryContext) instead.")]
+        public DefaultSessionFactory()
+            : this(null!)
         {
-            get => m_innerFactory.ReturnDiagnostics;
-            set => m_innerFactory.ReturnDiagnostics = value;
         }
 
         /// <summary>
         /// Creates a new instance of the <see cref="DefaultSessionFactory"/>.
         /// </summary>
-        /// <param name="telemetry">The telemetry context to use.</param>
         public DefaultSessionFactory(ITelemetryContext telemetry)
         {
             Telemetry = telemetry;
-            m_innerFactory = new ClassicSessionFactory(telemetry);
         }
 
         /// <inheritdoc/>
-        public virtual async Task<ISession> CreateAsync(
+        public virtual Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -83,19 +85,20 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return await CreateManagedSessionAsync(
+            return CreateAsync(
                 configuration,
                 endpoint,
-                identity,
+                updateBeforeConnect,
+                false,
                 sessionName,
                 sessionTimeout,
+                identity,
                 preferredLocales,
-                checkDomain: false,
-                ct).ConfigureAwait(false);
+                ct);
         }
 
         /// <inheritdoc/>
-        public virtual async Task<ISession> CreateAsync(
+        public virtual Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -106,19 +109,22 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return await CreateManagedSessionAsync(
+            return CreateAsync(
                 configuration,
+                null,
                 endpoint,
-                identity,
+                updateBeforeConnect,
+                checkDomain,
                 sessionName,
                 sessionTimeout,
+                identity,
                 preferredLocales,
-                checkDomain,
-                ct).ConfigureAwait(false);
+                ReturnDiagnostics,
+                ct);
         }
 
         /// <inheritdoc/>
-        public virtual async Task<ISession> CreateAsync(
+        public virtual Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -130,15 +136,18 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return await CreateManagedSessionAsync(
+            return CreateAsync(
                 configuration,
+                connection,
                 endpoint,
-                identity,
+                updateBeforeConnect,
+                checkDomain,
                 sessionName,
                 sessionTimeout,
+                identity,
                 preferredLocales,
-                checkDomain,
-                ct).ConfigureAwait(false);
+                ReturnDiagnostics,
+                ct);
         }
 
         /// <inheritdoc/>
@@ -154,19 +163,59 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return await CreateManagedSessionAsync(
+            if (reverseConnectManager == null)
+            {
+                return await CreateAsync(
+                    configuration,
+                    endpoint,
+                    updateBeforeConnect,
+                    checkDomain,
+                    sessionName,
+                    sessionTimeout,
+                    userIdentity,
+                    preferredLocales,
+                    ct).ConfigureAwait(false);
+            }
+
+            ITransportWaitingConnection? connection;
+            do
+            {
+                connection = await reverseConnectManager
+                    .WaitForConnectionAsync(
+                        endpoint.EndpointUrl,
+                        endpoint.ReverseConnect?.ServerUri,
+                        ct)
+                    .ConfigureAwait(false);
+
+                if (updateBeforeConnect)
+                {
+                    await endpoint.UpdateFromServerAsync(
+                        endpoint.EndpointUrl,
+                        connection,
+                        endpoint.Description.SecurityMode,
+                        endpoint.Description.SecurityPolicyUri,
+                        Telemetry,
+                        ct).ConfigureAwait(false);
+                    updateBeforeConnect = false;
+                    connection = null;
+                }
+            } while (connection == null);
+
+            return await CreateAsync(
                 configuration,
+                connection,
                 endpoint,
-                userIdentity,
+                false,
+                checkDomain,
                 sessionName,
                 sessionTimeout,
+                userIdentity,
                 preferredLocales,
-                checkDomain,
                 ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public virtual Task<ITransportChannel> CreateChannelAsync(
+        public virtual async Task<ITransportChannel> CreateChannelAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection? connection,
             ConfiguredEndpoint endpoint,
@@ -174,41 +223,128 @@ namespace Opc.Ua.Client
             bool checkDomain,
             CancellationToken ct = default)
         {
-            return m_innerFactory.CreateChannelAsync(
+            endpoint.UpdateBeforeConnect = updateBeforeConnect;
+
+            EndpointDescription endpointDescription = endpoint.Description;
+
+            // create the endpoint configuration (use the application configuration to provide default values).
+            EndpointConfiguration endpointConfiguration = endpoint.Configuration;
+
+            if (endpointConfiguration == null)
+            {
+                endpoint.Configuration = endpointConfiguration = EndpointConfiguration.Create(
+                    configuration);
+            }
+
+            // create message context.
+            ServiceMessageContext messageContext = configuration.CreateMessageContext();
+
+            // update endpoint description using the discovery endpoint.
+            if (endpoint.UpdateBeforeConnect && connection == null)
+            {
+                await endpoint.UpdateFromServerAsync(messageContext.Telemetry, ct).ConfigureAwait(false);
+                endpointDescription = endpoint.Description;
+                endpointConfiguration = endpoint.Configuration;
+            }
+
+            // checks the domains in the certificate.
+            if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
+            {
+                configuration.CertificateValidator?.ValidateDomains(
+                    CertificateFactory.Create(endpoint.Description.ServerCertificate),
+                    endpoint);
+            }
+
+            X509Certificate2? clientCertificate = null;
+            X509Certificate2Collection? clientCertificateChain = null;
+            if (endpointDescription.SecurityPolicyUri is not null and not SecurityPolicies.None)
+            {
+                clientCertificate = await Session.LoadInstanceCertificateAsync(
+                    configuration,
+                    endpointDescription.SecurityPolicyUri,
+                    messageContext.Telemetry,
+                    ct).ConfigureAwait(false);
+                clientCertificateChain = await Session.LoadCertificateChainAsync(
+                    configuration,
+                    clientCertificate,
+                    ct).ConfigureAwait(false);
+            }
+
+            // initialize the channel which will be created with the server.
+            if (connection != null)
+            {
+                return await UaChannelBase.CreateUaBinaryChannelAsync(
+                    configuration,
+                    connection,
+                    endpointDescription,
+                    endpointConfiguration,
+                    clientCertificate,
+                    clientCertificateChain,
+                    messageContext,
+                    ct).ConfigureAwait(false);
+            }
+
+            return await UaChannelBase.CreateUaBinaryChannelAsync(
                 configuration,
-                connection,
-                endpoint,
-                updateBeforeConnect,
-                checkDomain,
-                ct);
+                endpointDescription,
+                endpointConfiguration,
+                clientCertificate,
+                clientCertificateChain,
+                messageContext,
+                ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public virtual Task<ISession> RecreateAsync(
+        public virtual async Task<ISession> RecreateAsync(
             ISession sessionTemplate,
             CancellationToken ct = default)
         {
-            return m_innerFactory.RecreateAsync(sessionTemplate, ct);
+            if (sessionTemplate is not Session template)
+            {
+                throw new ArgumentException(
+                    "The ISession provided is not of a supported type.",
+
+                    nameof(sessionTemplate));
+            }
+
+            template.ReturnDiagnostics = ReturnDiagnostics;
+            return await template.RecreateAsync(ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public virtual Task<ISession> RecreateAsync(
+        public virtual async Task<ISession> RecreateAsync(
             ISession sessionTemplate,
             ITransportWaitingConnection connection,
             CancellationToken ct = default)
         {
-            return m_innerFactory.RecreateAsync(
-                sessionTemplate, connection, ct);
+            if (sessionTemplate is not Session template)
+            {
+                throw new ArgumentException(
+                    "The ISession provided is not of a supported type.",
+
+                    nameof(sessionTemplate));
+            }
+
+            template.ReturnDiagnostics = ReturnDiagnostics;
+            return await template.RecreateAsync(connection, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public virtual Task<ISession> RecreateAsync(
+        public virtual async Task<ISession> RecreateAsync(
             ISession sessionTemplate,
             ITransportChannel transportChannel,
             CancellationToken ct = default)
         {
-            return m_innerFactory.RecreateAsync(
-                sessionTemplate, transportChannel, ct);
+            if (sessionTemplate is not Session template)
+            {
+                throw new ArgumentException(
+                    "The ISession provided is not of a supported type.",
+
+                    nameof(sessionTemplate));
+            }
+            template.ReturnDiagnostics = ReturnDiagnostics;
+            return await template.RecreateAsync(transportChannel, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -221,37 +357,89 @@ namespace Opc.Ua.Client
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {
-            return m_innerFactory.Create(
+            return new Session(
                 channel,
                 configuration,
                 endpoint,
                 clientCertificate,
                 clientCertificateChain,
                 availableEndpoints,
-                discoveryProfileUris);
+                discoveryProfileUris)
+            {
+                ReturnDiagnostics = ReturnDiagnostics
+            };
         }
 
-        private Task<ManagedSession> CreateManagedSessionAsync(
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connection.
+        /// </summary>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="connection">The client endpoint for the reverse connect.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to
+        /// update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match
+        /// the endpoint used.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="identity">The user identity to associate with the session.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="returnDiagnostics">The return diagnostics to use on this session</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The new session object.</returns>
+        private async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
+            ITransportWaitingConnection? connection,
             ConfiguredEndpoint endpoint,
-            IUserIdentity? identity,
+            bool updateBeforeConnect,
+            bool checkDomain,
             string sessionName,
             uint sessionTimeout,
+            IUserIdentity? identity,
             ArrayOf<string> preferredLocales,
-            bool checkDomain,
-            CancellationToken ct)
+            DiagnosticsMasks returnDiagnostics,
+            CancellationToken ct = default)
         {
-            return ManagedSession.CreateAsync(
-                configuration,
-                endpoint,
-                m_innerFactory,
-                identity,
-                telemetry: Telemetry,
-                sessionName: sessionName,
-                sessionTimeout: sessionTimeout,
-                preferredLocales: preferredLocales,
-                checkDomain: checkDomain,
-                ct: ct);
+            // initialize the channel which will be created with the server.
+            ITransportChannel channel = await CreateChannelAsync(
+                    configuration,
+                    connection,
+                    endpoint,
+                    updateBeforeConnect,
+                    checkDomain,
+                    ct)
+                .ConfigureAwait(false);
+
+            // create the session object.
+            ISession session = Create(channel, configuration, endpoint, null);
+            session.ReturnDiagnostics = returnDiagnostics;
+
+            // create the session.
+            UserIdentity? tempIdentity = identity == null ? new UserIdentity() : null;
+            try
+            {
+                await session
+                    .OpenAsync(
+                        sessionName,
+                        sessionTimeout,
+                        identity ?? tempIdentity!,
+                        preferredLocales,
+                        checkDomain,
+                        ct)
+                    .ConfigureAwait(false);
+                tempIdentity = null; // ownership transferred to session
+            }
+            catch (Exception)
+            {
+                session.Dispose();
+                throw;
+            }
+            finally
+            {
+                tempIdentity?.Dispose();
+            }
+
+            return session;
         }
     }
 }

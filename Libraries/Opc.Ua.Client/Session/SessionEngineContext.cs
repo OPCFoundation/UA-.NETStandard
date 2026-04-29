@@ -42,11 +42,8 @@ namespace Opc.Ua.Client
         /// Adapter that implements <see cref="ISubscriptionEngineContext"/>
         /// by delegating to the owning <see cref="Session"/> instance.
         /// </summary>
-        private sealed class SessionEngineContext
-            : ISubscriptionEngineContext
+        private sealed class SessionEngineContext : ISubscriptionEngineContext
         {
-            private readonly Session m_session;
-
             public SessionEngineContext(Session session)
             {
                 m_session = session
@@ -307,6 +304,8 @@ namespace Opc.Ua.Client
                         "raising Notification event.");
                 }
             }
+
+            private readonly Session m_session;
         }
     }
 }

@@ -128,7 +128,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <inheritdoc/>
         public override string? ToString()
         {
-            var sb = new StringBuilder()
+            StringBuilder sb = new StringBuilder()
               .Append(Context)
               .Append('#')
               .Append(ClientHandle)
@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             if (disposing && !m_disposedValue)
             {
-                while (TryGetPendingChange(out var change))
+                while (TryGetPendingChange(out Change? change))
                 {
                     change.Abandon();
                 }
@@ -171,10 +171,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         protected internal virtual void OnSubscriptionStateChange(
             SubscriptionState state, TimeSpan publishingInterval)
         {
-            var options = m_currentOptions;
+            MonitoredItemOptions? options = m_currentOptions;
             if (options == null ||
                 (state != SubscriptionState.Created &&
-                 state != SubscriptionState.Modified))
+                    state != SubscriptionState.Modified))
             {
                 return;
             }
@@ -187,7 +187,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 return;
             }
-            var samplingInterval = CurrentSamplingInterval;
+            TimeSpan samplingInterval = CurrentSamplingInterval;
             if (samplingInterval == TimeSpan.Zero)
             {
                 samplingInterval = options.SamplingInterval;
@@ -243,6 +243,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         /// <param name="clientHandle"></param>
         /// <param name="serverHandle"></param>
+        /// <exception cref="ObjectDisposedException"></exception>
         internal void SetTransferResult(uint clientHandle, uint serverHandle)
         {
             if (m_disposedValue)
@@ -273,6 +274,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Reset the monitored item to its initial state for recreation
         /// on server side.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         internal void Reset()
         {
             if (m_disposedValue)
@@ -283,8 +285,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             m_logger.LogDebug("{Item}: RESET.", this);
             ServerId = 0;
 
-            var options = m_currentOptions;
-            while (TryGetPendingChange(out var change))
+            MonitoredItemOptions? options = m_currentOptions;
+            while (TryGetPendingChange(out Change? change))
             {
                 change.Abandon();
                 options = change.Options;
@@ -331,7 +333,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <returns></returns>
         internal bool CompleteChange(Change change)
         {
-            return m_pendingChanges.TryDequeue(out var completed)
+            return m_pendingChanges.TryDequeue(out Change? completed)
                 && change == completed;
         }
 
@@ -472,7 +474,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ArrayOf<DiagnosticInfo> diagnosticInfos, ResponseHeader responseHeader)
             {
                 Debug.Assert(request.RequestedParameters.ClientHandle == Item.ClientHandle);
-                var error = ServiceResult.Good;
+                ServiceResult error = ServiceResult.Good;
 
                 if (StatusCode.IsBad(result.StatusCode))
                 {
@@ -515,7 +517,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ArrayOf<DiagnosticInfo> diagnosticInfos, ResponseHeader responseHeader)
             {
                 Debug.Assert(request.RequestedParameters.ClientHandle == Item.ClientHandle);
-                var error = ServiceResult.Good;
+                ServiceResult error = ServiceResult.Good;
                 if (StatusCode.IsBad(result.StatusCode))
                 {
                     error = Ua.ClientBase.GetResult(result.StatusCode, index,
@@ -571,7 +573,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 StatusCode statusCode, int index, ArrayOf<DiagnosticInfo> diagnosticInfos,
                 ResponseHeader responseHeader)
             {
-                var error = ServiceResult.Good;
+                ServiceResult error = ServiceResult.Good;
                 if (StatusCode.IsBad(statusCode))
                 {
                     error = Ua.ClientBase.GetResult(statusCode, index, diagnosticInfos,
@@ -608,7 +610,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             internal void SetDeleteResult(StatusCode statusCode, int index,
                 ArrayOf<DiagnosticInfo> diagnosticInfos, ResponseHeader responseHeader)
             {
-                var error = ServiceResult.Good;
+                ServiceResult error = ServiceResult.Good;
                 if (StatusCode.IsBad(statusCode))
                 {
                     error = Ua.ClientBase.GetResult(statusCode, index, diagnosticInfos,
@@ -674,7 +676,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             /// <returns></returns>
             private static bool IsCommunicationError(ServiceResult error)
             {
-                var code = error.StatusCode;
+                StatusCode code = error.StatusCode;
                 return code == StatusCodes.BadCommunicationError ||
                     code == StatusCodes.BadNotConnected ||
                     code == StatusCodes.BadSecureChannelClosed;
@@ -690,7 +692,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             bool created)
         {
             if (options.SamplingInterval != CurrentSamplingInterval &&
-                options.QueueSize != CurrentQueueSize && CurrentQueueSize != 0)
+                options.QueueSize != CurrentQueueSize &&
+                CurrentQueueSize != 0)
             {
                 m_logger.LogInformation(
                     "{Item}: {Action} SamplingInterval was " +

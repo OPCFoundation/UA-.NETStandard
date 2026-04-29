@@ -54,7 +54,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ConstructorSetsTelemetry()
         {
-            var factory = new ClassicSessionFactory(m_telemetry);
+            var factory = new DefaultSessionFactory(m_telemetry);
 
             Assert.That(factory.Telemetry, Is.SameAs(m_telemetry));
         }
@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ReturnDiagnosticsDefaultIsNone()
         {
-            var factory = new ClassicSessionFactory(m_telemetry);
+            var factory = new DefaultSessionFactory(m_telemetry);
 
             Assert.That(factory.ReturnDiagnostics, Is.EqualTo(DiagnosticsMasks.None));
         }
@@ -70,7 +70,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ReturnDiagnosticsCanBeSet()
         {
-            var factory = new ClassicSessionFactory(m_telemetry)
+            var factory = new DefaultSessionFactory(m_telemetry)
             {
                 ReturnDiagnostics = DiagnosticsMasks.All
             };
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void CreateReturnsSessionWithCorrectEndpoint()
         {
-            var factory = new ClassicSessionFactory(m_telemetry);
+            var factory = new DefaultSessionFactory(m_telemetry);
             var channel = new Mock<ITransportChannel>();
             channel
                 .SetupGet(c => c.MessageContext)
@@ -113,7 +113,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void CreateSetsReturnDiagnosticsOnSession()
         {
-            var factory = new ClassicSessionFactory(m_telemetry)
+            var factory = new DefaultSessionFactory(m_telemetry)
             {
                 ReturnDiagnostics = DiagnosticsMasks.ServiceSymbolicId
             };
@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void RecreateAsyncThrowsWhenSessionIsNotSessionType()
         {
-            var factory = new ClassicSessionFactory(m_telemetry);
+            var factory = new DefaultSessionFactory(m_telemetry);
             var mockSession = new Mock<ISession>();
 
             Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void RecreateAsyncWithConnectionThrowsWhenSessionIsNotSessionType()
         {
-            var factory = new ClassicSessionFactory(m_telemetry);
+            var factory = new DefaultSessionFactory(m_telemetry);
             var mockSession = new Mock<ISession>();
             var mockConnection = new Mock<ITransportWaitingConnection>();
 
@@ -169,7 +169,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void RecreateAsyncWithChannelThrowsWhenSessionIsNotSessionType()
         {
-            var factory = new ClassicSessionFactory(m_telemetry);
+            var factory = new DefaultSessionFactory(m_telemetry);
             var mockSession = new Mock<ISession>();
             var mockChannel = new Mock<ITransportChannel>();
 
@@ -180,7 +180,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void CreateAsyncWithNullReverseConnectManagerForwardsToSimpleOverload()
         {
-            var factory = new Mock<ClassicSessionFactory>(m_telemetry) { CallBase = true };
+            var factory = new Mock<DefaultSessionFactory>(m_telemetry) { CallBase = true };
 
             var configuration = new ApplicationConfiguration(m_telemetry)
             {
@@ -230,7 +230,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void CreateWithAvailableEndpointsReturnsSession()
         {
-            var factory = new ClassicSessionFactory(m_telemetry);
+            var factory = new DefaultSessionFactory(m_telemetry);
             var channel = new Mock<ITransportChannel>();
             channel
                 .SetupGet(c => c.MessageContext)
@@ -281,7 +281,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void RecreateAsyncThrowsWithCorrectParameterName()
         {
-            var factory = new ClassicSessionFactory(m_telemetry);
+            var factory = new DefaultSessionFactory(m_telemetry);
             var mockSession = new Mock<ISession>();
 
             ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -293,7 +293,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void RecreateAsyncWithConnectionThrowsWithCorrectParameterName()
         {
-            var factory = new ClassicSessionFactory(m_telemetry);
+            var factory = new DefaultSessionFactory(m_telemetry);
             var mockSession = new Mock<ISession>();
             var mockConnection = new Mock<ITransportWaitingConnection>();
 
@@ -306,7 +306,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void RecreateAsyncWithChannelThrowsWithCorrectParameterName()
         {
-            var factory = new ClassicSessionFactory(m_telemetry);
+            var factory = new DefaultSessionFactory(m_telemetry);
             var mockSession = new Mock<ISession>();
             var mockChannel = new Mock<ITransportChannel>();
 
@@ -319,7 +319,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void TelemetryCanBeSetViaInitializer()
         {
-            var factory = new ClassicSessionFactory(m_telemetry)
+            var factory = new DefaultSessionFactory(m_telemetry)
             {
                 Telemetry = m_telemetry
             };
@@ -330,7 +330,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void CreateAsyncOverloadWithConnectionForwardsThroughChain()
         {
-            var factory = new Mock<ClassicSessionFactory>(m_telemetry) { CallBase = true };
+            var factory = new Mock<DefaultSessionFactory>(m_telemetry) { CallBase = true };
 
             var configuration = new ApplicationConfiguration(m_telemetry)
             {

@@ -216,8 +216,8 @@ namespace Opc.Ua.Client.Subscriptions
                 // form of semaphore to block the publisher.
                 // Unless we get https://github.com/dotnet/runtime/issues/101292
                 //
-                var reader = m_messages.Reader.ReadAllAsync(ct);
-                await foreach (var incoming in reader.ConfigureAwait(false))
+                IAsyncEnumerable<IncomingMessage> reader = m_messages.Reader.ReadAllAsync(ct);
+                await foreach (IncomingMessage incoming in reader.ConfigureAwait(false))
                 {
                     await ProcessMessageAsync(incoming, ct).ConfigureAwait(false);
                 }
@@ -305,7 +305,7 @@ namespace Opc.Ua.Client.Subscriptions
                 _logger.LogInformation("{Subscription}: Republishing missing message " +
                     "with sequence number #{Missing} to catch up to message " +
                     "with sequence number #{SeqNumber}...", this, missing, curSeqNum);
-                var republish = await m_services.RepublishAsync(null, Id, missing,
+                RepublishResponse republish = await m_services.RepublishAsync(null, Id, missing,
                     ct).ConfigureAwait(false);
 
                 if (ServiceResult.IsGood(republish.ResponseHeader.ServiceResult))
@@ -393,7 +393,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             else if (notificationData.Value.TryGetEncodeable(out StatusChangeNotification statusChanged))
             {
-                var mask = publishStateMask;
+                PublishState mask = publishStateMask;
                 if (statusChanged.Status == StatusCodes.GoodSubscriptionTransferred)
                 {
                     // Only happens if we did not initiate the transfer.
@@ -427,7 +427,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // other message in sort order.
                 return
                     (int)message.Message.SequenceNumber -
-                      (int)other.Message.SequenceNumber;
+                    (int)other.Message.SequenceNumber;
             }
         }
 

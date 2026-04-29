@@ -56,7 +56,7 @@ namespace Opc.Ua.Client.Tests
         public static readonly TelemetryParameterizable<ISessionFactory>[] SessionFactories =
         [
             TelemetryParameterizable.Create<ISessionFactory>(t => new TestableSessionFactory(t)),
-            TelemetryParameterizable.Create<ISessionFactory>(t => new ClassicSessionFactory(t))
+            TelemetryParameterizable.Create<ISessionFactory>(t => new DefaultSessionFactory(t))
         ];
 
         /// <summary>

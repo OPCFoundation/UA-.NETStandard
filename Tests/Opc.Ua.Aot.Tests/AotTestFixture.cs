@@ -122,7 +122,7 @@ namespace Opc.Ua.Aot.Tests
                 null, endpointDescription,
                 EndpointConfiguration.Create(m_clientConfiguration));
 
-            var sessionFactory = new ClassicSessionFactory(Telemetry);
+            var sessionFactory = new DefaultSessionFactory(Telemetry);
 #pragma warning disable CA2000 // Dispose objects before losing scope
             Session = await sessionFactory.CreateAsync(
                 m_clientConfiguration,
@@ -150,7 +150,7 @@ namespace Opc.Ua.Aot.Tests
                 null, endpointDescription,
                 EndpointConfiguration.Create(m_clientConfiguration));
 
-            var sessionFactory = new ClassicSessionFactory(Telemetry);
+            var sessionFactory = new DefaultSessionFactory(Telemetry);
 #pragma warning disable CA2000 // Dispose objects before losing scope
             return await sessionFactory.CreateAsync(
                 m_clientConfiguration,

@@ -34,7 +34,7 @@ namespace Opc.Ua.Client.Tests
     /// <summary>
     /// Object that creates instances of an Opc.Ua.Client.Session object.
     /// </summary>
-    public class TestableSessionFactory : ClassicSessionFactory
+    public class TestableSessionFactory : DefaultSessionFactory
     {
         /// <summary>
         /// Force use of the default instance.

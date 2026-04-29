@@ -31,7 +31,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Client.Sessions;
 
 namespace Opc.Ua.Client
 {
@@ -58,7 +57,8 @@ namespace Opc.Ua.Client
         /// failure.
         /// </summary>
         internal Func<CancellationToken, Task<ServiceResult>>?
-            ConnectAsync { get; set; }
+            ConnectAsync
+        { get; set; }
 
         /// <summary>
         /// Delegate invoked to perform a session reconnect (reactivate).
@@ -66,7 +66,8 @@ namespace Opc.Ua.Client
         /// failure.
         /// </summary>
         internal Func<CancellationToken, Task<ServiceResult>>?
-            ReconnectAsync { get; set; }
+            ReconnectAsync
+        { get; set; }
 
         /// <summary>
         /// Delegate invoked to attempt failover to a redundant server.
@@ -74,7 +75,8 @@ namespace Opc.Ua.Client
         /// failure.
         /// </summary>
         internal Func<CancellationToken, Task<ServiceResult>>?
-            FailoverAsync { get; set; }
+            FailoverAsync
+        { get; set; }
 
         /// <summary>
         /// Delegate invoked to close the session cleanly.
@@ -426,7 +428,8 @@ namespace Opc.Ua.Client
                         return;
                     }
 
-                    OnStateChanged(new ConnectionStateChangedEventArgs {
+                    OnStateChanged(new ConnectionStateChangedEventArgs
+                    {
                         PreviousState = ConnectionState.Reconnecting,
                         NewState = ConnectionState.Reconnecting,
                         Error = result,
@@ -630,7 +633,8 @@ namespace Opc.Ua.Client
                 "State changed from {Old} to {New}.",
                 previous, newState);
 
-            OnStateChanged(new ConnectionStateChangedEventArgs {
+            OnStateChanged(new ConnectionStateChangedEventArgs
+            {
                 PreviousState = previous,
                 NewState = newState,
                 Error = error,

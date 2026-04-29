@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                SessionFactory = new ClassicSessionFactory(telemetry)
+                SessionFactory = new DefaultSessionFactory(telemetry)
                 {
                     ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
                 };
@@ -86,7 +86,7 @@ namespace Opc.Ua.Client.Tests
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ClientFixture>();
-            SessionFactory = new ClassicSessionFactory(telemetry)
+            SessionFactory = new DefaultSessionFactory(telemetry)
             {
                 ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
             };

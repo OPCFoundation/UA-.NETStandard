@@ -318,7 +318,7 @@ namespace Opc.Ua.Server.Tests
                 var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
 
                 // Create and open session with retry logic for transient errors
-                var sessionFactory = new ClassicSessionFactory(telemetry);
+                var sessionFactory = new DefaultSessionFactory(telemetry);
                 const int maxAttempts = 40;
                 const int delayMs = 5000;
                 for (int attempt = 0; ; attempt++)

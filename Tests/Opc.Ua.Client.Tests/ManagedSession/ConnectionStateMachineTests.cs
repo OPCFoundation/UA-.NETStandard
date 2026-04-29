@@ -35,7 +35,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client.Sessions;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {
@@ -54,7 +54,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             m_logger = new Mock<ILogger>().Object;
         }
 
-        #region Helper Methods
 
         private ConnectionStateMachine CreateMachine(
             IReconnectPolicy policy = null)
@@ -185,9 +184,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             }
         }
 
-        #endregion
 
-        #region State Transition Tests
 
         [Test]
         public void InitialStateIsDisconnected()
@@ -454,9 +451,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             connectTcs.SetResult(ServiceResult.Good);
         }
 
-        #endregion
 
-        #region Reconnect Policy Integration
 
         [Test]
         public async Task ReconnectUsesBackoffDelays()
@@ -608,9 +603,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 "reconnect");
         }
 
-        #endregion
 
-        #region Service Call Gating
 
         [Test]
         public async Task WaitForConnectedAsyncCompletesAfterReconnect()
@@ -703,9 +696,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             await sm.DisposeAsync().ConfigureAwait(false);
         }
 
-        #endregion
 
-        #region Edge Cases
 
         [Test]
         public async Task DoubleDisposeDoesNotThrow()
@@ -765,6 +756,5 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(sm.IsConnected, Is.True);
         }
 
-        #endregion
     }
 }

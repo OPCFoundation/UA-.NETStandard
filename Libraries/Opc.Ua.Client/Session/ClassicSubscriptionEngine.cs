@@ -43,23 +43,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public class ClassicSubscriptionEngine : ISubscriptionEngine
     {
-        private const int kMinPublishRequestCountMax = 100;
-        private const int kMaxPublishRequestCountMax = ushort.MaxValue;
-        private const int kDefaultPublishRequestCount = 1;
-        private const int kPublishRequestSequenceNumberOutOfOrderThreshold = 10;
-        private const int kPublishRequestSequenceNumberOutdatedThreshold = 100;
-        private readonly ISubscriptionEngineContext m_context;
-        private readonly ILogger m_logger;
-        private readonly object m_acknowledgementsToSendLock = new();
-        private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
-#if DEBUG_SEQUENTIALPUBLISHING
-        private Dictionary<uint, uint> m_latestAcknowledgementsSent = [];
-#endif
-        internal uint m_publishCounter;
-        private int m_tooManyPublishRequests;
-        private int m_minPublishRequestCount;
-        private int m_maxPublishRequestCount;
-        private bool m_disposed;
         /// <summary>
         /// Initializes a new instance of the
         /// <see cref="ClassicSubscriptionEngine"/> class.
@@ -75,6 +58,7 @@ namespace Opc.Ua.Client
             m_minPublishRequestCount = kDefaultPublishRequestCount;
             m_maxPublishRequestCount = kMaxPublishRequestCountMax;
         }
+
         /// <inheritdoc/>
         public int GoodPublishRequestCount
             => m_context.GoodPublishRequestCount;
@@ -100,9 +84,8 @@ namespace Opc.Ua.Client
                 {
                     throw new ArgumentOutOfRangeException(
                         nameof(MinPublishRequestCount),
-                        $"Minimum publish request count must be between " +
-                        $"{kDefaultPublishRequestCount} and " +
-                        $"{kMinPublishRequestCountMax}.");
+                        "Minimum publish request count must be between" +
+                        $" {kDefaultPublishRequestCount} and {kMinPublishRequestCountMax}.");
                 }
             }
         }
@@ -124,9 +107,8 @@ namespace Opc.Ua.Client
                 {
                     throw new ArgumentOutOfRangeException(
                         nameof(MaxPublishRequestCount),
-                        $"Maximum publish request count must be between " +
-                        $"{kDefaultPublishRequestCount} and " +
-                        $"{kMaxPublishRequestCountMax}.");
+                        "Maximum publish request count must be between " +
+                        $"{kDefaultPublishRequestCount} and {kMaxPublishRequestCountMax}.");
                 }
             }
         }
@@ -179,6 +161,7 @@ namespace Opc.Ua.Client
         {
             QueueBeginPublish();
         }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -196,6 +179,7 @@ namespace Opc.Ua.Client
         {
             m_disposed = true;
         }
+
         /// <summary>
         /// Sends a publish request to the server.
         /// </summary>
@@ -204,39 +188,33 @@ namespace Opc.Ua.Client
         /// <returns>True if the request was sent successfully.</returns>
         internal bool BeginPublish(int timeout)
         {
-            // do not publish if reconnecting or the session is
-            // in closed state.
+            // do not publish if reconnecting or the session is in closed state.
             if (!m_context.Connected)
             {
-                m_logger.LogWarning(
-                    "Publish skipped due to session not connected");
+                m_logger.LogWarning("Publish skipped due to session not connected");
                 return false;
             }
 
             if (m_context.Reconnecting)
             {
-                m_logger.LogWarning(
-                    "Publish skipped due to session reconnect");
+                m_logger.LogWarning("Publish skipped due to session reconnect");
                 return false;
             }
 
             if (m_context.Closing)
             {
-                m_logger.LogWarning(
-                    "Publish cancelled due to session closed");
+                m_logger.LogWarning("Publish cancelled due to session closed");
                 return false;
             }
 
             // collect the current set of acknowledgements.
-            List<SubscriptionAcknowledgement>? acknowledgementsToSend
-                = null;
+            List<SubscriptionAcknowledgement>? acknowledgementsToSend = null;
             lock (m_acknowledgementsToSendLock)
             {
-                var result = m_context
-                    .PrepareAcknowledgementsToSend(
-                        m_acknowledgementsToSend);
-                acknowledgementsToSend = result.toSend;
-                m_acknowledgementsToSend = result.updatedPending;
+                (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> updatedPending) =
+                    m_context.PrepareAcknowledgementsToSend(m_acknowledgementsToSend);
+                acknowledgementsToSend = toSend;
+                m_acknowledgementsToSend = updatedPending;
 
 #if DEBUG_SEQUENTIALPUBLISHING
                 foreach (var toSend in acknowledgementsToSend)
@@ -263,7 +241,7 @@ namespace Opc.Ua.Client
                 ReturnDiagnostics =
                     (uint)(int)m_context.ReturnDiagnostics,
                 RequestHandle =
-                    Utils.IncrementIdentifier(ref m_publishCounter)
+                    Utils.IncrementIdentifier(ref PublishCounter)
             };
 
             m_logger.LogTrace(
@@ -610,8 +588,7 @@ namespace Opc.Ua.Client
             NotificationMessage notificationMessage)
         {
             Subscription? subscription = null;
-            var availableSequenceNumberList =
-                availableSequenceNumbers.ToList();
+            var availableSequenceNumberList = availableSequenceNumbers.ToList();
 
             // send notification that the server is alive.
             m_context.OnKeepAlive(
@@ -640,26 +617,20 @@ namespace Opc.Ua.Client
                         ref latestSequenceNumberToSend,
                         notificationMessage.SequenceNumber);
 
-                    availableSequenceNumberList.Remove(
-                        notificationMessage.SequenceNumber);
+                    availableSequenceNumberList.Remove(notificationMessage.SequenceNumber);
                 }
 
                 // match an acknowledgement to be sent back to the
                 // server.
-                for (int ii = 0;
-                    ii < m_acknowledgementsToSend.Count;
-                    ii++)
+                for (int ii = 0; ii < m_acknowledgementsToSend.Count; ii++)
                 {
-                    SubscriptionAcknowledgement acknowledgement =
-                        m_acknowledgementsToSend[ii];
+                    SubscriptionAcknowledgement acknowledgement = m_acknowledgementsToSend[ii];
 
-                    if (acknowledgement.SubscriptionId !=
-                        subscriptionId)
+                    if (acknowledgement.SubscriptionId != subscriptionId)
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                     }
-                    else if (availableSequenceNumberList.Remove(
-                                 acknowledgement.SequenceNumber))
+                    else if (availableSequenceNumberList.Remove(acknowledgement.SequenceNumber))
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                         UpdateLatestSequenceNumberToSend(
@@ -669,9 +640,7 @@ namespace Opc.Ua.Client
                     // a publish response may be processed out of
                     // order, allow for a tolerance until the
                     // sequence number is removed.
-                    else if (Math.Abs(
-                            (int)(acknowledgement.SequenceNumber
-                                - latestSequenceNumberToSend)) <
+                    else if (Math.Abs((int)(acknowledgement.SequenceNumber - latestSequenceNumberToSend)) <
                         kPublishRequestSequenceNumberOutOfOrderThreshold)
                     {
                         acknowledgementsToSend.Add(acknowledgement);
@@ -679,11 +648,8 @@ namespace Opc.Ua.Client
                     else
                     {
                         m_logger.LogWarning(
-                            "SessionId {SessionId}, " +
-                            "SubscriptionId {SubscriptionId}, " +
-                            "Sequence number={SequenceNumber} " +
-                            "was not received in the available " +
-                            "sequence numbers.",
+                            "SessionId {SessionId}, SubscriptionId {SubscriptionId}, Sequence number=" +
+                            "{SequenceNumber} was not received in the available sequence numbers.",
                             m_context.SessionId,
                             subscriptionId,
                             acknowledgement.SequenceNumber);
@@ -692,14 +658,12 @@ namespace Opc.Ua.Client
 
                 // Check for outdated sequence numbers. May have
                 // been not acked due to a network glitch.
-                if (latestSequenceNumberToSend != 0 &&
-                    availableSequenceNumberList.Count > 0)
+                if (latestSequenceNumberToSend != 0 && availableSequenceNumberList.Count > 0)
                 {
                     foreach (uint sequenceNumber in
                         availableSequenceNumberList)
                     {
-                        if ((int)(latestSequenceNumberToSend
-                                - sequenceNumber) >
+                        if ((int)(latestSequenceNumberToSend - sequenceNumber) >
                             kPublishRequestSequenceNumberOutdatedThreshold)
                         {
                             AddAcknowledgementToSend(
@@ -707,75 +671,14 @@ namespace Opc.Ua.Client
                                 subscriptionId,
                                 sequenceNumber);
                             m_logger.LogWarning(
-                                "SessionId {SessionId}, " +
-                                "SubscriptionId " +
-                                "{SubscriptionId}, " +
-                                "Sequence " +
-                                "number={SequenceNumber} " +
-                                "was outdated, acknowledged.",
+                                "SessionId {SessionId}, SubscriptionId {SubscriptionId}, " +
+                                "Sequence number={SequenceNumber} was outdated, acknowledged.",
                                 m_context.SessionId,
                                 subscriptionId,
                                 sequenceNumber);
                         }
                     }
                 }
-
-#if DEBUG_SEQUENTIALPUBLISHING
-                uint lastSentSequenceNumber = 0;
-                if (availableSequenceNumberList != null)
-                {
-                    foreach (uint availableSequenceNumber in
-                        availableSequenceNumberList)
-                    {
-                        if (m_latestAcknowledgementsSent
-                            .ContainsKey(subscriptionId))
-                        {
-                            lastSentSequenceNumber =
-                                m_latestAcknowledgementsSent[
-                                    subscriptionId];
-                            if (((lastSentSequenceNumber
-                                        >= availableSequenceNumber)
-                                    && (lastSentSequenceNumber
-                                        != uint.MaxValue))
-                                || (lastSentSequenceNumber
-                                        == availableSequenceNumber)
-                                    && (lastSentSequenceNumber
-                                        == uint.MaxValue))
-                            {
-                                m_logger.LogWarning(
-                                    "Received sequence number " +
-                                    "which was already " +
-                                    "acknowledged={0}",
-                                    availableSequenceNumber);
-                            }
-                        }
-                    }
-                }
-
-                if (m_latestAcknowledgementsSent
-                    .ContainsKey(subscriptionId))
-                {
-                    lastSentSequenceNumber =
-                        m_latestAcknowledgementsSent[
-                            subscriptionId];
-                    if (((lastSentSequenceNumber
-                                >= notificationMessage
-                                    .SequenceNumber)
-                            && (lastSentSequenceNumber
-                                != uint.MaxValue))
-                        || (lastSentSequenceNumber
-                                == notificationMessage
-                                    .SequenceNumber)
-                            && (lastSentSequenceNumber
-                                == uint.MaxValue))
-                    {
-                        m_logger.LogWarning(
-                            "Received sequence number which " +
-                            "was already acknowledged={0}",
-                            notificationMessage.SequenceNumber);
-                    }
-                }
-#endif
 
                 m_acknowledgementsToSend = acknowledgementsToSend;
 
@@ -792,11 +695,9 @@ namespace Opc.Ua.Client
             }
 
             bool subscriptionCreationInProgress = false;
-            IReadOnlyList<Subscription> subscriptions =
-                m_context.Subscriptions;
 
             // find the subscription.
-            foreach (Subscription current in subscriptions)
+            foreach (Subscription current in m_context.Subscriptions)
             {
                 if (current.Id == subscriptionId)
                 {
@@ -817,51 +718,39 @@ namespace Opc.Ua.Client
             {
 #if DEBUG
                 // Validate publish time and reject old values.
-                if (notificationMessage.PublishTime
-                        .AddMilliseconds(
-                            subscription.CurrentPublishingInterval
-                            * subscription.CurrentLifetimeCount)
-                    < DateTimeUtc.Now)
+                if (notificationMessage.PublishTime.AddMilliseconds(
+                    subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount) <
+                    DateTimeUtc.Now)
                 {
                     m_logger.LogTrace(
-                        "PublishTime {PublishTime} in publish " +
-                        "response is too old for " +
+                        "PublishTime {PublishTime} in publish response is too old for " +
                         "SubscriptionId {SubscriptionId}.",
-                        notificationMessage.PublishTime
-                            .ToLocalTime(),
+                        notificationMessage.PublishTime.ToLocalTime(),
                         subscription.Id);
                 }
 
                 // Validate publish time and reject future values.
                 if (notificationMessage.PublishTime >
                     DateTimeUtc.Now.AddMilliseconds(
-                        subscription.CurrentPublishingInterval
-                        * subscription.CurrentLifetimeCount))
+                        subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
                 {
                     m_logger.LogTrace(
-                        "PublishTime {PublishTime} in publish " +
-                        "response is newer than actual time " +
-                        "for SubscriptionId " +
-                        "{SubscriptionId}.",
-                        notificationMessage.PublishTime
-                            .ToLocalTime(),
+                        "PublishTime {PublishTime} in publish response is newer than actual time " +
+                        "for SubscriptionId {SubscriptionId}.",
+                        notificationMessage.PublishTime.ToLocalTime(),
                         subscription.Id);
                 }
 #endif
                 // save the information that more notifications
                 // are expected
-                notificationMessage.MoreNotifications =
-                    moreNotifications;
+                notificationMessage.MoreNotifications = moreNotifications;
 
                 // save the string table that came with the
                 // notification.
-                notificationMessage.StringTable =
-                    responseHeader.StringTable;
+                notificationMessage.StringTable = responseHeader.StringTable;
 
                 // update subscription cache.
-                subscription.SaveMessageInCache(
-                    availableSequenceNumberList,
-                    notificationMessage);
+                subscription.SaveMessageInCache(availableSequenceNumberList, notificationMessage);
 
                 // raise the notification.
                 var args = new NotificationEventArgs(
@@ -869,33 +758,27 @@ namespace Opc.Ua.Client
                     notificationMessage,
                     responseHeader.StringTable);
 
-                m_context.OnPublishNotification(
-                    subscription, args);
+                m_context.OnPublishNotification(subscription, args);
             }
             else if (m_context.DeleteSubscriptionsOnClose &&
-                     !m_context.Reconnecting &&
-                     !subscriptionCreationInProgress)
+                !m_context.Reconnecting &&
+                !subscriptionCreationInProgress)
             {
                 // Delete abandoned subscription from server.
                 m_logger.LogWarning(
-                    "Received Publish Response for Unknown " +
-                    "SubscriptionId={SubscriptionId}. " +
-                    "Deleting abandoned subscription " +
-                    "from server.",
+                    "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. " +
+                    "Deleting abandoned subscription from server.",
                     subscriptionId);
 
                 _ = Task.Run(
-                    () => m_context
-                        .DeleteOrphanedSubscriptionAsync(
-                            subscriptionId));
+                    () => m_context.DeleteOrphanedSubscriptionAsync(subscriptionId));
             }
             else
             {
                 // Do not delete publish requests of stale
                 // subscriptions
                 m_logger.LogWarning(
-                    "Received Publish Response for Unknown " +
-                    "SubscriptionId={SubscriptionId}. Ignored.",
+                    "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Ignored.",
                     subscriptionId);
             }
         }
@@ -912,8 +795,7 @@ namespace Opc.Ua.Client
             }
 
             int requestCount = GoodPublishRequestCount;
-            int minPublishRequestCount =
-                GetDesiredPublishRequestCount(false);
+            int minPublishRequestCount = GetDesiredPublishRequestCount(false);
 
             if (requestCount < minPublishRequestCount)
             {
@@ -922,11 +804,8 @@ namespace Opc.Ua.Client
             else
             {
                 m_logger.LogDebug(
-                    "PUBLISH - Did not send another publish " +
-                    "request. GoodPublishRequestCount=" +
-                    "{GoodRequestCount}, " +
-                    "MinPublishRequestCount=" +
-                    "{MinRequestCount}",
+                    "PUBLISH - Did not send another publish request. GoodPublishRequestCount=" +
+                    "{GoodRequestCount}, MinPublishRequestCount={MinRequestCount}",
                     requestCount,
                     minPublishRequestCount);
             }
@@ -939,15 +818,11 @@ namespace Opc.Ua.Client
         /// <remarks>
         /// Returns 0 if there are no subscriptions.
         /// </remarks>
-        /// <param name="createdOnly">False if called when
-        /// re-queuing.</param>
-        /// <returns>The number of desired publish requests for the
-        /// session.</returns>
-        protected virtual int GetDesiredPublishRequestCount(
-            bool createdOnly)
+        /// <param name="createdOnly">False if called when re-queuing.</param>
+        /// <returns>The number of desired publish requests for the session.</returns>
+        protected virtual int GetDesiredPublishRequestCount(bool createdOnly)
         {
-            IReadOnlyList<Subscription> subscriptions =
-                m_context.Subscriptions;
+            IReadOnlyList<Subscription> subscriptions = m_context.Subscriptions;
 
             if (subscriptions.Count == 0)
             {
@@ -959,8 +834,7 @@ namespace Opc.Ua.Client
             if (createdOnly)
             {
                 int count = 0;
-                foreach (Subscription subscription
-                    in subscriptions)
+                foreach (Subscription subscription in subscriptions)
                 {
                     if (subscription.Created)
                     {
@@ -1005,29 +879,25 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Adds an acknowledgement to the list to send.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="acknowledgementsToSend"/> is <c>null</c>.</exception>
         private void AddAcknowledgementToSend(
-            List<SubscriptionAcknowledgement>
-                acknowledgementsToSend,
+            List<SubscriptionAcknowledgement> acknowledgementsToSend,
             uint subscriptionId,
             uint sequenceNumber)
         {
             if (acknowledgementsToSend == null)
             {
-                throw new ArgumentNullException(
-                    nameof(acknowledgementsToSend));
+                throw new ArgumentNullException(nameof(acknowledgementsToSend));
             }
 
-            Debug.Assert(
-                Monitor.IsEntered(m_acknowledgementsToSendLock));
+            Debug.Assert(Monitor.IsEntered(m_acknowledgementsToSendLock));
 
-            var acknowledgement =
-                new SubscriptionAcknowledgement
-                {
-                    SubscriptionId = subscriptionId,
-                    SequenceNumber = sequenceNumber
-                };
-
-            acknowledgementsToSend.Add(acknowledgement);
+            acknowledgementsToSend.Add(new SubscriptionAcknowledgement
+            {
+                SubscriptionId = subscriptionId,
+                SequenceNumber = sequenceNumber
+            });
         }
 
         /// <summary>
@@ -1064,8 +934,7 @@ namespace Opc.Ua.Client
             // result is int. Assume sequence numbers to ack
             // do not differ by more than uint.Max / 2
             if (latestSequenceNumberToSend == 0 ||
-                ((int)(sequenceNumber
-                    - latestSequenceNumberToSend)) > 0)
+                ((int)(sequenceNumber - latestSequenceNumberToSend)) > 0)
             {
                 latestSequenceNumberToSend = sequenceNumber;
             }
@@ -1077,52 +946,42 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="requestCount">The actual number of
         /// publish requests.</param>
-        /// <returns>If the publish request limit was
-        /// reached.</returns>
+        /// <returns>If the publish request limit was reached.</returns>
         private bool BelowPublishRequestLimit(int requestCount)
         {
             return (m_tooManyPublishRequests == 0) ||
-                   (requestCount < m_tooManyPublishRequests);
+                (requestCount < m_tooManyPublishRequests);
         }
 
         /// <summary>
         /// Processes an error from a republish response.
         /// </summary>
         /// <param name="e">The exception.</param>
-        /// <param name="subscriptionId">The subscription
-        /// identifier.</param>
-        /// <param name="sequenceNumber">The sequence
-        /// number.</param>
+        /// <param name="subscriptionId">The subscription identifier.</param>
+        /// <param name="sequenceNumber">The sequence number.</param>
         /// <returns>A tuple indicating whether the error was
         /// handled and the service result.</returns>
-        internal (bool handled, ServiceResult error)
-            ProcessRepublishResponseError(
-                Exception e,
-                uint subscriptionId,
-                uint sequenceNumber)
+        internal (bool handled, ServiceResult error) ProcessRepublishResponseError(
+            Exception e,
+            uint subscriptionId,
+            uint sequenceNumber)
         {
             var error = new ServiceResult(e);
 
             bool result = true;
-            if (error.StatusCode ==
-                    StatusCodes.BadSubscriptionIdInvalid ||
-                error.StatusCode ==
-                    StatusCodes.BadMessageNotAvailable)
+            if (error.StatusCode == StatusCodes.BadSubscriptionIdInvalid ||
+                error.StatusCode == StatusCodes.BadMessageNotAvailable)
             {
                 m_logger.LogWarning(
-                    "Message {SubscriptionId}-" +
-                    "{SequenceNumber} no longer available.",
+                    "Message {SubscriptionId}-{SequenceNumber} no longer available.",
                     subscriptionId,
                     sequenceNumber);
             }
-            else if (error.StatusCode ==
-                     StatusCodes.BadEncodingLimitsExceeded)
+            else if (error.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
             {
                 m_logger.LogError(
                     e,
-                    "Message {SubscriptionId}-" +
-                    "{SequenceNumber} exceeded size limits, " +
-                    "ignored.",
+                    "Message {SubscriptionId}-{SequenceNumber} exceeded size limits, ignored.",
                     subscriptionId,
                     sequenceNumber);
                 lock (m_acknowledgementsToSendLock)
@@ -1136,10 +995,7 @@ namespace Opc.Ua.Client
             else
             {
                 result = false;
-                m_logger.LogError(
-                    e,
-                    "Unexpected error sending " +
-                    "republish request.");
+                m_logger.LogError(e, "Unexpected error sending republish request.");
             }
 
             // raise an error event.
@@ -1148,5 +1004,20 @@ namespace Opc.Ua.Client
 
             return (result, error);
         }
+
+        private const int kMinPublishRequestCountMax = 100;
+        private const int kMaxPublishRequestCountMax = ushort.MaxValue;
+        private const int kDefaultPublishRequestCount = 1;
+        private const int kPublishRequestSequenceNumberOutOfOrderThreshold = 10;
+        private const int kPublishRequestSequenceNumberOutdatedThreshold = 100;
+        private readonly ISubscriptionEngineContext m_context;
+        private readonly ILogger m_logger;
+        private readonly object m_acknowledgementsToSendLock = new();
+        private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
+        internal uint PublishCounter;
+        private int m_tooManyPublishRequests;
+        private int m_minPublishRequestCount;
+        private int m_maxPublishRequestCount;
+        private bool m_disposed;
     }
 }

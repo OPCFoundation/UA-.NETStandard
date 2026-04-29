@@ -201,7 +201,7 @@ namespace Opc.Ua.Client
             m_telemetry = messageContext.Telemetry;
             m_logger = m_telemetry.CreateLogger<Session>();
 
-            SessionFactory ??= new ClassicSessionFactory(m_telemetry)
+            SessionFactory ??= new DefaultSessionFactory(m_telemetry)
             {
                 ReturnDiagnostics = ReturnDiagnostics
             };
@@ -1398,7 +1398,7 @@ namespace Opc.Ua.Client
                     m_preferredLocales = preferredLocales;
                 }
 
-                var header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri!);
+                RequestHeader? header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri!);
 
                 // activate session.
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
@@ -2655,7 +2655,7 @@ namespace Opc.Ua.Client
 
                 m_logger.LogInformation("Session RE-ACTIVATING {SessionId}.", SessionId);
 
-                var header = CreateRequestHeaderForActivateSession(
+                RequestHeader? header = CreateRequestHeaderForActivateSession(
                     securityPolicy,
                     tokenSecurityPolicyUri!);
 
@@ -2742,7 +2742,7 @@ namespace Opc.Ua.Client
             {
                 TimeoutHint = (uint)OperationTimeout,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
-                RequestHandle = Utils.IncrementIdentifier(ref m_engine.m_publishCounter)
+                RequestHandle = Utils.IncrementIdentifier(ref m_engine.PublishCounter)
             };
 
             try
@@ -3606,7 +3606,6 @@ namespace Opc.Ua.Client
             m_engine.StartPublishing(timeout, fullQueue);
         }
 
-
         /// <summary>
         /// Helper to refresh the identity (reprompt for password, refresh token) in case of a Recreate of the Session.
         /// </summary>
@@ -4233,7 +4232,7 @@ namespace Opc.Ua.Client
 
             m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
 
-            var securityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
             if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
@@ -4263,7 +4262,7 @@ namespace Opc.Ua.Client
 
             if (!string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
-                var userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+                SecurityPolicyInfo userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
                 if (userTokenSecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                 {
@@ -4506,7 +4505,7 @@ namespace Opc.Ua.Client
             ArrayOf<BrowseDescription> nodesToBrowse,
             [EnumeratorCancellation] CancellationToken ct = default)
         {
-            var first = await BrowseAsync(
+            BrowseResponse first = await BrowseAsync(
                 requestHeader, view, 0, nodesToBrowse, ct).ConfigureAwait(false);
             ClientBase.ValidateResponse(first.Results, nodesToBrowse);
             ClientBase.ValidateDiagnosticInfos(first.DiagnosticInfos, nodesToBrowse);
@@ -4529,7 +4528,8 @@ namespace Opc.Ua.Client
                             "{Session}: Server returned empty references but a " +
                             "continuation point. Stopping to prevent denial of service.",
                             this);
-                        yield return new BrowseResult {
+                        yield return new BrowseResult
+                        {
                             StatusCode = StatusCodes.BadNoData
                         };
                         continue;
@@ -4542,7 +4542,7 @@ namespace Opc.Ua.Client
             {
                 while (continuationPoints.Count > 0)
                 {
-                    var next = await BrowseNextAsync(
+                    BrowseNextResponse next = await BrowseNextAsync(
                         requestHeader, false,
                         continuationPoints.ToArrayOf(), ct).ConfigureAwait(false);
                     ClientBase.ValidateResponse(
@@ -4568,7 +4568,8 @@ namespace Opc.Ua.Client
                                     "{Session}: Server returned empty references " +
                                     "but a continuation point. Stopping to prevent " +
                                     "denial of service.", this);
-                                yield return new BrowseResult {
+                                yield return new BrowseResult
+                                {
                                     StatusCode = StatusCodes.BadNoData
                                 };
                                 continue;

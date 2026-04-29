@@ -257,7 +257,7 @@ namespace Opc.Ua.Mcp
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration!);
                 var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
 
-                var sessionFactory = new ClassicSessionFactory(m_telemetry);
+                var sessionFactory = new DefaultSessionFactory(m_telemetry);
                 Client.ISession session = await sessionFactory.CreateAsync(
                     m_configuration!,
                     endpoint,

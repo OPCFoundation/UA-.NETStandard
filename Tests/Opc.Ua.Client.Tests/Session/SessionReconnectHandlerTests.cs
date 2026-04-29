@@ -271,7 +271,6 @@ namespace Opc.Ua.Client.Tests
             Assert.That(handler.Session, Is.SameAs(mockNewSession.Object));
         }
 
-        #region Helpers
 
         private static ConfiguredEndpoint CreateConfiguredEndpoint(
             MessageSecurityMode securityMode,
@@ -359,6 +358,5 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        #endregion
     }
 }

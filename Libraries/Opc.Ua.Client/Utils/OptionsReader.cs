@@ -37,7 +37,7 @@ namespace Opc.Ua
                 });
             options.OnChange((o, n) =>
             {
-                var change = convert(o);
+                TChange? change = convert(o);
                 if (change != null)
                 {
                     m_changes.Writer.TryWrite(change.Value);
@@ -96,7 +96,7 @@ namespace Opc.Ua
                 {
                     return;
                 }
-                var last = Interlocked.Exchange(ref m_current, o);
+                TOptions? last = Interlocked.Exchange(ref m_current, o);
                 if (o.Equals(last))
                 {
                     return;

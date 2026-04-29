@@ -121,7 +121,7 @@ namespace Quickstarts
                     ct).ConfigureAwait(false);
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
-                var sessionFactory = new ClassicSessionFactory(m_telemetry);
+                var sessionFactory = new DefaultSessionFactory(m_telemetry);
                 var userNameidentity = new UserIdentity(kUserName, new UTF8Encoding(false).GetBytes(kPassword));
 
                 foreach (EndpointDescription ii in endpoints.ToArray())
@@ -242,7 +242,7 @@ namespace Quickstarts
 
         internal async Task<SessionWrapper> RunTestAsync(
             EndpointConfiguration endpointConfiguration,
-            ClassicSessionFactory sessionFactory,
+            DefaultSessionFactory sessionFactory,
             EndpointDescription endpointDescription,
             UserIdentity identity,
             CancellationToken ct)

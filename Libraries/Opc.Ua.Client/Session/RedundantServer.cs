@@ -27,29 +27,30 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading;
-
-namespace Opc.Ua.Client.Sessions
+namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Defines a reconnection policy for ManagedSession.
-    /// Controls backoff timing, retry limits, and jitter for
-    /// automatic reconnection attempts.
+    /// Information about a server in a redundant server set.
     /// </summary>
-    public interface IReconnectPolicy
+    /// <remarks>
+    /// Corresponds to the OPC UA <c>RedundantServerDataType</c>
+    /// defined in Part 5 §12.5.
+    /// </remarks>
+    public sealed class RedundantServer
     {
         /// <summary>
-        /// Get the delay before the next reconnection attempt.
+        /// The URI that identifies the server.
         /// </summary>
-        /// <param name="attempt">Zero-based attempt number.</param>
-        /// <param name="ct">Cancellation token.</param>
-        /// <returns>Delay before next attempt, or null to stop retrying.</returns>
-        TimeSpan? GetNextDelay(int attempt, CancellationToken ct = default);
+        public string ServerUri { get; init; } = string.Empty;
 
         /// <summary>
-        /// Reset the policy state (e.g., after successful reconnection).
+        /// Service level (0–255, higher is better).
         /// </summary>
-        void Reset();
+        public byte ServiceLevel { get; init; }
+
+        /// <summary>
+        /// The current state of the server.
+        /// </summary>
+        public ServerState ServerState { get; init; }
     }
 }

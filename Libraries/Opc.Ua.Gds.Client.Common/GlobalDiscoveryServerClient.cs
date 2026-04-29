@@ -80,7 +80,7 @@ namespace Opc.Ua.Gds.Client
             MessageContext = configuration.CreateMessageContext();
             m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
             m_sessionFactory = sessionFactory ??
-                new ClassicSessionFactory(MessageContext.Telemetry)
+                new DefaultSessionFactory(MessageContext.Telemetry)
                 {
                     ReturnDiagnostics = diagnosticsMasks
                 };

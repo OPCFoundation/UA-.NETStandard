@@ -6,6 +6,7 @@
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua
@@ -42,7 +43,7 @@ namespace Opc.Ua
             set
             {
                 m_currentValue = value;
-                foreach (var listener in m_listeners)
+                foreach (KeyValuePair<Listener, Action<T, string?>> listener in m_listeners)
                 {
                     listener.Value(value, null);
                 }

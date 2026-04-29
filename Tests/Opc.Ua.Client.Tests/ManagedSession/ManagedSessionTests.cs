@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client.Sessions;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {

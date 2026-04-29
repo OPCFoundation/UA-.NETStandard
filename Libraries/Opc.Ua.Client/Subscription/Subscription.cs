@@ -93,7 +93,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     return false;
                 }
-                var timeSinceLastNotification = TimeProvider.System
+                TimeSpan timeSinceLastNotification = TimeProvider.System
                     .GetElapsedTime(lastNotificationTimestamp);
                 return timeSinceLastNotification >
                     m_keepAliveInterval + kKeepAliveTimerMargin;
@@ -287,7 +287,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="options"></param>
         protected virtual void OnOptionsChanged(SubscriptionOptions options)
         {
-            var currentOptions = Options;
+            SubscriptionOptions currentOptions = Options;
             if (currentOptions == options)
             {
                 return;
@@ -357,7 +357,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     await m_stateControl.WaitAsync(ct).ConfigureAwait(false);
                     await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
-                    var options = Options;
+                    SubscriptionOptions options = Options;
                     try
                     {
                         while (!ct.IsCancellationRequested)
@@ -420,7 +420,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 // delete the subscription.
                 ArrayOf<uint> subscriptionIds = new uint[] { Id };
-                var response = await m_context.SubscriptionServiceSet.DeleteSubscriptionsAsync(null,
+                DeleteSubscriptionsResponse response = await m_context.SubscriptionServiceSet.DeleteSubscriptionsAsync(null,
                     subscriptionIds, ct).ConfigureAwait(false);
                 // validate response.
                 Ua.ClientBase.ValidateResponse(response.Results, subscriptionIds);
@@ -451,7 +451,7 @@ namespace Opc.Ua.Client.Subscriptions
             // create the subscription.
             AdjustCounts(options, out var revisedMaxKeepAliveCount, out var revisedLifetimeCount);
 
-            var response = await m_context.SubscriptionServiceSet.CreateSubscriptionAsync(null,
+            CreateSubscriptionResponse response = await m_context.SubscriptionServiceSet.CreateSubscriptionAsync(null,
                 options.PublishingInterval.TotalMilliseconds, revisedLifetimeCount,
                 revisedMaxKeepAliveCount, options.MaxNotificationsPerPublish,
                 options.PublishingEnabled, options.Priority, ct).ConfigureAwait(false);
@@ -480,7 +480,7 @@ namespace Opc.Ua.Client.Subscriptions
                 options.MaxNotificationsPerPublish != CurrentMaxNotificationsPerPublish ||
                 options.PublishingInterval != CurrentPublishingInterval)
             {
-                var response = await m_context.SubscriptionServiceSet.ModifySubscriptionAsync(null, Id,
+                ModifySubscriptionResponse response = await m_context.SubscriptionServiceSet.ModifySubscriptionAsync(null, Id,
                     options.PublishingInterval.TotalMilliseconds, revisedLifetimeCount,
                     revisedMaxKeepAliveCount, options.MaxNotificationsPerPublish, options.Priority,
                     ct).ConfigureAwait(false);
@@ -509,7 +509,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 // modify the subscription.
                 ArrayOf<uint> subscriptionIds = new uint[] { Id };
-                var response = await m_context.SubscriptionServiceSet.SetPublishingModeAsync(
+                SetPublishingModeResponse response = await m_context.SubscriptionServiceSet.SetPublishingModeAsync(
                     null, options.PublishingEnabled, subscriptionIds, ct).ConfigureAwait(false);
 
                 // validate response.
@@ -602,7 +602,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             // Notify all monitored items of the changes
-            var state = created ?
+            SubscriptionState state = created ?
                 SubscriptionState.Created : SubscriptionState.Modified;
             m_monitoredItems.OnSubscriptionStateChange(state, CurrentPublishingInterval);
             OnSubscriptionStateChanged(state);
@@ -645,7 +645,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private void StartKeepAliveTimer()
         {
-            var options = Options;
+            SubscriptionOptions options = Options;
             _lastNotificationTimestamp = TimeProvider.System.GetTimestamp();
             m_keepAliveInterval = CurrentPublishingInterval.Multiply(CurrentKeepAliveCount + 1);
             if (m_keepAliveInterval < kMinKeepAliveTimerInterval)

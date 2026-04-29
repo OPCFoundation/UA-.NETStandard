@@ -915,7 +915,7 @@ namespace Opc.Ua.Client
             Session sessionTemplate,
             CancellationToken ct = default)
         {
-            var factory = new ClassicSessionFactory(sessionTemplate.MessageContext.Telemetry)
+            var factory = new DefaultSessionFactory(sessionTemplate.MessageContext.Telemetry)
             {
                 ReturnDiagnostics = sessionTemplate.ReturnDiagnostics
             };
@@ -933,7 +933,7 @@ namespace Opc.Ua.Client
             ITransportWaitingConnection connection,
             CancellationToken ct = default)
         {
-            var factory = new ClassicSessionFactory(sessionTemplate.MessageContext.Telemetry)
+            var factory = new DefaultSessionFactory(sessionTemplate.MessageContext.Telemetry)
             {
                 ReturnDiagnostics = sessionTemplate.ReturnDiagnostics
             };
@@ -952,7 +952,7 @@ namespace Opc.Ua.Client
             ITransportChannel transportChannel,
             CancellationToken ct = default)
         {
-            var factory = new ClassicSessionFactory(sessionTemplate.MessageContext.Telemetry)
+            var factory = new DefaultSessionFactory(sessionTemplate.MessageContext.Telemetry)
             {
                 ReturnDiagnostics = sessionTemplate.ReturnDiagnostics
             };
@@ -1100,7 +1100,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> discoveryProfileUris = default)
         {
             ServiceMessageContext context = configuration.CreateMessageContext(false);
-            var factory = new ClassicSessionFactory(context.Telemetry);
+            var factory = new DefaultSessionFactory(context.Telemetry);
             return (Session)factory.Create(
                 channel,
                 configuration,
@@ -1124,7 +1124,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ServiceMessageContext context = configuration.CreateMessageContext(false);
-            var factory = new ClassicSessionFactory(context.Telemetry);
+            var factory = new DefaultSessionFactory(context.Telemetry);
             return factory.CreateChannelAsync(
                 configuration,
                 connection,
@@ -1153,7 +1153,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ServiceMessageContext context = configuration.CreateMessageContext(false);
-            var factory = new ClassicSessionFactory(context.Telemetry)
+            var factory = new DefaultSessionFactory(context.Telemetry)
             {
                 ReturnDiagnostics = returnDiagnostics
             };
@@ -1187,7 +1187,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ServiceMessageContext context = configuration.CreateMessageContext(false);
-            var factory = new ClassicSessionFactory(context.Telemetry);
+            var factory = new DefaultSessionFactory(context.Telemetry);
             return (Session)await factory.CreateAsync(
                 configuration,
                 reverseConnectManager,
@@ -1220,7 +1220,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ServiceMessageContext context = configuration.CreateMessageContext(false);
-            var factory = new ClassicSessionFactory(context.Telemetry)
+            var factory = new DefaultSessionFactory(context.Telemetry)
             {
                 ReturnDiagnostics = returnDiagnostics
             };
@@ -1291,7 +1291,7 @@ namespace Opc.Ua.Client
         /// Object that creates instances of a session
         /// </summary>
         [Obsolete("Use ClassicSessionFactory which also provides tracing capabilities.")]
-        public class TraceableSessionFactory : ClassicSessionFactory
+        public class TraceableSessionFactory : DefaultSessionFactory
         {
             /// <summary>
             /// The default instance of the factory.

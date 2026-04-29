@@ -54,7 +54,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             m_handler = new DefaultServerRedundancyHandler();
         }
 
-        #region SelectFailoverTarget Tests
 
         [Test]
         public void SelectFailoverTargetReturnsNullForNoneMode()
@@ -79,7 +78,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Transparent,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServerInfo>
+                RedundantServers = new List<RedundantServer>
                 {
                     CreateServerInfo("urn:backup", 200, ServerState.Running),
                 },
@@ -98,7 +97,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Hot,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServerInfo>
+                RedundantServers = new List<RedundantServer>
                 {
                     CreateServerInfo("urn:server-low", 100, ServerState.Running),
                     CreateServerInfo("urn:server-high", 250, ServerState.Running),
@@ -122,7 +121,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Hot,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServerInfo>
+                RedundantServers = new List<RedundantServer>
                 {
                     CreateServerInfo("urn:current", 255, ServerState.Running),
                     CreateServerInfo("urn:backup", 100, ServerState.Running),
@@ -145,7 +144,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Hot,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServerInfo>
+                RedundantServers = new List<RedundantServer>
                 {
                     CreateServerInfo("urn:suspended", 255, ServerState.Suspended),
                     CreateServerInfo("urn:shutdown", 240, ServerState.Shutdown),
@@ -169,7 +168,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Hot,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServerInfo>
+                RedundantServers = new List<RedundantServer>
                 {
                     CreateServerInfo("urn:current", 200, ServerState.Running),
                     CreateServerInfo("urn:down", 100, ServerState.Shutdown),
@@ -190,7 +189,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Cold,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServerInfo>
+                RedundantServers = new List<RedundantServer>
                 {
                     CreateServerInfo("urn:backup", 150, ServerState.Running),
                 },
@@ -212,7 +211,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Warm,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServerInfo>
+                RedundantServers = new List<RedundantServer>
                 {
                     CreateServerInfo("urn:backup", 150, ServerState.Running),
                 },
@@ -234,7 +233,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Hot,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServerInfo>
+                RedundantServers = new List<RedundantServer>
                 {
                     CreateServerInfo("urn:backup", 150, ServerState.Running),
                 },
@@ -256,7 +255,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.HotAndMirrored,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServerInfo>
+                RedundantServers = new List<RedundantServer>
                 {
                     CreateServerInfo("urn:backup", 150, ServerState.Running),
                 },
@@ -271,9 +270,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Is.EqualTo("urn:backup"));
         }
 
-        #endregion
 
-        #region FetchRedundancyInfoAsync Tests
 
         [Test]
         public async Task FetchRedundancyInfoReturnsNoneWhenNotSupportedAsync()
@@ -356,14 +353,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(info.RedundantServers, Is.Empty);
         }
 
-        #endregion
 
-        #region Helpers
 
-        private static RedundantServerInfo CreateServerInfo(
+        private static RedundantServer CreateServerInfo(
             string uri, byte serviceLevel, ServerState state)
         {
-            return new RedundantServerInfo
+            return new RedundantServer
             {
                 ServerUri = uri,
                 ServiceLevel = serviceLevel,
@@ -468,6 +463,5 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             return mock;
         }
 
-        #endregion
     }
 }

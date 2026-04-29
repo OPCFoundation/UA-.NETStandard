@@ -51,7 +51,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void DefaultSessionFactoryCreateReturnsManagedSession()
         {
-            var factory = new DefaultSessionFactory(m_telemetry);
+            var factory = new ManagedSessionFactory(m_telemetry);
             var channel = new Mock<ITransportChannel>();
             channel
                 .SetupGet(c => c.MessageContext)
@@ -85,7 +85,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ClassicSessionFactoryCreateReturnsSession()
         {
-            var factory = new ClassicSessionFactory(m_telemetry);
+            var factory = new DefaultSessionFactory(m_telemetry);
             var channel = new Mock<ITransportChannel>();
             channel
                 .SetupGet(c => c.MessageContext)
@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void DefaultSessionFactoryReturnDiagnosticsIsConfigurable()
         {
-            var factory = new DefaultSessionFactory(m_telemetry);
+            var factory = new ManagedSessionFactory(m_telemetry);
 
             Assert.That(factory.ReturnDiagnostics, Is.EqualTo(DiagnosticsMasks.None));
 

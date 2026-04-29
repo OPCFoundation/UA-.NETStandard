@@ -187,7 +187,7 @@ namespace Opc.Ua.Client.Subscriptions
                     subscriptions = [.. m_subscriptions];
                     m_subscriptions.Clear();
                 }
-                foreach (var subscription in subscriptions)
+                foreach (IManagedSubscription subscription in subscriptions)
                 {
                     await subscription.DisposeAsync().ConfigureAwait(false);
                 }
@@ -248,7 +248,7 @@ namespace Opc.Ua.Client.Subscriptions
         public ISubscription Add(ISubscriptionNotificationHandler handler,
             IOptionsMonitor<SubscriptionOptions> options)
         {
-            var subscription = m_session.CreateSubscription(handler, options, this);
+            IManagedSubscription subscription = m_session.CreateSubscription(handler, options, this);
             lock (m_subscriptionLock)
             {
                 if (!m_subscriptions.Add(subscription))
@@ -269,7 +269,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             lock (m_subscriptionLock)
             {
-                foreach (var item in m_subscriptions)
+                foreach (IManagedSubscription item in m_subscriptions)
                 {
                     item.NotifySubscriptionManagerPaused(false);
                 }
@@ -284,7 +284,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             lock (m_subscriptionLock)
             {
-                foreach (var item in m_subscriptions)
+                foreach (IManagedSubscription item in m_subscriptions)
                 {
                     item.NotifySubscriptionManagerPaused(true);
                 }
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.Subscriptions
                     false, ct).ConfigureAwait(false);
             }
             // Force creation of the subscriptions which were not transferred.
-            foreach (var subscription in subscriptions)
+            foreach (IManagedSubscription subscription in subscriptions)
             {
                 var force = previousSessionId != null && subscription.Created;
                 await subscription.RecreateAsync(ct).ConfigureAwait(false);
@@ -334,10 +334,10 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 var subscriptionIds = new ArrayOf<uint>(subscriptions
                     .Select(s => s.Id).ToArray());
-                var response = await m_session.TransferSubscriptionsAsync(null,
+                TransferSubscriptionsResponse response = await m_session.TransferSubscriptionsAsync(null,
                     subscriptionIds, sendInitialValues, ct).ConfigureAwait(false);
 
-                var responseHeader = response.ResponseHeader;
+                ResponseHeader responseHeader = response.ResponseHeader;
                 if (!StatusCode.IsGood(responseHeader.ServiceResult))
                 {
                     if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
@@ -356,8 +356,8 @@ namespace Opc.Ua.Client.Subscriptions
                     return remaining;
                 }
 
-                var transferResults = response.Results;
-                var diagnosticInfos = response.DiagnosticInfos;
+                ArrayOf<TransferResult> transferResults = response.Results;
+                ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
                 Ua.ClientBase.ValidateResponse(transferResults, subscriptionIds);
                 Ua.ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
                 for (var index = 0; index < subscriptions.Count; index++)
@@ -406,7 +406,7 @@ namespace Opc.Ua.Client.Subscriptions
             lock (m_subscriptionLock)
             {
                 // find the subscription.
-                foreach (var subscription in m_subscriptions)
+                foreach (IManagedSubscription subscription in m_subscriptions)
                 {
                     if (subscription.Id == subscriptionId)
                     {
@@ -434,7 +434,7 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         // Too many workers, reduce
 #if NET8_0_OR_GREATER
-                        foreach (var worker in publishWorkers[desiredWorkerCount..])
+                        foreach (PublishWorker worker in publishWorkers[desiredWorkerCount..])
 #else
                         foreach (var worker in publishWorkers.Skip(desiredWorkerCount))
 #endif
@@ -458,18 +458,18 @@ namespace Opc.Ua.Client.Subscriptions
                             .Select(index => new PublishWorker(this, index)));
                     }
                     PublishWorkerCount = publishWorkers.Count;
-                    var waiting = publishWorkers
+                    Task[] waiting = publishWorkers
                         .Select(w => w.Task)
                         .Prepend(m_publishControl.WaitAsync(ct))
                         .ToArray();
                     await Task.WhenAny(waiting).ConfigureAwait(false);
                     PublishControlCycles++;
                     var index = 0;
-                    foreach (var item in waiting.Skip(1)) // Skip wait handle
+                    foreach (Task? item in waiting.Skip(1)) // Skip wait handle
                     {
                         if (item.IsCompleted)
                         {
-                            var worker = publishWorkers[index];
+                            PublishWorker worker = publishWorkers[index];
                             m_logger.LogInformation("Publish worker {Index} exited",
                                 worker.Index);
                             await worker.DisposeAsync().ConfigureAwait(false);
@@ -495,7 +495,7 @@ namespace Opc.Ua.Client.Subscriptions
             finally
             {
                 // Controller exits, clean up all workers
-                foreach (var worker in publishWorkers)
+                foreach (PublishWorker worker in publishWorkers)
                 {
                     await worker.DisposeAsync().ConfigureAwait(false);
                     PublishWorkerCount--;
@@ -625,7 +625,7 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     var ackWaitTimeout = CalculateTimeouts(
                         publishLatency.ElapsedMilliseconds, ref timeoutHint);
-                    var acks = GetAcksReadyToSend();
+                    ArrayOf<SubscriptionAcknowledgement> acks = GetAcksReadyToSend();
                     var handle = Utils.IncrementIdentifier(ref m_outer.m_publishRequestCounter);
                     try
                     {
@@ -635,7 +635,7 @@ namespace Opc.Ua.Client.Subscriptions
                             acks = await WaitForAcksAsync(ackWaitTimeout, ct).ConfigureAwait(false);
                         }
                         publishLatency.Restart();
-                        var response = await m_outer.m_session.PublishAsync(new RequestHeader
+                        PublishResponse response = await m_outer.m_session.PublishAsync(new RequestHeader
                         {
                             TimeoutHint = timeoutHint,
                             ReturnDiagnostics = (uint)(int)m_outer.ReturnDiagnostics,
@@ -644,17 +644,17 @@ namespace Opc.Ua.Client.Subscriptions
 
                         moreNotifications = response.MoreNotifications;
                         var subscriptionId = response.SubscriptionId;
-                        var notificationMessage = response.NotificationMessage;
-                        var availableSequenceNumbers = response.AvailableSequenceNumbers;
+                        NotificationMessage notificationMessage = response.NotificationMessage;
+                        ArrayOf<uint> availableSequenceNumbers = response.AvailableSequenceNumbers;
 
-                        var acknowledgeResults = response.Results;
-                        var acknowledgeDiagnosticInfos = response.DiagnosticInfos;
+                        ArrayOf<StatusCode> acknowledgeResults = response.Results;
+                        ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos = response.DiagnosticInfos;
                         Ua.ClientBase.ValidateResponse(acknowledgeResults, acks);
                         Ua.ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
                         TooManyPublishRequests = false;
 
                         // Get the subscription with the provided identifier
-                        var subscription = m_outer.GetById(subscriptionId);
+                        IManagedSubscription? subscription = m_outer.GetById(subscriptionId);
                         publishLatency.Stop();
                         if (subscription != null)
                         {
@@ -710,7 +710,7 @@ namespace Opc.Ua.Client.Subscriptions
 
                         // don't send another publish for these errors,
                         // or throttle to avoid server overload.
-                        var statusCode = error.StatusCode;
+                        StatusCode statusCode = error.StatusCode;
                         if (statusCode == StatusCodes.BadTooManyPublishRequests)
                         {
                             TooManyPublishRequests = true;
@@ -798,9 +798,9 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 try
                 {
-                    var firstAck = await m_outer.m_acks.Reader.ReadAsync(
+                    SubscriptionAcknowledgement firstAck = await m_outer.m_acks.Reader.ReadAsync(
                         cts.Token).ConfigureAwait(false);
-                    var restAcks = GetAcksReadyToSend();
+                    ArrayOf<SubscriptionAcknowledgement> restAcks = GetAcksReadyToSend();
                     var ackList = restAcks.ToList();
                     ackList.Insert(0, firstAck);
                     ArrayOf<SubscriptionAcknowledgement> acks = ackList;
@@ -830,7 +830,7 @@ namespace Opc.Ua.Client.Subscriptions
                 var available = m_outer.m_acks.Reader.Count;
                 var maxAcks = available / Math.Max(m_outer.PublishWorkerCount, 1);
                 for (var i = 0; i < maxAcks
-                    && m_outer.m_acks.Reader.TryRead(out var ack); i++)
+                    && m_outer.m_acks.Reader.TryRead(out SubscriptionAcknowledgement? ack); i++)
                 {
                     acks.Add(ack);
                 }
@@ -851,18 +851,18 @@ namespace Opc.Ua.Client.Subscriptions
             /// <returns>Max time to throttle the publish</returns>
             private int CalculateTimeouts(long latency, ref uint currentTimeout)
             {
-                var created = m_outer.Created;
+                List<IManagedSubscription> created = m_outer.Created;
                 if (created.Count == 0)
                 {
                     return 0;
                 }
 
-                var timeout = TimeSpan.Zero;
+                TimeSpan timeout = TimeSpan.Zero;
                 var minPublishInterval = Timeout.Infinite;
-                foreach (var s in created)
+                foreach (IManagedSubscription s in created)
                 {
-                    var publishingInterval = s.CurrentPublishingInterval;
-                    var keepAlive = publishingInterval.Multiply(s.CurrentKeepAliveCount);
+                    TimeSpan publishingInterval = s.CurrentPublishingInterval;
+                    TimeSpan keepAlive = publishingInterval.Multiply(s.CurrentKeepAliveCount);
                     if (timeout < keepAlive)
                     {
                         timeout = keepAlive;

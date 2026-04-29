@@ -83,7 +83,7 @@ namespace Opc.Ua.Client
             (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) =
                 await session.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
 
-            var mode = RedundancyMode.None;
+            RedundancyMode mode = RedundancyMode.None;
             if (StatusCode.IsGood(errors[0].StatusCode))
             {
                 mode = ToRedundancyMode(values[0].GetValue(0));
@@ -96,7 +96,7 @@ namespace Opc.Ua.Client
             }
 
             // Read the redundant server array (may not exist when mode is None).
-            var redundantServers = new List<RedundantServerInfo>();
+            var redundantServers = new List<RedundantServer>();
             if (mode != RedundancyMode.None)
             {
                 redundantServers = await ReadRedundantServerArrayAsync(
@@ -136,7 +136,7 @@ namespace Opc.Ua.Client
 
             // Pick the running server with the highest service level
             // that is not the current server.
-            var best = redundancyInfo.RedundantServers
+            RedundantServer? best = redundancyInfo.RedundantServers
                 .Where(s => s.ServerState == ServerState.Running
                     && !string.Equals(s.ServerUri, currentUri,
                         StringComparison.Ordinal))
@@ -160,11 +160,11 @@ namespace Opc.Ua.Client
             return new ConfiguredEndpoint(null, endpointDescription);
         }
 
-        private static async Task<List<RedundantServerInfo>>
+        private static async Task<List<RedundantServer>>
             ReadRedundantServerArrayAsync(
             ISession session, CancellationToken ct)
         {
-            var result = new List<RedundantServerInfo>();
+            var result = new List<RedundantServer>();
 
             try
             {
@@ -185,7 +185,7 @@ namespace Opc.Ua.Client
                         if (extensionObject.TryGetEncodeable(
                             out RedundantServerDataType serverData))
                         {
-                            result.Add(new RedundantServerInfo
+                            result.Add(new RedundantServer
                             {
                                 ServerUri = serverData.ServerId
                                     ?? string.Empty,

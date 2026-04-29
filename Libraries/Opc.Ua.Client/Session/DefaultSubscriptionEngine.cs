@@ -49,9 +49,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public sealed class DefaultSubscriptionEngine : ISubscriptionEngine
     {
-        private readonly SubscriptionManager m_manager;
-        private bool m_disposed;
-
         /// <summary>
         /// Initializes a new instance of the
         /// <see cref="DefaultSubscriptionEngine"/> class.
@@ -65,24 +62,20 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            var loggerFactory = context.Telemetry.LoggerFactory;
             m_manager = new SubscriptionManager(
                 new EngineContextAdapter(context),
-                loggerFactory,
+                context.Telemetry.LoggerFactory,
                 context.ReturnDiagnostics);
         }
 
         /// <inheritdoc/>
-        public int GoodPublishRequestCount
-            => m_manager.GoodPublishRequestCount;
+        public int GoodPublishRequestCount => m_manager.GoodPublishRequestCount;
 
         /// <inheritdoc/>
-        public int BadPublishRequestCount
-            => m_manager.BadPublishRequestCount;
+        public int BadPublishRequestCount => m_manager.BadPublishRequestCount;
 
         /// <inheritdoc/>
-        public int PublishWorkerCount
-            => m_manager.PublishWorkerCount;
+        public int PublishWorkerCount => m_manager.PublishWorkerCount;
 
         /// <inheritdoc/>
         public int MinPublishRequestCount
@@ -172,14 +165,9 @@ namespace Opc.Ua.Client
         /// <see cref="SubscriptionManager"/> can operate against
         /// a classic session.
         /// </summary>
-        private sealed class EngineContextAdapter
-            : ISubscriptionManagerContext
+        private sealed class EngineContextAdapter : ISubscriptionManagerContext
         {
-            private readonly ISubscriptionEngineContext
-                m_context;
-
-            public EngineContextAdapter(
-                ISubscriptionEngineContext context)
+            public EngineContextAdapter(ISubscriptionEngineContext context)
             {
                 m_context = context;
             }
@@ -200,8 +188,7 @@ namespace Opc.Ua.Client
             /// <inheritdoc/>
             public ValueTask<PublishResponse> PublishAsync(
                 RequestHeader? requestHeader,
-                ArrayOf<SubscriptionAcknowledgement>
-                    subscriptionAcknowledgements,
+                ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
                 CancellationToken ct)
             {
                 return m_context.PublishAsync(
@@ -210,12 +197,11 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public ValueTask<TransferSubscriptionsResponse>
-                TransferSubscriptionsAsync(
-                    RequestHeader? requestHeader,
-                    ArrayOf<uint> subscriptionIds,
-                    bool sendInitialValues,
-                    CancellationToken ct)
+            public ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+                RequestHeader? requestHeader,
+                ArrayOf<uint> subscriptionIds,
+                bool sendInitialValues,
+                CancellationToken ct)
             {
                 return m_context.TransferSubscriptionsAsync(
                     requestHeader, subscriptionIds,
@@ -223,31 +209,27 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public ValueTask<DeleteSubscriptionsResponse>
-                DeleteSubscriptionsAsync(
-                    RequestHeader? requestHeader,
-                    ArrayOf<uint> subscriptionIds,
-                    CancellationToken ct)
+            public ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+                RequestHeader? requestHeader,
+                ArrayOf<uint> subscriptionIds,
+                CancellationToken ct)
             {
                 return m_context.DeleteSubscriptionsAsync(
                     requestHeader, subscriptionIds, ct);
             }
+
+            private readonly ISubscriptionEngineContext m_context;
         }
 
         /// <summary>
         /// Adapts the classic session services exposed by
         /// <see cref="ISubscriptionEngineContext"/> into the
-        /// <see cref="ISubscriptionContext"/> needed by the V2
+        /// <see cref="ISubscriptionContext"/> needed by the modern
         /// <see cref="Subscription"/> base class.
         /// </summary>
-        private sealed class SubscriptionContextAdapter
-            : ISubscriptionContext
+        private sealed class SubscriptionContextAdapter : ISubscriptionContext
         {
-            private readonly ISubscriptionEngineContext m_context;
-            private readonly ServiceSetAdapter m_services;
-
-            public SubscriptionContextAdapter(
-                ISubscriptionEngineContext context)
+            public SubscriptionContextAdapter(ISubscriptionEngineContext context)
             {
                 m_context = context;
                 m_services = new ServiceSetAdapter(context);
@@ -255,33 +237,32 @@ namespace Opc.Ua.Client
 
             /// <inheritdoc/>
             public TimeSpan SessionTimeout
-                => TimeSpan.FromMilliseconds(
-                    m_context.OperationTimeout);
+                => TimeSpan.FromMilliseconds(m_context.OperationTimeout);
 
             /// <inheritdoc/>
-            public ISubscriptionServiceSetClientMethods
-                SubscriptionServiceSet => m_services;
+            public ISubscriptionServiceSetClientMethods SubscriptionServiceSet => m_services;
 
             /// <inheritdoc/>
-            public IMonitoredItemServiceSetClientMethods
-                MonitoredItemServiceSet => m_services;
+            public IMonitoredItemServiceSetClientMethods MonitoredItemServiceSet => m_services;
 
             /// <inheritdoc/>
-            public IMethodServiceSetClientMethods
-                MethodServiceSet => m_services;
+            public IMethodServiceSetClientMethods MethodServiceSet => m_services;
 
             /// <inheritdoc/>
             public override string ToString()
             {
                 return m_context.SessionId.ToString();
             }
+
+            private readonly ISubscriptionEngineContext m_context;
+            private readonly ServiceSetAdapter m_services;
         }
 
         /// <summary>
-        /// Routes OPC UA service calls from V2 subscriptions
+        /// Routes OPC UA service calls from subscriptions
         /// back through the classic
         /// <see cref="ISubscriptionEngineContext"/>. Operations
-        /// that the V2 subscriptions invoke for lifecycle
+        /// that the subscriptions invoke for lifecycle
         /// management are delegated to the underlying session.
         /// </summary>
         private sealed class ServiceSetAdapter
@@ -289,28 +270,21 @@ namespace Opc.Ua.Client
               IMonitoredItemServiceSetClientMethods,
               IMethodServiceSetClientMethods
         {
-            private readonly ISubscriptionEngineContext
-                m_context;
-
-            public ServiceSetAdapter(
-                ISubscriptionEngineContext context)
+            public ServiceSetAdapter(ISubscriptionEngineContext context)
             {
                 m_context = context;
             }
 
-            // --- ISubscriptionServiceSet ---
-
             /// <inheritdoc/>
-            public ValueTask<CreateSubscriptionResponse>
-                CreateSubscriptionAsync(
-                    RequestHeader? requestHeader,
-                    double requestedPublishingInterval,
-                    uint requestedLifetimeCount,
-                    uint requestedMaxKeepAliveCount,
-                    uint maxNotificationsPerPublish,
-                    bool publishingEnabled,
-                    byte priority,
-                    CancellationToken ct)
+            public ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
+                RequestHeader? requestHeader,
+                double requestedPublishingInterval,
+                uint requestedLifetimeCount,
+                uint requestedMaxKeepAliveCount,
+                uint maxNotificationsPerPublish,
+                bool publishingEnabled,
+                byte priority,
+                CancellationToken ct)
             {
                 // TODO: Route through the session when the
                 // V2 engine owns the full subscription
@@ -321,16 +295,15 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public ValueTask<ModifySubscriptionResponse>
-                ModifySubscriptionAsync(
-                    RequestHeader? requestHeader,
-                    uint subscriptionId,
-                    double requestedPublishingInterval,
-                    uint requestedLifetimeCount,
-                    uint requestedMaxKeepAliveCount,
-                    uint maxNotificationsPerPublish,
-                    byte priority,
-                    CancellationToken ct)
+            public ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
+                RequestHeader? requestHeader,
+                uint subscriptionId,
+                double requestedPublishingInterval,
+                uint requestedLifetimeCount,
+                uint requestedMaxKeepAliveCount,
+                uint maxNotificationsPerPublish,
+                byte priority,
+                CancellationToken ct)
             {
                 // TODO: Route through the session when the
                 // V2 engine owns the full subscription
@@ -341,12 +314,11 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public ValueTask<SetPublishingModeResponse>
-                SetPublishingModeAsync(
-                    RequestHeader? requestHeader,
-                    bool publishingEnabled,
-                    ArrayOf<uint> subscriptionIds,
-                    CancellationToken ct)
+            public ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
+                RequestHeader? requestHeader,
+                bool publishingEnabled,
+                ArrayOf<uint> subscriptionIds,
+                CancellationToken ct)
             {
                 // TODO: Route through the session when the
                 // V2 engine owns the full subscription
@@ -357,12 +329,11 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public ValueTask<RepublishResponse>
-                RepublishAsync(
-                    RequestHeader? requestHeader,
-                    uint subscriptionId,
-                    uint retransmitSequenceNumber,
-                    CancellationToken ct)
+            public ValueTask<RepublishResponse> RepublishAsync(
+                RequestHeader? requestHeader,
+                uint subscriptionId,
+                uint retransmitSequenceNumber,
+                CancellationToken ct)
             {
                 // TODO: Route through the session when the
                 // V2 engine owns the full subscription
@@ -373,27 +344,22 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public ValueTask<DeleteSubscriptionsResponse>
-                DeleteSubscriptionsAsync(
-                    RequestHeader? requestHeader,
-                    ArrayOf<uint> subscriptionIds,
-                    CancellationToken ct)
+            public ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+                RequestHeader? requestHeader,
+                ArrayOf<uint> subscriptionIds,
+                CancellationToken ct)
             {
                 return m_context.DeleteSubscriptionsAsync(
                     requestHeader, subscriptionIds, ct);
             }
 
-            // --- IMonitoredItemServiceSet ---
-
             /// <inheritdoc/>
-            public ValueTask<CreateMonitoredItemsResponse>
-                CreateMonitoredItemsAsync(
-                    RequestHeader? requestHeader,
-                    uint subscriptionId,
-                    TimestampsToReturn timestampsToReturn,
-                    ArrayOf<MonitoredItemCreateRequest>
-                        itemsToCreate,
-                    CancellationToken ct)
+            public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+                RequestHeader? requestHeader,
+                uint subscriptionId,
+                TimestampsToReturn timestampsToReturn,
+                ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+                CancellationToken ct)
             {
                 // TODO: Route through the session when the
                 // V2 engine owns the full subscription
@@ -404,14 +370,12 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public ValueTask<ModifyMonitoredItemsResponse>
-                ModifyMonitoredItemsAsync(
-                    RequestHeader? requestHeader,
-                    uint subscriptionId,
-                    TimestampsToReturn timestampsToReturn,
-                    ArrayOf<MonitoredItemModifyRequest>
-                        itemsToModify,
-                    CancellationToken ct)
+            public ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+                RequestHeader? requestHeader,
+                uint subscriptionId,
+                TimestampsToReturn timestampsToReturn,
+                ArrayOf<MonitoredItemModifyRequest> itemsToModify,
+                CancellationToken ct)
             {
                 // TODO: Route through the session when the
                 // V2 engine owns the full subscription
@@ -422,12 +386,11 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public ValueTask<DeleteMonitoredItemsResponse>
-                DeleteMonitoredItemsAsync(
-                    RequestHeader? requestHeader,
-                    uint subscriptionId,
-                    ArrayOf<uint> monitoredItemIds,
-                    CancellationToken ct)
+            public ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+                RequestHeader? requestHeader,
+                uint subscriptionId,
+                ArrayOf<uint> monitoredItemIds,
+                CancellationToken ct)
             {
                 // TODO: Route through the session when the
                 // V2 engine owns the full subscription
@@ -438,13 +401,12 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public ValueTask<SetMonitoringModeResponse>
-                SetMonitoringModeAsync(
-                    RequestHeader? requestHeader,
-                    uint subscriptionId,
-                    MonitoringMode monitoringMode,
-                    ArrayOf<uint> monitoredItemIds,
-                    CancellationToken ct)
+            public ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
+                RequestHeader? requestHeader,
+                uint subscriptionId,
+                MonitoringMode monitoringMode,
+                ArrayOf<uint> monitoredItemIds,
+                CancellationToken ct)
             {
                 // TODO: Route through the session when the
                 // V2 engine owns the full subscription
@@ -453,8 +415,6 @@ namespace Opc.Ua.Client
                     "SetMonitoringMode is not yet " +
                     "supported through the V2 engine.");
             }
-
-            // --- IMethodServiceSet ---
 
             /// <inheritdoc/>
             public ValueTask<CallResponse> CallAsync(
@@ -473,8 +433,7 @@ namespace Opc.Ua.Client
             /// <inheritdoc/>
             public ValueTask<PublishResponse> PublishAsync(
                 RequestHeader? requestHeader,
-                ArrayOf<SubscriptionAcknowledgement>
-                    subscriptionAcknowledgements,
+                ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
                 CancellationToken ct)
             {
                 throw new NotSupportedException(
@@ -483,8 +442,7 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public ValueTask<TransferSubscriptionsResponse>
-                TransferSubscriptionsAsync(
+            public ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
                     RequestHeader? requestHeader,
                     ArrayOf<uint> subscriptionIds,
                     bool sendInitialValues,
@@ -496,8 +454,7 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public ValueTask<SetTriggeringResponse>
-                SetTriggeringAsync(
+            public ValueTask<SetTriggeringResponse> SetTriggeringAsync(
                     RequestHeader? requestHeader,
                     uint subscriptionId,
                     uint triggeringItemId,
@@ -509,10 +466,12 @@ namespace Opc.Ua.Client
                     "SetTriggering is not yet supported " +
                     "through the V2 engine.");
             }
+
+            private readonly ISubscriptionEngineContext m_context;
         }
 
         /// <summary>
-        /// A concrete V2 <see cref="Subscription"/> that can
+        /// A concrete <see cref="Subscription"/> that can
         /// be instantiated by the engine context adapter. The
         /// base class is abstract so this thin subclass exposes
         /// the constructor and provides a default monitored item
@@ -532,23 +491,22 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            protected override Subscriptions.MonitoredItems.MonitoredItem
-                CreateMonitoredItem(
-                    string name,
-                    IOptionsMonitor<Subscriptions.MonitoredItems.MonitoredItemOptions>
-                        options,
-                    IMonitoredItemContext context,
-                    ITelemetryContext telemetry)
+            protected override Subscriptions.MonitoredItems.MonitoredItem CreateMonitoredItem(
+                string name,
+                IOptionsMonitor<Subscriptions.MonitoredItems.MonitoredItemOptions> options,
+                IMonitoredItemContext context,
+                ITelemetryContext telemetry)
             {
                 return new DefaultMonitoredItem(
-                    context, name, options,
-                    telemetry.LoggerFactory
-                        .CreateLogger<DefaultMonitoredItem>());
+                    context,
+                    name,
+                    options,
+                    telemetry.LoggerFactory.CreateLogger<DefaultMonitoredItem>());
             }
         }
 
         /// <summary>
-        /// A concrete V2 <see cref="MonitoredItem"/> that can
+        /// A concrete <see cref="MonitoredItem"/> that can
         /// be instantiated by the default subscription. The
         /// base class is abstract so this thin subclass simply
         /// exposes the constructor.
@@ -565,5 +523,8 @@ namespace Opc.Ua.Client
             {
             }
         }
+
+        private readonly SubscriptionManager m_manager;
+        private bool m_disposed;
     }
 }

@@ -37,7 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
-using Opc.Ua.Client.Sessions;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.Client
 {
@@ -62,7 +62,6 @@ namespace Opc.Ua.Client
     /// </remarks>
     public partial class ManagedSession : ISession, IAsyncDisposable
     {
-
         private volatile Session? m_session;
         private readonly ConnectionStateMachine m_stateMachine;
         private readonly AsyncReaderWriterLock m_serviceLock = new();
@@ -159,7 +158,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             telemetry ??= sessionFactory.Telemetry;
-            var logger = telemetry.CreateLogger<ManagedSession>();
+            ILogger<ManagedSession> logger = telemetry.CreateLogger<ManagedSession>();
 
             var managed = new ManagedSession(
                 configuration,
@@ -187,11 +186,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the inner V1 session. Throws if no session is available.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal Session InnerSession
         {
             get
             {
-                var session = m_session;
+                Session? session = m_session;
                 if (session == null)
                 {
                     throw new ServiceResultException(
@@ -730,7 +730,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             m_stateMachine.RequestClose();
-            var session = m_session;
+            Session? session = m_session;
             if (session != null)
             {
                 return await session.CloseAsync(
@@ -843,7 +843,7 @@ namespace Opc.Ua.Client
             using (await m_serviceLock.ReaderLockAsync(ct)
                 .ConfigureAwait(false))
             {
-                await foreach (var result in InnerSession
+                await foreach (BrowseResult? result in InnerSession
                     .BrowseStreamAsync(
                         requestHeader, view, nodesToBrowse, ct)
                     .ConfigureAwait(false))
@@ -867,7 +867,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             m_stateMachine.RequestClose();
-            var session = m_session;
+            Session? session = m_session;
             if (session != null)
             {
                 return await session.CloseAsync(ct)
@@ -946,7 +946,7 @@ namespace Opc.Ua.Client
                 using (await m_serviceLock.WriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
-                    var session = m_session;
+                    Session? session = m_session;
                     if (session != null)
                     {
                         await session.ReconnectAsync(
@@ -983,7 +983,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                var failoverEndpoint =
+                ConfiguredEndpoint? failoverEndpoint =
                     m_redundancyHandler.SelectFailoverTarget(
                         m_redundancyInfo, m_endpoint);
 
@@ -1000,7 +1000,7 @@ namespace Opc.Ua.Client
                 using (await m_serviceLock.WriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
-                    var oldSession = m_session;
+                    Session? oldSession = m_session;
 
                     var newSession =
                         (Session)await m_sessionFactory.CreateAsync(
@@ -1059,7 +1059,7 @@ namespace Opc.Ua.Client
         private async Task HandleCloseSessionAsync(
             CancellationToken ct)
         {
-            var session = m_session;
+            Session? session = m_session;
             if (session != null)
             {
                 m_session = null;
@@ -1185,7 +1185,7 @@ namespace Opc.Ua.Client
             {
                 m_stateMachine.RequestClose();
 
-                var session = m_session;
+                Session? session = m_session;
                 m_session = null;
 
                 if (session != null)
@@ -1207,7 +1207,7 @@ namespace Opc.Ua.Client
             await m_stateMachine.DisposeAsync()
                 .ConfigureAwait(false);
 
-            var session = m_session;
+            Session? session = m_session;
             m_session = null;
 
             if (session != null)

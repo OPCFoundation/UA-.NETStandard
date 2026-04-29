@@ -39,12 +39,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Shared singleton instance.
         /// </summary>
-        public static DefaultSubscriptionEngineFactory Instance { get; }
-            = new();
+        public static DefaultSubscriptionEngineFactory Instance { get; } = new();
 
         /// <inheritdoc/>
-        public ISubscriptionEngine Create(
-            ISubscriptionEngineContext context)
+        public ISubscriptionEngine Create(ISubscriptionEngineContext context)
         {
             return new DefaultSubscriptionEngine(context);
         }
