@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.Subscriptions
             _logger = Observability.LoggerFactory.CreateLogger<Subscription>();
             m_services = services;
             m_completion = completion;
-#if NET8_0_OR_GREATER
+#if NET9_0_OR_GREATER
             m_messages = Channel.CreateUnboundedPrioritized<IncomingMessage>(
                 new UnboundedPrioritizedChannelOptions<IncomingMessage>
                 {
@@ -76,12 +76,14 @@ namespace Opc.Ua.Client.Subscriptions
                         IncomingMessage.Compare)
                 });
 #else
-            // TODO: create polyfill for prioritized channel to avoid processing messages out of order when republishing missing messages.
-            m_messages = Channel.CreateUnbounded<IncomingMessage>(
-                new UnboundedChannelOptions
-                {
-                    SingleReader = true
-                });
+            m_messages = PrioritizedChannelHelper
+                .CreateUnboundedPrioritized(
+                    new UnboundedPrioritizedChannelOptions<IncomingMessage>
+                    {
+                        SingleReader = true,
+                        Comparer = Comparer<IncomingMessage>.Create(
+                            IncomingMessage.Compare)
+                    });
 #endif
             m_messageWorkerTask = ProcessReceivedMessagesAsync(m_cts.Token);
         }

@@ -153,7 +153,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_logger = loggerFactory.CreateLogger<SubscriptionManager>();
             ReturnDiagnostics = returnDiagnostics;
             m_publishController = PublishControllerAsync(m_cts.Token);
-#if NET8_0_OR_GREATER
+#if NET9_0_OR_GREATER
             m_acks = Channel.CreateUnboundedPrioritized<SubscriptionAcknowledgement>(
                 new UnboundedPrioritizedChannelOptions<SubscriptionAcknowledgement>
                 {
@@ -161,8 +161,14 @@ namespace Opc.Ua.Client.Subscriptions
                         .Create((x, y) => x.SequenceNumber.CompareTo(y.SequenceNumber))
                 });
 #else
-            // TODO: polyfill ordering or use blocking queue
-            m_acks = Channel.CreateUnbounded<SubscriptionAcknowledgement>();
+            m_acks = PrioritizedChannelHelper
+                .CreateUnboundedPrioritized(
+                    new UnboundedPrioritizedChannelOptions<SubscriptionAcknowledgement>
+                    {
+                        Comparer = Comparer<SubscriptionAcknowledgement>
+                            .Create((x, y) => x.SequenceNumber
+                                .CompareTo(y.SequenceNumber))
+                    });
 #endif
         }
 
