@@ -1858,7 +1858,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         NodeId = nodeId,
                         AttributeId = Attributes.Value,
-                        Value = new DataValue(42)
+                        Value = new DataValue { WrappedValue = new Variant(42) }
                     }
                 ];
                 WriteResponse writeResponse = await m_server.WriteAsync(
