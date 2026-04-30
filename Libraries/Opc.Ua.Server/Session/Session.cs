@@ -381,6 +381,12 @@ namespace Opc.Ua.Server
                 if (secureChannelContext == null || !IsSecureChannelValid(secureChannelContext.SecureChannelId))
                 {
                     UpdateDiagnosticCounters(requestType, true, true);
+
+                    if (requestType == RequestType.CloseSession)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    }
+
                     throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
                 }
 

@@ -1317,7 +1317,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         ClientHandle = 1,
                         SamplingInterval = 0,
-                        QueueSize = 100,
+                        QueueSize = 1,
                         DiscardOldest = true,
                         Filter = new ExtensionObject(eventFilter)
                     }
@@ -1330,7 +1330,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         ClientHandle = 2,
                         SamplingInterval = 0,
-                        QueueSize = 10,
+                        QueueSize = 1,
                         DiscardOldest = true
                     }
                 }
@@ -1400,7 +1400,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.IsNotNull(publishResponse.NotificationMessage);
             Assert.IsNotNull(publishResponse.NotificationMessage.NotificationData);
-            Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count > 0);
+            Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count == 2, "One Event and One DataChangeNotification expected.");
 
             bool dataChangeReceived = false;
             bool semanticsChangedBitSet = false;
