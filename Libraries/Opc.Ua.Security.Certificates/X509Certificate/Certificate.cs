@@ -197,7 +197,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Creates a copy of the inner <see cref="X509Certificate2"/>.
         /// The caller owns the returned instance and must dispose it.
-        /// Private keys are preserved if present and exportable.
+        /// Private keys are preserved if present.
         /// </summary>
         /// <returns>
         /// A new <see cref="X509Certificate2"/> that is a copy of the
@@ -207,11 +207,36 @@ namespace Opc.Ua.Security.Certificates
         {
             if (X509.HasPrivateKey)
             {
-                byte[] pfxData = Export(X509ContentType.Pfx);
-                return X509CertificateLoader.LoadPkcs12(
-                    pfxData,
-                    ReadOnlySpan<char>.Empty,
-                    X509KeyStorageFlags.Exportable);
+                try
+                {
+                    byte[] pfxData = Export(X509ContentType.Pfx);
+                    return X509CertificateLoader.LoadPkcs12(
+                        pfxData,
+                        ReadOnlySpan<char>.Empty,
+                        X509KeyStorageFlags.Exportable);
+                }
+                catch (CryptographicException)
+                {
+                    // Private key is not exportable (e.g., loaded without
+                    // X509KeyStorageFlags.Exportable). Fall back to attaching
+                    // the live private key to a fresh public-key copy via
+                    // CopyWithPrivateKey, yielding an independently disposable
+                    // certificate that can still be used for sign/decrypt
+                    // operations using the underlying CSP/CNG handle.
+                    using X509Certificate2 publicOnly = X509CertificateLoader
+                        .LoadCertificate(X509.RawData);
+                    using RSA? rsa = X509.GetRSAPrivateKey();
+                    if (rsa != null)
+                    {
+                        return publicOnly.CopyWithPrivateKey(rsa);
+                    }
+                    using ECDsa? ecdsa = X509.GetECDsaPrivateKey();
+                    if (ecdsa != null)
+                    {
+                        return publicOnly.CopyWithPrivateKey(ecdsa);
+                    }
+                    throw;
+                }
             }
 
             return X509CertificateLoader.LoadCertificate(X509.RawData);
