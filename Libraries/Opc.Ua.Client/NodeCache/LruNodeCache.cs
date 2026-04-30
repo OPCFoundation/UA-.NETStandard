@@ -39,6 +39,8 @@ using System.Threading.Tasks;
 using BitFaster.Caching;
 using BitFaster.Caching.Lfu;
 using BitFaster.Caching.Lru;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Client
 {
@@ -50,7 +52,7 @@ namespace Opc.Ua.Client
     /// It is also limited to a capacity at which point least recently used
     /// entries will be evicted.
     /// </summary>
-    public sealed class LruNodeCache : ILruNodeCache, IDisposable
+    public sealed class LruNodeCache : ILruNodeCache, INodeCache, IDisposable
     {
         /// <summary>
         /// Create cache
@@ -62,6 +64,7 @@ namespace Opc.Ua.Client
             int capacity = 4096)
         {
             m_context = context;
+            m_logger = telemetry.CreateLogger<LruNodeCache>();
             cacheExpiry ??= TimeSpan.FromMinutes(5);
 
             BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<
@@ -540,6 +543,568 @@ namespace Opc.Ua.Client
             m_refs.Clear();
         }
 
+        // IAsyncNodeTable / IAsyncTypeTable / INodeCache implementation
+
+        /// <inheritdoc/>
+        public StringTable ServerUris => m_context.ServerUris;
+
+        /// <inheritdoc/>
+        IAsyncTypeTable IAsyncNodeTable.TypeTree => this;
+
+        /// <inheritdoc/>
+        public async ValueTask<bool> ExistsAsync(ExpandedNodeId nodeId, CancellationToken ct)
+        {
+            return await FindAsync(nodeId, ct).ConfigureAwait(false) != null;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<INode?> FindAsync(ExpandedNodeId nodeId, CancellationToken ct)
+        {
+            if (nodeId.IsNull)
+            {
+                return null;
+            }
+            NodeId localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
+            if (localId.IsNull)
+            {
+                return null;
+            }
+            try
+            {
+                return await GetNodeAsync(localId, ct).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(
+                    "Could not find node {NodeId}: {Error}",
+                    nodeId,
+                    Redact.Create(e));
+                return null;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<INode?> FindAsync(
+            ExpandedNodeId sourceId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes,
+            QualifiedName browseName,
+            CancellationToken ct)
+        {
+            NodeId localSourceId = ToNodeId(sourceId);
+            if (localSourceId.IsNull)
+            {
+                return null;
+            }
+            ArrayOf<INode> nodes = await GetReferencesAsync(
+                localSourceId, referenceTypeId, isInverse, includeSubtypes, ct)
+                .ConfigureAwait(false);
+            foreach (INode node in nodes.ToList())
+            {
+                if (node.BrowseName == browseName)
+                {
+                    return node;
+                }
+            }
+            return null;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ArrayOf<INode>> FindAsync(
+            ExpandedNodeId sourceId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes,
+            CancellationToken ct)
+        {
+            NodeId localSourceId = ToNodeId(sourceId);
+            if (localSourceId.IsNull)
+            {
+                return new List<INode>();
+            }
+            return await GetReferencesAsync(
+                localSourceId, referenceTypeId, isInverse, includeSubtypes, ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async Task<ArrayOf<INode?>> FindAsync(
+            ArrayOf<ExpandedNodeId> nodeIds,
+            CancellationToken ct)
+        {
+            if (nodeIds.IsEmpty)
+            {
+                return [];
+            }
+            var result = new List<INode?>(nodeIds.Count);
+            foreach (ExpandedNodeId nodeId in nodeIds.ToList())
+            {
+                result.Add(await FindAsync(nodeId, ct).ConfigureAwait(false));
+            }
+            return result;
+        }
+
+        /// <inheritdoc/>
+        public async Task<Node?> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
+        {
+            NodeId localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
+            if (localId.IsNull)
+            {
+                return null;
+            }
+            try
+            {
+                Node node = await m_context.FetchNodeAsync(null, localId, ct: ct)
+                    .ConfigureAwait(false);
+                m_nodes.AddOrUpdate(localId, node);
+                return node;
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(
+                    "Could not fetch node {NodeId}: {Error}",
+                    nodeId,
+                    Redact.Create(e));
+                return null;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<ArrayOf<Node?>> FetchNodesAsync(
+            ArrayOf<ExpandedNodeId> nodeIds,
+            CancellationToken ct)
+        {
+            if (nodeIds.IsEmpty)
+            {
+                return [];
+            }
+            ArrayOf<NodeId> localIds =
+                nodeIds.ConvertAll(id => ExpandedNodeId.ToNodeId(id, NamespaceUris));
+            (ArrayOf<Node> nodes, ArrayOf<ServiceResult> errors) =
+                await m_context.FetchNodesAsync(null, localIds, ct: ct)
+                    .ConfigureAwait(false);
+            var result = new List<Node?>(nodes.Count);
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                if (!ServiceResult.IsBad(errors[i]))
+                {
+                    m_nodes.AddOrUpdate(localIds[i], nodes[i]);
+                    result.Add(nodes[i]);
+                }
+                else
+                {
+                    result.Add(null);
+                }
+            }
+            return result;
+        }
+
+        /// <inheritdoc/>
+        public async Task FetchSuperTypesAsync(ExpandedNodeId nodeId, CancellationToken ct)
+        {
+            NodeId current = ToNodeId(nodeId);
+            while (!current.IsNull)
+            {
+                current = await GetSuperTypeAsync(current, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<ArrayOf<INode>> FindReferencesAsync(
+            ExpandedNodeId nodeId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes,
+            CancellationToken ct)
+        {
+            NodeId localId = ToNodeId(nodeId);
+            if (localId.IsNull)
+            {
+                return Task.FromResult<ArrayOf<INode>>(new List<INode>());
+            }
+            return GetReferencesAsync(localId, referenceTypeId, isInverse, includeSubtypes, ct)
+                .AsTask();
+        }
+
+        /// <inheritdoc/>
+        public Task<ArrayOf<INode>> FindReferencesAsync(
+            ArrayOf<ExpandedNodeId> nodeIds,
+            ArrayOf<NodeId> referenceTypeIds,
+            bool isInverse,
+            bool includeSubtypes,
+            CancellationToken ct)
+        {
+            ArrayOf<NodeId> localIds = nodeIds.ConvertAll(ToNodeId);
+            return GetReferencesAsync(localIds, referenceTypeIds, isInverse, includeSubtypes, ct)
+                .AsTask();
+        }
+
+        /// <inheritdoc/>
+        public void LoadUaDefinedTypes(ISystemContext context)
+        {
+            // The LRU cache is lazy and populates on demand; no pre-loading is needed.
+            m_logger.LogDebug(
+                "LoadUaDefinedTypes called; the LRU node cache populates on demand.");
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<bool> IsKnownAsync(ExpandedNodeId typeId, CancellationToken ct)
+        {
+            return await FindAsync(typeId, ct).ConfigureAwait(false) != null;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<bool> IsKnownAsync(NodeId typeId, CancellationToken ct)
+        {
+            if (typeId.IsNull)
+            {
+                return false;
+            }
+            try
+            {
+                await GetNodeAsync(typeId, ct).ConfigureAwait(false);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeId> FindSuperTypeAsync(ExpandedNodeId typeId, CancellationToken ct)
+        {
+            return GetSuperTypeAsync(ToNodeId(typeId), ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct)
+        {
+            return GetSuperTypeAsync(typeId, ct);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ArrayOf<NodeId>> FindSubTypesAsync(
+            ExpandedNodeId typeId,
+            CancellationToken ct)
+        {
+            NodeId localId = ToNodeId(typeId);
+            if (localId.IsNull)
+            {
+                return new List<NodeId>();
+            }
+            ArrayOf<INode> subtypes = await GetReferencesAsync(
+                localId, ReferenceTypeIds.HasSubtype, false, false, ct)
+                .ConfigureAwait(false);
+            return subtypes.ConvertAll(n => ToNodeId(n.NodeId)).Filter(n => !n.IsNull);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<bool> IsTypeOfAsync(
+            ExpandedNodeId subTypeId,
+            ExpandedNodeId superTypeId,
+            CancellationToken ct)
+        {
+            if (subTypeId == superTypeId)
+            {
+                return true;
+            }
+            NodeId localSubTypeId = ToNodeId(subTypeId);
+            NodeId localSuperTypeId = ToNodeId(superTypeId);
+            if (localSubTypeId.IsNull || localSuperTypeId.IsNull)
+            {
+                return false;
+            }
+            return await IsTypeOfAsync(localSubTypeId, localSuperTypeId, ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<bool> IsTypeOfAsync(
+            NodeId subTypeId,
+            NodeId superTypeId,
+            CancellationToken ct)
+        {
+            if (subTypeId == superTypeId)
+            {
+                return true;
+            }
+            NodeId current = subTypeId;
+            while (!current.IsNull)
+            {
+                NodeId superType = await GetSuperTypeAsync(current, ct).ConfigureAwait(false);
+                if (superType.IsNull)
+                {
+                    break;
+                }
+                if (superType == superTypeId)
+                {
+                    return true;
+                }
+                current = superType;
+            }
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<QualifiedName> FindReferenceTypeNameAsync(
+            NodeId referenceTypeId,
+            CancellationToken ct)
+        {
+            if (referenceTypeId.IsNull)
+            {
+                return QualifiedName.Null;
+            }
+            try
+            {
+                INode node = await GetNodeAsync(referenceTypeId, ct).ConfigureAwait(false);
+                return node.BrowseName;
+            }
+            catch
+            {
+                return QualifiedName.Null;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<NodeId> FindReferenceTypeAsync(
+            QualifiedName browseName,
+            CancellationToken ct)
+        {
+            if (browseName.IsNull)
+            {
+                return NodeId.Null;
+            }
+            return await FindReferenceTypeInHierarchyAsync(
+                ReferenceTypeIds.References, browseName, ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<bool> IsEncodingOfAsync(
+            ExpandedNodeId encodingId,
+            ExpandedNodeId datatypeId,
+            CancellationToken ct)
+        {
+            NodeId localEncodingId = ToNodeId(encodingId);
+            if (localEncodingId.IsNull)
+            {
+                return false;
+            }
+            NodeId localDatatypeId = ToNodeId(datatypeId);
+            // DataType --HasEncoding--> Encoding: inverse from encoding gives datatype
+            ArrayOf<INode> dataTypes = await GetReferencesAsync(
+                localEncodingId, ReferenceTypeIds.HasEncoding, true, false, ct)
+                .ConfigureAwait(false);
+            foreach (INode dataType in dataTypes.ToList())
+            {
+                if (ToNodeId(dataType.NodeId) == localDatatypeId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<bool> IsEncodingForAsync(
+            NodeId expectedTypeId,
+            ExtensionObject value,
+            CancellationToken ct)
+        {
+            if (value.IsNull)
+            {
+                return false;
+            }
+            NodeId encodingId = ToNodeId(value.TypeId);
+            if (encodingId.IsNull)
+            {
+                return false;
+            }
+            if (expectedTypeId == encodingId)
+            {
+                return true;
+            }
+            // DataType --HasEncoding--> Encoding: inverse from encoding gives datatype
+            ArrayOf<INode> dataTypes = await GetReferencesAsync(
+                encodingId, ReferenceTypeIds.HasEncoding, true, false, ct)
+                .ConfigureAwait(false);
+            foreach (INode dataType in dataTypes.ToList())
+            {
+                if (ToNodeId(dataType.NodeId) == expectedTypeId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<bool> IsEncodingForAsync(
+            NodeId expectedTypeId,
+            Variant value,
+            CancellationToken ct)
+        {
+            if (value.IsNull)
+            {
+                return false;
+            }
+            if (expectedTypeId.IsNull)
+            {
+                return true;
+            }
+            NodeId actualTypeId = TypeInfo.GetDataTypeId(value, m_context.NamespaceUris);
+            if (await IsTypeOfAsync(actualTypeId, expectedTypeId, ct).ConfigureAwait(false))
+            {
+                return true;
+            }
+            // allow matches for non-structure values where actual type is a supertype of expected
+            if (actualTypeId != DataTypes.Structure)
+            {
+                return await IsTypeOfAsync(expectedTypeId, actualTypeId, ct)
+                    .ConfigureAwait(false);
+            }
+            if (value.TryGet(out ExtensionObject extension))
+            {
+                return await IsEncodingForAsync(expectedTypeId, extension, ct)
+                    .ConfigureAwait(false);
+            }
+            if (value.TryGet(out ArrayOf<ExtensionObject> extensions))
+            {
+                foreach (ExtensionObject ext in extensions.ToList())
+                {
+                    if (!await IsEncodingForAsync(expectedTypeId, ext, ct)
+                        .ConfigureAwait(false))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<NodeId> FindDataTypeIdAsync(
+            ExpandedNodeId encodingId,
+            CancellationToken ct)
+        {
+            NodeId localId = ToNodeId(encodingId);
+            if (localId.IsNull)
+            {
+                return NodeId.Null;
+            }
+            return await FindDataTypeIdAsync(localId, ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<NodeId> FindDataTypeIdAsync(
+            NodeId encodingId,
+            CancellationToken ct)
+        {
+            if (encodingId.IsNull)
+            {
+                return NodeId.Null;
+            }
+            // DataType --HasEncoding--> Encoding: inverse from encoding gives datatype
+            ArrayOf<INode> dataTypes = await GetReferencesAsync(
+                encodingId, ReferenceTypeIds.HasEncoding, true, false, ct)
+                .ConfigureAwait(false);
+            if (dataTypes.Count > 0)
+            {
+                return ToNodeId(dataTypes[0].NodeId);
+            }
+            return NodeId.Null;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<string?> GetDisplayTextAsync(INode node, CancellationToken ct)
+        {
+            if (node == null)
+            {
+                return new ValueTask<string?>(string.Empty);
+            }
+            string? text = node.DisplayName.Text ?? node.BrowseName.Name ?? string.Empty;
+            return new ValueTask<string?>(text);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<string?> GetDisplayTextAsync(
+            ExpandedNodeId nodeId,
+            CancellationToken ct)
+        {
+            if (nodeId.IsNull)
+            {
+                return string.Empty;
+            }
+            INode? node = await FindAsync(nodeId, ct).ConfigureAwait(false);
+            if (node != null)
+            {
+                return await GetDisplayTextAsync(node, ct).ConfigureAwait(false);
+            }
+            return Utils.Format("{0}", nodeId);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<string?> GetDisplayTextAsync(
+            ReferenceDescription reference,
+            CancellationToken ct)
+        {
+            if (reference == null || reference.NodeId.IsNull)
+            {
+                return new ValueTask<string?>(string.Empty);
+            }
+            string? text = reference.DisplayName.Text
+                ?? reference.BrowseName.Name
+                ?? string.Empty;
+            return new ValueTask<string?>(text);
+        }
+
+        /// <summary>
+        /// Recursively searches the reference type hierarchy starting from
+        /// <paramref name="startNodeId"/> for a node whose BrowseName matches
+        /// <paramref name="browseName"/>.
+        /// </summary>
+        private async ValueTask<NodeId> FindReferenceTypeInHierarchyAsync(
+            NodeId startNodeId,
+            QualifiedName browseName,
+            CancellationToken ct)
+        {
+            INode node;
+            try
+            {
+                node = await GetNodeAsync(startNodeId, ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                return NodeId.Null;
+            }
+            if (node.BrowseName == browseName)
+            {
+                return startNodeId;
+            }
+            ArrayOf<INode> subtypes = await GetReferencesAsync(
+                startNodeId, ReferenceTypeIds.HasSubtype, false, false, ct)
+                .ConfigureAwait(false);
+            foreach (INode subtype in subtypes.ToList())
+            {
+                NodeId subtypeId = ToNodeId(subtype.NodeId);
+                if (subtypeId.IsNull)
+                {
+                    continue;
+                }
+                NodeId found = await FindReferenceTypeInHierarchyAsync(subtypeId, browseName, ct)
+                    .ConfigureAwait(false);
+                if (!found.IsNull)
+                {
+                    return found;
+                }
+            }
+            return NodeId.Null;
+        }
+
+
         /// <summary>
         /// Get or add references to cache
         /// </summary>
@@ -700,5 +1265,6 @@ namespace Opc.Ua.Client
         private readonly IAsyncCache<NodeId, DataValue> m_values;
         private readonly INodeCacheContext m_context;
         private readonly Meter m_meter;
+        private readonly ILogger m_logger;
     }
 }
