@@ -861,7 +861,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Double,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(StatusCodes.BadNodeIdUnknown)
+                Value = DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown)
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(

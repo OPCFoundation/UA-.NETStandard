@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
@@ -87,36 +88,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a deep copy of the value.
-        /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the class while copying the contents
-        /// of another instance.
-        /// </remarks>
-        /// <param name="value">The DataValue to copy.</param>
-        /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
-        public DataValue(DataValue value)
-        {
-            if (value == null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
-
-            m_value = value.m_value.Copy();
-            StatusCode = value.StatusCode;
-            SourceTimestamp = value.SourceTimestamp;
-            SourcePicoseconds = value.SourcePicoseconds;
-            ServerTimestamp = value.ServerTimestamp;
-            ServerPicoseconds = value.ServerPicoseconds;
-        }
-
-        /// <summary>
         /// Initializes the object with a value.
         /// </summary>
         /// <remarks>
         /// Initializes the object with a value from a <see cref="Variant"/>
         /// </remarks>
         /// <param name="value">The value to set</param>
+        [OverloadResolutionPriority(1)]
         public DataValue(Variant value)
         {
             m_value = value;
@@ -129,6 +107,7 @@ namespace Opc.Ua
         /// Initializes the object with a status code.
         /// </summary>
         /// <param name="statusCode">The StatusCode to set</param>
+        [Obsolete("Use DataValue.FromStatusCode() to avoid overload ambiguity with numeric types.")]
         public DataValue(StatusCode statusCode)
         {
             m_value = Variant.Null;
@@ -142,6 +121,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="statusCode">The status code associated with the value.</param>
         /// <param name="serverTimestamp">The timestamp associated with the status code.</param>
+        [Obsolete("Use DataValue.FromStatusCode() to avoid overload ambiguity with numeric types.")]
         public DataValue(StatusCode statusCode, DateTimeUtc serverTimestamp)
         {
             m_value = Variant.Null;
@@ -195,6 +175,34 @@ namespace Opc.Ua
             StatusCode = statusCode;
             SourceTimestamp = sourceTimestamp;
             ServerTimestamp = serverTimestamp;
+        }
+
+        /// <summary>
+        /// Creates a DataValue with only a status code (no value).
+        /// </summary>
+        /// <param name="statusCode">The status code to set.</param>
+        /// <returns>A new <see cref="DataValue"/> with the specified status code.</returns>
+        public static DataValue FromStatusCode(StatusCode statusCode)
+        {
+            return new DataValue
+            {
+                StatusCode = statusCode
+            };
+        }
+
+        /// <summary>
+        /// Creates a DataValue with a status code and a server timestamp (no value).
+        /// </summary>
+        /// <param name="statusCode">The status code to set.</param>
+        /// <param name="serverTimestamp">The server timestamp to set.</param>
+        /// <returns>A new <see cref="DataValue"/> with the specified status code and server timestamp.</returns>
+        public static DataValue FromStatusCode(StatusCode statusCode, DateTimeUtc serverTimestamp)
+        {
+            return new DataValue
+            {
+                StatusCode = statusCode,
+                ServerTimestamp = serverTimestamp
+            };
         }
 
         /// <inheritdoc/>
@@ -297,7 +305,18 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return MemberwiseClone();
+            return Copy();
+        }
+
+        /// <summary>
+        /// Creates a deep copy of the DataValue.
+        /// </summary>
+        /// <returns>A new <see cref="DataValue"/> that is a deep copy of this instance.</returns>
+        public DataValue Copy()
+        {
+            var copy = (DataValue)base.MemberwiseClone();
+            copy.m_value = m_value.Copy();
+            return copy;
         }
 
         /// <summary>
@@ -305,7 +324,7 @@ namespace Opc.Ua
         /// </summary>
         public new object MemberwiseClone()
         {
-            return new DataValue(this);
+            return Copy();
         }
 
         /// <summary>

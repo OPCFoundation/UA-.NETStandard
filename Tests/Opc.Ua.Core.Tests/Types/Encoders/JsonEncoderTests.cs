@@ -958,13 +958,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.DataValue,
-                new DataValue(StatusCodes.Good),
+                DataValue.FromStatusCode(StatusCodes.Good),
                 "{}",
                 null
             },
             {
                 BuiltInType.DataValue,
-                new DataValue(StatusCodes.BadNotWritable),
+                DataValue.FromStatusCode(StatusCodes.BadNotWritable),
                 $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable.Code}}}}}""",
                 $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable.Code}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}"""
             },

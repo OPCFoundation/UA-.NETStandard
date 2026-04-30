@@ -1897,7 +1897,7 @@ namespace Opc.Ua.Server
                 // set an error code for nodes that were not handled by any node manager.
                 if (!nodesToRead[ii].Processed)
                 {
-                    value = values[ii] = new DataValue(
+                    value = values[ii] = DataValue.FromStatusCode(
                         StatusCodes.BadNodeIdUnknown,
                         DateTime.UtcNow);
                     errors[ii] = new ServiceResult(values[ii].StatusCode);
@@ -1906,7 +1906,7 @@ namespace Opc.Ua.Server
                 // update the diagnostic info and ensure the status code in the data value is the same as the error code.
                 if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
                 {
-                    value ??= values[ii] = new DataValue(errors[ii].Code, DateTime.UtcNow);
+                    value ??= values[ii] = DataValue.FromStatusCode(errors[ii].Code, DateTime.UtcNow);
 
                     value.StatusCode = errors[ii].Code;
 

@@ -499,7 +499,7 @@ namespace Opc.Ua.Server
                     {
                         if (values[ii] == null)
                         {
-                            values[ii] = new DataValue(
+                            values[ii] = DataValue.FromStatusCode(
                                 StatusCodes.BadInternalError,
                                 DateTime.UtcNow);
                         }
