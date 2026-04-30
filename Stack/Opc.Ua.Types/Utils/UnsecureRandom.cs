@@ -64,9 +64,12 @@ namespace Opc.Ua
         /// </summary>
         public int Next()
         {
+            lock (m_lock)
+            {
 #pragma warning disable CA5394 // Do not use insecure randomness
-            return m_random.Next();
+                return m_random.Next();
 #pragma warning restore CA5394 // Do not use insecure randomness
+            }
         }
 
         /// <summary>
@@ -74,9 +77,12 @@ namespace Opc.Ua
         /// </summary>
         public int Next(int minValue, int maxValue)
         {
+            lock (m_lock)
+            {
 #pragma warning disable CA5394 // Do not use insecure randomness
-            return m_random.Next(minValue, maxValue);
+                return m_random.Next(minValue, maxValue);
 #pragma warning restore CA5394 // Do not use insecure randomness
+            }
         }
 
         /// <summary>
@@ -84,9 +90,12 @@ namespace Opc.Ua
         /// </summary>
         public int Next(int maxValue)
         {
+            lock (m_lock)
+            {
 #pragma warning disable CA5394 // Do not use insecure randomness
-            return m_random.Next(maxValue);
+                return m_random.Next(maxValue);
 #pragma warning restore CA5394 // Do not use insecure randomness
+            }
         }
 
         /// <summary>
@@ -94,9 +103,12 @@ namespace Opc.Ua
         /// </summary>
         public void NextBytes(byte[] buffer)
         {
+            lock (m_lock)
+            {
 #pragma warning disable CA5394 // Do not use insecure randomness
-            m_random.NextBytes(buffer);
+                m_random.NextBytes(buffer);
 #pragma warning restore CA5394 // Do not use insecure randomness
+            }
         }
 
         /// <summary>
@@ -105,9 +117,12 @@ namespace Opc.Ua
         /// </summary>
         public double NextDouble()
         {
+            lock (m_lock)
+            {
 #pragma warning disable CA5394 // Do not use insecure randomness
-            return m_random.NextDouble();
+                return m_random.NextDouble();
 #pragma warning restore CA5394 // Do not use insecure randomness
+            }
         }
 
         /// <summary>
@@ -116,9 +131,12 @@ namespace Opc.Ua
         public ByteString GetByteString(int length)
         {
             byte[] buffer = new byte[length];
+            lock (m_lock)
+            {
 #pragma warning disable CA5394 // Do not use insecure randomness
-            m_random.NextBytes(buffer);
+                m_random.NextBytes(buffer);
 #pragma warning restore CA5394 // Do not use insecure randomness
+            }
             return ByteString.From(buffer);
         }
 
@@ -129,9 +147,12 @@ namespace Opc.Ua
         public void Shuffle<T>(Span<T> source)
         {
 #if NET8_0_OR_GREATER
+            lock (m_lock)
+            {
 #pragma warning disable CA5394 // Do not use insecure randomness
-            m_random.Shuffle(source);
+                m_random.Shuffle(source);
 #pragma warning restore CA5394 // Do not use insecure randomness
+            }
 #else
             int count = source.Length;
             for (int i = 0; i < count; i++)
@@ -145,5 +166,6 @@ namespace Opc.Ua
         }
 
         private readonly Random m_random;
+        private readonly object m_lock = new();
     }
 }

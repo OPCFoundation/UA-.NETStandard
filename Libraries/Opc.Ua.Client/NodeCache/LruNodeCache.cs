@@ -1322,14 +1322,13 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Convert to node id from expanded node id if the expanded node id
-        /// is not absolute. Otherwise return a null node id
+        /// Convert an expanded node id to a node id. Resolves the namespace URI
+        /// against <see cref="NamespaceUris"/> for absolute identifiers; returns
+        /// <see cref="NodeId.Null"/> if the URI is unknown.
         /// </summary>
         private NodeId ToNodeId(ExpandedNodeId expandedNodeId)
         {
-            return expandedNodeId.IsAbsolute
-                ? NodeId.Null
-                : ExpandedNodeId.ToNodeId(expandedNodeId, NamespaceUris);
+            return ExpandedNodeId.ToNodeId(expandedNodeId, NamespaceUris);
         }
 
         private readonly IAsyncCache<NodeId, INode> m_nodes;
