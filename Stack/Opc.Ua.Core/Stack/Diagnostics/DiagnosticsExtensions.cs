@@ -1,4 +1,16 @@
+
+<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Core(net48)', Before:
 /* ========================================================================
+=======
+using Microsoft.Extensions.Diagnostics.Metrics;
+using Microsoft.Extensions.Logging;
+using Opc.Ua;
+using System;/* ========================================================================
+>>>>>>> After
+using System;
+using Microsoft.Extensions.Diagnostics.Metrics;
+using Microsoft.Extensions.Logging;
+using Opc.Ua;/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -29,10 +41,6 @@
 
 namespace Microsoft.Extensions.DependencyInjection
 {
-    using Microsoft.Extensions.Diagnostics.Metrics;
-    using Microsoft.Extensions.Logging;
-    using Opc.Ua;
-    using System;
 
     /// <summary>
     /// Service collection extensions
@@ -50,6 +58,8 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.AddLogging();
             return builder;
         }
+
+
         /// <summary>
         /// Add logging to the builder
         /// </summary>

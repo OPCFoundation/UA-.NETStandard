@@ -27,13 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             get
             {
-                var lastNotificationTimestamp = _lastNotificationTimestamp;
+                long lastNotificationTimestamp = _lastNotificationTimestamp;
                 if (lastNotificationTimestamp == 0)
                 {
                     return false;
@@ -115,7 +115,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="telemetry"></param>
         protected Subscription(ISubscriptionContext context, ISubscriptionNotificationHandler handler,
             IMessageAckQueue completion, IOptionsMonitor<SubscriptionOptions> options,
-            ITelemetryContext telemetry) : base(context.SubscriptionServiceSet, completion, telemetry)
+            ITelemetryContext telemetry)
+            : base(context.SubscriptionServiceSet, completion, telemetry)
         {
             m_handler = handler;
             m_context = context;
@@ -143,7 +144,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             var methodsToCall = new CallMethodRequest[]
             {
-                new CallMethodRequest()
+                new()
                 {
                     MethodId = MethodIds.ConditionType_ConditionRefresh,
                     InputArguments = [new Variant(Id)]
@@ -194,7 +195,7 @@ namespace Opc.Ua.Client.Subscriptions
             try
             {
                 StopKeepAliveTimer();
-                var success = await m_monitoredItems.TrySynchronizeHandlesAsync(
+                bool success = await m_monitoredItems.TrySynchronizeHandlesAsync(
                     ct).ConfigureAwait(false);
                 if (!success)
                 {
@@ -377,7 +378,7 @@ namespace Opc.Ua.Client.Subscriptions
                                 await ModifyAsync(options, ct).ConfigureAwait(false);
                             }
 
-                            var modified = await m_monitoredItems.ApplyChangesAsync(
+                            bool modified = await m_monitoredItems.ApplyChangesAsync(
                                 false, false, ct).ConfigureAwait(false);
                             if (modified)
                             {
@@ -386,7 +387,9 @@ namespace Opc.Ua.Client.Subscriptions
                             break;
                         }
                     }
-                    catch (OperationCanceledException) when (!ct.IsCancellationRequested) { }
+                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                    {
+                    }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Failed to apply subscription changes.");
@@ -397,7 +400,9 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+            }
 
             // Delete subscription on server on dispose
             await DeleteAsync(default).ConfigureAwait(false);
@@ -423,12 +428,12 @@ namespace Opc.Ua.Client.Subscriptions
                 DeleteSubscriptionsResponse response = await m_context.SubscriptionServiceSet.DeleteSubscriptionsAsync(null,
                     subscriptionIds, ct).ConfigureAwait(false);
                 // validate response.
-                Ua.ClientBase.ValidateResponse(response.Results, subscriptionIds);
-                Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, subscriptionIds);
+                ClientBase.ValidateResponse(response.Results, subscriptionIds);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, subscriptionIds);
 
                 if (StatusCode.IsBad(response.Results[0]))
                 {
-                    throw new ServiceResultException(Ua.ClientBase.GetResult(
+                    throw new ServiceResultException(ClientBase.GetResult(
                         response.Results[0], 0, response.DiagnosticInfos,
                         response.ResponseHeader));
                 }
@@ -449,7 +454,7 @@ namespace Opc.Ua.Client.Subscriptions
         internal async ValueTask CreateAsync(SubscriptionOptions options, CancellationToken ct)
         {
             // create the subscription.
-            AdjustCounts(options, out var revisedMaxKeepAliveCount, out var revisedLifetimeCount);
+            AdjustCounts(options, out uint revisedMaxKeepAliveCount, out uint revisedLifetimeCount);
 
             CreateSubscriptionResponse response = await m_context.SubscriptionServiceSet.CreateSubscriptionAsync(null,
                 options.PublishingInterval.TotalMilliseconds, revisedLifetimeCount,
@@ -472,7 +477,7 @@ namespace Opc.Ua.Client.Subscriptions
         internal async ValueTask ModifyAsync(SubscriptionOptions options, CancellationToken ct)
         {
             // modify the subscription.
-            AdjustCounts(options, out var revisedMaxKeepAliveCount, out var revisedLifetimeCount);
+            AdjustCounts(options, out uint revisedMaxKeepAliveCount, out uint revisedLifetimeCount);
 
             if (revisedMaxKeepAliveCount != CurrentKeepAliveCount ||
                 revisedLifetimeCount != CurrentLifetimeCount ||
@@ -513,13 +518,13 @@ namespace Opc.Ua.Client.Subscriptions
                     null, options.PublishingEnabled, subscriptionIds, ct).ConfigureAwait(false);
 
                 // validate response.
-                Ua.ClientBase.ValidateResponse(response.Results, subscriptionIds);
-                Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, subscriptionIds);
+                ClientBase.ValidateResponse(response.Results, subscriptionIds);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, subscriptionIds);
 
                 if (StatusCode.IsBad(response.Results[0]))
                 {
                     throw new ServiceResultException(
-                        Ua.ClientBase.GetResult(response.Results[0], 0,
+                        ClientBase.GetResult(response.Results[0], 0,
                         response.DiagnosticInfos, response.ResponseHeader));
                 }
 
@@ -711,9 +716,9 @@ namespace Opc.Ua.Client.Subscriptions
                         this, options.MinLifetimeInterval, m_context.SessionTimeout);
                 }
 
-                var minLifetimeInterval = (uint)options.MinLifetimeInterval.TotalMilliseconds;
-                var publishingInterval = (uint)options.PublishingInterval.TotalMilliseconds;
-                var minLifetimeCount = minLifetimeInterval / publishingInterval;
+                uint minLifetimeInterval = (uint)options.MinLifetimeInterval.TotalMilliseconds;
+                uint publishingInterval = (uint)options.PublishingInterval.TotalMilliseconds;
+                uint minLifetimeCount = minLifetimeInterval / publishingInterval;
                 if (lifetimeCount < minLifetimeCount)
                 {
                     lifetimeCount = minLifetimeCount;
@@ -746,7 +751,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             // validate spec: lifetimecount shall be at least 3*keepAliveCount
-            var minLifeTimeCount = 3 * keepAliveCount;
+            uint minLifeTimeCount = 3 * keepAliveCount;
             if (lifetimeCount < minLifeTimeCount)
             {
                 _logger.LogInformation(

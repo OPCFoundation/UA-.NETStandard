@@ -27,14 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
@@ -178,7 +178,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 return;
             }
-            var queueSize = options.QueueSize;
+            uint queueSize = options.QueueSize;
             if (!options.AutoSetQueueSize)
             {
                 return;
@@ -197,8 +197,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 return;
             }
             queueSize = Math.Max(queueSize, (uint)Math.Ceiling(
-                publishingInterval.TotalMilliseconds / samplingInterval.TotalMilliseconds))
-                + 1;
+                publishingInterval.TotalMilliseconds / samplingInterval.TotalMilliseconds)) +
+                1;
             if (queueSize == options.QueueSize)
             {
                 return;
@@ -333,8 +333,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <returns></returns>
         internal bool CompleteChange(Change change)
         {
-            return m_pendingChanges.TryDequeue(out Change? completed)
-                && change == completed;
+            return m_pendingChanges.TryDequeue(out Change? completed) &&
+                change == completed;
         }
 
         /// <summary>
@@ -478,7 +478,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
                 if (StatusCode.IsBad(result.StatusCode))
                 {
-                    error = Ua.ClientBase.GetResult(result.StatusCode, index,
+                    error = ClientBase.GetResult(result.StatusCode, index,
                         diagnosticInfos, responseHeader);
                 }
 
@@ -520,7 +520,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ServiceResult error = ServiceResult.Good;
                 if (StatusCode.IsBad(result.StatusCode))
                 {
-                    error = Ua.ClientBase.GetResult(result.StatusCode, index,
+                    error = ClientBase.GetResult(result.StatusCode, index,
                         diagnosticInfos, responseHeader);
                 }
 
@@ -576,7 +576,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ServiceResult error = ServiceResult.Good;
                 if (StatusCode.IsBad(statusCode))
                 {
-                    error = Ua.ClientBase.GetResult(statusCode, index, diagnosticInfos,
+                    error = ClientBase.GetResult(statusCode, index, diagnosticInfos,
                         responseHeader);
                 }
 
@@ -613,11 +613,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ServiceResult error = ServiceResult.Good;
                 if (StatusCode.IsBad(statusCode))
                 {
-                    error = Ua.ClientBase.GetResult(statusCode, index, diagnosticInfos,
+                    error = ClientBase.GetResult(statusCode, index, diagnosticInfos,
                         responseHeader);
                 }
 
-                var final = Create == null && Modify == null;
+                bool final = Create == null && Modify == null;
                 if (ServiceResult.IsGood(error) ||
                     error.StatusCode == StatusCodes.BadMonitoredItemIdInvalid ||
                     final)
@@ -657,7 +657,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     filterResult = fr;
                 }
-                var stop = Item.Context.NotifyItemChangeResult(
+                bool stop = Item.Context.NotifyItemChangeResult(
                     Item, RetryCount, Options, error, final, filterResult);
                 if (final || stop)
                 {

@@ -103,7 +103,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public ISessionClient? Session
         {
-            get => m_session;
+            get;
             set
             {
                 if (value is ISession session)
@@ -115,7 +115,7 @@ namespace Opc.Ua.Client
                     ContinuationPointPolicy =
                         session.ContinuationPointPolicy;
                 }
-                m_session = value;
+                field = value;
             }
         }
 
@@ -753,7 +753,6 @@ namespace Opc.Ua.Client
 
         private readonly ILogger m_logger;
         private readonly ITelemetryContext? m_telemetry;
-        private ISessionClient? m_session;
 
         private event BrowserEventHandler? m_MoreReferences;
     }

@@ -15,7 +15,6 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Bindings;
 #if CURVE25519
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -30,8 +29,11 @@ namespace Opc.Ua
     {
         private static readonly TimeSpan s_rsaEncryptedSecretMaxClockSkew = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan s_rsaEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
-        // ECC encrypted secrets use the same one-hour age window as RSA encrypted secrets
-        // to preserve consistent token replay tolerance across both encryption formats.
+
+        /// <summary>
+        /// ECC encrypted secrets use the same one-hour age window as RSA encrypted secrets
+        /// to preserve consistent token replay tolerance across both encryption formats.
+        /// </summary>
         private static readonly TimeSpan s_eccEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
 
         /// <summary>
@@ -200,6 +202,7 @@ namespace Opc.Ua
         /// <param name="secret">The secret to encrypt.</param>
         /// <param name="nonce">The nonce to use for encryption.</param>
         /// <returns>The encrypted secret.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public byte[] Encrypt(byte[] secret, byte[] nonce)
         {
             if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
@@ -261,7 +264,7 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadArgumentsMissing,
-                    $"The receiver did not provide an ephemeral key.");
+                    "The receiver did not provide an ephemeral key.");
             }
 
             byte[] senderNonce = SenderNonce.Data;
@@ -379,6 +382,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encrypts a secret using RSAEncryptedSecret format.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public byte[] EncryptRsa(byte[] secret, byte[] nonce)
         {
             if (SecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
@@ -436,7 +440,7 @@ namespace Opc.Ua
                 }
 
 #pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
-                using Aes aes = Aes.Create();
+                using var aes = Aes.Create();
                 aes.Mode = CipherMode.CBC;
                 aes.Padding = PaddingMode.None;
                 aes.Key = encryptingKey;
@@ -521,6 +525,7 @@ namespace Opc.Ua
         /// <summary>
         /// Tries to decrypt an RSAEncryptedSecret payload.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public bool TryDecryptRsa(byte[] encodedSecret, byte[] expectedNonce, out byte[] secret)
         {
             secret = null;
@@ -576,7 +581,7 @@ namespace Opc.Ua
                 }
             }
 
-            DateTime signingTime = (DateTime)decoder.ReadDateTime(null);
+            var signingTime = (DateTime)decoder.ReadDateTime(null);
             DateTime now = DateTime.UtcNow;
             // Accept tokens from the recent past to account for transit/processing delays while
             // only allowing a small future clock skew to prevent replay with future-dated tokens.
@@ -737,11 +742,11 @@ namespace Opc.Ua
                 return true;
             }
             catch (Exception ex) when (
-                ex is ServiceResultException ||
-                ex is CryptographicException ||
-                ex is IOException ||
-                ex is FormatException ||
-                ex is ArgumentException)
+                ex is ServiceResultException or
+                CryptographicException or
+                IOException or
+                FormatException or
+                ArgumentException)
             {
                 return false;
             }
@@ -754,7 +759,7 @@ namespace Opc.Ua
             int paddingCount =
                 dataLength % blockSize == 0
                 ? 0
-                : blockSize - dataLength % blockSize;
+                : blockSize - (dataLength % blockSize);
 
             if (paddingCount + secretLength < blockSize)
             {
@@ -834,7 +839,7 @@ namespace Opc.Ua
             }
 
             // extract the send certificate and any chain.
-            DateTime signingTime = (DateTime)decoder.ReadDateTime(null);
+            var signingTime = (DateTime)decoder.ReadDateTime(null);
 
             if (signingTime < earliestTime)
             {
@@ -972,16 +977,18 @@ namespace Opc.Ua
             }
 
             ByteString key = decoder.ReadByteString(null);
-            var paddingCount = decoder.ReadByte(null);
+            byte paddingCount = decoder.ReadByte(null);
 
             int error = 0;
 
             for (int ii = 0; ii < paddingCount; ii++)
             {
-                var padding = decoder.ReadByte(null);
-                error |= (padding & ~paddingCount);
+                byte padding = decoder.ReadByte(null);
+                error |= padding & ~paddingCount;
             }
 
+
+<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Core(net8.0)', Before:
             var highByte = decoder.ReadByte(null);
 
             if (error != 0 || highByte != 0)
@@ -995,6 +1002,36 @@ namespace Opc.Ua
         /// <summary>
         /// Computes the SHA-1 hash required by the OPC UA RSAEncryptedSecret certificate hash field.
         /// </summary>
+=======
+            byte highByte = decoder.ReadByte(null);
+
+            if (error != 0 || highByte != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+            return key.ToArray();
+        }
+
+        /// <summary>
+        /// Computes the SHA-1 hash required by the OPC UA RSAEncryptedSecret certificate hash field.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="data"/> is <c>null</c>.</exception>
+>>>>>>> After
+            byte highByte = decoder.ReadByte(null);
+
+            if (error != 0 || highByte != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+            return key.ToArray();
+        }
+
+        /// <summary>
+        /// Computes the SHA-1 hash required by the OPC UA RSAEncryptedSecret certificate hash field.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="data"/> is <c>null</c>.</exception>
         private static byte[] ComputeSha1Hash(byte[] data)
         {
             if (data == null)
@@ -1006,7 +1043,7 @@ namespace Opc.Ua
 #if NET8_0_OR_GREATER
             return SHA1.HashData(data);
 #else
-            using SHA1 sha1 = SHA1.Create();
+            using var sha1 = SHA1.Create();
             return sha1.ComputeHash(data);
 #endif
 #pragma warning restore CA5350

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -37,6 +35,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -154,7 +154,7 @@ namespace Opc.Ua.Client.Subscriptions
             ReturnDiagnostics = returnDiagnostics;
             m_publishController = PublishControllerAsync(m_cts.Token);
 #if NET8_0_OR_GREATER
-            m_acks = Channel.CreateUnboundedPrioritized<SubscriptionAcknowledgement>(
+            m_acks = Channel.CreateUnboundedPrioritized(
                 new UnboundedPrioritizedChannelOptions<SubscriptionAcknowledgement>
                 {
                     Comparer = Comparer<SubscriptionAcknowledgement>
@@ -316,7 +316,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Force creation of the subscriptions which were not transferred.
             foreach (IManagedSubscription subscription in subscriptions)
             {
-                var force = previousSessionId != null && subscription.Created;
+                bool force = previousSessionId != null && subscription.Created;
                 await subscription.RecreateAsync(ct).ConfigureAwait(false);
             }
             m_publishControl.Set();
@@ -327,7 +327,7 @@ namespace Opc.Ua.Client.Subscriptions
                 CancellationToken ct)
             {
                 var remaining = subscriptions.Where(s => !s.Created).ToList();
-                subscriptions = subscriptions.Where(s => s.Created).ToList();
+                subscriptions = [.. subscriptions.Where(s => s.Created)];
                 if (subscriptions.Count == 0)
                 {
                     return remaining;
@@ -358,9 +358,9 @@ namespace Opc.Ua.Client.Subscriptions
 
                 ArrayOf<TransferResult> transferResults = response.Results;
                 ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
-                Ua.ClientBase.ValidateResponse(transferResults, subscriptionIds);
-                Ua.ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
-                for (var index = 0; index < subscriptions.Count; index++)
+                ClientBase.ValidateResponse(transferResults, subscriptionIds);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+                for (int index = 0; index < subscriptions.Count; index++)
                 {
                     if (transferResults[index].StatusCode == StatusCodes.BadNothingToDo)
                     {
@@ -378,7 +378,7 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     else
                     {
-                        var success = await subscriptions[index].TryCompleteTransferAsync(
+                        bool success = await subscriptions[index].TryCompleteTransferAsync(
                             transferResults[index].AvailableSequenceNumbers.ToList(), ct).ConfigureAwait(false);
                         if (success)
                         {
@@ -429,7 +429,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    var desiredWorkerCount = GetDesiredPublishWorkerCount();
+                    int desiredWorkerCount = GetDesiredPublishWorkerCount();
                     if (publishWorkers.Count > desiredWorkerCount)
                     {
                         // Too many workers, reduce
@@ -446,7 +446,7 @@ namespace Opc.Ua.Client.Subscriptions
 #if NET8_0_OR_GREATER
                         publishWorkers = publishWorkers[..desiredWorkerCount];
 #else
-                        publishWorkers = publishWorkers.Take(desiredWorkerCount).ToList();
+                        publishWorkers = [.. publishWorkers.Take(desiredWorkerCount)];
 #endif
                     }
                     else if (desiredWorkerCount > publishWorkers.Count)
@@ -458,13 +458,46 @@ namespace Opc.Ua.Client.Subscriptions
                             .Select(index => new PublishWorker(this, index)));
                     }
                     PublishWorkerCount = publishWorkers.Count;
+
+<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Client(net48)', Before:
                     Task[] waiting = publishWorkers
                         .Select(w => w.Task)
                         .Prepend(m_publishControl.WaitAsync(ct))
                         .ToArray();
+=======
+                    Task[] waiting = [.. publishWorkers
+                        .Select(w => w.Task)
+                        .Prepend(m_publishControl.WaitAsync(ct))];
+>>>>>>> After
+
+<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Client(net8.0)', Before:
+                    Task[] waiting = publishWorkers
+                        .Select(w => w.Task)
+                        .Prepend(m_publishControl.WaitAsync(ct))
+                        .ToArray();
+=======
+                    Task[] waiting = [.. publishWorkers
+                        .Select(w => w.Task)
+                        .Prepend(m_publishControl.WaitAsync(ct))];
+>>>>>>> After
+                    Task[] waiting = 
+<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Client(net48)', Before:
+                    var index = 0;
+=======
+                    int index = 0;
+>>>>>>> After
+
+<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Client(net8.0)', Before:
+                    var index = 0;
+=======
+                    int index = 0;
+>>>>>>> After
+[.. publishWorkers
+                        .Select(w => w.Task)
+                        .Prepend(m_publishControl.WaitAsync(ct))];
                     await Task.WhenAny(waiting).ConfigureAwait(false);
                     PublishControlCycles++;
-                    var index = 0;
+                    int index = 0;
                     foreach (Task? item in waiting.Skip(1)) // Skip wait handle
                     {
                         if (item.IsCompleted)
@@ -491,7 +524,9 @@ namespace Opc.Ua.Client.Subscriptions
                     PublishWorkerCount = publishWorkers.Count;
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+            }
             finally
             {
                 // Controller exits, clean up all workers
@@ -504,7 +539,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             int GetDesiredPublishWorkerCount()
             {
-                var publishCount = CreatedCount;
+                int publishCount = CreatedCount;
                 if (publishCount != 0)
                 {
                     //
@@ -576,7 +611,9 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             await Task.ConfigureAwait(false);
                         }
-                        catch { } // Ignore
+                        catch
+                        {
+                        } // Ignore
                     }
                 }
                 finally
@@ -598,8 +635,8 @@ namespace Opc.Ua.Client.Subscriptions
             private async Task PublishWorkerAsync(CancellationToken ct)
             {
                 var publishLatency = new Stopwatch();
-                var timeoutHint = 0u;
-                var moreNotifications = true; // Dont wait first time we enter the loop.
+                uint timeoutHint = 0u;
+                bool moreNotifications = true; // Dont wait first time we enter the loop.
                 m_logger.LogInformation("PUBLISH Worker #{Handle} - STARTED.", Index);
                 while (!ct.IsCancellationRequested)
                 {
@@ -623,10 +660,10 @@ namespace Opc.Ua.Client.Subscriptions
                             break;
                         }
                     }
-                    var ackWaitTimeout = CalculateTimeouts(
+                    int ackWaitTimeout = CalculateTimeouts(
                         publishLatency.ElapsedMilliseconds, ref timeoutHint);
                     ArrayOf<SubscriptionAcknowledgement> acks = GetAcksReadyToSend();
-                    var handle = Utils.IncrementIdentifier(ref m_outer.m_publishRequestCounter);
+                    uint handle = Utils.IncrementIdentifier(ref m_outer.m_publishRequestCounter);
                     try
                     {
                         if (acks.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
@@ -643,14 +680,14 @@ namespace Opc.Ua.Client.Subscriptions
                         }, acks, ct).ConfigureAwait(false);
 
                         moreNotifications = response.MoreNotifications;
-                        var subscriptionId = response.SubscriptionId;
+                        uint subscriptionId = response.SubscriptionId;
                         NotificationMessage notificationMessage = response.NotificationMessage;
                         ArrayOf<uint> availableSequenceNumbers = response.AvailableSequenceNumbers;
 
                         ArrayOf<StatusCode> acknowledgeResults = response.Results;
                         ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos = response.DiagnosticInfos;
-                        Ua.ClientBase.ValidateResponse(acknowledgeResults, acks);
-                        Ua.ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
+                        ClientBase.ValidateResponse(acknowledgeResults, acks);
+                        ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
                         TooManyPublishRequests = false;
 
                         // Get the subscription with the provided identifier
@@ -827,10 +864,10 @@ namespace Opc.Ua.Client.Subscriptions
                 var acks = new List<SubscriptionAcknowledgement>();
 
                 // TODO: Is this something that we can get from ops limit?
-                var available = m_outer.m_acks.Reader.Count;
-                var maxAcks = available / Math.Max(m_outer.PublishWorkerCount, 1);
-                for (var i = 0; i < maxAcks
-                    && m_outer.m_acks.Reader.TryRead(out SubscriptionAcknowledgement? ack); i++)
+                int available = m_outer.m_acks.Reader.Count;
+                int maxAcks = available / Math.Max(m_outer.PublishWorkerCount, 1);
+                for (int i = 0; i < maxAcks &&
+                    m_outer.m_acks.Reader.TryRead(out SubscriptionAcknowledgement? ack); i++)
                 {
                     acks.Add(ack);
                 }
@@ -858,7 +895,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
 
                 TimeSpan timeout = TimeSpan.Zero;
-                var minPublishInterval = Timeout.Infinite;
+                int minPublishInterval = Timeout.Infinite;
                 foreach (IManagedSubscription s in created)
                 {
                     TimeSpan publishingInterval = s.CurrentPublishingInterval;
@@ -868,7 +905,7 @@ namespace Opc.Ua.Client.Subscriptions
                         timeout = keepAlive;
                     }
 
-                    var pi = (int)publishingInterval.TotalMilliseconds;
+                    int pi = (int)publishingInterval.TotalMilliseconds;
                     if (pi <= 0)
                     {
                         continue;
@@ -893,7 +930,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     timeout = kMaxOperationTimeout;
                 }
-                var newTimeout = (uint)timeout.TotalMilliseconds;
+                uint newTimeout = (uint)timeout.TotalMilliseconds;
                 if (newTimeout > currentTimeout)
                 {
                     currentTimeout = newTimeout;

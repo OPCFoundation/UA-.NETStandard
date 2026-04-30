@@ -81,9 +81,9 @@ namespace Opc.Ua.Client
         {
             m_configuration = configuration
                 ?? throw new ArgumentNullException(nameof(configuration));
-            m_endpoint = endpoint
+            ConfiguredEndpoint = endpoint
                 ?? throw new ArgumentNullException(nameof(endpoint));
-            m_sessionFactory = sessionFactory
+            SessionFactory = sessionFactory
                 ?? throw new ArgumentNullException(nameof(sessionFactory));
             m_reconnectPolicy = reconnectPolicy
                 ?? throw new ArgumentNullException(nameof(reconnectPolicy));
@@ -96,7 +96,7 @@ namespace Opc.Ua.Client
             m_sessionTimeout = sessionTimeout;
             m_checkDomain = checkDomain;
 
-            m_stateMachine = new ConnectionStateMachine(
+            StateMachine = new ConnectionStateMachine(
                 reconnectPolicy, logger);
 
             WireStateMachineCallbacks();
@@ -155,10 +155,10 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 checkDomain);
 
-            managed.m_stateMachine.Start();
-            managed.m_stateMachine.RequestConnect();
+            managed.StateMachine.Start();
+            managed.StateMachine.RequestConnect();
 
-            await managed.m_stateMachine
+            await managed.StateMachine
                 .WaitForConnectedAsync(ct)
                 .ConfigureAwait(false);
 
@@ -177,13 +177,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the connection state machine.
         /// </summary>
-        internal ConnectionStateMachine StateMachine => m_stateMachine;
+        internal ConnectionStateMachine StateMachine { get; }
 
         /// <inheritdoc/>
-        public ISessionFactory SessionFactory => m_sessionFactory;
+        public ISessionFactory SessionFactory { get; }
 
         /// <inheritdoc/>
-        public ConfiguredEndpoint ConfiguredEndpoint => m_endpoint;
+        public ConfiguredEndpoint ConfiguredEndpoint { get; }
 
         /// <inheritdoc/>
         public string SessionName
@@ -316,7 +316,7 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public bool Reconnecting
-            => m_stateMachine.State is ConnectionState.Reconnecting or ConnectionState.Failover;
+            => StateMachine.State is ConnectionState.Reconnecting or ConnectionState.Failover;
 
         /// <inheritdoc/>
         public OperationLimits OperationLimits
@@ -362,12 +362,12 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public EndpointDescription Endpoint
             => m_session?.Endpoint
-                ?? m_endpoint.Description;
+                ?? ConfiguredEndpoint.Description;
 
         /// <inheritdoc/>
         public EndpointConfiguration EndpointConfiguration
             => m_session?.EndpointConfiguration
-                ?? m_endpoint.Configuration;
+                ?? ConfiguredEndpoint.Configuration;
 
         /// <inheritdoc/>
         public IServiceMessageContext MessageContext
@@ -379,7 +379,7 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public ITransportChannel TransportChannel
-            => InnerSession.TransportChannel!;
+            => InnerSession.TransportChannel;
 
         /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics
@@ -618,7 +618,7 @@ namespace Opc.Ua.Client
             bool closeChannel,
             CancellationToken ct = default)
         {
-            m_stateMachine.RequestClose();
+            StateMachine.RequestClose();
             Session? session = m_session;
             if (session != null)
             {
@@ -767,7 +767,7 @@ namespace Opc.Ua.Client
         public async Task<StatusCode> CloseAsync(
             CancellationToken ct = default)
         {
-            m_stateMachine.RequestClose();
+            StateMachine.RequestClose();
             Session? session = m_session;
             if (session != null)
             {
@@ -786,11 +786,11 @@ namespace Opc.Ua.Client
 
         private void WireStateMachineCallbacks()
         {
-            m_stateMachine.ConnectAsync = HandleConnectAsync;
-            m_stateMachine.ReconnectAsync = HandleReconnectAsync;
-            m_stateMachine.FailoverAsync = HandleFailoverAsync;
-            m_stateMachine.CloseSessionAsync = HandleCloseSessionAsync;
-            m_stateMachine.StateChanged += OnStateChanged;
+            StateMachine.ConnectAsync = HandleConnectAsync;
+            StateMachine.ReconnectAsync = HandleReconnectAsync;
+            StateMachine.FailoverAsync = HandleFailoverAsync;
+            StateMachine.CloseSessionAsync = HandleCloseSessionAsync;
+            StateMachine.StateChanged += OnStateChanged;
         }
 
         private async Task<ServiceResult> HandleConnectAsync(
@@ -800,11 +800,11 @@ namespace Opc.Ua.Client
             {
                 m_logger.LogInformation(
                     "ManagedSession: Connecting to {Endpoint}.",
-                    m_endpoint.EndpointUrl);
+                    ConfiguredEndpoint.EndpointUrl);
 
-                var session = (Session)await m_sessionFactory.CreateAsync(
+                var session = (Session)await SessionFactory.CreateAsync(
                     m_configuration,
-                    m_endpoint,
+                    ConfiguredEndpoint,
                     updateBeforeConnect: true,
                     m_checkDomain,
                     m_sessionName,
@@ -888,7 +888,7 @@ namespace Opc.Ua.Client
             {
                 ConfiguredEndpoint? failoverEndpoint =
                     m_redundancyHandler.SelectFailoverTarget(
-                        m_redundancyInfo, m_endpoint);
+                        m_redundancyInfo, ConfiguredEndpoint);
 
                 if (failoverEndpoint == null)
                 {
@@ -906,7 +906,7 @@ namespace Opc.Ua.Client
                     Session? oldSession = m_session;
 
                     var newSession =
-                        (Session)await m_sessionFactory.CreateAsync(
+                        (Session)await SessionFactory.CreateAsync(
                             m_configuration,
                             failoverEndpoint,
                             updateBeforeConnect: true,
@@ -1021,7 +1021,7 @@ namespace Opc.Ua.Client
             if (e.Status != null &&
                 ServiceResult.IsBad(e.Status))
             {
-                m_stateMachine.TriggerReconnect();
+                StateMachine.TriggerReconnect();
             }
 
             m_keepAlive?.Invoke(this, e);
@@ -1092,7 +1092,7 @@ namespace Opc.Ua.Client
 
             if (disposing)
             {
-                m_stateMachine.RequestClose();
+                StateMachine.RequestClose();
 
                 Session? session = m_session;
                 m_session = null;
@@ -1113,7 +1113,7 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            await m_stateMachine.DisposeAsync()
+            await StateMachine.DisposeAsync()
                 .ConfigureAwait(false);
 
             Session? session = m_session;
@@ -1149,19 +1149,16 @@ namespace Opc.Ua.Client
         private EventHandler? m_sessionConfigurationChanged;
         private RenewUserIdentityEventHandler? m_renewUserIdentity;
         private volatile Session? m_session;
-        private readonly ConnectionStateMachine m_stateMachine;
         private readonly AsyncReaderWriterLock m_serviceLock = new();
         private readonly ApplicationConfiguration m_configuration;
-        private readonly ConfiguredEndpoint m_endpoint;
         private readonly IReconnectPolicy m_reconnectPolicy;
         private readonly IServerRedundancyHandler? m_redundancyHandler;
-        private readonly ISessionFactory m_sessionFactory;
         private readonly ILogger m_logger;
-        private IUserIdentity? m_identity;
-        private ArrayOf<string> m_preferredLocales;
-        private string m_sessionName;
-        private uint m_sessionTimeout;
-        private bool m_checkDomain;
+        private readonly IUserIdentity? m_identity;
+        private readonly ArrayOf<string> m_preferredLocales;
+        private readonly string m_sessionName;
+        private readonly uint m_sessionTimeout;
+        private readonly bool m_checkDomain;
         private ServerRedundancyInfo? m_redundancyInfo;
         private int m_disposed;
     }

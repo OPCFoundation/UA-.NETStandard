@@ -123,7 +123,7 @@ namespace Opc.Ua.Client.Subscriptions.Engine
                     monitoredItems),
                 DiagnosticInfos = diagnosticInfos != null
                     ? new ArrayOf<DiagnosticInfo>(diagnosticInfos)
-                    : ArrayOf<DiagnosticInfo>.Empty
+                    : []
             };
 
             NotificationMessage message = BuildNotificationMessage(
@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.Subscriptions.Engine
                 new ExtensionObject(dataChange));
 
             m_messageSink.SaveMessageInCache(
-                ArrayOf<uint>.Empty, message);
+                [], message);
 
             return default;
         }
@@ -172,7 +172,7 @@ namespace Opc.Ua.Client.Subscriptions.Engine
                 new ExtensionObject(eventList));
 
             m_messageSink.SaveMessageInCache(
-                ArrayOf<uint>.Empty, message);
+                [], message);
 
             return default;
         }
@@ -193,7 +193,7 @@ namespace Opc.Ua.Client.Subscriptions.Engine
             };
 
             m_messageSink.SaveMessageInCache(
-                ArrayOf<uint>.Empty, message);
+                [], message);
 
             return default;
         }
@@ -218,7 +218,7 @@ namespace Opc.Ua.Client.Subscriptions.Engine
 
             if (stringTable != null && stringTable.Count > 0)
             {
-                var table = new string[stringTable.Count];
+                string[] table = new string[stringTable.Count];
                 for (int i = 0; i < stringTable.Count; i++)
                 {
                     table[i] = stringTable[i];

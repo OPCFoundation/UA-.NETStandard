@@ -240,7 +240,7 @@ namespace Opc.Ua
         public string DisplayName
         {
             get => field ?? m_token.DisplayName;
-            set => field = value;
+            set;
         }
 
         /// <inheritdoc/>

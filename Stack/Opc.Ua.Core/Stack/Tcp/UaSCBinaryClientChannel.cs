@@ -34,7 +34,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -589,7 +588,7 @@ namespace Opc.Ua.Bindings
                 out byte[] signature);
 
             // don't keep signature if secure channel enhancements are not used.
-            m_oscRequestSignature = (SecurityPolicy.SecureChannelEnhancements) ? signature : null;
+            m_oscRequestSignature = SecurityPolicy.SecureChannelEnhancements ? signature : null;
 
             // save token.
             m_requestedToken = token;
@@ -644,7 +643,6 @@ namespace Opc.Ua.Bindings
             uint sequenceNumber;
             try
             {
-
                 messageBody = ReadAsymmetricMessage(
                     messageChunk,
                     ClientCertificate,
@@ -652,7 +650,7 @@ namespace Opc.Ua.Bindings
                     out serverCertificate,
                     out requestId,
                     out sequenceNumber,
-                    (State == TcpChannelState.Opening) ? m_oscRequestSignature : null,
+                    State == TcpChannelState.Opening ? m_oscRequestSignature : null,
                     out byte[] signature);
 
                 if (State == TcpChannelState.Opening)
@@ -947,7 +945,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
-                    ServiceResult fault = ServiceResult.Create(
+                    var fault = ServiceResult.Create(
                         ex,
                         StatusCodes.BadTcpInternalError,
                         "An unexpected error occurred while connecting to the server.");
@@ -1227,16 +1225,12 @@ namespace Opc.Ua.Bindings
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
             using var responseStream = new ArraySegmentStream(chunksToProcess);
-            IServiceResponse response = BinaryDecoder.DecodeMessage<IServiceResponse>(
+            return BinaryDecoder.DecodeMessage<IServiceResponse>(
                 responseStream,
-                Quotas.MessageContext);
-            if (response == null)
-            {
+                Quotas.MessageContext) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadStructureMissing,
                     "Could not parse response body.");
-            }
-            return response;
         }
 
         /// <summary>
@@ -1350,11 +1344,8 @@ namespace Opc.Ua.Bindings
                 SaveIntermediateChunk(0, new ArraySegment<byte>(), false);
 
                 // halt any scheduled tasks.
-                if (m_handshakeTimer != null)
-                {
-                    m_handshakeTimer.Dispose();
-                    m_handshakeTimer = null;
-                }
+                m_handshakeTimer?.Dispose();
+                m_handshakeTimer = null;
 
                 // clear the handshake state.
                 m_handshakeOperation = null;
@@ -1406,11 +1397,8 @@ namespace Opc.Ua.Bindings
             }
 
             // cancel any outstanding renew operations.
-            if (m_handshakeTimer != null)
-            {
-                m_handshakeTimer.Dispose();
-                m_handshakeTimer = null;
-            }
+            m_handshakeTimer?.Dispose();
+            m_handshakeTimer = null;
 
             // calculate renewal timing based on token lifetime + jitter. Do not rely on the server time!
             int jitterResolution = (int)Math.Round(

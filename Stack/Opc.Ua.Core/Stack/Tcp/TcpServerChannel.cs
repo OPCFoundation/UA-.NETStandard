@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -1060,13 +1059,10 @@ namespace Opc.Ua.Bindings
                 CloseSecureChannelRequest request =
                     BinaryDecoder.DecodeMessage<CloseSecureChannelRequest>(
                         closeRequestStream,
-                        Quotas.MessageContext);
-                if (request == null)
-                {
+                        Quotas.MessageContext) ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadStructureMissing,
                         "Could not parse CloseSecureChannel request body.");
-                }
 
                 // send the response.
                 // SendCloseSecureChannelResponse(requestId, token, request);

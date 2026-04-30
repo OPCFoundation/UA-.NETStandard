@@ -31,11 +31,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua.Client
 {
@@ -1887,8 +1887,8 @@ namespace Opc.Ua.Client
                     TransferId).ConfigureAwait(false);
                 if (outputArguments.Count == 2)
                 {
-                    var serverHandles = ((ArrayOf<uint>)outputArguments[0]);
-                    var clientHandles = ((ArrayOf<uint>)outputArguments[1]);
+                    var serverHandles = (ArrayOf<uint>)outputArguments[0];
+                    var clientHandles = (ArrayOf<uint>)outputArguments[1];
                     return (true, serverHandles, clientHandles);
                 }
             }

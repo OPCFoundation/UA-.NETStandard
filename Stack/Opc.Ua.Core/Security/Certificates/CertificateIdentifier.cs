@@ -999,7 +999,7 @@ namespace Opc.Ua
             ArrayOf<CertificateIdentifier> certificates,
             ITelemetryContext telemetry)
         {
-            m_certificates = new List<CertificateIdentifier>(certificates.ToArray() ?? []);
+            m_certificates = [.. certificates.ToArray() ?? []];
             m_telemetry = telemetry;
         }
 

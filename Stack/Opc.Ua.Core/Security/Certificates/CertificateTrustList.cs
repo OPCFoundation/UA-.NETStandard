@@ -85,13 +85,9 @@ namespace Opc.Ua
                 ICertificateStore store = null;
                 try
                 {
-                    store = OpenStore(telemetry);
-
-                    if (store == null)
-                    {
+                    store = OpenStore(telemetry) ??
                         throw ServiceResultException.ConfigurationError(
                             "Failed to open certificate store.");
-                    }
 
                     collection = await store.EnumerateAsync(ct).ConfigureAwait(false);
                 }

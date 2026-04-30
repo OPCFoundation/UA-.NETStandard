@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -595,7 +595,7 @@ namespace Opc.Ua
             {
                 untrustedList.Add(new CertificateIdentifier(certificates[ii]));
             }
-            ArrayOf<CertificateIdentifier> untrustedCollection = untrustedList.ToArrayOf();
+            var untrustedCollection = untrustedList.ToArrayOf();
 
             do
             {
@@ -1781,7 +1781,7 @@ namespace Opc.Ua
             {
                 bool accept = false;
                 const string message = "The domain '{0}' is not listed in the server certificate.";
-                ServiceResultException serviceResult = ServiceResultException.Create(
+                var serviceResult = ServiceResultException.Create(
                     StatusCodes.BadCertificateHostNameInvalid,
                     message,
                     endpointUrl.IdnHost);

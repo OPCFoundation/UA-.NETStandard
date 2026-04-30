@@ -27,9 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
-using Microsoft.Extensions.Options;
 using System.Collections.Generic;
+using Microsoft.Extensions.Options;
+using Opc.Ua;
 
 namespace Opc.Ua.Client.Subscriptions
 {

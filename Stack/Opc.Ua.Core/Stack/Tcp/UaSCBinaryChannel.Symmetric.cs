@@ -177,7 +177,7 @@ namespace Opc.Ua.Bindings
 
             if (!isServer && SecurityPolicy.SecureChannelEnhancements)
             {
-                length += hmac.HashSize/8;
+                length += hmac.HashSize / 8;
             }
 
             byte[] output = Utils.PSHA(hmac, null, seed, 0, length);
@@ -261,7 +261,6 @@ namespace Opc.Ua.Bindings
             {
                 case KeyDerivationAlgorithm.HKDFSha256:
                 case KeyDerivationAlgorithm.HKDFSha384:
-                {
                     token.Secret = m_localNonce.GenerateSecret(m_remoteNonce, token.PreviousSecret);
 
                     byte[] clientSalt = Utils.Append(
@@ -280,7 +279,6 @@ namespace Opc.Ua.Bindings
 
                     DeriveKeysWithHKDF(token, serverSalt, true, token.SecurityPolicy.ServerKeyDataLength);
                     break;
-                }
                 default:
                     HashAlgorithmName algorithmName = token.SecurityPolicy.GetKeyDerivationHashAlgorithmName();
                     DeriveKeysWithPSHA(algorithmName, serverSecret, clientSecret, token, false);
@@ -313,7 +311,7 @@ namespace Opc.Ua.Bindings
 
                 int signatureSize = SymmetricSignatureSize;
                 int paddingCountSize =
-                    (SecurityMode != MessageSecurityMode.SignAndEncrypt || token.SecurityPolicy.NoSymmetricEncryptionPadding)
+                    SecurityMode != MessageSecurityMode.SignAndEncrypt || token.SecurityPolicy.NoSymmetricEncryptionPadding
                     ? 0
                     : (EncryptionBlockSize > byte.MaxValue ? 2 : 1);
 
@@ -506,6 +504,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
+
         private ArraySegment<byte> EncryptAndSign(
             ChannelToken token,
             ArraySegment<byte> dataToEncrypt,
@@ -518,7 +517,7 @@ namespace Opc.Ua.Bindings
                 useClientKeys ? token.ClientInitializationVector : token.ServerInitializationVector,
                 useClientKeys ? token.ClientSigningKey : token.ServerSigningKey,
                 useClientKeys ? token.ClientHmac : token.ServerHmac,
-                this.SecurityMode == MessageSecurityMode.Sign,
+                SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
                 (uint)(m_localSequenceNumber - 1)); // already incremented to create this message. need the last one sent.
         }
@@ -651,9 +650,9 @@ namespace Opc.Ua.Bindings
                 useClientKeys ? token.ClientEncryptingKey : token.ServerEncryptingKey,
                 useClientKeys ? token.ClientInitializationVector : token.ServerInitializationVector,
                 useClientKeys ? token.ClientSigningKey : token.ServerSigningKey,
-                this.SecurityMode == MessageSecurityMode.Sign,
+                SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
-                (uint)m_remoteSequenceNumber);
+                m_remoteSequenceNumber);
         }
 
         private static readonly byte[] s_hkdfClientLabel = Encoding.UTF8.GetBytes("opcua-client");

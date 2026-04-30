@@ -287,25 +287,16 @@ namespace Opc.Ua.Bindings
             {
                 lock (m_lock)
                 {
-                    if (m_inactivityDetectionTimer != null)
-                    {
-                        m_inactivityDetectionTimer.Dispose();
-                        m_inactivityDetectionTimer = null;
-                    }
+                    m_inactivityDetectionTimer?.Dispose();
+                    m_inactivityDetectionTimer = null;
 
                     m_activeClientTracker?.Dispose();
 
-                    if (m_listeningSocket != null)
-                    {
-                        m_listeningSocket.Dispose();
-                        m_listeningSocket = null;
-                    }
+                    m_listeningSocket?.Dispose();
+                    m_listeningSocket = null;
 
-                    if (m_listeningSocketIPv6 != null)
-                    {
-                        m_listeningSocketIPv6.Dispose();
-                        m_listeningSocketIPv6 = null;
-                    }
+                    m_listeningSocketIPv6?.Dispose();
+                    m_listeningSocketIPv6 = null;
 
                     if (m_channels != null)
                     {

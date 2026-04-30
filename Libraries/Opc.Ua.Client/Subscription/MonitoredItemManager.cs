@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -36,6 +34,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 lock (m_monitoredItemsLock)
                 {
-                    return new List<IMonitoredItem>(m_monitoredItems.Values);
+                    return [.. m_monitoredItems.Values];
                 }
             }
         }
@@ -124,7 +124,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             lock (m_monitoredItemsLock)
             {
-                var result = m_monitoredItems.TryGetValue(clientHandle, out MonitoredItem? item);
+                bool result = m_monitoredItems.TryGetValue(clientHandle, out MonitoredItem? item);
                 monitoredItem = item;
                 return result;
             }
@@ -136,7 +136,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             lock (m_monitoredItemsLock)
             {
-                var result = m_monitoredItemsByName.TryGetValue(name, out MonitoredItem? item);
+                bool result = m_monitoredItemsByName.TryGetValue(name, out MonitoredItem? item);
                 monitoredItem = item;
                 return result;
             }
@@ -187,7 +187,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
 
                 // Remove all items not in state
-                foreach (var clientHandle in remove.Keys)
+                foreach (uint clientHandle in remove.Keys)
                 {
                     if (m_monitoredItems.Remove(clientHandle, out MonitoredItem? monitoredItem))
                     {
@@ -229,7 +229,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var memory = new DataValueChange[notification.MonitoredItems.Count];
             lock (m_monitoredItemsLock)
             {
-                for (var i = 0; i < notification.MonitoredItems.Count; i++)
+                for (int i = 0; i < notification.MonitoredItems.Count; i++)
                 {
                     MonitoredItemNotification item = notification.MonitoredItems[i];
                     m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? monitored);
@@ -254,7 +254,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var memory = new EventNotification[notification.Events.Count];
             lock (m_monitoredItemsLock)
             {
-                for (var i = 0; i < notification.Events.Count; i++)
+                for (int i = 0; i < notification.Events.Count; i++)
                 {
                     EventFieldList item = notification.Events[i];
                     m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? monitored);
@@ -276,7 +276,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         internal async Task<bool> ApplyChangesAsync(bool once, bool resetAll,
             CancellationToken ct)
         {
-            var modified = false;
+            bool modified = false;
             while (!ct.IsCancellationRequested &&
                 TryGetMonitoredItemChanges(
                     out List<MonitoredItem>? itemsToDelete, out List<MonitoredItem.Change>? itemsToModify, resetAll))
@@ -351,11 +351,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         .Select(m => m.ServerId).ToArray());
                     DeleteMonitoredItemsResponse response = await m_context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(null, m_context.Id,
                         monitoredItemIds, ct).ConfigureAwait(false);
-                    Ua.ClientBase.ValidateResponse(response.Results, monitoredItemIds);
-                    Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos,
+                    ClientBase.ValidateResponse(response.Results, monitoredItemIds);
+                    ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos,
                         monitoredItemIds);
 
-                    for (var index = 0; index < response.Results.Count; index++)
+                    for (int index = 0; index < response.Results.Count; index++)
                     {
                         if (StatusCode.IsGood(response.Results[index]) ||
                             response.Results[index] == StatusCodes.BadMonitoredItemIdInvalid ||
@@ -384,9 +384,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 var monitoredItemIds = new ArrayOf<uint>(deletes.Select(c => c.Item.ServerId).ToArray());
                 DeleteMonitoredItemsResponse response = await m_context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(null, m_context.Id,
                     monitoredItemIds, ct).ConfigureAwait(false);
-                Ua.ClientBase.ValidateResponse(response.Results, monitoredItemIds);
-                Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
-                for (var index = 0; index < response.Results.Count; index++)
+                ClientBase.ValidateResponse(response.Results, monitoredItemIds);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
+                for (int index = 0; index < response.Results.Count; index++)
                 {
                     deletes[index].SetDeleteResult(
                         response.Results[index], index, response.DiagnosticInfos,
@@ -408,10 +408,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     ModifyMonitoredItemsResponse response = await m_context.MonitoredItemServiceSet.ModifyMonitoredItemsAsync(null, m_context.Id,
                         group.Key, requests, ct).ConfigureAwait(false);
-                    Ua.ClientBase.ValidateResponse(response.Results, requests);
-                    Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
+                    ClientBase.ValidateResponse(response.Results, requests);
+                    ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
                     // update results.
-                    for (var index = 0; index < response.Results.Count; index++)
+                    for (int index = 0; index < response.Results.Count; index++)
                     {
                         monitoredItems[index].SetModifyResult(requests[index],
                             response.Results[index], index, response.DiagnosticInfos,
@@ -433,10 +433,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     SetMonitoringModeResponse response = await m_context.MonitoredItemServiceSet.SetMonitoringModeAsync(null, m_context.Id,
                         mode.Key, requests, ct).ConfigureAwait(false);
-                    Ua.ClientBase.ValidateResponse(response.Results, requests);
-                    Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
+                    ClientBase.ValidateResponse(response.Results, requests);
+                    ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
                     // update results.
-                    for (var index = 0; index < response.Results.Count; index++)
+                    for (int index = 0; index < response.Results.Count; index++)
                     {
                         monitoredItems[index].SetMonitoringModeResult(
                             mode.Key, response.Results[index], index, response.DiagnosticInfos,
@@ -459,10 +459,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     CreateMonitoredItemsResponse response = await m_context.MonitoredItemServiceSet.CreateMonitoredItemsAsync(null, m_context.Id,
                         group.Key, requests, ct).ConfigureAwait(false);
-                    Ua.ClientBase.ValidateResponse(response.Results, requests);
-                    Ua.ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
+                    ClientBase.ValidateResponse(response.Results, requests);
+                    ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
                     // update results.
-                    for (var index = 0; index < response.Results.Count; index++)
+                    for (int index = 0; index < response.Results.Count; index++)
                     {
                         monitoredItems[index].SetCreateResult(requests[index],
                             response.Results[index], index, response.DiagnosticInfos,
@@ -502,12 +502,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     }
                 }
             }
-            if (itemsToDelete.Count == 0 &&
-                itemsToModify.Count == 0)
-            {
-                return false;
-            }
-            return true;
+            return itemsToDelete.Count != 0 ||
+                itemsToModify.Count != 0;
         }
 
         /// <summary>
@@ -562,8 +558,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     // Adjust any items where the server handles does not map to the
                     // handle the server has assigned.
                     //
-                    var clientHandle = monitoredItem.Value.ClientHandle;
-                    if (clientServerHandleMap.Remove(clientHandle, out var serverHandle))
+                    uint clientHandle = monitoredItem.Value.ClientHandle;
+                    if (clientServerHandleMap.Remove(clientHandle, out uint serverHandle))
                     {
                         monitoredItem.Value.SetTransferResult(clientHandle, serverHandle);
                         monitoredItems.Remove(monitoredItem.Key);
@@ -580,8 +576,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     .ToDictionary(m => m.Value, m => m.Key);
                 foreach (KeyValuePair<uint, MonitoredItem> monitoredItem in monitoredItems.ToList())
                 {
-                    var serverHandle = monitoredItem.Value.ServerId;
-                    if (serverClientHandleMap.Remove(serverHandle, out var clientHandle))
+                    uint serverHandle = monitoredItem.Value.ServerId;
+                    if (serverClientHandleMap.Remove(serverHandle, out uint clientHandle))
                     {
                         //
                         // There should not be any more item with the same client handle
@@ -654,8 +650,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     ct).ConfigureAwait(false);
                 ArrayOf<CallMethodResult> results = response.Results;
                 ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
-                Ua.ClientBase.ValidateResponse(results, requests);
-                Ua.ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
+                ClientBase.ValidateResponse(results, requests);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
                 if (StatusCode.IsBad(results[0].StatusCode))
                 {
                     throw ServiceResultException.Create(results[0].StatusCode,

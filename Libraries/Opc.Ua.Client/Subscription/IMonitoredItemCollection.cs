@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.Options;
 using System.Collections.Generic;
+using Microsoft.Extensions.Options;
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {

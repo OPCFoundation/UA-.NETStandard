@@ -1,0 +1,4004 @@
+[
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "a2503342-be20-4e68-8cb3-06e5e49445ee"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 483,
+        "CharNumber": 37,
+        "DiagnosticId": "WHITESPACE",
+        "FormatDescription": "Fix whitespace formatting. Replace 3 characters with \u0027\\r\\n\u0027."
+      },
+      {
+        "LineNumber": 484,
+        "CharNumber": 75,
+        "DiagnosticId": "WHITESPACE",
+        "FormatDescription": "Fix whitespace formatting. Replace 22 characters with \u0027\\r\\n\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\u0027."
+      },
+      {
+        "LineNumber": 491,
+        "CharNumber": 35,
+        "DiagnosticId": "WHITESPACE",
+        "FormatDescription": "Fix whitespace formatting. Replace 2 characters with \u0027\\r\\n\u0027."
+      },
+      {
+        "LineNumber": 492,
+        "CharNumber": 8,
+        "DiagnosticId": "WHITESPACE",
+        "FormatDescription": "Fix whitespace formatting. Replace 2 characters with \u0027\\r\\n\u0027."
+      },
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "WHITESPACE",
+        "FormatDescription": "Fix whitespace formatting. Insert \u0027\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\u0027."
+      },
+      {
+        "LineNumber": 495,
+        "CharNumber": 4,
+        "DiagnosticId": "WHITESPACE",
+        "FormatDescription": "Fix whitespace formatting. Delete 1 characters."
+      },
+      {
+        "LineNumber": 496,
+        "CharNumber": 25,
+        "DiagnosticId": "WHITESPACE",
+        "FormatDescription": "Fix whitespace formatting. Insert \u0027\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\\s\u0027."
+      },
+      {
+        "LineNumber": 497,
+        "CharNumber": 66,
+        "DiagnosticId": "WHITESPACE",
+        "FormatDescription": "Fix whitespace formatting. Insert \u0027\\s\u0027."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "2d06a81d-226d-48c4-a0bd-c269eeb4db93"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 764,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "2d06a81d-226d-48c4-a0bd-c269eeb4db93"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 765,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "2528c64c-a3a5-42a9-acc5-a123ea77d2e5"
+    },
+    "FileName": "MonitoredItem.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MonitoredItem.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 737,
+        "CharNumber": 30,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "4e6f013d-942a-47db-aed3-023f67375001"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 437,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "4e6f013d-942a-47db-aed3-023f67375001"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 438,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "4e6f013d-942a-47db-aed3-023f67375001"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 439,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "4e6f013d-942a-47db-aed3-023f67375001"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 436,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "a2503342-be20-4e68-8cb3-06e5e49445ee"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 950,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "a2503342-be20-4e68-8cb3-06e5e49445ee"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 951,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "a2503342-be20-4e68-8cb3-06e5e49445ee"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 439,
+        "CharNumber": 34,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "a2503342-be20-4e68-8cb3-06e5e49445ee"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 491,
+        "CharNumber": 21,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "a2503342-be20-4e68-8cb3-06e5e49445ee"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 466,
+        "CharNumber": 26,
+        "DiagnosticId": "IDE0305",
+        "FormatDescription": "info IDE0305: Collection initialization can be simplified"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "a2503342-be20-4e68-8cb3-06e5e49445ee"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 477,
+        "CharNumber": 26,
+        "DiagnosticId": "IDE0305",
+        "FormatDescription": "info IDE0305: Collection initialization can be simplified"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "9863fdcd-0b17-495c-9394-771f9790116b"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 399,
+        "CharNumber": 43,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing suffix: \u0027Async\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "9863fdcd-0b17-495c-9394-771f9790116b"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 4205,
+        "CharNumber": 21,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027endpointSecurityPolicyUri\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "9863fdcd-0b17-495c-9394-771f9790116b"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 4240,
+        "CharNumber": 32,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027securityPolicy\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "ef5fe6f9-6f7b-41e0-a175-3279cb07754a"
+    },
+    "FileName": "MonitoredItemManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MonitoredItemManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 169,
+        "CharNumber": 17,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "ef5fe6f9-6f7b-41e0-a175-3279cb07754a"
+    },
+    "FileName": "MonitoredItemManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MonitoredItemManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 545,
+        "CharNumber": 17,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "e80a3613-60ad-433f-8059-1f850cd3833e"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 637,
+        "CharNumber": 51,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "e80a3613-60ad-433f-8059-1f850cd3833e"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 668,
+        "CharNumber": 51,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "e80a3613-60ad-433f-8059-1f850cd3833e"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 687,
+        "CharNumber": 57,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "e80a3613-60ad-433f-8059-1f850cd3833e"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 706,
+        "CharNumber": 51,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "e80a3613-60ad-433f-8059-1f850cd3833e"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 2993,
+        "CharNumber": 29,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027stringTable\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "e80a3613-60ad-433f-8059-1f850cd3833e"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3038,
+        "CharNumber": 29,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027stringTable\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "c8199388-ec76-438b-8cae-d84e29bcdaf7"
+    },
+    "FileName": "IMessageAckQueue.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\IMessageAckQueue.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "c6068104-b4ed-45ff-acdb-cd24a7fc0272"
+    },
+    "FileName": "ISubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\ISubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "41fbf5df-4d7b-479e-b5f7-9308aa3bfc06"
+    },
+    "FileName": "IMessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\IMessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "ba206527-bd48-44a7-8ba5-12fe1dc2a8a8"
+    },
+    "FileName": "PrioritizedChannel.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Utils\\PrioritizedChannel.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 87,
+        "CharNumber": 63,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027singleReader\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 483,
+        "CharNumber": 37,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 4,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 496,
+        "CharNumber": 25,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 497,
+        "CharNumber": 66,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "0e79317a-fc14-4f6a-adeb-741a8c9c1473"
+    },
+    "FileName": "MonitoredItem.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MonitoredItem.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 737,
+        "CharNumber": 30,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "def9086f-cf68-461c-9064-fb8acd162b0e"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 438,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "def9086f-cf68-461c-9064-fb8acd162b0e"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 436,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "def9086f-cf68-461c-9064-fb8acd162b0e"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 439,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "def9086f-cf68-461c-9064-fb8acd162b0e"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 437,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "450578b4-0de1-484e-94b1-540ae294d2fa"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 765,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "450578b4-0de1-484e-94b1-540ae294d2fa"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 764,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 950,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 951,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 439,
+        "CharNumber": 34,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 491,
+        "CharNumber": 21,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 466,
+        "CharNumber": 26,
+        "DiagnosticId": "IDE0305",
+        "FormatDescription": "info IDE0305: Collection initialization can be simplified"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 477,
+        "CharNumber": 26,
+        "DiagnosticId": "IDE0305",
+        "FormatDescription": "info IDE0305: Collection initialization can be simplified"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e68f57bf-5696-47e8-bbd3-ddbbc7edd868"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 399,
+        "CharNumber": 43,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing suffix: \u0027Async\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e68f57bf-5696-47e8-bbd3-ddbbc7edd868"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 4205,
+        "CharNumber": 21,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027endpointSecurityPolicyUri\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e68f57bf-5696-47e8-bbd3-ddbbc7edd868"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 4240,
+        "CharNumber": 32,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027securityPolicy\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "d480efad-8b46-400a-9557-695b7d62ed69"
+    },
+    "FileName": "MonitoredItemManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MonitoredItemManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 169,
+        "CharNumber": 17,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "d480efad-8b46-400a-9557-695b7d62ed69"
+    },
+    "FileName": "MonitoredItemManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MonitoredItemManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 545,
+        "CharNumber": 17,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "9f97a64c-a20a-4e6c-a615-6d9845a53459"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 637,
+        "CharNumber": 51,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "9f97a64c-a20a-4e6c-a615-6d9845a53459"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 668,
+        "CharNumber": 51,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "9f97a64c-a20a-4e6c-a615-6d9845a53459"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 687,
+        "CharNumber": 57,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "9f97a64c-a20a-4e6c-a615-6d9845a53459"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 706,
+        "CharNumber": 51,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "9f97a64c-a20a-4e6c-a615-6d9845a53459"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 2993,
+        "CharNumber": 29,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027stringTable\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "9f97a64c-a20a-4e6c-a615-6d9845a53459"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3038,
+        "CharNumber": 29,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027stringTable\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "1fd1cf13-a423-4f95-9491-7d10ce260c4f"
+    },
+    "FileName": "IMessageAckQueue.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\IMessageAckQueue.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "f97b1522-5739-465f-b13a-f8f7eb914649"
+    },
+    "FileName": "ISubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\ISubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "060b0921-3daf-4954-b44a-7939e3bd2346"
+    },
+    "FileName": "IMessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\IMessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "9b8e4900-af8c-4bf6-a9d5-3ab547a66e50"
+    },
+    "FileName": "PrioritizedChannel.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Utils\\PrioritizedChannel.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 87,
+        "CharNumber": 63,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027singleReader\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 483,
+        "CharNumber": 37,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 4,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 496,
+        "CharNumber": 25,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 497,
+        "CharNumber": 66,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "2f3eb9b5-5289-4677-aaf0-50f724c3f5b2"
+    },
+    "FileName": "MonitoredItem.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MonitoredItem.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 737,
+        "CharNumber": 30,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ac8caca0-bf3c-4d38-bbed-ba54a171c37f"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 436,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ac8caca0-bf3c-4d38-bbed-ba54a171c37f"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 437,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ac8caca0-bf3c-4d38-bbed-ba54a171c37f"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 438,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ac8caca0-bf3c-4d38-bbed-ba54a171c37f"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 439,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "9b062105-81d0-427e-bf04-fd23148ef631"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 764,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "9b062105-81d0-427e-bf04-fd23148ef631"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 765,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 950,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 951,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 439,
+        "CharNumber": 34,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 491,
+        "CharNumber": 21,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 466,
+        "CharNumber": 26,
+        "DiagnosticId": "IDE0305",
+        "FormatDescription": "info IDE0305: Collection initialization can be simplified"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 477,
+        "CharNumber": 26,
+        "DiagnosticId": "IDE0305",
+        "FormatDescription": "info IDE0305: Collection initialization can be simplified"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "3832b533-8188-4bcf-8089-c89913bd7a5a"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 399,
+        "CharNumber": 43,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing suffix: \u0027Async\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "3832b533-8188-4bcf-8089-c89913bd7a5a"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3011,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "3832b533-8188-4bcf-8089-c89913bd7a5a"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3027,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "3832b533-8188-4bcf-8089-c89913bd7a5a"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 4240,
+        "CharNumber": 32,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027securityPolicy\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "3832b533-8188-4bcf-8089-c89913bd7a5a"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 4205,
+        "CharNumber": 21,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027endpointSecurityPolicyUri\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "fc3a9306-4014-4733-849c-7980a67c9309"
+    },
+    "FileName": "MonitoredItemManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MonitoredItemManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 169,
+        "CharNumber": 17,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "fc3a9306-4014-4733-849c-7980a67c9309"
+    },
+    "FileName": "MonitoredItemManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MonitoredItemManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 545,
+        "CharNumber": 17,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "7fe09608-9ea4-4a88-b0e3-327e13d71683"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 637,
+        "CharNumber": 51,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "7fe09608-9ea4-4a88-b0e3-327e13d71683"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 668,
+        "CharNumber": 51,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "7fe09608-9ea4-4a88-b0e3-327e13d71683"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 687,
+        "CharNumber": 57,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "7fe09608-9ea4-4a88-b0e3-327e13d71683"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 706,
+        "CharNumber": 51,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "7fe09608-9ea4-4a88-b0e3-327e13d71683"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3038,
+        "CharNumber": 29,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027stringTable\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "7fe09608-9ea4-4a88-b0e3-327e13d71683"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 2993,
+        "CharNumber": 29,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027stringTable\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "40193334-cf76-47b4-884e-f9ddba044067"
+    },
+    "FileName": "ISession.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\ISession.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 34,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "9e4854ac-7e95-4659-95af-d7316f6a7bfc"
+    },
+    "FileName": "IMessageAckQueue.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\IMessageAckQueue.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "7989fa1e-09e3-4f01-815b-88aa88b02590"
+    },
+    "FileName": "IMessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\IMessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "b40b075b-5d92-4e4e-b51e-a4e6af3d9c82"
+    },
+    "FileName": "ISubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\ISubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "07a4090a-47de-4800-9166-a375d4e6a37a"
+    },
+    "FileName": "PrioritizedChannel.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Utils\\PrioritizedChannel.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 87,
+        "CharNumber": 63,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027singleReader\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 483,
+        "CharNumber": 37,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 4,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 496,
+        "CharNumber": 25,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 497,
+        "CharNumber": 66,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "6f21a8b8-d0e1-4863-917e-0a3a49d332d3"
+    },
+    "FileName": "MonitoredItem.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MonitoredItem.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 737,
+        "CharNumber": 30,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "67836da6-9cf0-431f-9fa8-73eace70e917"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 439,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "67836da6-9cf0-431f-9fa8-73eace70e917"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 437,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "67836da6-9cf0-431f-9fa8-73eace70e917"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 438,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "67836da6-9cf0-431f-9fa8-73eace70e917"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 436,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "88f40c47-9094-48f1-b78c-4697c7400b6a"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 764,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "88f40c47-9094-48f1-b78c-4697c7400b6a"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 765,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 950,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 951,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 491,
+        "CharNumber": 21,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 466,
+        "CharNumber": 26,
+        "DiagnosticId": "IDE0305",
+        "FormatDescription": "info IDE0305: Collection initialization can be simplified"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 477,
+        "CharNumber": 26,
+        "DiagnosticId": "IDE0305",
+        "FormatDescription": "info IDE0305: Collection initialization can be simplified"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "5e342b0a-3509-49a6-a97a-1dc4fb58a682"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 399,
+        "CharNumber": 43,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing suffix: \u0027Async\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "5e342b0a-3509-49a6-a97a-1dc4fb58a682"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3011,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "5e342b0a-3509-49a6-a97a-1dc4fb58a682"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3027,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "5e342b0a-3509-49a6-a97a-1dc4fb58a682"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 4240,
+        "CharNumber": 32,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027securityPolicy\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "5e342b0a-3509-49a6-a97a-1dc4fb58a682"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 4205,
+        "CharNumber": 21,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027endpointSecurityPolicyUri\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "d98ca61f-68cb-467c-9d5a-afeefa0117e6"
+    },
+    "FileName": "LruNodeCache.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\NodeCache\\LruNodeCache.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 61,
+        "CharNumber": 31,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027telemetry\u0027 if it is not part of a shipped public API"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "c379553c-d174-4e1f-97c9-01f6e7ec7fc0"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 2993,
+        "CharNumber": 29,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027stringTable\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "c379553c-d174-4e1f-97c9-01f6e7ec7fc0"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3038,
+        "CharNumber": 29,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027stringTable\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "cd90fa26-8f06-4fa9-8483-134df66e5ce1"
+    },
+    "FileName": "ISession.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\ISession.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 34,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "d243bd81-2dad-4dd0-a738-ec341fa44c83"
+    },
+    "FileName": "IMessageAckQueue.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\IMessageAckQueue.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "b4cb0d62-e548-4385-a589-7735a4a997ad"
+    },
+    "FileName": "IMessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\IMessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "2d193a9f-8018-4a69-b99f-ec5a9eacef5d"
+    },
+    "FileName": "ISubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\ISubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 483,
+        "CharNumber": 37,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 4,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 496,
+        "CharNumber": 25,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 497,
+        "CharNumber": 66,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "695467fb-2793-4b65-8484-faa1d8f3d483"
+    },
+    "FileName": "MonitoredItem.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MonitoredItem.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 737,
+        "CharNumber": 30,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "847d7c0a-58d4-4bc9-ac0a-e45bb7086b6b"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 436,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "847d7c0a-58d4-4bc9-ac0a-e45bb7086b6b"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 437,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "847d7c0a-58d4-4bc9-ac0a-e45bb7086b6b"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 438,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "847d7c0a-58d4-4bc9-ac0a-e45bb7086b6b"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 439,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "ca9ef0be-93bd-4338-8895-fce561861f6b"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 764,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "ca9ef0be-93bd-4338-8895-fce561861f6b"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 765,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 951,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 950,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 491,
+        "CharNumber": 21,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 466,
+        "CharNumber": 26,
+        "DiagnosticId": "IDE0305",
+        "FormatDescription": "info IDE0305: Collection initialization can be simplified"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 477,
+        "CharNumber": 26,
+        "DiagnosticId": "IDE0305",
+        "FormatDescription": "info IDE0305: Collection initialization can be simplified"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "a76a4af5-86fc-432e-a351-66fdaaafeee2"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 399,
+        "CharNumber": 43,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing suffix: \u0027Async\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "a76a4af5-86fc-432e-a351-66fdaaafeee2"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3011,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "a76a4af5-86fc-432e-a351-66fdaaafeee2"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3027,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "a76a4af5-86fc-432e-a351-66fdaaafeee2"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 4205,
+        "CharNumber": 21,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027endpointSecurityPolicyUri\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "a76a4af5-86fc-432e-a351-66fdaaafeee2"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 4240,
+        "CharNumber": 32,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027securityPolicy\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "160d7bbb-a9b8-4e3d-a66a-da0fc81f67e2"
+    },
+    "FileName": "LruNodeCache.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\NodeCache\\LruNodeCache.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 61,
+        "CharNumber": 31,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027telemetry\u0027 if it is not part of a shipped public API"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "ffa9ac88-31df-43fb-910f-90b55c06ef23"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3038,
+        "CharNumber": 29,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027stringTable\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "ffa9ac88-31df-43fb-910f-90b55c06ef23"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 2993,
+        "CharNumber": 29,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027stringTable\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "c94f3b70-8099-4232-8f00-0c0d9211bc33"
+    },
+    "FileName": "ISession.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\ISession.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 34,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "88893372-d02e-442e-aa3c-c4b896fd1b3b"
+    },
+    "FileName": "IMessageAckQueue.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\IMessageAckQueue.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "9558e848-52d6-481c-896c-964e1b69a759"
+    },
+    "FileName": "IMessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\IMessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "337b367d-1dee-4b19-a7c9-da84d318895f"
+    },
+    "FileName": "ISubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\ISubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 483,
+        "CharNumber": 37,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 4,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 496,
+        "CharNumber": 25,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 497,
+        "CharNumber": 66,
+        "DiagnosticId": "IDE0055",
+        "FormatDescription": "info IDE0055: Fix formatting"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "813e3fbf-fce1-49e2-ae54-0ae3e19472ee"
+    },
+    "FileName": "MonitoredItem.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MonitoredItem.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 737,
+        "CharNumber": 30,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "ee3df521-2a49-43e8-bdad-067aa9156dc4"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 437,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "ee3df521-2a49-43e8-bdad-067aa9156dc4"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 439,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "ee3df521-2a49-43e8-bdad-067aa9156dc4"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 438,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "ee3df521-2a49-43e8-bdad-067aa9156dc4"
+    },
+    "FileName": "MessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\MessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 436,
+        "CharNumber": 23,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Prefix \u0027_\u0027 is not expected"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 950,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 951,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 491,
+        "CharNumber": 21,
+        "DiagnosticId": "IDE0008",
+        "FormatDescription": "info IDE0008: Use explicit type instead of \u0027var\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 466,
+        "CharNumber": 26,
+        "DiagnosticId": "IDE0305",
+        "FormatDescription": "info IDE0305: Collection initialization can be simplified"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 477,
+        "CharNumber": 26,
+        "DiagnosticId": "IDE0305",
+        "FormatDescription": "info IDE0305: Collection initialization can be simplified"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "8d5cf2ec-5fb5-4715-a82d-f12200ebb53e"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 764,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "8d5cf2ec-5fb5-4715-a82d-f12200ebb53e"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 765,
+        "CharNumber": 42,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing prefix: \u0027s_\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "4d737531-9517-42eb-bd01-2b9741dea7c0"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 399,
+        "CharNumber": 43,
+        "DiagnosticId": "IDE1006",
+        "FormatDescription": "info IDE1006: Naming rule violation: Missing suffix: \u0027Async\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "4d737531-9517-42eb-bd01-2b9741dea7c0"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3011,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "4d737531-9517-42eb-bd01-2b9741dea7c0"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3027,
+        "CharNumber": 38,
+        "DiagnosticId": "IDE0370",
+        "FormatDescription": "info IDE0370: Suppression is unnecessary"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "4d737531-9517-42eb-bd01-2b9741dea7c0"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 4240,
+        "CharNumber": 32,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027securityPolicy\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "4d737531-9517-42eb-bd01-2b9741dea7c0"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 4205,
+        "CharNumber": 21,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027endpointSecurityPolicyUri\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "7f12ca35-4a89-4fd0-afcf-0e60c230493a"
+    },
+    "FileName": "LruNodeCache.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\NodeCache\\LruNodeCache.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 61,
+        "CharNumber": 31,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027telemetry\u0027 if it is not part of a shipped public API"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "ccfb3e90-dcef-446c-94cd-4c4dcbb0c591"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 2993,
+        "CharNumber": 29,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027stringTable\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "ccfb3e90-dcef-446c-94cd-4c4dcbb0c591"
+    },
+    "FileName": "Subscription.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\Classic\\Subscription.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3038,
+        "CharNumber": 29,
+        "DiagnosticId": "IDE0060",
+        "FormatDescription": "info IDE0060: Remove unused parameter \u0027stringTable\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "d556b968-e1a1-41c5-97ab-12c6e7209bbd"
+    },
+    "FileName": "ISession.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\ISession.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 34,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "bde76b34-8477-46b8-ad02-7a50453c5572"
+    },
+    "FileName": "IMessageAckQueue.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\IMessageAckQueue.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "5b9a1c35-c877-46e7-841e-11438f9e50a1"
+    },
+    "FileName": "IMessageProcessor.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\IMessageProcessor.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "56ca100c-3f1a-4ff2-8f9b-9e3d1e23c719"
+    },
+    "FileName": "ISubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\ISubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 32,
+        "CharNumber": 1,
+        "DiagnosticId": "IDE0005",
+        "FormatDescription": "info IDE0005: Using directive is unnecessary."
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "a2503342-be20-4e68-8cb3-06e5e49445ee"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 21,
+        "DiagnosticId": "RCS1052",
+        "FormatDescription": "info RCS1052: Declare each attribute separately"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "a2503342-be20-4e68-8cb3-06e5e49445ee"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 500,
+        "CharNumber": 21,
+        "DiagnosticId": "RCS1118",
+        "FormatDescription": "info RCS1118: Mark local variable as const"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "a2503342-be20-4e68-8cb3-06e5e49445ee"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 21,
+        "DiagnosticId": "RCS1259",
+        "FormatDescription": "info RCS1259: Remove empty statement"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "a2503342-be20-4e68-8cb3-06e5e49445ee"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 485,
+        "CharNumber": 25,
+        "DiagnosticId": "RCS0033",
+        "FormatDescription": "info RCS0033: Put statement on its own line"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "ed3371be-cab6-4045-ac53-3490ed2feb36"
+      },
+      "Id": "9863fdcd-0b17-495c-9394-771f9790116b"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3611,
+        "CharNumber": 17,
+        "DiagnosticId": "RCS1173",
+        "FormatDescription": "info RCS1173: Use coalesce expression instead of \u0027if\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 483,
+        "CharNumber": 37,
+        "DiagnosticId": "RCS1037",
+        "FormatDescription": "info RCS1037: Remove trailing white-space"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "RCS1052",
+        "FormatDescription": "info RCS1052: Declare each attribute separately"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 500,
+        "CharNumber": 21,
+        "DiagnosticId": "RCS1118",
+        "FormatDescription": "info RCS1118: Mark local variable as const"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "RCS1259",
+        "FormatDescription": "info RCS1259: Remove empty statement"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e7625c04-ce79-49b0-a06d-bb0c662342eb"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 485,
+        "CharNumber": 25,
+        "DiagnosticId": "RCS0033",
+        "FormatDescription": "info RCS0033: Put statement on its own line"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "265000c7-3258-4a2f-9772-54ac59b21f19"
+      },
+      "Id": "e68f57bf-5696-47e8-bbd3-ddbbc7edd868"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3611,
+        "CharNumber": 17,
+        "DiagnosticId": "RCS1173",
+        "FormatDescription": "info RCS1173: Use coalesce expression instead of \u0027if\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 483,
+        "CharNumber": 37,
+        "DiagnosticId": "RCS1037",
+        "FormatDescription": "info RCS1037: Remove trailing white-space"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "RCS1052",
+        "FormatDescription": "info RCS1052: Declare each attribute separately"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 500,
+        "CharNumber": 21,
+        "DiagnosticId": "RCS1118",
+        "FormatDescription": "info RCS1118: Mark local variable as const"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "RCS1259",
+        "FormatDescription": "info RCS1259: Remove empty statement"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "ca3b548c-bb41-493b-8409-ee95ce1d89fc"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 485,
+        "CharNumber": 25,
+        "DiagnosticId": "RCS0033",
+        "FormatDescription": "info RCS0033: Put statement on its own line"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "cd7e10d6-b408-46db-9ee9-1f7ebd290052"
+      },
+      "Id": "3832b533-8188-4bcf-8089-c89913bd7a5a"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3611,
+        "CharNumber": 17,
+        "DiagnosticId": "RCS1173",
+        "FormatDescription": "info RCS1173: Use coalesce expression instead of \u0027if\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 483,
+        "CharNumber": 37,
+        "DiagnosticId": "RCS1037",
+        "FormatDescription": "info RCS1037: Remove trailing white-space"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "RCS1052",
+        "FormatDescription": "info RCS1052: Declare each attribute separately"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 500,
+        "CharNumber": 21,
+        "DiagnosticId": "RCS1118",
+        "FormatDescription": "info RCS1118: Mark local variable as const"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "RCS1259",
+        "FormatDescription": "info RCS1259: Remove empty statement"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "13ab0353-7860-4181-9578-8645d9dff240"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 485,
+        "CharNumber": 25,
+        "DiagnosticId": "RCS0033",
+        "FormatDescription": "info RCS0033: Put statement on its own line"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "4a473870-0673-4750-9802-d2b88c41507b"
+      },
+      "Id": "5e342b0a-3509-49a6-a97a-1dc4fb58a682"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3611,
+        "CharNumber": 17,
+        "DiagnosticId": "RCS1173",
+        "FormatDescription": "info RCS1173: Use coalesce expression instead of \u0027if\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 483,
+        "CharNumber": 37,
+        "DiagnosticId": "RCS1037",
+        "FormatDescription": "info RCS1037: Remove trailing white-space"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "RCS1052",
+        "FormatDescription": "info RCS1052: Declare each attribute separately"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 500,
+        "CharNumber": 21,
+        "DiagnosticId": "RCS1118",
+        "FormatDescription": "info RCS1118: Mark local variable as const"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "RCS1259",
+        "FormatDescription": "info RCS1259: Remove empty statement"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "4e890ce9-0e6d-4818-9236-df3fcfe62354"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 485,
+        "CharNumber": 25,
+        "DiagnosticId": "RCS0033",
+        "FormatDescription": "info RCS0033: Put statement on its own line"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "707284f1-cf7a-4ee2-9596-1c4b5f85d460"
+      },
+      "Id": "a76a4af5-86fc-432e-a351-66fdaaafeee2"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3611,
+        "CharNumber": 17,
+        "DiagnosticId": "RCS1173",
+        "FormatDescription": "info RCS1173: Use coalesce expression instead of \u0027if\u0027"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 483,
+        "CharNumber": 37,
+        "DiagnosticId": "RCS1037",
+        "FormatDescription": "info RCS1037: Remove trailing white-space"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "RCS1052",
+        "FormatDescription": "info RCS1052: Declare each attribute separately"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 500,
+        "CharNumber": 21,
+        "DiagnosticId": "RCS1118",
+        "FormatDescription": "info RCS1118: Mark local variable as const"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 495,
+        "CharNumber": 1,
+        "DiagnosticId": "RCS1259",
+        "FormatDescription": "info RCS1259: Remove empty statement"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "3f97e6df-0c28-4e36-9b5a-9ab4f78527d2"
+    },
+    "FileName": "SubscriptionManager.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Subscription\\SubscriptionManager.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 485,
+        "CharNumber": 25,
+        "DiagnosticId": "RCS0033",
+        "FormatDescription": "info RCS0033: Put statement on its own line"
+      }
+    ]
+  },
+  {
+    "DocumentId": {
+      "ProjectId": {
+        "Id": "361da49a-1aca-4090-95cb-3113d67163f6"
+      },
+      "Id": "4d737531-9517-42eb-bd01-2b9741dea7c0"
+    },
+    "FileName": "Session.cs",
+    "FilePath": "D:\\git\\UA-.NETStandard4\\Libraries\\Opc.Ua.Client\\Session\\Session.cs",
+    "FileChanges": [
+      {
+        "LineNumber": 3611,
+        "CharNumber": 17,
+        "DiagnosticId": "RCS1173",
+        "FormatDescription": "info RCS1173: Use coalesce expression instead of \u0027if\u0027"
+      }
+    ]
+  }
+]

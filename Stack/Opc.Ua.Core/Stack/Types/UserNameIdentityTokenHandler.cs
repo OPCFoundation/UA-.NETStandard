@@ -122,7 +122,7 @@ namespace Opc.Ua
             {
                 if (DecryptedPassword.Length > RsaEncryptedSecretPasswordThreshold)
                 {
-                    EncryptedSecret encryptedSecret = EncryptedSecret.CreateForRsa(
+                    var encryptedSecret = EncryptedSecret.CreateForRsa(
                         context,
                         securityPolicyUri,
                         receiverCertificate);
@@ -163,7 +163,7 @@ namespace Opc.Ua
                     senderIssuerCertificates = issuers;
                 }
 
-                EncryptedSecret secret = EncryptedSecret.CreateForEcc(
+                var secret = EncryptedSecret.CreateForEcc(
                     context: context,
                     securityPolicyUri: securityPolicyUri,
                     senderIssuerCertificates: senderIssuerCertificates,
@@ -209,7 +209,7 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
-                EncryptedSecret encryptedSecret = EncryptedSecret.CreateForRsa(
+                var encryptedSecret = EncryptedSecret.CreateForRsa(
                     context,
                     securityPolicyUri,
                     certificate,
@@ -267,7 +267,7 @@ namespace Opc.Ua
             // handle ECC and RSADH encryption.
             else
             {
-                EncryptedSecret secret = EncryptedSecret.CreateForEcc(
+                var secret = EncryptedSecret.CreateForEcc(
                     context: context,
                     securityPolicyUri: securityPolicyUri,
                     senderIssuerCertificates: senderIssuerCertificates,

@@ -209,7 +209,7 @@ namespace Opc.Ua.Client
             (ArrayOf<DataValue> dataValues, ArrayOf<ServiceResult> errorValues) =
                 await session.ReadValuesAsync(variableIds, ct).ConfigureAwait(false);
 
-            ServiceResult[] errors = new ServiceResult[errorValues.Count];
+            var errors = new ServiceResult[errorValues.Count];
             object[] values = new object[dataValues.Count];
             for (int ii = 0; ii < variableIds.Count; ii++)
             {

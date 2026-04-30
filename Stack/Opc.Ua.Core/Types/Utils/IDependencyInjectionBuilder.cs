@@ -1,4 +1,4 @@
-/* ========================================================================
+using Microsoft.Extensions.DependencyInjection;/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -29,7 +29,6 @@
 
 namespace Opc.Ua
 {
-    using Microsoft.Extensions.DependencyInjection;
 
     /// <summary>
     /// Add services to the container

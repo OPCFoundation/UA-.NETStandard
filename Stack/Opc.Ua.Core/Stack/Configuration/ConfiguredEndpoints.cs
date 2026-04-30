@@ -45,7 +45,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with its default endpoint configuration.
         /// </summary>
-        public ConfiguredEndpointCollection(EndpointConfiguration configuration) : this()
+        public ConfiguredEndpointCollection(EndpointConfiguration configuration)
+            : this()
         {
             DefaultConfiguration = (EndpointConfiguration)configuration.Clone();
         }
@@ -53,7 +54,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object from an application configuration.
         /// </summary>
-        public ConfiguredEndpointCollection(ApplicationConfiguration configuration) : this()
+        public ConfiguredEndpointCollection(ApplicationConfiguration configuration)
+            : this()
         {
             DefaultConfiguration = EndpointConfiguration.Create(configuration);
 

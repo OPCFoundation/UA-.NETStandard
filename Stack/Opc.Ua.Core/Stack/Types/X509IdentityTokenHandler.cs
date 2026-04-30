@@ -161,12 +161,10 @@ namespace Opc.Ua
             var info = SecurityPolicies.GetInfo(securityPolicyUri);
             X509Certificate2 certificate = Certificate;
 
-            var signatureData = SecurityPolicies.CreateSignatureData(
+            return SecurityPolicies.CreateSignatureData(
                 info,
                 certificate,
                 dataToSign);
-
-            return signatureData;
         }
 
         /// <inheritdoc/>
@@ -180,13 +178,11 @@ namespace Opc.Ua
                 var info = SecurityPolicies.GetInfo(securityPolicyUri);
                 X509Certificate2 certificate = Certificate;
 
-                bool valid = SecurityPolicies.VerifySignatureData(
+                return SecurityPolicies.VerifySignatureData(
                     signatureData,
                     info,
                     certificate,
                     dataToVerify);
-
-                return valid;
             }
             catch (Exception e)
             {

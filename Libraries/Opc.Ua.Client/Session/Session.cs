@@ -40,7 +40,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Client
 {
@@ -132,7 +131,7 @@ namespace Opc.Ua.Client
                   template.m_configuration,
                   template.ConfiguredEndpoint,
                   channel.MessageContext ?? template.m_configuration.CreateMessageContext(),
-                  template.m_engineFactory)
+                  template.SubscriptionEngineFactory)
         {
             m_instanceCertificate = template.m_instanceCertificate;
             m_instanceCertificateChain = template.m_instanceCertificateChain;
@@ -255,7 +254,7 @@ namespace Opc.Ua.Client
             m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
 
             // Create the subscription engine.
-            m_engineFactory = engineFactory
+            SubscriptionEngineFactory = engineFactory
                 ?? ClassicSubscriptionEngineFactory.Instance;
             m_engine = new ClassicSubscriptionEngine(new SessionEngineContext(this));
 
@@ -561,8 +560,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the subscription engine factory used by this session.
         /// </summary>
-        public ISubscriptionEngineFactory SubscriptionEngineFactory
-            => m_engineFactory;
+        public ISubscriptionEngineFactory SubscriptionEngineFactory { get; }
 
         /// <summary>
         /// Gets the endpoint used to connect to the server.
@@ -1212,7 +1210,7 @@ namespace Opc.Ua.Client
             // create a nonce.
             int length = m_configuration.SecurityConfiguration.NonceLength;
             m_clientNonce = Nonce.CreateRandomNonceData(length);
-            ByteString clientNonce = ByteString.From(m_clientNonce);
+            var clientNonce = ByteString.From(m_clientNonce);
 
             // send the application instance certificate for the client.
             BuildCertificateData(
@@ -1549,19 +1547,14 @@ namespace Opc.Ua.Client
             UserTokenPolicy identityPolicy =
                 m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenHandler.Token.PolicyId,
-                    securityPolicyUri);
-
-            if (identityPolicy == null)
-            {
-                identityPolicy =
-                    m_endpoint.Description.FindUserTokenPolicy(
-                        identity.TokenType,
-                        identity.IssuedTokenType,
-                        securityPolicyUri)
+                    securityPolicyUri) ??
+                m_endpoint.Description.FindUserTokenPolicy(
+                    identity.TokenType,
+                    identity.IssuedTokenType,
+                    securityPolicyUri)
                     ?? throw ServiceResultException.Create(
-                        StatusCodes.BadIdentityTokenInvalid,
-                        "Endpoint does not support the user identity type provided.");
-            }
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Endpoint does not support the user identity type provided.");
 
             // select the security policy for the user token.
             string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
@@ -2662,12 +2655,8 @@ namespace Opc.Ua.Client
 
                 RequestHeader? header = CreateRequestHeaderForActivateSession(
                     securityPolicy,
-                    tokenSecurityPolicyUri!);
-
-                if (header == null)
-                {
-                    header = new RequestHeader();
-                }
+                    tokenSecurityPolicyUri!) ??
+                    new RequestHeader();
 
                 header.TimeoutHint = kReconnectTimeout;
 
@@ -2711,7 +2700,7 @@ namespace Opc.Ua.Client
                 catch (OperationCanceledException)
                     when (timeout.IsCancellationRequested && !ct.IsCancellationRequested)
                 {
-                    ServiceResult error = ServiceResult.Create(
+                    var error = ServiceResult.Create(
                         StatusCodes.BadRequestTimeout,
                         "ACTIVATE SESSION timed out. {0}/{1}",
                         GoodPublishRequestCount,
@@ -4087,12 +4076,9 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityPolicyUri,
                     m_telemetry,
                     ct)
-                    .ConfigureAwait(false);
-                if (m_instanceCertificate == null)
-                {
+                    .ConfigureAwait(false) ??
                     throw ServiceResultException.ConfigurationError(
                         "The client configuration does not specify an application instance certificate.");
-                }
                 m_effectiveEndpoint = m_endpoint;
                 m_instanceCertificateChain = null; // Reload the chain too
             }
@@ -4231,15 +4217,17 @@ namespace Opc.Ua.Client
 
             if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
-                var parameters = new AdditionalParametersType();
-                parameters.Parameters =
-                [
-                    new KeyValuePair
-                    {
-                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
-                        Value = userTokenSecurityPolicyUri
-                    }
-                ];
+                var parameters = new AdditionalParametersType
+                {
+                    Parameters =
+                    [
+                        new KeyValuePair
+                        {
+                            Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                            Value = userTokenSecurityPolicyUri
+                        }
+                    ]
+                };
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
 
                 m_logger.LogWarning("Request EphemeralKey for {Policy}.", userTokenSecurityPolicyUri);
@@ -4473,7 +4461,6 @@ namespace Opc.Ua.Client
         private readonly ArrayOf<EndpointDescription> m_discoveryServerEndpoints;
         private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
-        private readonly ISubscriptionEngineFactory m_engineFactory;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly ClassicSubscriptionEngine m_engine;
 #pragma warning restore CA2213
@@ -4512,8 +4499,8 @@ namespace Opc.Ua.Client
         {
             BrowseResponse first = await BrowseAsync(
                 requestHeader, view, 0, nodesToBrowse, ct).ConfigureAwait(false);
-            ClientBase.ValidateResponse(first.Results, nodesToBrowse);
-            ClientBase.ValidateDiagnosticInfos(first.DiagnosticInfos, nodesToBrowse);
+            ValidateResponse(first.Results, nodesToBrowse);
+            ValidateDiagnosticInfos(first.DiagnosticInfos, nodesToBrowse);
 
             var continuationPoints = new List<ByteString>();
             for (int i = 0; i < first.Results.Count; i++)
@@ -4550,12 +4537,12 @@ namespace Opc.Ua.Client
                     BrowseNextResponse next = await BrowseNextAsync(
                         requestHeader, false,
                         continuationPoints.ToArrayOf(), ct).ConfigureAwait(false);
-                    ClientBase.ValidateResponse(
+                    ValidateResponse(
                         next.Results, continuationPoints.ToArrayOf());
-                    ClientBase.ValidateDiagnosticInfos(
+                    ValidateDiagnosticInfos(
                         next.DiagnosticInfos, continuationPoints.ToArrayOf());
 
-                    continuationPoints = new List<ByteString>();
+                    continuationPoints = [];
                     for (int i = 0; i < next.Results.Count; i++)
                     {
                         BrowseResult result = next.Results[i];

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -35,6 +34,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_services = services;
             m_completion = completion;
 #if NET8_0_OR_GREATER
-            m_messages = Channel.CreateUnboundedPrioritized<IncomingMessage>(
+            m_messages = Channel.CreateUnboundedPrioritized(
                 new UnboundedPrioritizedChannelOptions<IncomingMessage>
                 {
                     SingleReader = true,
@@ -222,7 +222,9 @@ namespace Opc.Ua.Client.Subscriptions
                     await ProcessMessageAsync(incoming, ct).ConfigureAwait(false);
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+            }
             catch (Exception ex)
             {
                 _logger.LogCritical(ex,
@@ -248,11 +250,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// <returns></returns>
         private async Task ProcessMessageAsync(IncomingMessage incoming, CancellationToken ct)
         {
-            var prevSeqNum = _lastSequenceNumberProcessed;
-            var curSeqNum = incoming.Message.SequenceNumber;
+            uint prevSeqNum = _lastSequenceNumberProcessed;
+            uint curSeqNum = incoming.Message.SequenceNumber;
             if (prevSeqNum != 0)
             {
-                for (var missing = prevSeqNum + 1; missing < curSeqNum; missing++)
+                for (uint missing = prevSeqNum + 1; missing < curSeqNum; missing++)
                 {
                     // Try to republish missing messages from retransmission queue
                     await TryRepublishAsync(missing, curSeqNum, ct).ConfigureAwait(false);

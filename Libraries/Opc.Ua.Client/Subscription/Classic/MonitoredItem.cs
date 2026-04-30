@@ -187,7 +187,7 @@ namespace Opc.Ua.Client
             {
                 if (value != State.RelativePath)
                 {
-                    m_resolvedNodeId = NodeId.Null;
+                    ResolvedNodeId = NodeId.Null;
                 }
                 State = State with { RelativePath = value };
             }
@@ -347,14 +347,14 @@ namespace Opc.Ua.Client
         /// </summary>
         public Subscription? Subscription
         {
-            get => m_subscription;
+            get;
             internal set
             {
-                if (m_subscription == null && value?.Telemetry != null)
+                if (field == null && value?.Telemetry != null)
                 {
                     m_logger = value.Telemetry.CreateLogger<MonitoredItem>();
                 }
-                m_subscription = value;
+                field = value;
             }
         }
 
@@ -385,10 +385,10 @@ namespace Opc.Ua.Client
                 {
                     return StartNodeId;
                 }
-                return m_resolvedNodeId;
+                return field;
             }
-            internal set => m_resolvedNodeId = value;
-        }
+            internal set;
+        } = NodeId.Null;
 
         /// <summary>
         /// Whether the monitoring attributes have been modified since the item was created.
@@ -1069,8 +1069,6 @@ namespace Opc.Ua.Client
         }
 
         private static uint s_globalClientHandle;
-        private NodeId m_resolvedNodeId = NodeId.Null;
-        private Subscription? m_subscription;
         private ILogger m_logger = LoggerUtils.Null.Logger;
         private readonly Lock m_cache = new();
         private MonitoredItemDataCache? m_dataCache;

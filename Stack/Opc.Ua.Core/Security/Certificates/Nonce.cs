@@ -30,9 +30,27 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+
+<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Core(netstandard2.1)', Before:
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+#if CURVE25519
+=======
+using System.Security.Cryptography;
+#if CURVE25519
+>>>>>>> After
+
+<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Core(net8.0)', Before:
+using System.Runtime.Serialization;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+#if CURVE25519
+=======
+using System.Security.Cryptography;
+#if CURVE25519
+>>>>>>> After
+using System.Security.Cryptography;
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
@@ -191,6 +209,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a nonce for the specified security policy and nonce length.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="securityPolicy"/> is <c>null</c>.</exception>
         public static Nonce CreateNonce(SecurityPolicyInfo securityPolicy)
         {
             if (securityPolicy == null)
@@ -236,8 +255,10 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(RSADiffieHellmanGroup group)
         {
-            var nonce = new Nonce();
-            nonce.m_rsadh = RSADiffieHellman.Create(group);
+            var nonce = new Nonce
+            {
+                m_rsadh = RSADiffieHellman.Create(group)
+            };
             nonce.Data = nonce.m_rsadh.GetNonce();
             return nonce;
         }
@@ -254,6 +275,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new Nonce object for the specified security policy and nonce data.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="securityPolicy"/> is <c>null</c>.</exception>
         public static Nonce CreateNonce(SecurityPolicyInfo securityPolicy, byte[] nonceData)
         {
             if (securityPolicy == null)
@@ -268,10 +290,11 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
             {
-                var nonce = new Nonce();
-                nonce.m_rsadh = RSADiffieHellman.Create(nonceData);
-                nonce.Data = nonceData;
-                return nonce;
+                return new Nonce
+                {
+                    m_rsadh = RSADiffieHellman.Create(nonceData),
+                    Data = nonceData
+                };
             }
 
             switch (securityPolicy.EphemeralKeyAlgorithm)
@@ -485,11 +508,8 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                if (m_ecdh != null)
-                {
-                    m_ecdh.Dispose();
-                    m_ecdh = null;
-                }
+                m_ecdh?.Dispose();
+                m_ecdh = null;
             }
         }
     }
@@ -524,9 +544,11 @@ namespace Opc.Ua
         private BigInteger m_publicKey;
         private int m_nonceLength;
 
-        // ffdhe2048 prime from RFC 7919 (hex, without whitespace).
-        // (RFC 7919 Appendix A.3 — use this canonical modulus in production.)
-        const string FFDHE2048_HEX = @"
+        /// <summary>
+        /// ffdhe2048 prime from RFC 7919 (hex, without whitespace).
+        /// (RFC 7919 Appendix A.3 — use this canonical modulus in production.)
+        /// </summary>
+        private const string FFDHE2048_HEX = @"
             FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
             D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
             7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
@@ -539,12 +561,12 @@ namespace Opc.Ua
             3BB5FCBC 2EC22005 C58EF183 7D1683B2 C6F34A26 C1B2EFFA
             886B4238 61285C97 FFFFFFFF FFFFFFFF";
 
-        static readonly Lazy<BigInteger> s_P2048 = new(() => RfcTextToBytes(FFDHE2048_HEX));
+        private static readonly Lazy<BigInteger> s_P2048 = new(() => RfcTextToBytes(FFDHE2048_HEX));
 
-        const int k_FFDHE2048_MinExponent = 224;
-        const int k_FFDHE2048_MaxExponent = 255;
+        private const int k_FFDHE2048_MinExponent = 224;
+        private const int k_FFDHE2048_MaxExponent = 255;
 
-        const string FFDHE3072_HEX = @"
+        private const string FFDHE3072_HEX = @"
             FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
             D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
             7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
@@ -562,45 +584,10 @@ namespace Opc.Ua
             ABC52197 9B0DEADA 1DBF9A42 D5C4484E 0ABCD06B FA53DDEF
             3C1B20EE 3FD59D7C 25E41D2B 66C62E37 FFFFFFFF FFFFFFFF";
 
-        static readonly Lazy<BigInteger> s_P3072 = new(() => RfcTextToBytes(FFDHE3072_HEX));
+        private static readonly Lazy<BigInteger> s_P3072 = new(() => RfcTextToBytes(FFDHE3072_HEX));
 
-        const int k_FFDHE3072_MinExponent = 275;
-        const int k_FFDHE3072_MaxExponent = 383;
 
-        const string FFDHE4096_HEX = @"
-            FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
-            D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
-            7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
-            2433F51F 5F066ED0 85636555 3DED1AF3 B557135E 7F57C935
-            984F0C70 E0E68B77 E2A689DA F3EFE872 1DF158A1 36ADE735
-            30ACCA4F 483A797A BC0AB182 B324FB61 D108A94B B2C8E3FB
-            B96ADAB7 60D7F468 1D4F42A3 DE394DF4 AE56EDE7 6372BB19
-            0B07A7C8 EE0A6D70 9E02FCE1 CDF7E2EC C03404CD 28342F61
-            9172FE9C E98583FF 8E4F1232 EEF28183 C3FE3B1B 4C6FAD73
-            3BB5FCBC 2EC22005 C58EF183 7D1683B2 C6F34A26 C1B2EFFA
-            886B4238 611FCFDC DE355B3B 6519035B BC34F4DE F99C0238
-            61B46FC9 D6E6C907 7AD91D26 91F7F7EE 598CB0FA C186D91C
-            AEFE1309 85139270 B4130C93 BC437944 F4FD4452 E2D74DD3
-            64F2E21E 71F54BFF 5CAE82AB 9C9DF69E E86D2BC5 22363A0D
-            ABC52197 9B0DEADA 1DBF9A42 D5C4484E 0ABCD06B FA53DDEF
-            3C1B20EE 3FD59D7C 25E41D2B 669E1EF1 6E6F52C3 164DF4FB
-            7930E9E4 E58857B6 AC7D5F42 D69F6D18 7763CF1D 55034004
-            87F55BA5 7E31CC7A 7135C886 EFB4318A ED6A1E01 2D9E6832
-            A907600A 918130C4 6DC778F9 71AD0038 092999A3 33CB8B7A
-            1A1DB93D 7140003C 2A4ECEA9 F98D0ACC 0A8291CD CEC97DCF
-            8EC9B55A 7F88A46B 4DB5A851 F44182E1 C68A007E 5E655F6A
-            FFFFFFFF FFFFFFFF";
-
-        static readonly Lazy<BigInteger> s_P4096 = new(() => RfcTextToBytes(FFDHE4096_HEX));
-
-        const int k_FFDHE4096_MinExponent = 325;
-        const int k_FFDHE4096_MaxExponent = 511;
-
-        private static readonly Lazy<RandomNumberGenerator> s_rng = new(() => RandomNumberGenerator.Create());
-
-        // Generator for FFDHE groups is 2
-        static readonly BigInteger s_G = new BigInteger(2);
-
+<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Core(net8.0)', Before:
         /// <summary>
         /// Creates a new RSADiffieHellman instance for the specified group.
         /// </summary>
@@ -651,20 +638,106 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new RSADiffieHellman instance from the nonce.
         /// </summary>
-        public static RSADiffieHellman Create(byte[] nonce)
+=======
+        private const int k_FFDHE3072_MinExponent = 275;
+        private const int k_FFDHE3072_MaxExponent = 383;
+
+        private const string FFDHE4096_HEX = @"
+            FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
+            D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
+            7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
+            2433F51F 5F066ED0 85636555 3DED1AF3 B557135E 7F57C935
+            984F0C70 E0E68B77 E2A689DA F3EFE872 1DF158A1 36ADE735
+            30ACCA4F 483A797A BC0AB182 B324FB61 D108A94B B2C8E3FB
+            B96ADAB7 60D7F468 1D4F42A3 DE394DF4 AE56EDE7 6372BB19
+            0B07A7C8 EE0A6D70 9E02FCE1 CDF7E2EC C03404CD 28342F61
+            9172FE9C E98583FF 8E4F1232 EEF28183 C3FE3B1B 4C6FAD73
+            3BB5FCBC 2EC22005 C58EF183 7D1683B2 C6F34A26 C1B2EFFA
+            886B4238 611FCFDC DE355B3B 6519035B BC34F4DE F99C0238
+            61B46FC9 D6E6C907 7AD91D26 91F7F7EE 598CB0FA C186D91C
+            AEFE1309 85139270 B4130C93 BC437944 F4FD4452 E2D74DD3
+            64F2E21E 71F54BFF 5CAE82AB 9C9DF69E E86D2BC5 22363A0D
+            ABC52197 9B0DEADA 1DBF9A42 D5C4484E 0ABCD06B FA53DDEF
+            3C1B20EE 3FD59D7C 25E41D2B 669E1EF1 6E6F52C3 164DF4FB
+            7930E9E4 E58857B6 AC7D5F42 D69F6D18 7763CF1D 55034004
+            87F55BA5 7E31CC7A 7135C886 EFB4318A ED6A1E01 2D9E6832
+            A907600A 918130C4 6DC778F9 71AD0038 092999A3 33CB8B7A
+            1A1DB93D 7140003C 2A4ECEA9 F98D0ACC 0A8291CD CEC97DCF
+            8EC9B55A 7F88A46B 4DB5A851 F44182E1 C68A007E 5E655F6A
+            FFFFFFFF FFFFFFFF";
+
+        private static readonly Lazy<BigInteger> s_P4096 = new(() => RfcTextToBytes(FFDHE4096_HEX));
+
+        private const int k_FFDHE4096_MinExponent = 325;
+        private const int k_FFDHE4096_MaxExponent = 511;
+
+        private static readonly Lazy<RandomNumberGenerator> s_rng = new(() => RandomNumberGenerator.Create());
+
+        /// <summary>
+        /// Generator for FFDHE groups is 2
+        /// </summary>
+        private static readonly BigInteger s_G = new(2);
+
+        /// <summary>
+        /// Creates a new RSADiffieHellman instance for the specified group.
+        /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
+>>>>>>> After
+        private const int k_FFDHE3072_MinExponent = 275;
+        private const int k_FFDHE3072_MaxExponent = 383;
+
+        private const string FFDHE4096_HEX = @"
+            FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
+            D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
+            7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
+            2433F51F 5F066ED0 85636555 3DED1AF3 B557135E 7F57C935
+            984F0C70 E0E68B77 E2A689DA F3EFE872 1DF158A1 36ADE735
+            30ACCA4F 483A797A BC0AB182 B324FB61 D108A94B B2C8E3FB
+            B96ADAB7 60D7F468 1D4F42A3 DE394DF4 AE56EDE7 6372BB19
+            0B07A7C8 EE0A6D70 9E02FCE1 CDF7E2EC C03404CD 28342F61
+            9172FE9C E98583FF 8E4F1232 EEF28183 C3FE3B1B 4C6FAD73
+            3BB5FCBC 2EC22005 C58EF183 7D1683B2 C6F34A26 C1B2EFFA
+            886B4238 611FCFDC DE355B3B 6519035B BC34F4DE F99C0238
+            61B46FC9 D6E6C907 7AD91D26 91F7F7EE 598CB0FA C186D91C
+            AEFE1309 85139270 B4130C93 BC437944 F4FD4452 E2D74DD3
+            64F2E21E 71F54BFF 5CAE82AB 9C9DF69E E86D2BC5 22363A0D
+            ABC52197 9B0DEADA 1DBF9A42 D5C4484E 0ABCD06B FA53DDEF
+            3C1B20EE 3FD59D7C 25E41D2B 669E1EF1 6E6F52C3 164DF4FB
+            7930E9E4 E58857B6 AC7D5F42 D69F6D18 7763CF1D 55034004
+            87F55BA5 7E31CC7A 7135C886 EFB4318A ED6A1E01 2D9E6832
+            A907600A 918130C4 6DC778F9 71AD0038 092999A3 33CB8B7A
+            1A1DB93D 7140003C 2A4ECEA9 F98D0ACC 0A8291CD CEC97DCF
+            8EC9B55A 7F88A46B 4DB5A851 F44182E1 C68A007E 5E655F6A
+            FFFFFFFF FFFFFFFF";
+
+        private static readonly Lazy<BigInteger> s_P4096 = new(() => RfcTextToBytes(FFDHE4096_HEX));
+
+        private const int k_FFDHE4096_MinExponent = 325;
+        private const int k_FFDHE4096_MaxExponent = 511;
+
+        private static readonly Lazy<RandomNumberGenerator> s_rng = new(RandomNumberGenerator.Create);
+
+        /// <summary>
+        /// Generator for FFDHE groups is 2
+        /// </summary>
+        private static readonly BigInteger s_G = new(2);
+
+        /// <summary>
+        /// Creates a new RSADiffieHellman instance for the specified group.
+        /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
+        public static RSADiffieHellman Create(RSADiffieHellmanGroup group)
         {
-            var dh = new RSADiffieHellman();
+            int min = 0;
+            int max = 0;
+            BigInteger p;
 
-            var bytes = new byte[nonce.Length+1];
-
-            for (int ii = 0; ii < nonce.Length; ii++)
+            switch (group)
             {
-                bytes[ii] = nonce[nonce.Length - ii - 1];
-            }
+                case RSADiffieHellmanGroup.FFDHE2048:
+                    p = s_P2048.Value;
 
-            dh.m_publicKey = new BigInteger(bytes);
-            dh.m_nonceLength = nonce.Length;
-
+<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Core(netstandard2.1)', Before:
             return dh;
         }
 
@@ -761,6 +834,552 @@ namespace Opc.Ua
             bytes.Reverse();
             var integer = new BigInteger(bytes.ToArray());
             return integer;
+=======
+                    min = k_FFDHE2048_MinExponent;
+                    max = k_FFDHE2048_MaxExponent;
+                    break;
+                case RSADiffieHellmanGroup.FFDHE3072:
+                    p = s_P3072.Value;
+                    min = k_FFDHE3072_MinExponent;
+                    max = k_FFDHE3072_MaxExponent;
+                    break;
+                case RSADiffieHellmanGroup.FFDHE4096:
+                    p = s_P4096.Value;
+                    min = k_FFDHE4096_MinExponent;
+                    max = k_FFDHE4096_MaxExponent;
+                    break;
+                default:
+                    throw new NotSupportedException("Unsupported RSA DH finite group type.");
+            }
+
+            var dh = new RSADiffieHellman();
+
+            byte[] seed = new byte[1];
+            s_rng.Value.GetBytes(seed);
+            int keyLength = (seed[0] % (max - min + 1)) + min;
+
+            byte[] key = new byte[1 + ((keyLength + 7) / 8)];
+            s_rng.Value.GetBytes(key);
+            key[^1] = 0;
+
+            dh.m_privateKey = new BigInteger(key);
+            dh.m_publicKey = BigInteger.ModPow(s_G, dh.m_privateKey, p);
+            dh.m_nonceLength = max + 1;
+
+            return dh;
+        }
+
+        /// <summary>
+        /// Creates a new RSADiffieHellman instance from the nonce.
+        /// </summary>
+        public static RSADiffieHellman Create(byte[] nonce)
+        {
+            var dh = new RSADiffieHellman();
+
+            byte[] bytes = new byte[nonce.Length + 1];
+
+            for (int ii = 0; ii < nonce.Length; ii++)
+            {
+                bytes[ii] = nonce[nonce.Length - ii - 1];
+            }
+
+            dh.m_publicKey = new BigInteger(bytes);
+            dh.m_nonceLength = nonce.Length;
+
+            return dh;
+        }
+
+        /// <summary>
+        /// Returns the nonce representing the public key.
+        /// </summary>
+        public byte[] GetNonce()
+        {
+            byte[] nonce = new byte[m_nonceLength];
+            byte[] publicKey = m_publicKey.ToByteArray();
+
+            for (int ii = 0; ii < publicKey.Length && ii < nonce.Length; ii++)
+            {
+                nonce[nonce.Length - 1 - ii] = publicKey[ii];
+            }
+
+            return nonce;
+        }
+
+        /// <summary>
+        /// Derives the raw secret agreement from the remote key.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        public byte[] DeriveRawSecretAgreement(RSADiffieHellman remoteKey)
+        {
+            if (m_privateKey.IsZero)
+            {
+                throw new InvalidOperationException("Private key not available.");
+            }
+
+            BigInteger p;
+
+            switch (m_nonceLength)
+            {
+                case 256:
+                    p = s_P2048.Value;
+                    break;
+                case 384:
+                    p = s_P3072.Value;
+                    break;
+                case 512:
+                    p = s_P4096.Value;
+                    break;
+                default:
+                    throw new NotSupportedException("Unsupported RSA DH finite group type.");
+            }
+
+            var shared = BigInteger.ModPow(remoteKey.m_publicKey, m_privateKey, p);
+
+            byte[] bytes = shared.ToByteArray();
+
+            if (bytes.Length < m_nonceLength)
+            {
+                byte[] padded = new byte[m_nonceLength];
+                Array.Copy(bytes, 0, padded, 0, bytes.Length);
+                bytes = padded;
+            }
+            else if (bytes.Length > m_nonceLength)
+            {
+                byte[] trucated = new byte[m_nonceLength];
+                Array.Copy(bytes, 0, trucated, 0, m_nonceLength);
+                bytes = trucated;
+            }
+
+            // make sure bytes are in big-endian order.
+            Array.Reverse(bytes);
+
+            return bytes;
+        }
+
+        private static BigInteger RfcTextToBytes(string rfcText)
+        {
+            var bytes = new List<byte>();
+            char[] digit = new char[2];
+            int pos = 0;
+
+            bytes.Add(0);
+
+            for (int ii = 0; ii < rfcText.Length; ii++)
+            {
+                if (char.IsWhiteSpace(rfcText[ii]))
+                {
+                    continue;
+                }
+
+                digit[pos++] = rfcText[ii];
+
+                if (pos == 2)
+                {
+                    bytes.Add(Convert.ToByte(new string(digit), 16));
+                    pos = 0;
+                }
+            }
+
+            bytes.Reverse();
+            return new BigInteger(bytes.ToArray());
+>>>>>>> After
+
+<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Core(net8.0)', Before:
+            return dh;
+        }
+
+        /// <summary>
+        /// Returns the nonce representing the public key.
+        /// </summary>
+        public byte[] GetNonce()
+        {
+            var nonce = new byte[m_nonceLength];
+            var publicKey = m_publicKey.ToByteArray();
+
+            for (int ii = 0; ii < publicKey.Length && ii < nonce.Length; ii++)
+            {
+                nonce[nonce.Length - 1 - ii] = publicKey[ii];
+            }
+
+            return nonce;
+        }
+
+        /// <summary>
+        /// Derives the raw secret agreement from the remote key.
+        /// </summary>
+        public byte[] DeriveRawSecretAgreement(RSADiffieHellman remoteKey)
+        {
+            if (m_privateKey.IsZero)
+            {
+                throw new InvalidOperationException("Private key not available.");
+            }
+
+            BigInteger p;
+
+            switch (m_nonceLength)
+            {
+                case 256:
+                    p = s_P2048.Value;
+                    break;
+                case 384:
+                    p = s_P3072.Value;
+                    break;
+                case 512:
+                    p = s_P4096.Value;
+                    break;
+                default:
+                    throw new NotSupportedException("Unsupported RSA DH finite group type.");
+            }
+
+            var shared = BigInteger.ModPow(remoteKey.m_publicKey, m_privateKey, p);
+
+            var bytes = shared.ToByteArray();
+
+            if (bytes.Length < m_nonceLength)
+            {
+                var padded = new byte[m_nonceLength];
+                Array.Copy(bytes, 0, padded, 0, bytes.Length);
+                bytes = padded;
+            }
+            else if (bytes.Length > m_nonceLength)
+            {
+                var trucated = new byte[m_nonceLength];
+                Array.Copy(bytes, 0, trucated, 0, m_nonceLength);
+                bytes = trucated;
+            }
+
+            // make sure bytes are in big-endian order.
+            Array.Reverse(bytes);
+
+            return bytes;
+        }
+
+        private static BigInteger RfcTextToBytes(string rfcText)
+        {
+            var bytes = new List<byte>();
+            var digit = new char[2];
+            int pos = 0;
+
+            bytes.Add(0);
+
+            for (int ii = 0; ii < rfcText.Length; ii++)
+            {
+                if (char.IsWhiteSpace(rfcText[ii]))
+                {
+                    continue;
+                }
+
+                digit[pos++] = rfcText[ii];
+
+                if (pos == 2)
+                {
+                    bytes.Add(Convert.ToByte(new string(digit), 16));
+                    pos = 0;
+                }
+            }
+
+            bytes.Reverse();
+            var integer = new BigInteger(bytes.ToArray());
+            return integer;
+=======
+                    min = k_FFDHE2048_MinExponent;
+                    max = k_FFDHE2048_MaxExponent;
+                    break;
+                case RSADiffieHellmanGroup.FFDHE3072:
+                    p = s_P3072.Value;
+                    min = k_FFDHE3072_MinExponent;
+                    max = k_FFDHE3072_MaxExponent;
+                    break;
+                case RSADiffieHellmanGroup.FFDHE4096:
+                    p = s_P4096.Value;
+                    min = k_FFDHE4096_MinExponent;
+                    max = k_FFDHE4096_MaxExponent;
+                    break;
+                default:
+                    throw new NotSupportedException("Unsupported RSA DH finite group type.");
+            }
+
+            var dh = new RSADiffieHellman();
+
+            byte[] seed = new byte[1];
+            s_rng.Value.GetBytes(seed);
+            int keyLength = (seed[0] % (max - min + 1)) + min;
+
+            byte[] key = new byte[1 + ((keyLength + 7) / 8)];
+            s_rng.Value.GetBytes(key);
+            key[^1] = 0;
+
+            dh.m_privateKey = new BigInteger(key);
+            dh.m_publicKey = BigInteger.ModPow(s_G, dh.m_privateKey, p);
+            dh.m_nonceLength = max + 1;
+
+            return dh;
+        }
+
+        /// <summary>
+        /// Creates a new RSADiffieHellman instance from the nonce.
+        /// </summary>
+        public static RSADiffieHellman Create(byte[] nonce)
+        {
+            var dh = new RSADiffieHellman();
+
+            byte[] bytes = new byte[nonce.Length + 1];
+
+            for (int ii = 0; ii < nonce.Length; ii++)
+            {
+                bytes[ii] = nonce[nonce.Length - ii - 1];
+            }
+
+            dh.m_publicKey = new BigInteger(bytes);
+            dh.m_nonceLength = nonce.Length;
+
+            return dh;
+        }
+
+        /// <summary>
+        /// Returns the nonce representing the public key.
+        /// </summary>
+        public byte[] GetNonce()
+        {
+            byte[] nonce = new byte[m_nonceLength];
+            byte[] publicKey = m_publicKey.ToByteArray();
+
+            for (int ii = 0; ii < publicKey.Length && ii < nonce.Length; ii++)
+            {
+                nonce[nonce.Length - 1 - ii] = publicKey[ii];
+            }
+
+            return nonce;
+        }
+
+        /// <summary>
+        /// Derives the raw secret agreement from the remote key.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        public byte[] DeriveRawSecretAgreement(RSADiffieHellman remoteKey)
+        {
+            if (m_privateKey.IsZero)
+            {
+                throw new InvalidOperationException("Private key not available.");
+            }
+
+            BigInteger p;
+
+            switch (m_nonceLength)
+            {
+                case 256:
+                    p = s_P2048.Value;
+                    break;
+                case 384:
+                    p = s_P3072.Value;
+                    break;
+                case 512:
+                    p = s_P4096.Value;
+                    break;
+                default:
+                    throw new NotSupportedException("Unsupported RSA DH finite group type.");
+            }
+
+            var shared = BigInteger.ModPow(remoteKey.m_publicKey, m_privateKey, p);
+
+            byte[] bytes = shared.ToByteArray();
+
+            if (bytes.Length < m_nonceLength)
+            {
+                byte[] padded = new byte[m_nonceLength];
+                Array.Copy(bytes, 0, padded, 0, bytes.Length);
+                bytes = padded;
+            }
+            else if (bytes.Length > m_nonceLength)
+            {
+                byte[] trucated = new byte[m_nonceLength];
+                Array.Copy(bytes, 0, trucated, 0, m_nonceLength);
+                bytes = trucated;
+            }
+
+            // make sure bytes are in big-endian order.
+            Array.Reverse(bytes);
+
+            return bytes;
+        }
+
+        private static BigInteger RfcTextToBytes(string rfcText)
+        {
+            var bytes = new List<byte>();
+            char[] digit = new char[2];
+            int pos = 0;
+
+            bytes.Add(0);
+
+            for (int ii = 0; ii < rfcText.Length; ii++)
+            {
+                if (char.IsWhiteSpace(rfcText[ii]))
+                {
+                    continue;
+                }
+
+                digit[pos++] = rfcText[ii];
+
+                if (pos == 2)
+                {
+                    bytes.Add(Convert.ToByte(new string(digit), 16));
+                    pos = 0;
+                }
+            }
+
+            bytes.Reverse();
+            return new BigInteger(bytes.ToArray());
+>>>>>>> After
+                    min = k_FFDHE2048_MinExponent;
+                    max = k_FFDHE2048_MaxExponent;
+                    break;
+                case RSADiffieHellmanGroup.FFDHE3072:
+                    p = s_P3072.Value;
+                    min = k_FFDHE3072_MinExponent;
+                    max = k_FFDHE3072_MaxExponent;
+                    break;
+                case RSADiffieHellmanGroup.FFDHE4096:
+                    p = s_P4096.Value;
+                    min = k_FFDHE4096_MinExponent;
+                    max = k_FFDHE4096_MaxExponent;
+                    break;
+                default:
+                    throw new NotSupportedException("Unsupported RSA DH finite group type.");
+            }
+
+            var dh = new RSADiffieHellman();
+
+            byte[] seed = new byte[1];
+            s_rng.Value.GetBytes(seed);
+            int keyLength = (seed[0] % (max - min + 1)) + min;
+
+            byte[] key = new byte[1 + ((keyLength + 7) / 8)];
+            s_rng.Value.GetBytes(key);
+            key[^1] = 0;
+
+            dh.m_privateKey = new BigInteger(key);
+            dh.m_publicKey = BigInteger.ModPow(s_G, dh.m_privateKey, p);
+            dh.m_nonceLength = max + 1;
+
+            return dh;
+        }
+
+        /// <summary>
+        /// Creates a new RSADiffieHellman instance from the nonce.
+        /// </summary>
+        public static RSADiffieHellman Create(byte[] nonce)
+        {
+            var dh = new RSADiffieHellman();
+
+            byte[] bytes = new byte[nonce.Length + 1];
+
+            for (int ii = 0; ii < nonce.Length; ii++)
+            {
+                bytes[ii] = nonce[nonce.Length - ii - 1];
+            }
+
+            dh.m_publicKey = new BigInteger(bytes);
+            dh.m_nonceLength = nonce.Length;
+
+            return dh;
+        }
+
+        /// <summary>
+        /// Returns the nonce representing the public key.
+        /// </summary>
+        public byte[] GetNonce()
+        {
+            byte[] nonce = new byte[m_nonceLength];
+            byte[] publicKey = m_publicKey.ToByteArray();
+
+            for (int ii = 0; ii < publicKey.Length && ii < nonce.Length; ii++)
+            {
+                nonce[nonce.Length - 1 - ii] = publicKey[ii];
+            }
+
+            return nonce;
+        }
+
+        /// <summary>
+        /// Derives the raw secret agreement from the remote key.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        public byte[] DeriveRawSecretAgreement(RSADiffieHellman remoteKey)
+        {
+            if (m_privateKey.IsZero)
+            {
+                throw new InvalidOperationException("Private key not available.");
+            }
+
+            BigInteger p;
+
+            switch (m_nonceLength)
+            {
+                case 256:
+                    p = s_P2048.Value;
+                    break;
+                case 384:
+                    p = s_P3072.Value;
+                    break;
+                case 512:
+                    p = s_P4096.Value;
+                    break;
+                default:
+                    throw new NotSupportedException("Unsupported RSA DH finite group type.");
+            }
+
+            var shared = BigInteger.ModPow(remoteKey.m_publicKey, m_privateKey, p);
+
+            byte[] bytes = shared.ToByteArray();
+
+            if (bytes.Length < m_nonceLength)
+            {
+                byte[] padded = new byte[m_nonceLength];
+                Array.Copy(bytes, 0, padded, 0, bytes.Length);
+                bytes = padded;
+            }
+            else if (bytes.Length > m_nonceLength)
+            {
+                byte[] trucated = new byte[m_nonceLength];
+                Array.Copy(bytes, 0, trucated, 0, m_nonceLength);
+                bytes = trucated;
+            }
+
+            // make sure bytes are in big-endian order.
+            Array.Reverse(bytes);
+
+            return bytes;
+        }
+
+        private static BigInteger RfcTextToBytes(string rfcText)
+        {
+            var bytes = new List<byte>();
+            char[] digit = new char[2];
+            int pos = 0;
+
+            bytes.Add(0);
+
+            for (int ii = 0; ii < rfcText.Length; ii++)
+            {
+                if (char.IsWhiteSpace(rfcText[ii]))
+                {
+                    continue;
+                }
+
+                digit[pos++] = rfcText[ii];
+
+                if (pos == 2)
+                {
+                    bytes.Add(Convert.ToByte(new string(digit), 16));
+                    pos = 0;
+                }
+            }
+
+            bytes.Reverse();
+            return new BigInteger([.. bytes]);
         }
     }
 }
