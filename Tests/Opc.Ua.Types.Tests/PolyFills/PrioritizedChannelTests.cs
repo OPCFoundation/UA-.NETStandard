@@ -36,16 +36,16 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Types.Polyfills.Tests
 {
     [TestFixture]
-    [Category("Client")]
+    [Category("Polyfills")]
     [Category("PrioritizedChannel")]
     public sealed class PrioritizedChannelTests
     {
         private Channel<int> CreateChannel(IComparer<int> comparer = null)
         {
-            return PrioritizedChannelHelper.CreateUnboundedPrioritized(
+            return Channel.CreateUnboundedPrioritized(
                 new UnboundedPrioritizedChannelOptions<int>
                 {
                     Comparer = comparer,
@@ -223,5 +223,4 @@ namespace Opc.Ua.Client.Tests
         }
     }
 }
-
 #endif
