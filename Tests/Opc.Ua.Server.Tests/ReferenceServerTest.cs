@@ -1785,8 +1785,10 @@ namespace Opc.Ua.Server.Tests
                 { "NDimension", new NodeId("DataAccess_ArrayItemType_NDimension", 2) }
             };
 
-            foreach (var (name, nodeId) in nodeIds)
+            foreach (var kvp in nodeIds)
             {
+                string name = kvp.Key;
+                NodeId nodeId = kvp.Value;
                 m_requestHeader.Timestamp = DateTimeUtc.Now;
                 ArrayOf<ReadValueId> nodesToRead =
                 [
@@ -1885,8 +1887,10 @@ namespace Opc.Ua.Server.Tests
                 { "Scalar_Static_Arrays2D_Variant", new NodeId("Scalar_Static_Arrays2D_Variant", 2) }
             };
 
-            foreach (var (name, nodeId) in nodeIds)
+            foreach (var kvp in nodeIds)
             {
+                string name = kvp.Key;
+                NodeId nodeId = kvp.Value;
                 m_requestHeader.Timestamp = DateTimeUtc.Now;
                 ArrayOf<ReadValueId> nodesToRead =
                 [
@@ -1921,8 +1925,10 @@ namespace Opc.Ua.Server.Tests
                 { "ImagePNG", new NodeId("Scalar_Static_ImagePNG", 2) }
             };
 
-            foreach (var (name, nodeId) in nodeIds)
+            foreach (var kvp in nodeIds)
             {
+                string name = kvp.Key;
+                NodeId nodeId = kvp.Value;
                 m_requestHeader.Timestamp = DateTimeUtc.Now;
                 ArrayOf<ReadValueId> nodesToRead =
                 [
