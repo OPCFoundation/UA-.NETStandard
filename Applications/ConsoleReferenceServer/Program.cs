@@ -126,6 +126,12 @@ namespace Quickstarts.ReferenceServer
                 bool provisioningMode = parseResult.GetValue(provisionOption);
                 string reverseConnectUrlString = parseResult.GetValue(reverseConnectOption);
 
+                // Use CTT-specific config when CTT mode is enabled
+                if (cttMode && !Utils.IsRunningOnMono())
+                {
+                    configSectionName = "Ctt.ReferenceServer";
+                }
+
                 using var telemetry = new ConsoleTelemetry();
                 ILogger logger = LoggerUtils.Null.Logger;
                 try
