@@ -641,7 +641,7 @@ namespace Opc.Ua
             CertificateIdentifier? issuer = null;
             ServiceResultException? revocationStatus = null;
             Certificate? certificate = certificates[0];
-            Certificate? ownedCertificate = null;
+            var ownedCertificates = new List<Certificate>();
 
             var untrustedList = new List<CertificateIdentifier>();
             for (int ii = 1; ii < certificates.Count; ii++)
@@ -756,7 +756,10 @@ namespace Opc.Ua
                             applicationUri: null,
                             m_telemetry,
                             ct).ConfigureAwait(false);
-                        ownedCertificate = certificate;
+                        if (certificate != null)
+                        {
+                            ownedCertificates.Add(certificate);
+                        }
                     }
                 }
                 finally
@@ -765,9 +768,11 @@ namespace Opc.Ua
                 }
             } while (issuer != null);
 
-            // dispose the last certificate from the issuer chain walk
-            // (intermediate ones are owned by validationErrors and disposed at line ~1384)
-            ownedCertificate?.Dispose();
+            // dispose all intermediate certificates from the issuer chain walk
+            foreach (Certificate owned in ownedCertificates)
+            {
+                owned.Dispose();
+            }
 
             foreach (CertificateIdentifier untrusted in untrustedList)
             {
@@ -1413,14 +1418,8 @@ namespace Opc.Ua
 
             ServiceResult? sresult = PopulateSresultWithValidationErrors(validationErrors);
 
-            foreach (Certificate key in validationErrors.Keys)
-            {
-                // skip the leaf certificate which is owned by the caller
-                if (!ReferenceEquals(key, certificate))
-                {
-                    key.Dispose();
-                }
-            }
+            // Note: validationErrors keys share references with issuer.Certificate —
+            // they are disposed in the finally block via issuer.Dispose().
 
             // setup policy chain
             var policy = new X509ChainPolicy
