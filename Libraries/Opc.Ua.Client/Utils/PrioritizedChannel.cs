@@ -71,8 +71,7 @@ namespace Opc.Ua.Client
             UnboundedPrioritizedChannelOptions<T> options)
         {
             return new PrioritizedChannel<T>(
-                options.Comparer ?? Comparer<T>.Default,
-                options.SingleReader);
+                options.Comparer ?? Comparer<T>.Default);
         }
     }
 
@@ -84,7 +83,7 @@ namespace Opc.Ua.Client
     /// <typeparam name="T"></typeparam>
     internal sealed class PrioritizedChannel<T> : Channel<T>
     {
-        public PrioritizedChannel(IComparer<T> comparer, bool singleReader)
+        public PrioritizedChannel(IComparer<T> comparer)
         {
             m_comparer = comparer;
             m_heap = [];

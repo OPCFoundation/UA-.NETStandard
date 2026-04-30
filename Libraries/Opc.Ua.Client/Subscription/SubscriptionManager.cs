@@ -436,7 +436,7 @@ namespace Opc.Ua.Client.Subscriptions
 #if NET8_0_OR_GREATER
                         foreach (PublishWorker worker in publishWorkers[desiredWorkerCount..])
 #else
-                        foreach (var worker in publishWorkers.Skip(desiredWorkerCount))
+                        foreach (PublishWorker worker in publishWorkers.Skip(desiredWorkerCount))
 #endif
                         {
                             m_logger.LogInformation("Removing publish worker {Index}",
@@ -459,40 +459,7 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     PublishWorkerCount = publishWorkers.Count;
 
-<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Client(net48)', Before:
-                    Task[] waiting = publishWorkers
-                        .Select(w => w.Task)
-                        .Prepend(m_publishControl.WaitAsync(ct))
-                        .ToArray();
-=======
                     Task[] waiting = [.. publishWorkers
-                        .Select(w => w.Task)
-                        .Prepend(m_publishControl.WaitAsync(ct))];
->>>>>>> After
-
-<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Client(net8.0)', Before:
-                    Task[] waiting = publishWorkers
-                        .Select(w => w.Task)
-                        .Prepend(m_publishControl.WaitAsync(ct))
-                        .ToArray();
-=======
-                    Task[] waiting = [.. publishWorkers
-                        .Select(w => w.Task)
-                        .Prepend(m_publishControl.WaitAsync(ct))];
->>>>>>> After
-                    Task[] waiting = 
-<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Client(net48)', Before:
-                    var index = 0;
-=======
-                    int index = 0;
->>>>>>> After
-
-<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Client(net8.0)', Before:
-                    var index = 0;
-=======
-                    int index = 0;
->>>>>>> After
-[.. publishWorkers
                         .Select(w => w.Task)
                         .Prepend(m_publishControl.WaitAsync(ct))];
                     await Task.WhenAny(waiting).ConfigureAwait(false);
@@ -922,13 +889,13 @@ namespace Opc.Ua.Client.Subscriptions
                 // TODO: Validate this against spec
                 //
                 timeout = timeout.Multiply(2);
-                if (timeout < kMinOperationTimeout)
+                if (timeout < s_minOperationTimeout)
                 {
-                    timeout = kMinOperationTimeout;
+                    timeout = s_minOperationTimeout;
                 }
-                if (timeout > kMaxOperationTimeout)
+                if (timeout > s_maxOperationTimeout)
                 {
-                    timeout = kMaxOperationTimeout;
+                    timeout = s_maxOperationTimeout;
                 }
                 uint newTimeout = (uint)timeout.TotalMilliseconds;
                 if (newTimeout > currentTimeout)
@@ -947,8 +914,8 @@ namespace Opc.Ua.Client.Subscriptions
             private readonly CancellationTokenSource m_cts;
         }
 
-        private static readonly TimeSpan kMaxOperationTimeout = TimeSpan.FromMinutes(30);
-        private static readonly TimeSpan kMinOperationTimeout = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan s_maxOperationTimeout = TimeSpan.FromMinutes(30);
+        private static readonly TimeSpan s_minOperationTimeout = TimeSpan.FromSeconds(1);
         private const int kMaxSubscriptionHistory = 10;
         private uint m_publishRequestCounter;
 #pragma warning disable IDE0032 // Use auto property

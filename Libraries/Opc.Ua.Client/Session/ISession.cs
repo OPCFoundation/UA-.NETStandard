@@ -30,9 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-using System.Runtime.CompilerServices;
-#endif
 using System.Threading;
 using System.Threading.Tasks;
 

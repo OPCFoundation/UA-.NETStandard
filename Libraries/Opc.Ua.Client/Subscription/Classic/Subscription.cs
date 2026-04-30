@@ -634,7 +634,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
-                        return m_messageCache.Last!.Value.PublishTime;
+                        return m_messageCache.Last.Value.PublishTime;
                     }
                 }
 
@@ -665,7 +665,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
-                        return m_messageCache.Last!.Value.SequenceNumber;
+                        return m_messageCache.Last.Value.SequenceNumber;
                     }
                 }
 
@@ -684,7 +684,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
-                        return (uint)m_messageCache.Last!.Value.NotificationData.Count;
+                        return (uint)m_messageCache.Last.Value.NotificationData.Count;
                     }
                 }
 
@@ -703,7 +703,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
-                        return m_messageCache.Last!.Value;
+                        return m_messageCache.Last.Value;
                     }
 
                     return null;
@@ -2597,7 +2597,7 @@ namespace Opc.Ua.Client
 
                                     if (!DisableMonitoredItemCache)
                                     {
-                                        SaveDataChange(message, datachange, message.StringTable);
+                                        SaveDataChange(message, datachange);
                                     }
 
                                     datachangeCallback?.Invoke(
@@ -2615,7 +2615,7 @@ namespace Opc.Ua.Client
 
                                     if (!DisableMonitoredItemCache)
                                     {
-                                        SaveEvents(message, events, message.StringTable);
+                                        SaveEvents(message, events);
                                     }
 
                                     eventCallback?.Invoke(this, events, message.StringTable);
@@ -2989,8 +2989,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void SaveDataChange(
             NotificationMessage message,
-            DataChangeNotification notifications,
-            ArrayOf<string> stringTable)
+            DataChangeNotification notifications)
         {
             // check for empty monitored items list.
             if (notifications.MonitoredItems.IsEmpty)
@@ -3034,8 +3033,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void SaveEvents(
             NotificationMessage message,
-            EventNotificationList notifications,
-            ArrayOf<string> stringTable)
+            EventNotificationList notifications)
         {
             for (int ii = 0; ii < notifications.Events.Count; ii++)
             {

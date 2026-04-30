@@ -29,7 +29,6 @@
 
 using System.Collections.Generic;
 using Microsoft.Extensions.Options;
-using Opc.Ua;
 
 namespace Opc.Ua.Client.Subscriptions
 {

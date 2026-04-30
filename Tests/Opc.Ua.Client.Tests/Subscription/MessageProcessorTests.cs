@@ -304,10 +304,10 @@ namespace Opc.Ua.Client.Subscriptions
             {
             }
 
-            public IReadOnlyList<uint> AvailableInRetransmissionQueue
+            public new IReadOnlyList<uint> AvailableInRetransmissionQueue
             {
-                get => _availableInRetransmissionQueue;
-                set => _availableInRetransmissionQueue = value;
+                get => base.AvailableInRetransmissionQueue;
+                set => base.AvailableInRetransmissionQueue = value;
             }
             public SemaphoreSlim Block { get; } = new(1, 1);
 
@@ -317,10 +317,10 @@ namespace Opc.Ua.Client.Subscriptions
 
             public AsyncManualResetEvent KeepAliveNotificationReceived { get; } = new();
 
-            public uint LastSequenceNumberProcessed
+            public new uint LastSequenceNumberProcessed
             {
-                get => _lastSequenceNumberProcessed;
-                set => _lastSequenceNumberProcessed = value;
+                get => base.LastSequenceNumberProcessed;
+                set => base.LastSequenceNumberProcessed = value;
             }
             public PublishState PublishState { get; set; }
             public List<uint> ReceivedSequenceNumbers { get; } = [];

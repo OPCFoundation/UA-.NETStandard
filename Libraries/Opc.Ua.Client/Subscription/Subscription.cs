@@ -96,7 +96,7 @@ namespace Opc.Ua.Client.Subscriptions
                 TimeSpan timeSinceLastNotification = TimeProvider.System
                     .GetElapsedTime(lastNotificationTimestamp);
                 return timeSinceLastNotification >
-                    m_keepAliveInterval + kKeepAliveTimerMargin;
+                    m_keepAliveInterval + s_keepAliveTimerMargin;
             }
         }
 
@@ -653,7 +653,7 @@ namespace Opc.Ua.Client.Subscriptions
             SubscriptionOptions options = Options;
             _lastNotificationTimestamp = TimeProvider.System.GetTimestamp();
             m_keepAliveInterval = CurrentPublishingInterval.Multiply(CurrentKeepAliveCount + 1);
-            if (m_keepAliveInterval < kMinKeepAliveTimerInterval)
+            if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
             {
                 m_keepAliveInterval = options.PublishingInterval.Multiply(options.KeepAliveCount + 1);
             }
@@ -661,9 +661,9 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_keepAliveInterval = Timeout.InfiniteTimeSpan;
             }
-            if (m_keepAliveInterval < kMinKeepAliveTimerInterval)
+            if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
             {
-                m_keepAliveInterval = kMinKeepAliveTimerInterval;
+                m_keepAliveInterval = s_minKeepAliveTimerInterval;
             }
             m_publishTimer.Change(m_keepAliveInterval, m_keepAliveInterval);
         }
@@ -761,8 +761,8 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
-        private static readonly TimeSpan kMinKeepAliveTimerInterval = TimeSpan.FromSeconds(1);
-        private static readonly TimeSpan kKeepAliveTimerMargin = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan s_minKeepAliveTimerInterval = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan s_keepAliveTimerMargin = TimeSpan.FromSeconds(1);
         private TimeSpan m_keepAliveInterval;
         private int m_publishLateCount;
         private readonly Nito.AsyncEx.AsyncAutoResetEvent m_stateControl = new();

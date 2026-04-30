@@ -56,12 +56,14 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Create cache
         /// </summary>
+#pragma warning disable IDE0060 // Public API parameter reserved for future use
         public LruNodeCache(
             INodeCacheContext context,
             ITelemetryContext telemetry,
             TimeSpan? cacheExpiry = null,
             int capacity = 4096,
             bool withMetrics = false)
+#pragma warning restore IDE0060
         {
             m_context = context;
             cacheExpiry ??= TimeSpan.FromMinutes(5);

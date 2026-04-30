@@ -62,8 +62,8 @@ namespace Opc.Ua.Client.Subscriptions
             IMessageAckQueue completion, ITelemetryContext telemetry)
         {
             Observability = telemetry;
-            _availableInRetransmissionQueue = [];
-            _logger = Observability.LoggerFactory.CreateLogger<Subscription>();
+            AvailableInRetransmissionQueue = [];
+            Logger = Observability.LoggerFactory.CreateLogger<Subscription>();
             m_services = services;
             m_completion = completion;
 #if NET8_0_OR_GREATER
@@ -101,9 +101,9 @@ namespace Opc.Ua.Client.Subscriptions
         {
             if (availableSequenceNumbers != null)
             {
-                _availableInRetransmissionQueue = availableSequenceNumbers;
+                AvailableInRetransmissionQueue = availableSequenceNumbers;
             }
-            _lastNotificationTimestamp = TimeProvider.System.GetTimestamp();
+            LastNotificationTimestamp = TimeProvider.System.GetTimestamp();
             await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
                 TimeProvider.System.GetUtcNow())).ConfigureAwait(false);
         }
@@ -114,7 +114,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="disposing"></param>
         protected virtual async ValueTask DisposeAsync(bool disposing)
         {
-            if (disposing && !_disposed)
+            if (disposing && !Disposed)
             {
                 try
                 {
@@ -126,7 +126,7 @@ namespace Opc.Ua.Client.Subscriptions
                 finally
                 {
                     m_cts.Dispose();
-                    _disposed = true;
+                    Disposed = true;
                 }
             }
         }
@@ -189,15 +189,15 @@ namespace Opc.Ua.Client.Subscriptions
         {
             if (stateMask.HasFlag(PublishState.Stopped))
             {
-                _logger.LogInformation("{Subscription} STOPPED!", this);
+                Logger.LogInformation("{Subscription} STOPPED!", this);
             }
             if (stateMask.HasFlag(PublishState.Recovered))
             {
-                _logger.LogInformation("{Subscription} RECOVERED!", this);
+                Logger.LogInformation("{Subscription} RECOVERED!", this);
             }
             if (stateMask.HasFlag(PublishState.Completed))
             {
-                _logger.LogInformation("{Subscription} CLOSED!", this);
+                Logger.LogInformation("{Subscription} CLOSED!", this);
             }
         }
 
@@ -227,7 +227,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             catch (Exception ex)
             {
-                _logger.LogCritical(ex,
+                Logger.LogCritical(ex,
                     "{Subscription}: Error processing messages. Processor is exiting!!!",
                     this);
 
@@ -250,7 +250,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <returns></returns>
         private async Task ProcessMessageAsync(IncomingMessage incoming, CancellationToken ct)
         {
-            uint prevSeqNum = _lastSequenceNumberProcessed;
+            uint prevSeqNum = LastSequenceNumberProcessed;
             uint curSeqNum = incoming.Message.SequenceNumber;
             if (prevSeqNum != 0)
             {
@@ -262,25 +262,25 @@ namespace Opc.Ua.Client.Subscriptions
                 if (prevSeqNum >= curSeqNum)
                 {
                     // Can occur if we republished a message
-                    if (!_logger.IsEnabled(LogLevel.Debug))
+                    if (!Logger.IsEnabled(LogLevel.Debug))
                     {
                         return;
                     }
                     if (curSeqNum == prevSeqNum)
                     {
-                        _logger.LogDebug("{Subscription}: Received duplicate message " +
+                        Logger.LogDebug("{Subscription}: Received duplicate message " +
                             "with sequence number #{SeqNumber}.", this, curSeqNum);
                     }
                     else
                     {
-                        _logger.LogDebug("{Subscription}: Received older message with " +
+                        Logger.LogDebug("{Subscription}: Received older message with " +
                             "sequence number #{SeqNumber} but already processed message with " +
                             "sequence number #{Old}.", this, curSeqNum, prevSeqNum);
                     }
                     return;
                 }
             }
-            _lastSequenceNumberProcessed = curSeqNum;
+            LastSequenceNumberProcessed = curSeqNum;
             await OnNotificationReceivedAsync(incoming.Message, PublishState.None,
                 ct).ConfigureAwait(false);
         }
@@ -295,16 +295,16 @@ namespace Opc.Ua.Client.Subscriptions
         private async ValueTask TryRepublishAsync(uint missing, uint curSeqNum,
             CancellationToken ct)
         {
-            if (!_availableInRetransmissionQueue.Contains(missing))
+            if (!AvailableInRetransmissionQueue.Contains(missing))
             {
-                _logger.LogWarning("{Subscription}: Message with sequence number " +
+                Logger.LogWarning("{Subscription}: Message with sequence number " +
                     "#{SeqNumber} is not in server retransmission queue and was dropped.",
                     this, missing);
                 return;
             }
             try
             {
-                _logger.LogInformation("{Subscription}: Republishing missing message " +
+                Logger.LogInformation("{Subscription}: Republishing missing message " +
                     "with sequence number #{Missing} to catch up to message " +
                     "with sequence number #{SeqNumber}...", this, missing, curSeqNum);
                 RepublishResponse republish = await m_services.RepublishAsync(null, Id, missing,
@@ -317,13 +317,13 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 else
                 {
-                    _logger.LogWarning("{Subscription}: Republishing message with " +
+                    Logger.LogWarning("{Subscription}: Republishing message with " +
                         "sequence number #{SeqNumber} failed.", this, missing);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "{Subscription}: Error republishing message with " +
+                Logger.LogError(ex, "{Subscription}: Error republishing message with " +
                     "sequence number #{SeqNumber}.", this, missing);
             }
         }
@@ -362,7 +362,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex,
+                Logger.LogError(ex,
                     "{Subscription}: Error dispatching notification data.", this);
             }
         }
@@ -433,13 +433,11 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
-        internal bool _disposed;
-        internal long _lastNotificationTimestamp;
-        internal uint _lastSequenceNumberProcessed;
-        internal IReadOnlyList<uint> _availableInRetransmissionQueue;
-#pragma warning disable IDE1006 // Naming Styles
-        internal readonly ILogger _logger;
-#pragma warning restore IDE1006 // Naming Styles
+        internal bool Disposed;
+        internal long LastNotificationTimestamp;
+        internal uint LastSequenceNumberProcessed;
+        internal IReadOnlyList<uint> AvailableInRetransmissionQueue;
+        internal readonly ILogger Logger;
         private readonly ISubscriptionServiceSetClientMethods m_services;
         // CA2213: m_cts is disposed in DisposeAsync(bool) — suppressed because
         // the analyzer does not track IAsyncDisposable disposal paths.

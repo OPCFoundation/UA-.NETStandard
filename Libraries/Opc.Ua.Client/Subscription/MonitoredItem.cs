@@ -111,7 +111,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Context = context;
             Name = name;
             Error = ServiceResult.Good;
-            ClientHandle = Utils.IncrementIdentifier(ref _globalClientHandleUint);
+            ClientHandle = Utils.IncrementIdentifier(ref GlobalClientHandleUint);
 
             m_logger = logger;
             m_options = Options = options;
@@ -259,7 +259,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
                 ClientHandle = clientHandle;
 
-                Utils.SetIdentifierToAtLeast(ref _globalClientHandleUint, clientHandle);
+                Utils.SetIdentifierToAtLeast(ref GlobalClientHandleUint, clientHandle);
             }
             if (serverHandle != ServerId)
             {
@@ -734,7 +734,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 #pragma warning restore CA2213
         private readonly ConcurrentQueue<Change> m_pendingChanges = new();
         private readonly ILogger m_logger;
-        internal static uint _globalClientHandleUint;
+        internal static uint GlobalClientHandleUint;
         private IOptionsMonitor<MonitoredItemOptions> m_options;
     }
 }

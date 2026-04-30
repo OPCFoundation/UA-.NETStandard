@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             lock (m_monitoredItemsLock)
             {
                 // Capture current state
-                var remove = m_monitoredItems.ToDictionary();
+                IDictionary<uint, MonitoredItem> remove = m_monitoredItems.ToDictionary();
 
                 // Generate items
                 foreach ((string? name, IOptionsMonitor<MonitoredItemOptions>? options) in state)
@@ -542,7 +542,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     return false;
                 }
 
-                var monitoredItems = m_monitoredItems.ToDictionary();
+                IDictionary<uint, MonitoredItem> monitoredItems = m_monitoredItems.ToDictionary();
                 m_monitoredItems.Clear();
 
                 //

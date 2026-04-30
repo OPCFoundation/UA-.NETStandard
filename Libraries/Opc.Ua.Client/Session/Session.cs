@@ -396,7 +396,9 @@ namespace Opc.Ua.Client
         /// Core async dispose logic for the session.
         /// </summary>
         /// <param name="disposing">True if called from dispose, false otherwise.</param>
+#pragma warning disable IDE1006 // Standard IAsyncDisposable pattern name
         protected virtual async ValueTask DisposeAsyncCore(bool disposing)
+#pragma warning restore IDE1006
         {
             if (m_disposeAsyncCalled)
             {
@@ -1232,8 +1234,7 @@ namespace Opc.Ua.Client
 
             // select the security policy for the user token.
             RequestHeader requestHeader = CreateRequestHeaderPerUserTokenPolicy(
-                identityPolicy.SecurityPolicyUri,
-                m_endpoint.Description.SecurityPolicyUri);
+                identityPolicy.SecurityPolicyUri);
 
             bool successCreateSession = false;
             CreateSessionResponse? response = null;
@@ -1401,7 +1402,7 @@ namespace Opc.Ua.Client
                     m_preferredLocales = preferredLocales;
                 }
 
-                RequestHeader? header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri!);
+                RequestHeader? header = CreateRequestHeaderForActivateSession(tokenSecurityPolicyUri!);
 
                 // activate session.
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
@@ -1619,7 +1620,6 @@ namespace Opc.Ua.Client
             m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
             RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
-                securityPolicy,
                 tokenSecurityPolicyUri!);
 
             ActivateSessionResponse response = await ActivateSessionAsync(
@@ -2654,7 +2654,6 @@ namespace Opc.Ua.Client
                 m_logger.LogInformation("Session RE-ACTIVATING {SessionId}.", SessionId);
 
                 RequestHeader? header = CreateRequestHeaderForActivateSession(
-                    securityPolicy,
                     tokenSecurityPolicyUri!) ??
                     new RequestHeader();
 
@@ -3008,7 +3007,7 @@ namespace Opc.Ua.Client
             Debug.Assert(keepAliveCancellation != null);
             try
             {
-                keepAliveCancellation!.Cancel();
+                keepAliveCancellation.Cancel();
                 if (!m_inKeepAliveCallback)
                 {
                     // Make sure no circular loops
@@ -3024,7 +3023,7 @@ namespace Opc.Ua.Client
             }
             finally
             {
-                keepAliveCancellation!.Dispose();
+                keepAliveCancellation.Dispose();
             }
         }
 
@@ -3608,14 +3607,7 @@ namespace Opc.Ua.Client
             if (m_RenewUserIdentity != null)
             {
                 IUserIdentity renewed = m_RenewUserIdentity(this, m_identity);
-                if (renewed != null)
-                {
-                    m_identity = renewed;
-                }
-                else
-                {
-                    m_identity = new UserIdentity();
-                }
+                m_identity = renewed ?? new UserIdentity();
             }
         }
 
@@ -4201,8 +4193,7 @@ namespace Opc.Ua.Client
         /// for the ecc user token security policy, if needed.
         /// </summary>
         private RequestHeader CreateRequestHeaderPerUserTokenPolicy(
-            string? identityTokenSecurityPolicyUri,
-            string? endpointSecurityPolicyUri)
+            string? identityTokenSecurityPolicyUri)
         {
             var requestHeader = new RequestHeader();
             string userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri ?? string.Empty;
@@ -4237,7 +4228,6 @@ namespace Opc.Ua.Client
         }
 
         private RequestHeader? CreateRequestHeaderForActivateSession(
-            SecurityPolicyInfo securityPolicy,
             string userTokenSecurityPolicyUri)
         {
             var requestHeader = new RequestHeader();
