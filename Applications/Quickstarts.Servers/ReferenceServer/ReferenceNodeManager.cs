@@ -567,7 +567,7 @@ namespace Quickstarts.ReferenceServer
                     stringArrayVar.Value = Variant.From(
                     [
                         "Лошадь_ Пурпурово( Змейка( Слон",
-                        "猪 绿色 绵羊 大象~ 狗 菠萝 猪鼠",
+                        "猪 绿色 绵羊 大象~ 狗 菠萝 猪鼠猪 绿色 绵羊 大象~ 狗 菠萝 猪鼠",
                         "Лошадь Овцы Голубика Овцы Змейка",
                         "Чернота` Дракон Бело Дракон",
                         "Horse# Black Lemon Lemon Grape",
