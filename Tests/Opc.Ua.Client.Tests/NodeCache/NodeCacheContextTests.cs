@@ -434,11 +434,11 @@ namespace Opc.Ua.Client.Tests
                             var value = new DataValue();
                             if (r.AttributeId == Attributes.MinimumSamplingInterval)
                             {
-                                return new DataValue(StatusCodes.BadNotReadable);
+                                return DataValue.FromStatusCode(StatusCodes.BadNotReadable);
                             }
                             if (r.AttributeId == Attributes.Description)
                             {
-                                return new DataValue(StatusCodes.BadAttributeIdInvalid);
+                                return DataValue.FromStatusCode(StatusCodes.BadAttributeIdInvalid);
                             }
                             if (r.NodeId == nodeIds[0])
                             {
@@ -560,7 +560,7 @@ namespace Opc.Ua.Client.Tests
                     new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = request.NodesToRead
-                           .ConvertAll(r => new DataValue(StatusCodes.BadAlreadyExists)),
+                           .ConvertAll(r => DataValue.FromStatusCode(StatusCodes.BadAlreadyExists)),
                         DiagnosticInfos = request.NodesToRead.ConvertAll(_ => new DiagnosticInfo())
                     }))
                 .Verifiable(Times.Once);
@@ -624,7 +624,7 @@ namespace Opc.Ua.Client.Tests
                             nodes[0].Read(null, r.AttributeId, value);
                             return value;
                         }
-                        return new DataValue(StatusCodes.BadUnexpectedError);
+                        return DataValue.FromStatusCode(StatusCodes.BadUnexpectedError);
                     });
                     return new ValueTask<IServiceResponse>(new ReadResponse
                     {

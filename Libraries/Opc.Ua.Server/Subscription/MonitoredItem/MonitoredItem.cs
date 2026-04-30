@@ -865,7 +865,7 @@ namespace Opc.Ua.Server
                             value.WrappedValue);
                     }
 
-                    value = new DataValue(value);
+                    value = value.Copy();
 
                     // ensure the data value matches the error status code.
                     if (error != null && error.StatusCode.Code != 0)

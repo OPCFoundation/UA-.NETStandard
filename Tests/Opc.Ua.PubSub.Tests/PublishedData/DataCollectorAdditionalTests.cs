@@ -295,7 +295,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         {
             var dataStore = new UaPubSubDataStore();
             var nodeId = new NodeId(100, 2);
-            dataStore.WritePublishedDataItem(nodeId, Attributes.Value, new DataValue(StatusCodes.Bad));
+            dataStore.WritePublishedDataItem(nodeId, Attributes.Value, DataValue.FromStatusCode(StatusCodes.Bad));
             DataCollector collector = CreateCollector(dataStore);
 
             var pubVar = new PublishedVariableDataType

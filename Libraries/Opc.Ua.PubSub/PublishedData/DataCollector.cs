@@ -183,7 +183,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                             dataValue = new DataValue(extensionField.Value);
                                         }
                                     }
-                                    dataValue ??= new DataValue(StatusCodes.Bad, DateTime.UtcNow);
+                                    dataValue ??= DataValue.FromStatusCode(StatusCodes.Bad, DateTime.UtcNow);
                                 }
                                 else
                                 {
@@ -304,7 +304,7 @@ namespace Opc.Ua.PubSub.PublishedData
                             catch (Exception ex)
                             {
                                 dataSet.Fields[i].Value
-                                    = new DataValue(StatusCodes.Bad, DateTime.UtcNow);
+                                    = DataValue.FromStatusCode(StatusCodes.Bad, DateTime.UtcNow);
                                 m_logger.LogInformation(ex,
                                     "Error DataCollector.CollectData for dataset {Name} field {Index}",
                                     dataSetName,

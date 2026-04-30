@@ -4595,7 +4595,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue(StatusCodes.Bad);
+            var dataValue = DataValue.FromStatusCode(StatusCodes.Bad);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4868,7 +4868,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(context);
             FieldInfo field = type.GetField(fieldName);
             var statusCode = (StatusCode)field.GetValue(null);
-            var dataValue = new DataValue(statusCode);
+            var dataValue = DataValue.FromStatusCode(statusCode);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
