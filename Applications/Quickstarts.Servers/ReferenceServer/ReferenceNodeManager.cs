@@ -406,6 +406,53 @@ namespace Quickstarts.ReferenceServer
                     });
                     variables.Add(decimalVariable);
 
+                    // Enumeration variable (NodeClass is a concrete subtype of Enumeration)
+                    BaseDataVariableState enumerationVariable = CreateVariable(
+                        staticFolder,
+                        scalarStatic + "Enumeration",
+                        "Enumeration",
+                        new NodeId(DataTypes.NodeClass),
+                        ValueRanks.Scalar);
+                    enumerationVariable.Value = new Variant((int)NodeClass.Object);
+                    variables.Add(enumerationVariable);
+
+                    // Image type variables (ByteString subtypes)
+                    variables.Add(
+                        CreateVariable(
+                            staticFolder,
+                            scalarStatic + "Image",
+                            "Image",
+                            new NodeId(DataTypes.Image),
+                            ValueRanks.Scalar));
+                    variables.Add(
+                        CreateVariable(
+                            staticFolder,
+                            scalarStatic + "ImageBMP",
+                            "ImageBMP",
+                            new NodeId(DataTypes.ImageBMP),
+                            ValueRanks.Scalar));
+                    variables.Add(
+                        CreateVariable(
+                            staticFolder,
+                            scalarStatic + "ImageGIF",
+                            "ImageGIF",
+                            new NodeId(DataTypes.ImageGIF),
+                            ValueRanks.Scalar));
+                    variables.Add(
+                        CreateVariable(
+                            staticFolder,
+                            scalarStatic + "ImageJPG",
+                            "ImageJPG",
+                            new NodeId(DataTypes.ImageJPG),
+                            ValueRanks.Scalar));
+                    variables.Add(
+                        CreateVariable(
+                            staticFolder,
+                            scalarStatic + "ImagePNG",
+                            "ImagePNG",
+                            new NodeId(DataTypes.ImagePNG),
+                            ValueRanks.Scalar));
+
                     ResetRandomGenerator(2);
                     FolderState arraysFolder = CreateFolder(
                         staticFolder,
@@ -2206,6 +2253,23 @@ namespace Quickstarts.ReferenceServer
                         has3InverseReferences,
                         variables[0]);
                     variables.Add(hasForwardAndInverseReferences);
+
+                    // Node with both a ReferenceType and a SubType of that ReferenceType
+                    // (HasComponent forward + HasOrderedComponent forward, where HasOrderedComponent
+                    // is a subtype of HasComponent — satisfies CTT "HasReferencesOfReferenceTypeAndSubType")
+                    BaseDataVariableState hasReferenceTypeAndSubType = CreateMeshVariable(
+                        referencesFolder,
+                        referencesPrefix + "HasReferenceTypeAndSubType",
+                        "HasReferenceTypeAndSubType");
+                    hasReferenceTypeAndSubType.AddReference(
+                        ReferenceTypeIds.HasComponent,
+                        false,
+                        variables[0].NodeId);
+                    hasReferenceTypeAndSubType.AddReference(
+                        ReferenceTypeIds.HasOrderedComponent,
+                        false,
+                        variables[1].NodeId);
+                    variables.Add(hasReferenceTypeAndSubType);
 
                     ResetRandomGenerator(15);
                     FolderState folderAccessRights = CreateFolder(

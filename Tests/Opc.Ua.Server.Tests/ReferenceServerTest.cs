@@ -1905,5 +1905,69 @@ namespace Opc.Ua.Server.Tests
                     $"Read of {name} should succeed");
             }
         }
+        /// <summary>
+        /// Test that Enumeration and Image type scalar nodes are accessible.
+        /// </summary>
+        [Test]
+        public async Task ScalarStaticEnumerationAndImageNodesExistAsync()
+        {
+            var nodeIds = new Dictionary<string, NodeId>
+            {
+                { "Enumeration", new NodeId("Scalar_Static_Enumeration", 2) },
+                { "Image", new NodeId("Scalar_Static_Image", 2) },
+                { "ImageBMP", new NodeId("Scalar_Static_ImageBMP", 2) },
+                { "ImageGIF", new NodeId("Scalar_Static_ImageGIF", 2) },
+                { "ImageJPG", new NodeId("Scalar_Static_ImageJPG", 2) },
+                { "ImagePNG", new NodeId("Scalar_Static_ImagePNG", 2) }
+            };
+
+            foreach (var (name, nodeId) in nodeIds)
+            {
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ArrayOf<ReadValueId> nodesToRead =
+                [
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.DataType }
+                ];
+                ReadResponse readResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Neither,
+                    nodesToRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+                Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"Value read of {name} should succeed");
+                Assert.That(readResponse.Results[1].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"DataType read of {name} should succeed");
+            }
+        }
+
+        /// <summary>
+        /// Test that the HasReferenceTypeAndSubType node exists and has the expected references.
+        /// </summary>
+        [Test]
+        public async Task ReferencesHasReferenceTypeAndSubTypeNodeExistsAsync()
+        {
+            var nodeId = new NodeId("References_HasReferenceTypeAndSubType", 2);
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+            ];
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+            Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                "Read of References_HasReferenceTypeAndSubType should succeed");
+        }
     }
 }
