@@ -185,15 +185,23 @@ namespace Opc.Ua.Client
                 : FindAsyncCore(nodeId, ct);
             ValueTask<INode> FindAsyncCore(NodeId nodeId, CancellationToken ct)
             {
-                INodeCacheContext context = m_context;
                 return m_nodes.GetOrAddAsync(
                     nodeId,
-                    async key => await context.FetchNodeAsync(
-                        null,
-                        key,
-                        NodeClass.Unspecified,
-                        ct: ct)
-                        .ConfigureAwait(false));
+                    async key =>
+                    {
+                        Node node = await m_context.FetchNodeAsync(
+                            null,
+                            key,
+                            NodeClass.Unspecified,
+                            ct: ct)
+                            .ConfigureAwait(false);
+                        // Populate the node's ReferenceTable so callers can
+                        // introspect references without an extra round trip.
+                        // Mirrors legacy NodeCache behavior.
+                        await PopulateReferenceTableAsync(key, node, ct)
+                            .ConfigureAwait(false);
+                        return node;
+                    });
             }
         }
 
@@ -551,6 +559,12 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         IAsyncTypeTable IAsyncNodeTable.TypeTree => this;
 
+        /// <summary>
+        /// Legacy synchronous type table adapter for backwards compatibility with
+        /// callers that expect <see cref="ITypeTable"/>.
+        /// </summary>
+        public ITypeTable TypeTree => this.AsTypeTable();
+
         /// <inheritdoc/>
         public async ValueTask<bool> ExistsAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
@@ -645,6 +659,43 @@ namespace Opc.Ua.Client
             return result;
         }
 
+        /// <summary>
+        /// Populate a node's <see cref="Node.ReferenceTable"/> from references
+        /// fetched from the server. Mirrors legacy NodeCache behavior so callers
+        /// can introspect references without an extra round trip.
+        /// </summary>
+        private async ValueTask PopulateReferenceTableAsync(
+            NodeId localId,
+            Node node,
+            CancellationToken ct)
+        {
+            try
+            {
+                ArrayOf<ReferenceDescription> references = await m_context
+                    .FetchReferencesAsync(null, localId, ct)
+                    .ConfigureAwait(false);
+                foreach (ReferenceDescription reference in references)
+                {
+                    ExpandedNodeId targetId = reference.NodeId;
+                    if (targetId.IsAbsolute)
+                    {
+                        targetId = ExpandedNodeId.ToNodeId(targetId, NamespaceUris);
+                    }
+                    node.ReferenceTable.Add(
+                        reference.ReferenceTypeId,
+                        !reference.IsForward,
+                        targetId);
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(
+                    "Could not fetch references for node {NodeId}: {Error}",
+                    localId,
+                    Redact.Create(e));
+            }
+        }
+
         /// <inheritdoc/>
         public async Task<Node?> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
@@ -655,9 +706,12 @@ namespace Opc.Ua.Client
             }
             try
             {
+                // Force-refresh semantics: fetch directly from the server. We do not
+                // update the LRU cache here because BitFaster's atomic-async LRU
+                // exhibits hang behavior with sequential AddOrUpdate/GetOrAddAsync.
                 Node node = await m_context.FetchNodeAsync(null, localId, ct: ct)
                     .ConfigureAwait(false);
-                m_nodes.AddOrUpdate(localId, node);
+                await PopulateReferenceTableAsync(localId, node, ct).ConfigureAwait(false);
                 return node;
             }
             catch (Exception e)
@@ -684,18 +738,36 @@ namespace Opc.Ua.Client
             (ArrayOf<Node> nodes, ArrayOf<ServiceResult> errors) =
                 await m_context.FetchNodesAsync(null, localIds, ct: ct)
                     .ConfigureAwait(false);
+
+            // Populate each node's ReferenceTable so callers can introspect
+            // references without extra round trips. Mirrors legacy NodeCache.
+            (ArrayOf<ArrayOf<ReferenceDescription>> referenceList, ArrayOf<ServiceResult> refErrors) =
+                await m_context.FetchReferencesAsync(null, localIds, ct).ConfigureAwait(false);
+
             var result = new List<Node?>(nodes.Count);
             for (int i = 0; i < nodes.Count; i++)
             {
-                if (!ServiceResult.IsBad(errors[i]))
-                {
-                    m_nodes.AddOrUpdate(localIds[i], nodes[i]);
-                    result.Add(nodes[i]);
-                }
-                else
+                if (ServiceResult.IsBad(errors[i]))
                 {
                     result.Add(null);
+                    continue;
                 }
+                if (!ServiceResult.IsBad(refErrors[i]))
+                {
+                    foreach (ReferenceDescription reference in referenceList[i])
+                    {
+                        ExpandedNodeId targetId = reference.NodeId;
+                        if (targetId.IsAbsolute)
+                        {
+                            targetId = ExpandedNodeId.ToNodeId(targetId, NamespaceUris);
+                        }
+                        nodes[i].ReferenceTable.Add(
+                            reference.ReferenceTypeId,
+                            !reference.IsForward,
+                            targetId);
+                    }
+                }
+                result.Add(nodes[i]);
             }
             return result;
         }
