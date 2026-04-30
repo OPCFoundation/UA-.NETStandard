@@ -386,7 +386,7 @@ namespace Opc.Ua
 
                 result.StatusCode = Status.StatusCode;
 
-                if (m_operandResults.Count == 0)
+                if (m_operandResults == null || m_operandResults.Count == 0)
                 {
                     return result;
                 }

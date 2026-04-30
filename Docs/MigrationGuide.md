@@ -364,6 +364,7 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - `new Variant(object)` -> use `Variant.From(T)`
 - `Variant.Value` -> use `Variant.TryGet`, cast, or `AsBoxedObject` if absolutely necessary.
 - `DataValue.GetValue`, `DataValue.GetValueOrDefault`, ,`DataValue.Value` -> use `DataValue.WrappedValue` and the new API on Variant (e.g. `Get[Type]`,  `TryGet`)
+- `new DataValue(StatusCode)` and `new DataValue(StatusCode, DateTimeUtc)` -> use `DataValue.FromStatusCode(StatusCode)` and `DataValue.FromStatusCode(StatusCode, DateTimeUtc)`. The constructors suffered from a C# overload resolution bug where `new DataValue(42)` silently resolved to `DataValue(StatusCode)` instead of `DataValue(Variant)`, losing the value.
 
 #### APIs permanently removed
 
@@ -384,6 +385,7 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - new `Variant(byte[])` -> use `Variant.From(ByteString)` or `new Variant(ByteString)` or `Variant.From(ArrayOf<byte>)` or `new Variant(ArrayOf<byte>)`
 - Session `Call/CallAsync(param object[])` -> use `Call/CallAsync(param Variant[])`
 - `byte[]` as ByteString -> use `ByteString`
+- `new DataValue(DataValue)` copy constructor -> use `DataValue.Copy()` instance method or `Clone()`
 
 ### Encodeable Factory and Complex Type System
 

@@ -311,7 +311,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": 123 }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(new DataValue(StatusCodes.Good) { ServerPicoseconds = 123 }));
+            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good) { ServerPicoseconds = 123 }));
         }
 
         [Test]
@@ -319,7 +319,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": 123 }"""), true);
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(new DataValue(StatusCodes.Good) { ServerPicoseconds = 0 }));
+            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good) { ServerPicoseconds = 0 }));
         }
 
         [Test]
@@ -343,7 +343,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": 123 }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(new DataValue(StatusCodes.Good) { SourcePicoseconds = 123 }));
+            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good) { SourcePicoseconds = 123 }));
         }
 
         [Test]
@@ -351,7 +351,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": 123 }"""), true);
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(new DataValue(StatusCodes.Good) { SourcePicoseconds = 0 }));
+            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good) { SourcePicoseconds = 0 }));
         }
 
         [Test]

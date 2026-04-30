@@ -55,7 +55,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void CopyConstructorCopiesAllFields()
+        public void CopyCopiesAllFields()
         {
             var sourceTime = new DateTimeUtc(2024, 6, 15, 10, 30, 0);
             var serverTime = new DateTimeUtc(2024, 6, 15, 10, 30, 1);
@@ -65,7 +65,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 ServerPicoseconds = 200
             };
 
-            var copy = new DataValue(original);
+            var copy = original.Copy();
 
             Assert.That(copy.WrappedValue, Is.EqualTo(original.WrappedValue));
             Assert.That(copy.StatusCode, Is.EqualTo(original.StatusCode));
@@ -76,19 +76,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void CopyConstructorThrowsOnNull()
-        {
-#pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(() => new DataValue((DataValue)null),
-                Throws.TypeOf<ArgumentNullException>());
-#pragma warning restore IDE0004 // Remove Unnecessary Cast
-        }
-
-        [Test]
         public void ConstructorWithStatusCodeAndServerTimestamp()
         {
             var serverTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
-            var dv = new DataValue(StatusCodes.Bad, serverTime);
+            var dv = DataValue.FromStatusCode(StatusCodes.Bad, serverTime);
 
             Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Bad));
             Assert.That(dv.ServerTimestamp, Is.EqualTo(serverTime));
@@ -122,10 +113,43 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ConstructorWithStatusCodeOnly()
         {
-            var dv = new DataValue(StatusCodes.BadUnexpectedError);
+            var dv = DataValue.FromStatusCode(StatusCodes.BadUnexpectedError);
 
             Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(dv.WrappedValue.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ConstructorWithIntLiteralWrapsInVariant()
+        {
+            var dv = new DataValue(42);
+
+            Assert.That(dv.WrappedValue.IsNull, Is.False);
+            Assert.That(dv.WrappedValue, Is.EqualTo(new Variant(42)));
+            Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void FromStatusCodeSetsStatusCodeOnly()
+        {
+            var dv = DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
+
+            Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(dv.WrappedValue.IsNull, Is.True);
+            Assert.That(dv.SourceTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(dv.ServerTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+        }
+
+        [Test]
+        public void FromStatusCodeWithTimestampSetsBothFields()
+        {
+            var serverTime = new DateTimeUtc(2024, 7, 1, 12, 0, 0);
+            var dv = DataValue.FromStatusCode(StatusCodes.Bad, serverTime);
+
+            Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Bad));
+            Assert.That(dv.ServerTimestamp, Is.EqualTo(serverTime));
+            Assert.That(dv.WrappedValue.IsNull, Is.True);
+            Assert.That(dv.SourceTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
         }
 
         [Test]
@@ -419,7 +443,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsGoodWithGoodDataValue()
         {
-            var dv = new DataValue(StatusCodes.Good);
+            var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
             Assert.That(DataValue.IsGood(dv), Is.True);
         }
@@ -427,7 +451,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsGoodWithBadDataValue()
         {
-            var dv = new DataValue(StatusCodes.Bad);
+            var dv = DataValue.FromStatusCode(StatusCodes.Bad);
 
             Assert.That(DataValue.IsGood(dv), Is.False);
         }
@@ -441,7 +465,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotGoodWithBadDataValue()
         {
-            var dv = new DataValue(StatusCodes.Bad);
+            var dv = DataValue.FromStatusCode(StatusCodes.Bad);
 
             Assert.That(DataValue.IsNotGood(dv), Is.True);
         }
@@ -449,7 +473,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotGoodWithGoodDataValue()
         {
-            var dv = new DataValue(StatusCodes.Good);
+            var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
             Assert.That(DataValue.IsNotGood(dv), Is.False);
         }
@@ -463,7 +487,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsUncertainWithUncertainDataValue()
         {
-            var dv = new DataValue(StatusCodes.Uncertain);
+            var dv = DataValue.FromStatusCode(StatusCodes.Uncertain);
 
             Assert.That(DataValue.IsUncertain(dv), Is.True);
         }
@@ -471,7 +495,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsUncertainWithGoodDataValue()
         {
-            var dv = new DataValue(StatusCodes.Good);
+            var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
             Assert.That(DataValue.IsUncertain(dv), Is.False);
         }
@@ -485,7 +509,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotUncertainWithGoodDataValue()
         {
-            var dv = new DataValue(StatusCodes.Good);
+            var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
             Assert.That(DataValue.IsNotUncertain(dv), Is.True);
         }
@@ -493,7 +517,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotUncertainWithUncertainDataValue()
         {
-            var dv = new DataValue(StatusCodes.Uncertain);
+            var dv = DataValue.FromStatusCode(StatusCodes.Uncertain);
 
             Assert.That(DataValue.IsNotUncertain(dv), Is.False);
         }
@@ -507,7 +531,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsBadWithBadDataValue()
         {
-            var dv = new DataValue(StatusCodes.Bad);
+            var dv = DataValue.FromStatusCode(StatusCodes.Bad);
 
             Assert.That(DataValue.IsBad(dv), Is.True);
         }
@@ -515,7 +539,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsBadWithGoodDataValue()
         {
-            var dv = new DataValue(StatusCodes.Good);
+            var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
             Assert.That(DataValue.IsBad(dv), Is.False);
         }
@@ -529,7 +553,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotBadWithGoodDataValue()
         {
-            var dv = new DataValue(StatusCodes.Good);
+            var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
             Assert.That(DataValue.IsNotBad(dv), Is.True);
         }
@@ -537,7 +561,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotBadWithBadDataValue()
         {
-            var dv = new DataValue(StatusCodes.Bad);
+            var dv = DataValue.FromStatusCode(StatusCodes.Bad);
 
             Assert.That(DataValue.IsNotBad(dv), Is.False);
         }
