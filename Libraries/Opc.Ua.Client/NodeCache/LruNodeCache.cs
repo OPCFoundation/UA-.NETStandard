@@ -27,13 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET8_0_OR_GREATER
-
 #nullable enable
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,19 +50,16 @@ namespace Opc.Ua.Client
     /// It is also limited to a capacity at which point least recently used
     /// entries will be evicted.
     /// </summary>
-    public sealed class LruNodeCache : ILruNodeCache
+    public sealed class LruNodeCache : ILruNodeCache, IDisposable
     {
         /// <summary>
         /// Create cache
         /// </summary>
-#pragma warning disable IDE0060 // Public API parameter reserved for future use
         public LruNodeCache(
             INodeCacheContext context,
             ITelemetryContext telemetry,
             TimeSpan? cacheExpiry = null,
-            int capacity = 4096,
-            bool withMetrics = false)
-#pragma warning restore IDE0060
+            int capacity = 4096)
         {
             m_context = context;
             cacheExpiry ??= TimeSpan.FromMinutes(5);
@@ -76,7 +72,8 @@ namespace Opc.Ua.Client
                 .AsAsyncCache()
                 .WithCapacity(capacity)
                 .WithKeyComparer(NodeIdComparer.Default)
-                .WithExpireAfterAccess(cacheExpiry.Value);
+                .WithExpireAfterAccess(cacheExpiry.Value)
+                .WithMetrics();
             BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<
                 NodeId,
                 ArrayOf<ReferenceDescription>
@@ -85,7 +82,8 @@ namespace Opc.Ua.Client
                 .AsAsyncCache()
                 .WithCapacity(capacity)
                 .WithKeyComparer(NodeIdComparer.Default)
-                .WithExpireAfterAccess(cacheExpiry.Value);
+                .WithExpireAfterAccess(cacheExpiry.Value)
+                .WithMetrics();
             BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<
                 NodeId,
                 DataValue
@@ -94,16 +92,68 @@ namespace Opc.Ua.Client
                 .AsAsyncCache()
                 .WithCapacity(capacity)
                 .WithKeyComparer(NodeIdComparer.Default)
-                .WithExpireAfterAccess(cacheExpiry.Value);
-            if (withMetrics)
-            {
-                nodesBuilder = nodesBuilder.WithMetrics();
-                valuesBuilder = valuesBuilder.WithMetrics();
-                refsBuilder = refsBuilder.WithMetrics();
-            }
+                .WithExpireAfterAccess(cacheExpiry.Value)
+                .WithMetrics();
             m_nodes = nodesBuilder.Build();
             m_values = valuesBuilder.Build();
             m_refs = refsBuilder.Build();
+
+            m_meter = telemetry.CreateMeter();
+            RegisterMetrics(m_meter, "nodes", m_nodes);
+            RegisterMetrics(m_meter, "values", m_values);
+            RegisterMetrics(m_meter, "references", m_refs);
+        }
+
+        /// <summary>
+        /// Dispose the underlying meter.
+        /// </summary>
+        public void Dispose()
+        {
+            m_meter.Dispose();
+        }
+
+        private static void RegisterMetrics<TKey, TValue>(
+            Meter meter,
+            string cacheTag,
+            IAsyncCache<TKey, TValue> cache)
+            where TKey : notnull
+        {
+            KeyValuePair<string, object?>[] tag =
+            [
+                new KeyValuePair<string, object?>("cache", cacheTag)
+            ];
+
+            meter.CreateObservableCounter(
+                "opcua.client.nodecache.hits",
+                () =>
+                {
+                    Optional<ICacheMetrics> metrics = cache.Metrics;
+                    return new Measurement<long>(metrics.HasValue ? metrics.Value!.Hits : 0, tag);
+                },
+                description: "Number of cache hits in the OPC UA client node cache.");
+
+            meter.CreateObservableCounter(
+                "opcua.client.nodecache.misses",
+                () =>
+                {
+                    Optional<ICacheMetrics> metrics = cache.Metrics;
+                    return new Measurement<long>(metrics.HasValue ? metrics.Value!.Misses : 0, tag);
+                },
+                description: "Number of cache misses in the OPC UA client node cache.");
+
+            meter.CreateObservableCounter(
+                "opcua.client.nodecache.evictions",
+                () =>
+                {
+                    Optional<ICacheMetrics> metrics = cache.Metrics;
+                    return new Measurement<long>(metrics.HasValue ? metrics.Value!.Evicted : 0, tag);
+                },
+                description: "Number of evictions from the OPC UA client node cache.");
+
+            meter.CreateObservableGauge(
+                "opcua.client.nodecache.size",
+                () => new Measurement<long>(cache.Count, tag),
+                description: "Current number of entries in the OPC UA client node cache.");
         }
 
         /// <summary>
@@ -128,19 +178,19 @@ namespace Opc.Ua.Client
         public ValueTask<INode> GetNodeAsync(NodeId nodeId, CancellationToken ct)
         {
             return m_nodes.TryGet(nodeId, out INode? node)
-                ? ValueTask.FromResult(node)
+                ? new ValueTask<INode>(node)
                 : FindAsyncCore(nodeId, ct);
             ValueTask<INode> FindAsyncCore(NodeId nodeId, CancellationToken ct)
             {
+                INodeCacheContext context = m_context;
                 return m_nodes.GetOrAddAsync(
                     nodeId,
-                    async (nodeId, context) => await context.ctx.FetchNodeAsync(
+                    async key => await context.FetchNodeAsync(
                         null,
-                        nodeId,
+                        key,
                         NodeClass.Unspecified,
-                        ct: context.ct)
-                        .ConfigureAwait(false),
-                    (ctx: m_context, ct));
+                        ct: ct)
+                        .ConfigureAwait(false));
             }
         }
 
@@ -170,23 +220,22 @@ namespace Opc.Ua.Client
                 }
             }
             Debug.Assert(!result.Any(r => r == null)); // None now should be null
-            return ValueTask.FromResult<ArrayOf<INode>>(result.ToArrayOf()!);
+            return new ValueTask<ArrayOf<INode>>(result.ToArrayOf()!);
         }
 
         /// <inheritdoc/>
         public ValueTask<DataValue> GetValueAsync(NodeId nodeId, CancellationToken ct)
         {
             return m_values.TryGet(nodeId, out DataValue? dataValue)
-                ? ValueTask.FromResult(dataValue)
+                ? new ValueTask<DataValue>(dataValue)
                 : FindAsyncCore(nodeId, ct);
             ValueTask<DataValue> FindAsyncCore(NodeId nodeId, CancellationToken ct)
             {
+                INodeCacheContext context = m_context;
                 return m_values.GetOrAddAsync(
                     nodeId,
-                    async (nodeId, context) =>
-                        await context.ctx.FetchValueAsync(null, nodeId, context.ct)
-                            .ConfigureAwait(false),
-                    (ctx: m_context, ct));
+                    async key => await context.FetchValueAsync(null, key, ct)
+                        .ConfigureAwait(false));
             }
         }
 
@@ -216,7 +265,7 @@ namespace Opc.Ua.Client
                 }
             }
             Debug.Assert(!result.Any(r => r == null)); // None now should be null
-            return ValueTask.FromResult<ArrayOf<DataValue>>(result.ToArrayOf()!);
+            return new ValueTask<ArrayOf<DataValue>>(result.ToArrayOf()!);
         }
 
         /// <inheritdoc/>
@@ -397,7 +446,7 @@ namespace Opc.Ua.Client
         public ValueTask<NodeId> GetSuperTypeAsync(NodeId typeId, CancellationToken ct)
         {
             return m_refs.TryGet(typeId, out ArrayOf<ReferenceDescription> references)
-                ? ValueTask.FromResult(GetSuperTypeFromReferences(references))
+                ? new ValueTask<NodeId>(GetSuperTypeFromReferences(references))
                 : FindSuperTypeAsyncCore(typeId, ct);
 
             async ValueTask<NodeId> FindSuperTypeAsyncCore(NodeId typeId, CancellationToken ct)
@@ -499,12 +548,13 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             Debug.Assert(!nodeId.IsNull);
+            INodeCacheContext context = m_context;
             return m_refs.GetOrAddAsync(
                 nodeId,
-                static async (nodeId, context) =>
+                async key =>
                 {
                     ArrayOf<ReferenceDescription> references =
-                        await context.ctx.FetchReferencesAsync(null, nodeId, context.ct)
+                        await context.FetchReferencesAsync(null, key, ct)
                             .ConfigureAwait(false);
                     foreach (ReferenceDescription? reference in references)
                     {
@@ -513,12 +563,11 @@ namespace Opc.Ua.Client
                         {
                             reference.NodeId = ExpandedNodeId.ToNodeId(
                                 reference.NodeId,
-                                context.ctx.NamespaceUris);
+                                context.NamespaceUris);
                         }
                     }
                     return references;
-                },
-                (ctx: m_context, ct));
+                });
         }
 
         /// <summary>
@@ -604,8 +653,9 @@ namespace Opc.Ua.Client
         private bool IsTypeHierarchyLoaded(ArrayOf<NodeId> typeIds)
         {
             var types = new Queue<NodeId>(typeIds.Filter(nodeId => !nodeId.IsNull).ToList());
-            while (types.TryDequeue(out NodeId typeId))
+            while (types.Count > 0)
             {
+                NodeId typeId = types.Dequeue();
                 if (!m_refs.TryGet(typeId, out ArrayOf<ReferenceDescription> references))
                 {
                     return false;
@@ -649,6 +699,6 @@ namespace Opc.Ua.Client
         private readonly IAsyncCache<NodeId, ArrayOf<ReferenceDescription>> m_refs;
         private readonly IAsyncCache<NodeId, DataValue> m_values;
         private readonly INodeCacheContext m_context;
+        private readonly Meter m_meter;
     }
 }
-#endif

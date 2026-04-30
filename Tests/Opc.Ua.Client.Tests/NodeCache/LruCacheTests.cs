@@ -3,10 +3,11 @@
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#nullable enable
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -174,7 +175,7 @@ namespace Opc.Ua.Client.Tests
                     false,
                     It.IsAny<CancellationToken>()))
                 .Returns<RequestHeader, NodeId, NodeClass, bool, CancellationToken>((_, nodeId, _, _, ct)
-                    => ValueTask.FromResult(expected))
+                    => new ValueTask<Node>(expected))
                 .Verifiable(Times.Once);
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
@@ -204,7 +205,7 @@ namespace Opc.Ua.Client.Tests
                     false,
                     It.IsAny<CancellationToken>()))
                 .Returns<RequestHeader, NodeId, NodeClass, bool, CancellationToken>((_, nodeId, _, _, ct)
-                    => ValueTask.FromException<Node>(new ServiceResultException()))
+                    => new ValueTask<Node>(Task.FromException<Node>(new ServiceResultException())))
                 .Verifiable(Times.Exactly(3));
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
@@ -244,7 +245,7 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            INode result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default)
+            INode? result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default)
                 .ConfigureAwait(false);
 
             // Assert
@@ -310,7 +311,7 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            INode result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default)
+            INode? result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default)
                 .ConfigureAwait(false);
 
             // Assert
@@ -426,7 +427,7 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            INode result = await nodeCache
+            INode? result = await nodeCache
                 .GetNodeWithBrowsePathAsync(rootId, browsePath, default)
                 .ConfigureAwait(false);
 
@@ -1168,6 +1169,79 @@ namespace Opc.Ua.Client.Tests
             // Assert
             context.Verify();
         }
+
+        [Test]
+        public async Task MetricsAreEmittedViaTelemetryContextAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // Arrange — capture instruments published on the OPC UA client meter
+            var capturedHits = new Dictionary<string, long>();
+            var capturedMisses = new Dictionary<string, long>();
+            var capturedSize = new Dictionary<string, long>();
+
+            using var listener = new MeterListener
+            {
+                InstrumentPublished = (instrument, l) =>
+                {
+                    if (instrument.Name.StartsWith("opcua.client.nodecache.", StringComparison.Ordinal))
+                    {
+                        l.EnableMeasurementEvents(instrument);
+                    }
+                }
+            };
+            listener.SetMeasurementEventCallback<long>((instrument, value, tags, state) =>
+            {
+                string cacheTag = string.Empty;
+                foreach (KeyValuePair<string, object?> kv in tags)
+                {
+                    if (kv.Key == "cache" && kv.Value is string s)
+                    {
+                        cacheTag = s;
+                        break;
+                    }
+                }
+                switch (instrument.Name)
+                {
+                    case "opcua.client.nodecache.hits":
+                        capturedHits[cacheTag] = value;
+                        break;
+                    case "opcua.client.nodecache.misses":
+                        capturedMisses[cacheTag] = value;
+                        break;
+                    case "opcua.client.nodecache.size":
+                        capturedSize[cacheTag] = value;
+                        break;
+                }
+            });
+            listener.Start();
+
+            var id = new NodeId("metricsNode", 0);
+            var context = new Mock<INodeCacheContext>();
+            context
+                .Setup(c => c.FetchNodeAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<NodeId>(i => i == id),
+                    NodeClass.Unspecified,
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Node { NodeId = id });
+
+            using var nodeCache = new LruNodeCache(context.Object, telemetry);
+
+            // Act — first call is a miss (fetches), second call is a hit
+            _ = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
+            _ = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
+
+            listener.RecordObservableInstruments();
+
+            // Assert — at least one miss and one hit on the nodes cache, size == 1
+            Assert.That(capturedMisses.ContainsKey("nodes"), Is.True);
+            Assert.That(capturedHits.ContainsKey("nodes"), Is.True);
+            Assert.That(capturedSize.ContainsKey("nodes"), Is.True);
+            Assert.That(capturedMisses["nodes"], Is.GreaterThanOrEqualTo(1));
+            Assert.That(capturedHits["nodes"], Is.GreaterThanOrEqualTo(1));
+            Assert.That(capturedSize["nodes"], Is.EqualTo(1));
+        }
     }
 }
-#endif

@@ -27,10 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET8_0_OR_GREATER
-#define USE_LRU_CACHE
-#endif
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -47,7 +43,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     public class NodeCacheResolver : IComplexTypeResolver
     {
-#if USE_LRU_CACHE
         /// <summary>
         /// Initializes the type resolver with a session to load the custom type information.
         /// </summary>
@@ -103,17 +98,6 @@ namespace Opc.Ua.Client.ComplexTypes
             m_logger = telemetry.CreateLogger<NodeCacheResolver>();
             FactoryBuilder = m_session.Factory.Builder;
         }
-#else
-        /// <summary>
-        /// Initializes the type resolver with a session to load the custom type information.
-        /// </summary>
-        public NodeCacheResolver(ISession session, ITelemetryContext telemetry)
-        {
-            m_session = session;
-            m_logger = telemetry.CreateLogger<NodeCacheResolver>();
-            FactoryBuilder = m_session.Factory.Builder;
-        }
-#endif
 
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris => m_session.NamespaceUris;
@@ -755,7 +739,6 @@ namespace Opc.Ua.Client.ComplexTypes
             return NodeId.ToExpandedNodeId(nodeId, NamespaceUris);
         }
 
-#if USE_LRU_CACHE
         /// <summary>
         /// Get the super type of the specified type id.
         /// </summary>
@@ -823,84 +806,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 false,
                 ct);
         }
-#else
-        /// <summary>
-        /// Get the super type of the specified type id.
-        /// </summary>
-        private ValueTask<NodeId> GetSuperTypeAsync(NodeId typeId, CancellationToken ct)
-        {
-            return m_session.NodeCache.FindSuperTypeAsync(typeId, ct);
-        }
 
-        /// <summary>
-        /// Get the node identified by the expanded node id.
-        /// </summary>
-        private ValueTask<INode> GetNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
-        {
-            return m_session.NodeCache.FindAsync(nodeId, ct)!;
-        }
-
-        /// <summary>
-        /// Reads the value of a node identified by the expanded node id.
-        /// </summary>
-        private Task<DataValue> GetValueAsync(ExpandedNodeId expandedNodeId, CancellationToken ct)
-        {
-            var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, NamespaceUris);
-            return m_session.ReadValueAsync(nodeId, ct);
-        }
-
-        /// <summary>
-        /// Get values for a collection of node Ids.
-        /// </summary>
-        private async Task<ArrayOf<DataValue>> GetValuesAsync(
-            ArrayOf<ExpandedNodeId> expandedNodeIds,
-            CancellationToken ct)
-        {
-            ArrayOf<NodeId> nodeIds = expandedNodeIds
-                .ConvertAll(n => ExpandedNodeId.ToNodeId(n, NamespaceUris));
-            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) = await m_session
-                .ReadValuesAsync(nodeIds, ct)
-                .ConfigureAwait(false);
-            return
-            [
-                .. values.ToArray().Zip(
-                    errors.ToArray(),
-                    (first, second) => StatusCode.IsNotBad(second.StatusCode)
-                        ? first
-                        : new DataValue(second.StatusCode))
-            ];
-        }
-
-        /// <summary>
-        /// Returns the references of the specified node that meet the criteria specified.
-        /// </summary>
-        private Task<ArrayOf<INode>> FindReferencesAsync(
-            ExpandedNodeId nodeId,
-            NodeId referenceTypeId,
-            bool isInverse,
-            CancellationToken ct)
-        {
-            return m_session.NodeCache
-                .FindReferencesAsync(nodeId, referenceTypeId, isInverse, false, ct);
-        }
-
-        /// <summary>
-        /// Returns the references of the specified nodes that meet the criteria specified.
-        /// </summary>
-        private Task<ArrayOf<INode>> FindReferencesAsync(
-            ArrayOf<ExpandedNodeId> nodeIds,
-            NodeId referenceTypeId,
-            bool isInverse,
-            CancellationToken ct)
-        {
-            return m_session.NodeCache
-                .FindReferencesAsync(nodeIds, [referenceTypeId], isInverse, false, ct);
-        }
-#endif
-
-#if USE_LRU_CACHE
         private readonly ILruNodeCache m_lruNodeCache;
-#endif
         private readonly ISession m_session;
         private readonly ILogger m_logger;
     }
