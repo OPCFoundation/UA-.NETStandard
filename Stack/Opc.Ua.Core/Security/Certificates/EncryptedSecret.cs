@@ -988,36 +988,6 @@ namespace Opc.Ua
             }
 
 
-<<<<<<< TODO: Unmerged change from project 'Opc.Ua.Core(net8.0)', Before:
-            var highByte = decoder.ReadByte(null);
-
-            if (error != 0 || highByte != 0)
-            {
-                throw new ServiceResultException(StatusCodes.BadDecodingError);
-            }
-
-            return key.ToArray();
-        }
-
-        /// <summary>
-        /// Computes the SHA-1 hash required by the OPC UA RSAEncryptedSecret certificate hash field.
-        /// </summary>
-=======
-            byte highByte = decoder.ReadByte(null);
-
-            if (error != 0 || highByte != 0)
-            {
-                throw new ServiceResultException(StatusCodes.BadDecodingError);
-            }
-
-            return key.ToArray();
-        }
-
-        /// <summary>
-        /// Computes the SHA-1 hash required by the OPC UA RSAEncryptedSecret certificate hash field.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="data"/> is <c>null</c>.</exception>
->>>>>>> After
             byte highByte = decoder.ReadByte(null);
 
             if (error != 0 || highByte != 0)

@@ -3007,7 +3007,7 @@ namespace Opc.Ua.Client
             Debug.Assert(keepAliveCancellation != null);
             try
             {
-                keepAliveCancellation.Cancel();
+                keepAliveCancellation!.Cancel();
                 if (!m_inKeepAliveCallback)
                 {
                     // Make sure no circular loops
@@ -3023,7 +3023,7 @@ namespace Opc.Ua.Client
             }
             finally
             {
-                keepAliveCancellation.Dispose();
+                keepAliveCancellation!.Dispose();
             }
         }
 

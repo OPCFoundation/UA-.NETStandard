@@ -489,6 +489,8 @@ namespace Opc.Ua.Client.Subscriptions
         private Mock<ILoggerFactory> m_mockLoggerFactory;
         private Mock<ILogger<SubscriptionManager>> m_mockLogger;
         private Mock<ISubscriptionNotificationHandler> m_mockNotificationDataHandler;
+#pragma warning disable NUnit1032 // Disposed via DisposeAsync in TearDown
         private SubscriptionManager m_subscriptionManager;
+#pragma warning restore NUnit1032
     }
 }

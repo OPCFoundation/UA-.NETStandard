@@ -27,15 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !NET8_0_OR_GREATER
-
+using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Client
+namespace System.Threading.Channels
 {
+
+#if !NET8_0_OR_GREATER
     /// <summary>
     /// Options for <see cref="PrioritizedChannelHelper"/>.
     /// Polyfill for <c>UnboundedPrioritizedChannelOptions</c>
@@ -62,16 +62,19 @@ namespace Opc.Ua.Client
     /// </summary>
     internal static class PrioritizedChannelHelper
     {
-        /// <summary>
-        /// Create an unbounded channel that reads items in priority
-        /// order according to the provided comparer.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        public static Channel<T> CreateUnboundedPrioritized<T>(
-            UnboundedPrioritizedChannelOptions<T> options)
+        extension(Channel)
         {
-            return new PrioritizedChannel<T>(
-                options.Comparer ?? Comparer<T>.Default);
+            /// <summary>
+            /// Create an unbounded channel that reads items in priority
+            /// order according to the provided comparer.
+            /// </summary>
+            /// <typeparam name="T"></typeparam>
+            public static Channel<T> CreateUnboundedPrioritized<T>(
+                UnboundedPrioritizedChannelOptions<T> options)
+            {
+                return new PrioritizedChannel<T>(
+                    options.Comparer ?? Comparer<T>.Default);
+            }
         }
     }
 
@@ -81,8 +84,11 @@ namespace Opc.Ua.Client
     /// polyfill for the .NET 9 prioritized channel API.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    internal sealed class PrioritizedChannel<T> : Channel<T>
+    internal sealed class PrioritizedChannel<T> : Channel<T>, IDisposable
     {
+        /// <summary>
+        /// Create channel with comparer
+        /// </summary>
         public PrioritizedChannel(IComparer<T> comparer)
         {
             m_comparer = comparer;
@@ -90,6 +96,12 @@ namespace Opc.Ua.Client
             m_semaphore = new SemaphoreSlim(0);
             Writer = new PrioritizedWriter(this);
             Reader = new PrioritizedReader(this);
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            m_semaphore.Dispose();
         }
 
         private void HeapPush(T item)
@@ -253,6 +265,6 @@ namespace Opc.Ua.Client
         private readonly object m_lock = new();
         private bool m_completed;
     }
+#endif
 }
 
-#endif

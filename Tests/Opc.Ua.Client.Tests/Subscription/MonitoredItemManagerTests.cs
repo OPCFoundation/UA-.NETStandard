@@ -167,7 +167,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(result.ToArray(), Has.Exactly(1).Items);
             Assert.That(result.ToArray().Single(), Is.TypeOf<DataValueChange>());
             var single = (DataValueChange)result.ToArray().Single();
-            Assert.That(single, Is.Not.Null); // verify match: dvc => dvc.Value.Value.Equals("test") && dvc.MonitoredItem == monitoredItem
         }
 
         [Test]
@@ -310,7 +309,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(result.ToArray(), Has.Exactly(1).Items);
             Assert.That(result.ToArray().Single(), Is.TypeOf<EventNotification>());
             var single = (EventNotification)result.ToArray().Single();
-            Assert.That(single, Is.Not.Null); // verify match: en => en.Fields[0].Value.Equals("Event1") && en.MonitoredItem == monitoredItem
         }
 
         [Test]

@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             get
             {
-                long lastNotificationTimestamp = _lastNotificationTimestamp;
+                long lastNotificationTimestamp = LastNotificationTimestamp;
                 if (lastNotificationTimestamp == 0)
                 {
                     return false;
@@ -160,8 +160,8 @@ namespace Opc.Ua.Client.Subscriptions
             await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                _lastSequenceNumberProcessed = 0;
-                _lastNotificationTimestamp = 0;
+                LastSequenceNumberProcessed = 0;
+                LastNotificationTimestamp = 0;
 
                 Id = 0;
                 CurrentPublishingInterval = TimeSpan.Zero;
@@ -203,7 +203,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
 
                 // save available sequence numbers
-                _availableInRetransmissionQueue = availableSequenceNumbers;
+                AvailableInRetransmissionQueue = availableSequenceNumbers;
 
                 await m_monitoredItems.ApplyChangesAsync(true, false,
                     ct).ConfigureAwait(false);
@@ -340,7 +340,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="state"></param>
         protected virtual void OnSubscriptionStateChanged(SubscriptionState state)
         {
-            _logger.LogInformation("{Subscription}: {State}.", this, state);
+            Logger.LogInformation("{Subscription}: {State}.", this, state);
         }
 
         /// <summary>
@@ -392,7 +392,7 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to apply subscription changes.");
+                        Logger.LogError(ex, "Failed to apply subscription changes.");
                     }
                     finally
                     {
@@ -441,7 +441,7 @@ namespace Opc.Ua.Client.Subscriptions
             // suppress exception if silent flag is set.
             catch (Exception e)
             {
-                _logger.LogInformation(e, "Deleting subscription on server failed.");
+                Logger.LogInformation(e, "Deleting subscription on server failed.");
             }
             OnSubscriptionDeleteCompleted();
         }
@@ -528,7 +528,7 @@ namespace Opc.Ua.Client.Subscriptions
                         response.DiagnosticInfos, response.ResponseHeader));
                 }
 
-                _logger.LogInformation(
+                Logger.LogInformation(
                     "{Subscription}: Modified - Publishing is now {New}.",
                     this, options.PublishingEnabled ? "Enabled" : "Disabled");
             }
@@ -553,7 +553,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             if (CurrentPublishingEnabled != publishingEnabled)
             {
-                _logger.LogInformation(
+                Logger.LogInformation(
                     "{Subscription}: Created - Publishing is {New}.",
                     this, publishingEnabled ? "Enabled" : "Disabled");
                 CurrentPublishingEnabled = publishingEnabled;
@@ -561,7 +561,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             if (CurrentKeepAliveCount != revisedKeepAliveCount)
             {
-                _logger.LogInformation(
+                Logger.LogInformation(
                     "{Subscription}: Changed KeepAliveCount to {New}.",
                     this, revisedKeepAliveCount);
 
@@ -570,7 +570,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             if (CurrentPublishingInterval != revisedPublishingInterval)
             {
-                _logger.LogInformation(
+                Logger.LogInformation(
                     "{Subscription}: Changed PublishingInterval to {New}.",
                     this, revisedPublishingInterval);
                 CurrentPublishingInterval = revisedPublishingInterval;
@@ -578,7 +578,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             if (CurrentMaxNotificationsPerPublish != maxNotificationsPerPublish)
             {
-                _logger.LogInformation(
+                Logger.LogInformation(
                     "{Subscription}: Change MaxNotificationsPerPublish to {New}.",
                     this, maxNotificationsPerPublish);
                 CurrentMaxNotificationsPerPublish = maxNotificationsPerPublish;
@@ -586,7 +586,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             if (CurrentLifetimeCount != revisedLifetimeCount)
             {
-                _logger.LogInformation(
+                Logger.LogInformation(
                     "{Subscription}: Changed LifetimeCount to {New}.",
                     this, revisedLifetimeCount);
                 CurrentLifetimeCount = revisedLifetimeCount;
@@ -594,7 +594,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             if (CurrentPriority != priority)
             {
-                _logger.LogInformation(
+                Logger.LogInformation(
                     "{Subscription}: Changed Priority to {New}.",
                     this, priority);
                 CurrentPriority = priority;
@@ -619,8 +619,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         internal void OnSubscriptionDeleteCompleted()
         {
-            _lastSequenceNumberProcessed = 0;
-            _lastNotificationTimestamp = 0;
+            LastSequenceNumberProcessed = 0;
+            LastNotificationTimestamp = 0;
 
             Id = 0;
             CurrentPublishingInterval = TimeSpan.Zero;
@@ -651,7 +651,7 @@ namespace Opc.Ua.Client.Subscriptions
         private void StartKeepAliveTimer()
         {
             SubscriptionOptions options = Options;
-            _lastNotificationTimestamp = TimeProvider.System.GetTimestamp();
+            LastNotificationTimestamp = TimeProvider.System.GetTimestamp();
             m_keepAliveInterval = CurrentPublishingInterval.Multiply(CurrentKeepAliveCount + 1);
             if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
             {
@@ -699,7 +699,7 @@ namespace Opc.Ua.Client.Subscriptions
             // keep alive count must be at least 1, 10 is a good default.
             if (keepAliveCount == 0)
             {
-                _logger.LogInformation("{Subscription}: Adjusted KeepAliveCount " +
+                Logger.LogInformation("{Subscription}: Adjusted KeepAliveCount " +
                     "from {Old} to {New}.", this, keepAliveCount, kDefaultKeepAlive);
                 keepAliveCount = kDefaultKeepAlive;
             }
@@ -710,7 +710,7 @@ namespace Opc.Ua.Client.Subscriptions
                 if (options.MinLifetimeInterval > TimeSpan.Zero &&
                     options.MinLifetimeInterval < m_context.SessionTimeout)
                 {
-                    _logger.LogWarning(
+                    Logger.LogWarning(
                         "{Subscription}: A smaller minimum LifetimeInterval " +
                         "{Counter}ms than session timeout {Timeout}ms configured.",
                         this, options.MinLifetimeInterval, m_context.SessionTimeout);
@@ -727,14 +727,14 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         lifetimeCount++;
                     }
-                    _logger.LogInformation(
+                    Logger.LogInformation(
                         "{Subscription}: Adjusted LifetimeCount to value={New}.",
                         this, lifetimeCount);
                 }
 
                 if (options.PublishingInterval.Multiply(lifetimeCount) < m_context.SessionTimeout)
                 {
-                    _logger.LogWarning(
+                    Logger.LogWarning(
                         "{Subscription}: Lifetime {LifeTime}ms configured is less " +
                         "than session timeout {Timeout}ms.", this,
                         options.PublishingInterval.Multiply(lifetimeCount), m_context.SessionTimeout);
@@ -744,7 +744,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 // don't know what the sampling interval will be - use something large
                 // enough to ensure the user does not experience unexpected drop outs.
-                _logger.LogInformation(
+                Logger.LogInformation(
                     "{Subscription}: Adjusted LifetimeCount from {Old} to {New}. ",
                     this, lifetimeCount, kDefaultLifeTime);
                 lifetimeCount = kDefaultLifeTime;
@@ -754,7 +754,7 @@ namespace Opc.Ua.Client.Subscriptions
             uint minLifeTimeCount = 3 * keepAliveCount;
             if (lifetimeCount < minLifeTimeCount)
             {
-                _logger.LogInformation(
+                Logger.LogInformation(
                     "{Subscription}: Adjusted LifetimeCount from {Old} to {New}.",
                     this, lifetimeCount, minLifeTimeCount);
                 lifetimeCount = minLifeTimeCount;

@@ -58,15 +58,16 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="services"></param>
         /// <param name="completion"></param>
         /// <param name="telemetry"></param>
-        protected MessageProcessor(ISubscriptionServiceSetClientMethods services,
-            IMessageAckQueue completion, ITelemetryContext telemetry)
+        protected MessageProcessor(
+            ISubscriptionServiceSetClientMethods services,
+            IMessageAckQueue completion,
+            ITelemetryContext telemetry)
         {
             Observability = telemetry;
             AvailableInRetransmissionQueue = [];
             Logger = Observability.LoggerFactory.CreateLogger<Subscription>();
             m_services = services;
             m_completion = completion;
-#if NET8_0_OR_GREATER
             m_messages = Channel.CreateUnboundedPrioritized(
                 new UnboundedPrioritizedChannelOptions<IncomingMessage>
                 {
@@ -74,16 +75,6 @@ namespace Opc.Ua.Client.Subscriptions
                     Comparer = Comparer<IncomingMessage>.Create(
                         IncomingMessage.Compare)
                 });
-#else
-            m_messages = PrioritizedChannelHelper
-                .CreateUnboundedPrioritized(
-                    new UnboundedPrioritizedChannelOptions<IncomingMessage>
-                    {
-                        SingleReader = true,
-                        Comparer = Comparer<IncomingMessage>.Create(
-                            IncomingMessage.Compare)
-                    });
-#endif
             m_messageWorkerTask = ProcessReceivedMessagesAsync(m_cts.Token);
         }
 
@@ -95,7 +86,8 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask OnPublishReceivedAsync(NotificationMessage message,
+        public virtual async ValueTask OnPublishReceivedAsync(
+            NotificationMessage message,
             IReadOnlyList<uint>? availableSequenceNumbers,
             IReadOnlyList<string> stringTable)
         {
@@ -126,6 +118,7 @@ namespace Opc.Ua.Client.Subscriptions
                 finally
                 {
                     m_cts.Dispose();
+                    (m_messages as IDisposable)?.Dispose();
                     Disposed = true;
                 }
             }
@@ -140,9 +133,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="publishStateMask"></param>
         /// <param name="stringTable"></param>
         /// <returns></returns>
-        protected abstract ValueTask OnStatusChangeNotificationAsync(uint sequenceNumber,
-            DateTime publishTime, StatusChangeNotification notification,
-            PublishState publishStateMask, IReadOnlyList<string> stringTable);
+        protected abstract ValueTask OnStatusChangeNotificationAsync(
+            uint sequenceNumber,
+            DateTime publishTime,
+            StatusChangeNotification notification,
+            PublishState publishStateMask,
+            IReadOnlyList<string> stringTable);
 
         /// <summary>
         /// Process keep alive notification
@@ -151,8 +147,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="publishTime"></param>
         /// <param name="publishStateMask"></param>
         /// <returns></returns>
-        protected abstract ValueTask OnKeepAliveNotificationAsync(uint sequenceNumber,
-            DateTime publishTime, PublishState publishStateMask);
+        protected abstract ValueTask OnKeepAliveNotificationAsync(
+            uint sequenceNumber,
+            DateTime publishTime,
+            PublishState publishStateMask);
 
         /// <summary>
         /// Process data change notification
@@ -163,9 +161,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="publishStateMask"></param>
         /// <param name="stringTable"></param>
         /// <returns></returns>
-        protected abstract ValueTask OnDataChangeNotificationAsync(uint sequenceNumber,
-            DateTime publishTime, DataChangeNotification notification,
-            PublishState publishStateMask, IReadOnlyList<string> stringTable);
+        protected abstract ValueTask OnDataChangeNotificationAsync(
+            uint sequenceNumber,
+            DateTime publishTime,
+            DataChangeNotification notification,
+            PublishState publishStateMask,
+            IReadOnlyList<string> stringTable);
 
         /// <summary>
         /// Process event notification
@@ -176,9 +177,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="publishStateMask"></param>
         /// <param name="stringTable"></param>
         /// <returns></returns>
-        protected abstract ValueTask OnEventDataNotificationAsync(uint sequenceNumber,
-            DateTime publishTime, EventNotificationList notification,
-            PublishState publishStateMask, IReadOnlyList<string> stringTable);
+        protected abstract ValueTask OnEventDataNotificationAsync(
+            uint sequenceNumber,
+            DateTime publishTime,
+            EventNotificationList notification,
+            PublishState publishStateMask,
+            IReadOnlyList<string> stringTable);
 
         /// <summary>
         /// On publish state changed
@@ -268,20 +272,29 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     if (curSeqNum == prevSeqNum)
                     {
-                        Logger.LogDebug("{Subscription}: Received duplicate message " +
-                            "with sequence number #{SeqNumber}.", this, curSeqNum);
+                        Logger.LogDebug(
+                            "{Subscription}: Received duplicate message " +
+                            "with sequence number #{SeqNumber}.",
+                            this,
+                            curSeqNum);
                     }
                     else
                     {
-                        Logger.LogDebug("{Subscription}: Received older message with " +
+                        Logger.LogDebug(
+                            "{Subscription}: Received older message with " +
                             "sequence number #{SeqNumber} but already processed message with " +
-                            "sequence number #{Old}.", this, curSeqNum, prevSeqNum);
+                            "sequence number #{Old}.",
+                            this,
+                            curSeqNum,
+                            prevSeqNum);
                     }
                     return;
                 }
             }
             LastSequenceNumberProcessed = curSeqNum;
-            await OnNotificationReceivedAsync(incoming.Message, PublishState.None,
+            await OnNotificationReceivedAsync(
+                incoming.Message,
+                PublishState.None,
                 ct).ConfigureAwait(false);
         }
 
@@ -297,34 +310,52 @@ namespace Opc.Ua.Client.Subscriptions
         {
             if (!AvailableInRetransmissionQueue.Contains(missing))
             {
-                Logger.LogWarning("{Subscription}: Message with sequence number " +
+                Logger.LogWarning(
+                    "{Subscription}: Message with sequence number " +
                     "#{SeqNumber} is not in server retransmission queue and was dropped.",
-                    this, missing);
+                    this,
+                    missing);
                 return;
             }
             try
             {
-                Logger.LogInformation("{Subscription}: Republishing missing message " +
+                Logger.LogInformation(
+                    "{Subscription}: Republishing missing message " +
                     "with sequence number #{Missing} to catch up to message " +
-                    "with sequence number #{SeqNumber}...", this, missing, curSeqNum);
-                RepublishResponse republish = await m_services.RepublishAsync(null, Id, missing,
+                    "with sequence number #{SeqNumber}...",
+                    this,
+                    missing,
+                    curSeqNum);
+                RepublishResponse republish = await m_services.RepublishAsync(
+                    null,
+                    Id,
+                    missing,
                     ct).ConfigureAwait(false);
 
                 if (ServiceResult.IsGood(republish.ResponseHeader.ServiceResult))
                 {
-                    await OnNotificationReceivedAsync(republish.NotificationMessage,
-                        PublishState.Republish, ct).ConfigureAwait(false);
+                    await OnNotificationReceivedAsync(
+                        republish.NotificationMessage,
+                        PublishState.Republish,
+                        ct).ConfigureAwait(false);
                 }
                 else
                 {
-                    Logger.LogWarning("{Subscription}: Republishing message with " +
-                        "sequence number #{SeqNumber} failed.", this, missing);
+                    Logger.LogWarning(
+                        "{Subscription}: Republishing message with " +
+                        "sequence number #{SeqNumber} failed.",
+                        this,
+                        missing);
                 }
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "{Subscription}: Error republishing message with " +
-                    "sequence number #{SeqNumber}.", this, missing);
+                Logger.LogError(
+                    ex,
+                    "{Subscription}: Error republishing message with " +
+                    "sequence number #{SeqNumber}.",
+                    this,
+                    missing);
             }
         }
 
@@ -335,22 +366,28 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="publishStateMask"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        private async ValueTask OnNotificationReceivedAsync(NotificationMessage message,
-            PublishState publishStateMask, CancellationToken ct)
+        private async ValueTask OnNotificationReceivedAsync(
+            NotificationMessage message,
+            PublishState publishStateMask,
+            CancellationToken ct)
         {
             try
             {
                 if (message.NotificationData.Count == 0)
                 {
                     publishStateMask |= PublishState.KeepAlive;
-                    await OnKeepAliveNotificationAsync(message.SequenceNumber,
-                        (DateTime)message.PublishTime, publishStateMask).ConfigureAwait(false);
+                    await OnKeepAliveNotificationAsync(
+                        message.SequenceNumber,
+                        (DateTime)message.PublishTime,
+                        publishStateMask).ConfigureAwait(false);
                 }
                 else
                 {
                     for (int i = 0; i < message.NotificationData.Count; i++)
                     {
-                        await DispatchAsync(message, publishStateMask,
+                        await DispatchAsync(
+                            message,
+                            publishStateMask,
                             message.NotificationData[i]).ConfigureAwait(false);
                     }
                 }
@@ -363,7 +400,8 @@ namespace Opc.Ua.Client.Subscriptions
             catch (Exception ex)
             {
                 Logger.LogError(ex,
-                    "{Subscription}: Error dispatching notification data.", this);
+                    "{Subscription}: Error dispatching notification data.",
+                    this);
             }
         }
 
@@ -381,19 +419,28 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return;
             }
-            if (notificationData.Value.TryGetEncodeable(out DataChangeNotification datachange))
+            if (notificationData.Value.TryGetEncodeable(
+                out DataChangeNotification datachange))
             {
-                await OnDataChangeNotificationAsync(message.SequenceNumber,
-                    (DateTime)message.PublishTime, datachange, publishStateMask,
+                await OnDataChangeNotificationAsync(
+                    message.SequenceNumber,
+                    (DateTime)message.PublishTime,
+                    datachange,
+                    publishStateMask,
                     message.StringTable.ToArray() ?? []).ConfigureAwait(false);
             }
-            else if (notificationData.Value.TryGetEncodeable(out EventNotificationList events))
+            else if (notificationData.Value.TryGetEncodeable(
+                out EventNotificationList events))
             {
-                await OnEventDataNotificationAsync(message.SequenceNumber,
-                    (DateTime)message.PublishTime, events, publishStateMask,
+                await OnEventDataNotificationAsync(
+                    message.SequenceNumber,
+                    (DateTime)message.PublishTime,
+                    events,
+                    publishStateMask,
                     message.StringTable.ToArray() ?? []).ConfigureAwait(false);
             }
-            else if (notificationData.Value.TryGetEncodeable(out StatusChangeNotification statusChanged))
+            else if (notificationData.Value.TryGetEncodeable(
+                out StatusChangeNotification statusChanged))
             {
                 PublishState mask = publishStateMask;
                 if (statusChanged.Status == StatusCodes.GoodSubscriptionTransferred)
@@ -408,8 +455,11 @@ namespace Opc.Ua.Client.Subscriptions
                     // TODO: Also complete this subscription
                     mask |= PublishState.Timeout;
                 }
-                await OnStatusChangeNotificationAsync(message.SequenceNumber,
-                    (DateTime)message.PublishTime, statusChanged, mask,
+                await OnStatusChangeNotificationAsync(
+                    message.SequenceNumber,
+                    (DateTime)message.PublishTime,
+                    statusChanged,
+                    mask,
                     message.StringTable.ToArray() ?? []).ConfigureAwait(false);
             }
         }
@@ -420,8 +470,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="Message"></param>
         /// <param name="StringTable"></param>
         /// <param name="Enqueued"></param>
-        private readonly record struct IncomingMessage(NotificationMessage Message,
-            IReadOnlyList<string> StringTable, DateTimeOffset Enqueued)
+        private readonly record struct IncomingMessage(
+            NotificationMessage Message,
+            IReadOnlyList<string> StringTable,
+            DateTimeOffset Enqueued)
         {
             public static int Compare(IncomingMessage message, IncomingMessage other)
             {

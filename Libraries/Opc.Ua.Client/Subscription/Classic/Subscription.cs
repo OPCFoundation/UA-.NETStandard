@@ -634,7 +634,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
-                        return m_messageCache.Last.Value.PublishTime;
+                        return m_messageCache.Last!.Value.PublishTime;
                     }
                 }
 
@@ -665,7 +665,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
-                        return m_messageCache.Last.Value.SequenceNumber;
+                        return m_messageCache.Last!.Value.SequenceNumber;
                     }
                 }
 
@@ -684,7 +684,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
-                        return (uint)m_messageCache.Last.Value.NotificationData.Count;
+                        return (uint)m_messageCache.Last!.Value.NotificationData.Count;
                     }
                 }
 
@@ -703,7 +703,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
-                        return m_messageCache.Last.Value;
+                        return m_messageCache.Last!.Value;
                     }
 
                     return null;
