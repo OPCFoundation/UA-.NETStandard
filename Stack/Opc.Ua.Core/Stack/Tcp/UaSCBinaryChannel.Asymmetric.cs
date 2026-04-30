@@ -793,7 +793,7 @@ namespace Opc.Ua.Bindings
                     // reset the encoder to write the plaintext for the next chunk into the same buffer.
                     if (bytesToWrite > 0)
                     {
-                        encoder?.Dispose();
+                        encoder.Dispose();
                         // ostrm is disposed by the encoder.
                         var ostrm = new MemoryStream(buffer, 0, SendBufferSize);
                         ostrm.Seek(header.Count, SeekOrigin.Current);

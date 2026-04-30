@@ -45,11 +45,13 @@ namespace Opc.Ua.Client.Tests
     {
         private ITelemetryContext m_telemetry;
         private Mock<ISubscriptionEngineContext> m_mockContext;
+        private SemaphoreSlim m_lock;
 
         [SetUp]
         public void SetUp()
         {
             m_telemetry = NUnitTelemetryContext.Create();
+            m_lock = new SemaphoreSlim(1, 1);
             m_mockContext = new Mock<ISubscriptionEngineContext>();
             m_mockContext.Setup(c => c.SessionId)
                 .Returns(new NodeId(1));
@@ -70,9 +72,15 @@ namespace Opc.Ua.Client.Tests
             m_mockContext.Setup(c => c.ReturnDiagnostics)
                 .Returns(DiagnosticsMasks.None);
             m_mockContext.Setup(c => c.ReconnectLock)
-                .Returns(new SemaphoreSlim(1, 1));
+                .Returns(m_lock);
             m_mockContext.Setup(c => c.GoodPublishRequestCount)
                 .Returns(0);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            m_lock.Dispose();
         }
 
         [Test]
@@ -191,32 +199,28 @@ namespace Opc.Ua.Client.Tests
             using var engine =
                 new ClassicSubscriptionEngine(m_mockContext.Object);
 
-            Assert.That(
-                () => engine.PausePublishing(),
-                Throws.Nothing);
-            Assert.That(
-                () => engine.ResumePublishing(),
-                Throws.Nothing);
+            Assert.That(engine.PausePublishing, Throws.Nothing);
+            Assert.That(engine.ResumePublishing, Throws.Nothing);
         }
 
         [Test]
-        public async Task StopPublishingAsyncDisposesCleanly()
+        public async Task StopPublishingAsyncDisposesCleanlyAsync()
         {
-            using var engine =
-                new ClassicSubscriptionEngine(m_mockContext.Object);
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
 
-            await engine.StopPublishingAsync()
-                .ConfigureAwait(false);
+            await engine.StopPublishingAsync().ConfigureAwait(false);
         }
 
         [Test]
         public void DisposeIsIdempotent()
         {
+#pragma warning disable CA2000 // Dispose objects before losing scope
             var engine =
                 new ClassicSubscriptionEngine(m_mockContext.Object);
+#pragma warning restore CA2000 // Dispose objects before losing scope
 
-            Assert.That(() => engine.Dispose(), Throws.Nothing);
-            Assert.That(() => engine.Dispose(), Throws.Nothing);
+            Assert.That(engine.Dispose, Throws.Nothing);
+            Assert.That(engine.Dispose, Throws.Nothing);
         }
 
         [Test]
@@ -247,7 +251,7 @@ namespace Opc.Ua.Client.Tests
                 new ClassicSubscriptionEngine(m_mockContext.Object);
 
             Assert.That(
-                engine.BadPublishRequestCount, Is.EqualTo(0));
+                engine.BadPublishRequestCount, Is.Zero);
         }
 
         [Test]

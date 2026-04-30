@@ -24,7 +24,10 @@ namespace Opc.Ua
         /// Create options
         /// </summary>
         /// <param name="option"></param>
-        public OptionsMonitor(T option) => m_currentValue = option;
+        public OptionsMonitor(T option)
+        {
+            m_currentValue = option;
+        }
 
         /// <summary>
         /// Configure options

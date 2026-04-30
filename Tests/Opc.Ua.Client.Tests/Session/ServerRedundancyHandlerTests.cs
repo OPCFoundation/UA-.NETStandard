@@ -54,7 +54,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             m_handler = new DefaultServerRedundancyHandler();
         }
 
-
         [Test]
         public void SelectFailoverTargetReturnsNullForNoneMode()
         {
@@ -270,8 +269,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Is.EqualTo("urn:backup"));
         }
 
-
-
         [Test]
         public async Task FetchRedundancyInfoReturnsNoneWhenNotSupportedAsync()
         {
@@ -349,11 +346,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 mockSession.Object).ConfigureAwait(false);
 
             Assert.That(info.Mode, Is.EqualTo(RedundancyMode.None));
-            Assert.That(info.ServiceLevel, Is.EqualTo(0));
+            Assert.That(info.ServiceLevel, Is.Zero);
             Assert.That(info.RedundantServers, Is.Empty);
         }
-
-
 
         private static RedundantServer CreateServerInfo(
             string uri, byte serviceLevel, ServerState state)
@@ -462,6 +457,5 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             return mock;
         }
-
     }
 }

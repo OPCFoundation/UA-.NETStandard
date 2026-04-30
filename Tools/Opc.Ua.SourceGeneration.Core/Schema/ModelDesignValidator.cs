@@ -331,7 +331,7 @@ namespace Opc.Ua.Schema.Model
         /// <param name="designFilePaths"></param>
         /// <param name="identifierFilePath"></param>
         private void ValidateModel(
-            IReadOnlyList<string> designFilePaths,
+            List<string> designFilePaths,
             string identifierFilePath)
         {
             string inputPath = designFilePaths[0];

@@ -41,6 +41,7 @@ namespace Opc.Ua.Client
     /// Polyfill for <c>UnboundedPrioritizedChannelOptions</c>
     /// which is only available in .NET 9+.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     internal sealed class UnboundedPrioritizedChannelOptions<T>
     {
         /// <summary>
@@ -65,6 +66,7 @@ namespace Opc.Ua.Client
         /// Create an unbounded channel that reads items in priority
         /// order according to the provided comparer.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         public static Channel<T> CreateUnboundedPrioritized<T>(
             UnboundedPrioritizedChannelOptions<T> options)
         {
@@ -79,24 +81,17 @@ namespace Opc.Ua.Client
     /// queue, yielding them in priority order on read. This is a
     /// polyfill for the .NET 9 prioritized channel API.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     internal sealed class PrioritizedChannel<T> : Channel<T>
     {
-        public PrioritizedChannel(
-            IComparer<T> comparer,
-            bool singleReader)
+        public PrioritizedChannel(IComparer<T> comparer, bool singleReader)
         {
             m_comparer = comparer;
-            m_heap = new List<T>();
+            m_heap = [];
             m_semaphore = new SemaphoreSlim(0);
             Writer = new PrioritizedWriter(this);
             Reader = new PrioritizedReader(this);
         }
-
-        private readonly IComparer<T> m_comparer;
-        private readonly List<T> m_heap;
-        private readonly SemaphoreSlim m_semaphore;
-        private readonly object m_lock = new();
-        private bool m_completed;
 
         private void HeapPush(T item)
         {
@@ -124,8 +119,8 @@ namespace Opc.Ua.Client
             int i = 0;
             while (true)
             {
-                int left = 2 * i + 1;
-                int right = 2 * i + 2;
+                int left = (2 * i) + 1;
+                int right = (2 * i) + 2;
                 int smallest = i;
                 if (left <= last &&
                     m_comparer.Compare(m_heap[left], m_heap[smallest]) < 0)
@@ -252,6 +247,12 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+        private readonly IComparer<T> m_comparer;
+        private readonly List<T> m_heap;
+        private readonly SemaphoreSlim m_semaphore;
+        private readonly object m_lock = new();
+        private bool m_completed;
     }
 }
 

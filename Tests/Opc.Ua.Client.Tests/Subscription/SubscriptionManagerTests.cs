@@ -30,7 +30,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -64,10 +63,10 @@ namespace Opc.Ua.Client.Subscriptions
         [Test]
         public async Task AddAndRemoveOfSubscription1Async()
         {
-            var loggerFactory = m_mockLoggerFactory.Object;
+            ILoggerFactory loggerFactory = m_mockLoggerFactory.Object;
             var session = new Mock<ISubscriptionManagerContext>();
-            var so1 = OptionsFactory.Create<SubscriptionOptions>();
-            var so2 = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> so1 = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> so2 = OptionsFactory.Create<SubscriptionOptions>();
 
             var ms1 = new Mock<IManagedSubscription>();
             ms1.SetupGet(s => s.Id).Returns(1);
@@ -91,35 +90,35 @@ namespace Opc.Ua.Client.Subscriptions
                     It.Is<IMessageAckQueue>(q => q == sut)))
                 .Returns(() => ms2.Object);
 
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(0));
+            Assert.That(sut.PublishWorkerCount, Is.Zero);
 
             // Test adding and removing a subscription from
-            var s1 = sut.Add(m_mockNotificationDataHandler.Object, so1);
-            var s2 = sut.Add(m_mockNotificationDataHandler.Object, so2);
+            ISubscription s1 = sut.Add(m_mockNotificationDataHandler.Object, so1);
+            ISubscription s2 = sut.Add(m_mockNotificationDataHandler.Object, so2);
             Assert.That(sut.Count, Is.EqualTo(2));
 
-            var ex = Assert.Throws<ServiceResultException>(() => sut.Add(m_mockNotificationDataHandler.Object, so2));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => sut.Add(m_mockNotificationDataHandler.Object, so2));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadAlreadyExists));
-            await Task.Delay(100); // Give time to workers to start
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(0));
-            await sut.CompleteAsync(1, default);
+            await Task.Delay(100).ConfigureAwait(false); // Give time to workers to start
+            Assert.That(sut.PublishWorkerCount, Is.Zero);
+            await sut.CompleteAsync(1, default).ConfigureAwait(false);
             Assert.That(sut.Count, Is.EqualTo(1));
             Assert.That(sut.Items, Does.Contain(s2));
 
             Assert.That(sut.PublishControlCycles, Is.GreaterThan(0));
-            await sut.DisposeAsync();
-            Assert.That(sut.Count, Is.EqualTo(0));
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(0));
+            await sut.DisposeAsync().ConfigureAwait(false);
+            Assert.That(sut.Count, Is.Zero);
+            Assert.That(sut.PublishWorkerCount, Is.Zero);
             session.Verify();
         }
 
         [Test]
         public async Task AddAndRemoveOfSubscription2Async()
         {
-            var loggerFactory = m_mockLoggerFactory.Object;
+            ILoggerFactory loggerFactory = m_mockLoggerFactory.Object;
             var session = new Mock<ISubscriptionManagerContext>();
-            var so1 = OptionsFactory.Create<SubscriptionOptions>();
-            var so2 = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> so1 = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> so2 = OptionsFactory.Create<SubscriptionOptions>();
 
             var ms1 = new Mock<IManagedSubscription>();
             ms1.SetupGet(s => s.Id).Returns(1);
@@ -142,46 +141,46 @@ namespace Opc.Ua.Client.Subscriptions
                     It.Is<IMessageAckQueue>(q => q == sut)))
                 .Returns(() => ms2.Object);
 
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(0));
+            Assert.That(sut.PublishWorkerCount, Is.Zero);
 
             // Test adding and removing a subscription from
-            var s1 = sut.Add(m_mockNotificationDataHandler.Object, so1);
-            var s2 = sut.Add(m_mockNotificationDataHandler.Object, so2);
+            ISubscription s1 = sut.Add(m_mockNotificationDataHandler.Object, so1);
+            ISubscription s2 = sut.Add(m_mockNotificationDataHandler.Object, so2);
             Assert.That(sut.Count, Is.EqualTo(2));
 
             ms1.SetupGet(s => s.Created).Returns(true);
             sut.Update();
-            await Task.Delay(100);
+            await Task.Delay(100).ConfigureAwait(false);
 
-            await sut.CompleteAsync(2, default); // Remove s2
+            await sut.CompleteAsync(2, default).ConfigureAwait(false); // Remove s2
             Assert.That(sut.Count, Is.EqualTo(1));
             Assert.That(sut.Items, Does.Not.Contain(s2));
 
-            await Task.Delay(1000); // Give time to workers to start
+            await Task.Delay(1000).ConfigureAwait(false); // Give time to workers to start
 
             Assert.That(sut.PublishWorkerCount, Is.EqualTo(2));
             Assert.That(sut.PublishControlCycles, Is.GreaterThan(0));
 
-            await sut.CompleteAsync(1, default); // Remove s1
-            Assert.That(sut.Count, Is.EqualTo(0));
+            await sut.CompleteAsync(1, default).ConfigureAwait(false); // Remove s1
+            Assert.That(sut.Count, Is.Zero);
             Assert.That(sut.Items, Does.Not.Contain(s1));
 
-            await Task.Delay(100);
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(0));
+            await Task.Delay(100).ConfigureAwait(false);
+            Assert.That(sut.PublishWorkerCount, Is.Zero);
 
-            await sut.DisposeAsync();
-            Assert.That(sut.Count, Is.EqualTo(0));
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(0));
+            await sut.DisposeAsync().ConfigureAwait(false);
+            Assert.That(sut.Count, Is.Zero);
+            Assert.That(sut.PublishWorkerCount, Is.Zero);
             session.Verify();
         }
 
         [Test]
         public async Task ScaleOutAndInOfPublishWorkersAsync()
         {
-            var loggerFactory = m_mockLoggerFactory.Object;
+            ILoggerFactory loggerFactory = m_mockLoggerFactory.Object;
             var session = new Mock<ISubscriptionManagerContext>();
-            var so1 = OptionsFactory.Create<SubscriptionOptions>();
-            var so2 = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> so1 = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> so2 = OptionsFactory.Create<SubscriptionOptions>();
 
             var ms1 = new Mock<IManagedSubscription>();
             ms1.SetupGet(s => s.Id).Returns(1);
@@ -206,44 +205,44 @@ namespace Opc.Ua.Client.Subscriptions
                 .Returns(() => ms2.Object)
                 .Verifiable(Times.Once);
 
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(0));
+            Assert.That(sut.PublishWorkerCount, Is.Zero);
 
             // Test adding and removing a subscription from
-            var s1 = sut.Add(m_mockNotificationDataHandler.Object, so1);
-            var s2 = sut.Add(m_mockNotificationDataHandler.Object, so2);
+            ISubscription s1 = sut.Add(m_mockNotificationDataHandler.Object, so1);
+            ISubscription s2 = sut.Add(m_mockNotificationDataHandler.Object, so2);
             Assert.That(sut.Count, Is.EqualTo(2));
 
             sut.MinPublishWorkerCount = 0;
             ms1.SetupGet(s => s.Created).Returns(true);
             sut.Update();
-            await Task.Delay(100);
+            await Task.Delay(100).ConfigureAwait(false);
             Assert.That(sut.PublishWorkerCount, Is.EqualTo(1));
 
             sut.MinPublishWorkerCount = 8;
             ms2.SetupGet(s => s.Created).Returns(true);
             sut.Update();
-            await Task.Delay(100);
+            await Task.Delay(100).ConfigureAwait(false);
             Assert.That(sut.PublishWorkerCount, Is.EqualTo(8));
 
             sut.MinPublishWorkerCount = 4;
             sut.Update();
-            await Task.Delay(100);
+            await Task.Delay(100).ConfigureAwait(false);
             Assert.That(sut.PublishWorkerCount, Is.EqualTo(4));
 
             sut.MinPublishWorkerCount = 0;
             sut.Update();
-            await Task.Delay(100);
+            await Task.Delay(100).ConfigureAwait(false);
             Assert.That(sut.PublishWorkerCount, Is.EqualTo(2));
 
             sut.MinPublishWorkerCount = 0;
             sut.MaxPublishWorkerCount = 1;
             sut.Update();
-            await Task.Delay(100);
+            await Task.Delay(100).ConfigureAwait(false);
             Assert.That(sut.PublishWorkerCount, Is.EqualTo(1));
 
-            await sut.DisposeAsync();
-            Assert.That(sut.Count, Is.EqualTo(0));
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(0));
+            await sut.DisposeAsync().ConfigureAwait(false);
+            Assert.That(sut.Count, Is.Zero);
+            Assert.That(sut.PublishWorkerCount, Is.Zero);
 
             session.Verify();
         }
@@ -251,9 +250,9 @@ namespace Opc.Ua.Client.Subscriptions
         [Test]
         public async Task SendPublishRequestsWithSuccessAsync()
         {
-            var loggerFactory = m_mockLoggerFactory.Object;
+            ILoggerFactory loggerFactory = m_mockLoggerFactory.Object;
             var session = new Mock<ISubscriptionManagerContext>();
-            var so1 = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> so1 = OptionsFactory.Create<SubscriptionOptions>();
             var ms1 = new Mock<IManagedSubscription>();
             ms1.SetupGet(s => s.Id).Returns(1);
             ms1.SetupGet(s => s.Created).Returns(true);
@@ -267,7 +266,7 @@ namespace Opc.Ua.Client.Subscriptions
                 .Returns(() => ms1.Object)
                 .Verifiable(Times.Once);
             // Test adding subscription
-            var s1 = sut.Add(m_mockNotificationDataHandler.Object, so1);
+            ISubscription s1 = sut.Add(m_mockNotificationDataHandler.Object, so1);
             Assert.That(sut.Count, Is.EqualTo(1));
             sut.MaxPublishWorkerCount = 1;
 
@@ -308,11 +307,11 @@ namespace Opc.Ua.Client.Subscriptions
                     });
 
             sut.Resume();
-            await Task.Delay(1000);
+            await Task.Delay(1000).ConfigureAwait(false);
 
-            await sut.DisposeAsync();
-            Assert.That(sut.Count, Is.EqualTo(0));
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(0));
+            await sut.DisposeAsync().ConfigureAwait(false);
+            Assert.That(sut.Count, Is.Zero);
+            Assert.That(sut.PublishWorkerCount, Is.Zero);
             session.Verify();
         }
 
@@ -377,19 +376,19 @@ namespace Opc.Ua.Client.Subscriptions
         [Test]
         public void GoodPublishRequestCountReturnsCount()
         {
-            Assert.That(m_subscriptionManager.GoodPublishRequestCount, Is.EqualTo(0));
+            Assert.That(m_subscriptionManager.GoodPublishRequestCount, Is.Zero);
         }
 
         [Test]
         public void BadPublishRequestCountReturnsCount()
         {
-            Assert.That(m_subscriptionManager.BadPublishRequestCount, Is.EqualTo(0));
+            Assert.That(m_subscriptionManager.BadPublishRequestCount, Is.Zero);
         }
 
         [Test]
         public void PublishWorkerCountReturnsCount()
         {
-            Assert.That(m_subscriptionManager.PublishWorkerCount, Is.EqualTo(0));
+            Assert.That(m_subscriptionManager.PublishWorkerCount, Is.Zero);
         }
 
         [Test]
@@ -405,7 +404,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             m_subscriptionManager.Add(m_mockNotificationDataHandler.Object,
                 Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
-            await m_subscriptionManager.DisposeAsync();
+            await m_subscriptionManager.DisposeAsync().ConfigureAwait(false);
             mockSubscription.Verify(s => s.DisposeAsync(), Times.Once);
         }
 
@@ -419,7 +418,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task QueueAsyncQueuesAcknowledgementAsync()
         {
             var ack = new SubscriptionAcknowledgement();
-            await m_subscriptionManager.QueueAsync(ack, CancellationToken.None);
+            await m_subscriptionManager.QueueAsync(ack, CancellationToken.None).ConfigureAwait(false);
             // No exception means success
         }
 
@@ -437,7 +436,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             m_subscriptionManager.Add(m_mockNotificationDataHandler.Object,
                 Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
-            await m_subscriptionManager.CompleteAsync(1, CancellationToken.None);
+            await m_subscriptionManager.CompleteAsync(1, CancellationToken.None).ConfigureAwait(false);
             Assert.That(m_subscriptionManager.Items, Is.Empty);
         }
 
@@ -452,7 +451,7 @@ namespace Opc.Ua.Client.Subscriptions
                     It.IsAny<IMessageAckQueue>()))
                 .Returns(mockSubscription.Object);
 
-            var subscription = m_subscriptionManager.Add(m_mockNotificationDataHandler.Object,
+            ISubscription subscription = m_subscriptionManager.Add(m_mockNotificationDataHandler.Object,
                 Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
 
             Assert.That(subscription, Is.Not.Null);
@@ -483,7 +482,7 @@ namespace Opc.Ua.Client.Subscriptions
                 .Returns(mockSubscription.Object);
 
             m_subscriptionManager.Add(m_mockNotificationDataHandler.Object, Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
-            await m_subscriptionManager.RecreateSubscriptionsAsync(null, CancellationToken.None);
+            await m_subscriptionManager.RecreateSubscriptionsAsync(null, CancellationToken.None).ConfigureAwait(false);
             mockSubscription.Verify(s => s.RecreateAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
         private Mock<ISubscriptionManagerContext> m_mockSession;

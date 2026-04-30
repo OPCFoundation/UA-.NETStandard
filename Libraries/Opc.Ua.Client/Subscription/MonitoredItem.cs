@@ -729,7 +729,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         private bool m_disposedValue;
         private MonitoredItemOptions? m_currentOptions;
+#pragma warning disable CA2213 // Disposed in DisposeAsync(bool)
         private IDisposable? m_changeTracking;
+#pragma warning restore CA2213
         private readonly ConcurrentQueue<Change> m_pendingChanges = new();
         private readonly ILogger m_logger;
         internal static uint _globalClientHandleUint;

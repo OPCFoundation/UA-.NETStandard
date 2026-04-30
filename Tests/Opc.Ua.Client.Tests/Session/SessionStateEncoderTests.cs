@@ -186,7 +186,6 @@ namespace Opc.Ua.Client.Tests
             Assert.That(decoded.TimestampsToReturn, Is.EqualTo(original.TimestampsToReturn));
             Assert.That(decoded.MaxMessageCount, Is.EqualTo(original.MaxMessageCount));
             Assert.That(decoded.MonitoredItems.IsEmpty, Is.True);
-
         }
 
         [Test]
@@ -268,7 +267,6 @@ namespace Opc.Ua.Client.Tests
             SubscriptionState decoded = RoundTrip(original);
 
             Assert.That(decoded.MonitoredItems.IsEmpty, Is.True);
-
         }
 
         [Test]
@@ -399,8 +397,7 @@ namespace Opc.Ua.Client.Tests
                 SessionId = new NodeId(100),
                 AuthenticationToken = new NodeId(200),
                 Subscriptions = new List<SubscriptionState> {
-                    new SubscriptionState
-                    {
+                    new() {
                         DisplayName = "Sub1",
                         PublishingInterval = 500,
                         MonitoredItems =
@@ -634,7 +631,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             using var readStream = new MemoryStream(data);
-            SessionConfiguration decoded = SessionConfiguration.Create(readStream, telemetry);
+            var decoded = SessionConfiguration.Create(readStream, telemetry);
 
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded!.SessionName, Is.EqualTo("StreamSession"));
@@ -703,7 +700,7 @@ namespace Opc.Ua.Client.Tests
 
             MonitoredItemState decoded = RoundTrip(original);
 
-            Assert.That(decoded.TriggeredItems.Count, Is.EqualTo(0));
+            Assert.That(decoded.TriggeredItems.Count, Is.Zero);
         }
 
         [Test]
@@ -732,8 +729,7 @@ namespace Opc.Ua.Client.Tests
                 AuthenticationToken = new NodeId(Guid.NewGuid()),
                 UserIdentityTokenPolicy = "policy1",
                 Subscriptions = new List<SubscriptionState> {
-                    new SubscriptionState
-                    {
+                    new() {
                         DisplayName = "Sub1",
                         PublishingInterval = 1000,
                         MonitoredItems =
@@ -742,8 +738,7 @@ namespace Opc.Ua.Client.Tests
                             new MonitoredItemState { DisplayName = "MI2" }
                         ]
                     },
-                    new SubscriptionState
-                    {
+                    new() {
                         DisplayName = "Sub2",
                         PublishingInterval = 2000,
                         MonitoredItems = []
@@ -762,205 +757,205 @@ namespace Opc.Ua.Client.Tests
             Assert.That(decoded.Subscriptions[1].MonitoredItems, Is.Empty);
         }
 
-[Test]
-public void SubscriptionStateSaveLoadRoundTripMimicsSessionSaveLoad()
-{
-    // Create a subscription state with monitored items (same as Session.Save does)
-    var monitoredItem = new MonitoredItemState
-    {
-        DisplayName = "TestItem",
-        StartNodeId = new NodeId(42, 2),
-        NodeClass = NodeClass.Variable,
-        AttributeId = Attributes.Value,
-        MonitoringMode = MonitoringMode.Reporting,
-        SamplingInterval = -1,
-        QueueSize = 1,
-        DiscardOldest = true,
-        ServerId = 100,
-        ClientId = 200
-    };
-
-    var original = new SubscriptionState
-    {
-        DisplayName = "TestSub",
-        PublishingInterval = 1000,
-        KeepAliveCount = 5,
-        LifetimeCount = 15,
-        PublishingEnabled = true,
-        TransferId = 999,
-        MonitoredItems = [monitoredItem],
-        CurrentPublishingInterval = 1000.0,
-        CurrentKeepAliveCount = 5,
-        CurrentLifetimeCount = 15
-    };
-
-    // Encode exactly like Session.Save does
-    using var ms = new MemoryStream();
-    using (var encoder = new BinaryEncoder(ms, m_context, true))
-    {
-        // Session.Save writes: nsUris, serverUris, count, then each state.Encode
-        encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
-        encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
-        encoder.WriteInt32(null, 1); // count = 1
-        original.Encode(encoder);
-    }
-
-    TestContext.Out.WriteLine($"Encoded {ms.Length} bytes");
-
-    // Decode exactly like Session.Load does
-    ms.Position = 0;
-    using var decoder = new BinaryDecoder(ms, m_context);
-    var nsUris = decoder.ReadStringArray(null);
-    var serverUris = decoder.ReadStringArray(null);
-    int count = decoder.ReadInt32(null);
-
-    Assert.That(count, Is.EqualTo(1), "subscription count");
-
-    var decoded = new SubscriptionState();
-    decoded.Decode(decoder);
-
-    TestContext.Out.WriteLine($"Decoded MonitoredItems.Count = {decoded.MonitoredItems.Count}");
-    TestContext.Out.WriteLine($"Decoded DisplayName = {decoded.DisplayName}");
-    TestContext.Out.WriteLine($"Decoded TransferId = {decoded.TransferId}");
-
-    Assert.That(decoded.DisplayName, Is.EqualTo("TestSub"));
-    Assert.That(decoded.TransferId, Is.EqualTo(999u));
-    Assert.That(decoded.MonitoredItems.Count, Is.EqualTo(1), "MonitoredItems should have 1 item");
-    Assert.That(decoded.MonitoredItems[0].DisplayName, Is.EqualTo("TestItem"));
-    Assert.That(decoded.MonitoredItems[0].ServerId, Is.EqualTo(100u));
-}
-
-[Test]
-public void SubscriptionStateSaveLoadWithoutClientTypesRegistered()
-{
-    // Use a plain context WITHOUT AddOpcUaClientDataTypes - like Session.Load does
-    var plainContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
-    // DO NOT call plainContext.Factory.Builder.AddOpcUaClientDataTypes();
-
-    var monitoredItem = new MonitoredItemState
-    {
-        DisplayName = "TestItem",
-        StartNodeId = new NodeId(42, 2),
-        ServerId = 100,
-        ClientId = 200
-    };
-
-    var original = new SubscriptionState
-    {
-        DisplayName = "TestSub",
-        TransferId = 999,
-        MonitoredItems = [monitoredItem]
-    };
-
-    using var ms = new MemoryStream();
-    using (var encoder = new BinaryEncoder(ms, plainContext, true))
-    {
-        encoder.WriteStringArray(null, plainContext.NamespaceUris.ToArrayOf());
-        encoder.WriteStringArray(null, plainContext.ServerUris.ToArrayOf());
-        encoder.WriteInt32(null, 1);
-        original.Encode(encoder);
-    }
-
-    TestContext.Out.WriteLine($"Encoded {ms.Length} bytes");
-
-    ms.Position = 0;
-    using var decoder = new BinaryDecoder(ms, plainContext);
-    decoder.ReadStringArray(null);
-    decoder.ReadStringArray(null);
-    int count = decoder.ReadInt32(null);
-    Assert.That(count, Is.EqualTo(1));
-
-    var decoded = new SubscriptionState();
-    decoded.Decode(decoder);
-
-    TestContext.Out.WriteLine($"MonitoredItems.Count = {decoded.MonitoredItems.Count}");
-    Assert.That(decoded.MonitoredItems.Count, Is.EqualTo(1), 
-        "MonitoredItems lost without client types - this is the reconnect bug!");
-    Assert.That(decoded.MonitoredItems[0].ServerId, Is.EqualTo(100u));
-}
-
-[Test]
-public void SubscriptionStateDecodeDebugByteLevelVerification()
-{
-    // Create realistic data matching what a real subscription produces
-    var items = new List<MonitoredItemState>();
-    for (int i = 0; i < 10; i++)
-    {
-        items.Add(new MonitoredItemState
+        [Test]
+        public void SubscriptionStateSaveLoadRoundTripMimicsSessionSaveLoad()
         {
-            DisplayName = $"MonitoredItem {i}",
-            StartNodeId = new NodeId((uint)(1880 + i), 3),
-            NodeClass = NodeClass.Variable,
-            AttributeId = Attributes.Value,
-            MonitoringMode = MonitoringMode.Reporting,
-            SamplingInterval = -1,
-            QueueSize = 10,
-            DiscardOldest = true,
-            ServerId = (uint)(100 + i),
-            ClientId = (uint)(200 + i)
-        });
-    }
+            // Create a subscription state with monitored items (same as Session.Save does)
+            var monitoredItem = new MonitoredItemState
+            {
+                DisplayName = "TestItem",
+                StartNodeId = new NodeId(42, 2),
+                NodeClass = NodeClass.Variable,
+                AttributeId = Attributes.Value,
+                MonitoringMode = MonitoringMode.Reporting,
+                SamplingInterval = -1,
+                QueueSize = 1,
+                DiscardOldest = true,
+                ServerId = 100,
+                ClientId = 200
+            };
 
-    var original = new SubscriptionState
-    {
-        DisplayName = "Subscription",
-        PublishingInterval = 1000,
-        KeepAliveCount = 5,
-        LifetimeCount = 15,
-        PublishingEnabled = true,
-        RepublishAfterTransfer = true,
-        TransferId = 12345,
-        MonitoredItems = items,
-        CurrentPublishingInterval = 1000.0,
-        CurrentKeepAliveCount = 5,
-        CurrentLifetimeCount = 15
-    };
+            var original = new SubscriptionState
+            {
+                DisplayName = "TestSub",
+                PublishingInterval = 1000,
+                KeepAliveCount = 5,
+                LifetimeCount = 15,
+                PublishingEnabled = true,
+                TransferId = 999,
+                MonitoredItems = [monitoredItem],
+                CurrentPublishingInterval = 1000.0,
+                CurrentKeepAliveCount = 5,
+                CurrentLifetimeCount = 15
+            };
 
-    // Use a plain context (like Session uses)
-    var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
-    
-    using var ms = new MemoryStream();
-    using (var encoder = new BinaryEncoder(ms, context, true))
-    {
-        encoder.WriteInt32(null, 1); // count
-        original.Encode(encoder);
-    }
+            // Encode exactly like Session.Save does
+            using var ms = new MemoryStream();
+            using (var encoder = new BinaryEncoder(ms, m_context, true))
+            {
+                // Session.Save writes: nsUris, serverUris, count, then each state.Encode
+                encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
+                encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
+                encoder.WriteInt32(null, 1); // count = 1
+                original.Encode(encoder);
+            }
 
-    var bytes = ms.ToArray();
-    TestContext.Out.WriteLine($"Total bytes: {bytes.Length}");
-    // Print first 100 bytes as hex
-    TestContext.Out.WriteLine("First 100 bytes: " + 
-        BitConverter.ToString(bytes, 0, Math.Min(100, bytes.Length)));
+            TestContext.Out.WriteLine($"Encoded {ms.Length} bytes");
 
-    ms.Position = 0;
-    using var decoder = new BinaryDecoder(ms, context);
-    int count = decoder.ReadInt32(null);
-    Assert.That(count, Is.EqualTo(1));
+            // Decode exactly like Session.Load does
+            ms.Position = 0;
+            using var decoder = new BinaryDecoder(ms, m_context);
+            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+            int count = decoder.ReadInt32(null);
 
-    long posBeforeDecode = ms.Position;
-    TestContext.Out.WriteLine($"Position before Decode: {posBeforeDecode}");
+            Assert.That(count, Is.EqualTo(1), "subscription count");
 
-    var decoded = new SubscriptionState();
-    decoded.Decode(decoder);
+            var decoded = new SubscriptionState();
+            decoded.Decode(decoder);
 
-    long posAfterDecode = ms.Position;
-    TestContext.Out.WriteLine($"Position after Decode: {posAfterDecode}");
-    TestContext.Out.WriteLine($"Bytes consumed: {posAfterDecode - posBeforeDecode}");
+            TestContext.Out.WriteLine($"Decoded MonitoredItems.Count = {decoded.MonitoredItems.Count}");
+            TestContext.Out.WriteLine($"Decoded DisplayName = {decoded.DisplayName}");
+            TestContext.Out.WriteLine($"Decoded TransferId = {decoded.TransferId}");
 
-    TestContext.Out.WriteLine($"Decoded DisplayName: {decoded.DisplayName}");
-    TestContext.Out.WriteLine($"Decoded TransferId: {decoded.TransferId}");
-    TestContext.Out.WriteLine($"Decoded MonitoredItems.Count: {decoded.MonitoredItems.Count}");
-    for (int i = 0; i < decoded.MonitoredItems.Count; i++)
-    {
-        TestContext.Out.WriteLine($"  Item[{i}]: {decoded.MonitoredItems[i].DisplayName} ServerId={decoded.MonitoredItems[i].ServerId}");
-    }
+            Assert.That(decoded.DisplayName, Is.EqualTo("TestSub"));
+            Assert.That(decoded.TransferId, Is.EqualTo(999u));
+            Assert.That(decoded.MonitoredItems.Count, Is.EqualTo(1), "MonitoredItems should have 1 item");
+            Assert.That(decoded.MonitoredItems[0].DisplayName, Is.EqualTo("TestItem"));
+            Assert.That(decoded.MonitoredItems[0].ServerId, Is.EqualTo(100u));
+        }
 
-    Assert.That(decoded.DisplayName, Is.EqualTo("Subscription"));
-    Assert.That(decoded.TransferId, Is.EqualTo(12345u));
-    Assert.That(decoded.MonitoredItems.Count, Is.EqualTo(10), "10 monitored items expected");
-    Assert.That(decoded.MonitoredItems[0].ServerId, Is.EqualTo(100u));
-    Assert.That(decoded.MonitoredItems[9].ServerId, Is.EqualTo(109u));
-}
+        [Test]
+        public void SubscriptionStateSaveLoadWithoutClientTypesRegistered()
+        {
+            // Use a plain context WITHOUT AddOpcUaClientDataTypes - like Session.Load does
+            var plainContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            // DO NOT call plainContext.Factory.Builder.AddOpcUaClientDataTypes();
+
+            var monitoredItem = new MonitoredItemState
+            {
+                DisplayName = "TestItem",
+                StartNodeId = new NodeId(42, 2),
+                ServerId = 100,
+                ClientId = 200
+            };
+
+            var original = new SubscriptionState
+            {
+                DisplayName = "TestSub",
+                TransferId = 999,
+                MonitoredItems = [monitoredItem]
+            };
+
+            using var ms = new MemoryStream();
+            using (var encoder = new BinaryEncoder(ms, plainContext, true))
+            {
+                encoder.WriteStringArray(null, plainContext.NamespaceUris.ToArrayOf());
+                encoder.WriteStringArray(null, plainContext.ServerUris.ToArrayOf());
+                encoder.WriteInt32(null, 1);
+                original.Encode(encoder);
+            }
+
+            TestContext.Out.WriteLine($"Encoded {ms.Length} bytes");
+
+            ms.Position = 0;
+            using var decoder = new BinaryDecoder(ms, plainContext);
+            decoder.ReadStringArray(null);
+            decoder.ReadStringArray(null);
+            int count = decoder.ReadInt32(null);
+            Assert.That(count, Is.EqualTo(1));
+
+            var decoded = new SubscriptionState();
+            decoded.Decode(decoder);
+
+            TestContext.Out.WriteLine($"MonitoredItems.Count = {decoded.MonitoredItems.Count}");
+            Assert.That(decoded.MonitoredItems.Count, Is.EqualTo(1),
+                "MonitoredItems lost without client types - this is the reconnect bug!");
+            Assert.That(decoded.MonitoredItems[0].ServerId, Is.EqualTo(100u));
+        }
+
+        [Test]
+        public void SubscriptionStateDecodeDebugByteLevelVerification()
+        {
+            // Create realistic data matching what a real subscription produces
+            var items = new List<MonitoredItemState>();
+            for (int i = 0; i < 10; i++)
+            {
+                items.Add(new MonitoredItemState
+                {
+                    DisplayName = $"MonitoredItem {i}",
+                    StartNodeId = new NodeId((uint)(1880 + i), 3),
+                    NodeClass = NodeClass.Variable,
+                    AttributeId = Attributes.Value,
+                    MonitoringMode = MonitoringMode.Reporting,
+                    SamplingInterval = -1,
+                    QueueSize = 10,
+                    DiscardOldest = true,
+                    ServerId = (uint)(100 + i),
+                    ClientId = (uint)(200 + i)
+                });
+            }
+
+            var original = new SubscriptionState
+            {
+                DisplayName = "Subscription",
+                PublishingInterval = 1000,
+                KeepAliveCount = 5,
+                LifetimeCount = 15,
+                PublishingEnabled = true,
+                RepublishAfterTransfer = true,
+                TransferId = 12345,
+                MonitoredItems = items,
+                CurrentPublishingInterval = 1000.0,
+                CurrentKeepAliveCount = 5,
+                CurrentLifetimeCount = 15
+            };
+
+            // Use a plain context (like Session uses)
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+
+            using var ms = new MemoryStream();
+            using (var encoder = new BinaryEncoder(ms, context, true))
+            {
+                encoder.WriteInt32(null, 1); // count
+                original.Encode(encoder);
+            }
+
+            byte[] bytes = ms.ToArray();
+            TestContext.Out.WriteLine($"Total bytes: {bytes.Length}");
+            // Print first 100 bytes as hex
+            TestContext.Out.WriteLine("First 100 bytes: " +
+                BitConverter.ToString(bytes, 0, Math.Min(100, bytes.Length)));
+
+            ms.Position = 0;
+            using var decoder = new BinaryDecoder(ms, context);
+            int count = decoder.ReadInt32(null);
+            Assert.That(count, Is.EqualTo(1));
+
+            long posBeforeDecode = ms.Position;
+            TestContext.Out.WriteLine($"Position before Decode: {posBeforeDecode}");
+
+            var decoded = new SubscriptionState();
+            decoded.Decode(decoder);
+
+            long posAfterDecode = ms.Position;
+            TestContext.Out.WriteLine($"Position after Decode: {posAfterDecode}");
+            TestContext.Out.WriteLine($"Bytes consumed: {posAfterDecode - posBeforeDecode}");
+
+            TestContext.Out.WriteLine($"Decoded DisplayName: {decoded.DisplayName}");
+            TestContext.Out.WriteLine($"Decoded TransferId: {decoded.TransferId}");
+            TestContext.Out.WriteLine($"Decoded MonitoredItems.Count: {decoded.MonitoredItems.Count}");
+            for (int i = 0; i < decoded.MonitoredItems.Count; i++)
+            {
+                TestContext.Out.WriteLine($"  Item[{i}]: {decoded.MonitoredItems[i].DisplayName} ServerId={decoded.MonitoredItems[i].ServerId}");
+            }
+
+            Assert.That(decoded.DisplayName, Is.EqualTo("Subscription"));
+            Assert.That(decoded.TransferId, Is.EqualTo(12345u));
+            Assert.That(decoded.MonitoredItems.Count, Is.EqualTo(10), "10 monitored items expected");
+            Assert.That(decoded.MonitoredItems[0].ServerId, Is.EqualTo(100u));
+            Assert.That(decoded.MonitoredItems[9].ServerId, Is.EqualTo(109u));
+        }
 
         private T RoundTrip<T>(T original) where T : IEncodeable, new()
         {

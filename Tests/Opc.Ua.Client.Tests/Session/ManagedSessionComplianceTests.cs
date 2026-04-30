@@ -29,12 +29,10 @@
 
 using System;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Tests;
 
 using ManagedSessionClass = Opc.Ua.Client.ManagedSession;
@@ -70,7 +68,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             m_innerSession?.Dispose();
         }
-
 
         [Test]
         public void SessionIdDelegatesToInnerSession()
@@ -135,8 +132,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 m_managedSession.OperationTimeout,
                 Is.EqualTo(9876));
         }
-
-
 
         [Test]
         public void KeepAliveEventForwardsToConsumer()
@@ -208,8 +203,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(receivedSender, Is.SameAs(m_managedSession));
         }
 
-
-
         [Test]
         public void AddSubscriptionDelegatesToInnerSession()
         {
@@ -249,10 +242,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .ConfigureAwait(false);
 
             Assert.That(result, Is.True);
-            Assert.That(m_managedSession.SubscriptionCount, Is.EqualTo(0));
+            Assert.That(m_managedSession.SubscriptionCount, Is.Zero);
         }
-
-
 
         /// <summary>
         /// Creates a <see cref="ManagedSessionClass"/> with
@@ -263,7 +254,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             CreateManagedSessionWithInner(Session innerSession)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var logger = telemetry.CreateLogger<ManagedSessionClass>();
+            ILogger<ManagedSessionClass> logger = telemetry.CreateLogger<ManagedSessionClass>();
 
             var configuration = new ApplicationConfiguration(telemetry)
             {
@@ -285,7 +276,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             sessionFactory.SetupGet(f => f.Telemetry)
                 .Returns(telemetry);
 
-            var ctor = typeof(ManagedSessionClass)
+            ConstructorInfo ctor = typeof(ManagedSessionClass)
                 .GetConstructor(
                     BindingFlags.NonPublic | BindingFlags.Instance,
                     null,
@@ -340,7 +331,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
         private static void RaiseKeepAliveOnInner(Session session)
         {
-            var field = typeof(Session).GetField(
+            FieldInfo field = typeof(Session).GetField(
                 "m_KeepAlive",
                 BindingFlags.NonPublic | BindingFlags.Instance);
             var handler = (KeepAliveEventHandler)field!.GetValue(session);
@@ -352,7 +343,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
         private static void RaiseNotificationOnInner(Session session)
         {
-            var field = typeof(Session).GetField(
+            FieldInfo field = typeof(Session).GetField(
                 "m_Publish",
                 BindingFlags.NonPublic | BindingFlags.Instance);
             var handler =
@@ -364,7 +355,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
         private static void RaisePublishErrorOnInner(Session session)
         {
-            var field = typeof(Session).GetField(
+            FieldInfo field = typeof(Session).GetField(
                 "m_PublishError",
                 BindingFlags.NonPublic | BindingFlags.Instance);
             var handler =
@@ -378,12 +369,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         private static void RaiseSubscriptionsChangedOnInner(
             Session session)
         {
-            var field = typeof(Session).GetField(
+            FieldInfo field = typeof(Session).GetField(
                 "m_SubscriptionsChanged",
                 BindingFlags.NonPublic | BindingFlags.Instance);
             var handler = (EventHandler)field!.GetValue(session);
             handler?.Invoke(session, EventArgs.Empty);
         }
-
     }
 }

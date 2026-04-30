@@ -441,8 +441,8 @@ namespace Opc.Ua
                 aes.Padding = PaddingMode.None;
                 aes.Key = encryptingKey;
                 aes.IV = iv;
-#pragma warning restore CA5401
                 using ICryptoTransform encryptor = aes.CreateEncryptor();
+#pragma warning restore CA5401
                 int bytesEncrypted = encryptor.TransformBlock(
                     encryptedPayload,
                     0,
@@ -510,30 +510,11 @@ namespace Opc.Ua
             }
             finally
             {
-                if (signingKey != null)
-                {
-                    ZeroMemory(signingKey);
-                }
-
-                if (encryptingKey != null)
-                {
-                    ZeroMemory(encryptingKey);
-                }
-
-                if (iv != null)
-                {
-                    ZeroMemory(iv);
-                }
-
-                if (keyData != null)
-                {
-                    ZeroMemory(keyData);
-                }
-
-                if (encryptedPayload != null)
-                {
-                    ZeroMemory(encryptedPayload);
-                }
+                ZeroMemory(signingKey);
+                ZeroMemory(encryptingKey);
+                ZeroMemory(iv);
+                ZeroMemory(keyData);
+                ZeroMemory(encryptedPayload);
             }
         }
 
@@ -711,35 +692,12 @@ namespace Opc.Ua
             }
             finally
             {
-                if (keyData != null)
-                {
-                    ZeroMemory(keyData);
-                }
-
-                if (signingKey != null)
-                {
-                    ZeroMemory(signingKey);
-                }
-
-                if (encryptingKey != null)
-                {
-                    ZeroMemory(encryptingKey);
-                }
-
-                if (iv != null)
-                {
-                    ZeroMemory(iv);
-                }
-
-                if (encryptedPayload != null)
-                {
-                    ZeroMemory(encryptedPayload);
-                }
-
-                if (payload != null)
-                {
-                    ZeroMemory(payload);
-                }
+                ZeroMemory(keyData);
+                ZeroMemory(signingKey);
+                ZeroMemory(encryptingKey);
+                ZeroMemory(iv);
+                ZeroMemory(encryptedPayload);
+                ZeroMemory(payload);
             }
         }
 
@@ -1044,8 +1002,14 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(data));
             }
 
+#pragma warning disable CA5350 // SHA1 is required by OPC UA RsaEncryptedSecret certificate hash field (Part 6, Table 72).
+#if NET8_0_OR_GREATER
+            return SHA1.HashData(data);
+#else
             using SHA1 sha1 = SHA1.Create();
             return sha1.ComputeHash(data);
+#endif
+#pragma warning restore CA5350
         }
 
         private static void ZeroMemory(byte[] buffer)

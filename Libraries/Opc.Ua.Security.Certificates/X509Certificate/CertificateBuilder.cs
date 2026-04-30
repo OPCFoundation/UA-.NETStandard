@@ -94,44 +94,53 @@ namespace Opc.Ua.Security.Certificates
 
             RSA rsaKeyPair = null;
             RSA rsaPublicKey = m_rsaPublicKey;
-            if (rsaPublicKey == null)
+            try
             {
-                rsaKeyPair = RSA.Create(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize);
-                rsaPublicKey = rsaKeyPair;
-            }
+                if (rsaPublicKey == null)
+                {
+                    rsaKeyPair = RSA.Create(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize);
+                    rsaPublicKey = rsaKeyPair;
+                }
 
-            RSASignaturePadding padding = RSASignaturePadding.Pkcs1;
-            var request = new CertificateRequest(
-                SubjectName,
-                rsaPublicKey,
-                HashAlgorithmName,
-                padding);
-
-            CreateX509Extensions(request, false);
-
-            X509Certificate2 signedCert;
-            byte[] serialNumber = [.. ((IEnumerable<byte>)m_serialNumber).Reverse()];
-            if (IssuerCAKeyCert != null)
-            {
-                using RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey();
-                signedCert = request.Create(
-                    IssuerCAKeyCert.SubjectName,
-                    X509SignatureGenerator.CreateForRSA(rsaIssuerKey, padding),
-                    NotBefore,
-                    NotAfter,
-                    serialNumber);
-            }
-            else
-            {
-                signedCert = request.Create(
+                RSASignaturePadding padding = RSASignaturePadding.Pkcs1;
+                var request = new CertificateRequest(
                     SubjectName,
-                    X509SignatureGenerator.CreateForRSA(rsaKeyPair, padding),
-                    NotBefore,
-                    NotAfter,
-                    serialNumber);
-            }
+                    rsaPublicKey,
+                    HashAlgorithmName,
+                    padding);
 
-            return rsaKeyPair == null ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
+                CreateX509Extensions(request, false);
+
+                X509Certificate2 signedCert;
+                byte[] serialNumber = [.. ((IEnumerable<byte>)m_serialNumber).Reverse()];
+                if (IssuerCAKeyCert != null)
+                {
+                    using RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey();
+                    signedCert = request.Create(
+                        IssuerCAKeyCert.SubjectName,
+                        X509SignatureGenerator.CreateForRSA(rsaIssuerKey, padding),
+                        NotBefore,
+                        NotAfter,
+                        serialNumber);
+                }
+                else
+                {
+                    signedCert = request.Create(
+                        SubjectName,
+                        X509SignatureGenerator.CreateForRSA(rsaKeyPair, padding),
+                        NotBefore,
+                        NotAfter,
+                        serialNumber);
+                }
+
+                var result = rsaKeyPair == null ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
+                rsaKeyPair = null; // ownership transferred to certificate
+                return result;
+            }
+            finally
+            {
+                rsaKeyPair?.Dispose();
+            }
         }
 
         /// <inheritdoc/>
@@ -153,28 +162,37 @@ namespace Opc.Ua.Security.Certificates
 
             RSA rsaKeyPair = null;
             RSA rsaPublicKey = m_rsaPublicKey;
-            if (rsaPublicKey == null)
+            try
             {
-                rsaKeyPair = RSA.Create(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize);
-                rsaPublicKey = rsaKeyPair;
+                if (rsaPublicKey == null)
+                {
+                    rsaKeyPair = RSA.Create(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize);
+                    rsaPublicKey = rsaKeyPair;
+                }
+
+                var request = new CertificateRequest(
+                    SubjectName,
+                    rsaPublicKey,
+                    HashAlgorithmName,
+                    RSASignaturePadding.Pkcs1);
+
+                CreateX509Extensions(request, false);
+
+                X509Certificate2 signedCert = request.Create(
+                    issuerSubjectName,
+                    generator,
+                    NotBefore,
+                    NotAfter,
+                    [.. ((IEnumerable<byte>)m_serialNumber).Reverse()]);
+
+                var result = rsaKeyPair == null ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
+                rsaKeyPair = null; // ownership transferred to certificate
+                return result;
             }
-
-            var request = new CertificateRequest(
-                SubjectName,
-                rsaPublicKey,
-                HashAlgorithmName,
-                RSASignaturePadding.Pkcs1);
-
-            CreateX509Extensions(request, false);
-
-            X509Certificate2 signedCert = request.Create(
-                issuerSubjectName,
-                generator,
-                NotBefore,
-                NotAfter,
-                [.. ((IEnumerable<byte>)m_serialNumber).Reverse()]);
-
-            return rsaKeyPair == null ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
+            finally
+            {
+                rsaKeyPair?.Dispose();
+            }
         }
 
         /// <inheritdoc/>
@@ -196,40 +214,49 @@ namespace Opc.Ua.Security.Certificates
 
             ECDsa key = null;
             ECDsa publicKey = m_ecdsaPublicKey;
-            if (publicKey == null)
+            try
             {
-                key = ECDsa.Create((ECCurve)m_curve);
-                publicKey = key;
+                if (publicKey == null)
+                {
+                    key = ECDsa.Create((ECCurve)m_curve);
+                    publicKey = key;
+                }
+
+                var request = new CertificateRequest(SubjectName, publicKey, HashAlgorithmName);
+
+                CreateX509Extensions(request, true);
+
+                byte[] serialNumber = [.. ((IEnumerable<byte>)m_serialNumber).Reverse()];
+
+                X509Certificate2 cert;
+                if (IssuerCAKeyCert != null)
+                {
+                    using ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey();
+                    cert = request.Create(
+                        IssuerCAKeyCert.SubjectName,
+                        X509SignatureGenerator.CreateForECDsa(issuerKey),
+                        NotBefore,
+                        NotAfter,
+                        serialNumber);
+                }
+                else
+                {
+                    cert = request.Create(
+                        SubjectName,
+                        X509SignatureGenerator.CreateForECDsa(key),
+                        NotBefore,
+                        NotAfter,
+                        serialNumber);
+                }
+
+                var result = key == null ? cert : cert.CopyWithPrivateKey(key);
+                key = null; // ownership transferred to certificate
+                return result;
             }
-
-            var request = new CertificateRequest(SubjectName, publicKey, HashAlgorithmName);
-
-            CreateX509Extensions(request, true);
-
-            byte[] serialNumber = [.. ((IEnumerable<byte>)m_serialNumber).Reverse()];
-
-            X509Certificate2 cert;
-            if (IssuerCAKeyCert != null)
+            finally
             {
-                using ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey();
-                cert = request.Create(
-                    IssuerCAKeyCert.SubjectName,
-                    X509SignatureGenerator.CreateForECDsa(issuerKey),
-                    NotBefore,
-                    NotAfter,
-                    serialNumber);
+                key?.Dispose();
             }
-            else
-            {
-                cert = request.Create(
-                    SubjectName,
-                    X509SignatureGenerator.CreateForECDsa(key),
-                    NotBefore,
-                    NotAfter,
-                    serialNumber);
-            }
-
-            return key == null ? cert : cert.CopyWithPrivateKey(key);
         }
 
         /// <inheritdoc/>
@@ -251,25 +278,34 @@ namespace Opc.Ua.Security.Certificates
 
             ECDsa key = null;
             ECDsa publicKey = m_ecdsaPublicKey;
-            if (publicKey == null)
+            try
             {
-                key = ECDsa.Create((ECCurve)m_curve);
-                publicKey = key;
+                if (publicKey == null)
+                {
+                    key = ECDsa.Create((ECCurve)m_curve);
+                    publicKey = key;
+                }
+
+                var request = new CertificateRequest(SubjectName, publicKey, HashAlgorithmName);
+
+                CreateX509Extensions(request, true);
+
+                X509Certificate2 signedCert = request.Create(
+                    IssuerCAKeyCert.SubjectName,
+                    generator,
+                    NotBefore,
+                    NotAfter,
+                    [.. ((IEnumerable<byte>)m_serialNumber).Reverse()]);
+
+                // return a X509Certificate2
+                var result = key == null ? signedCert : signedCert.CopyWithPrivateKey(key);
+                key = null; // ownership transferred to certificate
+                return result;
             }
-
-            var request = new CertificateRequest(SubjectName, publicKey, HashAlgorithmName);
-
-            CreateX509Extensions(request, true);
-
-            X509Certificate2 signedCert = request.Create(
-                IssuerCAKeyCert.SubjectName,
-                generator,
-                NotBefore,
-                NotAfter,
-                [.. ((IEnumerable<byte>)m_serialNumber).Reverse()]);
-
-            // return a X509Certificate2
-            return key == null ? signedCert : signedCert.CopyWithPrivateKey(key);
+            finally
+            {
+                key?.Dispose();
+            }
         }
 
         /// <inheritdoc/>

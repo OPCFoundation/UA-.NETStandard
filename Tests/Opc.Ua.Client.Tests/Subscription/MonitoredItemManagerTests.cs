@@ -30,7 +30,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using Opc.Ua.Client;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -68,8 +67,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Arrange
             await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
             // Act
-            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem3);
-            Assert.That(sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem3Again), Is.False);
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
+            Assert.That(sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3Again), Is.False);
 
             // Assert
             Assert.That(existingItem3Again, Is.SameAs(existingItem3));
@@ -83,8 +82,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
 
             // Act
-            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem3);
-            Assert.That(sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem4), Is.True);
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
+            Assert.That(sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem4), Is.True);
 
             Assert.That(existingItem4, Is.Not.Null);
             Assert.That(sut.TryRemove(existingItem4.ClientHandle), Is.True);
@@ -102,8 +101,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
 
             // Act
-            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem3);
-            Assert.That(sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem4), Is.True);
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
+            Assert.That(sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem4), Is.True);
 
             Assert.That(existingItem4, Is.Not.Null);
             Assert.That(sut.TryRemove(existingItem4.ClientHandle), Is.True);
@@ -122,8 +121,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
 
             // Act
-            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem3);
-            sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem4);
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
+            sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem4);
 
             sut.NotifySubscriptionManagerPaused(true);
             Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused == true));
@@ -147,7 +146,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var monitoredItemMock = new Mock<IMonitoredItem>();
             monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
 
-            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out var monitoredItem);
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
             var dataChangeNotification = new DataChangeNotification
             {
@@ -162,7 +161,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ]
             };
             // Act
-            var result = sut.CreateNotification(dataChangeNotification);
+            ReadOnlyMemory<DataValueChange> result = sut.CreateNotification(dataChangeNotification);
 
             // Assert
             Assert.That(result.ToArray(), Has.Exactly(1).Items);
@@ -180,8 +179,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var monitoredItemMock = new Mock<IMonitoredItem>();
             monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
 
-            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 1 }), out var monitoredItem1);
-            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 2 }), out var monitoredItem2);
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 1 }), out IMonitoredItem monitoredItem1);
+            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 2 }), out IMonitoredItem monitoredItem2);
             Assert.That(monitoredItem1, Is.Not.Null);
             Assert.That(monitoredItem1.Order, Is.EqualTo(1));
             Assert.That(monitoredItem2, Is.Not.Null);
@@ -211,7 +210,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ]
             };
             // Act
-            var result = sut.CreateNotification(dataChangeNotification);
+            ReadOnlyMemory<DataValueChange> result = sut.CreateNotification(dataChangeNotification);
 
             // Assert
             Assert.That(result.Length, Is.EqualTo(3));
@@ -235,12 +234,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var monitoredItemMock = new Mock<IMonitoredItem>();
             monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
 
-            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out var monitoredItem1);
-            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(), out var monitoredItem2);
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem1);
+            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem2);
             Assert.That(monitoredItem1, Is.Not.Null);
-            Assert.That(monitoredItem1.Order, Is.EqualTo(0));
+            Assert.That(monitoredItem1.Order, Is.Zero);
             Assert.That(monitoredItem2, Is.Not.Null);
-            Assert.That(monitoredItem2.Order, Is.EqualTo(0));
+            Assert.That(monitoredItem2.Order, Is.Zero);
             var dataChangeNotification = new DataChangeNotification
             {
                 MonitoredItems =
@@ -266,7 +265,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ]
             };
             // Act
-            var result = sut.CreateNotification(dataChangeNotification);
+            ReadOnlyMemory<DataValueChange> result = sut.CreateNotification(dataChangeNotification);
 
             // Assert
             Assert.That(result.Length, Is.EqualTo(3));
@@ -289,7 +288,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var monitoredItemMock = new Mock<IMonitoredItem>();
             monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
 
-            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out var monitoredItem);
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
 
             var eventNotificationList = new EventNotificationList
@@ -305,7 +304,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             };
 
             // Act
-            var result = sut.CreateNotification(eventNotificationList);
+            ReadOnlyMemory<EventNotification> result = sut.CreateNotification(eventNotificationList);
 
             // Assert
             Assert.That(result.ToArray(), Has.Exactly(1).Items);
@@ -322,9 +321,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var monitoredItemMock = new Mock<IMonitoredItem>();
             monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
 
-            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out var monitoredItem1);
-            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(), out var monitoredItem2);
-            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out var monitoredItem3);
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem1);
+            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem2);
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem3);
             Assert.That(monitoredItem1, Is.Not.Null);
             Assert.That(monitoredItem3, Is.Not.Null);
 
@@ -346,7 +345,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             };
 
             // Act
-            var result = sut.CreateNotification(eventNotificationList);
+            ReadOnlyMemory<EventNotification> result = sut.CreateNotification(eventNotificationList);
 
             // Assert
             Assert.That(result.Length, Is.EqualTo(2));
@@ -366,9 +365,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var monitoredItemMock = new Mock<IMonitoredItem>();
             monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
 
-            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 5 }), out var monitoredItem1);
-            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 3 }), out var monitoredItem2);
-            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 1 }), out var monitoredItem3);
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 5 }), out IMonitoredItem monitoredItem1);
+            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 3 }), out IMonitoredItem monitoredItem2);
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 1 }), out IMonitoredItem monitoredItem3);
             Assert.That(monitoredItem1, Is.Not.Null);
             Assert.That(monitoredItem1.Order, Is.EqualTo(5));
             Assert.That(monitoredItem3, Is.Not.Null);
@@ -392,7 +391,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             };
 
             // Act
-            var result = sut.CreateNotification(eventNotificationList);
+            ReadOnlyMemory<EventNotification> result = sut.CreateNotification(eventNotificationList);
 
             // Assert
             Assert.That(result.Length, Is.EqualTo(2));
@@ -416,7 +415,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             };
 
             // Act
-            var result = sut.Update(state);
+            IReadOnlyList<IMonitoredItem> result = sut.Update(state);
 
             // Assert
             Assert.That(result.Count, Is.EqualTo(2));
@@ -434,12 +433,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ("Item1", OptionsFactory.Create<MonitoredItemOptions>())
             };
 
-            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem);
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem);
             sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(), out _);
             sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out _);
 
             // Act
-            var result = sut.Update(state);
+            IReadOnlyList<IMonitoredItem> result = sut.Update(state);
 
             // Assert
             Assert.That(result, Has.Exactly(1).Items);
@@ -458,10 +457,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ("Item2", OptionsFactory.Create<MonitoredItemOptions>())
             };
 
-            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem);
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem);
 
             // Act
-            var result = sut.Update(state);
+            IReadOnlyList<IMonitoredItem> result = sut.Update(state);
 
             // Assert
             Assert.That(result, Has.Exactly(1).Items);
@@ -481,14 +480,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ("Item1", OptionsFactory.Create<MonitoredItemOptions>())
             };
 
-            var item1 = OptionsFactory.Create<MonitoredItemOptions>();
-            var item2 = OptionsFactory.Create<MonitoredItemOptions>();
+            OptionsMonitor<MonitoredItemOptions> item1 = OptionsFactory.Create<MonitoredItemOptions>();
+            OptionsMonitor<MonitoredItemOptions> item2 = OptionsFactory.Create<MonitoredItemOptions>();
 
-            sut.TryAdd("Item1", item1, out var existingItem1);
+            sut.TryAdd("Item1", item1, out IMonitoredItem existingItem1);
             sut.TryAdd("Item2", item2, out _);
 
             // Act
-            var result = sut.Update(state);
+            IReadOnlyList<IMonitoredItem> result = sut.Update(state);
 
             // Assert
             Assert.That(result, Has.Exactly(1).Items);
@@ -504,10 +503,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Arrange
             await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
 
-            var success = sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out var existingItem);
+            bool success = sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem);
             Assert.That(existingItem, Is.TypeOf<TestMonitoredItem>());
             Assert.That(((TestMonitoredItem)existingItem!).Options.CurrentValue.SamplingInterval, Is.Not.EqualTo(TimeSpan.FromSeconds(100)));
-            var options = OptionsFactory.Create<MonitoredItemOptions>(o => o with
+            OptionsMonitor<MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItemOptions>(o => o with
             {
                 SamplingInterval = TimeSpan.FromSeconds(100)
             });
@@ -517,7 +516,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             };
 
             // Act
-            var result = sut.Update(state);
+            IReadOnlyList<IMonitoredItem> result = sut.Update(state);
 
             // Assert
             Assert.That(result, Has.Exactly(1).Items);

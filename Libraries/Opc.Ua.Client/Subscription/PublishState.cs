@@ -77,6 +77,6 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Subscription closed on the client
         /// </summary>
-        Completed = 1 << 7,
+        Completed = 1 << 7
     }
 }

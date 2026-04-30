@@ -220,11 +220,7 @@ namespace Opc.Ua.Client
 
             RequestClose();
 
-#if NET8_0_OR_GREATER
             await m_cts.CancelAsync().ConfigureAwait(false);
-#else
-            m_cts.Cancel();
-#endif
             m_trigger.Set();
 
             if (m_worker != null)
@@ -248,8 +244,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task WorkerLoopAsync(CancellationToken ct)
         {
-            m_logger.LogDebug(
-                "ConnectionStateMachine: Worker started.");
+            m_logger.LogDebug("ConnectionStateMachine: Worker started.");
 
             try
             {
@@ -266,30 +261,17 @@ namespace Opc.Ua.Client
                     switch (current)
                     {
                         case ConnectionState.Connecting:
-                            await HandleConnectingAsync(ct)
-                                .ConfigureAwait(false);
+                            await HandleConnectingAsync(ct).ConfigureAwait(false);
                             break;
-
                         case ConnectionState.Reconnecting:
-                            await HandleReconnectingAsync(ct)
-                                .ConfigureAwait(false);
+                            await HandleReconnectingAsync(ct).ConfigureAwait(false);
                             break;
-
                         case ConnectionState.Failover:
-                            await HandleFailoverAsync(ct)
-                                .ConfigureAwait(false);
+                            await HandleFailoverAsync(ct).ConfigureAwait(false);
                             break;
-
                         case ConnectionState.Closing:
-                            await HandleClosingAsync(ct)
-                                .ConfigureAwait(false);
+                            await HandleClosingAsync(ct).ConfigureAwait(false);
                             return;
-
-                        case ConnectionState.Connected:
-                        case ConnectionState.Disconnected:
-                        case ConnectionState.Closed:
-                        default:
-                            break;
                     }
                 }
             }
@@ -358,18 +340,14 @@ namespace Opc.Ua.Client
         private async Task HandleReconnectingAsync(CancellationToken ct)
         {
             m_connected.Reset();
-            int attempt = 0;
-
-            while (!ct.IsCancellationRequested)
+            for (int attempt = 0; !ct.IsCancellationRequested; attempt++)
             {
-                TimeSpan? delay = m_reconnectPolicy.GetNextDelay(
-                    attempt, ct);
+                TimeSpan? delay = m_reconnectPolicy.GetNextDelay(attempt, ct);
 
                 if (delay == null)
                 {
                     m_logger.LogWarning(
-                        "ConnectionStateMachine: " +
-                        "Reconnect policy exhausted after " +
+                        "ConnectionStateMachine: Reconnect policy exhausted after " +
                         "{Attempt} attempts, entering failover.",
                         attempt);
 
@@ -386,9 +364,7 @@ namespace Opc.Ua.Client
                 }
 
                 m_logger.LogInformation(
-                    "ConnectionStateMachine: " +
-                    "Reconnect attempt {Attempt}, " +
-                    "delay {DelayMs} ms.",
+                    "ConnectionStateMachine:Reconnect attempt {Attempt}, delay {DelayMs} ms.",
                     attempt, (int)delay.Value.TotalMilliseconds);
 
                 await Task.Delay(delay.Value, ct)
@@ -400,8 +376,7 @@ namespace Opc.Ua.Client
                 if (ServiceResult.IsGood(result))
                 {
                     m_logger.LogInformation(
-                        "ConnectionStateMachine: " +
-                        "Reconnected on attempt {Attempt}.",
+                        "ConnectionStateMachine: Reconnected on attempt {Attempt}.",
                         attempt);
 
                     m_reconnectPolicy.Reset();
@@ -436,8 +411,6 @@ namespace Opc.Ua.Client
                         ReconnectAttempt = attempt
                     });
                 }
-
-                attempt++;
             }
         }
 
@@ -448,11 +421,9 @@ namespace Opc.Ua.Client
         private async Task HandleFailoverAsync(CancellationToken ct)
         {
             m_logger.LogInformation(
-                "ConnectionStateMachine: " +
-                "Attempting failover to redundant server.");
+                "ConnectionStateMachine: Attempting failover to redundant server.");
 
-            ServiceResult result = await InvokeFailoverAsync(ct)
-                .ConfigureAwait(false);
+            ServiceResult result = await InvokeFailoverAsync(ct).ConfigureAwait(false);
 
             lock (m_lock)
             {
@@ -468,8 +439,7 @@ namespace Opc.Ua.Client
                 else
                 {
                     m_logger.LogError(
-                        "ConnectionStateMachine: " +
-                        "Failover failed: {Error}.",
+                        "ConnectionStateMachine: Failover failed: {Error}.",
                         result);
 
                     TransitionTo(
@@ -487,8 +457,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task HandleClosingAsync(CancellationToken ct)
         {
-            m_logger.LogInformation(
-                "ConnectionStateMachine: Closing session.");
+            m_logger.LogInformation("ConnectionStateMachine: Closing session.");
 
             try
             {
@@ -502,8 +471,7 @@ namespace Opc.Ua.Client
             {
                 m_logger.LogWarning(
                     ex,
-                    "ConnectionStateMachine: " +
-                    "Error during session close.");
+                    "ConnectionStateMachine: Error during session close.");
             }
 
             lock (m_lock)
@@ -519,19 +487,16 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Safely invoke the connect delegate.
         /// </summary>
-        private async Task<ServiceResult> InvokeConnectAsync(
-            CancellationToken ct)
+        private async Task<ServiceResult> InvokeConnectAsync(CancellationToken ct)
         {
             try
             {
                 if (ConnectAsync != null)
                 {
-                    return await ConnectAsync(ct)
-                        .ConfigureAwait(false);
+                    return await ConnectAsync(ct).ConfigureAwait(false);
                 }
 
-                return new ServiceResult(
-                    StatusCodes.BadInvalidState);
+                return new ServiceResult(StatusCodes.BadInvalidState);
             }
             catch (OperationCanceledException)
             {
@@ -541,8 +506,7 @@ namespace Opc.Ua.Client
             {
                 m_logger.LogError(
                     ex,
-                    "ConnectionStateMachine: " +
-                    "Connect failed with exception.");
+                    "ConnectionStateMachine: Connect failed with exception.");
                 return new ServiceResult(ex);
             }
         }
@@ -550,20 +514,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Safely invoke the reconnect delegate.
         /// </summary>
-        private async Task<ServiceResult> InvokeReconnectAsync(
-            CancellationToken ct)
+        private async Task<ServiceResult> InvokeReconnectAsync(CancellationToken ct)
         {
             try
             {
                 if (ReconnectAsync != null)
                 {
-                    return await ReconnectAsync(ct)
-                        .ConfigureAwait(false);
+                    return await ReconnectAsync(ct).ConfigureAwait(false);
                 }
 
                 // Fall back to connect if no reconnect delegate.
-                return await InvokeConnectAsync(ct)
-                    .ConfigureAwait(false);
+                return await InvokeConnectAsync(ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -573,8 +534,7 @@ namespace Opc.Ua.Client
             {
                 m_logger.LogError(
                     ex,
-                    "ConnectionStateMachine: " +
-                    "Reconnect failed with exception.");
+                    "ConnectionStateMachine: Reconnect failed with exception.");
                 return new ServiceResult(ex);
             }
         }
@@ -582,19 +542,16 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Safely invoke the failover delegate.
         /// </summary>
-        private async Task<ServiceResult> InvokeFailoverAsync(
-            CancellationToken ct)
+        private async Task<ServiceResult> InvokeFailoverAsync(CancellationToken ct)
         {
             try
             {
                 if (FailoverAsync != null)
                 {
-                    return await FailoverAsync(ct)
-                        .ConfigureAwait(false);
+                    return await FailoverAsync(ct).ConfigureAwait(false);
                 }
 
-                return new ServiceResult(
-                    StatusCodes.BadNotSupported);
+                return new ServiceResult(StatusCodes.BadNotSupported);
             }
             catch (OperationCanceledException)
             {
@@ -604,16 +561,14 @@ namespace Opc.Ua.Client
             {
                 m_logger.LogError(
                     ex,
-                    "ConnectionStateMachine: " +
-                    "Failover failed with exception.");
+                    "ConnectionStateMachine: Failover failed with exception.");
                 return new ServiceResult(ex);
             }
         }
 
         /// <summary>
-        /// Transition to a new state and raise the
-        /// <see cref="StateChanged"/> event. Must be called under
-        /// <see cref="m_lock"/>.
+        /// Transition to a new state and raise the <see cref="StateChanged"/> event.
+        /// Must be called under <see cref="m_lock"/>.
         /// </summary>
         private void TransitionTo(
             ConnectionState newState,
@@ -629,8 +584,7 @@ namespace Opc.Ua.Client
             m_state = newState;
 
             m_logger.LogInformation(
-                "ConnectionStateMachine: " +
-                "State changed from {Old} to {New}.",
+                "ConnectionStateMachine: State changed from {Old} to {New}.",
                 previous, newState);
 
             OnStateChanged(new ConnectionStateChangedEventArgs
@@ -643,8 +597,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Raise the <see cref="StateChanged"/> event, swallowing
-        /// handler exceptions.
+        /// Raise the <see cref="StateChanged"/> event, swallowing handler exceptions.
         /// </summary>
         private void OnStateChanged(
             ConnectionStateChangedEventArgs args)
@@ -657,8 +610,7 @@ namespace Opc.Ua.Client
             {
                 m_logger.LogError(
                     ex,
-                    "ConnectionStateMachine: " +
-                    "StateChanged handler threw an exception.");
+                    "ConnectionStateMachine: StateChanged handler threw an exception.");
             }
         }
     }

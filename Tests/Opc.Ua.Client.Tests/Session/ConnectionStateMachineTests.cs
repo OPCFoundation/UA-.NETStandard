@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client;
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {
@@ -53,7 +52,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             m_logger = new Mock<ILogger>().Object;
         }
-
 
         private ConnectionStateMachine CreateMachine(
             IReconnectPolicy policy = null)
@@ -184,12 +182,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             }
         }
 
-
-
         [Test]
         public void InitialStateIsDisconnected()
         {
-            var sm = CreateMachine();
+            ConnectionStateMachine sm = CreateMachine();
             Assert.That(
                 sm.State,
                 Is.EqualTo(ConnectionState.Disconnected));
@@ -199,7 +195,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task StartTransitionsToConnecting()
         {
-            await using var sm = CreateMachine();
+            await using ConnectionStateMachine sm = CreateMachine();
 
             var connectTcs = new TaskCompletionSource<ServiceResult>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -222,7 +218,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task SuccessfulConnectTransitionsToConnected()
         {
-            await using var sm = CreateMachine();
+            await using ConnectionStateMachine sm = CreateMachine();
 
             sm.ConnectAsync = _ =>
                 Task.FromResult(ServiceResult.Good);
@@ -242,7 +238,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task FailedConnectTransitionsToReconnecting()
         {
-            await using var sm = CreateMachine();
+            await using ConnectionStateMachine sm = CreateMachine();
 
             sm.ConnectAsync = _ => Task.FromResult(
                 new ServiceResult(StatusCodes.BadConnectionClosed));
@@ -269,7 +265,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task TriggerReconnectFromConnectedTransitionsToReconnecting()
         {
-            await using var sm = CreateMachine();
+            await using ConnectionStateMachine sm = CreateMachine();
 
             sm.ConnectAsync = _ =>
                 Task.FromResult(ServiceResult.Good);
@@ -301,7 +297,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task RequestCloseTransitionsToClosing()
         {
-            await using var sm = CreateMachine();
+            await using ConnectionStateMachine sm = CreateMachine();
 
             var closeTcs = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -320,7 +316,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             await WaitForStateAsync(sm, ConnectionState.Connected)
                 .ConfigureAwait(false);
 
-            var recorder = AttachRecorder(sm);
+            StateTransitionRecorder recorder = AttachRecorder(sm);
 
             sm.RequestClose();
 
@@ -337,7 +333,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task DisposeTransitionsToClosed()
         {
-            var sm = CreateMachine();
+            ConnectionStateMachine sm = CreateMachine();
 
             sm.ConnectAsync = _ =>
                 Task.FromResult(ServiceResult.Good);
@@ -358,8 +354,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task StateChangedEventFires()
         {
-            await using var sm = CreateMachine();
-            var recorder = AttachRecorder(sm);
+            await using ConnectionStateMachine sm = CreateMachine();
+            StateTransitionRecorder recorder = AttachRecorder(sm);
 
             sm.ConnectAsync = _ =>
                 Task.FromResult(ServiceResult.Good);
@@ -371,7 +367,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     ConnectionState.Connected)
                 .ConfigureAwait(false);
 
-            var transitions = recorder.GetTransitions();
+            List<ConnectionStateChangedEventArgs> transitions = recorder.GetTransitions();
 
             Assert.That(
                 transitions, Has.Count.GreaterThanOrEqualTo(2));
@@ -394,7 +390,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task WaitForConnectedAsyncReturnsWhenConnected()
         {
-            await using var sm = CreateMachine();
+            await using ConnectionStateMachine sm = CreateMachine();
 
             sm.ConnectAsync = _ =>
                 Task.FromResult(ServiceResult.Good);
@@ -417,7 +413,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task WaitForConnectedAsyncBlocksWhenDisconnected()
         {
-            await using var sm = CreateMachine();
+            await using ConnectionStateMachine sm = CreateMachine();
 
             var connectTcs = new TaskCompletionSource<ServiceResult>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -430,7 +426,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             using var cts = new CancellationTokenSource(
                 TimeSpan.FromMilliseconds(200));
 
-            var waitTask = sm.WaitForConnectedAsync(cts.Token);
+            ValueTask waitTask = sm.WaitForConnectedAsync(cts.Token);
 
             Assert.That(waitTask.IsCompleted, Is.False);
 
@@ -451,8 +447,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             connectTcs.SetResult(ServiceResult.Good);
         }
 
-
-
         [Test]
         public async Task ReconnectUsesBackoffDelays()
         {
@@ -464,7 +458,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 MaxRetries = 5
             };
 
-            await using var sm = CreateMachine(policy);
+            await using ConnectionStateMachine sm = CreateMachine(policy);
 
             int attempt = 0;
             var attemptTimes = new List<DateTime>();
@@ -487,7 +481,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             sm.FailoverAsync = _ =>
                 Task.FromResult(ServiceResult.Good);
 
-            var recorder = AttachRecorder(sm);
+            StateTransitionRecorder recorder = AttachRecorder(sm);
 
             sm.Start();
             sm.RequestConnect();
@@ -505,8 +499,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
                 if (attemptTimes.Count >= 3)
                 {
-                    var gap1 = attemptTimes[1] - attemptTimes[0];
-                    var gap2 = attemptTimes[2] - attemptTimes[1];
+                    TimeSpan gap1 = attemptTimes[1] - attemptTimes[0];
+                    TimeSpan gap2 = attemptTimes[2] - attemptTimes[1];
 
                     Assert.That(
                         gap2.TotalMilliseconds,
@@ -528,7 +522,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 JitterFactor = 0.0
             };
 
-            await using var sm = CreateMachine(policy);
+            await using ConnectionStateMachine sm = CreateMachine(policy);
 
             sm.ConnectAsync = _ => Task.FromResult(
                 new ServiceResult(StatusCodes.BadConnectionClosed));
@@ -539,7 +533,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             sm.FailoverAsync = _ => Task.FromResult(
                 new ServiceResult(StatusCodes.BadNotSupported));
 
-            var recorder = AttachRecorder(sm);
+            StateTransitionRecorder recorder = AttachRecorder(sm);
 
             sm.Start();
             sm.RequestConnect();
@@ -603,12 +597,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 "reconnect");
         }
 
-
-
         [Test]
         public async Task WaitForConnectedAsyncCompletesAfterReconnect()
         {
-            await using var sm = CreateMachine();
+            await using ConnectionStateMachine sm = CreateMachine();
 
             var connectTcs = new TaskCompletionSource<ServiceResult>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -621,7 +613,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             using var cts = new CancellationTokenSource(
                 TimeSpan.FromSeconds(5));
 
-            var waitTask = sm.WaitForConnectedAsync(cts.Token);
+            ValueTask waitTask = sm.WaitForConnectedAsync(cts.Token);
 
             Assert.That(waitTask.IsCompleted, Is.False);
 
@@ -635,7 +627,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task WaitForConnectedBlocksDuringReconnect()
         {
-            var sm = CreateMachine();
+            ConnectionStateMachine sm = CreateMachine();
 
             int reconnectCount = 0;
             var reconnectTcs = new TaskCompletionSource<ServiceResult>(
@@ -670,7 +662,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             using var cts = new CancellationTokenSource(
                 TimeSpan.FromMilliseconds(200));
 
-            var waitTask = sm.WaitForConnectedAsync(cts.Token);
+            ValueTask waitTask = sm.WaitForConnectedAsync(cts.Token);
 
             Assert.That(waitTask.IsCompleted, Is.False);
 
@@ -696,12 +688,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             await sm.DisposeAsync().ConfigureAwait(false);
         }
 
-
-
         [Test]
         public async Task DoubleDisposeDoesNotThrow()
         {
-            var sm = CreateMachine();
+            ConnectionStateMachine sm = CreateMachine();
             sm.Start();
 
             await sm.DisposeAsync().ConfigureAwait(false);
@@ -715,7 +705,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task TriggerReconnectWhenDisconnectedIsNoOp()
         {
-            await using var sm = CreateMachine();
+            await using ConnectionStateMachine sm = CreateMachine();
 
             sm.TriggerReconnect();
 
@@ -727,7 +717,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public void RequestCloseWhenAlreadyClosedIsNoOp()
         {
-            var sm = CreateMachine();
+            ConnectionStateMachine sm = CreateMachine();
 
             sm.RequestClose();
 
@@ -741,7 +731,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task StartIsIdempotent()
         {
-            await using var sm = CreateMachine();
+            await using ConnectionStateMachine sm = CreateMachine();
 
             sm.ConnectAsync = _ =>
                 Task.FromResult(ServiceResult.Good);
@@ -755,6 +745,5 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(sm.IsConnected, Is.True);
         }
-
     }
 }

@@ -66,7 +66,7 @@ namespace Opc.Ua.Client.Tests
         public async Task DoReconnectAsync_WhenUpdateFromServerIsSet_CallsUpdateEndpointFromServerAsync()
         {
             // Arrange
-            var updateCallCount = 0;
+            int updateCallCount = 0;
             var mockNewSession = new Mock<ISession>();
             var mockFactory = new Mock<ISessionFactory>();
 
@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.Tests
         public async Task DoReconnectAsync_WhenUpdateFromServerIsFalse_SkipsEndpointUpdate()
         {
             // Arrange
-            var updateCallCount = 0;
+            int updateCallCount = 0;
             var mockNewSession = new Mock<ISession>();
             var mockFactory = new Mock<ISessionFactory>();
 
@@ -136,7 +136,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result, Is.True);
-            Assert.That(updateCallCount, Is.EqualTo(0));
+            Assert.That(updateCallCount, Is.Zero);
         }
 
         /// <summary>
@@ -271,7 +271,6 @@ namespace Opc.Ua.Client.Tests
             Assert.That(handler.Session, Is.SameAs(mockNewSession.Object));
         }
 
-
         private static ConfiguredEndpoint CreateConfiguredEndpoint(
             MessageSecurityMode securityMode,
             string securityPolicyUri)
@@ -357,6 +356,5 @@ namespace Opc.Ua.Client.Tests
                 return _updateDelegate(endpoint, connection);
             }
         }
-
     }
 }

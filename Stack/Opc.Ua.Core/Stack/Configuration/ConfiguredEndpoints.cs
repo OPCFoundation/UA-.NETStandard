@@ -1213,6 +1213,7 @@ namespace Opc.Ua
                 if (client != null)
                 {
                     await client.CloseAsync(ct).ConfigureAwait(false);
+                    client.Dispose();
                 }
             }
         }

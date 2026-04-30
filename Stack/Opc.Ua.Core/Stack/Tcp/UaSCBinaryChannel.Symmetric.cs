@@ -384,8 +384,10 @@ namespace Opc.Ua.Bindings
                         continue;
                     }
 
+#pragma warning disable CA2000 // Stream is disposed by the BinaryEncoder (leaveOpen: false)
                     var strm = new MemoryStream(chunkToProcess.Array, 0, SendBufferSize);
                     using var encoder = new BinaryEncoder(strm, Quotas.MessageContext, false);
+#pragma warning restore CA2000
 
                     // check if the message needs to be aborted.
                     if (MessageLimitsExceeded(

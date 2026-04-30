@@ -3143,15 +3143,13 @@ namespace Opc.Ua.Client
 
         private List<MonitoredItem> m_deletedItems = [];
         private event SubscriptionStateChangedEventHandler? m_StateChanged;
-
+        private event PublishStateChangedEventHandler? m_PublishStatusChanged;
         private SubscriptionChangeMask m_changeMask;
         private Timer? m_publishTimer;
         private long m_lastNotificationTime;
         private int m_lastNotificationTickCount;
         private int m_keepAliveInterval;
         private int m_publishLateCount;
-        private event PublishStateChangedEventHandler? m_PublishStatusChanged;
-
         private bool m_disposed;
         private readonly Lock m_cache = new();
         private readonly LinkedList<NotificationMessage> m_messageCache = new();

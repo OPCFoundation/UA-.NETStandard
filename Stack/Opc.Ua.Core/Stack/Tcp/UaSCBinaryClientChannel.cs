@@ -1352,7 +1352,7 @@ namespace Opc.Ua.Bindings
                 // halt any scheduled tasks.
                 if (m_handshakeTimer != null)
                 {
-                    m_handshakeTimer?.Dispose();
+                    m_handshakeTimer.Dispose();
                     m_handshakeTimer = null;
                 }
 
@@ -1408,7 +1408,7 @@ namespace Opc.Ua.Bindings
             // cancel any outstanding renew operations.
             if (m_handshakeTimer != null)
             {
-                m_handshakeTimer?.Dispose();
+                m_handshakeTimer.Dispose();
                 m_handshakeTimer = null;
             }
 

@@ -66,6 +66,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Hot and mirrored redundancy.
         /// </summary>
-        HotAndMirrored = 5,
+        HotAndMirrored = 5
     }
 }

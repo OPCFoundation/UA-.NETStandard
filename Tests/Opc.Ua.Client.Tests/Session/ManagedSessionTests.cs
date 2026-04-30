@@ -34,7 +34,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client;
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {
@@ -47,7 +46,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
     [TestFixture]
     public sealed class ManagedSessionTests
     {
-
         [Test]
         public void ExponentialBackoffIncreasesDelay()
         {
@@ -220,7 +218,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public void InitialStateIsDisconnected()
         {
             var policy = new ReconnectPolicy();
-            var logger = new Mock<ILogger>().Object;
+            ILogger logger = new Mock<ILogger>().Object;
 
             using var cts = new CancellationTokenSource();
             var sm = new ConnectionStateMachine(policy, logger);
@@ -232,7 +230,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public async Task DisposeTransitionsToClosedState()
         {
             var policy = new ReconnectPolicy();
-            var logger = new Mock<ILogger>().Object;
+            ILogger logger = new Mock<ILogger>().Object;
 
             var sm = new ConnectionStateMachine(policy, logger);
             sm.Start();

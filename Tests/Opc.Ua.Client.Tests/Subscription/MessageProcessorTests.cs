@@ -70,7 +70,7 @@ namespace Opc.Ua.Client.Subscriptions
                 .Verifiable(Times.Once);
 
             // Act
-            await sut.DisposeAsync();
+            await sut.DisposeAsync().ConfigureAwait(false);
 
             // Assert
             Assert.That(sut.PublishState, Is.EqualTo(PublishState.Completed));
@@ -94,8 +94,8 @@ namespace Opc.Ua.Client.Subscriptions
             };
 
             // Act
-            await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable);
-            await sut.KeepAliveNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1));
+            await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            await sut.KeepAliveNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
             // Assert
             Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
@@ -122,8 +122,8 @@ namespace Opc.Ua.Client.Subscriptions
             };
 
             // Act
-            await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable);
-            await sut.DataChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1));
+            await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            await sut.DataChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
             // Assert
             Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.OnPublishReceivedAsync(new NotificationMessage
             {
                 SequenceNumber = 1
-            }, availableSequenceNumbers, stringTable);
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
 
             m_mockServices
                 .Setup(c => c.RepublishAsync(
@@ -189,8 +189,8 @@ namespace Opc.Ua.Client.Subscriptions
                         ]
                     })
                 ]
-            }, availableSequenceNumbers, stringTable);
-            await sut.EventNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1));
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            await sut.EventNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
             // Assert
             Assert.That(sut.EventNotificationReceived.IsSet, Is.True);
@@ -207,7 +207,7 @@ namespace Opc.Ua.Client.Subscriptions
             var stringTable = new List<string> { "test" };
 
             // Arrange
-            var messages = Enumerable.Range(2, 99).Select(i => new NotificationMessage
+            NotificationMessage[] messages = Enumerable.Range(2, 99).Select(i => new NotificationMessage
             {
                 SequenceNumber = (uint)i
             }).ToArray();
@@ -224,15 +224,15 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.OnPublishReceivedAsync(new NotificationMessage
             {
                 SequenceNumber = 1u
-            }, availableSequenceNumbers, stringTable);
-            foreach (var message in messages)
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            foreach (NotificationMessage message in messages)
             {
-                await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable);
+                await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
             }
             sut.Block.Release();
 
             // Act
-            await Task.Delay(10);
+            await Task.Delay(10).ConfigureAwait(false);
 
             Assert.That(sut.ReceivedSequenceNumbers, Is.EqualTo(
                 Enumerable.Range(1, 100).Select(i => (uint)i)));
@@ -264,8 +264,8 @@ namespace Opc.Ua.Client.Subscriptions
                         Status = StatusCodes.GoodSubscriptionTransferred
                     })
                 ]
-            }, availableSequenceNumbers, stringTable);
-            await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1));
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
             // Assert
             Assert.That(sut.StatusChangeNotificationReceived.IsSet, Is.True);
@@ -286,8 +286,8 @@ namespace Opc.Ua.Client.Subscriptions
                         Status = StatusCodes.BadTimeout
                     })
                 ]
-            }, availableSequenceNumbers, stringTable);
-            await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1));
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
             // Assert
             Assert.That(sut.StatusChangeNotificationReceived.IsSet, Is.True);
@@ -327,7 +327,7 @@ namespace Opc.Ua.Client.Subscriptions
             public AsyncManualResetEvent StatusChangeNotificationReceived { get; } = new();
             public async ValueTask WaitAsync()
             {
-                await Block.WaitAsync();
+                await Block.WaitAsync().ConfigureAwait(false);
                 Block.Release();
             }
             protected override ValueTask OnDataChangeNotificationAsync(uint sequenceNumber,
@@ -383,7 +383,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     PublishState = publishStateMask;
                 }
-                await WaitAsync();
+                await WaitAsync().ConfigureAwait(false);
             }
         }
         private Mock<IMessageAckQueue> m_mockCompletion;

@@ -121,7 +121,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Members must be virtual so subclasses can override
             // (extending NamespacesUris or returning a custom manager).
             Assert.That(factory, Does.Match(@"public\s+virtual\s+global::Opc\.Ua\.ArrayOf<string>\s+NamespacesUris"));
-            Assert.That(factory, Does.Match(@"public\s+virtual\s+global::System\.Threading\.Tasks\.ValueTask<global::Opc\.Ua\.Server\.IAsyncNodeManager>\s+CreateAsync"));
+            Assert.That(factory, Does.Match(
+                @"public\s+virtual\s+global::System\.Threading\.Tasks\.ValueTask<global::Opc\.Ua\.Server\.IAsyncNodeManager>\s+CreateAsync"));
 
             Assert.That(factory, Does.Contain(": global::Opc.Ua.Server.IAsyncNodeManagerFactory"));
         }

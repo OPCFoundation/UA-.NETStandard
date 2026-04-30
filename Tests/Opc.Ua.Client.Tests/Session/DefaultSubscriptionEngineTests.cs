@@ -34,18 +34,19 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Engine;
 
-namespace Opc.Ua.Client.V2.Tests
+namespace Opc.Ua.Client.Tests
 {
     [TestFixture]
     [Parallelizable]
     [Category("Client")]
-    [Category("V2SubscriptionEngine")]
-    public class V2SubscriptionEngineTests
+    [Category("DefaultSubscriptionEngine")]
+    public class DefaultSubscriptionEngineTests
     {
-        private Mock<Opc.Ua.ITelemetryContext> m_mockTelemetry;
+        private Mock<ITelemetryContext> m_mockTelemetry;
         private Mock<ILoggerFactory> m_mockLoggerFactory;
         private Mock<ISubscriptionEngineContext> m_mockContext;
 
@@ -57,7 +58,7 @@ namespace Opc.Ua.Client.V2.Tests
                 .Setup(f => f.CreateLogger(It.IsAny<string>()))
                 .Returns(new Mock<ILogger>().Object);
 
-            m_mockTelemetry = new Mock<Opc.Ua.ITelemetryContext>();
+            m_mockTelemetry = new Mock<ITelemetryContext>();
             m_mockTelemetry
                 .Setup(t => t.LoggerFactory)
                 .Returns(m_mockLoggerFactory.Object);
@@ -141,8 +142,7 @@ namespace Opc.Ua.Client.V2.Tests
                 new DefaultSubscriptionEngine(m_mockContext.Object);
 
             Assert.That(
-                () => engine.StartPublishing(
-                    timeout: 5000, fullQueue: false),
+                () => engine.StartPublishing(timeout: 5000, fullQueue: false),
                 Throws.Nothing);
         }
 
@@ -152,16 +152,12 @@ namespace Opc.Ua.Client.V2.Tests
             using var engine =
                 new DefaultSubscriptionEngine(m_mockContext.Object);
 
-            Assert.That(
-                () => engine.PausePublishing(),
-                Throws.Nothing);
-            Assert.That(
-                () => engine.ResumePublishing(),
-                Throws.Nothing);
+            Assert.That(engine.PausePublishing, Throws.Nothing);
+            Assert.That(engine.ResumePublishing, Throws.Nothing);
         }
 
         [Test]
-        public async Task StopPublishingDisposesCleanly()
+        public async Task StopPublishingDisposesCleanlyAsync()
         {
             using var engine =
                 new DefaultSubscriptionEngine(m_mockContext.Object);
@@ -173,11 +169,13 @@ namespace Opc.Ua.Client.V2.Tests
         [Test]
         public void DisposeIsIdempotent()
         {
+#pragma warning disable CA2000 // Dispose objects before losing scope
             var engine =
                 new DefaultSubscriptionEngine(m_mockContext.Object);
+#pragma warning restore CA2000 // Dispose objects before losing scope
 
-            Assert.That(() => engine.Dispose(), Throws.Nothing);
-            Assert.That(() => engine.Dispose(), Throws.Nothing);
+            Assert.That(engine.Dispose, Throws.Nothing);
+            Assert.That(engine.Dispose, Throws.Nothing);
         }
 
         [Test]
@@ -187,7 +185,7 @@ namespace Opc.Ua.Client.V2.Tests
                 new DefaultSubscriptionEngine(m_mockContext.Object);
 
             Assert.That(
-                () => engine.NotifySubscriptionsChanged(),
+                engine.NotifySubscriptionsChanged,
                 Throws.Nothing);
         }
 
@@ -198,7 +196,7 @@ namespace Opc.Ua.Client.V2.Tests
                 new DefaultSubscriptionEngine(m_mockContext.Object);
 
             Assert.That(
-                engine.GoodPublishRequestCount, Is.EqualTo(0));
+                engine.GoodPublishRequestCount, Is.Zero);
         }
 
         [Test]
@@ -208,7 +206,7 @@ namespace Opc.Ua.Client.V2.Tests
                 new DefaultSubscriptionEngine(m_mockContext.Object);
 
             Assert.That(
-                engine.BadPublishRequestCount, Is.EqualTo(0));
+                engine.BadPublishRequestCount, Is.Zero);
         }
 
         [Test]
@@ -246,7 +244,7 @@ namespace Opc.Ua.Client.V2.Tests
         }
 
         [Test]
-        public async Task BridgeOnKeepAliveForwardsToCacheSink()
+        public async Task BridgeOnKeepAliveForwardsToCacheSinkAsync()
         {
             var mockSink = new Mock<ISubscriptionMessageSink>();
             var bridge = new SubscriptionBridge(
@@ -269,7 +267,7 @@ namespace Opc.Ua.Client.V2.Tests
         }
 
         [Test]
-        public async Task BridgeOnDataChangeForwardsToCacheSink()
+        public async Task BridgeOnDataChangeForwardsToCacheSinkAsync()
         {
             var mockSink = new Mock<ISubscriptionMessageSink>();
             var bridge = new SubscriptionBridge(
@@ -302,7 +300,7 @@ namespace Opc.Ua.Client.V2.Tests
         }
 
         [Test]
-        public async Task BridgeOnEventNotificationForwardsToCacheSink()
+        public async Task BridgeOnEventNotificationForwardsToCacheSinkAsync()
         {
             var mockSink = new Mock<ISubscriptionMessageSink>();
             var bridge = new SubscriptionBridge(
@@ -335,7 +333,7 @@ namespace Opc.Ua.Client.V2.Tests
         }
 
         [Test]
-        public async Task BridgeDataChangeWithDiagnosticsPreservesDiagnosticInfo()
+        public async Task BridgeDataChangeWithDiagnosticsPreservesDiagnosticInfoAsync()
         {
             var mockSink = new Mock<ISubscriptionMessageSink>();
             NotificationMessage captured = null;
@@ -374,11 +372,10 @@ namespace Opc.Ua.Client.V2.Tests
             Assert.That(captured, Is.Not.Null);
             Assert.That(
                 captured!.NotificationData.Count, Is.EqualTo(1));
-
-            var ext = captured.NotificationData[0];
+            ExtensionObject ext = captured.NotificationData[0];
             Assert.That(
                 ext.TryGetEncodeable<DataChangeNotification>(
-                    out var dcn),
+                    out DataChangeNotification dcn),
                 Is.True);
             Assert.That(
                 dcn.DiagnosticInfos.Count, Is.EqualTo(1));

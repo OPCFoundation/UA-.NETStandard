@@ -106,7 +106,7 @@ namespace Opc.Ua
                 finally
                 {
                     m_lock.Release();
-                    // m_lock.Dispose(); // Fix store model
+                    m_lock.Dispose();
                 }
             }
             Close();
@@ -731,11 +731,13 @@ namespace Opc.Ua
                                 {
                                     byte[] pemDataBlob = File.ReadAllBytes(
                                         privateKeyFilePem.FullName);
+#pragma warning disable CA2000 // Certificate ownership is managed by the caller
                                     certificate = CertificateFactory
                                         .CreateCertificateWithPEMPrivateKey(
                                             certificate,
                                             pemDataBlob,
                                             password);
+#pragma warning restore CA2000
                                     if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                     {
                                         m_logger.LogInformation(
@@ -763,11 +765,13 @@ namespace Opc.Ua
                                 try
                                 {
                                     byte[] pemDataBlob = File.ReadAllBytes(file.FullName);
+#pragma warning disable CA2000 // Certificate ownership is managed by the caller
                                     certificate = CertificateFactory
                                         .CreateCertificateWithPEMPrivateKey(
                                             certificate,
                                             pemDataBlob,
                                             password);
+#pragma warning restore CA2000
                                     if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                     {
                                         m_logger.LogInformation(

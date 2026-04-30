@@ -66,7 +66,8 @@ namespace Opc.Ua.Client
     {
         /// <inheritdoc/>
         public async ValueTask<ServerRedundancyInfo> FetchRedundancyInfoAsync(
-            ISession session, CancellationToken ct = default)
+            ISession session,
+            CancellationToken ct = default)
         {
             if (session is null)
             {
@@ -77,7 +78,7 @@ namespace Opc.Ua.Client
             ArrayOf<NodeId> nodeIds =
             [
                 VariableIds.Server_ServerRedundancy_RedundancySupport,
-                VariableIds.Server_ServiceLevel,
+                VariableIds.Server_ServiceLevel
             ];
 
             (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) =
@@ -107,7 +108,7 @@ namespace Opc.Ua.Client
             {
                 Mode = mode,
                 ServiceLevel = serviceLevel,
-                RedundantServers = redundantServers,
+                RedundantServers = redundantServers
             };
         }
 
@@ -126,20 +127,18 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(currentEndpoint));
             }
 
-            if (redundancyInfo.Mode is RedundancyMode.None
-                or RedundancyMode.Transparent)
+            if (redundancyInfo.Mode is RedundancyMode.None or RedundancyMode.Transparent)
             {
                 return null;
             }
 
-            var currentUri = currentEndpoint.Description?.Server?.ApplicationUri;
+            string? currentUri = currentEndpoint.Description?.Server?.ApplicationUri;
 
             // Pick the running server with the highest service level
             // that is not the current server.
             RedundantServer? best = redundancyInfo.RedundantServers
-                .Where(s => s.ServerState == ServerState.Running
-                    && !string.Equals(s.ServerUri, currentUri,
-                        StringComparison.Ordinal))
+                .Where(s => s.ServerState == ServerState.Running &&
+                    !string.Equals(s.ServerUri, currentUri, StringComparison.Ordinal))
                 .OrderByDescending(s => s.ServiceLevel)
                 .FirstOrDefault();
 
@@ -153,16 +152,16 @@ namespace Opc.Ua.Client
                 EndpointUrl = best.ServerUri,
                 Server = new ApplicationDescription
                 {
-                    ApplicationUri = best.ServerUri,
-                },
+                    ApplicationUri = best.ServerUri
+                }
             };
 
             return new ConfiguredEndpoint(null, endpointDescription);
         }
 
-        private static async Task<List<RedundantServer>>
-            ReadRedundantServerArrayAsync(
-            ISession session, CancellationToken ct)
+        private static async Task<List<RedundantServer>> ReadRedundantServerArrayAsync(
+            ISession session,
+            CancellationToken ct)
         {
             var result = new List<RedundantServer>();
 
@@ -190,7 +189,7 @@ namespace Opc.Ua.Client
                                 ServerUri = serverData.ServerId
                                     ?? string.Empty,
                                 ServiceLevel = serverData.ServiceLevel,
-                                ServerState = serverData.ServerState,
+                                ServerState = serverData.ServerState
                             });
                         }
                     }
@@ -214,7 +213,7 @@ namespace Opc.Ua.Client
                 3 => RedundancyMode.Hot,
                 4 => RedundancyMode.Transparent,
                 5 => RedundancyMode.HotAndMirrored,
-                _ => RedundancyMode.None,
+                _ => RedundancyMode.None
             };
         }
     }

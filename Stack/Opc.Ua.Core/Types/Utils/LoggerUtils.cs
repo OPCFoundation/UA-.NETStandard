@@ -104,10 +104,12 @@ namespace Opc.Ua
         /// </summary>
         internal class TraceLoggerTelemetry : TelemetryContextBase
         {
+#pragma warning disable CA2000 // Ownership of ILoggerFactory transfers to TelemetryContextBase
             public TraceLoggerTelemetry()
                 : base(CreateLoggerFactory())
             {
             }
+#pragma warning restore CA2000
 
             private static ILoggerFactory CreateLoggerFactory()
             {

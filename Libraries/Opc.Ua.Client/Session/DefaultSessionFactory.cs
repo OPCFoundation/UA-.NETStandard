@@ -250,9 +250,8 @@ namespace Opc.Ua.Client
             // checks the domains in the certificate.
             if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
             {
-                configuration.CertificateValidator?.ValidateDomains(
-                    CertificateFactory.Create(endpoint.Description.ServerCertificate),
-                    endpoint);
+                using X509Certificate2 serverCert = CertificateFactory.Create(endpoint.Description.ServerCertificate);
+                configuration.CertificateValidator?.ValidateDomains(serverCert, endpoint);
             }
 
             X509Certificate2? clientCertificate = null;

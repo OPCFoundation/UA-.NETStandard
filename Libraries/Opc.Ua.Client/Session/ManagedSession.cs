@@ -37,7 +37,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
-using Opc.Ua.Client;
 
 namespace Opc.Ua.Client
 {
@@ -60,7 +59,7 @@ namespace Opc.Ua.Client
     /// delegated to the inner session.
     /// </para>
     /// </remarks>
-    public partial class ManagedSession : ISession, IAsyncDisposable
+    public partial class ManagedSession : ISession
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedSession"/>
@@ -170,17 +169,10 @@ namespace Opc.Ua.Client
         /// Gets the inner V1 session. Throws if no session is available.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal Session InnerSession
-        {
-            get
-            {
-                Session? session = m_session ?? throw new ServiceResultException(
-                    StatusCodes.BadNotConnected,
-                    "The managed session is not connected.");
-
-                return session;
-            }
-        }
+        internal Session InnerSession => m_session ??
+            throw new ServiceResultException(
+                StatusCodes.BadNotConnected,
+                "The managed session is not connected.");
 
         /// <summary>
         /// Gets the connection state machine.
@@ -967,8 +959,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        private async Task HandleCloseSessionAsync(
-            CancellationToken ct)
+        private async Task HandleCloseSessionAsync(CancellationToken ct)
         {
             Session? session = m_session;
             if (session != null)
@@ -1025,8 +1016,7 @@ namespace Opc.Ua.Client
                 OnInnerRenewUserIdentity;
         }
 
-        private void OnInnerKeepAlive(
-            ISession session, KeepAliveEventArgs e)
+        private void OnInnerKeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (e.Status != null &&
                 ServiceResult.IsBad(e.Status))
@@ -1037,14 +1027,12 @@ namespace Opc.Ua.Client
             m_keepAlive?.Invoke(this, e);
         }
 
-        private void OnInnerNotification(
-            ISession session, NotificationEventArgs e)
+        private void OnInnerNotification(ISession session, NotificationEventArgs e)
         {
             m_notification?.Invoke(this, e);
         }
 
-        private void OnInnerPublishError(
-            ISession session, PublishErrorEventArgs e)
+        private void OnInnerPublishError(ISession session, PublishErrorEventArgs e)
         {
             m_publishError?.Invoke(this, e);
         }
@@ -1056,33 +1044,29 @@ namespace Opc.Ua.Client
             m_publishSequenceNumbersToAcknowledge?.Invoke(this, e);
         }
 
-        private void OnInnerSubscriptionsChanged(
-            object? sender, EventArgs e)
+        private void OnInnerSubscriptionsChanged(object? sender, EventArgs e)
         {
             m_subscriptionsChanged?.Invoke(this, e);
         }
 
-        private void OnInnerSessionClosing(
-            object? sender, EventArgs e)
+        private void OnInnerSessionClosing(object? sender, EventArgs e)
         {
             m_sessionClosing?.Invoke(this, e);
         }
 
-        private void OnInnerSessionConfigurationChanged(
-            object? sender, EventArgs e)
+        private void OnInnerSessionConfigurationChanged(object? sender, EventArgs e)
         {
             m_sessionConfigurationChanged?.Invoke(this, e);
         }
 
         private IUserIdentity OnInnerRenewUserIdentity(
-            ISession session, IUserIdentity identity)
+            ISession session,
+            IUserIdentity identity)
         {
-            return m_renewUserIdentity?.Invoke(this, identity)
-                        ?? identity;
+            return m_renewUserIdentity?.Invoke(this, identity) ?? identity;
         }
 
-        private void OnStateChanged(
-            object? sender, ConnectionStateChangedEventArgs e)
+        private void OnStateChanged(object? sender, ConnectionStateChangedEventArgs e)
         {
             ConnectionStateChanged?.Invoke(this, e);
         }

@@ -453,6 +453,9 @@ namespace Opc.Ua.Client
                 m_reconnectLock.Dispose();
                 m_eccServerEphemeralKey?.Dispose();
                 m_eccServerEphemeralKey = null;
+                m_keepAliveCancellation?.Dispose();
+                m_keepAliveCancellation = null;
+                m_engine?.Dispose();
             }
 
             base.Dispose(disposing);
@@ -956,7 +959,9 @@ namespace Opc.Ua.Client
                 !serverCertificate.IsEmpty
                     ? CertificateFactory.Create(serverCertificate)
                     : null;
+#pragma warning disable CA2000 // Ownership transfers to m_identity field, disposed when Session is disposed
             m_identity = sessionConfiguration.Identity ?? new UserIdentity();
+#pragma warning restore CA2000
             m_checkDomain = sessionConfiguration.CheckDomain;
             m_serverNonce = sessionConfiguration.ServerNonce;
             m_clientNonce = !sessionConfiguration.ClientNonce.IsNull
@@ -3614,23 +3619,13 @@ namespace Opc.Ua.Client
             if (m_RenewUserIdentity != null)
             {
                 IUserIdentity renewed = m_RenewUserIdentity(this, m_identity);
-                UserIdentity? tempIdentity = null;
-                try
+                if (renewed != null)
                 {
-                    if (renewed != null)
-                    {
-                        m_identity = renewed;
-                    }
-                    else
-                    {
-                        tempIdentity = new UserIdentity();
-                        m_identity = tempIdentity;
-                        tempIdentity = null; // ownership transferred to field
-                    }
+                    m_identity = renewed;
                 }
-                finally
+                else
                 {
-                    tempIdentity?.Dispose();
+                    m_identity = new UserIdentity();
                 }
             }
         }
@@ -4445,7 +4440,9 @@ namespace Opc.Ua.Client
         private readonly List<Subscription> m_subscriptions = [];
         private uint m_maxRequestMessageSize;
         private readonly SessionSystemContext m_systemContext;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly NodeCache m_nodeCache;
+#pragma warning restore CA2213
         private readonly List<IUserIdentity> m_identityHistory = [];
         private byte[]? m_clientNonce;
         private ByteString m_serverNonce;
@@ -4455,23 +4452,31 @@ namespace Opc.Ua.Client
         private StatusCode m_lastKeepAliveErrorStatusCode;
         private ServerState m_serverState;
         private int m_keepAliveInterval;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly Timer m_keepAliveTimer;
+#pragma warning restore CA2213
         private readonly AsyncAutoResetEvent m_keepAliveEvent = new();
         private uint m_keepAliveCounter;
         private Task? m_keepAliveWorker;
         private bool m_inKeepAliveCallback;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private CancellationTokenSource? m_keepAliveCancellation;
         private readonly SemaphoreSlim m_reconnectLock = new(1, 1);
+#pragma warning restore CA2213
         private readonly LinkedList<AsyncRequestState> m_outstandingRequests = [];
         private string? m_userTokenSecurityPolicyUri;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private Nonce? m_eccServerEphemeralKey;
+#pragma warning restore CA2213
         private Subscription? m_defaultSubscription;
         private bool m_disposeAsyncCalled;
         private readonly ArrayOf<EndpointDescription> m_discoveryServerEndpoints;
         private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
         private readonly ISubscriptionEngineFactory m_engineFactory;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly ClassicSubscriptionEngine m_engine;
+#pragma warning restore CA2213
 
         private sealed class AsyncRequestState : IDisposable
         {
