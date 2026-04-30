@@ -2376,6 +2376,19 @@ namespace Opc.Ua
                     {
                         FullMode = BoundedChannelFullMode.DropOldest,
                         SingleReader = true
+                    },
+                    itemDropped: dropped =>
+                    {
+                        // Dispose the dropped chain and signal its completion
+                        // as failed since it will never be written.
+                        try
+                        {
+                            dropped.Chain.Dispose();
+                        }
+                        finally
+                        {
+                            dropped.Completion.TrySetResult(false);
+                        }
                     });
                 m_processingTask = Task.Factory.StartNew(
                     ProcessAsync,
@@ -2397,9 +2410,11 @@ namespace Opc.Ua
                 if (!m_channel.Writer.TryWrite(
                     new WriteRequest(chain, isMaintenance, tcs)))
                 {
+                    // Channel writer was completed (writer disposed) —
+                    // dispose the chain we own and signal failure.
                     chain.Dispose();
-                    m_logger.LogTrace(
-                        "Rejected certificate write queue full, dropping oldest.");
+                    tcs.TrySetResult(false);
+                    return;
                 }
 
                 Interlocked.Exchange(ref m_drainTcs, tcs);
@@ -2441,8 +2456,32 @@ namespace Opc.Ua
 
             public void Dispose()
             {
+                // Signal no more writes
                 m_channel.Writer.TryComplete();
-                m_processingTask.Wait(TimeSpan.FromSeconds(5));
+
+                // Wait for the processing task to drain naturally.
+                // The processing task reads all queued items via ReadAllAsync
+                // until the channel is completed, then returns.
+                if (!m_processingTask.Wait(TimeSpan.FromSeconds(30)))
+                {
+                    m_logger.LogWarning(
+                        "RejectedCertificateWriter did not drain within 30 seconds.");
+                }
+
+                // Defensive drain: if the processing task exited early
+                // (e.g., due to an unhandled exception), dispose any
+                // remaining items in the channel to prevent leaks.
+                while (m_channel.Reader.TryRead(out WriteRequest request))
+                {
+                    try
+                    {
+                        request.Chain.Dispose();
+                    }
+                    finally
+                    {
+                        request.Completion.TrySetResult(false);
+                    }
+                }
             }
 
             private readonly record struct WriteRequest(
