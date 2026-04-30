@@ -373,6 +373,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(BuiltInType.Int64)]
         [TestCase(BuiltInType.UInt64)]
         [TestCase(BuiltInType.Byte)]
+        [TestCase(BuiltInType.SByte)]
         public void ValueChanged_DeadbandPercent(BuiltInType builtInType)
         {
             // Range = 100. Deadband = 10%. Threshold = 10.
@@ -434,6 +435,11 @@ namespace Opc.Ua.Server.Tests
                     valueInside = new DataValue(new Variant((byte)55));
                     valueOutside = new DataValue(new Variant((byte)61));
                     break;
+                case BuiltInType.SByte:
+                    lastValue = new DataValue(new Variant((sbyte)50));
+                    valueInside = new DataValue(new Variant((sbyte)55));
+                    valueOutside = new DataValue(new Variant((sbyte)61));
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -459,6 +465,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(BuiltInType.UInt64)]
         [TestCase(BuiltInType.Variant)]
         [TestCase(BuiltInType.Byte)]
+        [TestCase(BuiltInType.SByte)]
         public void ValueChanged_Array_DeadbandPercent(BuiltInType builtInType)
         {
             // Range = 100. Deadband = 10%. Threshold = 10.
@@ -524,6 +531,11 @@ namespace Opc.Ua.Server.Tests
                     lastValue = new DataValue(new Variant((ArrayOf<byte>)(byte[])[50, 50]));
                     valueInside = new DataValue(new Variant((ArrayOf<byte>)(byte[])[55, 55]));
                     valueOutside = new DataValue(new Variant((ArrayOf<byte>)(byte[])[55, 61]));
+                    break;
+                case BuiltInType.SByte:
+                    lastValue = new DataValue(new Variant((ArrayOf<sbyte>)(sbyte[])[50, 50]));
+                    valueInside = new DataValue(new Variant((ArrayOf<sbyte>)(sbyte[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((ArrayOf<sbyte>)(sbyte[])[55, 61]));
                     break;
                 default:
                     throw new NotImplementedException();
