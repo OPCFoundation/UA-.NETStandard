@@ -126,7 +126,8 @@ namespace Quickstarts.ReferenceServer
                 bool provisioningMode = parseResult.GetValue(provisionOption);
                 string reverseConnectUrlString = parseResult.GetValue(reverseConnectOption);
 
-                // Use CTT-specific config when CTT mode is enabled
+                // Use CTT-specific config when CTT mode is enabled.
+                // Mono uses a separate server (MonoReferenceServer) with its own config, so CTT config is not applicable there.
                 if (cttMode && !Utils.IsRunningOnMono())
                 {
                     configSectionName = "Ctt.ReferenceServer";

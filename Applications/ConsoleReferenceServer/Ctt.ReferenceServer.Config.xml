@@ -5,7 +5,7 @@
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 >
   <!-- xsi:schemaLocation="http://opcfoundation.org/UA/SDK/Configuration.xsd ./Configuration.xsd" -->
-  <ApplicationName>Quickstart Reference Server</ApplicationName>
+  <ApplicationName>Quickstart Reference Server (CTT)</ApplicationName>
   <ApplicationUri>urn:localhost:UA:Quickstarts:ReferenceServer</ApplicationUri>
   <ProductUri>uri:opcfoundation.org:Quickstarts:ReferenceServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
