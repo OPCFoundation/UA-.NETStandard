@@ -91,6 +91,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 m_settings?.ServerCertificate?.Dispose();
+                m_settings?.ClientCertificate?.Dispose();
+                m_settings?.ClientCertificateChain?.Dispose();
             }
         }
 
@@ -385,6 +387,21 @@ namespace Opc.Ua.Bindings
             // save the settings.
             m_url = url;
             m_settings = settings;
+
+            // Take an independent reference on ClientCertificate and
+            // ClientCertificateChain so the caller can dispose its locals
+            // without invalidating these for the lifetime of this transport
+            // (including reconnects). ServerCertificate is created fresh by
+            // the factory (ParseCertificateBlob) and ownership is transferred
+            // directly, so no AddRef is needed there.
+            if (m_settings.ClientCertificate != null)
+            {
+                m_settings.ClientCertificate = m_settings.ClientCertificate.AddRef();
+            }
+            if (m_settings.ClientCertificateChain != null)
+            {
+                m_settings.ClientCertificateChain = m_settings.ClientCertificateChain.AddRef();
+            }
 
             OperationTimeout = settings.Configuration.OperationTimeout;
             if (OperationTimeout <= 0)
