@@ -120,6 +120,532 @@ namespace Opc.Ua
 
             return datachangeFilter.DeadbandValue;
         }
+
+        /// <summary>
+        /// Checks if the two values are equal based on this DataChangeFilter.
+        /// </summary>
+        public bool AreEqual(
+            Variant value1,
+            Variant value2,
+            double range)
+        {
+            // check if equal
+            if (value1.Equals(value2))
+            {
+                return true;
+            }
+
+            Ua.DeadbandType actualDeadbandType = (Ua.DeadbandType)(int)DeadbandType;
+            BuiltInType builtInType = value1.TypeInfo.BuiltInType;
+            int valueRank = value1.TypeInfo.ValueRank;
+
+            // handle scalars.
+            if (valueRank == ValueRanks.Scalar)
+            {
+                switch (builtInType)
+                {
+                    case BuiltInType.Double:
+                        if (value1.TryGet(out double d1) && value2.TryGet(out double d2))
+                        {
+                            if (double.IsNaN(d1) || double.IsNaN(d2))
+                            {
+                                return false;
+                            }
+
+                            if (d1 == d2)
+                            {
+                                return true;
+                            }
+
+                            if (actualDeadbandType == Ua.DeadbandType.None)
+                            {
+                                return false;
+                            }
+
+                            return !ExceedsDeadband(d1, d2, actualDeadbandType, DeadbandValue, range);
+                        }
+                        return false;
+                    case BuiltInType.Float:
+                        if (value1.TryGet(out float f1) && value2.TryGet(out float f2))
+                        {
+                            if (float.IsNaN(f1) || float.IsNaN(f2))
+                            {
+                                return false;
+                            }
+
+                            if (f1 == f2)
+                            {
+                                return true;
+                            }
+
+                            if (actualDeadbandType == Ua.DeadbandType.None)
+                            {
+                                return false;
+                            }
+
+                            return !ExceedsDeadband(f1, f2, actualDeadbandType, DeadbandValue, range);
+                        }
+                        return false;
+                    case BuiltInType.XmlElement:
+                        if (value1.AsBoxedObject() is System.Xml.XmlElement xml1 && value2.AsBoxedObject() is System.Xml.XmlElement xml2)
+                        {
+                            return xml1 == xml2;
+                        }
+                        return false;
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
+                    case BuiltInType.Int32:
+                    case BuiltInType.UInt32:
+                    case BuiltInType.Int64:
+                    case BuiltInType.UInt64:
+                    case BuiltInType.Int16:
+                    case BuiltInType.UInt16:
+                    case BuiltInType.Byte:
+                    case BuiltInType.SByte:
+                        // Other numeric types check deadband if applicable
+                        if (actualDeadbandType != Ua.DeadbandType.None)
+                        {
+                            return !ExceedsDeadband(value1, value2, actualDeadbandType, DeadbandValue, range);
+                        }
+                        return false;
+                }
+
+                return false;
+            }
+
+            // handle arrays.
+            switch (builtInType)
+            {
+                case BuiltInType.Double:
+                {
+                    if (value1.TryGet(out ArrayOf<double> dArray1) &&
+                        value2.TryGet(out ArrayOf<double> dArray2))
+                    {
+                        if (dArray1.Count != dArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < dArray1.Count; ii++)
+                        {
+                            double d1 = dArray1[ii];
+                            double d2 = dArray2[ii];
+
+                            if (double.IsNaN(d1) || double.IsNaN(d2))
+                            {
+                                return false;
+                            }
+
+                            if (d1 != d2)
+                            {
+                                if (actualDeadbandType == Ua.DeadbandType.None ||
+                                    ExceedsDeadband(d1, d2, actualDeadbandType, DeadbandValue, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.Float:
+                {
+                    if (value1.TryGet(out ArrayOf<float> fArray1) &&
+                        value2.TryGet(out ArrayOf<float> fArray2))
+                    {
+                        if (fArray1.Count != fArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < fArray1.Count; ii++)
+                        {
+                            float f1 = fArray1[ii];
+                            float f2 = fArray2[ii];
+
+                            if (float.IsNaN(f1) || float.IsNaN(f2))
+                            {
+                                return false;
+                            }
+
+                            if (f1 != f2)
+                            {
+                                if (actualDeadbandType == Ua.DeadbandType.None ||
+                                    ExceedsDeadband(f1, f2, actualDeadbandType, DeadbandValue, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.Variant:
+                {
+                    if (value1.TryGet(out ArrayOf<Variant> vArray1) &&
+                        value2.TryGet(out ArrayOf<Variant> vArray2))
+                    {
+                        if (vArray1.Count != vArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < vArray1.Count; ii++)
+                        {
+                            if (!AreEqual(vArray1[ii], vArray2[ii], range))
+                            {
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.Int16:
+                {
+                    if (value1.TryGet(out ArrayOf<short> iArray1) &&
+                        value2.TryGet(out ArrayOf<short> iArray2))
+                    {
+                        if (iArray1.Count != iArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < iArray1.Count; ii++)
+                        {
+                            short s1 = iArray1[ii];
+                            short s2 = iArray2[ii];
+
+                            if (s1 != s2)
+                            {
+                                if (actualDeadbandType == Ua.DeadbandType.None ||
+                                    ExceedsDeadband(s1, s2, actualDeadbandType, DeadbandValue, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.UInt16:
+                {
+                    if (value1.TryGet(out ArrayOf<ushort> iArray1) &&
+                        value2.TryGet(out ArrayOf<ushort> iArray2))
+                    {
+                        if (iArray1.Count != iArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < iArray1.Count; ii++)
+                        {
+                            ushort s1 = iArray1[ii];
+                            ushort s2 = iArray2[ii];
+
+                            if (s1 != s2)
+                            {
+                                if (actualDeadbandType == Ua.DeadbandType.None ||
+                                    ExceedsDeadband(s1, s2, actualDeadbandType, DeadbandValue, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.Int32:
+                {
+                    if (value1.TryGet(out ArrayOf<int> iArray1) &&
+                        value2.TryGet(out ArrayOf<int> iArray2))
+                    {
+                        if (iArray1.Count != iArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < iArray1.Count; ii++)
+                        {
+                            int s1 = iArray1[ii];
+                            int s2 = iArray2[ii];
+
+                            if (s1 != s2)
+                            {
+                                if (actualDeadbandType == Ua.DeadbandType.None ||
+                                    ExceedsDeadband(s1, s2, actualDeadbandType, DeadbandValue, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.UInt32:
+                {
+                    if (value1.TryGet(out ArrayOf<uint> iArray1) &&
+                        value2.TryGet(out ArrayOf<uint> iArray2))
+                    {
+                        if (iArray1.Count != iArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < iArray1.Count; ii++)
+                        {
+                            uint s1 = iArray1[ii];
+                            uint s2 = iArray2[ii];
+
+                            if (s1 != s2)
+                            {
+                                if (actualDeadbandType == Ua.DeadbandType.None ||
+                                    ExceedsDeadband(s1, s2, actualDeadbandType, DeadbandValue, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.Int64:
+                {
+                    if (value1.TryGet(out ArrayOf<long> iArray1) &&
+                        value2.TryGet(out ArrayOf<long> iArray2))
+                    {
+                        if (iArray1.Count != iArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < iArray1.Count; ii++)
+                        {
+                            long s1 = iArray1[ii];
+                            long s2 = iArray2[ii];
+
+                            if (s1 != s2)
+                            {
+                                if (actualDeadbandType == Ua.DeadbandType.None ||
+                                    ExceedsDeadband(s1, s2, actualDeadbandType, DeadbandValue, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.UInt64:
+                {
+                    if (value1.TryGet(out ArrayOf<ulong> iArray1) &&
+                        value2.TryGet(out ArrayOf<ulong> iArray2))
+                    {
+                        if (iArray1.Count != iArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < iArray1.Count; ii++)
+                        {
+                            ulong s1 = iArray1[ii];
+                            ulong s2 = iArray2[ii];
+
+                            if (s1 != s2)
+                            {
+                                if (actualDeadbandType == Ua.DeadbandType.None ||
+                                    ExceedsDeadband(s1, s2, actualDeadbandType, DeadbandValue, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.Byte:
+                {
+                    if (value1.TryGet(out ArrayOf<byte> iArray1) &&
+                        value2.TryGet(out ArrayOf<byte> iArray2))
+                    {
+                        if (iArray1.Count != iArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < iArray1.Count; ii++)
+                        {
+                            byte s1 = iArray1[ii];
+                            byte s2 = iArray2[ii];
+
+                            if (s1 != s2)
+                            {
+                                if (actualDeadbandType == Ua.DeadbandType.None ||
+                                    ExceedsDeadband(s1, s2, actualDeadbandType, DeadbandValue, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.SByte:
+                {
+                    if (value1.TryGet(out ArrayOf<sbyte> iArray1) &&
+                        value2.TryGet(out ArrayOf<sbyte> iArray2))
+                    {
+                        if (iArray1.Count != iArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < iArray1.Count; ii++)
+                        {
+                            sbyte s1 = iArray1[ii];
+                            sbyte s2 = iArray2[ii];
+
+                            if (s1 != s2)
+                            {
+                                if (actualDeadbandType == Ua.DeadbandType.None ||
+                                    ExceedsDeadband(s1, s2, actualDeadbandType, DeadbandValue, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.ByteString:
+                {
+                    if (value1.TryGet(out ArrayOf<ByteString> iArray1) &&
+                        value2.TryGet(out ArrayOf<ByteString> iArray2))
+                    {
+                        if (iArray1.Count != iArray2.Count)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < iArray1.Count; ii++)
+                        {
+                            ByteString s1 = iArray1[ii];
+                            ByteString s2 = iArray2[ii];
+
+                            if (s1 != s2)
+                            {
+                                if (actualDeadbandType == Ua.DeadbandType.None ||
+                                    ExceedsDeadband(s1, s2, actualDeadbandType, DeadbandValue, range))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                case BuiltInType.XmlElement:
+                {
+                    if (value1.AsBoxedObject() is System.Xml.XmlElement[] xArray1 &&
+                        value2.AsBoxedObject() is System.Xml.XmlElement[] xArray2)
+                    {
+                        if (xArray1.Length != xArray2.Length)
+                        {
+                            return false;
+                        }
+
+                        for (int ii = 0; ii < xArray1.Length; ii++)
+                        {
+                            System.Xml.XmlElement xml1 = xArray1[ii];
+                            System.Xml.XmlElement xml2 = xArray2[ii];
+
+                            if (xml1 != xml2)
+                            {
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true if the deadband was exceeded.
+        /// </summary>
+        private static bool ExceedsDeadband(
+            Variant value1,
+            Variant value2,
+            Ua.DeadbandType deadbandType,
+            double deadband,
+            double range)
+        {
+            // cannot convert doubles safely to decimals.
+            if (value1.TryGet(out double x))
+            {
+                return ExceedsDeadband(x, value2.GetDouble(), deadbandType, deadband, range);
+            }
+
+            try
+            {
+                if (!value1.TryGetDecimal(out decimal decimal1) ||
+                   !value2.TryGetDecimal(out decimal decimal2))
+                {
+                    throw new InvalidOperationException("Failed to check for deadband");
+                }
+                decimal baseline = 1;
+
+                if (deadbandType == Ua.DeadbandType.Percent)
+                {
+                    baseline = ((decimal)range) / 100;
+                }
+
+                if (baseline > 0 && Math.Abs((decimal1 - decimal2) / baseline) <= (decimal)deadband)
+                {
+                    return false;
+                }
+            }
+            catch
+            {
+                // treat all conversion errors as evidence that the deadband was exceeded.
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Returns true if the deadband was exceeded.
+        /// </summary>
+        private static bool ExceedsDeadband(
+            double value1,
+            double value2,
+            Ua.DeadbandType deadbandType,
+            double deadband,
+            double range)
+        {
+            double baseline = 1;
+
+            if (deadbandType == Ua.DeadbandType.Percent)
+            {
+                baseline = range / 100;
+            }
+
+            return baseline <= 0 || Math.Abs((value1 - value2) / baseline) > deadband;
+        }
     }
 
     /// <summary>
