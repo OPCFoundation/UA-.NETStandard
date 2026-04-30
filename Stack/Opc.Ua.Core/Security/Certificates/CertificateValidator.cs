@@ -1045,7 +1045,7 @@ namespace Opc.Ua
                     }
                     finally
                     {
-                        store?.Close();
+                        store?.Dispose();
                     }
                 }
                 finally

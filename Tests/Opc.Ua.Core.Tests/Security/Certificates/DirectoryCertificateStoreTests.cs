@@ -333,12 +333,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .Create($"CN=RejectedCert{i}")
                     .SetLifeTime(365)
                     .CreateForRSA();
-                certs.Add(CertificateFactory.Create(cert.RawData));
+                using Certificate publicKey = CertificateFactory.Create(cert.RawData);
+                certs.Add(publicKey);
             }
 
             await store.AddRejectedAsync(certs, 5).ConfigureAwait(false);
 
-            using CertificateCollection found = await store.EnumerateAsync().ConfigureAwait(false);
+            // use a separate store to verify; the original store's entries
+            // hold AddRef'd references that share objects with certs above
+            using var verifyStore = new DirectoryCertificateStore(m_telemetry);
+            verifyStore.Open(m_tempDir);
+            using CertificateCollection found = await verifyStore.EnumerateAsync().ConfigureAwait(false);
             Assert.That(found.Count, Is.EqualTo(3));
         }
 

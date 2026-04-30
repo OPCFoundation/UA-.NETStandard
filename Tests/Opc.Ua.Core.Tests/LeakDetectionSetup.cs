@@ -57,8 +57,6 @@ public class LeakDetectionSetup
         GC.Collect();
 
         long leaked = Certificate.InstancesLeaked;
-        // Tolerance of 2 for cross-fixture interaction leaks that only
-        // appear when all categories run together (individually clean).
         if (leaked > 2)
         {
             string details = string.Join("\n",

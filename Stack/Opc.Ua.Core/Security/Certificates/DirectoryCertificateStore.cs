@@ -329,10 +329,10 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        // add entry
+                        // add entry (own the reference for the store)
                         entry = new Entry
                         {
-                            Certificate = certificate,
+                            Certificate = certificate.AddRef(),
                             CertificateFile = fileInfo,
                             PrivateKeyFile = null,
                             CertificateWithPrivateKey = null,
@@ -373,6 +373,11 @@ namespace Opc.Ua
                             "Failed to delete {FileName} - force reload.",
                             entry.CertificateFile.FullName);
                         reload = true;
+                    }
+                    finally
+                    {
+                        entry.Certificate?.Dispose();
+                        entry.CertificateWithPrivateKey?.Dispose();
                     }
                 }
 
