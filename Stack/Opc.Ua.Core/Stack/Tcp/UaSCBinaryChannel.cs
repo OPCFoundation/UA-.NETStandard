@@ -982,9 +982,9 @@ namespace Opc.Ua.Bindings
         private bool m_sequenceRollover;
         private bool m_firstReceivedSequenceNumber = true;
         private uint m_partialRequestId;
-        private BufferCollection m_partialMessageChunks;
+        private BufferCollection? m_partialMessageChunks;
 
-        private TcpChannelStateEventHandler m_stateChanged;
+        private TcpChannelStateEventHandler? m_stateChanged;
         private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
         private const uint kMaxValueLegacyFalse = uint.MaxValue;
     }
