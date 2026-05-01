@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -107,8 +109,8 @@ namespace Opc.Ua
                 {
                     return xmlElement.ToXmlElement();
                 }
-                Type sourceType = obj?.GetType();
-                surrogateType = GetSurrogateType(sourceType);
+                Type? sourceType = obj?.GetType();
+                surrogateType = GetSurrogateType(sourceType!);
                 if (surrogateType == sourceType) // Original type == not found
                 {
                     // Handle the case where we are passed the surrogate type
@@ -116,7 +118,7 @@ namespace Opc.Ua
                     if (!typeof(ISurrogate).IsAssignableFrom(targetType))
                     {
                         // Not a surrogated type
-                        return obj;
+                        return obj!;
                     }
                     surrogateType = targetType;
                 }
@@ -126,18 +128,18 @@ namespace Opc.Ua
             // constructor to create a null instance.
             try
             {
-                object instance = obj is null ?
+                object? instance = obj is null ?
                     Activator.CreateInstance(surrogateType) :
                     Activator.CreateInstance(surrogateType, [obj]);
                 if (instance is ISurrogateWithContext ctx)
                 {
                     ctx.Context = MessageContext;
                 }
-                return instance;
+                return instance!;
             }
             catch
             {
-                return obj;
+                return obj!;
             }
         }
 
@@ -146,7 +148,7 @@ namespace Opc.Ua
             Justification = "Type.MakeGenericType is used with known OPC UA surrogate types.")]
         public Type GetSurrogateType(Type type)
         {
-            if (SurrogateMappings.TryGetValue(type, out Type surrogateType))
+            if (SurrogateMappings.TryGetValue(type, out Type? surrogateType))
             {
                 return surrogateType;
             }
@@ -221,7 +223,7 @@ namespace Opc.Ua
         /// <summary>
         /// Receives context if implemented on a surrogate
         /// </summary>
-        IServiceMessageContext Context { get; set; }
+        IServiceMessageContext? Context { get; set; }
     }
 
     /// <summary>
@@ -244,7 +246,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public SerializableMatrixOf(MatrixOf<T> value)
         {
-            Elements = value.ToArrayOf(out int[] dimensions).ToArray();
+            Elements = value.ToArrayOf(out int[] dimensions).ToArray()!;
             Dimensions = dimensions;
         }
 
@@ -295,7 +297,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IServiceMessageContext Context { get; set; }
+        public IServiceMessageContext? Context { get; set; }
 
         /// <inheritdoc/>
         public ArrayOf<T> Value => this.ToArrayOf();
@@ -307,7 +309,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public XmlSchema GetSchema()
+        public XmlSchema? GetSchema()
         {
             return null;
         }
@@ -319,7 +321,7 @@ namespace Opc.Ua
             Justification = "DataContractSerializer is used with known OPC UA types.")]
         public void WriteXml(XmlWriter writer)
         {
-            XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
+            XmlQualifiedName? xmlName = TypeInfo.GetXmlName(typeof(T));
 #pragma warning disable CS0618 // Type or member is obsolete
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(
                 Context,
@@ -339,7 +341,7 @@ namespace Opc.Ua
             Justification = "DataContractSerializer is used with known OPC UA types.")]
         public void ReadXml(XmlReader reader)
         {
-            XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
+            XmlQualifiedName? xmlName = TypeInfo.GetXmlName(typeof(T));
 #pragma warning disable CS0618 // Type or member is obsolete
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>(
                 Context,
@@ -355,7 +357,7 @@ namespace Opc.Ua
             reader.ReadStartElement();
             while (reader.NodeType != XmlNodeType.EndElement)
             {
-                var item = (T)serializer.ReadObject(reader);
+                var item = (T)serializer.ReadObject(reader)!;
                 Add(item);
                 reader.MoveToContent();
             }
@@ -369,8 +371,8 @@ namespace Opc.Ua
         public static XmlQualifiedName GetSchemaMethod(XmlSchemaSet xs)
 #pragma warning restore RCS1158 // Static member in generic type should use a type parameter
         {
-            XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
-            return new XmlQualifiedName("ListOf" + xmlName.Name, xmlName.Namespace);
+            XmlQualifiedName? xmlName = TypeInfo.GetXmlName(typeof(T));
+            return new XmlQualifiedName("ListOf" + xmlName?.Name, xmlName?.Namespace);
         }
     }
 
@@ -399,7 +401,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IServiceMessageContext Context { get; set; }
+        public IServiceMessageContext? Context { get; set; }
 
         /// <inheritdoc/>
         public Variant Value { get; private set; }
@@ -415,7 +417,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         [DataMember(Name = "Value", Order = 1)]
-        internal System.Xml.XmlElement XmlEncodedValue
+        internal System.Xml.XmlElement? XmlEncodedValue
         {
             get
             {
@@ -472,13 +474,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj switch
             {
                 SerializableVariant s => Equals(s),
                 Variant n => Equals(n),
-                _ => Value.Equals(obj)
+                _ => Value.Equals(obj!)
             };
         }
 
@@ -489,7 +491,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(SerializableVariant obj)
+        public bool Equals(SerializableVariant? obj)
         {
             return Value.Equals(obj?.Value ?? default);
         }
@@ -502,31 +504,33 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public static bool operator ==(
-            SerializableVariant left,
-            SerializableVariant right)
+            SerializableVariant? left,
+            SerializableVariant? right)
         {
-            return EqualityComparer<SerializableVariant>.Default.Equals(left, right);
+            if (left is null) return right is null;
+            return left.Equals(right);
         }
 
         /// <inheritdoc/>
         public static bool operator !=(
-            SerializableVariant left,
-            SerializableVariant right)
+            SerializableVariant? left,
+            SerializableVariant? right)
         {
             return !(left == right);
         }
 
         /// <inheritdoc/>
         public static bool operator ==(
-            SerializableVariant left,
+            SerializableVariant? left,
             Variant right)
         {
-            return EqualityComparer<SerializableVariant>.Default.Equals(left, right);
+            if (left is null) return right.IsNull;
+            return left.Equals(right);
         }
 
         /// <inheritdoc/>
         public static bool operator !=(
-            SerializableVariant left,
+            SerializableVariant? left,
             Variant right)
         {
             return !(left == right);
@@ -545,7 +549,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static explicit operator System.Xml.XmlElement(SerializableVariant value)
+        public static explicit operator System.Xml.XmlElement?(SerializableVariant value)
         {
             return value.XmlEncodedValue;
         }
@@ -778,28 +782,28 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         [DataMember(Name = "Locale", Order = 1)]
-        internal string XmlEncodedLocale
+        internal string? XmlEncodedLocale
         {
             get => Value.Locale;
-            set => Value = new LocalizedText(value, XmlEncodedText);
+            set => Value = new LocalizedText(value!, XmlEncodedText!);
         }
 
         /// <inheritdoc/>
         [DataMember(Name = "Text", Order = 2)]
-        internal string XmlEncodedText
+        internal string? XmlEncodedText
         {
             get => Value.Text;
-            set => Value = new LocalizedText(XmlEncodedLocale, value);
+            set => Value = new LocalizedText(XmlEncodedLocale!, value!);
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj switch
             {
                 SerializableLocalizedText s => Equals(s),
                 LocalizedText n => Equals(n),
-                _ => Value.Equals(obj)
+                _ => Value.Equals(obj!)
             };
         }
 
@@ -810,7 +814,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(SerializableLocalizedText obj)
+        public bool Equals(SerializableLocalizedText? obj)
         {
             return Value.Equals(obj?.Value ?? default);
         }
@@ -822,25 +826,25 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(SerializableLocalizedText left, SerializableLocalizedText right)
+        public static bool operator ==(SerializableLocalizedText? left, SerializableLocalizedText? right)
         {
             return left is null ? right is null : left.Equals(right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(SerializableLocalizedText left, SerializableLocalizedText right)
+        public static bool operator !=(SerializableLocalizedText? left, SerializableLocalizedText? right)
         {
             return !(left == right);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(SerializableLocalizedText left, LocalizedText right)
+        public static bool operator ==(SerializableLocalizedText? left, LocalizedText right)
         {
             return left is null ? right.IsNullOrEmpty : left.Equals(right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(SerializableLocalizedText left, LocalizedText right)
+        public static bool operator !=(SerializableLocalizedText? left, LocalizedText right)
         {
             return !(left == right);
         }
@@ -886,7 +890,7 @@ namespace Opc.Ua
         public ExtensionObject Value { get; private set; }
 
         /// <inheritdoc/>
-        public IServiceMessageContext Context { get; set; }
+        public IServiceMessageContext? Context { get; set; }
 
         /// <inheritdoc/>
         public object GetValue()
@@ -909,10 +913,10 @@ namespace Opc.Ua
                 IServiceMessageContext context =
                     Context ?? AmbientMessageContext.CurrentContext;
                 // must use the XML encoding id if encoding in an XML stream.
-                if (Value.TryGetEncodeable(out IEncodeable encodeable))
+                if (Value.TryGetEncodeable(out IEncodeable? encodeable))
                 {
                     return ExpandedNodeId.ToNodeId(
-                        encodeable.XmlEncodingId,
+                        encodeable!.XmlEncodingId,
                         context.NamespaceUris);
                 }
                 // check for null Id.
@@ -944,7 +948,7 @@ namespace Opc.Ua
             Order = 2,
             IsRequired = false,
             EmitDefaultValue = true)]
-        internal System.Xml.XmlElement XmlEncodedBody
+        internal System.Xml.XmlElement? XmlEncodedBody
         {
             get
             {
@@ -1043,13 +1047,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj switch
             {
                 SerializableExpandedNodeId s => Equals(s),
                 ExpandedNodeId n => Equals(n),
-                _ => Value.Equals(obj)
+                _ => Value.Equals(obj!)
             };
         }
 
@@ -1060,7 +1064,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(SerializableExpandedNodeId obj)
+        public bool Equals(SerializableExpandedNodeId? obj)
         {
             return Value.Equals(obj?.Value ?? default);
         }
@@ -1073,23 +1077,23 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public static bool operator ==(
-            SerializableExpandedNodeId left,
-            SerializableExpandedNodeId right)
+            SerializableExpandedNodeId? left,
+            SerializableExpandedNodeId? right)
         {
             return left is null ? right is null : left.Equals(right);
         }
 
         /// <inheritdoc/>
         public static bool operator !=(
-            SerializableExpandedNodeId left,
-            SerializableExpandedNodeId right)
+            SerializableExpandedNodeId? left,
+            SerializableExpandedNodeId? right)
         {
             return !(left == right);
         }
 
         /// <inheritdoc/>
         public static bool operator ==(
-            SerializableExpandedNodeId left,
+            SerializableExpandedNodeId? left,
             ExpandedNodeId right)
         {
             return left is null ? right.IsNull : left.Equals(right);
@@ -1097,7 +1101,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public static bool operator !=(
-            SerializableExpandedNodeId left,
+            SerializableExpandedNodeId? left,
             ExpandedNodeId right)
         {
             return !(left == right);
@@ -1164,7 +1168,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public XmlSchema GetSchema()
+        public XmlSchema? GetSchema()
         {
             return null;
         }

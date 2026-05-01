@@ -114,12 +114,12 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        if (!extensions[ii].TryGetEncodeable(out IEncodeable element))
+                        if (!extensions[ii].TryGetEncodeable(out IEncodeable? element))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
 
-                        encodeables[ii] = element;
+                        encodeables[ii] = element!;
                     }
                 }
 
@@ -138,10 +138,10 @@ namespace Opc.Ua
 
                 // check for scalar value.
                 if (value.TryGet(out ExtensionObject extension) &&
-                    extension.TryGetEncodeable(out IEncodeable encodeable))
+                    extension.TryGetEncodeable(out IEncodeable? encodeable))
                 {
                     // do conversion.
-                    value = Encode(context, encodeable, useXml);
+                    value = Encode(context, encodeable!, useXml);
                     return ServiceResult.Good;
                 }
 

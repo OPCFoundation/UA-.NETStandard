@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,7 +46,7 @@ namespace Opc.Ua
         public static NodeStateComparer Default { get; } = new();
 
         /// <inheritdoc/>
-        public bool Equals(NodeState x, NodeState y)
+        public bool Equals(NodeState? x, NodeState? y)
         {
             if (ReferenceEquals(x, y))
             {
@@ -117,7 +119,7 @@ namespace Opc.Ua
         public static SequenceEqualityComparer<T> Default { get; } = new();
 
         /// <inheritdoc/>
-        public bool Equals(T[] x, T[] y)
+        public bool Equals(T[]? x, T[]? y)
         {
             if (ReferenceEquals(x, y))
             {
@@ -156,7 +158,7 @@ namespace Opc.Ua
         public static ArrayEqualityComparer<T> Default { get; } = new();
 
         /// <inheritdoc/>
-        public bool Equals(T[] x, T[] y)
+        public bool Equals(T[]? x, T[]? y)
         {
             if (ReferenceEquals(x, y))
             {
@@ -168,7 +170,7 @@ namespace Opc.Ua
             }
             for (int i = 0; i < x.Length; i++)
             {
-                if (!x[i].Equals(y[i]))
+                if (!EqualityComparer<T>.Default.Equals(x[i], y[i]))
                 {
                     return false;
                 }
@@ -202,7 +204,7 @@ namespace Opc.Ua
         public static XmlElementArrayStringEqualityComparer Default { get; } = new();
 
         /// <inheritdoc/>
-        public bool Equals(System.Xml.XmlElement[] x, System.Xml.XmlElement[] y)
+        public bool Equals(System.Xml.XmlElement[]? x, System.Xml.XmlElement[]? y)
         {
             if (ReferenceEquals(x, y))
             {
@@ -248,7 +250,7 @@ namespace Opc.Ua
         public static XmlElementStringEqualityComparer Default { get; } = new();
 
         /// <inheritdoc/>
-        public bool Equals(System.Xml.XmlElement x, System.Xml.XmlElement y)
+        public bool Equals(System.Xml.XmlElement? x, System.Xml.XmlElement? y)
         {
             if (ReferenceEquals(x, y))
             {
@@ -264,7 +266,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int GetHashCode(System.Xml.XmlElement obj)
         {
-            return EqualityComparer<string>.Default.GetHashCode(obj?.OuterXml);
+            return EqualityComparer<string>.Default.GetHashCode(obj?.OuterXml!);
         }
     }
 
@@ -277,7 +279,7 @@ namespace Opc.Ua
         public static XmlQualifiedNameEqualityComparer Default { get; } = new();
 
         /// <inheritdoc/>
-        public bool Equals(XmlQualifiedName x, XmlQualifiedName y)
+        public bool Equals(XmlQualifiedName? x, XmlQualifiedName? y)
         {
             if (ReferenceEquals(x, y))
             {
@@ -310,7 +312,7 @@ namespace Opc.Ua
         public static RefEqualityComparer Default { get; } = new();
 
         /// <inheritdoc/>
-        public new bool Equals(object x, object y)
+        public new bool Equals(object? x, object? y)
         {
             return ReferenceEquals(x, y);
         }
@@ -333,7 +335,7 @@ namespace Opc.Ua
         public static ReferenceEqualityComparer Default { get; } = new();
 
         /// <inheritdoc/>
-        public bool Equals(IReference x, IReference y)
+        public bool Equals(IReference? x, IReference? y)
         {
             if (ReferenceEquals(x, y))
             {
