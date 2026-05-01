@@ -39,7 +39,7 @@ namespace Opc.Ua
         /// <summary>
         /// The body of the message.
         /// </summary>
-        public byte[] InvokeServiceRequest;
+        public byte[]? InvokeServiceRequest;
 
         /// <summary>
         /// Initializes an empty message.
@@ -66,7 +66,7 @@ namespace Opc.Ua
         /// <summary>
         /// The body of the message.
         /// </summary>
-        public byte[] InvokeServiceResponse { get; set; }
+        public byte[]? InvokeServiceResponse { get; set; }
 
         /// <summary>
         /// Initializes an empty message.

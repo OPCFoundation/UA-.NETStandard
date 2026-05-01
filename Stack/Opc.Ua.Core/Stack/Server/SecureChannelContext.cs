@@ -49,9 +49,9 @@ namespace Opc.Ua
             string secureChannelId,
             EndpointDescription endpointDescription,
             RequestEncoding messageEncoding,
-            byte[] clientChannelCertificate = null,
-            byte[] serverChannelCertificate = null,
-            byte[] channelThumbprint = null)
+            byte[]? clientChannelCertificate = null,
+            byte[]? serverChannelCertificate = null,
+            byte[]? channelThumbprint = null)
         {
             SecureChannelId = secureChannelId;
             EndpointDescription = endpointDescription;
@@ -82,17 +82,17 @@ namespace Opc.Ua
         /// <summary>
         /// The unique hash for the secure channel calculated during channel creation.
         /// </summary>
-        public byte[] ChannelThumbprint { get; }
+        public byte[]? ChannelThumbprint { get; }
 
         /// <summary>
         /// The client certificate used to establsih the secure channel.
         /// </summary>
-        public byte[] ClientChannelCertificate { get; }
+        public byte[]? ClientChannelCertificate { get; }
 
         /// <summary>
         /// The server certificate used to establsih the secure channel.
         /// </summary>
-        public byte[] ServerChannelCertificate { get; }
+        public byte[]? ServerChannelCertificate { get; }
     }
 
     /// <summary>

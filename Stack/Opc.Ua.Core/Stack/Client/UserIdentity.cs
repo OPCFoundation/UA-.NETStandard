@@ -197,7 +197,7 @@ namespace Opc.Ua
         [DataMember(Name = "PolicyId", IsRequired = false, Order = 10)]
         public string PolicyId
         {
-            get => m_token.Token.PolicyId;
+            get => m_token.Token.PolicyId ?? string.Empty;
             set => m_token.Token.PolicyId = value;
         }
 
@@ -225,13 +225,13 @@ namespace Opc.Ua
                 {
                     return new(null, issuedToken.IssuedTokenTypeProfileUri);
                 }
-                return field;
+                return field ?? XmlQualifiedName.Empty;
             }
             set
             {
                 if (m_token is IssuedIdentityTokenHandler issuedToken)
                 {
-                    issuedToken.IssuedTokenTypeProfileUri = value.Namespace;
+                    issuedToken.IssuedTokenTypeProfileUri = value?.Namespace;
                     return;
                 }
                 field = value;
@@ -257,7 +257,7 @@ namespace Opc.Ua
         public ArrayOf<NodeId> GrantedRoleIds => [ObjectIds.WellKnownRole_Anonymous];
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is UserIdentity identity)
             {
@@ -307,6 +307,6 @@ namespace Opc.Ua
         /// <summary>
         /// The security principal being impersonated.
         /// </summary>
-        public IPrincipal Principal { get; set; }
+        public IPrincipal? Principal { get; set; }
     }
 }

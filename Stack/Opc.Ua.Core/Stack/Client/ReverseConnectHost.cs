@@ -83,13 +83,20 @@ namespace Opc.Ua
         /// <summary>
         /// The Url which is used by the transport listener.
         /// </summary>
-        public Uri Url { get; private set; }
+        public Uri? Url { get; private set; }
 
         /// <summary>
         /// Opens a reverse listener host.
         /// </summary>
         public void Open()
         {
+            if (m_listener == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "CreateListener must be called before Open.");
+            }
+
             // create the UA listener.
             try
             {
@@ -123,14 +130,18 @@ namespace Opc.Ua
         /// </summary>
         public void Close()
         {
+            if (m_listener == null)
+            {
+                return;
+            }
             m_listener.ConnectionWaiting -= m_onConnectionWaiting;
             m_listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
             m_listener.Close();
         }
 
-        private ITransportListener m_listener;
-        private ConnectionWaitingHandlerAsync m_onConnectionWaiting;
-        private EventHandler<ConnectionStatusEventArgs> m_onConnectionStatusChanged;
+        private ITransportListener? m_listener;
+        private ConnectionWaitingHandlerAsync? m_onConnectionWaiting;
+        private EventHandler<ConnectionStatusEventArgs>? m_onConnectionStatusChanged;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
     }

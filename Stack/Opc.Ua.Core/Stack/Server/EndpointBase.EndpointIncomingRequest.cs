@@ -84,7 +84,7 @@ namespace Opc.Ua
             /// <inheritdoc/>
             public async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
-                using CancellationTokenSource timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
+                using CancellationTokenSource? timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
                     new CancellationTokenSource((int)Request.RequestHeader.TimeoutHint) : null;
 
                 using var requestLifetime = new RequestLifetime(
@@ -94,7 +94,7 @@ namespace Opc.Ua
 
                 try
                 {
-                    Activity activity = null;
+                    Activity? activity = null;
                     ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
                         .GetActivitySource();
                     if (activitySource.HasListeners())
@@ -133,7 +133,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public void OperationCompleted(IServiceResponse response, ServiceResult error)
+            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
             {
                 if (ServiceResult.IsBad(error))
                 {
@@ -141,12 +141,12 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    m_vts.SetResult(response);
+                    m_vts.SetResult(response!);
                 }
             }
 
             /// <inheritdoc/>
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 if (obj is EndpointIncomingRequest other)
                 {

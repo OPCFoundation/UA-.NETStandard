@@ -192,7 +192,7 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the status of a monitored connection changes.
         /// </summary>
-        public event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
+        public event EventHandler<ConnectionStatusEventArgs>? ConnectionStatusChanged;
 
         /// <summary>
         /// Raised when a connection arrives and is waiting for a callback.
@@ -208,7 +208,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentException"></exception>
         public void CreateConnection(Uri url, int timeout)
         {
-            ITransportListener listener = null;
+            ITransportListener? listener = null;
 
             m_logger.LogInformation("Create Reverse Connection to Client at {Url}.", url);
 
@@ -270,7 +270,7 @@ namespace Opc.Ua
             IList<ServiceHost> hosts = InitializeServiceHosts(
                 configuration,
                 bindingFactory,
-                out ApplicationDescription serverDescription,
+                out ApplicationDescription? serverDescription,
                 out ArrayOf<EndpointDescription> endpoints);
 
             // save discovery information.
@@ -537,7 +537,7 @@ namespace Opc.Ua
             }
 
             // close and dispose any listeners.
-            List<ITransportListener> listeners = TransportListeners;
+            List<ITransportListener>? listeners = TransportListeners;
 
             if (listeners != null)
             {
@@ -586,7 +586,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an instance of the service host.
         /// </summary>
-        public virtual ServiceHost CreateServiceHost(ServerBase server, params Uri[] addresses)
+        public virtual ServiceHost? CreateServiceHost(ServerBase server, params Uri[] addresses)
         {
             return null;
         }
@@ -655,28 +655,28 @@ namespace Opc.Ua
             /// <summary>
             /// The URL for the base address.
             /// </summary>
-            public Uri Url { get; set; }
+            public required Uri Url { get; set; }
 
             /// <summary>
             /// Alternate URLs for the base address.
             /// </summary>
-            public List<Uri> AlternateUrls { get; set; }
+            public List<Uri>? AlternateUrls { get; set; }
 
             /// <summary>
             /// The profile URL for the address.
             /// </summary>
-            public string ProfileUri { get; set; }
+            public string? ProfileUri { get; set; }
 
             /// <summary>
             /// The discovery URL for the address.
             /// </summary>
-            public Uri DiscoveryUrl { get; set; }
+            public Uri? DiscoveryUrl { get; set; }
         }
 
         /// <summary>
         /// Gets the list of base addresses supported by the server.
         /// </summary>
-        protected IList<BaseAddress> BaseAddresses { get; set; }
+        protected IList<BaseAddress> BaseAddresses { get; set; } = [];
 
         /// <summary>
         /// Gets the list of endpoints supported by the server.
@@ -687,13 +687,13 @@ namespace Opc.Ua
         /// The object used to verify client certificates
         /// </summary>
         /// <value>The identifier for an X509 certificate.</value>
-        public CertificateValidator CertificateValidator { get; private set; }
+        public CertificateValidator? CertificateValidator { get; private set; }
 
         /// <summary>
         /// The server's application instance certificate types provider.
         /// </summary>
         /// <value>The provider for the X.509 certificates.</value>
-        public CertificateTypesProvider InstanceCertificateTypesProvider { get; private set; }
+        public CertificateTypesProvider? InstanceCertificateTypesProvider { get; private set; }
 
         /// <summary>
         /// Gets or sets the encodeable factory to use for this server instance.
@@ -709,25 +709,25 @@ namespace Opc.Ua
         /// during server startup.
         /// </para>
         /// </remarks>
-        public IEncodeableFactory PrivateEncodeableFactory { get; set; }
+        public IEncodeableFactory? PrivateEncodeableFactory { get; set; }
 
         /// <summary>
         /// The non-configurable properties for the server.
         /// </summary>
         /// <value>The properties of the current server instance.</value>
-        protected ServerProperties ServerProperties { get; private set; }
+        protected ServerProperties? ServerProperties { get; private set; }
 
         /// <summary>
         /// The configuration for the server.
         /// </summary>
         /// <value>Object that stores the configurable configuration information for a UA application</value>
-        protected ApplicationConfiguration Configuration { get; private set; }
+        protected ApplicationConfiguration? Configuration { get; private set; }
 
         /// <summary>
         /// The application description for the server.
         /// </summary>
         /// <value>Object that contains a description for the ApplicationDescription DataType.</value>
-        protected ApplicationDescription ServerDescription { get; private set; }
+        protected ApplicationDescription? ServerDescription { get; private set; }
 
         /// <summary>
         /// Gets the list of service hosts used by the server instance.
@@ -755,7 +755,7 @@ namespace Opc.Ua
         /// Returns the service contract to use.
         /// </summary>
         [Obsolete("WCF not supported in this version.")]
-        protected virtual Type GetServiceContract()
+        protected virtual Type? GetServiceContract()
         {
             return null;
         }
@@ -763,7 +763,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an instance of the endpoint to use.
         /// </summary>
-        protected virtual EndpointBase GetEndpointInstance(ServerBase server)
+        protected virtual EndpointBase? GetEndpointInstance(ServerBase server)
         {
             return null;
         }

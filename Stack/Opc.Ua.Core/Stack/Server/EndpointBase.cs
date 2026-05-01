@@ -126,6 +126,11 @@ namespace Opc.Ua
             NodeId authenticationToken,
             out uint channelId)
         {
+            if (m_server == null)
+            {
+                channelId = 0;
+                return false;
+            }
             return m_server.TryGetSecureChannelIdForAuthenticationToken(
                 authenticationToken,
                 out channelId);
@@ -341,7 +346,7 @@ namespace Opc.Ua
         /// <summary>
         /// Find the endpoint description for the endpoint.
         /// </summary>
-        protected EndpointDescription GetEndpointDescription()
+        protected EndpointDescription? GetEndpointDescription()
         {
             return null;
         }
@@ -369,7 +374,7 @@ namespace Opc.Ua
         /// <param name="request"></param>
         /// <param name="exception"></param>
         /// <returns></returns>
-        protected ServiceFault CreateFault(IServiceRequest request, Exception exception)
+        protected ServiceFault CreateFault(IServiceRequest? request, Exception exception)
         {
             return CreateFault(m_logger, request, exception);
         }
@@ -381,7 +386,7 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <param name="exception">The exception.</param>
         /// <returns>A fault message.</returns>
-        public static ServiceFault CreateFault(ILogger logger, IServiceRequest request, Exception exception)
+        public static ServiceFault CreateFault(ILogger logger, IServiceRequest? request, Exception exception)
         {
             DiagnosticsMasks diagnosticsMask = DiagnosticsMasks.ServiceNoInnerStatus;
 
@@ -462,13 +467,13 @@ namespace Opc.Ua
         /// Returns the description for the endpoint
         /// </summary>
         /// <value>The endpoint description.</value>
-        protected EndpointDescription EndpointDescription { get; set; }
+        protected EndpointDescription? EndpointDescription { get; set; }
 
         /// <summary>
         /// Returns the error of the server.
         /// </summary>
         /// <value>The server error.</value>
-        protected ServiceResult ServerError { get; set; }
+        protected ServiceResult? ServerError { get; set; }
 
         /// <summary>
         /// The types of services known to the server.
@@ -522,7 +527,7 @@ namespace Opc.Ua
         protected ILogger m_logger { get; } = LoggerUtils.Null.Logger;
 #pragma warning restore IDE1006 // Naming Styles
 
-        private IServiceHostBase m_host;
-        private IServerBase m_server;
+        private IServiceHostBase? m_host;
+        private IServerBase? m_server;
     }
 }

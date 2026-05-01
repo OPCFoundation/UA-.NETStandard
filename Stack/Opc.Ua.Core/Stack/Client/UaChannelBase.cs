@@ -50,8 +50,8 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            X509Certificate2? clientCertificate,
+            X509Certificate2Collection? clientCertificateChain,
             IServiceMessageContext messageContext,
             CancellationToken ct = default)
         {
@@ -82,8 +82,8 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            X509Certificate2? clientCertificate,
+            X509Certificate2Collection? clientCertificateChain,
             IServiceMessageContext messageContext,
             CancellationToken ct = default)
         {
@@ -111,7 +111,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
+            X509Certificate2? clientCertificate,
             IServiceMessageContext messageContext,
             CancellationToken ct = default)
         {
@@ -134,8 +134,8 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            X509Certificate2? clientCertificate,
+            X509Certificate2Collection? clientCertificateChain,
             IServiceMessageContext messageContext)
         {
             return CreateUaBinaryChannelAsync(
@@ -157,7 +157,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
+            X509Certificate2? clientCertificate,
             IServiceMessageContext messageContext)
         {
             return CreateUaBinaryChannelAsync(
@@ -177,8 +177,8 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            X509Certificate2? clientCertificate,
+            X509Certificate2Collection? clientCertificateChain,
             IServiceMessageContext messageContext)
         {
             return CreateUaBinaryChannelAsync(
