@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System.Xml;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -46,7 +48,7 @@ namespace Opc.Ua.Schema.Types
         /// </summary>
         public TypeDictionaryValidator(
             IFileSystem fileSystem,
-            IDictionary<string, string> namespaceUriToLocationMapping = null)
+            IDictionary<string, string>? namespaceUriToLocationMapping = null)
             : base(
                   fileSystem,
                   namespaceUriToLocationMapping,
@@ -57,7 +59,7 @@ namespace Opc.Ua.Schema.Types
         /// <summary>
         /// The dictionary that was validated.
         /// </summary>
-        public TypeDictionary Dictionary { get; private set; }
+        public TypeDictionary? Dictionary { get; private set; }
 
         /// <summary>
         /// Get loaded dictionaries
@@ -68,9 +70,9 @@ namespace Opc.Ua.Schema.Types
         /// <summary>
         /// Finds the data type with the specified name.
         /// </summary>
-        public DataType FindType(XmlQualifiedName typeName)
+        public DataType? FindType(XmlQualifiedName typeName)
         {
-            if (!m_datatypes.TryGetValue(typeName, out DataType dataType))
+            if (!m_datatypes!.TryGetValue(typeName, out DataType? dataType))
             {
                 return null;
             }
@@ -82,14 +84,14 @@ namespace Opc.Ua.Schema.Types
         /// Finds the concrete type identified by the type name (i.e. resolves
         /// any type definitions).
         /// </summary>
-        public DataType ResolveType(XmlQualifiedName typeName)
+        public DataType? ResolveType(XmlQualifiedName typeName)
         {
             if (IsNull(typeName))
             {
                 return null;
             }
 
-            if (!m_datatypes.TryGetValue(typeName, out DataType dataType))
+            if (!m_datatypes!.TryGetValue(typeName, out DataType? dataType))
             {
                 return null;
             }
@@ -105,7 +107,7 @@ namespace Opc.Ua.Schema.Types
         /// <summary>
         /// Tests whether the type is excluded
         /// </summary>
-        public static bool IsExcluded(IReadOnlyList<string> exclusions, DataType datatype)
+        public static bool IsExcluded(IReadOnlyList<string>? exclusions, DataType datatype)
         {
             if (exclusions != null)
             {
@@ -135,7 +137,7 @@ namespace Opc.Ua.Schema.Types
         /// <summary>
         /// Tests whether the type is excluded
         /// </summary>
-        public static bool IsExcluded(IReadOnlyList<string> exclusions, EnumeratedValue value)
+        public static bool IsExcluded(IReadOnlyList<string>? exclusions, EnumeratedValue value)
         {
             if (exclusions != null)
             {
@@ -154,7 +156,7 @@ namespace Opc.Ua.Schema.Types
         /// <summary>
         /// Tests whether the type is excluded
         /// </summary>
-        public static bool IsExcluded(IReadOnlyList<string> exclusions, FieldType field)
+        public static bool IsExcluded(IReadOnlyList<string>? exclusions, FieldType field)
         {
             if (exclusions != null)
             {
@@ -201,7 +203,7 @@ namespace Opc.Ua.Schema.Types
             }
 
             // import types from target dictionary.
-            foreach (DataType datatype in Dictionary.Items)
+            foreach (DataType datatype in Dictionary.Items!)
             {
                 ImportDataType(datatype, Dictionary.TargetNamespace);
             }
@@ -223,7 +225,7 @@ namespace Opc.Ua.Schema.Types
         private void Import(ImportDirective directive)
         {
             // check if already loaded.
-            if (LoadedFiles.ContainsKey(directive.Namespace))
+            if (LoadedFiles.ContainsKey(directive.Namespace!))
             {
                 return;
             }
@@ -243,7 +245,7 @@ namespace Opc.Ua.Schema.Types
             }
 
             // save file.
-            LoadedFiles.Add(dictionary.TargetNamespace, dictionary);
+            LoadedFiles.Add(dictionary.TargetNamespace!, dictionary);
 
             // import nested dictionaries.
             if (dictionary.Import != null)
@@ -267,14 +269,14 @@ namespace Opc.Ua.Schema.Types
         /// <summary>
         /// Checks if a string is a valid part of a qname.
         /// </summary>
-        private static bool IsValidName(string name)
+        private static bool IsValidName(string? name)
         {
             if (string.IsNullOrEmpty(name))
             {
                 return false;
             }
 
-            if (!char.IsLetter(name[0]) && name[0] != '_')
+            if (!char.IsLetter(name![0]) && name[0] != '_')
             {
                 return false;
             }
@@ -300,7 +302,7 @@ namespace Opc.Ua.Schema.Types
         /// <summary>
         /// Imports a datatype.
         /// </summary>
-        private void ImportDataType(DataType datatype, string targetNamespace)
+        private void ImportDataType(DataType datatype, string? targetNamespace)
         {
             if (datatype == null)
             {
@@ -314,7 +316,7 @@ namespace Opc.Ua.Schema.Types
 
             datatype.QName = new XmlQualifiedName(datatype.Name, targetNamespace);
 
-            if (m_datatypes.ContainsKey(datatype.QName))
+            if (m_datatypes!.ContainsKey(datatype.QName))
             {
                 throw Exception(
                     "The datatype name '{0}' already used by another datatype.",
@@ -360,7 +362,7 @@ namespace Opc.Ua.Schema.Types
                 }
             }
 
-            m_datatypes.Add(datatype.QName, datatype);
+            m_datatypes!.Add(datatype.QName, datatype);
         }
 
         /// <summary>
@@ -397,7 +399,7 @@ namespace Opc.Ua.Schema.Types
         /// </summary>
         private void ValidateBaseType(
             ComplexType complexType,
-            XmlQualifiedName baseType,
+            XmlQualifiedName? baseType,
             Dictionary<string, FieldType> fields)
         {
             if (IsNull(baseType))
@@ -415,9 +417,9 @@ namespace Opc.Ua.Schema.Types
 
             ValidateBaseType(complexType, parentType.BaseType, fields);
 
-            for (int ii = 0; ii < parentType.Field.Length; ii++)
+            for (int ii = 0; ii < parentType.Field!.Length; ii++)
             {
-                fields.Add(parentType.Field[ii].Name, parentType.Field[ii]);
+                fields.Add(parentType.Field[ii].Name!, parentType.Field[ii]);
             }
         }
 
@@ -433,7 +435,7 @@ namespace Opc.Ua.Schema.Types
                     declaration.Name);
             }
 
-            if (!m_datatypes.TryGetValue(declaration.SourceType, out DataType dataType))
+            if (!m_datatypes!.TryGetValue(declaration.SourceType, out DataType? dataType))
             {
                 throw Exception(
                     "Cannot find a concrete source type '{1}' for the type declaration '{0}'",
@@ -498,7 +500,7 @@ namespace Opc.Ua.Schema.Types
             Dictionary<string, FieldType> fields,
             FieldType field)
         {
-            if (fields.ContainsKey(field.Name))
+            if (fields.ContainsKey(field.Name!))
             {
                 throw Exception(
                     "The field '{1}' in complex type '{0}' already exists",
@@ -541,7 +543,7 @@ namespace Opc.Ua.Schema.Types
                 }
             }
 
-            fields.Add(field.Name, field);
+            fields.Add(field.Name!, field);
         }
 
         /// <summary>
@@ -563,7 +565,7 @@ namespace Opc.Ua.Schema.Types
             {
                 EnumeratedValue value = enumeratedType.Value[ii];
 
-                if (values.ContainsKey(value.Name))
+                if (values.ContainsKey(value.Name!))
                 {
                     throw Exception(
                         "The enumerated type '{0}' has a duplicate value '{1}'.",
@@ -581,7 +583,7 @@ namespace Opc.Ua.Schema.Types
                     nextIndex = value.Value + 1;
                 }
 
-                values.Add(value.Name, value);
+                values.Add(value.Name!, value);
             }
         }
 
@@ -600,7 +602,7 @@ namespace Opc.Ua.Schema.Types
                 {
                     var dictionary = new Dictionary<string, byte[]>();
                     using Stream stream = typeof(TypeDictionaryValidator).Assembly
-                        .GetManifestResourceStream("Opc.Ua.Schema.BuiltInTypes.xml");
+                        .GetManifestResourceStream("Opc.Ua.Schema.BuiltInTypes.xml")!;
                     using var ms = new MemoryStream();
                     stream.CopyTo(ms);
                     dictionary[Opc.Ua.Types.Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
@@ -610,6 +612,6 @@ namespace Opc.Ua.Schema.Types
             }
         }
 
-        private Dictionary<XmlQualifiedName, DataType> m_datatypes;
+        private Dictionary<XmlQualifiedName, DataType>? m_datatypes;
     }
 }

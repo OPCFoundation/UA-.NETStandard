@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -49,8 +51,8 @@ namespace Opc.Ua.Schema.Binary
         /// Intializes the object with a file table.
         /// </summary>
         public BinarySchemaValidator(
-            IFileSystem fileSystem = null,
-            IDictionary<string, string> knownFiles = null)
+            IFileSystem? fileSystem = null,
+            IDictionary<string, string>? knownFiles = null)
             : base(fileSystem, knownFiles, StandardTypeImports)
         {
         }
@@ -66,17 +68,17 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// The dictionary that was validated.
         /// </summary>
-        public TypeDictionary Dictionary { get; private set; }
+        public TypeDictionary? Dictionary { get; private set; }
 
         /// <summary>
         /// The types defined in the dictionary.
         /// </summary>
-        public IList<TypeDescription> ValidatedDescriptions => m_validatedDescriptions;
+        public IList<TypeDescription> ValidatedDescriptions => m_validatedDescriptions!;
 
         /// <summary>
         /// Any warnings during validation.
         /// </summary>
-        public ICollection<string> Warnings => m_warnings;
+        public ICollection<string> Warnings => m_warnings!;
 
         /// <summary>
         /// Generates the code from the contents of the address space.
@@ -109,7 +111,7 @@ namespace Opc.Ua.Schema.Binary
             Justification = "XmlSerializer is used with known schema types at design time.")]
         [UnconditionalSuppressMessage("AOT", "IL3050",
             Justification = "XmlSerializer is used with known schema types at design time.")]
-        public override string GetSchema(string typeName)
+        public override string GetSchema(string? typeName)
         {
             XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
 
@@ -123,9 +125,9 @@ namespace Opc.Ua.Schema.Binary
                     var serializer = new XmlSerializer(typeof(TypeDictionary));
                     serializer.Serialize(writer, Dictionary);
                 }
-                else if (!m_descriptions.TryGetValue(
-                        new XmlQualifiedName(typeName, Dictionary.TargetNamespace),
-                        out TypeDescription description))
+                else if (!m_descriptions!.TryGetValue(
+                        new XmlQualifiedName(typeName, Dictionary!.TargetNamespace),
+                        out TypeDescription? description))
                 {
                     var serializer = new XmlSerializer(typeof(TypeDictionary));
                     serializer.Serialize(writer, Dictionary);
@@ -155,7 +157,7 @@ namespace Opc.Ua.Schema.Binary
             m_warnings = [];
 
             // import types from referenced dictionaries.
-            if (Dictionary.Import != null)
+            if (Dictionary!.Import != null)
             {
                 foreach (ImportDirective directive in Dictionary.Import)
                 {
@@ -204,10 +206,10 @@ namespace Opc.Ua.Schema.Binary
             Justification = "XmlSerializer is used with known schema types at design time.")]
         [UnconditionalSuppressMessage("AOT", "IL3050",
             Justification = "XmlSerializer is used with known schema types at design time.")]
-        private void Import(string location, string namespaceUri)
+        private void Import(string? location, string? namespaceUri)
         {
             // check if already loaded.
-            if (LoadedFiles.ContainsKey(namespaceUri))
+            if (LoadedFiles.ContainsKey(namespaceUri!))
             {
                 return;
             }
@@ -225,7 +227,7 @@ namespace Opc.Ua.Schema.Binary
             }
 
             // save file.
-            LoadedFiles.Add(dictionary.TargetNamespace, dictionary);
+            LoadedFiles.Add(dictionary.TargetNamespace!, dictionary);
 
             // import nested dictionaries.
             if (dictionary.Import != null)
@@ -250,7 +252,7 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Returns true if the documentation element is empty.
         /// </summary>
-        private static bool IsNull([NotNullWhen(false)] Documentation documentation)
+        private static bool IsNull([NotNullWhen(false)] Documentation? documentation)
         {
             if (documentation == null)
             {
@@ -276,7 +278,7 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         private bool IsIntegerType(FieldType field)
         {
-            if (!m_descriptions.TryGetValue(field.TypeName, out TypeDescription description))
+            if (!m_descriptions!.TryGetValue(field.TypeName!, out TypeDescription? description))
             {
                 return false;
             }
@@ -299,7 +301,7 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         private int GetFieldLength(FieldType field)
         {
-            if (!m_descriptions.TryGetValue(field.TypeName, out TypeDescription description))
+            if (!m_descriptions!.TryGetValue(field.TypeName!, out TypeDescription? description))
             {
                 return -1;
             }
@@ -334,14 +336,14 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Checks if a string is a valid part of a qname.
         /// </summary>
-        private static bool IsValidName(string name)
+        private static bool IsValidName(string? name)
         {
             if (string.IsNullOrEmpty(name))
             {
                 return false;
             }
 
-            if (!char.IsLetter(name[0]) && name[0] != '_' && name[0] != '"')
+            if (!char.IsLetter(name![0]) && name[0] != '_' && name[0] != '"')
             {
                 return false;
             }
@@ -379,7 +381,7 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Imports a type description.
         /// </summary>
-        private void ImportDescription(TypeDescription description, string targetNamespace)
+        private void ImportDescription(TypeDescription description, string? targetNamespace)
         {
             if (description == null)
             {
@@ -393,7 +395,7 @@ namespace Opc.Ua.Schema.Binary
 
             description.QName = new XmlQualifiedName(description.Name, targetNamespace);
 
-            if (m_descriptions.ContainsKey(description.QName))
+            if (m_descriptions!.ContainsKey(description.QName))
             {
                 throw Exception(
                     "The description name '{0}' already used by another description.",
@@ -412,7 +414,7 @@ namespace Opc.Ua.Schema.Binary
             {
                 if (!opaque.LengthInBitsSpecified)
                 {
-                    m_warnings.Add(
+                    m_warnings!.Add(
                         string.Format(
                             CultureInfo.InvariantCulture,
                             "Warning: The opaque type '{0}' does not have a length specified.",
@@ -421,7 +423,7 @@ namespace Opc.Ua.Schema.Binary
 
                 if (IsNull(opaque.Documentation))
                 {
-                    m_warnings.Add(
+                    m_warnings!.Add(
                         string.Format(
                             CultureInfo.InvariantCulture,
                             "Warning: The opaque type '{0}' does not have any documentation.",
@@ -472,7 +474,7 @@ namespace Opc.Ua.Schema.Binary
                         bitCount += fieldLength;
                     }
 
-                    fields.Add(field.Name, field);
+                    fields.Add(field.Name!, field);
                 }
             }
         }
@@ -492,7 +494,7 @@ namespace Opc.Ua.Schema.Binary
                     description.Name);
             }
 
-            if (fields.ContainsKey(field.Name))
+            if (fields.ContainsKey(field.Name!))
             {
                 throw Exception(
                     "The structured type '{0}' has a duplicate field name '{1}'.",
@@ -508,7 +510,7 @@ namespace Opc.Ua.Schema.Binary
                     description.Name);
             }
 
-            if (!m_descriptions.ContainsKey(field.TypeName))
+            if (!m_descriptions!.ContainsKey(field.TypeName))
             {
                 throw Exception(
                     "Field '{0}' in structured type '{1}' has an unrecognized type '{2}'.",
@@ -519,7 +521,7 @@ namespace Opc.Ua.Schema.Binary
 
             if (!string.IsNullOrEmpty(field.LengthField))
             {
-                if (!fields.TryGetValue(field.LengthField, out FieldType value))
+                if (!fields.TryGetValue(field.LengthField!, out FieldType? value))
                 {
                     throw Exception(
                         "Field '{0}' in structured type '{1}' references an unknownn length field '{2}'.",
@@ -540,7 +542,7 @@ namespace Opc.Ua.Schema.Binary
 
             if (!string.IsNullOrEmpty(field.SwitchField))
             {
-                if (!fields.TryGetValue(field.SwitchField, out FieldType value))
+                if (!fields.TryGetValue(field.SwitchField!, out FieldType? value))
                 {
                     throw Exception(
                         "Field '{0}' in structured type '{1}' references an unknownn switch field '{2}'.",
@@ -593,14 +595,14 @@ namespace Opc.Ua.Schema.Binary
                     var dictionary = new Dictionary<string, byte[]>();
                     Assembly resourceAssembly = typeof(TypeDictionaryValidator).Assembly;
                     using (Stream stream = resourceAssembly.GetManifestResourceStream(
-                        "Opc.Ua.Schema.BuiltInTypes.bsd"))
+                        "Opc.Ua.Schema.BuiltInTypes.bsd")!)
                     using (var ms = new MemoryStream())
                     {
                         stream.CopyTo(ms);
                         dictionary[Opc.Ua.Types.Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
                     }
                     using (Stream stream = resourceAssembly.GetManifestResourceStream(
-                      "Opc.Ua.Schema.StandardTypes.bsd"))
+                      "Opc.Ua.Schema.StandardTypes.bsd")!)
                     using (var ms = new MemoryStream())
                     {
                         stream.CopyTo(ms);
@@ -612,8 +614,8 @@ namespace Opc.Ua.Schema.Binary
             }
         }
 
-        private Dictionary<XmlQualifiedName, TypeDescription> m_descriptions;
-        private List<TypeDescription> m_validatedDescriptions;
-        private List<string> m_warnings;
+        private Dictionary<XmlQualifiedName, TypeDescription>? m_descriptions;
+        private List<TypeDescription>? m_validatedDescriptions;
+        private List<string>? m_warnings;
     }
 }
