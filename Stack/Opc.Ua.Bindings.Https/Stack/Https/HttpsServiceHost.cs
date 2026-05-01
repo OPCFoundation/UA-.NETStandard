@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
@@ -113,7 +115,7 @@ namespace Opc.Ua.Bindings
 
                 uris.Add(uri.Uri);
 
-                ServerSecurityPolicy bestPolicy = null;
+                ServerSecurityPolicy? bestPolicy = null;
                 bool httpsMutualTls = configuration.ServerConfiguration.HttpsMutualTls;
                 if (!httpsMutualTls)
                 {

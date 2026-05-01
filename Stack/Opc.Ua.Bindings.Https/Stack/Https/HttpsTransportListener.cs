@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.IO;
 using System.Net;
@@ -176,9 +178,9 @@ namespace Opc.Ua.Bindings
         public string UriScheme { get; }
 
         /// <inheritdoc/>
-        public string ListenerId { get; private set; }
+        public string ListenerId { get; private set; } = string.Empty;
 
-        internal byte[] ServerChannelCertificate { get; set; }
+        internal byte[] ServerChannelCertificate { get; set; } = [];
 
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -243,12 +245,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Raised when a new connection is waiting for a client.
         /// </summary>
-        public event ConnectionWaitingHandlerAsync ConnectionWaiting;
+        public event ConnectionWaitingHandlerAsync? ConnectionWaiting;
 
         /// <summary>
         /// Raised when a monitored connection's status changed.
         /// </summary>
-        public event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
+        public event EventHandler<ConnectionStatusEventArgs>? ConnectionStatusChanged;
 #pragma warning restore CS0414
 
         /// <inheritdoc/>
@@ -270,7 +272,7 @@ namespace Opc.Ua.Bindings
         /// Gets the URL for the listener's endpoint.
         /// </summary>
         /// <value>The URL for the listener's endpoint.</value>
-        public Uri EndpointUrl { get; private set; }
+        public Uri EndpointUrl { get; private set; } = null!;
 
         /// <summary>
         /// Starts listening at the specified port.
@@ -390,7 +392,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                int length = (int)context.Request.ContentLength;
+                int length = (int)(context.Request.ContentLength ?? 0);
                 byte[] buffer = await ReadBodyAsync(context.Request).ConfigureAwait(false);
 
                 if (buffer.Length != length)
@@ -435,9 +437,9 @@ namespace Opc.Ua.Bindings
                         kAuthorizationKey,
                         out Microsoft.Extensions.Primitives.StringValues keys))
                 {
-                    foreach (string value in keys)
+                    foreach (string? value in keys)
                     {
-                        if (value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
+                        if (value != null && value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
                         {
                             // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
                             input.RequestHeader.AuthenticationToken = new NodeId(
@@ -454,7 +456,7 @@ namespace Opc.Ua.Bindings
                     header = SecurityPolicies.None;
                 }
 
-                EndpointDescription endpoint = null;
+                EndpointDescription? endpoint = null;
                 foreach (EndpointDescription ep in m_descriptions)
                 {
                     if (Utils.IsUriHttpsScheme(ep.EndpointUrl))
@@ -472,7 +474,7 @@ namespace Opc.Ua.Bindings
 
                 if (endpoint == null)
                 {
-                    ServiceResultException serviceResultException = null;
+                    ServiceResultException? serviceResultException = null;
                     if (input.TypeId != DataTypeIds.GetEndpointsRequest &&
                         input.TypeId != DataTypeIds.FindServersRequest &&
                         input.TypeId != DataTypeIds.FindServersOnNetworkRequest)
@@ -602,8 +604,8 @@ namespace Opc.Ua.Bindings
         /// <param name="chain">Certificate chain</param>
         /// <param name="sslPolicyErrors">SSl policy errors</param>
         private bool ValidateClientCertificate(
-            X509Certificate2 clientCertificate,
-            X509Chain chain,
+            X509Certificate2? clientCertificate,
+            X509Chain? chain,
             SslPolicyErrors sslPolicyErrors)
         {
             if (sslPolicyErrors == SslPolicyErrors.None)
@@ -624,15 +626,15 @@ namespace Opc.Ua.Bindings
             return true;
         }
 
-        private List<EndpointDescription> m_descriptions;
-        private ChannelQuotas m_quotas;
-        private ITransportListenerCallback m_callback;
+        private List<EndpointDescription> m_descriptions = null!;
+        private ChannelQuotas m_quotas = null!;
+        private ITransportListenerCallback? m_callback;
 #if NET8_0_OR_GREATER
-        private IHost m_host;
+        private IHost? m_host;
 #else
-        private IWebHost m_host;
+        private IWebHost? m_host;
 #endif
-        private CertificateTypesProvider m_serverCertProvider;
+        private CertificateTypesProvider m_serverCertProvider = null!;
         private bool m_mutualTlsEnabled;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
