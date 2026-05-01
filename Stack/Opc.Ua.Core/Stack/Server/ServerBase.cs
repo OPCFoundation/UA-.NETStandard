@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -434,7 +436,7 @@ namespace Opc.Ua
 
             foreach (BaseAddress baseAddress in BaseAddresses)
             {
-                var builder = new UriBuilder(baseAddress.DiscoveryUrl);
+                var builder = new UriBuilder(baseAddress.DiscoveryUrl!);
 
                 int index = builder.Host.IndexOf("localhost", StringComparison.OrdinalIgnoreCase);
 
@@ -769,13 +771,13 @@ namespace Opc.Ua
         /// <summary>
         /// Called after the application certificate update.
         /// </summary>
-        protected virtual async void OnCertificateUpdateAsync(object sender, CertificateUpdateEventArgs e)
+        protected virtual async void OnCertificateUpdateAsync(object? sender, CertificateUpdateEventArgs e)
         {
             try
             {
-                InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
+                InstanceCertificateTypesProvider!.Update(e.SecurityConfiguration);
 
-                ArrayOf<CertificateIdentifier> applicationCertificates = Configuration.SecurityConfiguration.ApplicationCertificates;
+                ArrayOf<CertificateIdentifier> applicationCertificates = Configuration!.SecurityConfiguration.ApplicationCertificates;
                 for (int i = 0; i < applicationCertificates.Count; i++)
                 {
                     CertificateIdentifier certificateIdentifier = applicationCertificates[i];
@@ -902,7 +904,7 @@ namespace Opc.Ua
                     }
                 }
 
-                UserTokenPolicy existingPolicy = UserTokenPolicys.FirstOrDefault(
+                UserTokenPolicy? existingPolicy = UserTokenPolicys.FirstOrDefault(
                     o => o.TokenType == clone.TokenType &&
                         string.Equals(
                             o.SecurityPolicyUri,
@@ -994,7 +996,7 @@ namespace Opc.Ua
             }
 
             // check for aliases.
-            IPHostEntry entry = null;
+            IPHostEntry? entry = null;
 
             try
             {
@@ -1431,7 +1433,7 @@ namespace Opc.Ua
             }
 
             // load the instance certificate.
-            X509Certificate2 defaultInstanceCertificate = null;
+            X509Certificate2? defaultInstanceCertificate = null;
             InstanceCertificateTypesProvider = new CertificateTypesProvider(
                 configuration,
                 m_telemetry);
@@ -1519,7 +1521,7 @@ namespace Opc.Ua
         protected virtual IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
             ITransportListenerBindings bindingFactory,
-            out ApplicationDescription serverDescription,
+            out ApplicationDescription? serverDescription,
             out ArrayOf<EndpointDescription> endpoints)
         {
             serverDescription = null;
@@ -1596,7 +1598,7 @@ namespace Opc.Ua
         protected ILogger m_logger { get; }
 #pragma warning restore IDE1006 // Naming Styles
 
-        private IServiceMessageContext m_messageContext;
+        private IServiceMessageContext? m_messageContext;
         private RequestQueue m_requestQueue;
         private readonly ITelemetryContext m_telemetry;
 

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -121,7 +123,7 @@ namespace Opc.Ua
                     m_queue.Writer.Complete();
 
                     // drain any remaining requests from the queue
-                    while (m_queue.Reader.TryRead(out IEndpointIncomingRequest request))
+                    while (m_queue.Reader.TryRead(out IEndpointIncomingRequest? request))
                     {
                         request.OperationCompleted(null, StatusCodes.BadServerHalted);
                     }
@@ -196,7 +198,7 @@ namespace Opc.Ua
                 {
                     while (await m_queue.Reader.WaitToReadAsync(ct).ConfigureAwait(false))
                     {
-                        while (m_queue.Reader.TryRead(out IEndpointIncomingRequest request))
+                        while (m_queue.Reader.TryRead(out IEndpointIncomingRequest? request))
                         {
                             try
                             {
