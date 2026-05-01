@@ -150,12 +150,12 @@ namespace Opc.Ua
         /// <summary>
         /// The namespace that qualifies symbolic identifier.
         /// </summary>
-        public string NamespaceUri => Result.NamespaceUri;
+        public string? NamespaceUri => Result.NamespaceUri;
 
         /// <summary>
         /// The qualified name of the symbolic identifier associated with the status code.
         /// </summary>
-        public string SymbolicId => Result.SymbolicId;
+        public string? SymbolicId => Result.SymbolicId;
 
         /// <summary>
         /// The localized description for the status code.
@@ -165,12 +165,12 @@ namespace Opc.Ua
         /// <summary>
         /// Additional diagnostic/debugging information associated with the operation.
         /// </summary>
-        public string AdditionalInfo => Result.AdditionalInfo;
+        public string? AdditionalInfo => Result.AdditionalInfo;
 
         /// <summary>
         /// Nested error information.
         /// </summary>
-        public ServiceResult InnerResult => Result.InnerResult;
+        public ServiceResult? InnerResult => Result.InnerResult;
 
         /// <summary>
         /// Returns the status result associated with the exception.

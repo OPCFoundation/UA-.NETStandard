@@ -639,8 +639,8 @@ namespace Opc.Ua
             /// <inheritdoc/>
             public bool TryGetSymbol(int value, out string? symbol)
             {
-                object enumValue = EnumHelper.Int32ToEnum(value, Type);
-                symbol = Enum.GetName(Type, enumValue);
+                object? enumValue = EnumHelper.Int32ToEnum(value, Type);
+                symbol = enumValue != null ? Enum.GetName(Type, enumValue) : null;
                 return symbol != null;
             }
 

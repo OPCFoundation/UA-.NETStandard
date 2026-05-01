@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -47,8 +49,8 @@ namespace Opc.Ua
         /// </remarks>
         LocalizedText Translate(
             ArrayOf<string> preferredLocales,
-            string key,
-            string text,
+            string? key,
+            string? text,
             params object[] args);
 
         /// <summary>
@@ -90,9 +92,9 @@ namespace Opc.Ua
         /// Creates from a key and a text.
         /// </summary>
         public TranslationInfo(
-            string key,
-            string locale,
-            string text)
+            string? key,
+            string? locale,
+            string? text)
             : this(key, locale, text, null)
         {
         }
@@ -101,10 +103,10 @@ namespace Opc.Ua
         /// Creates from a key with text and format arguements.
         /// </summary>
         public TranslationInfo(
-            string key,
-            string locale,
-            string format,
-            params object[] args)
+            string? key,
+            string? locale,
+            string? format,
+            params object[]? args)
         {
             Key = string.IsNullOrEmpty(key) ? null : key;
             Locale = string.IsNullOrEmpty(locale) ? null : locale;
@@ -130,24 +132,24 @@ namespace Opc.Ua
         /// The key used to look up translations in the translation
         /// manager.
         /// </summary>
-        public string Key { get; init; }
+        public string? Key { get; init; }
 
         /// <summary>
         /// The default locale for the text should nothing be found.
         /// </summary>
-        public string Locale { get; init; }
+        public string? Locale { get; init; }
 
         /// <summary>
         /// The text to translate which acts as fallback for a
         /// missing text.
         /// The text can be a format string if Args are provided.
         /// </summary>
-        public string Text { get; init; }
+        public string? Text { get; init; }
 
         /// <summary>
         /// The arguments that are used when formatting the text
         /// after translation.
         /// </summary>
-        public object[] Args { get; init; }
+        public object[]? Args { get; init; }
     }
 }

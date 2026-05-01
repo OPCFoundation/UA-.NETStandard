@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Diagnostics.CodeAnalysis;
 #if NET8_0_OR_GREATER
@@ -225,7 +227,7 @@ namespace Opc.Ua
             // Convert array of enum values to array of int values
             for (int i = 0; i < values.Length; i++)
             {
-                array[i] = (int)values.GetValue(i);
+                array[i] = (int)values.GetValue(i)!;
             }
             return array;
         }
@@ -265,7 +267,7 @@ namespace Opc.Ua
         /// <summary>
         /// Cast to enum
         /// </summary>
-        public static object Int32ToEnum(int value, Type type)
+        public static object? Int32ToEnum(int value, Type type)
         {
             if (type == typeof(int))
             {
@@ -321,7 +323,7 @@ namespace Opc.Ua
             "Array.CreateInstance is used with potentially unknown enum types.")]
         [RequiresDynamicCode(
             "Array.CreateInstance is used with potentially unknown enum types.")]
-        public static Array Int32ArrayToEnumArray(ArrayOf<int> values, Type type)
+        public static Array? Int32ArrayToEnumArray(ArrayOf<int> values, Type type)
         {
             if (values.IsNull)
             {
@@ -347,7 +349,7 @@ namespace Opc.Ua
             "Array.CreateInstance is used with potentially unknown enum types.")]
         [RequiresDynamicCode(
             "Array.CreateInstance is used with potentially unknown enum types.")]
-        public static Array Int32MatrixToEnumArray(MatrixOf<int> values, Type type)
+        public static Array? Int32MatrixToEnumArray(MatrixOf<int> values, Type type)
         {
             if (values.IsNull)
             {

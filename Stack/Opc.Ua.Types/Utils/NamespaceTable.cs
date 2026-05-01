@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -70,6 +72,7 @@ namespace Opc.Ua
         /// <param name="table"></param>
         public StringTable(StringTable table)
         {
+            m_strings = [];
             Update(table.m_strings);
 #if DEBUG
             InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
@@ -81,6 +84,7 @@ namespace Opc.Ua
         /// </summary>
         public StringTable(IEnumerable<string> strings)
         {
+            m_strings = [];
             Update(strings);
 
 #if DEBUG
@@ -156,7 +160,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the namespace uri at the specified index.
         /// </summary>
-        public string GetString(uint index)
+        public string? GetString(uint index)
         {
             lock (m_syncRoot)
             {
@@ -262,7 +266,7 @@ namespace Opc.Ua
         /// <param name="source">The string table to map.</param>
         /// <param name="updateTable">if set to <c>true</c> if missing URIs should be added to the current tables.</param>
         /// <returns>A list of indexes in the current table.</returns>
-        public ushort[] CreateMapping(StringTable source, bool updateTable)
+        public ushort[]? CreateMapping(StringTable source, bool updateTable)
         {
             if (source == null)
             {
@@ -273,7 +277,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < source.Count; ii++)
             {
-                string uri = source.GetString((uint)ii);
+                string uri = source.GetString((uint)ii)!;
 
                 int index = GetIndex(uri);
 

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -103,7 +105,7 @@ namespace Opc.Ua
         /// <exception cref="FileNotFoundException"></exception>
         public byte[] Get(string path)
         {
-            if (m_files.TryGetValue(path, out VirtualFile data))
+            if (m_files.TryGetValue(path, out VirtualFile? data))
             {
                 return data.GetContent();
             }
@@ -113,7 +115,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public long GetLength(string path)
         {
-            if (m_files.TryGetValue(path, out VirtualFile data))
+            if (m_files.TryGetValue(path, out VirtualFile? data))
             {
                 return data.Length;
             }
@@ -143,7 +145,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Delete(string path, bool isDirectory = false)
         {
-            if (m_files.TryRemove(path, out VirtualFile file))
+            if (m_files.TryRemove(path, out VirtualFile? file))
             {
                 file.Dispose();
             }
@@ -165,7 +167,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public DateTime GetLastWriteTime(string path)
         {
-            if (m_files.TryGetValue(path, out VirtualFile file))
+            if (m_files.TryGetValue(path, out VirtualFile? file))
             {
                 return file.LastWrite;
             }
@@ -289,7 +291,7 @@ namespace Opc.Ua
 #endif
                 }
 
-                static string GetMapName()
+                static string? GetMapName()
                 {
                     return RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
                             Guid.NewGuid().ToString() :

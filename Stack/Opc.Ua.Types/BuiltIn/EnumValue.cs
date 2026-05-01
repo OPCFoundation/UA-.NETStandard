@@ -320,7 +320,7 @@ namespace Opc.Ua
         {
             if (Source is Type enumType)
             {
-                return EnumHelper.Int32ToEnum(Value, enumType);
+                return EnumHelper.Int32ToEnum(Value, enumType) ?? Value;
             }
             return Value;
         }
