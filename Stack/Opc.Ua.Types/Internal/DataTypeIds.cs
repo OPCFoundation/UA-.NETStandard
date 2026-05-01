@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 #pragma warning disable 1591
+
+#nullable enable
 
 namespace Opc.Ua.Types
 {

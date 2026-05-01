@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -33,6 +33,8 @@
 // benchmarks revealed that the use of a standard Dictionary<NodeId> class
 // with efficent hash code implementations is up to 10xfaster than
 // the original implementation using multiple SortedDictionary instances
+
+#nullable enable
 
 using System;
 using System.Collections;

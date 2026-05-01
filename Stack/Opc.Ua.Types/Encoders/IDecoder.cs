@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -137,7 +139,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads a string from the stream.
         /// </summary>
-        string ReadString(string fieldName);
+        string? ReadString(string fieldName);
 
         /// <summary>
         /// Reads a UTC date/time from the stream.
@@ -177,7 +179,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an DiagnosticInfo from the stream.
         /// </summary>
-        DiagnosticInfo ReadDiagnosticInfo(string fieldName);
+        DiagnosticInfo? ReadDiagnosticInfo(string fieldName);
 
         /// <summary>
         /// Reads an QualifiedName from the stream.
@@ -197,7 +199,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an DataValue from the stream.
         /// </summary>
-        DataValue ReadDataValue(string fieldName);
+        DataValue? ReadDataValue(string fieldName);
 
         /// <summary>
         /// Reads an ExtensionObject from the stream.
@@ -308,7 +310,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads a string array from the stream.
         /// </summary>
-        ArrayOf<string> ReadStringArray(string fieldName);
+        ArrayOf<string?> ReadStringArray(string fieldName);
 
         /// <summary>
         /// Reads a UTC date/time array from the stream.
@@ -348,7 +350,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an DiagnosticInfo array from the stream.
         /// </summary>
-        ArrayOf<DiagnosticInfo> ReadDiagnosticInfoArray(string fieldName);
+        ArrayOf<DiagnosticInfo?> ReadDiagnosticInfoArray(string fieldName);
 
         /// <summary>
         /// Reads an QualifiedName array from the stream.
@@ -368,7 +370,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an DataValue array from the stream.
         /// </summary>
-        ArrayOf<DataValue> ReadDataValueArray(string fieldName);
+        ArrayOf<DataValue?> ReadDataValueArray(string fieldName);
 
         /// <summary>
         /// Reads an extension object array from the stream.
@@ -451,7 +453,7 @@ namespace Opc.Ua
         /// <param name="fieldName">Returns an alternate fieldName for the
         /// encoded union property if the encoder requires it, null
         /// otherwise.</param>
-        uint ReadSwitchField(IList<string> switches, out string fieldName);
+        uint ReadSwitchField(IList<string> switches, out string? fieldName);
 
         /// <summary>
         /// Decode the encoding mask for a structure with optional fields.

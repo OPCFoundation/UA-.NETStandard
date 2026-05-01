@@ -133,7 +133,7 @@ namespace Opc.Ua.Encoders
         {
             decoder.PushNamespace(XmlNamespace);
 
-            EncodingMask = decoder.ReadEncodingMask(null);
+            EncodingMask = decoder.ReadEncodingMask(null!);
 
             // try again if the mask is implicitly defined by the JSON keys
             if (EncodingMask == 0 && decoder is JsonDecoder)

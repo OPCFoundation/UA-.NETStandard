@@ -108,7 +108,7 @@ namespace Opc.Ua.Encoders
 
             // the encoder may return an override for the field name
             // e.g. to support reversible JSON encoding
-            encoder.WriteSwitchField(SwitchField, out string fieldName);
+            encoder.WriteSwitchField(SwitchField, out string? fieldName);
 
             if (SwitchField != 0)
             {
@@ -139,7 +139,7 @@ namespace Opc.Ua.Encoders
         {
             decoder.PushNamespace(XmlNamespace);
 
-            uint unionSelector = decoder.ReadSwitchField(null, out _);
+            uint unionSelector = decoder.ReadSwitchField(null!, out _);
 
             bool isJsonDecoder = decoder.EncodingType == EncodingType.Json;
             if (unionSelector == 0 && isJsonDecoder)

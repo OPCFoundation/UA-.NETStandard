@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 #if !NET9_0_OR_GREATER
+#nullable enable
+
 using System.Runtime.CompilerServices;
 #endif
 

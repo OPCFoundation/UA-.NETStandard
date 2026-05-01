@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 
@@ -460,7 +462,7 @@ namespace Opc.Ua
         /// <params name="fieldName">Returns an alternate fieldName for the
         /// encoded union property if the encoder requires it, null otherwise.
         /// </params>
-        void WriteSwitchField(uint switchField, out string fieldName);
+        void WriteSwitchField(uint switchField, out string? fieldName);
 
         /// <summary>
         /// Encode the encoding mask for a structure with optional fields.

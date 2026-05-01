@@ -964,7 +964,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            NotificationMessage message = eventFields.Message;
+            NotificationMessage? message = eventFields.Message;
 
             if (message == null)
             {
