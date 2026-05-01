@@ -604,6 +604,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 Id = subscriptionId;
                 StartKeepAliveTimer();
+                NotifyManagerOfCreation();
             }
 
             // Notify all monitored items of the changes

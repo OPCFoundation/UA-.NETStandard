@@ -12,10 +12,15 @@ using Microsoft.Extensions.Options;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Options monitor adapter
+    /// Simple in-memory <see cref="IOptionsMonitor{T}"/> adapter that wraps
+    /// a single mutable value. Useful when bypassing the DI options system
+    /// — for example when constructing subscriptions or monitored items
+    /// from a literal options snapshot or from a builder. Calling
+    /// <see cref="Configure"/> updates the wrapped value and triggers any
+    /// registered <see cref="OnChange"/> listeners.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    internal class OptionsMonitor<
+    public class OptionsMonitor<
         [DynamicallyAccessedMembers(
             DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T> :
         IOptionsMonitor<T>

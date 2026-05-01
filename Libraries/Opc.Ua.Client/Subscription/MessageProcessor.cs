@@ -244,6 +244,17 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Notify the owning manager/queue that the subscription's
+        /// state has changed (e.g. it has just been created on the
+        /// server). The manager uses this signal to re-evaluate the
+        /// publish worker pool.
+        /// </summary>
+        protected void NotifyManagerOfCreation()
+        {
+            m_completion.Update();
+        }
+
+        /// <summary>
         /// Process message. The logic will chewck whether any message was missed
         /// and try to republish. Any new messages received that already were
         /// handled are discarded. The message is then dispatched to the appropriate

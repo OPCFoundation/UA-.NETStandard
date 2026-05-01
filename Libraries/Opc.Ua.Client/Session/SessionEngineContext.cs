@@ -107,6 +107,18 @@ namespace Opc.Ua.Client
                 => m_session.GoodPublishRequestCount;
 
             /// <inheritdoc/>
+            public ISubscriptionServiceSetClientMethods SubscriptionServiceSet
+                => m_session;
+
+            /// <inheritdoc/>
+            public IMonitoredItemServiceSetClientMethods MonitoredItemServiceSet
+                => m_session;
+
+            /// <inheritdoc/>
+            public IMethodServiceSetClientMethods MethodServiceSet
+                => m_session;
+
+            /// <inheritdoc/>
             public ValueTask<PublishResponse> PublishAsync(
                 RequestHeader requestHeader,
                 ArrayOf<SubscriptionAcknowledgement>

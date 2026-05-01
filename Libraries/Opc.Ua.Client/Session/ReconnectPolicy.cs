@@ -70,6 +70,30 @@ namespace Opc.Ua.Client
         public static readonly TimeSpan DefaultMaxDelay = TimeSpan.FromSeconds(30);
 
         /// <summary>
+        /// Initialize a reconnect policy with default options.
+        /// </summary>
+        public ReconnectPolicy()
+            : this(new ReconnectPolicyOptions())
+        {
+        }
+
+        /// <summary>
+        /// Initialize a reconnect policy from an options snapshot.
+        /// </summary>
+        public ReconnectPolicy(ReconnectPolicyOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            InitialDelay = options.InitialDelay;
+            MaxDelay = options.MaxDelay;
+            MaxRetries = options.MaxRetries;
+            Strategy = options.Strategy;
+            JitterFactor = options.JitterFactor;
+        }
+
+        /// <summary>
         /// Initial delay between reconnect attempts.
         /// </summary>
         public TimeSpan InitialDelay { get; set; } = DefaultInitialDelay;

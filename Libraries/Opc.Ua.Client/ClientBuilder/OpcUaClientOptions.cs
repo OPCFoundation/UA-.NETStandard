@@ -27,40 +27,23 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Opc.Ua.Client.Subscriptions
+namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Message acknoledgement queue
+    /// Top-level options for
+    /// <see cref="OpcUaClientServiceCollectionExtensions.AddOpcUaClient"/>.
     /// </summary>
-    internal interface IMessageAckQueue
+    public sealed class OpcUaClientOptions
     {
         /// <summary>
-        /// Subscriptions queue acknoledgements for completed
-        /// notifications as soon as they are dispatched / handled.
+        /// The application configuration. Required.
         /// </summary>
-        /// <param name="ack"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask QueueAsync(SubscriptionAcknowledgement ack,
-            CancellationToken ct = default);
+        public ApplicationConfiguration? Configuration { get; set; }
 
         /// <summary>
-        /// Complete subscription
+        /// Default <see cref="ManagedSessionOptions"/> used by the
+        /// session factory delegate registered with DI.
         /// </summary>
-        /// <param name="subscriptionId"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask CompleteAsync(uint subscriptionId,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Notify the queue/manager that the subscription's state has
-        /// changed (created, modified, etc.) and the publish controller
-        /// should re-evaluate worker counts and resume publishing.
-        /// </summary>
-        void Update();
+        public ManagedSessionOptions Session { get; set; } = new();
     }
 }

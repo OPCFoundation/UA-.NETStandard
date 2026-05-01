@@ -27,40 +27,41 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
-using System.Threading.Tasks;
+using System;
 
-namespace Opc.Ua.Client.Subscriptions
+namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Message acknoledgement queue
+    /// Options for configuring a <see cref="ReconnectPolicy"/>. Provided as
+    /// a record so it can be used with the .NET options pattern
+    /// (<see cref="Microsoft.Extensions.Options.IOptions{T}"/>) and bound
+    /// from configuration sources.
     /// </summary>
-    internal interface IMessageAckQueue
+    public sealed record ReconnectPolicyOptions
     {
         /// <summary>
-        /// Subscriptions queue acknoledgements for completed
-        /// notifications as soon as they are dispatched / handled.
+        /// Initial delay between reconnect attempts.
         /// </summary>
-        /// <param name="ack"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask QueueAsync(SubscriptionAcknowledgement ack,
-            CancellationToken ct = default);
+        public TimeSpan InitialDelay { get; init; } = TimeSpan.FromSeconds(1);
 
         /// <summary>
-        /// Complete subscription
+        /// Maximum delay between attempts (caps the backoff).
         /// </summary>
-        /// <param name="subscriptionId"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask CompleteAsync(uint subscriptionId,
-            CancellationToken ct = default);
+        public TimeSpan MaxDelay { get; init; } = TimeSpan.FromSeconds(30);
 
         /// <summary>
-        /// Notify the queue/manager that the subscription's state has
-        /// changed (created, modified, etc.) and the publish controller
-        /// should re-evaluate worker counts and resume publishing.
+        /// Maximum number of retries (0 = unlimited).
         /// </summary>
-        void Update();
+        public int MaxRetries { get; init; }
+
+        /// <summary>
+        /// Backoff strategy.
+        /// </summary>
+        public BackoffStrategy Strategy { get; init; } = BackoffStrategy.Exponential;
+
+        /// <summary>
+        /// Jitter factor (0.0 = no jitter, 0.1 = ±10%).
+        /// </summary>
+        public double JitterFactor { get; init; } = 0.1;
     }
 }

@@ -27,40 +27,20 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Opc.Ua.Client.Subscriptions
+namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Message acknoledgement queue
+    /// Builder returned by
+    /// <see cref="OpcUaClientServiceCollectionExtensions.AddOpcUaClient"/>
+    /// for further configuration of the OPC UA client services.
     /// </summary>
-    internal interface IMessageAckQueue
+    public interface IOpcUaClientBuilder
     {
         /// <summary>
-        /// Subscriptions queue acknoledgements for completed
-        /// notifications as soon as they are dispatched / handled.
+        /// The underlying <see cref="IServiceCollection"/>.
         /// </summary>
-        /// <param name="ack"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask QueueAsync(SubscriptionAcknowledgement ack,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Complete subscription
-        /// </summary>
-        /// <param name="subscriptionId"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask CompleteAsync(uint subscriptionId,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Notify the queue/manager that the subscription's state has
-        /// changed (created, modified, etc.) and the publish controller
-        /// should re-evaluate worker counts and resume publishing.
-        /// </summary>
-        void Update();
+        IServiceCollection Services { get; }
     }
 }

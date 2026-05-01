@@ -58,6 +58,13 @@ namespace Opc.Ua.Client
         public DiagnosticsMasks ReturnDiagnostics { get; set; }
 
         /// <summary>
+        /// Optional subscription engine factory to use when constructing
+        /// a <see cref="Session"/>. When <c>null</c>, the session uses the
+        /// classic engine (<see cref="ClassicSubscriptionEngineFactory"/>).
+        /// </summary>
+        public ISubscriptionEngineFactory? SubscriptionEngineFactory { get; init; }
+
+        /// <summary>
         /// Obsolete default constructor
         /// </summary>
         [Obsolete("Use DefaultSessionFactory(ITelemetryContext) instead.")]
@@ -363,7 +370,8 @@ namespace Opc.Ua.Client
                 clientCertificate,
                 clientCertificateChain,
                 availableEndpoints,
-                discoveryProfileUris)
+                discoveryProfileUris,
+                SubscriptionEngineFactory)
             {
                 ReturnDiagnostics = ReturnDiagnostics
             };

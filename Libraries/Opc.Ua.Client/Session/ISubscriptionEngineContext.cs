@@ -249,5 +249,27 @@ namespace Opc.Ua.Client
         /// are not defunct.
         /// </summary>
         int GoodPublishRequestCount { get; }
+
+        /// <summary>
+        /// Subscription service set client methods exposed by the
+        /// underlying session. Used by V2 engines to drive the full
+        /// subscription lifecycle (Create / Modify / SetPublishingMode
+        /// / Republish / Delete).
+        /// </summary>
+        ISubscriptionServiceSetClientMethods SubscriptionServiceSet { get; }
+
+        /// <summary>
+        /// Monitored item service set client methods exposed by the
+        /// underlying session. Used by V2 engines to drive monitored
+        /// item lifecycle (Create / Modify / Delete /
+        /// SetMonitoringMode / SetTriggering).
+        /// </summary>
+        IMonitoredItemServiceSetClientMethods MonitoredItemServiceSet { get; }
+
+        /// <summary>
+        /// Method service set client methods exposed by the underlying
+        /// session. Used by V2 engines to invoke server methods.
+        /// </summary>
+        IMethodServiceSetClientMethods MethodServiceSet { get; }
     }
 }

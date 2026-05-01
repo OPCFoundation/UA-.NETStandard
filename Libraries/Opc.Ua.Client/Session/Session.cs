@@ -256,7 +256,7 @@ namespace Opc.Ua.Client
             // Create the subscription engine.
             SubscriptionEngineFactory = engineFactory
                 ?? ClassicSubscriptionEngineFactory.Instance;
-            m_engine = new ClassicSubscriptionEngine(new SessionEngineContext(this));
+            m_engine = SubscriptionEngineFactory.Create(new SessionEngineContext(this));
 
             // set the default preferred locales.
             m_preferredLocales = [CultureInfo.CurrentCulture.Name];
@@ -563,6 +563,13 @@ namespace Opc.Ua.Client
         /// Gets the subscription engine factory used by this session.
         /// </summary>
         public ISubscriptionEngineFactory SubscriptionEngineFactory { get; }
+
+        /// <summary>
+        /// Gets the active subscription engine. Internal — exposes the
+        /// engine for adapter scenarios such as <see cref="ManagedSession"/>
+        /// surfacing the new V2 <c>ISubscriptionManager</c>.
+        /// </summary>
+        internal ISubscriptionEngine SubscriptionEngine => m_engine;
 
         /// <summary>
         /// Gets the endpoint used to connect to the server.
@@ -1850,9 +1857,12 @@ namespace Opc.Ua.Client
                                 foreach (uint sequenceNumber in results[ii]
                                     .AvailableSequenceNumbers)
                                 {
-                                    m_engine.AddPendingAcknowledgement(
-                                        subscriptionIds[ii],
-                                        sequenceNumber);
+                                    if (m_engine is ClassicSubscriptionEngine classicEngine)
+                                    {
+                                        classicEngine.AddPendingAcknowledgement(
+                                            subscriptionIds[ii],
+                                            sequenceNumber);
+                                    }
                                 }
                             }
                             else
@@ -2730,12 +2740,23 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
+
+            // Republish is part of the classic publish flow. With the V2
+            // subscription engine, the SubscriptionManager handles republish
+            // internally and this method is not used.
+            if (m_engine is not ClassicSubscriptionEngine classicEngine)
+            {
+                throw new InvalidOperationException(
+                    "RepublishAsync is only supported when the session uses the classic " +
+                    "subscription engine. The V2 engine handles republish internally.");
+            }
+
             // send republish request.
             var requestHeader = new RequestHeader
             {
                 TimeoutHint = (uint)OperationTimeout,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
-                RequestHandle = Utils.IncrementIdentifier(ref m_engine.PublishCounter)
+                RequestHandle = Utils.IncrementIdentifier(ref classicEngine.PublishCounter)
             };
 
             try
@@ -2762,7 +2783,7 @@ namespace Opc.Ua.Client
                     responseHeader.ServiceResult);
 
                 // process response.
-                m_engine.ProcessPublishResponse(
+                classicEngine.ProcessPublishResponse(
                     responseHeader,
                     subscriptionId,
                     default,
@@ -2773,7 +2794,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                return m_engine.ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
+                return classicEngine.ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
             }
         }
 
@@ -3585,10 +3606,16 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Sends an additional publish request.
+        /// Only valid when using the classic subscription engine; the V2
+        /// engine drives publishing through its own worker pool.
         /// </summary>
         public bool BeginPublish(int timeout)
         {
-            return m_engine.BeginPublish(timeout);
+            if (m_engine is ClassicSubscriptionEngine classicEngine)
+            {
+                return classicEngine.BeginPublish(timeout);
+            }
+            return false;
         }
 
         /// <summary>
@@ -4452,7 +4479,7 @@ namespace Opc.Ua.Client
         private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
-        private readonly ClassicSubscriptionEngine m_engine;
+        private readonly ISubscriptionEngine m_engine;
 #pragma warning restore CA2213
 
         private sealed class AsyncRequestState : IDisposable

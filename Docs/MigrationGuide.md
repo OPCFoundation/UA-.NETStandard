@@ -877,6 +877,93 @@ var session = await ManagedSession.CreateAsync(
 
 When the session is reconnecting, service calls (Read, Write, Browse, etc.) automatically wait until the session is reconnected. This is transparent to the caller — no special handling needed. If reconnection fails permanently, calls will throw `ServiceResultException`.
 
+#### Fluent Builder, V2 Subscriptions, and Dependency Injection
+
+Version 1.6 introduces a fluent builder for `ManagedSession`, exposes the new options-based subscription API on the managed session, and adds Microsoft.Extensions.DependencyInjection integration for Azure / ASP.NET Core / generic-host scenarios.
+
+**Fluent builder:**
+
+```csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .WithSessionName("MyClient")
+    .WithSessionTimeout(TimeSpan.FromSeconds(60))
+    .WithReconnectPolicy(p => p with
+    {
+        Strategy = BackoffStrategy.Exponential,
+        InitialDelay = TimeSpan.FromSeconds(1),
+        MaxDelay = TimeSpan.FromSeconds(30)
+    })
+    .WithServerRedundancy()
+    .ConnectAsync(ct);
+```
+
+`Build()` returns an immutable `ManagedSessionOptions` snapshot; `ConnectAsync()` wraps `Build()` and `ManagedSession.CreateAsync(...)` so most callers can use the builder directly.
+
+**New subscription API on `ManagedSession`:**
+
+`ManagedSession` now exposes an `ISubscriptionManager` (the V2 options-based API) alongside the classic `Subscriptions` property. The V2 engine is the default for `ManagedSession`. Use `UseSubscriptionEngine(ClassicSubscriptionEngineFactory.Instance)` on the builder if you need the legacy classic engine instead — accessing `SubscriptionManager` then throws `InvalidOperationException`.
+
+```csharp
+using Opc.Ua.Client;
+using Opc.Ua.Client.Subscriptions;
+
+var handler = new MyNotificationHandler();   // : ISubscriptionNotificationHandler
+
+ISubscription subscription = session.AddSubscription(handler,
+    new SubscriptionOptions
+    {
+        PublishingInterval = TimeSpan.FromMilliseconds(500),
+        KeepAliveCount = 10,
+        LifetimeCount = 100
+    });
+
+subscription.TryAddMonitoredItem(
+    "ServerStatus_CurrentTime",
+    VariableIds.Server_ServerStatus_CurrentTime,
+    o => o with
+    {
+        SamplingInterval = TimeSpan.FromMilliseconds(250),
+        QueueSize = 10
+    },
+    out IMonitoredItem _);
+```
+
+The `SubscriptionOptions` and `MonitoredItemOptions` records used by this API live in `Opc.Ua.Client.Subscriptions` and `Opc.Ua.Client.Subscriptions.MonitoredItems`. They are distinct from the classic types of the same names in the `Opc.Ua.Client` namespace; use namespace aliases (or fully-qualified names) when both are visible in the same file.
+
+The classic `ManagedSession.Subscriptions` collection (V1 `Subscription` objects) remains supported. Mixing classic subscriptions with the V2 manager on the same session is allowed; classic subscriptions still receive notifications via the internal `SubscriptionBridge` when the V2 engine is active.
+
+**Dependency Injection:**
+
+`AddOpcUaClient` registers a `ManagedSession` factory delegate that lazily connects on first use:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.Client;
+
+services.AddOpcUaClient(opt =>
+{
+    opt.Configuration = applicationConfiguration;
+    opt.Session = new ManagedSessionOptions
+    {
+        Endpoint = endpoint,
+        ReconnectPolicy = new ReconnectPolicyOptions
+        {
+            Strategy = BackoffStrategy.Exponential
+        }
+    };
+});
+
+// Resolve and connect on first use:
+var sessionFactory = serviceProvider
+    .GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
+ManagedSession session = await sessionFactory(ct);
+```
+
+The factory caches the connected session — subsequent awaits return the same instance. The DI registration also exposes `ITelemetryContext`, `ISessionFactory` (a `DefaultSessionFactory` configured with the V2 engine), `ManagedSessionFactory`, and the top-level `OpcUaClientOptions`.
+
+This iteration uses single-instance options (no named/keyed registrations); the underlying V2 manager consumes options via `IOptionsMonitor<T>` unfiltered. For one-off use, the `AddSubscription`/`TryAddMonitoredItem` extensions adapt plain options snapshots into the required `IOptionsMonitor<T>` automatically. Named-options DI is deferred to a future iteration.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

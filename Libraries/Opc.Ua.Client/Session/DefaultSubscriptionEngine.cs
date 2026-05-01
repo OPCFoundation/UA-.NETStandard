@@ -64,6 +64,12 @@ namespace Opc.Ua.Client
                 new EngineContextAdapter(context),
                 context.Telemetry.LoggerFactory,
                 context.ReturnDiagnostics);
+
+            // The V2 SubscriptionManager starts paused. Resume it so
+            // publish workers begin processing as soon as a
+            // subscription is added. Reconnect logic toggles
+            // pause/resume around connection transitions.
+            m_manager.Resume();
         }
 
         /// <inheritdoc/>
@@ -74,6 +80,13 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public int PublishWorkerCount => m_manager.PublishWorkerCount;
+
+        /// <summary>
+        /// The underlying <see cref="ISubscriptionManager"/> that drives the
+        /// new options-based subscription API. Exposed so callers can access
+        /// the V2 manager via the engine.
+        /// </summary>
+        public Subscriptions.ISubscriptionManager SubscriptionManager => m_manager;
 
         /// <inheritdoc/>
         public int MinPublishRequestCount
@@ -93,6 +106,7 @@ namespace Opc.Ua.Client
         public void StartPublishing(int timeout, bool fullQueue)
         {
             ThrowIfDisposed();
+            m_manager.Resume();
             m_manager.Update();
         }
 
@@ -284,12 +298,15 @@ namespace Opc.Ua.Client
                 byte priority,
                 CancellationToken ct)
             {
-                // TODO: Route through the session when the
-                // V2 engine owns the full subscription
-                // lifecycle.
-                throw new NotSupportedException(
-                    "CreateSubscription is not yet " +
-                    "supported through the V2 engine.");
+                return m_context.SubscriptionServiceSet.CreateSubscriptionAsync(
+                    requestHeader,
+                    requestedPublishingInterval,
+                    requestedLifetimeCount,
+                    requestedMaxKeepAliveCount,
+                    maxNotificationsPerPublish,
+                    publishingEnabled,
+                    priority,
+                    ct);
             }
 
             /// <inheritdoc/>
@@ -303,12 +320,15 @@ namespace Opc.Ua.Client
                 byte priority,
                 CancellationToken ct)
             {
-                // TODO: Route through the session when the
-                // V2 engine owns the full subscription
-                // lifecycle.
-                throw new NotSupportedException(
-                    "ModifySubscription is not yet " +
-                    "supported through the V2 engine.");
+                return m_context.SubscriptionServiceSet.ModifySubscriptionAsync(
+                    requestHeader,
+                    subscriptionId,
+                    requestedPublishingInterval,
+                    requestedLifetimeCount,
+                    requestedMaxKeepAliveCount,
+                    maxNotificationsPerPublish,
+                    priority,
+                    ct);
             }
 
             /// <inheritdoc/>
@@ -318,12 +338,11 @@ namespace Opc.Ua.Client
                 ArrayOf<uint> subscriptionIds,
                 CancellationToken ct)
             {
-                // TODO: Route through the session when the
-                // V2 engine owns the full subscription
-                // lifecycle.
-                throw new NotSupportedException(
-                    "SetPublishingMode is not yet " +
-                    "supported through the V2 engine.");
+                return m_context.SubscriptionServiceSet.SetPublishingModeAsync(
+                    requestHeader,
+                    publishingEnabled,
+                    subscriptionIds,
+                    ct);
             }
 
             /// <inheritdoc/>
@@ -333,12 +352,11 @@ namespace Opc.Ua.Client
                 uint retransmitSequenceNumber,
                 CancellationToken ct)
             {
-                // TODO: Route through the session when the
-                // V2 engine owns the full subscription
-                // lifecycle.
-                throw new NotSupportedException(
-                    "Republish is not yet supported " +
-                    "through the V2 engine.");
+                return m_context.SubscriptionServiceSet.RepublishAsync(
+                    requestHeader,
+                    subscriptionId,
+                    retransmitSequenceNumber,
+                    ct);
             }
 
             /// <inheritdoc/>
@@ -359,12 +377,12 @@ namespace Opc.Ua.Client
                 ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
                 CancellationToken ct)
             {
-                // TODO: Route through the session when the
-                // V2 engine owns the full subscription
-                // lifecycle.
-                throw new NotSupportedException(
-                    "CreateMonitoredItems is not yet " +
-                    "supported through the V2 engine.");
+                return m_context.MonitoredItemServiceSet.CreateMonitoredItemsAsync(
+                    requestHeader,
+                    subscriptionId,
+                    timestampsToReturn,
+                    itemsToCreate,
+                    ct);
             }
 
             /// <inheritdoc/>
@@ -375,12 +393,12 @@ namespace Opc.Ua.Client
                 ArrayOf<MonitoredItemModifyRequest> itemsToModify,
                 CancellationToken ct)
             {
-                // TODO: Route through the session when the
-                // V2 engine owns the full subscription
-                // lifecycle.
-                throw new NotSupportedException(
-                    "ModifyMonitoredItems is not yet " +
-                    "supported through the V2 engine.");
+                return m_context.MonitoredItemServiceSet.ModifyMonitoredItemsAsync(
+                    requestHeader,
+                    subscriptionId,
+                    timestampsToReturn,
+                    itemsToModify,
+                    ct);
             }
 
             /// <inheritdoc/>
@@ -390,12 +408,11 @@ namespace Opc.Ua.Client
                 ArrayOf<uint> monitoredItemIds,
                 CancellationToken ct)
             {
-                // TODO: Route through the session when the
-                // V2 engine owns the full subscription
-                // lifecycle.
-                throw new NotSupportedException(
-                    "DeleteMonitoredItems is not yet " +
-                    "supported through the V2 engine.");
+                return m_context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(
+                    requestHeader,
+                    subscriptionId,
+                    monitoredItemIds,
+                    ct);
             }
 
             /// <inheritdoc/>
@@ -406,12 +423,12 @@ namespace Opc.Ua.Client
                 ArrayOf<uint> monitoredItemIds,
                 CancellationToken ct)
             {
-                // TODO: Route through the session when the
-                // V2 engine owns the full subscription
-                // lifecycle.
-                throw new NotSupportedException(
-                    "SetMonitoringMode is not yet " +
-                    "supported through the V2 engine.");
+                return m_context.MonitoredItemServiceSet.SetMonitoringModeAsync(
+                    requestHeader,
+                    subscriptionId,
+                    monitoringMode,
+                    monitoredItemIds,
+                    ct);
             }
 
             /// <inheritdoc/>
@@ -420,23 +437,23 @@ namespace Opc.Ua.Client
                 ArrayOf<CallMethodRequest> methodsToCall,
                 CancellationToken ct)
             {
-                // TODO: Route through the session when the
-                // V2 engine owns the full subscription
-                // lifecycle.
-                throw new NotSupportedException(
-                    "Call is not yet supported through " +
-                    "the V2 engine.");
+                return m_context.MethodServiceSet.CallAsync(
+                    requestHeader,
+                    methodsToCall,
+                    ct);
             }
 
+            /// <inheritdoc/>
             /// <inheritdoc/>
             public ValueTask<PublishResponse> PublishAsync(
                 RequestHeader? requestHeader,
                 ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
                 CancellationToken ct)
             {
-                throw new NotSupportedException(
-                    "Publish is not yet supported " +
-                    "through the V2 engine.");
+                return m_context.SubscriptionServiceSet.PublishAsync(
+                    requestHeader,
+                    subscriptionAcknowledgements,
+                    ct);
             }
 
             /// <inheritdoc/>
@@ -446,9 +463,11 @@ namespace Opc.Ua.Client
                     bool sendInitialValues,
                     CancellationToken ct)
             {
-                throw new NotSupportedException(
-                    "TransferSubscriptions is not yet " +
-                    "supported through the V2 engine.");
+                return m_context.SubscriptionServiceSet.TransferSubscriptionsAsync(
+                    requestHeader,
+                    subscriptionIds,
+                    sendInitialValues,
+                    ct);
             }
 
             /// <inheritdoc/>
@@ -460,9 +479,13 @@ namespace Opc.Ua.Client
                     ArrayOf<uint> linksToRemove,
                     CancellationToken ct)
             {
-                throw new NotSupportedException(
-                    "SetTriggering is not yet supported " +
-                    "through the V2 engine.");
+                return m_context.MonitoredItemServiceSet.SetTriggeringAsync(
+                    requestHeader,
+                    subscriptionId,
+                    triggeringItemId,
+                    linksToAdd,
+                    linksToRemove,
+                    ct);
             }
 
             private readonly ISubscriptionEngineContext m_context;

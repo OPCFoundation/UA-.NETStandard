@@ -123,6 +123,11 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">Preferred locales.</param>
         /// <param name="checkDomain">Whether to check the domain in
         /// the server certificate.</param>
+        /// <param name="engineFactory">Optional subscription engine
+        /// factory. Defaults to <see cref="DefaultSubscriptionEngineFactory"/>
+        /// (V2 engine) so that <see cref="SubscriptionManager"/> is
+        /// available. Pass <see cref="ClassicSubscriptionEngineFactory"/>
+        /// for legacy classic-engine behavior.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A connected <see cref="ManagedSession"/>.</returns>
         public static async Task<ManagedSession> CreateAsync(
@@ -137,10 +142,27 @@ namespace Opc.Ua.Client
             uint sessionTimeout = 60000,
             ArrayOf<string> preferredLocales = default,
             bool checkDomain = false,
+            ISubscriptionEngineFactory? engineFactory = null,
             CancellationToken ct = default)
         {
             telemetry ??= sessionFactory.Telemetry;
             ILogger<ManagedSession> logger = telemetry.CreateLogger<ManagedSession>();
+
+            // Default the engine factory to V2 so callers get the new
+            // ISubscriptionManager API by default. If the inner session
+            // factory is a DefaultSessionFactory and no engine factory is
+            // already configured on it, propagate this choice so the inner
+            // Session is constructed with the V2 engine.
+            engineFactory ??= DefaultSubscriptionEngineFactory.Instance;
+            if (sessionFactory is DefaultSessionFactory dsf &&
+                dsf.SubscriptionEngineFactory is null)
+            {
+                sessionFactory = new DefaultSessionFactory(dsf.Telemetry)
+                {
+                    ReturnDiagnostics = dsf.ReturnDiagnostics,
+                    SubscriptionEngineFactory = engineFactory
+                };
+            }
 
             var managed = new ManagedSession(
                 configuration,
@@ -243,6 +265,28 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IEnumerable<Subscription> Subscriptions
             => m_session?.Subscriptions ?? [];
+
+        /// <summary>
+        /// The new options-based <see cref="Subscriptions.ISubscriptionManager"/>.
+        /// Available when the underlying session was created with the V2
+        /// subscription engine (the default for <see cref="ManagedSession"/>).
+        /// Throws <see cref="InvalidOperationException"/> when the session
+        /// is using the classic engine.
+        /// </summary>
+        public Subscriptions.ISubscriptionManager SubscriptionManager
+        {
+            get
+            {
+                if (InnerSession.SubscriptionEngine is DefaultSubscriptionEngine v2)
+                {
+                    return v2.SubscriptionManager;
+                }
+                throw new InvalidOperationException(
+                    "ManagedSession.SubscriptionManager requires the V2 subscription engine. " +
+                    "The session is using the classic engine; use Subscriptions/AddSubscription " +
+                    "for the legacy API or recreate the ManagedSession with the V2 engine factory.");
+            }
+        }
 
         /// <inheritdoc/>
         public int SubscriptionCount
