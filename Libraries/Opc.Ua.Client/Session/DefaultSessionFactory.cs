@@ -48,7 +48,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
-        [Obsolete("Use new ClassicSessionFactory instead.")]
+        [Obsolete("Use new DefaultSessionFactory(ITelemetryContext) instead.")]
         public static readonly DefaultSessionFactory Instance = new(null!);
 
         /// <inheritdoc/>
@@ -60,7 +60,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Obsolete default constructor
         /// </summary>
-        [Obsolete("Use ClassicSessionFactory(ITelemetryContext) instead.")]
+        [Obsolete("Use DefaultSessionFactory(ITelemetryContext) instead.")]
         public DefaultSessionFactory()
             : this(null!)
         {

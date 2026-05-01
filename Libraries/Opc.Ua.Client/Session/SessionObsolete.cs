@@ -1290,7 +1290,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Object that creates instances of a session
         /// </summary>
-        [Obsolete("Use ClassicSessionFactory which also provides tracing capabilities.")]
+        [Obsolete("Use DefaultSessionFactory which also provides tracing capabilities.")]
         public class TraceableSessionFactory : DefaultSessionFactory
         {
             /// <summary>

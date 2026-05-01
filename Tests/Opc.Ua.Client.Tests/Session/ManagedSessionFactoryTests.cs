@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ClassicSessionFactoryCreateReturnsSession()
+        public void DefaultSessionFactoryCreateReturnsSession()
         {
             var factory = new DefaultSessionFactory(m_telemetry);
             var channel = new Mock<ITransportChannel>();

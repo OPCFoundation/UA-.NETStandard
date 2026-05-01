@@ -501,16 +501,17 @@ to the stack.
 
 **File:** `Libraries/Opc.Ua.Client/Session/DefaultSessionFactory.cs`
 
+- Creates raw `Session` instances (unchanged from earlier versions).
+- **ADDED:** `public DefaultSessionFactory(ITelemetryContext telemetry)` - Constructor requires telemetry, default constructor marked as deprecated.
+
+##### `ManagedSessionFactory`
+
+**File:** `Libraries/Opc.Ua.Client/Session/ManagedSessionFactory.cs`
+
+- **ADDED** in 1.6 as a new factory.
 - Creates `ManagedSession` instances that automatically handle reconnection and failover.
-- Uses `ClassicSessionFactory` internally to create raw `Session` instances.
-
-##### `ClassicSessionFactory`
-
-**File:** `Libraries/Opc.Ua.Client/Session/ClassicSessionFactory.cs`
-
-- **RENAMED:** from `DefaultSessionFactory` to `ClassicSessionFactory`.
-- Creates raw `Session` instances without automatic reconnection.
-- **ADDED:** `public ClassicSessionFactory(ITelemetryContext telemetry)` - Constructor requires telemetry, default constructor marked as deprecated.
+- Uses `DefaultSessionFactory` internally to create the raw `Session` that is wrapped by `ManagedSession`.
+- Constructor: `public ManagedSessionFactory(ITelemetryContext telemetry)`.
 
 ##### `TraceableSessionFactory`
 

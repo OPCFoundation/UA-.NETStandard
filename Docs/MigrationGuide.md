@@ -794,14 +794,26 @@ Version 1.6 introduces `ManagedSession`, a wrapper around `Session` that automat
 
 #### Key Changes
 
-- **`DefaultSessionFactory`** now returns `ManagedSession` instead of raw `Session`. This means all code using `DefaultSessionFactory` or `ISessionFactory` automatically gets managed session behavior.
-- **`ClassicSessionFactory`** is the renamed original factory that returns raw `Session` for code that needs direct session control.
-- **`SessionReconnectHandler`** is deprecated — `ManagedSession` handles reconnection internally.
+- **`ManagedSessionFactory`** is a **new** factory that creates `ManagedSession` instances which handle reconnection and failover automatically. Use this when you want managed-session behavior.
+- **`DefaultSessionFactory`** is **unchanged** — it continues to create raw `Session` instances. Existing code that constructs `DefaultSessionFactory` directly keeps the same behavior in 1.6.
+- **`SessionReconnectHandler`** is deprecated — `ManagedSession` handles reconnection internally. New code should use `ManagedSessionFactory` (or `ManagedSession.CreateAsync` directly).
 
 #### Migration Steps
 
-**If you use `DefaultSessionFactory` (most common):**
-No code changes needed. Sessions are now automatically reconnected on failure.
+**If you use `DefaultSessionFactory`:**
+No code changes are required — `DefaultSessionFactory` still returns raw `Session`. To opt into automatic reconnection and redundancy failover, switch to `ManagedSessionFactory`:
+
+```csharp
+// Before (still works in 1.6):
+var factory = new DefaultSessionFactory(telemetry);
+var session = await factory.CreateAsync(...);
+
+// After (opt-in to ManagedSession):
+var factory = new ManagedSessionFactory(telemetry);
+var session = await factory.CreateAsync(...);
+```
+
+`ManagedSessionFactory` implements the same `ISessionFactory` interface, so it is a drop-in replacement.
 
 **If you use `SessionReconnectHandler`:**
 
@@ -831,9 +843,10 @@ session.StateChanged += (s, e) => {
 };
 ```
 
-**If you need raw Session behavior:**
+Or, equivalently, via the factory:
+
 ```csharp
-var factory = new ClassicSessionFactory(telemetry);
+var factory = new ManagedSessionFactory(telemetry);
 var session = await factory.CreateAsync(...);
 ```
 

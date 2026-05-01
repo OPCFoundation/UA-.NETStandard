@@ -38,7 +38,7 @@ namespace Opc.Ua.Client.Tests
 {
     [TestFixture]
     [Category("Client")]
-    [Category("ClassicSessionFactory")]
+    [Category("DefaultSessionFactory")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     public sealed class DefaultSessionFactoryTests
