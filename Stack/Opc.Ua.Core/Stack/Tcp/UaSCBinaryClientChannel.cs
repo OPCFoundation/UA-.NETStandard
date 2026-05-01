@@ -800,8 +800,8 @@ namespace Opc.Ua.Bindings
         /// Called when a write operation completes.
         /// </summary>
         protected override void HandleWriteComplete(
-            BufferCollection buffers,
-            object state,
+            BufferCollection? buffers,
+            object? state,
             int bytesWritten,
             ServiceResult result)
         {

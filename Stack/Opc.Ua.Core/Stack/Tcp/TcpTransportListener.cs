@@ -1034,7 +1034,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The inactive timer callback which detects stale channels.
         /// </summary>
-        private void DetectInactiveChannels(object state = null)
+        private void DetectInactiveChannels(object? state = null)
         {
             var channels = new List<TcpListenerChannel>();
 
