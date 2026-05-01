@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -179,7 +181,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
         /// </summary>
-        public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version = null, DateTime? lastModified = null)
+        public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string? version = null, DateTime? lastModified = null)
         {
             var nodeSet = new Export.UANodeSet
             {
@@ -305,7 +307,7 @@ namespace Opc.Ua
         public void SaveAsNodeSet2(
             ISystemContext context,
             Stream ostrm,
-            Export.ModelTableEntry model,
+            Export.ModelTableEntry? model,
             DateTime lastModified,
             bool outputRedundantNames)
         {
