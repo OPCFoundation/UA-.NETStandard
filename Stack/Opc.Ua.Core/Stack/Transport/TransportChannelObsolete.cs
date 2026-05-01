@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Diagnostics;
 using System.Threading;
@@ -61,7 +63,7 @@ namespace Opc.Ua
             this ITransportChannel channel,
             IServiceRequest request,
             AsyncCallback callback,
-            object callbackData)
+            object? callbackData)
         {
             return new AsyncResult(
                 channel.SendRequestAsync(request, default).AsTask(),
@@ -145,7 +147,7 @@ namespace Opc.Ua
             this ITransportChannel channel,
 #pragma warning restore RCS1175 // Unused 'this' parameter
             AsyncCallback callback,
-            object callbackData)
+            object? callbackData)
         {
             return new AsyncResult(
                 Task.CompletedTask,
@@ -200,7 +202,7 @@ namespace Opc.Ua
         public static IAsyncResult BeginReconnect(
             this ITransportChannel channel,
             AsyncCallback callback,
-            object callbackData)
+            object? callbackData)
         {
             return new AsyncResult(
                 channel.ReconnectAsync().AsTask(),
@@ -245,7 +247,7 @@ namespace Opc.Ua
         public static IAsyncResult BeginClose(
             this ITransportChannel channel,
             AsyncCallback callback,
-            object callbackData)
+            object? callbackData)
         {
             return new AsyncResult(
                 channel.CloseAsync().AsTask(),
@@ -279,7 +281,7 @@ namespace Opc.Ua
         internal sealed class AsyncResult : IAsyncResult
         {
             /// <inheritdoc/>
-            public object AsyncState { get; }
+            public object? AsyncState { get; }
 
             /// <inheritdoc/>
             public bool CompletedSynchronously { get; }
@@ -295,7 +297,7 @@ namespace Opc.Ua
             /// <summary>
             /// Create async result
             /// </summary>
-            public AsyncResult(Task task, AsyncCallback callback, object state)
+            public AsyncResult(Task task, AsyncCallback? callback, object? state)
             {
                 Debug.Assert(task != null);
                 Task = task;
@@ -325,7 +327,7 @@ namespace Opc.Ua
                 m_callback.Invoke(this);
             }
 
-            private readonly AsyncCallback m_callback;
+            private readonly AsyncCallback? m_callback;
         }
     }
 }

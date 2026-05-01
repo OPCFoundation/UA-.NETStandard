@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
@@ -76,7 +78,7 @@ namespace Opc.Ua
         /// <summary>
         /// The decrypted password associated with the token.
         /// </summary>
-        public byte[] DecryptedPassword { get; set; }
+        public byte[]? DecryptedPassword { get; set; }
 
         /// <summary>
         /// User name in the token.
@@ -95,9 +97,9 @@ namespace Opc.Ua
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce receiverEphemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Nonce? receiverEphemeralKey = null,
+            X509Certificate2? senderCertificate = null,
+            X509Certificate2Collection? senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false)
         {
             if (DecryptedPassword == null)
@@ -151,7 +153,7 @@ namespace Opc.Ua
                 // check if the complete chain is included in the sender issuers.
                 if (senderIssuerCertificates != null &&
                     senderIssuerCertificates.Count > 0 &&
-                    senderIssuerCertificates[0].Thumbprint == senderCertificate.Thumbprint)
+                    senderIssuerCertificates[0].Thumbprint == senderCertificate?.Thumbprint)
                 {
                     var issuers = new X509Certificate2Collection();
 
@@ -184,10 +186,10 @@ namespace Opc.Ua
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce ephemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
-            CertificateValidator validator = null)
+            Nonce? ephemeralKey = null,
+            X509Certificate2? senderCertificate = null,
+            X509Certificate2Collection? senderIssuerCertificates = null,
+            CertificateValidator? validator = null)
         {
             //zero out existing password
             if (DecryptedPassword != null)
@@ -328,7 +330,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(IUserIdentityTokenHandler other)
+        public bool Equals(IUserIdentityTokenHandler? other)
         {
             if (other is not UserNameIdentityTokenHandler tokenHandler)
             {

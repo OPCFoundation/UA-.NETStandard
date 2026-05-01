@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 
 namespace Opc.Ua
@@ -44,7 +46,7 @@ namespace Opc.Ua
             NamespaceTable namespaceUris,
             ITypeTable typeTree,
             IOperationContext context)
-            : this(namespaceUris, typeTree, context, null)
+            : this(namespaceUris, typeTree, context, null!)
         {
         }
 
@@ -55,7 +57,7 @@ namespace Opc.Ua
         public FilterContext(
             NamespaceTable namespaceUris,
             ITypeTable typeTree)
-            : this(namespaceUris, typeTree, (ITelemetryContext)null)
+            : this(namespaceUris, typeTree, (ITelemetryContext)null!)
         {
         }
 
@@ -67,7 +69,7 @@ namespace Opc.Ua
             NamespaceTable namespaceUris,
             ITypeTable typeTree,
             ArrayOf<string> preferredLocales)
-            : this(namespaceUris, typeTree, preferredLocales, null)
+            : this(namespaceUris, typeTree, preferredLocales, null!)
         {
         }
 
@@ -81,7 +83,7 @@ namespace Opc.Ua
         public FilterContext(
             NamespaceTable namespaceUris,
             ITypeTable typeTree,
-            IOperationContext context,
+            IOperationContext? context,
             ITelemetryContext telemetry)
         {
             NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
@@ -140,7 +142,7 @@ namespace Opc.Ua
         /// The identifier for the session (null if multiple sessions are associated with the operation).
         /// </summary>
         /// <value>The session identifier.</value>
-        public NodeId SessionId
+        public NodeId? SessionId
         {
             get
             {
@@ -157,7 +159,7 @@ namespace Opc.Ua
         /// The identity of the user.
         /// </summary>
         /// <value>The user identity.</value>
-        public IUserIdentity UserIdentity
+        public IUserIdentity? UserIdentity
         {
             get
             {
@@ -208,7 +210,7 @@ namespace Opc.Ua
         /// The table of strings which is used to store diagnostic string data.
         /// </summary>
         /// <value>The string table.</value>
-        public StringTable StringTable
+        public StringTable? StringTable
         {
             get
             {
@@ -259,7 +261,7 @@ namespace Opc.Ua
         /// The audit identifier associated with the operation.
         /// </summary>
         /// <value>The audit entry identifier.</value>
-        public string AuditEntryId
+        public string? AuditEntryId
         {
             get
             {
@@ -277,7 +279,7 @@ namespace Opc.Ua
         /// </summary>
         public ITelemetryContext Telemetry { get; }
 
-        private readonly IOperationContext m_context;
+        private readonly IOperationContext? m_context;
         private readonly ArrayOf<string> m_preferredLocales;
     }
 }

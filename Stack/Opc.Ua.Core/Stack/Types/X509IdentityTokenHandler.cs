@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Security.Cryptography.X509Certificates;
 
@@ -89,7 +91,7 @@ namespace Opc.Ua
         /// </summary>
         private X509IdentityTokenHandler(
             X509IdentityToken token,
-            X509Certificate2 certificate)
+            X509Certificate2? certificate)
         {
             m_token = token;
             m_certificate = certificate;
@@ -99,7 +101,7 @@ namespace Opc.Ua
         /// <summary>
         /// The certificate associated with the token.
         /// </summary>
-        public X509Certificate2 Certificate
+        public X509Certificate2? Certificate
         {
             get
             {
@@ -116,7 +118,7 @@ namespace Opc.Ua
         public UserIdentityToken Token => m_token;
 
         /// <inheritdoc/>
-        public string DisplayName => Certificate.Subject;
+        public string DisplayName => Certificate?.Subject ?? string.Empty;
 
         /// <inheritdoc/>
         public UserTokenType TokenType => UserTokenType.Certificate;
@@ -133,9 +135,9 @@ namespace Opc.Ua
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce receiverEphemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Nonce? receiverEphemeralKey = null,
+            X509Certificate2? senderCertificate = null,
+            X509Certificate2Collection? senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false)
         {
         }
@@ -146,10 +148,10 @@ namespace Opc.Ua
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce ephemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
-            CertificateValidator validator = null)
+            Nonce? ephemeralKey = null,
+            X509Certificate2? senderCertificate = null,
+            X509Certificate2Collection? senderIssuerCertificates = null,
+            CertificateValidator? validator = null)
         {
         }
 
@@ -159,7 +161,7 @@ namespace Opc.Ua
             string securityPolicyUri)
         {
             var info = SecurityPolicies.GetInfo(securityPolicyUri);
-            X509Certificate2 certificate = Certificate;
+            X509Certificate2? certificate = Certificate;
 
             var signatureData = SecurityPolicies.CreateSignatureData(
                 info,
@@ -178,7 +180,7 @@ namespace Opc.Ua
             try
             {
                 var info = SecurityPolicies.GetInfo(securityPolicyUri);
-                X509Certificate2 certificate = Certificate;
+                X509Certificate2? certificate = Certificate;
 
                 bool valid = SecurityPolicies.VerifySignatureData(
                     signatureData,
@@ -216,7 +218,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(IUserIdentityTokenHandler other)
+        public bool Equals(IUserIdentityTokenHandler? other)
         {
             if (other is not X509IdentityTokenHandler tokenHandler)
             {
@@ -227,6 +229,6 @@ namespace Opc.Ua
 
         private readonly X509IdentityToken m_token;
         private readonly bool m_ownsCertificate;
-        private X509Certificate2 m_certificate;
+        private X509Certificate2? m_certificate;
     }
 }

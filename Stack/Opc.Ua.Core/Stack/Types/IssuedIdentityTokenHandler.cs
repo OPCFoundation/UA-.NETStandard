@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
@@ -122,7 +124,7 @@ namespace Opc.Ua
         /// <summary>
         /// Token profile uri. Set from the token policy on the server.
         /// </summary>
-        public string IssuedTokenTypeProfileUri { get; set; }
+        public string? IssuedTokenTypeProfileUri { get; set; }
 
         /// <inheritdoc/>
         public UserIdentityToken Token => m_token;
@@ -141,7 +143,7 @@ namespace Opc.Ua
         /// Internally always creates a deep copy on get and set, so that the user
         /// can clear the token data after using or setting it.
         /// </remarks>
-        public byte[] DecryptedTokenData
+        public byte[]? DecryptedTokenData
         {
             get
             {
@@ -174,9 +176,9 @@ namespace Opc.Ua
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce receiverEphemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Nonce? receiverEphemeralKey = null,
+            X509Certificate2? senderCertificate = null,
+            X509Certificate2Collection? senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false)
         {
             // handle no encryption.
@@ -209,10 +211,10 @@ namespace Opc.Ua
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce ephemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
-            CertificateValidator validator = null)
+            Nonce? ephemeralKey = null,
+            X509Certificate2? senderCertificate = null,
+            X509Certificate2Collection? senderIssuerCertificates = null,
+            CertificateValidator? validator = null)
         {
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||
@@ -262,7 +264,7 @@ namespace Opc.Ua
             byte[] dataToSign,
             string securityPolicyUri)
         {
-            return null;
+            return null!;
         }
 
         /// <inheritdoc/>
@@ -295,7 +297,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(IUserIdentityTokenHandler other)
+        public bool Equals(IUserIdentityTokenHandler? other)
         {
             if (other is not IssuedIdentityTokenHandler tokenHandler)
             {
@@ -309,7 +311,7 @@ namespace Opc.Ua
             return Utils.IsEqual(m_token.TokenData, tokenHandler.m_token.TokenData);
         }
 
-        private byte[] m_decryptedTokenData;
+        private byte[]? m_decryptedTokenData;
         private readonly IssuedIdentityToken m_token;
     }
 }

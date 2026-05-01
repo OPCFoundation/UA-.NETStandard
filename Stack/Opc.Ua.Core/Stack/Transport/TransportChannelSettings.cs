@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
@@ -40,18 +42,18 @@ namespace Opc.Ua
         /// Gets or sets the description for the endpoint.
         /// </summary>
         /// <remarks>May be null if no security is used.</remarks>
-        public EndpointDescription Description { get; set; }
+        public EndpointDescription? Description { get; set; }
 
         /// <summary>
         /// Gets or sets the configuration for the endpoint.
         /// </summary>
-        public EndpointConfiguration Configuration { get; set; }
+        public EndpointConfiguration? Configuration { get; set; }
 
         /// <summary>
         /// Gets or sets the client certificate.
         /// </summary>
         /// <remarks>May be null if no security is used.</remarks>
-        public X509Certificate2 ClientCertificate { get; set; }
+        public X509Certificate2? ClientCertificate { get; set; }
 
         /// <summary>
         /// Gets or sets the client certificate chain.
@@ -59,13 +61,13 @@ namespace Opc.Ua
         /// <value>
         /// The client certificate chain.
         /// </value>
-        public X509Certificate2Collection ClientCertificateChain { get; set; }
+        public X509Certificate2Collection? ClientCertificateChain { get; set; }
 
         /// <summary>
         /// Gets or Sets the server certificate.
         /// </summary>
         /// <remarks>May be null if no security is used.</remarks>
-        public X509Certificate2 ServerCertificate { get; set; }
+        public X509Certificate2? ServerCertificate { get; set; }
 
         /// <summary>
         /// Gets or sets the certificate validator for the application.
@@ -75,7 +77,7 @@ namespace Opc.Ua
         /// This is the object used by the channel to validate received certificates.
         /// Validatation errors are reported to the application via this object.
         /// </remarks>
-        public ICertificateValidator CertificateValidator { get; set; }
+        public ICertificateValidator? CertificateValidator { get; set; }
 
         /// <summary>
         /// Gets or sets a reference to the table of namespaces for the server.
@@ -88,7 +90,7 @@ namespace Opc.Ua
         /// associated with the DataTypeEncodingId then.
         /// </remarks>
         /// <seealso cref="Factory" />
-        public NamespaceTable NamespaceUris { get; set; }
+        public NamespaceTable? NamespaceUris { get; set; }
 
         /// <summary>
         /// Gets or sets the table of known encodeable objects.
@@ -104,6 +106,6 @@ namespace Opc.Ua
         /// in the encoded message.
         /// </remarks>
         /// <seealso cref="NamespaceUris" />
-        public IEncodeableFactory Factory { get; set; }
+        public IEncodeableFactory? Factory { get; set; }
     }
 }

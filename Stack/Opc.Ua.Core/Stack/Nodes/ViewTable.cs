@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -86,7 +88,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (m_views.TryGetValue(description.ViewId, out ViewNode view))
+                if (m_views.TryGetValue(description.ViewId, out ViewNode? view))
                 {
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
@@ -114,7 +116,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (m_views.TryGetValue(description.ViewId, out ViewNode view))
+                if (m_views.TryGetValue(description.ViewId, out ViewNode? view))
                 {
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
@@ -175,7 +177,7 @@ namespace Opc.Ua
             {
                 // find view.
 
-                if (!m_views.TryGetValue(viewId, out ViewNode view))
+                if (!m_views.TryGetValue(viewId, out ViewNode? view))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadViewIdUnknown,
