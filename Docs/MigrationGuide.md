@@ -796,7 +796,9 @@ Version 1.6 introduces `ManagedSession`, a wrapper around `Session` that automat
 
 - **`ManagedSessionFactory`** is a **new** factory that creates `ManagedSession` instances which handle reconnection and failover automatically. Use this when you want managed-session behavior.
 - **`DefaultSessionFactory`** is **unchanged** — it continues to create raw `Session` instances. Existing code that constructs `DefaultSessionFactory` directly keeps the same behavior in 1.6.
-- **`SessionReconnectHandler`** is deprecated — `ManagedSession` handles reconnection internally. New code should use `ManagedSessionFactory` (or `ManagedSession.CreateAsync` directly).
+- **`SessionReconnectHandler`** is **retained** as a supported legacy entry point for callers that already manage raw `Session` instances. It is **not** marked obsolete in 1.6, but it now requires the wrapped `ISession` to be a `Session` (or a derived type) — passing a `ManagedSession` (or any other `ISession` facade) throws `NotSupportedException`, since those facades drive their own reconnect / failover state machine. New code should still prefer `ManagedSessionFactory` / `ManagedSession.CreateAsync`.
+
+For a deeper architectural picture of how `Session`, `ManagedSession`, `SessionReconnectHandler`, and the subscription engines fit together, see [Sessions, Reconnection, and Subscription Engines](Sessions.md).
 
 #### Migration Steps
 
@@ -804,32 +806,37 @@ Version 1.6 introduces `ManagedSession`, a wrapper around `Session` that automat
 No code changes are required — `DefaultSessionFactory` still returns raw `Session`. To opt into automatic reconnection and redundancy failover, switch to `ManagedSessionFactory`:
 
 ```csharp
-// Before (still works in 1.6):
-var factory = new DefaultSessionFactory(telemetry);
-var session = await factory.CreateAsync(...);
+// Still supported in 1.6 — DefaultSessionFactory creates raw Session:
+var defaultFactory = new DefaultSessionFactory(telemetry);
+ISession rawSession = await defaultFactory.CreateAsync(...);
 
-// After (opt-in to ManagedSession):
-var factory = new ManagedSessionFactory(telemetry);
-var session = await factory.CreateAsync(...);
+// Opt in to managed reconnect/failover — ManagedSessionFactory creates ManagedSession:
+var managedFactory = new ManagedSessionFactory(telemetry);
+ISession managedSession = await managedFactory.CreateAsync(...);
 ```
 
-`ManagedSessionFactory` implements the same `ISessionFactory` interface, so it is a drop-in replacement.
+Both factories implement `ISessionFactory`. `ManagedSessionFactory` internally uses a `DefaultSessionFactory` to create the raw `Session` and then wraps it in a `ManagedSession`; the public surface is unchanged.
 
 **If you use `SessionReconnectHandler`:**
 
-Before (1.5.x):
+`SessionReconnectHandler` continues to work in 1.6 against `Session` instances. The pattern below is unchanged — only the obsolete diagnostic has been removed:
+
 ```csharp
-var session = await Session.CreateAsync(...);
-var reconnectHandler = new SessionReconnectHandler();
-session.KeepAlive += (s, e) => {
+ISession session = await new DefaultSessionFactory(telemetry).CreateAsync(...);
+using var reconnectHandler = new SessionReconnectHandler(telemetry);
+session.KeepAlive += (s, e) =>
+{
     if (e.Status != null && ServiceResult.IsNotGood(e.Status))
-        reconnectHandler.BeginReconnect(session, 1000, callback);
+    {
+        reconnectHandler.BeginReconnect(session, 1000, OnReconnectComplete);
+    }
 };
 ```
 
-After (1.6.x):
+`SessionReconnectHandler.BeginReconnect` only supports the legacy `Session` class (or types derived from it). Passing a `ManagedSession` throws `NotSupportedException`. If you have already migrated to `ManagedSession`, **do not** wrap it with a `SessionReconnectHandler` — `ManagedSession` already runs its own reconnect state machine. Use the `StateChanged` event to observe transitions:
+
 ```csharp
-var session = await ManagedSession.CreateAsync(
+ISession session = await ManagedSession.CreateAsync(
     configuration, endpoint,
     reconnectPolicy: new ReconnectPolicy
     {
@@ -838,7 +845,8 @@ var session = await ManagedSession.CreateAsync(
         MaxDelay = TimeSpan.FromSeconds(30)
     });
 // Reconnection is automatic — no manual handler needed
-session.StateChanged += (s, e) => {
+((ManagedSession)session).StateMachine.StateChanged += (s, e) =>
+{
     Console.WriteLine($"Session state: {e.NewState}");
 };
 ```
@@ -847,7 +855,7 @@ Or, equivalently, via the factory:
 
 ```csharp
 var factory = new ManagedSessionFactory(telemetry);
-var session = await factory.CreateAsync(...);
+ISession session = await factory.CreateAsync(...);
 ```
 
 #### Configuring Reconnection Policy

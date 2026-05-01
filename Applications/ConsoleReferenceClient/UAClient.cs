@@ -290,7 +290,6 @@ namespace Quickstarts
                         Session.KeepAlive += Session_KeepAlive;
 
                         // prepare a reconnect handler
-#pragma warning disable CS0618 // SessionReconnectHandler is obsolete; TODO: migrate to ManagedSession
                         m_reconnectHandler = new SessionReconnectHandler(
                             m_telemetry,
                             true,
@@ -387,7 +386,6 @@ namespace Quickstarts
                             Client_ReconnectComplete
                             );
                     if (state == SessionReconnectHandler.ReconnectState.Triggered)
-#pragma warning restore CS0618
                     {
                         m_logger.LogInformation(
                             "KeepAlive status {StatusCode}, reconnect status {State}, reconnect period {ReconnectPeriod}ms.",
@@ -497,9 +495,7 @@ namespace Quickstarts
         private readonly Lock m_lock = new();
         private readonly ReverseConnectManager m_reverseConnectManager;
         private readonly ApplicationConfiguration m_configuration;
-#pragma warning disable CS0618 // SessionReconnectHandler is obsolete; TODO: migrate to ManagedSession
         private SessionReconnectHandler m_reconnectHandler;
-#pragma warning restore CS0618
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private bool m_disposed;

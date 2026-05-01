@@ -75,9 +75,7 @@ namespace Opc.Ua.Mcp
             public required Client.ISession Session { get; init; }
             public required EndpointDescription Endpoint { get; init; }
             public required string AuthType { get; init; }
-#pragma warning disable CS0618 // SessionReconnectHandler is obsolete; TODO: migrate to ManagedSession
             public SessionReconnectHandler? ReconnectHandler { get; set; }
-#pragma warning restore CS0618
             public DateTime ConnectedAt { get; init; } = DateTime.UtcNow;
             public bool IsConnected => Session.Connected;
         }
@@ -271,9 +269,7 @@ namespace Opc.Ua.Mcp
 
                 if (session?.Connected == true)
                 {
-#pragma warning disable CS0618 // SessionReconnectHandler is obsolete; TODO: migrate to ManagedSession
                     var reconnectHandler = new SessionReconnectHandler(m_telemetry, true, 15_000);
-#pragma warning restore CS0618
                     var sessionInfo = new SessionInfo
                     {
                         Name = name,
@@ -637,9 +633,7 @@ namespace Opc.Ua.Mcp
 
         private void SessionReconnectComplete(SessionInfo info, object? sender)
         {
-#pragma warning disable CS0618 // SessionReconnectHandler is obsolete; TODO: migrate to ManagedSession
             if (sender is not SessionReconnectHandler handler)
-#pragma warning restore CS0618
             {
                 return;
             }

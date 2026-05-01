@@ -581,7 +581,6 @@ namespace Opc.Ua.Client.Tests
             session.SessionClosing += (sender, e) => sessionClosing++;
 
             var quitEvent = new ManualResetEvent(false);
-#pragma warning disable CS0618 // Type or member is obsolete
             var reconnectHandler = new SessionReconnectHandler(
                 telemetry,
                 reconnectAbort,
@@ -635,7 +634,6 @@ namespace Opc.Ua.Client.Tests
 
             StatusCode result = await session.CloseAsync().ConfigureAwait(false);
             reconnectHandler.Dispose();
-#pragma warning restore CS0618 // Type or member is obsolete
             session.Dispose();
 
             Assert.That(sessionClosing, Is.GreaterThanOrEqualTo(0));
