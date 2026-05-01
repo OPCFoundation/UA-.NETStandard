@@ -753,9 +753,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool TryGetValue(IReference key, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T value)
+        public bool TryGetValue(IReference key, out T value)
         {
-            value = default;
+            value = default!;
 
             if (!TryGetEntry(key, out KeyValuePair<IReference, T> target))
             {

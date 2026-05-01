@@ -205,7 +205,7 @@ namespace Opc.Ua
             if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length > 0)
             {
                 DateTime publicationDate = lastModified?.ToUniversalTime() ?? DateTime.UtcNow;
-                string modelVersion = string.IsNullOrEmpty(version) ? "1.0.0" : version;
+                string modelVersion = string.IsNullOrEmpty(version) ? "1.0.0" : version!;
 
                 // Each user namespace declares the OPC UA base namespace as a required
                 // model and any other user namespaces that are referenced by this export.
