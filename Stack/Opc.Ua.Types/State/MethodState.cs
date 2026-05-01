@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -43,8 +45,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public MethodState(NodeState parent)
-            : base(NodeClass.Method, parent)
+        public MethodState(NodeState? parent)
+            : base(NodeClass.Method, parent!)
         {
             m_executable = true;
             m_userExecutable = true;
@@ -181,39 +183,39 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the Executable attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<bool> OnReadExecutable;
+        public NodeAttributeEventHandler<bool>? OnReadExecutable;
 
         /// <summary>
         /// Raised when the Executable attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<bool> OnWriteExecutable;
+        public NodeAttributeEventHandler<bool>? OnWriteExecutable;
 
         /// <summary>
         /// Raised when the UserExecutable attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<bool> OnReadUserExecutable;
+        public NodeAttributeEventHandler<bool>? OnReadUserExecutable;
 
         /// <summary>
         /// Raised when the UserExecutable attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<bool> OnWriteUserExecutable;
+        public NodeAttributeEventHandler<bool>? OnWriteUserExecutable;
 
         /// <summary>
         /// Raised when the method is called.
         /// </summary>
-        public GenericMethodCalledEventHandler OnCallMethod;
+        public GenericMethodCalledEventHandler? OnCallMethod;
 
         /// <summary>
         /// Raised when the method is called.
         /// </summary>
-        public GenericMethodCalledEventHandler2 OnCallMethod2;
+        public GenericMethodCalledEventHandler2? OnCallMethod2;
 
         /// <summary>
         /// Raised when the method is called.
         /// Takes a Task delegate to allow for asynchronous processing.
         /// Only works if the server / node managers supports async method calls.
         /// </summary>
-        public GenericMethodCalledEventHandler2Async OnCallMethod2Async;
+        public GenericMethodCalledEventHandler2Async? OnCallMethod2Async;
 
         /// <summary>
         /// Exports a copy of the node to a node table.
@@ -357,42 +359,42 @@ namespace Opc.Ua
             uint attributeId,
             ref Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
                 case Attributes.Executable:
                     bool executable = m_executable;
 
-                    NodeAttributeEventHandler<bool> onReadExecutable = OnReadExecutable;
+                    NodeAttributeEventHandler<bool>? onReadExecutable = OnReadExecutable;
 
                     if (onReadExecutable != null)
                     {
                         result = onReadExecutable(context, this, ref executable);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         value = executable;
                     }
 
-                    return result;
+                    return result!;
                 case Attributes.UserExecutable:
                     bool userExecutable = m_userExecutable;
 
-                    NodeAttributeEventHandler<bool> onReadUserExecutable = OnReadUserExecutable;
+                    NodeAttributeEventHandler<bool>? onReadUserExecutable = OnReadUserExecutable;
 
                     if (onReadUserExecutable != null)
                     {
                         result = onReadUserExecutable(context, this, ref userExecutable);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         value = userExecutable;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.ReadNonValueAttribute(context, attributeId, ref value);
             }
@@ -406,7 +408,7 @@ namespace Opc.Ua
             uint attributeId,
             Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
@@ -421,19 +423,19 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<bool> onWriteExecutable = OnWriteExecutable;
+                    NodeAttributeEventHandler<bool>? onWriteExecutable = OnWriteExecutable;
 
                     if (onWriteExecutable != null)
                     {
                         result = onWriteExecutable(context, this, ref executable);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         Executable = executable;
                     }
 
-                    return result;
+                    return result!;
                 case Attributes.UserExecutable:
                     if (!value.TryGet(out bool userExecutable))
                     {
@@ -445,19 +447,19 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<bool> onWriteUserExecutable = OnWriteUserExecutable;
+                    NodeAttributeEventHandler<bool>? onWriteUserExecutable = OnWriteUserExecutable;
 
                     if (onWriteUserExecutable != null)
                     {
                         result = onWriteUserExecutable(context, this, ref userExecutable);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         UserExecutable = userExecutable;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.WriteNonValueAttribute(context, attributeId, value);
             }
@@ -466,7 +468,7 @@ namespace Opc.Ua
         /// <summary>
         /// The input arguments for the method.
         /// </summary>
-        public PropertyState<ArrayOf<Argument>> InputArguments
+        public PropertyState<ArrayOf<Argument>>? InputArguments
         {
             get => m_inputArguments;
             set
@@ -483,7 +485,7 @@ namespace Opc.Ua
         /// <summary>
         /// The output arguments for the method.
         /// </summary>
-        public PropertyState<ArrayOf<Argument>> OutputArguments
+        public PropertyState<ArrayOf<Argument>>? OutputArguments
         {
             get => m_outputArguments;
             set
@@ -500,14 +502,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
-            PropertyState<ArrayOf<Argument>> inputArguments = m_inputArguments;
+            PropertyState<ArrayOf<Argument>>? inputArguments = m_inputArguments;
 
             if (inputArguments != null)
             {
                 children.Add(inputArguments);
             }
 
-            PropertyState<ArrayOf<Argument>> outputArguments = m_outputArguments;
+            PropertyState<ArrayOf<Argument>>? outputArguments = m_outputArguments;
 
             if (outputArguments != null)
             {
@@ -518,17 +520,17 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        protected override BaseInstanceState FindChild(
+        protected override BaseInstanceState? FindChild(
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState? replacement)
         {
             if (browseName.IsNull)
             {
                 return null;
             }
-            BaseInstanceState instance = null;
+            BaseInstanceState? instance = null;
             switch (browseName.Name)
             {
                 case BrowseNames.InputArguments:
@@ -548,7 +550,7 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState<ArrayOf<Argument>> CreateOrReplaceOutputArguments(
             ISystemContext context,
-            BaseInstanceState replacement)
+            BaseInstanceState? replacement)
         {
             if (OutputArguments == null)
             {
@@ -570,7 +572,7 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState<ArrayOf<Argument>> CreateOrReplaceInputArguments(
             ISystemContext context,
-            BaseInstanceState replacement)
+            BaseInstanceState? replacement)
         {
             if (InputArguments == null)
             {
@@ -688,7 +690,7 @@ namespace Opc.Ua
             // check for too few or too many arguments.
             int expectedCount = 0;
 
-            PropertyState<ArrayOf<Argument>> expectedInputArguments = InputArguments;
+            PropertyState<ArrayOf<Argument>>? expectedInputArguments = InputArguments;
 
             if (expectedInputArguments != null)
             {
@@ -733,7 +735,7 @@ namespace Opc.Ua
             // set output arguments to default values.
             var outputs = new List<Variant>();
 
-            PropertyState<ArrayOf<Argument>> expectedOutputArguments = OutputArguments;
+            PropertyState<ArrayOf<Argument>>? expectedOutputArguments = OutputArguments;
 
             if (expectedOutputArguments != null)
             {
@@ -811,14 +813,14 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            GenericMethodCalledEventHandler2 onCallMethod2 = OnCallMethod2;
+            GenericMethodCalledEventHandler2? onCallMethod2 = OnCallMethod2;
 
             if (onCallMethod2 != null)
             {
                 return onCallMethod2(context, this, objectId, inputArguments, outputArguments);
             }
 
-            GenericMethodCalledEventHandler onCallMethod = OnCallMethod;
+            GenericMethodCalledEventHandler? onCallMethod = OnCallMethod;
 
             if (onCallMethod != null)
             {
@@ -849,9 +851,9 @@ namespace Opc.Ua
             List<Variant> outputArguments,
             CancellationToken cancellationToken = default)
         {
-            GenericMethodCalledEventHandler2Async onCallMethod2Async = OnCallMethod2Async;
+            GenericMethodCalledEventHandler2Async? onCallMethod2Async = OnCallMethod2Async;
 
-            if (OnCallMethod2Async != null)
+            if (onCallMethod2Async != null)
             {
                 return await onCallMethod2Async(
                     context,
@@ -877,7 +879,7 @@ namespace Opc.Ua
             Variant inputArgument,
             int index)
         {
-            PropertyState<ArrayOf<Argument>> inputArguments = InputArguments;
+            PropertyState<ArrayOf<Argument>>? inputArguments = InputArguments;
 
             if (inputArguments == null)
             {
@@ -924,8 +926,8 @@ namespace Opc.Ua
 
         private bool m_executable;
         private bool m_userExecutable;
-        private PropertyState<ArrayOf<Argument>> m_inputArguments;
-        private PropertyState<ArrayOf<Argument>> m_outputArguments;
+        private PropertyState<ArrayOf<Argument>>? m_inputArguments;
+        private PropertyState<ArrayOf<Argument>>? m_outputArguments;
     }
 
     /// <summary>

@@ -375,7 +375,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < namespaceUris.Count; ii++)
                     {
-                        context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
+                        context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii)!);
                     }
                 }
             }
@@ -385,7 +385,7 @@ namespace Opc.Ua
 
             if (namespaceUris != null && namespaceUris.Count > 1)
             {
-                serverUris.Append(namespaceUris.GetString(1));
+                serverUris.Append(namespaceUris.GetString(1)!);
             }
 
             if (!decoder.LoadStringTable(serverUris))
@@ -400,13 +400,13 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < serverUris.Count; ii++)
                     {
-                        context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
+                        context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii)!);
                     }
                 }
             }
 
             // setup the mappings to use during decoding.
-            decoder.SetMappingTables(namespaceUris, serverUris);
+            decoder.SetMappingTables(namespaceUris!, serverUris!);
 
             int count = decoder.ReadInt32(null);
 
@@ -440,7 +440,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < namespaceUris.Count; ii++)
                     {
-                        context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
+                        context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii)!);
                     }
                 }
             }
@@ -459,13 +459,13 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < serverUris.Count; ii++)
                     {
-                        context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
+                        context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii)!);
                     }
                 }
             }
 
             // set mapping.
-            decoder.SetMappingTables(namespaceUris, serverUris);
+            decoder.SetMappingTables(namespaceUris!, serverUris!);
 
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
@@ -506,7 +506,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(assembly));
             }
 
-            Stream istrm = assembly.GetManifestResourceStream(resourcePath);
+            Stream? istrm = assembly.GetManifestResourceStream(resourcePath);
             if (istrm == null)
             {
                 // try to load from app directory
@@ -549,7 +549,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(assembly));
             }
 
-            Stream istrm = assembly.GetManifestResourceStream(resourcePath);
+            Stream? istrm = assembly.GetManifestResourceStream(resourcePath);
             if (istrm == null)
             {
                 // try to load from app directory
