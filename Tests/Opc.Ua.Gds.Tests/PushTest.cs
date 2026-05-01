@@ -1166,6 +1166,9 @@ namespace Opc.Ua.Gds.Tests
             }
             catch (ServiceResultException sre) when (
                 sre.StatusCode == StatusCodes.BadRequestTimeout ||
+                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
+                sre.StatusCode == StatusCodes.BadRequestCancelledByClient ||
+                sre.StatusCode == StatusCodes.BadOperationAbandoned ||
                 sre.StatusCode == StatusCodes.BadSecureChannelClosed ||
                 sre.StatusCode == StatusCodes.BadSessionClosed ||
                 sre.StatusCode == StatusCodes.BadSessionIdInvalid ||
