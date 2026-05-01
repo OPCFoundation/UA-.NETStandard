@@ -532,8 +532,17 @@ namespace Opc.Ua.Gds.Server
                 StorePath = AuthoritiesStore.StorePath,
                 StoreType = AuthoritiesStore.StoreType
             };
-            return await certIdentifier.LoadPrivateKeyAsync(signingKeyPassword, null, telemetry, ct)
-                .ConfigureAwait(false);
+            // The identifier owns the loaded certificate (m_certificate)
+            // and disposes it when the `using` block ends. Take an
+            // independent reference so the returned certificate stays
+            // valid for the caller.
+            Certificate loaded = await certIdentifier
+                .LoadPrivateKeyAsync(signingKeyPassword, null, telemetry, ct)
+                .ConfigureAwait(false)
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "Failed to load signing key for certificate.");
+            return loaded.AddRef();
         }
 
         /// <summary>
