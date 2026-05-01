@@ -466,7 +466,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="response">The response. May be null if an error is provided.</param>
         /// <param name="error">An error to result as a fault.</param>
-        void OperationCompleted(IServiceResponse response, ServiceResult error);
+        void OperationCompleted(IServiceResponse? response, ServiceResult error);
     }
 
     /// <summary>
