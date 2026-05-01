@@ -92,7 +92,7 @@ namespace Opc.Ua
     public abstract class NodeStateActivator : INodeStateFactory
     {
         /// <inheritdoc/>
-        public NodeState CreateInstance(
+        public NodeState? CreateInstance(
             ISystemContext context,
             NodeState? parent,
             NodeClass nodeClass,
@@ -129,7 +129,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         protected override NodeState CreateInstance(
-            ISystemContext context, NodeState parent)
+            ISystemContext context, NodeState? parent)
         {
             return (NodeState)Activator.CreateInstance(m_type, parent)!;
         }

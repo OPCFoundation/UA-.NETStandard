@@ -50,7 +50,7 @@ namespace Opc.Ua.Redaction
         /// <inheritdoc />
         public override string ToString()
         {
-            return RedactionStrategies.CurrentStrategy.Redact(m_value);
+            return RedactionStrategies.CurrentStrategy.Redact(m_value!);
         }
     }
 }

@@ -816,7 +816,7 @@ namespace Opc.Ua
 
             if (namespaceUris != null && namespaceUris.Count > 1)
             {
-                serverUris.Append(namespaceUris.GetString(1));
+                serverUris.Append(namespaceUris.GetString(1)!);
             }
 
             if (!decoder.LoadStringTable(serverUris))
@@ -1118,7 +1118,7 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
             {
-                SymbolicName = decoder.ReadString(null);
+                SymbolicName = decoder.ReadString(null) ?? string.Empty;
             }
 
             if ((attributesToLoad & AttributesToSave.BrowseName) != 0)
@@ -1200,7 +1200,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    BaseInstanceState child = UpdateChild(context, decoder);
+                    BaseInstanceState? child = UpdateChild(context, decoder);
                 }
                 catch (Exception)
                 {
@@ -1219,7 +1219,7 @@ namespace Opc.Ua
         /// The child is created if it does not already exist.
         /// Recursively updates any children of the child.
         /// </remarks>
-        protected BaseInstanceState UpdateChild(ISystemContext context, BinaryDecoder decoder)
+        protected BaseInstanceState? UpdateChild(ISystemContext context, BinaryDecoder decoder)
         {
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
             string? symbolicName = null;
@@ -1250,7 +1250,7 @@ namespace Opc.Ua
 
             if (child != null)
             {
-                child.SymbolicName = symbolicName;
+                child.SymbolicName = symbolicName ?? string.Empty;
                 child.BrowseName = browseName;
 
                 // update attributes.
@@ -1390,7 +1390,7 @@ namespace Opc.Ua
         /// <param name="encoder">The encoder wrapping the stream to write.</param>
         public void SaveAsXml(ISystemContext context, XmlEncoder encoder)
         {
-            encoder.Push(SymbolicName, context.NamespaceUris.GetString(BrowseName.NamespaceIndex));
+            encoder.Push(SymbolicName, context.NamespaceUris.GetString(BrowseName.NamespaceIndex) ?? string.Empty);
 
             Save(context, encoder);
             SaveReferences(context, encoder);
@@ -1656,7 +1656,7 @@ namespace Opc.Ua
 
                 encoder.Push(
                     child.SymbolicName,
-                    context.NamespaceUris.GetString(child.BrowseName.NamespaceIndex));
+                    context.NamespaceUris.GetString(child.BrowseName.NamespaceIndex) ?? string.Empty);
 
                 child.Save(context, encoder);
                 child.SaveReferences(context, encoder);
@@ -1725,7 +1725,7 @@ namespace Opc.Ua
         public virtual void UpdateChildren(ISystemContext context, XmlDecoder decoder)
         {
             // get the first child.
-            BaseInstanceState child = UpdateChild(context, decoder);
+            BaseInstanceState? child = UpdateChild(context, decoder);
 
             while (child != null)
             {
@@ -1933,7 +1933,7 @@ namespace Opc.Ua
             NodeState? parent,
             AttributesToSave attributesToLoad,
             NodeClass nodeClass,
-            string symbolicName,
+            string? symbolicName,
             QualifiedName browseName)
         {
             decoder.PushNamespace(Namespaces.OpcUaXsd);
@@ -2015,7 +2015,7 @@ namespace Opc.Ua
             }
 
             // initialize the child from the stream.
-            child.SymbolicName = symbolicName;
+            child.SymbolicName = symbolicName ?? string.Empty;
             child.NodeId = nodeId;
             child.BrowseName = browseName;
             child.DisplayName = displayName;
@@ -2046,7 +2046,7 @@ namespace Opc.Ua
             BinaryDecoder decoder,
             AttributesToSave attributesToLoad,
             NodeClass nodeClass,
-            string symbolicName,
+            string? symbolicName,
             QualifiedName browseName)
         {
             // create the appropriate node.
@@ -2083,7 +2083,7 @@ namespace Opc.Ua
                             nodeClass);
 
                     // update symbolic name.
-                    child.SymbolicName = symbolicName;
+                    child.SymbolicName = symbolicName ?? string.Empty;
                     child.BrowseName = browseName;
 
                     // update attributes.
@@ -2706,7 +2706,7 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         /// <param name="methodId">The identifier for the method to find.</param>
         /// <returns>Returns the method. Null if no method found.</returns>
-        public virtual MethodState FindMethod(ISystemContext context, NodeId methodId)
+        public virtual MethodState? FindMethod(ISystemContext context, NodeId methodId)
         {
             var children = new List<BaseInstanceState>();
             GetChildren(context, children);
@@ -3059,15 +3059,15 @@ namespace Opc.Ua
         /// <returns>A thread safe object which enumerates the references for an entity.</returns>
         public virtual INodeBrowser CreateBrowser(
             ISystemContext context,
-            ViewDescription view,
+            ViewDescription? view,
             NodeId referenceType,
             bool includeSubtypes,
             BrowseDirection browseDirection,
             QualifiedName browseName,
-            IEnumerable<IReference> additionalReferences,
+            IEnumerable<IReference>? additionalReferences,
             bool internalOnly)
         {
-            NodeBrowser browser = OnCreateBrowser?.Invoke(
+            NodeBrowser? browser = OnCreateBrowser?.Invoke(
                 context,
                 this,
                 view,
@@ -3078,7 +3078,7 @@ namespace Opc.Ua
                 additionalReferences,
                 internalOnly);
 
-            NodeBrowser newBrowser = null;
+            NodeBrowser? newBrowser = null;
             try
             {
                 if (browser == null)
@@ -3113,12 +3113,12 @@ namespace Opc.Ua
         /// </summary>
         private static NodeBrowser CreateDefaultNodeBrowser(
             ISystemContext context,
-            ViewDescription view,
+            ViewDescription? view,
             NodeId referenceType,
             bool includeSubtypes,
             BrowseDirection browseDirection,
             QualifiedName browseName,
-            IEnumerable<IReference> additionalReferences,
+            IEnumerable<IReference>? additionalReferences,
             bool internalOnly)
         {
             return new NodeBrowser(
@@ -3194,7 +3194,7 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        if (!hierarchy.TryGetValue(targetId, out string targetPath))
+                        if (!hierarchy.TryGetValue(targetId, out string? targetPath))
                         {
                             references.Add(new NodeStateHierarchyReference(browsePath, reference));
                             continue;
@@ -3621,7 +3621,7 @@ namespace Opc.Ua
 
             Variant valueToRead = value.WrappedValue;
 
-            ServiceResult result;
+            ServiceResult result = ServiceResult.Good;
             // read value attribute.
             if (attributeId == Attributes.Value)
             {
@@ -3664,7 +3664,7 @@ namespace Opc.Ua
             }
 
             // ensure status code matches result.
-            if (result != null && result != ServiceResult.Good)
+            if (result != ServiceResult.Good)
             {
                 value.StatusCode = result.StatusCode;
             }
@@ -4197,11 +4197,11 @@ namespace Opc.Ua
                     var buffer = new RolePermissionType[rolePermissionsArray.Count];
                     for (int ii = 0; ii < rolePermissionsArray.Count; ii++)
                     {
-                        if (!rolePermissionsArray[ii].TryGetEncodeable(out RolePermissionType rolePermission))
+                        if (!rolePermissionsArray[ii].TryGetEncodeable(out RolePermissionType? rolePermission))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
-                        buffer[ii] = rolePermission;
+                        buffer[ii] = rolePermission!;
                     }
                     ArrayOf<RolePermissionType> rolePermissions = buffer.ToArrayOf();
 
@@ -4490,7 +4490,7 @@ namespace Opc.Ua
                 Description = default,
                 WriteMask = 0,
                 UserWriteMask = 0,
-                Value = default,
+                Value = default!,
                 DataType = dataTypeId,
                 ValueRank = valueRank,
                 ArrayDimensions = default,
@@ -4811,7 +4811,7 @@ namespace Opc.Ua
                 return WriteAttribute(context, attributeId, default, value);
             }
 
-            List<BaseInstanceState> children = null;
+            List<BaseInstanceState>? children = null;
 
             lock (m_childrenLock)
             {
@@ -4982,7 +4982,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(referenceTypeId));
             }
 
-            List<IReference> refsToRemove = null;
+            List<IReference>? refsToRemove = null;
 
             lock (m_referencesLock)
             {
@@ -5099,7 +5099,7 @@ namespace Opc.Ua
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState? replacement)
         {
             if (browseName.IsNull)
             {
@@ -5286,12 +5286,12 @@ namespace Opc.Ua
     public delegate NodeBrowser NodeStateCreateBrowserEventHandler(
         ISystemContext context,
         NodeState node,
-        ViewDescription view,
+        ViewDescription? view,
         NodeId referenceType,
         bool includeSubtypes,
         BrowseDirection browseDirection,
         QualifiedName browseName,
-        IEnumerable<IReference> additionalReferences,
+        IEnumerable<IReference>? additionalReferences,
         bool internalOnly);
 
     /// <summary>

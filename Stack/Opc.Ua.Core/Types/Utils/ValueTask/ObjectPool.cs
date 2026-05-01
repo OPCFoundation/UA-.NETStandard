@@ -62,7 +62,7 @@ namespace Opc.Ua
         /// <returns>An object from the pool or a new one if the pool is empty.</returns>
         public T Get()
         {
-            if (m_objects.TryTake(out T item))
+            if (m_objects.TryTake(out T? item))
             {
                 return item;
             }

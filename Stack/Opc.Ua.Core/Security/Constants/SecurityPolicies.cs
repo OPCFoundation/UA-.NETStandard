@@ -604,7 +604,7 @@ namespace Opc.Ua
                         if (dataToDecrypt.Algorithm == SecurityAlgorithms.RsaOaep)
                         {
                             return RsaUtils.Decrypt(
-                                new ArraySegment<byte>(dataToDecrypt.Data),
+                                new ArraySegment<byte>(dataToDecrypt.Data!),
                                 certificate,
                                 RsaUtils.Padding.OaepSHA1,
                                 logger);
@@ -617,7 +617,7 @@ namespace Opc.Ua
                         if (dataToDecrypt.Algorithm == SecurityAlgorithms.Rsa15)
                         {
                             return RsaUtils.Decrypt(
-                                new ArraySegment<byte>(dataToDecrypt.Data),
+                                new ArraySegment<byte>(dataToDecrypt.Data!),
                                 certificate,
                                 RsaUtils.Padding.Pkcs1,
                                 logger);
@@ -631,7 +631,7 @@ namespace Opc.Ua
                         if (dataToDecrypt.Algorithm == SecurityAlgorithms.RsaOaepSha256)
                         {
                             return RsaUtils.Decrypt(
-                                new ArraySegment<byte>(dataToDecrypt.Data),
+                                new ArraySegment<byte>(dataToDecrypt.Data!),
                                 certificate,
                                 RsaUtils.Padding.OaepSHA256,
                                 logger);
@@ -649,7 +649,7 @@ namespace Opc.Ua
             throw ServiceResultException.Create(
                 StatusCodes.BadIdentityTokenInvalid,
                 "Unexpected encryption algorithm : {0}",
-                dataToDecrypt.Algorithm);
+                dataToDecrypt.Algorithm ?? string.Empty);
         }
 
         /// <summary>
@@ -938,7 +938,7 @@ namespace Opc.Ua
             throw ServiceResultException.Create(
                 StatusCodes.BadSecurityChecksFailed,
                 "Unexpected SignatureData algorithm: {0}",
-                signature.Algorithm);
+                signature.Algorithm ?? string.Empty);
         }
 
         /// <summary>
@@ -948,10 +948,10 @@ namespace Opc.Ua
             new(() =>
             {
 #if NET8_0_OR_GREATER
-                return s_securityPolicyNameToUri.Value.ToFrozenDictionary(k => k.Value, k => k.Key);
+                return s_securityPolicyNameToUri!.Value.ToFrozenDictionary(k => k.Value, k => k.Key);
 #else
                 return new ReadOnlyDictionary<string, string>(
-                    s_securityPolicyNameToUri.Value.ToDictionary(k => k.Value, k => k.Key));
+                    s_securityPolicyNameToUri!.Value.ToDictionary(k => k.Value, k => k.Key));
 #endif
             });
 
@@ -992,10 +992,10 @@ namespace Opc.Ua
             new(() =>
             {
 #if NET8_0_OR_GREATER
-                return s_securityPolicyNameToInfo.Value.ToFrozenDictionary(k => k.Value.Uri, k => k.Value);
+                return s_securityPolicyNameToInfo!.Value.ToFrozenDictionary(k => k.Value.Uri, k => k.Value);
 #else
                 return new ReadOnlyDictionary<string, SecurityPolicyInfo>(
-                    s_securityPolicyNameToInfo.Value.ToDictionary(k => k.Value.Uri, k => k.Value));
+                    s_securityPolicyNameToInfo!.Value.ToDictionary(k => k.Value.Uri, k => k.Value));
 #endif
             });
 

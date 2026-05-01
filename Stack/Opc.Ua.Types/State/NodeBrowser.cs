@@ -60,7 +60,7 @@ namespace Opc.Ua
         /// </summary>
         public NodeBrowser(
             ISystemContext context,
-            ViewDescription view,
+            ViewDescription? view,
             NodeId referenceType,
             bool includeSubtypes,
             BrowseDirection browseDirection,
@@ -251,7 +251,7 @@ namespace Opc.Ua
         /// <summary>
         /// The view being browsed.
         /// </summary>
-        public ViewDescription View { get; }
+        public ViewDescription? View { get; }
 
         /// <summary>
         /// The type of reference to return.

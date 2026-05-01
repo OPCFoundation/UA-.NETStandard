@@ -41,9 +41,9 @@ namespace Opc.Ua
     public class NodeStateFactory : INodeStateFactory, INodeStateFactoryBuilder
     {
         /// <inheritdoc/>
-        public virtual NodeState CreateInstance(
+        public virtual NodeState? CreateInstance(
             ISystemContext context,
-            NodeState parent,
+            NodeState? parent,
             NodeClass nodeClass,
             QualifiedName browseName,
             NodeId referenceTypeId,
@@ -117,7 +117,7 @@ namespace Opc.Ua
         public static DefaultNodeStateActivator Instance { get; } = new();
 
         /// <inheritdoc/>
-        public NodeState CreateInstance(
+        public NodeState? CreateInstance(
             ISystemContext context,
             NodeState? parent,
             NodeClass nodeClass,

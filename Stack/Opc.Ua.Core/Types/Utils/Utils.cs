@@ -175,7 +175,7 @@ namespace Opc.Ua
         /// </summary>
         public static readonly string DefaultOpcUaCoreAssemblyName = typeof(Utils).Assembly
             .GetName()
-            .Name;
+            .Name!;
 
         /// <summary>
         /// Helper to get the name of the Opc.Ua.Bindings.Https assembly.
@@ -254,13 +254,13 @@ namespace Opc.Ua
             }
 
             // check for absolute path.
-            if (IsPathRooted(input))
+            if (IsPathRooted(input!))
             {
                 return input;
             }
 
             // check for special folder prefix.
-            if (input[0] != '%')
+            if (input![0] != '%')
             {
                 return input;
             }
@@ -367,7 +367,7 @@ namespace Opc.Ua
                                     "{0}{1}{2}",
                                     Directory.GetCurrentDirectory(),
                                     Path.DirectorySeparatorChar,
-                                    resolved));
+                                    resolved!));
 #if NETFRAMEWORK
                             if (!localFile.Exists)
                             {
@@ -375,9 +375,9 @@ namespace Opc.Ua
                                     Format(
                                         "{0}{1}{2}",
                                         Path.GetDirectoryName(
-                                            Assembly.GetExecutingAssembly().Location),
+                                            Assembly.GetExecutingAssembly().Location)!,
                                         Path.DirectorySeparatorChar,
-                                        resolved));
+                                        resolved!));
                                 if (localFile2.Exists)
                                 {
                                     localFile = localFile2;
@@ -392,7 +392,7 @@ namespace Opc.Ua
                                     "{0}{1}{2}",
                                     Path.GetTempPath(),
                                     Path.DirectorySeparatorChar,
-                                    resolved));
+                                    resolved!));
                         }
 
                         if (localFile!.Exists)
@@ -493,7 +493,7 @@ namespace Opc.Ua
                                     "{0}{1}{2}",
                                     Directory.GetCurrentDirectory(),
                                     Path.DirectorySeparatorChar,
-                                    resolved));
+                                    resolved!));
 #if NETFRAMEWORK
                             if (!directory.Exists)
                             {
@@ -501,9 +501,9 @@ namespace Opc.Ua
                                     Format(
                                         "{0}{1}{2}",
                                         Path.GetDirectoryName(
-                                            Assembly.GetExecutingAssembly().Location),
+                                            Assembly.GetExecutingAssembly().Location)!,
                                         Path.DirectorySeparatorChar,
-                                        resolved));
+                                        resolved!));
                                 if (directory2.Exists)
                                 {
                                     directory = directory2;
@@ -1300,7 +1300,7 @@ namespace Opc.Ua
         public static bool IsEqual<T>(T? value1, T? value2)
             where T : IEquatable<T>
         {
-            return CoreUtils.IsEqual(value1, value2);
+            return CoreUtils.IsEqual(value1!, value2!);
         }
 
         /// <summary>
@@ -1310,7 +1310,7 @@ namespace Opc.Ua
         public static bool IsEqual<T>(IEnumerable<T>? value1, IEnumerable<T>? value2)
             where T : IEquatable<T>
         {
-            return CoreUtils.IsEqual(value1, value2);
+            return CoreUtils.IsEqual(value1!, value2!);
         }
 
         /// <summary>
@@ -1339,7 +1339,7 @@ namespace Opc.Ua
         public static bool IsEqual<T>(T[]? value1, T[]? value2)
             where T : unmanaged, IEquatable<T>
         {
-            return CoreUtils.IsEqual(value1, value2);
+            return CoreUtils.IsEqual(value1!, value2!);
         }
 
 #if NETFRAMEWORK
@@ -1348,7 +1348,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEqual(byte[]? value1, byte[]? value2)
         {
-            return CoreUtils.IsEqual(value1, value2);
+            return CoreUtils.IsEqual(value1!, value2!);
         }
 #endif
 
@@ -1357,7 +1357,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEqual(object? value1, object? value2)
         {
-            return CoreUtils.IsEqual(value1, value2);
+            return CoreUtils.IsEqual(value1!, value2!);
         }
 
         /// <summary>
@@ -1392,7 +1392,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
 
             for (int ii = 0; ii < extensions.Count; ii++)
             {
@@ -1446,12 +1446,12 @@ namespace Opc.Ua
 
             var document = new XmlDocument();
 
-            if (!EqualityComparer<T>.Default.Equals(value, default))
+            if (!EqualityComparer<T>.Default.Equals(value!, default!))
             {
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
                 using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
                 encoder.Push(elementName.Name, elementName.Namespace);
-                encoderFunc(encoder, value);
+                encoderFunc(encoder, value!);
                 encoder.Pop();
                 string xml = encoder.CloseAndReturnText();
                 document.LoadInnerXml(xml);
@@ -1472,7 +1472,7 @@ namespace Opc.Ua
                         element.LocalName == elementName.Name &&
                         element.NamespaceURI == elementName.Namespace)
                     {
-                        if (EqualityComparer<T>.Default.Equals(value, default))
+                        if (EqualityComparer<T>.Default.Equals(value!, default!))
                         {
                             xmlElements.RemoveAt(ii);
                             extensions = xmlElements.ToArrayOf();
@@ -1486,7 +1486,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!EqualityComparer<T>.Default.Equals(value, default))
+            if (!EqualityComparer<T>.Default.Equals(value!, default!))
             {
                 xmlElements.Add(XmlElement.From(document.DocumentElement));
                 extensions = xmlElements.ToArrayOf();
@@ -1515,7 +1515,7 @@ namespace Opc.Ua
 
             elementName ??= GetEncodeableXmlName(typeof(T));
 
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
 
             for (int ii = 0; ii < extensions.Count; ii++)
             {
@@ -1532,7 +1532,7 @@ namespace Opc.Ua
                 // namespace directly from the XML document element, which
                 // matches the namespace used in the config file.
                 using var parser = new XmlParser(
-                    null, element.OuterXml, AmbientMessageContext.CurrentContext);
+                    null!, element.OuterXml, AmbientMessageContext.CurrentContext);
                 var result = new T();
                 result.Decode(parser);
                 return result;
@@ -1562,7 +1562,7 @@ namespace Opc.Ua
 
             if (value != null)
             {
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
                 using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
                 encoder.Push(elementName.Name, elementName.Namespace);
                 value.Encode(encoder);
@@ -2079,15 +2079,15 @@ namespace Opc.Ua
                     return true;
                 case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
                     return s_eccCurveSupportCache[
-                        ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName].Value;
+                        ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName!].Value;
                 case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
                     return s_eccCurveSupportCache[
-                        ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName].Value;
+                        ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName!].Value;
                 case ObjectTypes.EccNistP256ApplicationCertificateType:
-                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName]
+                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName!]
                         .Value;
                 case ObjectTypes.EccNistP384ApplicationCertificateType:
-                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName]
+                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName!]
                         .Value;
                 // case ObjectTypes.EccCurve25519ApplicationCertificateType:
                 // case ObjectTypes.EccCurve448ApplicationCertificateType:
@@ -2127,19 +2127,19 @@ namespace Opc.Ua
         private static readonly Dictionary<string, Lazy<bool>> s_eccCurveSupportCache = new()
         {
             {
-                ECCurve.NamedCurves.nistP256.Oid.FriendlyName,
+                ECCurve.NamedCurves.nistP256.Oid.FriendlyName!,
                 new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP256))
             },
             {
-                ECCurve.NamedCurves.nistP384.Oid.FriendlyName,
+                ECCurve.NamedCurves.nistP384.Oid.FriendlyName!,
                 new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP384))
             },
             {
-                ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName,
+                ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName!,
                 new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP256r1))
             },
             {
-                ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName,
+                ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName!,
                 new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP384r1))
             }
         };

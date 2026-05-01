@@ -987,7 +987,7 @@ namespace Opc.Ua.Test
 
             return GetBoundaryValue(useBoundaryValues,
                 new DataValue(variant, statusCode, sourceTimeStamp, DateTimeUtc.Now),
-                [new DataValue(), default]);
+                [new DataValue(), default!])!;
         }
 
         /// <summary>
@@ -1001,7 +1001,7 @@ namespace Opc.Ua.Test
                 DiagnosticsMasks.NoInnerStatus,
                 true,
                 new StringTable(),
-                m_logger), [new DiagnosticInfo(), default]);
+                m_logger), [new DiagnosticInfo(), default!])!;
         }
 
         /// <summary>

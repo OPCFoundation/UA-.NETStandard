@@ -101,7 +101,7 @@ namespace Opc.Ua.Types.Redaction
                 return RedactException(exception);
             }
 
-            string valueString = value.ToString();
+            string valueString = value.ToString() ?? string.Empty;
 
             if (valueString.Length < m_minLength)
             {

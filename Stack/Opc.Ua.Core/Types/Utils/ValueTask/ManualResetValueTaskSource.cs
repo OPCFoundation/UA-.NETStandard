@@ -81,7 +81,7 @@ namespace Opc.Ua
             return m_core.GetStatus(token);
         }
 
-        public void OnCompleted(Action<object> continuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
+        public void OnCompleted(Action<object?> continuation, object? state, short token, ValueTaskSourceOnCompletedFlags flags)
         {
             m_core.OnCompleted(continuation, state, token, flags);
         }

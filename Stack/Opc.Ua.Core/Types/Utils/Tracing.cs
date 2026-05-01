@@ -40,7 +40,7 @@ namespace Opc.Ua
     public sealed class Tracing
     {
         private static readonly Lock s_syncRoot = new();
-        private static Tracing s_instance;
+        private static Tracing? s_instance;
 
         /// <summary>
         /// Private constructor.
@@ -80,7 +80,7 @@ namespace Opc.Ua
         /// <summary>
         /// Occurs when a trace call is made.
         /// </summary>
-        public event EventHandler<TraceEventArgs> TraceEventHandler;
+        public event EventHandler<TraceEventArgs>? TraceEventHandler;
 
         internal void RaiseTraceEvent(TraceEventArgs eventArgs)
         {
