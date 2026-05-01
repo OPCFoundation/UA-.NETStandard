@@ -92,17 +92,17 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public EndpointDescription? Endpoint => NullableTransportChannel?.EndpointDescription;
+        public EndpointDescription Endpoint => NullableTransportChannel!.EndpointDescription;
 
         /// <inheritdoc/>
-        public EndpointConfiguration? EndpointConfiguration
-            => NullableTransportChannel?.EndpointConfiguration;
+        public EndpointConfiguration EndpointConfiguration
+            => NullableTransportChannel!.EndpointConfiguration;
 
         /// <inheritdoc/>
         public IServiceMessageContext MessageContext => NullableTransportChannel!.MessageContext;
 
         /// <inheritdoc/>
-        public ITransportChannel? NullableTransportChannel
+        public ITransportChannel NullableTransportChannel
         {
             get
             {
@@ -116,7 +116,7 @@ namespace Opc.Ua
                         "Channel is set but client has been disposed.");
                 }
 
-                return channel;
+                return channel!;
             }
         }
 
