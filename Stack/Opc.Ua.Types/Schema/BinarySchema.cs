@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System.Xml;
 using System.Xml.Serialization;
 
@@ -41,6 +43,6 @@ namespace Opc.Ua.Schema.Binary
         /// The qualifed name for the type.
         /// </summary>
         [XmlIgnore]
-        public XmlQualifiedName QName { get; set; }
+        public XmlQualifiedName? QName { get; set; }
     }
 }

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Text;
@@ -234,7 +236,7 @@ namespace Opc.Ua
         /// Unexpected error occurred
         /// </summary>
         public static ServiceResultException Unexpected(
-            string format,
+            string? format,
             params object[] args)
         {
             return Unexpected(null, format, args);
@@ -244,8 +246,8 @@ namespace Opc.Ua
         /// Unexpected error occurred
         /// </summary>
         public static ServiceResultException Unexpected(
-            Exception exception,
-            string format,
+            Exception? exception,
+            string? format,
             params object[] args)
         {
 #if DEBUG
@@ -284,7 +286,7 @@ namespace Opc.Ua
         /// Configuration error occurred
         /// </summary>
         public static ServiceResultException ConfigurationError(
-            string format,
+            string? format,
             params object[] args)
         {
             return ConfigurationError(null, format, args);
@@ -294,8 +296,8 @@ namespace Opc.Ua
         /// Configuration error occurred
         /// </summary>
         public static ServiceResultException ConfigurationError(
-            Exception exception,
-            string format,
+            Exception? exception,
+            string? format,
             params object[] args)
         {
 #if DEBUG

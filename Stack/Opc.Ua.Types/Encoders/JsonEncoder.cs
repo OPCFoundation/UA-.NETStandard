@@ -345,7 +345,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDataValue(string? fieldName, DataValue value)
+        public void WriteDataValue(string? fieldName, DataValue? value)
         {
             if (value == null)
             {
@@ -387,7 +387,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDiagnosticInfo(string? fieldName, DiagnosticInfo value)
+        public void WriteDiagnosticInfo(string? fieldName, DiagnosticInfo? value)
         {
             if (value == null)
             {
@@ -856,7 +856,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteString(string? fieldName, string value)
+        public void WriteString(string? fieldName, string? value)
         {
             if (value == null)
             {

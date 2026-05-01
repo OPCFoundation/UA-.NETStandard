@@ -132,7 +132,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool IsEqual(IEncodeable encodeable)
+        public override bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {

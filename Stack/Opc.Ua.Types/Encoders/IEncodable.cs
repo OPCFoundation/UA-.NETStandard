@@ -75,6 +75,6 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> if the specified instance of the <see cref="IEncodeable"/> type is equal; otherwise <c>false</c>.
         /// </returns>
-        bool IsEqual(IEncodeable encodeable);
+        bool IsEqual(IEncodeable? encodeable);
     }
 }

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -314,9 +316,9 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                variable = children[ii] as BaseVariableState;
+                BaseVariableState? childVariable = children[ii] as BaseVariableState;
 
-                variable?.MinimumSamplingInterval = minimumSamplingInterval;
+                childVariable?.MinimumSamplingInterval = minimumSamplingInterval;
 
                 children[ii].SetMinimumSamplingInterval(context, minimumSamplingInterval);
             }
@@ -349,7 +351,7 @@ namespace Opc.Ua
             var dataValue = new DataValue();
 
             ServiceResult result = ReadChildAttribute(
-                null,
+                null!,
                 relativePath,
                 0,
                 attributeId,

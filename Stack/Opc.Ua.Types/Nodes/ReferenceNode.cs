@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Runtime.Serialization;
@@ -128,7 +130,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -188,7 +190,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is ReferenceNode node)
             {
@@ -198,7 +200,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(ReferenceNode obj)
+        public bool Equals(ReferenceNode? obj)
         {
             if (obj is null)
             {
@@ -247,7 +249,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int CompareTo(object obj)
+        public int CompareTo(object? obj)
         {
             if (obj is null)
             {
@@ -268,8 +270,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int CompareTo(ReferenceNode obj)
+        public int CompareTo(ReferenceNode? obj)
         {
+            if (obj is null)
+            {
+                return +1;
+            }
+
             if (ReferenceTypeId.IsNull)
             {
                 return obj?.ReferenceTypeId.IsNull == true ? 0 : -1;

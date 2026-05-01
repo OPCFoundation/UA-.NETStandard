@@ -153,7 +153,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a string to the stream.
         /// </summary>
-        void WriteString(string? fieldName, string value);
+        void WriteString(string? fieldName, string? value);
 
         /// <summary>
         /// Writes a UTC date/time to the stream.
@@ -200,7 +200,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a DiagnosticInfo to the stream.
         /// </summary>
-        void WriteDiagnosticInfo(string? fieldName, DiagnosticInfo value);
+        void WriteDiagnosticInfo(string? fieldName, DiagnosticInfo? value);
 
         /// <summary>
         /// Writes a QualifiedName to the stream.
@@ -220,7 +220,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a DataValue to the stream.
         /// </summary>
-        void WriteDataValue(string? fieldName, DataValue value);
+        void WriteDataValue(string? fieldName, DataValue? value);
 
         /// <summary>
         /// Writes an ExtensionObject to the stream.

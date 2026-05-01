@@ -56,7 +56,7 @@ namespace Opc.Ua
         public abstract void Decode(IDecoder decoder);
 
         /// <inheritdoc/>
-        public abstract bool IsEqual(IEncodeable encodeable);
+        public abstract bool IsEqual(IEncodeable? encodeable);
 
         /// <inheritdoc/>
         public abstract object Clone();

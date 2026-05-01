@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -173,7 +173,7 @@ namespace Opc.Ua.Encoders
         }
 
         /// <inheritdoc/>
-        public override bool IsEqual(IEncodeable encodeable)
+        public override bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {

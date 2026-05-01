@@ -2967,7 +2967,7 @@ namespace Opc.Ua.Client
                         try
                         {
                             browsePath.RelativePath = RelativePath.Parse(
-                                monitoredItem.RelativePath,
+                                monitoredItem.RelativePath!,
                                 Session!.TypeTree);
                         }
                         catch (Exception e)

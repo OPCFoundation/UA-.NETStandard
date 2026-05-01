@@ -1224,7 +1224,7 @@ namespace Opc.Ua.Client
             ReferenceDescription reference,
             CancellationToken ct = default)
         {
-            if (reference == null || reference.NodeId.IsNull)
+            if (reference is null || reference.NodeId.IsNull)
             {
                 return string.Empty;
             }
