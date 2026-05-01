@@ -1017,7 +1017,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            string[] fields = value.Split(s_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
+            string[] fields = value!.Split(s_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
 
             if (fields == null || fields.Length == 0)
             {

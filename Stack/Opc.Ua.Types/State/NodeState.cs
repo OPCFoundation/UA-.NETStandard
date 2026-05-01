@@ -88,7 +88,7 @@ namespace Opc.Ua
             }
 
             if (node is not null &&
-                EqualityComparer<object>.Default.Equals(Handle, node.Handle) &&
+                EqualityComparer<object>.Default.Equals(Handle!, node.Handle!) &&
                 ChangeMasks == node.ChangeMasks &&
                 SymbolicName == node.SymbolicName &&
                 NodeId == node.NodeId &&
@@ -107,9 +107,9 @@ namespace Opc.Ua
 
                 // TODO: Remove below as not needed during runtime
                 EqualityComparer<XmlElement[]>.Default.Equals(
-                    Extensions, node.Extensions) &&
+                    Extensions!, node.Extensions!) &&
                 EqualityComparer<IList<string>>.Default.Equals(
-                    Categories, node.Categories) &&
+                    Categories!, node.Categories!) &&
                 ReleaseStatus == node.ReleaseStatus &&
                 Specification == node.Specification &&
                 NodeSetDocumentation == node.NodeSetDocumentation &&

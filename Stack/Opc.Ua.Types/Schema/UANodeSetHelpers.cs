@@ -1049,7 +1049,7 @@ namespace Opc.Ua.Export
 
             if (!string.IsNullOrEmpty(node.SymbolicName))
             {
-                importedNode.SymbolicName = node.SymbolicName;
+                importedNode.SymbolicName = node.SymbolicName!;
             }
 
             if (node.References != null)
