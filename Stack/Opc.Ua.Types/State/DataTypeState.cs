@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using Opc.Ua.Types;
@@ -216,12 +218,12 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the DataTypeDefinition attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<ExtensionObject> OnReadDataTypeDefinition;
+        public NodeAttributeEventHandler<ExtensionObject>? OnReadDataTypeDefinition;
 
         /// <summary>
         /// Raised when the DataTypeDefinition attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<ExtensionObject> OnWriteDataTypeDefinition;
+        public NodeAttributeEventHandler<ExtensionObject>? OnWriteDataTypeDefinition;
 
         /// <summary>
         /// Reads the value for DataTypeDefinition attribute.
@@ -231,14 +233,14 @@ namespace Opc.Ua
             uint attributeId,
             ref Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
                     ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
 
-                    NodeAttributeEventHandler<ExtensionObject> onReadDataTypeDefinition
+                    NodeAttributeEventHandler<ExtensionObject>? onReadDataTypeDefinition
                         = OnReadDataTypeDefinition;
 
                     if (onReadDataTypeDefinition != null)
@@ -246,14 +248,16 @@ namespace Opc.Ua
                         result = onReadDataTypeDefinition(context, this, ref dataTypeDefinition);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
                         if (dataTypeDefinition.TryGetEncodeable(out StructureDefinition structureType) &&
                             structureType.DefaultEncodingId.IsNull)
                         {
                             // one time set the id for binary encoding, currently the only supported encoding
                             structureType.SetDefaultEncodingId(context, NodeId, default);
                         }
+#pragma warning restore CS8600
                         value = dataTypeDefinition;
                     }
 
@@ -262,7 +266,7 @@ namespace Opc.Ua
                         return StatusCodes.BadAttributeIdInvalid;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.ReadNonValueAttribute(context, attributeId, ref value);
             }
@@ -276,7 +280,7 @@ namespace Opc.Ua
             uint attributeId,
             Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
@@ -291,7 +295,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<ExtensionObject> onWriteDataTypeDefinition
+                    NodeAttributeEventHandler<ExtensionObject>? onWriteDataTypeDefinition
                         = OnWriteDataTypeDefinition;
 
                     if (onWriteDataTypeDefinition != null)
@@ -299,12 +303,12 @@ namespace Opc.Ua
                         result = onWriteDataTypeDefinition(context, this, ref dataTypeDefinition);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         m_dataTypeDefinition = dataTypeDefinition;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.WriteNonValueAttribute(context, attributeId, value);
             }

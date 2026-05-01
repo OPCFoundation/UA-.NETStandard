@@ -54,7 +54,7 @@ namespace Opc.Ua
         /// The table of strings which is used to store diagnostic string data.
         /// </summary>
         /// <value>The string table.</value>
-        StringTable StringTable { get; }
+        StringTable? StringTable { get; }
 
         /// <summary>
         /// When the operation times out.
@@ -72,6 +72,6 @@ namespace Opc.Ua
         /// The audit identifier associated with the operation.
         /// </summary>
         /// <value>The audit entry identifier.</value>
-        string AuditEntryId { get; }
+        string? AuditEntryId { get; }
     }
 }

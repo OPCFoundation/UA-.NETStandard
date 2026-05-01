@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using Opc.Ua.Types;
 
@@ -40,8 +42,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public BaseObjectState(NodeState parent)
-            : base(NodeClass.Object, parent)
+        public BaseObjectState(NodeState? parent)
+            : base(NodeClass.Object, parent!)
         {
             m_eventNotifier = EventNotifiers.None;
 
@@ -156,12 +158,12 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the EventNotifier attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<byte> OnReadEventNotifier;
+        public NodeAttributeEventHandler<byte>? OnReadEventNotifier;
 
         /// <summary>
         /// Raised when the EventNotifier attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<byte> OnWriteEventNotifier;
+        public NodeAttributeEventHandler<byte>? OnWriteEventNotifier;
 
         /// <summary>
         /// Exports a copy of the node to a node table.
@@ -279,26 +281,26 @@ namespace Opc.Ua
             uint attributeId,
             ref Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
                     byte eventNotifier = m_eventNotifier;
 
-                    NodeAttributeEventHandler<byte> readEventNotifier = OnReadEventNotifier;
+                    NodeAttributeEventHandler<byte>? readEventNotifier = OnReadEventNotifier;
 
                     if (readEventNotifier != null)
                     {
                         result = readEventNotifier(context, this, ref eventNotifier);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         value = eventNotifier;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.ReadNonValueAttribute(context, attributeId, ref value);
             }
@@ -312,7 +314,7 @@ namespace Opc.Ua
             uint attributeId,
             Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
@@ -327,19 +329,19 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<byte> writeEventNotifier = OnWriteEventNotifier;
+                    NodeAttributeEventHandler<byte>? writeEventNotifier = OnWriteEventNotifier;
 
                     if (writeEventNotifier != null)
                     {
                         result = writeEventNotifier(context, this, ref eventNotifier);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         EventNotifier = eventNotifier;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.WriteNonValueAttribute(context, attributeId, value);
             }
