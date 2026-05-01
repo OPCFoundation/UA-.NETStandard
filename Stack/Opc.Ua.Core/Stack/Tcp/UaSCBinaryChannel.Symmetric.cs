@@ -215,7 +215,7 @@ namespace Opc.Ua.Bindings
             int length)
         {
             byte[] keyData = m_localNonce!.DeriveKeyData(
-                token.Secret,
+                token.Secret!,
                 salt,
                 token.SecurityPolicy!.KeyDerivationAlgorithm,
                 length);
@@ -264,7 +264,7 @@ namespace Opc.Ua.Bindings
                 case KeyDerivationAlgorithm.HKDFSha256:
                 case KeyDerivationAlgorithm.HKDFSha384:
                 {
-                    token.Secret = m_localNonce!.GenerateSecret(m_remoteNonce, token.PreviousSecret);
+                    token.Secret = m_localNonce!.GenerateSecret(m_remoteNonce!, token.PreviousSecret);
 
                     byte[] clientSalt = Utils.Append(
                         BitConverter.GetBytes((ushort)token.SecurityPolicy!.ClientKeyDataLength),
@@ -513,10 +513,10 @@ namespace Opc.Ua.Bindings
         {
             return CryptoUtils.SymmetricEncryptAndSign(
                 dataToEncrypt,
-                token.SecurityPolicy,
-                useClientKeys ? token.ClientEncryptingKey : token.ServerEncryptingKey,
-                useClientKeys ? token.ClientInitializationVector : token.ServerInitializationVector,
-                useClientKeys ? token.ClientSigningKey : token.ServerSigningKey,
+                token.SecurityPolicy!,
+                useClientKeys ? token.ClientEncryptingKey! : token.ServerEncryptingKey!,
+                useClientKeys ? token.ClientInitializationVector! : token.ServerInitializationVector!,
+                useClientKeys ? token.ClientSigningKey! : token.ServerSigningKey!,
                 useClientKeys ? token.ClientHmac : token.ServerHmac,
                 this.SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
@@ -647,10 +647,10 @@ namespace Opc.Ua.Bindings
         {
             return CryptoUtils.SymmetricDecryptAndVerify(
                 dataToDecrypt,
-                token.SecurityPolicy,
-                useClientKeys ? token.ClientEncryptingKey : token.ServerEncryptingKey,
-                useClientKeys ? token.ClientInitializationVector : token.ServerInitializationVector,
-                useClientKeys ? token.ClientSigningKey : token.ServerSigningKey,
+                token.SecurityPolicy!,
+                useClientKeys ? token.ClientEncryptingKey! : token.ServerEncryptingKey!,
+                useClientKeys ? token.ClientInitializationVector! : token.ServerInitializationVector!,
+                useClientKeys ? token.ClientSigningKey! : token.ServerSigningKey!,
                 this.SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
                 (uint)m_remoteSequenceNumber);

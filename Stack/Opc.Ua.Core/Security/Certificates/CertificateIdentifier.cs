@@ -548,7 +548,7 @@ namespace Opc.Ua
                             return certificate;
                         }
 
-                        List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
+                        List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName!);
 
                         if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
                         {
@@ -565,7 +565,7 @@ namespace Opc.Ua
             // find by subject name.
             if (!string.IsNullOrEmpty(subjectName))
             {
-                List<string> parsedSubjectName = X509Utils.ParseDistinguishedName(subjectName);
+                List<string> parsedSubjectName = X509Utils.ParseDistinguishedName(subjectName!);
 
                 foreach (X509Certificate2 certificate in collection)
                 {
@@ -642,7 +642,7 @@ namespace Opc.Ua
             {
                 foreach (X509Certificate2 certificate in collection)
                 {
-                    if (X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri) &&
+                    if (X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri!) &&
                         ValidateCertificateType(certificate, certificateType) &&
                         (!needPrivateKey || certificate.HasPrivateKey))
                     {

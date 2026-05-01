@@ -554,7 +554,7 @@ namespace Opc.Ua
                 }
 
                 configuration.SecurityConfiguration.CertificatePasswordProvider
-                    = certificatePasswordProvider;
+                    = certificatePasswordProvider!;
 
                 await configuration.ValidateAsync(applicationType, ct).ConfigureAwait(false);
             }

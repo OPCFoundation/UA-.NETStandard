@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -53,8 +55,8 @@ namespace Opc.Ua
     /// </summary>
     public class Nonce : IDisposable
     {
-        private ECDiffieHellman m_ecdh;
-        private RSADiffieHellman m_rsadh;
+        private ECDiffieHellman? m_ecdh;
+        private RSADiffieHellman? m_rsadh;
         private static readonly RandomNumberGenerator s_rng = RandomNumberGenerator.Create();
         private static uint s_minNonceLength = 32;
 
@@ -65,6 +67,7 @@ namespace Opc.Ua
         {
             m_ecdh = null;
             m_rsadh = null;
+            Data = default!;
         }
 
         /// <summary>
@@ -72,29 +75,29 @@ namespace Opc.Ua
         /// </summary>
         public byte[] Data { get; private set; }
 
-        internal byte[] GenerateSecret(
+        internal byte[]? GenerateSecret(
             Nonce remoteNonce,
-            byte[] previousSecret)
+            byte[]? previousSecret)
         {
-            byte[] ikm = null;
+            byte[]? ikm = null;
 #if NET8_0_OR_GREATER
             if (m_ecdh != null)
             {
-                ikm = m_ecdh.DeriveRawSecretAgreement(remoteNonce.m_ecdh.PublicKey);
+                ikm = m_ecdh.DeriveRawSecretAgreement(remoteNonce.m_ecdh!.PublicKey);
             }
             else if (m_rsadh != null)
             {
-                ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh);
+                ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh!);
             }
 
 #else // !NET8_0_OR_GREATER (NET78 and NET80)
             if (m_ecdh != null)
             {
-                ikm = m_ecdh.DeriveKeyMaterial(remoteNonce.m_ecdh.PublicKey);
+                ikm = m_ecdh.DeriveKeyMaterial(remoteNonce.m_ecdh!.PublicKey);
             }
             else if (m_rsadh != null)
             {
-                ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh);
+                ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh!);
             }
 #endif
             if (ikm != null && previousSecret != null)
@@ -185,7 +188,7 @@ namespace Opc.Ua
         public static Nonce CreateNonce(string securityPolicyUri)
         {
             var info = SecurityPolicies.GetInfo(securityPolicyUri);
-            return CreateNonce(info);
+            return CreateNonce(info!);
         }
 
         /// <summary>
@@ -248,7 +251,7 @@ namespace Opc.Ua
         public static Nonce CreateNonce(string securityPolicyUri, byte[] nonceData)
         {
             var info = SecurityPolicies.GetInfo(securityPolicyUri);
-            return CreateNonce(info, nonceData);
+            return CreateNonce(info!, nonceData);
         }
 
         /// <summary>
@@ -459,8 +462,8 @@ namespace Opc.Ua
         {
             var ecdh = ECDiffieHellman.Create(curve);
             ECParameters ecdhParameters = ecdh.ExportParameters(false);
-            int xLen = ecdhParameters.Q.X.Length;
-            int yLen = ecdhParameters.Q.Y.Length;
+            int xLen = ecdhParameters.Q.X!.Length;
+            int yLen = ecdhParameters.Q.Y!.Length;
 
             byte[] senderNonce = new byte[xLen + yLen];
             Array.Copy(ecdhParameters.Q.X, senderNonce, xLen);
@@ -488,7 +491,7 @@ namespace Opc.Ua
                 if (m_ecdh != null)
                 {
                     m_ecdh.Dispose();
-                    m_ecdh = null;
+                    m_ecdh = null!;
                 }
             }
         }

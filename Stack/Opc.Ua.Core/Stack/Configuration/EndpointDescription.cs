@@ -82,12 +82,12 @@ namespace Opc.Ua
                         else if ((
                                 policy.SecurityPolicyUri != null &&
                                 tokenSecurityPolicyUri != null &&
-                                CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                                CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                                CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri!) &&
+                                CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri!)
                             ) ||
                             (
-                                !CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                                !CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri)))
+                                !CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri!) &&
+                                !CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri!)))
                         {
                             sameEncryptionAlgorithm ??= policy;
                         }
@@ -155,12 +155,12 @@ namespace Opc.Ua
                         else if ((
                                 policy.SecurityPolicyUri != null &&
                                 tokenSecurityPolicyUri != null &&
-                                CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                                CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                                CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri!) &&
+                                CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri!)
                             ) ||
                             (
-                                !CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                                !CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri)))
+                                !CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri!) &&
+                                !CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri!)))
                         {
                             sameEncryptionAlgorithm ??= policy;
                         }

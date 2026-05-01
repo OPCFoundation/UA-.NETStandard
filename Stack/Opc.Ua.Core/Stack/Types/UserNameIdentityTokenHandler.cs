@@ -170,9 +170,9 @@ namespace Opc.Ua
                     securityPolicyUri: securityPolicyUri,
                     senderIssuerCertificates: senderIssuerCertificates,
                     receiverCertificate: receiverCertificate,
-                    receiverNonce: receiverEphemeralKey,
-                    senderCertificate: senderCertificate,
-                    senderNonce: Nonce.CreateNonce(securityPolicy),
+                    receiverNonce: receiverEphemeralKey!,
+                    senderCertificate: senderCertificate!,
+                    senderNonce: Nonce.CreateNonce(securityPolicy!)!,
                     doNotEncodeSenderCertificate: doNotEncodeSenderCertificate);
 
                 m_token.Password = secret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
@@ -215,9 +215,9 @@ namespace Opc.Ua
                     context,
                     securityPolicyUri,
                     certificate,
-                    receiverNonce);
+                    receiverNonce!);
                 if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm) &&
-                    encryptedSecret.TryDecrypt(m_token.Password.ToArray(), receiverNonce?.Data, out byte[] decryptedSecret))
+                    encryptedSecret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce!.Data, out byte[]? decryptedSecret))
                 {
                     DecryptedPassword = decryptedSecret;
                     return;
@@ -274,12 +274,12 @@ namespace Opc.Ua
                     securityPolicyUri: securityPolicyUri,
                     senderIssuerCertificates: senderIssuerCertificates,
                     receiverCertificate: certificate,
-                    receiverNonce: ephemeralKey,
-                    senderCertificate: senderCertificate,
-                    senderNonce: null,
+                    receiverNonce: ephemeralKey!,
+                    senderCertificate: senderCertificate!,
+                    senderNonce: null!,
                     validator: validator);
 
-                if (!secret.TryDecrypt(m_token.Password.ToArray(), receiverNonce?.Data, out byte[] decryptedSecret))
+                if (!secret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce!.Data, out byte[]? decryptedSecret))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadIdentityTokenInvalid,

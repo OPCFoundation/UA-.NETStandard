@@ -631,18 +631,18 @@ namespace Opc.Ua
         {
             if (!checkRequireEncryption || RequireEncryption(description))
             {
-                X509Certificate2 serverCertificate = certificateTypesProvider
+                X509Certificate2? serverCertificate = certificateTypesProvider
                     .GetInstanceCertificate(
                         description.SecurityPolicyUri!);
                 // check if complete chain should be sent.
                 if (certificateTypesProvider.SendCertificateChain)
                 {
                     description.ServerCertificate = certificateTypesProvider
-                        .LoadCertificateChainRaw(serverCertificate).ToByteString();
+                        .LoadCertificateChainRaw(serverCertificate)!.ToByteString();
                 }
                 else
                 {
-                    description.ServerCertificate = serverCertificate.RawData.ToByteString();
+                    description.ServerCertificate = serverCertificate!.RawData.ToByteString();
                 }
             }
         }
@@ -1471,12 +1471,12 @@ namespace Opc.Ua
             // assign a unique identifier if none specified.
             if (string.IsNullOrEmpty(configuration.ApplicationUri))
             {
-                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider
+                X509Certificate2? instanceCertificate = InstanceCertificateTypesProvider
                     .GetInstanceCertificate(
                         configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri!);
 
                 IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(
-                    instanceCertificate);
+                    instanceCertificate!);
                 // it is ok to pick the first here since it is only a fallback value
                 configuration.ApplicationUri = applicationUris.Count > 0 ? applicationUris[0] : null;
 

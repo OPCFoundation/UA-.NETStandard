@@ -938,7 +938,7 @@ namespace Opc.Ua.Client
                     : m_endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None;
                 SecurityPolicyInfo? ephemeralKeyPolicy = SecurityPolicies.GetInfo(ephemeralKeyPolicyUri!);
                 m_eccServerEphemeralKey = Nonce.CreateNonce(
-                    ephemeralKeyPolicy,
+                    ephemeralKeyPolicy!,
                     sessionConfiguration.ServerEccEphemeralKey.ToArray());
             }
             else
@@ -5136,8 +5136,8 @@ namespace Opc.Ua.Client
                         if (!CryptoUtils.Verify(
                                 new ArraySegment<byte>(key.PublicKey.ToArray()),
                                 key.Signature.ToArray(),
-                                serverCertificate,
-                                m_userTokenSecurityPolicyUri))
+                                serverCertificate!,
+                                m_userTokenSecurityPolicyUri!))
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,

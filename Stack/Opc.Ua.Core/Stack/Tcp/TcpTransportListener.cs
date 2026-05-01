@@ -812,19 +812,19 @@ namespace Opc.Ua.Bindings
                 // TODO: why only if SERVERCERT != null
                 if (!description.ServerCertificate.IsEmpty)
                 {
-                    X509Certificate2 serverCertificate = serverCertificateTypes
+                    X509Certificate2? serverCertificate = serverCertificateTypes
                         .GetInstanceCertificate(
-                            description.SecurityPolicyUri);
+                            description.SecurityPolicyUri!);
                     if (serverCertificateTypes.SendCertificateChain)
                     {
                         description.ServerCertificate =
                             serverCertificateTypes.LoadCertificateChainRaw(
-                                serverCertificate).ToByteString();
+                                serverCertificate)!.ToByteString();
                     }
                     else
                     {
                         description.ServerCertificate =
-                            serverCertificate.RawData.ToByteString();
+                            serverCertificate!.RawData.ToByteString();
                     }
                 }
             }

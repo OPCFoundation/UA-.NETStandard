@@ -715,7 +715,7 @@ namespace Opc.Ua.Bindings
                         if (SecurityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None &&
                             receiverCertificate!.GetRSAPublicKey() != null)
                         {
-                            if (X509Utils.GetRSAPublicKeySize(receiverCertificate) <=
+                            if (X509Utils.GetRSAPublicKeySize(receiverCertificate!) <=
                                 TcpMessageLimits.KeySizeExtraPadding)
                             {
                                 // need to reserve one byte for the padding.
@@ -1222,7 +1222,7 @@ namespace Opc.Ua.Bindings
                 receiverCertificate!.GetRSAPublicKey() != null)
             {
                 int paddingEnd;
-                if (X509Utils.GetRSAPublicKeySize(receiverCertificate) > TcpMessageLimits
+                if (X509Utils.GetRSAPublicKeySize(receiverCertificate!) > TcpMessageLimits
                     .KeySizeExtraPadding)
                 {
                     paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
@@ -1291,7 +1291,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         protected byte[] Sign(ArraySegment<byte> dataToSign, X509Certificate2 senderCertificate)
         {
-            return CryptoUtils.Sign(dataToSign, senderCertificate, SecurityPolicyUri);
+            return CryptoUtils.Sign(dataToSign, senderCertificate, SecurityPolicyUri!)!;
         }
 
         /// <summary>

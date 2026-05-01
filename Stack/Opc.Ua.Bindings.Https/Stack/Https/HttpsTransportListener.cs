@@ -299,7 +299,7 @@ namespace Opc.Ua.Bindings
         private void ConfigureWebHost(IWebHostBuilder webHostBuilder)
         {
             // prepare the server TLS certificate
-            X509Certificate2 serverCertificate = m_serverCertProvider.GetInstanceCertificate(
+            X509Certificate2? serverCertificate = m_serverCertProvider.GetInstanceCertificate(
                 SecurityPolicies.Https);
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
@@ -308,7 +308,7 @@ namespace Opc.Ua.Bindings
                 // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
                 // If the key fails to copy, its probably a non exportable key from the X509Store.
                 // Then we can use the original certificate, the private key is already in the key store.
-                serverCertificate = X509Utils.CreateCopyWithPrivateKey(serverCertificate, false);
+                serverCertificate = X509Utils.CreateCopyWithPrivateKey(serverCertificate!, false);
             }
             catch (CryptographicException ce)
             {
@@ -316,7 +316,7 @@ namespace Opc.Ua.Bindings
             }
 #endif
             // save the server certificate so it can be used in the secure channel context.
-            ServerChannelCertificate = serverCertificate.RawData;
+            ServerChannelCertificate = serverCertificate!.RawData;
 
             var httpsOptions = new HttpsConnectionAdapterOptions
             {
