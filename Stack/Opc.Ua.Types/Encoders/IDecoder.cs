@@ -84,127 +84,127 @@ namespace Opc.Ua
         /// <summary>
         /// Reads a boolean from the stream.
         /// </summary>
-        bool ReadBoolean(string fieldName);
+        bool ReadBoolean(string? fieldName);
 
         /// <summary>
         /// Reads a sbyte from the stream.
         /// </summary>
-        sbyte ReadSByte(string fieldName);
+        sbyte ReadSByte(string? fieldName);
 
         /// <summary>
         /// Reads a byte from the stream.
         /// </summary>
-        byte ReadByte(string fieldName);
+        byte ReadByte(string? fieldName);
 
         /// <summary>
         /// Reads a short from the stream.
         /// </summary>
-        short ReadInt16(string fieldName);
+        short ReadInt16(string? fieldName);
 
         /// <summary>
         /// Reads a ushort from the stream.
         /// </summary>
-        ushort ReadUInt16(string fieldName);
+        ushort ReadUInt16(string? fieldName);
 
         /// <summary>
         /// Reads an int from the stream.
         /// </summary>
-        int ReadInt32(string fieldName);
+        int ReadInt32(string? fieldName);
 
         /// <summary>
         /// Reads a uint from the stream.
         /// </summary>
-        uint ReadUInt32(string fieldName);
+        uint ReadUInt32(string? fieldName);
 
         /// <summary>
         /// Reads a long from the stream.
         /// </summary>
-        long ReadInt64(string fieldName);
+        long ReadInt64(string? fieldName);
 
         /// <summary>
         /// Reads a ulong from the stream.
         /// </summary>
-        ulong ReadUInt64(string fieldName);
+        ulong ReadUInt64(string? fieldName);
 
         /// <summary>
         /// Reads a float from the stream.
         /// </summary>
-        float ReadFloat(string fieldName);
+        float ReadFloat(string? fieldName);
 
         /// <summary>
         /// Reads a double from the stream.
         /// </summary>
-        double ReadDouble(string fieldName);
+        double ReadDouble(string? fieldName);
 
         /// <summary>
         /// Reads a string from the stream.
         /// </summary>
-        string? ReadString(string fieldName);
+        string? ReadString(string? fieldName);
 
         /// <summary>
         /// Reads a UTC date/time from the stream.
         /// </summary>
-        DateTimeUtc ReadDateTime(string fieldName);
+        DateTimeUtc ReadDateTime(string? fieldName);
 
         /// <summary>
         /// Reads a GUID from the stream.
         /// </summary>
-        Uuid ReadGuid(string fieldName);
+        Uuid ReadGuid(string? fieldName);
 
         /// <summary>
         /// Reads a byte string from the stream.
         /// </summary>
-        ByteString ReadByteString(string fieldName);
+        ByteString ReadByteString(string? fieldName);
 
         /// <summary>
         /// Reads an XmlElement from the stream.
         /// </summary>
-        XmlElement ReadXmlElement(string fieldName);
+        XmlElement ReadXmlElement(string? fieldName);
 
         /// <summary>
         /// Reads an NodeId from the stream.
         /// </summary>
-        NodeId ReadNodeId(string fieldName);
+        NodeId ReadNodeId(string? fieldName);
 
         /// <summary>
         /// Reads an ExpandedNodeId from the stream.
         /// </summary>
-        ExpandedNodeId ReadExpandedNodeId(string fieldName);
+        ExpandedNodeId ReadExpandedNodeId(string? fieldName);
 
         /// <summary>
         /// Reads an StatusCode from the stream.
         /// </summary>
-        StatusCode ReadStatusCode(string fieldName);
+        StatusCode ReadStatusCode(string? fieldName);
 
         /// <summary>
         /// Reads an DiagnosticInfo from the stream.
         /// </summary>
-        DiagnosticInfo? ReadDiagnosticInfo(string fieldName);
+        DiagnosticInfo? ReadDiagnosticInfo(string? fieldName);
 
         /// <summary>
         /// Reads an QualifiedName from the stream.
         /// </summary>
-        QualifiedName ReadQualifiedName(string fieldName);
+        QualifiedName ReadQualifiedName(string? fieldName);
 
         /// <summary>
         /// Reads an LocalizedText from the stream.
         /// </summary>
-        LocalizedText ReadLocalizedText(string fieldName);
+        LocalizedText ReadLocalizedText(string? fieldName);
 
         /// <summary>
         /// Reads an Variant from the stream.
         /// </summary>
-        Variant ReadVariant(string fieldName);
+        Variant ReadVariant(string? fieldName);
 
         /// <summary>
         /// Reads an DataValue from the stream.
         /// </summary>
-        DataValue? ReadDataValue(string fieldName);
+        DataValue? ReadDataValue(string? fieldName);
 
         /// <summary>
         /// Reads an ExtensionObject from the stream.
         /// </summary>
-        ExtensionObject ReadExtensionObject(string fieldName);
+        ExtensionObject ReadExtensionObject(string? fieldName);
 
         /// <summary>
         /// Reads an encodeable object from the stream.
@@ -250,132 +250,132 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an enumerated value from the stream.
         /// </summary>
-        EnumValue ReadEnumerated(string fieldName);
+        EnumValue ReadEnumerated(string? fieldName);
 
         /// <summary>
         /// Reads a boolean array from the stream.
         /// </summary>
-        ArrayOf<bool> ReadBooleanArray(string fieldName);
+        ArrayOf<bool> ReadBooleanArray(string? fieldName);
 
         /// <summary>
         /// Reads a sbyte array from the stream.
         /// </summary>
-        ArrayOf<sbyte> ReadSByteArray(string fieldName);
+        ArrayOf<sbyte> ReadSByteArray(string? fieldName);
 
         /// <summary>
         /// Reads a byte array from the stream.
         /// </summary>
-        ArrayOf<byte> ReadByteArray(string fieldName);
+        ArrayOf<byte> ReadByteArray(string? fieldName);
 
         /// <summary>
         /// Reads a short array from the stream.
         /// </summary>
-        ArrayOf<short> ReadInt16Array(string fieldName);
+        ArrayOf<short> ReadInt16Array(string? fieldName);
 
         /// <summary>
         /// Reads a ushort array from the stream.
         /// </summary>
-        ArrayOf<ushort> ReadUInt16Array(string fieldName);
+        ArrayOf<ushort> ReadUInt16Array(string? fieldName);
 
         /// <summary>
         /// Reads a int array from the stream.
         /// </summary>
-        ArrayOf<int> ReadInt32Array(string fieldName);
+        ArrayOf<int> ReadInt32Array(string? fieldName);
 
         /// <summary>
         /// Reads a uint array from the stream.
         /// </summary>
-        ArrayOf<uint> ReadUInt32Array(string fieldName);
+        ArrayOf<uint> ReadUInt32Array(string? fieldName);
 
         /// <summary>
         /// Reads a long array from the stream.
         /// </summary>
-        ArrayOf<long> ReadInt64Array(string fieldName);
+        ArrayOf<long> ReadInt64Array(string? fieldName);
 
         /// <summary>
         /// Reads a ulong array from the stream.
         /// </summary>
-        ArrayOf<ulong> ReadUInt64Array(string fieldName);
+        ArrayOf<ulong> ReadUInt64Array(string? fieldName);
 
         /// <summary>
         /// Reads a float array from the stream.
         /// </summary>
-        ArrayOf<float> ReadFloatArray(string fieldName);
+        ArrayOf<float> ReadFloatArray(string? fieldName);
 
         /// <summary>
         /// Reads a double array from the stream.
         /// </summary>
-        ArrayOf<double> ReadDoubleArray(string fieldName);
+        ArrayOf<double> ReadDoubleArray(string? fieldName);
 
         /// <summary>
         /// Reads a string array from the stream.
         /// </summary>
-        ArrayOf<string?> ReadStringArray(string fieldName);
+        ArrayOf<string?> ReadStringArray(string? fieldName);
 
         /// <summary>
         /// Reads a UTC date/time array from the stream.
         /// </summary>
-        ArrayOf<DateTimeUtc> ReadDateTimeArray(string fieldName);
+        ArrayOf<DateTimeUtc> ReadDateTimeArray(string? fieldName);
 
         /// <summary>
         /// Reads a GUID array from the stream.
         /// </summary>
-        ArrayOf<Uuid> ReadGuidArray(string fieldName);
+        ArrayOf<Uuid> ReadGuidArray(string? fieldName);
 
         /// <summary>
         /// Reads a byte string array from the stream.
         /// </summary>
-        ArrayOf<ByteString> ReadByteStringArray(string fieldName);
+        ArrayOf<ByteString> ReadByteStringArray(string? fieldName);
 
         /// <summary>
         /// Reads an XmlElement array from the stream.
         /// </summary>
-        ArrayOf<XmlElement> ReadXmlElementArray(string fieldName);
+        ArrayOf<XmlElement> ReadXmlElementArray(string? fieldName);
 
         /// <summary>
         /// Reads an NodeId array from the stream.
         /// </summary>
-        ArrayOf<NodeId> ReadNodeIdArray(string fieldName);
+        ArrayOf<NodeId> ReadNodeIdArray(string? fieldName);
 
         /// <summary>
         /// Reads an ExpandedNodeId array from the stream.
         /// </summary>
-        ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string fieldName);
+        ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string? fieldName);
 
         /// <summary>
         /// Reads an StatusCode array from the stream.
         /// </summary>
-        ArrayOf<StatusCode> ReadStatusCodeArray(string fieldName);
+        ArrayOf<StatusCode> ReadStatusCodeArray(string? fieldName);
 
         /// <summary>
         /// Reads an DiagnosticInfo array from the stream.
         /// </summary>
-        ArrayOf<DiagnosticInfo?> ReadDiagnosticInfoArray(string fieldName);
+        ArrayOf<DiagnosticInfo?> ReadDiagnosticInfoArray(string? fieldName);
 
         /// <summary>
         /// Reads an QualifiedName array from the stream.
         /// </summary>
-        ArrayOf<QualifiedName> ReadQualifiedNameArray(string fieldName);
+        ArrayOf<QualifiedName> ReadQualifiedNameArray(string? fieldName);
 
         /// <summary>
         /// Reads an LocalizedText array from the stream.
         /// </summary>
-        ArrayOf<LocalizedText> ReadLocalizedTextArray(string fieldName);
+        ArrayOf<LocalizedText> ReadLocalizedTextArray(string? fieldName);
 
         /// <summary>
         /// Reads an Variant array from the stream.
         /// </summary>
-        ArrayOf<Variant> ReadVariantArray(string fieldName);
+        ArrayOf<Variant> ReadVariantArray(string? fieldName);
 
         /// <summary>
         /// Reads an DataValue array from the stream.
         /// </summary>
-        ArrayOf<DataValue?> ReadDataValueArray(string fieldName);
+        ArrayOf<DataValue?> ReadDataValueArray(string? fieldName);
 
         /// <summary>
         /// Reads an extension object array from the stream.
         /// </summary>
-        ArrayOf<ExtensionObject> ReadExtensionObjectArray(string fieldName);
+        ArrayOf<ExtensionObject> ReadExtensionObjectArray(string? fieldName);
 
         /// <summary>
         /// Reads an encodeable array from the stream.
@@ -427,7 +427,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an enumerated value array from the stream.
         /// </summary>
-        ArrayOf<EnumValue> ReadEnumeratedArray(string fieldName);
+        ArrayOf<EnumValue> ReadEnumeratedArray(string? fieldName);
 
         /// <summary>
         /// Reads a value of a <see cref="Variant"/> from the stream with
