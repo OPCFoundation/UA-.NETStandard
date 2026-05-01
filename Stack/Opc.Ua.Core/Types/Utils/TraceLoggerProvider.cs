@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -269,7 +269,7 @@ namespace Opc.Ua
             if (tracingEnabled)
             {
                 Tracing.Instance.RaiseTraceEvent(
-                    new TraceEventArgs(traceMask, output, string.Empty, exception, []));
+                    new TraceEventArgs(traceMask, output, string.Empty, exception!, []));
             }
             if (traceMaskEnabled)
             {

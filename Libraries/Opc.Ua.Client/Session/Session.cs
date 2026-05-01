@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -1344,15 +1344,15 @@ namespace Opc.Ua.Client
 
                     userTokenSignature = identityToken.Sign(
                         dataToSign,
-                        tokenSecurityPolicyUri);
+                        tokenSecurityPolicyUri!);
                 }
                 else
                 {
                     // encrypt token.
                     identityToken.Encrypt(
-                        serverCertificate,
+                        serverCertificate!,
                         serverNonce.ToArray(),
-                        tokenSecurityPolicyUri,
+                        tokenSecurityPolicyUri!,
                         MessageContext,
                         m_eccServerEphemeralKey,
                         m_instanceCertificate,
@@ -1569,16 +1569,16 @@ namespace Opc.Ua.Client
                     m_clientNonce ?? []);
 
                 userTokenSignature = identityToken.Sign(
-                    dataToSign,
-                    tokenSecurityPolicyUri);
+                        dataToSign,
+                        tokenSecurityPolicyUri!);
             }
             else
             {
                 // encrypt token.
                 identityToken.Encrypt(
-                    m_serverCertificate,
+                    m_serverCertificate!,
                     serverNonce.ToArray(),
-                    tokenSecurityPolicyUri,
+                    tokenSecurityPolicyUri!,
                     MessageContext,
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
@@ -2594,15 +2594,15 @@ namespace Opc.Ua.Client
                 {
                     userTokenSignature = identityToken.Sign(
                         dataToSign,
-                        tokenSecurityPolicyUri);
+                        tokenSecurityPolicyUri!);
                 }
                 else
                 {
                     // encrypt token.
                     identityToken.Encrypt(
-                        m_serverCertificate,
+                        m_serverCertificate!,
                         m_serverNonce.ToArray(),
-                        tokenSecurityPolicyUri,
+                        tokenSecurityPolicyUri!,
                         MessageContext,
                         m_eccServerEphemeralKey,
                         m_instanceCertificate,

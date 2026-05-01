@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Security.Cryptography.X509Certificates;
@@ -77,9 +79,9 @@ namespace Opc.Ua
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce receiverEphemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Nonce? receiverEphemeralKey = null,
+            X509Certificate2? senderCertificate = null,
+            X509Certificate2Collection? senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false);
 
         /// <summary>
@@ -90,10 +92,10 @@ namespace Opc.Ua
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce ephemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
-            CertificateValidator validator = null);
+            Nonce? ephemeralKey = null,
+            X509Certificate2? senderCertificate = null,
+            X509Certificate2Collection? senderIssuerCertificates = null,
+            CertificateValidator? validator = null);
 
         /// <summary>
         /// Creates a signature with the token

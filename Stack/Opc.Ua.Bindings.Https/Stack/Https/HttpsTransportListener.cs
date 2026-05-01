@@ -616,7 +616,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                m_quotas.CertificateValidator.ValidateAsync(clientCertificate, default).GetAwaiter().GetResult();
+                m_quotas.CertificateValidator.ValidateAsync(clientCertificate!, default).GetAwaiter().GetResult();
             }
             catch (Exception)
             {
