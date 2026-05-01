@@ -349,18 +349,18 @@ namespace Opc.Ua.Bindings
                 m_url = new Uri(url.ToString()[4..]);
             }
             m_settings = settings;
-            OperationTimeout = settings.Configuration.OperationTimeout;
+            OperationTimeout = settings.Configuration!.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, m_settings.Factory)
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, m_settings.Factory!)
             {
-                MaxArrayLength = m_settings.Configuration.MaxArrayLength,
+                MaxArrayLength = m_settings.Configuration!.MaxArrayLength,
                 MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
                 MaxMessageSize = m_settings.Configuration.MaxMessageSize,
                 MaxStringLength = m_settings.Configuration.MaxStringLength,
                 MaxEncodingNestingLevels = m_settings.Configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = m_settings.Configuration.MaxDecoderRecoveries,
-                NamespaceUris = m_settings.NamespaceUris,
+                NamespaceUris = m_settings.NamespaceUris!,
                 ServerUris = new StringTable()
             })
             {

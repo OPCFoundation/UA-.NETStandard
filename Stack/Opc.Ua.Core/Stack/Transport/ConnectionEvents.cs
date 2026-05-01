@@ -57,7 +57,7 @@ namespace Opc.Ua
         public Uri EndpointUrl { get; }
 
         /// <inheritdoc/>
-        public virtual object? Handle => null;
+        public virtual object Handle => null!;
 
         /// <summary>
         /// Allow the event callback handler to accept the

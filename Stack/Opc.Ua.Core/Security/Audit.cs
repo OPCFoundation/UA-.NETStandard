@@ -55,9 +55,9 @@ namespace Opc.Ua.Security
             string implementationInfo,
             string endpointUrl,
             string secureChannelId,
-            EndpointDescription endpoint,
-            X509Certificate2 clientCertificate,
-            X509Certificate2 serverCertificate,
+            EndpointDescription? endpoint,
+            X509Certificate2? clientCertificate,
+            X509Certificate2? serverCertificate,
             BinaryEncodingSupport encodingSupport)
         {
             if (endpoint != null)
@@ -91,11 +91,11 @@ namespace Opc.Ua.Security
                     logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Client Certificate: {Certificate}",
-                        clientCertificate.AsLogSafeString());
+                        clientCertificate?.AsLogSafeString());
                     logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Server Certificate: {Certificate}",
-                        serverCertificate.AsLogSafeString());
+                        serverCertificate?.AsLogSafeString());
                 }
             }
             else

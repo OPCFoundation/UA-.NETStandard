@@ -222,7 +222,7 @@ namespace Opc.Ua.Client
             EndpointDescription endpointDescription = endpoint.Description;
 
             // create the endpoint configuration (use the application configuration to provide default values).
-            EndpointConfiguration endpointConfiguration = endpoint.Configuration;
+            EndpointConfiguration? endpointConfiguration = endpoint.Configuration;
 
             if (endpointConfiguration == null)
             {
@@ -238,7 +238,7 @@ namespace Opc.Ua.Client
             {
                 await endpoint.UpdateFromServerAsync(messageContext.Telemetry, ct).ConfigureAwait(false);
                 endpointDescription = endpoint.Description;
-                endpointConfiguration = endpoint.Configuration;
+                endpointConfiguration = endpoint.Configuration!;
             }
 
             // checks the domains in the certificate.
@@ -271,7 +271,7 @@ namespace Opc.Ua.Client
                     configuration,
                     connection,
                     endpointDescription,
-                    endpointConfiguration,
+                    endpointConfiguration!,
                     clientCertificate,
                     clientCertificateChain,
                     messageContext,
@@ -281,7 +281,7 @@ namespace Opc.Ua.Client
             return await UaChannelBase.CreateUaBinaryChannelAsync(
                 configuration,
                 endpointDescription,
-                endpointConfiguration,
+                endpointConfiguration!,
                 clientCertificate,
                 clientCertificateChain,
                 messageContext,

@@ -57,10 +57,10 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             IMessageSocketFactory socketFactory,
             ChannelQuotas quotas,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
-            X509Certificate2 serverCertificate,
-            EndpointDescription endpoint,
+            X509Certificate2? clientCertificate,
+            X509Certificate2Collection? clientCertificateChain,
+            X509Certificate2? serverCertificate,
+            EndpointDescription? endpoint,
             ITelemetryContext telemetry)
             : base(
                 contextId,
@@ -589,7 +589,7 @@ namespace Opc.Ua.Bindings
                 out byte[] signature);
 
             // don't keep signature if secure channel enhancements are not used.
-            m_oscRequestSignature = (SecurityPolicy.SecureChannelEnhancements) ? signature : null;
+            m_oscRequestSignature = (SecurityPolicy!.SecureChannelEnhancements) ? signature : null;
 
             // save token.
             m_requestedToken = token;
@@ -637,7 +637,7 @@ namespace Opc.Ua.Bindings
             // parse the security header.
             uint channelId;
 
-            X509Certificate2 serverCertificate;
+            X509Certificate2? serverCertificate;
 
             uint requestId;
 
@@ -752,7 +752,10 @@ namespace Opc.Ua.Bindings
                 m_waitBetweenReconnects = Timeout.Infinite;
 
                 // schedule reconnect before token expires.
-                ScheduleTokenRenewal(CurrentToken);
+                if (CurrentToken != null)
+                {
+                    ScheduleTokenRenewal(CurrentToken);
+                }
 
                 // connect finally complete.
                 m_handshakeOperation.Complete(0);
@@ -1293,7 +1296,7 @@ namespace Opc.Ua.Bindings
                 m_requestedToken = null;
                 m_reconnecting = false;
 
-                IMessageSocket socket = Socket;
+                IMessageSocket? socket = Socket;
                 if (socket != null)
                 {
                     Socket = null;

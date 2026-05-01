@@ -590,8 +590,8 @@ namespace Opc.Ua.Bindings
     public delegate void ReportAuditOpenSecureChannelEventHandler(
         TcpServerChannel channel,
         OpenSecureChannelRequest request,
-        X509Certificate2 clientCertificate,
-        Exception exception);
+        X509Certificate2? clientCertificate,
+        Exception? exception);
 
     /// <summary>
     /// Used to report a close secure channel audit event

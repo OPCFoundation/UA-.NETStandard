@@ -102,7 +102,7 @@ namespace Opc.Ua.Client
             }
 
             Handle = template.Handle;
-            DisplayName = Utils.Format("{0} {1}", displayName, ClientHandle);
+            DisplayName = Utils.Format("{0} {1}", displayName!, ClientHandle);
             // copy state (except client handle logic handled below)
             State = template.State with { DisplayName = DisplayName };
             if (copyEventHandlers)

@@ -277,7 +277,7 @@ namespace Opc.Ua.Client
             m_applicationType = configuration.ApplicationType;
             m_configType = configuration.GetType();
 
-            OnUpdateConfiguration(configuration.ClientConfiguration.ReverseConnect);
+            OnUpdateConfiguration(configuration.ClientConfiguration!.ReverseConnect!);
         }
 
         /// <summary>
@@ -310,7 +310,7 @@ namespace Opc.Ua.Client
                 {
                     foreach (ReverseConnectClientEndpoint endpoint in configuration.ClientEndpoints)
                     {
-                        Uri uri = Utils.ParseUri(endpoint.EndpointUrl);
+                        Uri? uri = Utils.ParseUri(endpoint.EndpointUrl);
                         if (uri != null)
                         {
                             AddEndpointInternal(uri, true);

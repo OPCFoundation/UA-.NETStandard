@@ -210,11 +210,10 @@ namespace Opc.Ua.Server
                     }
 
                     // enqueue event
-                    if (context is ISessionSystemContext session &&
-                        !session.SessionId.IsNull &&
-                        monitoredItem?.Session != null &&
-                        !monitoredItem.Session.Id.IsNull &&
-                        !monitoredItem.Session.Id.Equals(session.SessionId))
+                    if (context is ISessionSystemContext sessionContext &&
+                        sessionContext.SessionId is { IsNull: false } contextSessionId &&
+                        monitoredItem?.Session?.Id is { IsNull: false } monitoredItemSessionId &&
+                        !monitoredItemSessionId.Equals(contextSessionId))
                     {
                         // skip if the event does not belong to the same session as the monitored item
                         continue;

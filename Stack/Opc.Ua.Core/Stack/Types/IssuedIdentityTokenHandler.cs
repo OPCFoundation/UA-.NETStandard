@@ -231,14 +231,14 @@ namespace Opc.Ua
             };
 
             ILogger logger = context.Telemetry.CreateLogger<IssuedIdentityTokenHandler>();
-            byte[] decryptedTokenData = SecurityPolicies.Decrypt(
+            byte[]? decryptedTokenData = SecurityPolicies.Decrypt(
                 certificate,
                 securityPolicyUri,
                 encryptedData,
                 logger);
 
             // verify the sender's nonce.
-            int startOfNonce = decryptedTokenData.Length;
+            int startOfNonce = decryptedTokenData!.Length;
 
             if (receiverNonce != null)
             {

@@ -164,8 +164,8 @@ namespace Opc.Ua
             X509Certificate2? certificate = Certificate;
 
             var signatureData = SecurityPolicies.CreateSignatureData(
-                info,
-                certificate,
+                info!,
+                certificate!,
                 dataToSign);
 
             return signatureData;
@@ -184,8 +184,8 @@ namespace Opc.Ua
 
                 bool valid = SecurityPolicies.VerifySignatureData(
                     signatureData,
-                    info,
-                    certificate,
+                    info!,
+                    certificate!,
                     dataToVerify);
 
                 return valid;
@@ -213,7 +213,7 @@ namespace Opc.Ua
         public object Clone()
         {
             return new X509IdentityTokenHandler(
-                CoreUtils.Clone(m_token),
+                CoreUtils.Clone(m_token)!,
                 m_certificate);
         }
 

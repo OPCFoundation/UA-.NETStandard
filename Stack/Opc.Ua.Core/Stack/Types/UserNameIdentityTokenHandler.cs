@@ -70,7 +70,7 @@ namespace Opc.Ua
         public UserIdentityToken Token => m_token;
 
         /// <inheritdoc/>
-        public string DisplayName => m_token.UserName;
+        public string DisplayName => m_token.UserName!;
 
         /// <inheritdoc/>
         public UserTokenType TokenType => UserTokenType.UserName;
@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// <summary>
         /// User name in the token.
         /// </summary>
-        public string UserName => m_token.UserName;
+        public string UserName => m_token.UserName!;
 
         /// <inheritdoc/>
         public void UpdatePolicy(UserTokenPolicy userTokenPolicy)
@@ -120,7 +120,7 @@ namespace Opc.Ua
             // handle RSA encryption.
             var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
-            if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            if (securityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
                 if (DecryptedPassword.Length > RsaEncryptedSecretPasswordThreshold)
                 {
@@ -209,7 +209,7 @@ namespace Opc.Ua
             // handle RSA encryption.
             var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
-            if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            if (securityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
                 EncryptedSecret encryptedSecret = EncryptedSecret.CreateForRsa(
                     context,
@@ -230,7 +230,7 @@ namespace Opc.Ua
                 };
 
                 ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityTokenHandler>();
-                byte[] decryptedPassword = SecurityPolicies.Decrypt(
+                byte[]? decryptedPassword = SecurityPolicies.Decrypt(
                     certificate,
                     securityPolicyUri,
                     encryptedData,
@@ -323,7 +323,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public object Clone()
         {
-            return new UserNameIdentityTokenHandler(CoreUtils.Clone(m_token))
+            return new UserNameIdentityTokenHandler(CoreUtils.Clone(m_token)!)
             {
                 DecryptedPassword = DecryptedPassword == null ? null : [.. DecryptedPassword]
             };

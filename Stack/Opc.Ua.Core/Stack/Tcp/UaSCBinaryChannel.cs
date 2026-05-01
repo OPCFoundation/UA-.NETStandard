@@ -53,9 +53,9 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             ChannelQuotas quotas,
             X509Certificate2? serverCertificate,
-            List<EndpointDescription> endpoints,
+            List<EndpointDescription>? endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri,
+            string? securityPolicyUri,
             ITelemetryContext telemetry)
             : this(
                 contextId,
@@ -78,9 +78,9 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             ChannelQuotas quotas,
             CertificateTypesProvider? serverCertificateTypesProvider,
-            List<EndpointDescription> endpoints,
+            List<EndpointDescription>? endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri,
+            string? securityPolicyUri,
             ITelemetryContext telemetry)
             : this(
                 contextId,
@@ -104,9 +104,9 @@ namespace Opc.Ua.Bindings
             ChannelQuotas quotas,
             CertificateTypesProvider? serverCertificateTypesProvider,
             X509Certificate2? serverCertificate,
-            List<EndpointDescription> endpoints,
+            List<EndpointDescription>? endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri,
+            string? securityPolicyUri,
             ITelemetryContext telemetry)
         {
             // create a unique contex if none provided.
@@ -120,7 +120,7 @@ namespace Opc.Ua.Bindings
             }
 
             // secuirty turned off if message security mode is set to none.
-            if (securityMode == MessageSecurityMode.None)
+            if (securityMode == MessageSecurityMode.None || securityPolicyUri == null)
             {
                 securityPolicyUri = SecurityPolicies.None;
             }
@@ -164,7 +164,7 @@ namespace Opc.Ua.Bindings
             m_serverCertificateTypesProvider = serverCertificateTypesProvider;
             ServerCertificate = serverCertificate;
             ServerCertificateChain = serverCertificateChain;
-            m_endpoints = endpoints;
+            m_endpoints = endpoints ?? [];
             SecurityMode = securityMode;
             SecurityPolicyUri = securityPolicyUri;
             DiscoveryOnly = false;
@@ -281,7 +281,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ChannelStateChanged(TcpChannelState state, ServiceResult reason)
         {
-            TcpChannelStateEventHandler stateChanged = m_stateChanged;
+            TcpChannelStateEventHandler? stateChanged = m_stateChanged;
             if (stateChanged != null)
             {
                 _ = Task.Run(() => stateChanged?.Invoke(this, state, reason));
@@ -293,7 +293,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected uint GetNewSequenceNumber()
         {
-            bool isLegacy = SecurityPolicy.LegacySequenceNumbers;
+            bool isLegacy = SecurityPolicy!.LegacySequenceNumbers;
 
             long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
             bool maxValueOverflow = isLegacy
@@ -438,7 +438,7 @@ namespace Opc.Ua.Bindings
             bool isServerContext)
         {
             SaveIntermediateChunk(requestId, chunk, isServerContext);
-            BufferCollection savedChunks = m_partialMessageChunks;
+            BufferCollection savedChunks = m_partialMessageChunks!;
             m_partialMessageChunks = null;
             return savedChunks;
         }
@@ -469,11 +469,11 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                uint messageType = BitConverter.ToUInt32(message.Array, message.Offset);
+                uint messageType = BitConverter.ToUInt32(message.Array!, message.Offset);
 
                 if (!HandleIncomingMessage(messageType, message))
                 {
-                    BufferManager.ReturnBuffer(message.Array, "OnMessageReceived");
+                    BufferManager.ReturnBuffer(message.Array!, "OnMessageReceived");
                 }
             }
             catch (Exception e)
@@ -596,7 +596,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 Interlocked.Increment(ref m_activeWriteRequests);
-                args.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
+                args.SetBuffer(buffer.Array!, buffer.Offset, buffer.Count);
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
                 if (!Socket.Send(args))
@@ -695,7 +695,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected static void WriteErrorMessageBody(BinaryEncoder encoder, ServiceResult error)
         {
-            string reason = error.LocalizedText.Text;
+            string? reason = error.LocalizedText.Text;
 
             // check that length is not exceeded.
             if (reason != null &&
@@ -717,7 +717,7 @@ namespace Opc.Ua.Bindings
             // read the status code.
             uint statusCode = decoder.ReadUInt32(null);
 
-            string reason = null;
+            string? reason = null;
 
             // ensure the reason does not exceed the limits in the protocol.
             int reasonLength = decoder.ReadInt32(null);

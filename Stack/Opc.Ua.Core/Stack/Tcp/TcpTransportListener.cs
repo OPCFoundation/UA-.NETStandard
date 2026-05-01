@@ -103,7 +103,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public bool IsBlocked(IPAddress ipAddress)
         {
-            if (m_activeClients.TryGetValue(ipAddress, out ActiveClient client))
+            if (m_activeClients.TryGetValue(ipAddress, out ActiveClient? client))
             {
                 int currentTicks = HiResClock.TickCount;
                 return IsBlockedTicks(client.BlockedUntilTicks, currentTicks);
@@ -178,7 +178,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Periodically cleans up expired active client entries to avoid memory leak and unblock clients whose duration has expired.
         /// </summary>
-        private void CleanupExpiredEntries(object state)
+        private void CleanupExpiredEntries(object? state)
         {
             int currentTicks = HiResClock.TickCount;
 
@@ -331,7 +331,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The Id of the transport listener.
         /// </summary>
-        public string ListenerId { get; private set; }
+        public string ListenerId { get; private set; } = default!;
 
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -351,12 +351,12 @@ namespace Opc.Ua.Bindings
 
             EndpointUrl = baseAddress;
             m_descriptions = settings.Descriptions;
-            EndpointConfiguration configuration = settings.Configuration;
+            EndpointConfiguration? configuration = settings.Configuration;
 
             // initialize the quotas.
-            var messageContext = new ServiceMessageContext(m_telemetry, settings.Factory)
+            var messageContext = new ServiceMessageContext(m_telemetry, settings.Factory!)
             {
-                NamespaceUris = settings.NamespaceUris,
+                NamespaceUris = settings.NamespaceUris!,
                 ServerUris = new StringTable()
             };
             m_quotas = new ChannelQuotas(messageContext);
@@ -413,7 +413,7 @@ namespace Opc.Ua.Bindings
                 uint channelId = Convert.ToUInt32(channelIdString, CultureInfo.InvariantCulture);
 
                 if (channelId > 0 &&
-                    m_channels?.TryGetValue(channelId, out TcpListenerChannel channel) == true)
+                    m_channels?.TryGetValue(channelId, out TcpListenerChannel? channel) == true)
                 {
                     channel?.UpdateLastActiveTime();
                 }
@@ -428,7 +428,7 @@ namespace Opc.Ua.Bindings
         /// Gets the URL for the listener's endpoint.
         /// </summary>
         /// <value>The URL for the listener's endpoint.</value>
-        public Uri EndpointUrl { get; private set; }
+        public Uri EndpointUrl { get; private set; } = default!;
 
         /// <summary>
         /// Binds a new socket to an existing channel.
@@ -443,7 +443,7 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
-            TcpListenerChannel channel = null;
+            TcpListenerChannel? channel = null;
 
             lock (m_lock)
             {
@@ -455,7 +455,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            channel.Reconnect(socket, requestId, sequenceNumber, clientCertificate, token, request);
+            channel!.Reconnect(socket, requestId, sequenceNumber, clientCertificate, token, request);
 
             m_logger.LogInformation("ChannelId {Id}: reconnected", channelId);
             return true;
@@ -466,7 +466,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChannelClosed(uint channelId)
         {
-            if (m_channels?.TryRemove(channelId, out TcpListenerChannel channel) == true)
+            if (m_channels?.TryRemove(channelId, out TcpListenerChannel? channel) == true)
             {
                 try
                 {
@@ -486,26 +486,26 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Raised when a new connection is waiting for a client.
         /// </summary>
-        public event ConnectionWaitingHandlerAsync ConnectionWaiting;
+        public event ConnectionWaitingHandlerAsync? ConnectionWaiting;
 
         /// <summary>
         /// Raised when a monitored connection's status changed.
         /// </summary>
-        public event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
+        public event EventHandler<ConnectionStatusEventArgs>? ConnectionStatusChanged;
 
         /// <inheritdoc/>
         public void CreateReverseConnection(Uri url, int timeout)
         {
-            TcpServerChannel channel = null;
+            TcpServerChannel? channel = null;
             try
             {
                 channel = new TcpServerChannel(
                     ListenerId,
                     this,
-                    m_bufferManager,
-                    m_quotas,
-                    m_serverCertificateTypesProvider,
-                    m_descriptions,
+                    m_bufferManager!,
+                    m_quotas!,
+                    m_serverCertificateTypesProvider!,
+                    m_descriptions!,
                     m_telemetry);
 
                 uint channelId = GetNextChannelId();
@@ -515,7 +515,7 @@ namespace Opc.Ua.Bindings
                     url,
                     OnReverseHelloComplete,
                     channel,
-                    Math.Min(timeout, m_quotas.ChannelLifetime));
+                    Math.Min(timeout, m_quotas!.ChannelLifetime));
                 channel = null; // ownership transferred to async operation
             }
             finally
@@ -531,7 +531,7 @@ namespace Opc.Ua.Bindings
         {
             ConnectionStatusChanged?.Invoke(
                 this,
-                new ConnectionStatusEventArgs(channel.ReverseConnectionUrl, status, closed));
+                new ConnectionStatusEventArgs(channel.ReverseConnectionUrl!, status, closed));
         }
 
         /// <summary>
@@ -543,12 +543,12 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private void OnReverseHelloComplete(IAsyncResult result)
         {
-            var channel = (TcpServerChannel)result.AsyncState;
+            var channel = (TcpServerChannel?)result.AsyncState;
             try
             {
-                channel.EndReverseConnect(result);
+                channel!.EndReverseConnect(result);
 
-                if (!m_channels.TryAdd(channel.Id, channel))
+                if (!m_channels!.TryAdd(channel.Id, channel))
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
@@ -574,7 +574,7 @@ namespace Opc.Ua.Bindings
                 ConnectionStatusChanged?.Invoke(
                     this,
                     new ConnectionStatusEventArgs(
-                        channel.ReverseConnectionUrl,
+                        channel!.ReverseConnectionUrl!,
                         new ServiceResult(e),
                         true));
             }
@@ -615,7 +615,7 @@ namespace Opc.Ua.Bindings
                     : IPAddress.Any;
 
                 // create IPv4 or IPv6 socket.
-                Exception exception = null;
+                Exception? exception = null;
                 try
                 {
                     var endpoint = new IPEndPoint(ipAddress, port);
@@ -636,7 +636,7 @@ namespace Opc.Ua.Bindings
                         m_inactivityDetectPeriod,
                         m_inactivityDetectPeriod);
 
-                    SocketAsyncEventArgs args = null;
+                    SocketAsyncEventArgs? args = null;
                     try
                     {
                         args = new SocketAsyncEventArgs();
@@ -682,7 +682,7 @@ namespace Opc.Ua.Bindings
                         m_listeningSocketIPv6.Bind(endpointIPv6);
                         m_listeningSocketIPv6.Listen(kSocketBacklog);
 
-                        SocketAsyncEventArgs args = null;
+                        SocketAsyncEventArgs? args = null;
                         try
                         {
                             args = new SocketAsyncEventArgs();
@@ -715,7 +715,7 @@ namespace Opc.Ua.Bindings
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadNoCommunication,
-                        exception,
+                        exception!,
                         "Failed to establish tcp listener sockets on port {0} for Ipv4 and IPv6.",
                         port);
                 }
@@ -763,7 +763,7 @@ namespace Opc.Ua.Bindings
             bool accepted = false;
 
             // remove it so it does not get cleaned up as an inactive connection.
-            if (m_channels?.TryRemove(channelId, out TcpListenerChannel channel) != true)
+            if (m_channels?.TryRemove(channelId, out TcpListenerChannel? channel) != true)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,
@@ -778,7 +778,7 @@ namespace Opc.Ua.Bindings
                     var args = new TcpConnectionWaitingEventArgs(
                         serverUri,
                         endpointUrl,
-                        channel.Socket);
+                        channel!.Socket!);
                     await ConnectionWaiting(this, args).ConfigureAwait(false);
                     accepted = args.Accepted;
                 }
@@ -786,7 +786,7 @@ namespace Opc.Ua.Bindings
                 if (!accepted)
                 {
                     // add back in for other connection attempt.
-                    m_channels?.TryAdd(channelId, channel);
+                    m_channels?.TryAdd(channelId, channel!);
                 }
                 channel = null; // ownership transferred
             }
@@ -805,9 +805,9 @@ namespace Opc.Ua.Bindings
             ICertificateValidator validator,
             CertificateTypesProvider serverCertificateTypes)
         {
-            m_quotas.CertificateValidator = validator;
+            m_quotas!.CertificateValidator = validator;
             m_serverCertificateTypesProvider = serverCertificateTypes;
-            foreach (EndpointDescription description in m_descriptions)
+            foreach (EndpointDescription description in m_descriptions!)
             {
                 // TODO: why only if SERVERCERT != null
                 if (!description.ServerCertificate.IsEmpty)
@@ -844,9 +844,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles a new connection.
         /// </summary>
-        private void OnAccept(object sender, SocketAsyncEventArgs e)
+        private void OnAccept(object? sender, SocketAsyncEventArgs e)
         {
-            TcpListenerChannel channel = null;
+            TcpListenerChannel? channel = null;
             bool repeatAccept = false;
             do
             {
@@ -856,12 +856,12 @@ namespace Opc.Ua.Bindings
                 if (m_activeClientTracker != null)
                 {
                     // Filter out the Remote IP addresses which are detected with potential problematic behavior
-                    IPAddress ipAddress = ((IPEndPoint)e?.AcceptSocket?.RemoteEndPoint)?.Address;
+                    IPAddress? ipAddress = ((IPEndPoint?)e?.AcceptSocket?.RemoteEndPoint)?.Address;
                     if (ipAddress != null && m_activeClientTracker.IsBlocked(ipAddress))
                     {
                         m_logger.LogDebug(
                             "OnAccept: RemoteEndpoint address: {IpAddress} refused access for behaving as potential problematic ",
-                            ((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address);
+                            ((IPEndPoint)e!.AcceptSocket!.RemoteEndPoint!).Address);
                         isBlocked = true;
                     }
                 }
@@ -869,14 +869,14 @@ namespace Opc.Ua.Bindings
                 repeatAccept = false;
                 lock (m_lock)
                 {
-                    if (e.UserToken is not Socket listeningSocket)
+                    if (e!.UserToken is not Socket listeningSocket)
                     {
                         m_logger.LogError("OnAccept: Listensocket was null.");
                         e.Dispose();
                         return;
                     }
 
-                    ConcurrentDictionary<uint, TcpListenerChannel> channels = m_channels;
+                    ConcurrentDictionary<uint, TcpListenerChannel>? channels = m_channels;
                     if (channels != null && !isBlocked)
                     {
                         // TODO: .Count is flagged as hotpath, implement separate counter
@@ -941,9 +941,9 @@ namespace Opc.Ua.Bindings
                                     channel = new TcpReverseConnectChannel(
                                         ListenerId,
                                         this,
-                                        m_bufferManager,
-                                        m_quotas,
-                                        m_descriptions,
+                                        m_bufferManager!,
+                                        m_quotas!,
+                                        m_descriptions!,
                                         m_telemetry);
                                 }
                                 else
@@ -952,10 +952,10 @@ namespace Opc.Ua.Bindings
                                     channel = new TcpServerChannel(
                                         ListenerId,
                                         this,
-                                        m_bufferManager,
-                                        m_quotas,
-                                        m_serverCertificateTypesProvider,
-                                        m_descriptions,
+                                        m_bufferManager!,
+                                        m_quotas!,
+                                        m_serverCertificateTypesProvider!,
+                                        m_descriptions!,
                                         m_telemetry);
                                 }
 
@@ -982,7 +982,7 @@ namespace Opc.Ua.Bindings
 
                                     // save the channel for shutdown and reconnects.
                                     // retry to get a channel id if it is already in use.
-                                } while (!channels.TryAdd(channelId, channel));
+                                } while (!channels!.TryAdd(channelId, channel));
 
                                 // start accepting messages on the channel.
                                 channel.Attach(channelId, e.AcceptSocket);
@@ -1005,7 +1005,7 @@ namespace Opc.Ua.Bindings
                     if (e.SocketError != SocketError.OperationAborted)
                     {
                         // go back and wait for the next connection.
-                        SocketAsyncEventArgs newArgs = null;
+                        SocketAsyncEventArgs? newArgs = null;
                         try
                         {
                             newArgs = new SocketAsyncEventArgs();
@@ -1039,9 +1039,9 @@ namespace Opc.Ua.Bindings
             var channels = new List<TcpListenerChannel>();
 
             bool cleanup = false;
-            foreach (KeyValuePair<uint, TcpListenerChannel> chEntry in m_channels)
+            foreach (KeyValuePair<uint, TcpListenerChannel> chEntry in m_channels!)
             {
-                if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
+                if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas!.ChannelLifetime)
                 {
                     channels.Add(chEntry.Value);
                     cleanup = true;
@@ -1080,7 +1080,7 @@ namespace Opc.Ua.Bindings
                 {
                     var context = new SecureChannelContext(
                         channel.GlobalChannelId,
-                        channel.EndpointDescription,
+                        channel.EndpointDescription!,
                         RequestEncoding.Binary,
                         channel.ClientCertificate?.RawData,
                         channel.ServerCertificate?.RawData,
@@ -1102,7 +1102,7 @@ namespace Opc.Ua.Bindings
                                 authenticationToken,
                                 out uint channelId
                             ) &&
-                            m_channels.TryGetValue(channelId, out TcpListenerChannel newChannel))
+                            m_channels!.TryGetValue(channelId, out TcpListenerChannel? newChannel))
                         {
                             var serverChannel = (TcpServerChannel)newChannel;
 
@@ -1130,17 +1130,17 @@ namespace Opc.Ua.Bindings
         private void OnReportAuditOpenSecureChannelEvent(
             TcpServerChannel channel,
             OpenSecureChannelRequest request,
-            X509Certificate2 clientCertificate,
-            Exception exception)
+            X509Certificate2? clientCertificate,
+            Exception? exception)
         {
             try
             {
                 m_callback?.ReportAuditOpenSecureChannelEvent(
                     channel.GlobalChannelId,
-                    channel.EndpointDescription,
+                    channel.EndpointDescription!,
                     request,
-                    clientCertificate,
-                    exception);
+                    clientCertificate!,
+                    exception!);
             }
             catch (Exception e)
             {
@@ -1200,19 +1200,19 @@ namespace Opc.Ua.Bindings
         private readonly Lock m_lock = new();
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
-        private List<EndpointDescription> m_descriptions;
-        private BufferManager m_bufferManager;
-        private ChannelQuotas m_quotas;
-        private CertificateTypesProvider m_serverCertificateTypesProvider;
+        private List<EndpointDescription>? m_descriptions;
+        private BufferManager? m_bufferManager;
+        private ChannelQuotas? m_quotas;
+        private CertificateTypesProvider? m_serverCertificateTypesProvider;
         private int m_lastChannelId;
-        private Socket m_listeningSocket;
-        private Socket m_listeningSocketIPv6;
-        private ConcurrentDictionary<uint, TcpListenerChannel> m_channels;
-        private ITransportListenerCallback m_callback;
+        private Socket? m_listeningSocket;
+        private Socket? m_listeningSocketIPv6;
+        private ConcurrentDictionary<uint, TcpListenerChannel>? m_channels;
+        private ITransportListenerCallback? m_callback;
         private bool m_reverseConnectListener;
         private int m_inactivityDetectPeriod;
-        private Timer m_inactivityDetectionTimer;
-        private ActiveClientTracker m_activeClientTracker;
+        private Timer? m_inactivityDetectionTimer;
+        private ActiveClientTracker? m_activeClientTracker;
     }
 
     /// <summary>

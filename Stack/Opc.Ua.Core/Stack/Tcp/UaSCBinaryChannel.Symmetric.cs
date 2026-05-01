@@ -42,22 +42,22 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the current security token.
         /// </summary>
-        protected internal ChannelToken CurrentToken { get; private set; }
+        protected internal ChannelToken? CurrentToken { get; private set; }
 
         /// <summary>
         /// Returns the current security token.
         /// </summary>
-        protected internal ChannelToken PreviousToken { get; private set; }
+        protected internal ChannelToken? PreviousToken { get; private set; }
 
         /// <summary>
         /// Returns the renewed but not yet activated token.
         /// </summary>
-        protected internal ChannelToken RenewedToken { get; private set; }
+        protected internal ChannelToken? RenewedToken { get; private set; }
 
         /// <summary>
         /// Called when the token changes
         /// </summary>
-        protected internal Action<ChannelToken, ChannelToken> OnTokenActivated { get; set; }
+        protected internal Action<ChannelToken?, ChannelToken?>? OnTokenActivated { get; set; }
 
         /// <summary>
         /// Creates a new token.
@@ -177,7 +177,7 @@ namespace Opc.Ua.Bindings
 
             int length = m_signatureKeySize + m_encryptionKeySize + EncryptionBlockSize;
 
-            if (!isServer && SecurityPolicy.SecureChannelEnhancements)
+            if (!isServer && SecurityPolicy!.SecureChannelEnhancements)
             {
                 length += hmac.HashSize/8;
             }
@@ -197,14 +197,14 @@ namespace Opc.Ua.Bindings
                 token.ServerSigningKey = signingKey;
                 token.ServerEncryptingKey = encryptingKey;
                 token.ServerInitializationVector = iv;
-                token.ServerHmac = SecurityPolicy.CreateSignatureHmac(signingKey);
+                token.ServerHmac = SecurityPolicy!.CreateSignatureHmac(signingKey);
             }
             else
             {
                 token.ClientSigningKey = signingKey;
                 token.ClientEncryptingKey = encryptingKey;
                 token.ClientInitializationVector = iv;
-                token.ClientHmac = SecurityPolicy.CreateSignatureHmac(signingKey);
+                token.ClientHmac = SecurityPolicy!.CreateSignatureHmac(signingKey);
             }
         }
 
@@ -214,10 +214,10 @@ namespace Opc.Ua.Bindings
             bool isServer,
             int length)
         {
-            byte[] keyData = m_localNonce.DeriveKeyData(
+            byte[] keyData = m_localNonce!.DeriveKeyData(
                 token.Secret,
                 salt,
-                token.SecurityPolicy.KeyDerivationAlgorithm,
+                token.SecurityPolicy!.KeyDerivationAlgorithm,
                 length);
 
             byte[] signingKey = new byte[m_signatureKeySize];
@@ -233,14 +233,14 @@ namespace Opc.Ua.Bindings
                 token.ServerSigningKey = signingKey;
                 token.ServerEncryptingKey = encryptingKey;
                 token.ServerInitializationVector = iv;
-                token.ServerHmac = token.SecurityPolicy.CreateSignatureHmac(signingKey);
+                token.ServerHmac = token.SecurityPolicy!.CreateSignatureHmac(signingKey);
             }
             else
             {
                 token.ClientSigningKey = signingKey;
                 token.ClientEncryptingKey = encryptingKey;
                 token.ClientInitializationVector = iv;
-                token.ClientHmac = token.SecurityPolicy.CreateSignatureHmac(signingKey);
+                token.ClientHmac = token.SecurityPolicy!.CreateSignatureHmac(signingKey);
             }
         }
 
@@ -256,37 +256,37 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            byte[] serverSecret = token.ServerNonce;
-            byte[] clientSecret = token.ClientNonce;
+            byte[]? serverSecret = token.ServerNonce;
+            byte[]? clientSecret = token.ClientNonce;
 
-            switch (token.SecurityPolicy.KeyDerivationAlgorithm)
+            switch (token.SecurityPolicy!.KeyDerivationAlgorithm)
             {
                 case KeyDerivationAlgorithm.HKDFSha256:
                 case KeyDerivationAlgorithm.HKDFSha384:
                 {
-                    token.Secret = m_localNonce.GenerateSecret(m_remoteNonce, token.PreviousSecret);
+                    token.Secret = m_localNonce!.GenerateSecret(m_remoteNonce, token.PreviousSecret);
 
                     byte[] clientSalt = Utils.Append(
-                        BitConverter.GetBytes((ushort)token.SecurityPolicy.ClientKeyDataLength),
+                        BitConverter.GetBytes((ushort)token.SecurityPolicy!.ClientKeyDataLength),
                         s_hkdfClientLabel,
                         clientSecret,
                         serverSecret);
 
-                    DeriveKeysWithHKDF(token, clientSalt, false, token.SecurityPolicy.ClientKeyDataLength);
+                    DeriveKeysWithHKDF(token, clientSalt, false, token.SecurityPolicy!.ClientKeyDataLength);
 
                     byte[] serverSalt = Utils.Append(
-                        BitConverter.GetBytes((ushort)token.SecurityPolicy.ServerKeyDataLength),
+                        BitConverter.GetBytes((ushort)token.SecurityPolicy!.ServerKeyDataLength),
                         s_hkdfServerLabel,
                         serverSecret,
                         clientSecret);
 
-                    DeriveKeysWithHKDF(token, serverSalt, true, token.SecurityPolicy.ServerKeyDataLength);
+                    DeriveKeysWithHKDF(token, serverSalt, true, token.SecurityPolicy!.ServerKeyDataLength);
                     break;
                 }
                 default:
-                    HashAlgorithmName algorithmName = token.SecurityPolicy.GetKeyDerivationHashAlgorithmName();
-                    DeriveKeysWithPSHA(algorithmName, serverSecret, clientSecret, token, false);
-                    DeriveKeysWithPSHA(algorithmName, clientSecret, serverSecret, token, true);
+                    HashAlgorithmName algorithmName = token.SecurityPolicy!.GetKeyDerivationHashAlgorithmName();
+                    DeriveKeysWithPSHA(algorithmName, serverSecret!, clientSecret!, token, false);
+                    DeriveKeysWithPSHA(algorithmName, clientSecret!, serverSecret!, token, true);
                     break;
             }
         }
@@ -304,7 +304,7 @@ namespace Opc.Ua.Bindings
         {
             limitsExceeded = false;
             bool success = false;
-            BufferCollection chunksToProcess = null;
+            BufferCollection? chunksToProcess = null;
 
             try
             {
@@ -315,7 +315,7 @@ namespace Opc.Ua.Bindings
 
                 int signatureSize = SymmetricSignatureSize;
                 int paddingCountSize =
-                    (SecurityMode != MessageSecurityMode.SignAndEncrypt || token.SecurityPolicy.NoSymmetricEncryptionPadding)
+                    (SecurityMode != MessageSecurityMode.SignAndEncrypt || token.SecurityPolicy!.NoSymmetricEncryptionPadding)
                     ? 0
                     : (EncryptionBlockSize > byte.MaxValue ? 2 : 1);
 
@@ -354,7 +354,7 @@ namespace Opc.Ua.Bindings
                 {
                     using var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, true);
                     encoder.WriteRawBytes(
-                        rawBytes.Value.Array,
+                        rawBytes.Value.Array!,
                         rawBytes.Value.Offset,
                         rawBytes.Value.Count);
                 }
@@ -382,11 +382,11 @@ namespace Opc.Ua.Bindings
                     // nothing more to do if limits exceeded.
                     if (limitsExceeded)
                     {
-                        BufferManager.ReturnBuffer(chunkToProcess.Array, "WriteSymmetricMessage");
+                        BufferManager.ReturnBuffer(chunkToProcess.Array!, "WriteSymmetricMessage");
                         continue;
                     }
 
-                    var strm = new MemoryStream(chunkToProcess.Array, 0, SendBufferSize);
+                    var strm = new MemoryStream(chunkToProcess.Array!, 0, SendBufferSize);
                     using var encoder = new BinaryEncoder(strm, Quotas.MessageContext, false);
 
                     // check if the message needs to be aborted.
@@ -400,7 +400,7 @@ namespace Opc.Ua.Bindings
                         // replace the body in the chunk with an error message.
                         using (
                             var errorEncoder = new BinaryEncoder(
-                                chunkToProcess.Array,
+                                chunkToProcess.Array!,
                                 chunkToProcess.Offset,
                                 chunkToProcess.Count,
                                 Quotas.MessageContext))
@@ -412,7 +412,7 @@ namespace Opc.Ua.Bindings
                                     : StatusCodes.BadResponseTooLarge);
                             int size = errorEncoder.Close();
                             chunkToProcess = new ArraySegment<byte>(
-                                chunkToProcess.Array,
+                                chunkToProcess.Array!,
                                 chunkToProcess.Offset,
                                 size);
                         }
@@ -476,7 +476,7 @@ namespace Opc.Ua.Bindings
                     if (SecurityMode != MessageSecurityMode.None)
                     {
                         dataToSend = new ArraySegment<byte>(
-                            chunkToProcess.Array,
+                            chunkToProcess.Array!,
                             TcpMessageLimits.SymmetricHeaderSize,
                             encoder.Position - TcpMessageLimits.SymmetricHeaderSize);
 
@@ -485,7 +485,7 @@ namespace Opc.Ua.Bindings
                     else
                     {
                         dataToSend = new ArraySegment<byte>(
-                            chunkToProcess.Array,
+                            chunkToProcess.Array!,
                             0,
                             encoder.Position);
                     }
@@ -557,13 +557,13 @@ namespace Opc.Ua.Bindings
             }
 
             // check if activation of the new token should be forced.
-            else if (RenewedToken != null && CurrentToken.ActivationRequired)
+            else if (RenewedToken != null && CurrentToken!.ActivationRequired)
             {
                 ActivateToken(RenewedToken);
                 m_logger.LogInformation(
                     "ChannelId {Id}: Token #{TokenId} activated forced.",
                     Id,
-                    CurrentToken.TokenId);
+                    CurrentToken!.TokenId);
             }
 
             // check for valid token.
@@ -574,7 +574,7 @@ namespace Opc.Ua.Bindings
                     "Channel{0}: Token missing to read symmetric messagee.", Id);
 
             // find the token.
-            if (currentToken.TokenId != tokenId &&
+            if (CurrentToken!.TokenId != tokenId &&
                 (PreviousToken == null || PreviousToken.TokenId != tokenId))
             {
                 throw ServiceResultException.Create(
@@ -583,7 +583,7 @@ namespace Opc.Ua.Bindings
                     Id,
                     channelId,
                     tokenId,
-                    currentToken.TokenId,
+                    CurrentToken!.TokenId,
                     PreviousToken != null ? (int)PreviousToken.TokenId : -1);
             }
 
@@ -610,14 +610,14 @@ namespace Opc.Ua.Bindings
             int headerSize = decoder.Position;
 
             var dataToProcess = new ArraySegment<byte>(
-                buffer.Array,
+                buffer.Array!,
                 buffer.Offset,
                 buffer.Count);
 
             if (SecurityMode != MessageSecurityMode.None)
             {
                 dataToProcess = new ArraySegment<byte>(
-                    buffer.Array,
+                    buffer.Array!,
                     buffer.Offset + headerSize,
                     buffer.Count - headerSize);
 
@@ -635,7 +635,7 @@ namespace Opc.Ua.Bindings
 
             // return only the data contained in the message.
             return new ArraySegment<byte>(
-                dataToProcess.Array,
+                dataToProcess.Array!,
                 dataToProcess.Offset + headerSize,
                 dataToProcess.Count - headerSize);
         }

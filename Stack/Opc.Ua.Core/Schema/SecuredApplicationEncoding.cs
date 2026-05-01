@@ -536,7 +536,7 @@ namespace Opc.Ua.Security
             var list = new ListOfBaseAddresses();
             while (decoder.Peek("BaseAddress"))
             {
-                list.Add(decoder.ReadString("BaseAddress"));
+                list.Add(decoder.ReadString("BaseAddress")!);
             }
 
             return list;

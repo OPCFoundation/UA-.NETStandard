@@ -138,7 +138,7 @@ namespace Opc.Ua.Bindings
                         listenerEndpoints,
                         endpointConfiguration,
                         listener,
-                        configuration.CertificateValidator.GetChannelValidator());
+                        configuration.CertificateValidator!.GetChannelValidator());
 
                     endpoints.AddRange(listenerEndpoints);
                 }
@@ -150,7 +150,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris]);
+            hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris])!;
             return endpoints;
         }
     }

@@ -299,8 +299,7 @@ namespace Opc.Ua
             /// </summary>
             public AsyncResult(Task task, AsyncCallback? callback, object? state)
             {
-                Debug.Assert(task != null);
-                Task = task;
+                Task = task ?? throw new ArgumentNullException(nameof(task));
                 AsyncState = state;
 
                 if (task.IsCompleted)
@@ -324,7 +323,7 @@ namespace Opc.Ua
             {
                 Debug.Assert(!CompletedSynchronously);
                 Debug.Assert(m_callback != null);
-                m_callback.Invoke(this);
+                m_callback!.Invoke(this);
             }
 
             private readonly AsyncCallback? m_callback;

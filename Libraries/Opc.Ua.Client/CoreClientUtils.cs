@@ -303,7 +303,7 @@ namespace Opc.Ua.Client
                         {
                             // skip unsupported security policies, for backward compatibility only
                             // may contain policies for which no certificate is available
-                            if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri) == null)
+                            if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri!) == null)
                             {
                                 continue;
                             }
@@ -322,11 +322,11 @@ namespace Opc.Ua.Client
                     //Select endpoint if it has a higher calculated security level, than the previously selected one
                     if (SecuredApplication.CalculateSecurityLevel(
                             endpoint.SecurityMode,
-                            endpoint.SecurityPolicyUri,
+                            endpoint.SecurityPolicyUri!,
                             logger) >
                         SecuredApplication.CalculateSecurityLevel(
                             selectedEndpoint.SecurityMode,
-                            selectedEndpoint.SecurityPolicyUri,
+                            selectedEndpoint.SecurityPolicyUri!,
                             logger))
                     {
                         selectedEndpoint = endpoint;

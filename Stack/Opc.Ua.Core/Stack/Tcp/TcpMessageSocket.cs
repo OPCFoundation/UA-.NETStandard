@@ -605,7 +605,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            BufferManager.LockBuffer(m_receiveBuffer);
+            BufferManager.LockBuffer(m_receiveBuffer!);
 
             SocketAsyncEventArgs? args = null;
             try
@@ -634,12 +634,12 @@ namespace Opc.Ua.Bindings
             }
             catch (ServiceResultException)
             {
-                BufferManager.UnlockBuffer(m_receiveBuffer);
+                BufferManager.UnlockBuffer(m_receiveBuffer!);
                 throw;
             }
             catch (Exception ex)
             {
-                BufferManager.UnlockBuffer(m_receiveBuffer);
+                BufferManager.UnlockBuffer(m_receiveBuffer!);
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpInternalError,
                     ex,

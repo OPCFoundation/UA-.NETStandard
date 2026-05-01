@@ -116,7 +116,7 @@ namespace Opc.Ua.Bindings
                 uris.Add(uri.Uri);
 
                 ServerSecurityPolicy? bestPolicy = null;
-                bool httpsMutualTls = configuration.ServerConfiguration.HttpsMutualTls;
+                bool httpsMutualTls = configuration.ServerConfiguration.HttpsMutualTls!;
                 if (!httpsMutualTls)
                 {
                     // Only use security None without mutual TLS authentication!
@@ -197,7 +197,7 @@ namespace Opc.Ua.Bindings
                         endpoints,
                         endpointConfiguration,
                         listener,
-                        configuration.CertificateValidator.GetChannelValidator());
+                        configuration.CertificateValidator!.GetChannelValidator());
                 }
                 else
                 {
@@ -206,7 +206,7 @@ namespace Opc.Ua.Bindings
             }
 
             // create the host.
-            hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris]);
+            hosts[hostName] = serverBase.CreateServiceHost(serverBase!, [.. uris]);
             return endpoints;
         }
     }

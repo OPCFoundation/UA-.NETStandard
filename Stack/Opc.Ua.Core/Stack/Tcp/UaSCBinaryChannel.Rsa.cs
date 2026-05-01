@@ -62,7 +62,7 @@ namespace Opc.Ua.Bindings
 
             // create the signature.
             var signature = rsa.SignData(
-                dataToSign.Array,
+                dataToSign.Array!,
                 dataToSign.Offset,
                 dataToSign.Count,
                 algorithm,
@@ -91,7 +91,7 @@ namespace Opc.Ua.Bindings
 
             // verify signature.
             if (!rsa.VerifyData(
-                    dataToVerify.Array,
+                    dataToVerify.Array!,
                     dataToVerify.Offset,
                     dataToVerify.Count,
                     signature,
@@ -99,9 +99,9 @@ namespace Opc.Ua.Bindings
                     padding))
             {
                 string messageType = Encoding.UTF8
-                    .GetString(dataToVerify.Array, dataToVerify.Offset, 4);
+                    .GetString(dataToVerify.Array!, dataToVerify.Offset, 4);
                 int messageLength = BitConverter.ToInt32(
-                    dataToVerify.Array,
+                    dataToVerify.Array!,
                     dataToVerify.Offset + 4);
                 string actualSignature = Utils.ToHexString(signature);
                 m_logger.LogError("Could not validate signature.");
@@ -147,7 +147,7 @@ namespace Opc.Ua.Bindings
 
             byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Encrypt");
             Array.Copy(
-                headerToCopy.Array,
+                headerToCopy.Array!,
                 headerToCopy.Offset,
                 encryptedBuffer,
                 0,
@@ -167,7 +167,7 @@ namespace Opc.Ua.Bindings
                     ii < dataToEncrypt.Offset + dataToEncrypt.Count;
                     ii += inputBlockSize)
                 {
-                    Array.Copy(dataToEncrypt.Array, ii, input, 0, input.Length);
+                    Array.Copy(dataToEncrypt.Array!, ii, input, 0, input.Length);
                     byte[] cipherText = rsa.Encrypt(input, rsaPadding);
                     ostrm.Write(cipherText, 0, cipherText.Length);
                 }
@@ -210,7 +210,7 @@ namespace Opc.Ua.Bindings
 
             byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Decrypt");
             Array.Copy(
-                headerToCopy.Array,
+                headerToCopy.Array!,
                 headerToCopy.Offset,
                 decryptedBuffer,
                 0,
@@ -230,7 +230,7 @@ namespace Opc.Ua.Bindings
                     ii < dataToDecrypt.Offset + dataToDecrypt.Count;
                     ii += inputBlockSize)
                 {
-                    Array.Copy(dataToDecrypt.Array, ii, input, 0, input.Length);
+                    Array.Copy(dataToDecrypt.Array!, ii, input, 0, input.Length);
                     byte[] plainText = rsa.Decrypt(input, rsaPadding);
                     ostrm.Write(plainText, 0, plainText.Length);
                 }

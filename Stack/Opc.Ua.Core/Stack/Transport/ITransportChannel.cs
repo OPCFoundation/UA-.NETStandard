@@ -41,8 +41,8 @@ namespace Opc.Ua
     /// </summary>
     public delegate void ChannelTokenActivatedEventHandler(
         ITransportChannel channel,
-        ChannelToken currentToken,
-        ChannelToken previousToken);
+        ChannelToken? currentToken,
+        ChannelToken? previousToken);
 
     /// <summary>
     /// Secure channels implement this interface and the

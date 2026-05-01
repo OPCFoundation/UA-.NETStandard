@@ -81,7 +81,7 @@ namespace Opc.Ua
                     m_configuration,
                     connection,
                     endpoint.Description,
-                    endpoint.Configuration,
+                    endpoint.Configuration!,
                     clientCertificate,
                     clientCertificateChain,
                     context,
@@ -93,7 +93,7 @@ namespace Opc.Ua
                 channel = await CreateUaBinaryChannelAsync(
                     m_configuration,
                     endpoint.Description,
-                    endpoint.Configuration,
+                    endpoint.Configuration!,
                     clientCertificate,
                     clientCertificateChain,
                     context,
@@ -172,7 +172,7 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
-                settings.CertificateValidator = configuration.CertificateValidator
+                settings.CertificateValidator = configuration.CertificateValidator!
                     .GetChannelValidator();
             }
 
@@ -251,7 +251,7 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
-                settings.CertificateValidator = configuration.CertificateValidator
+                settings.CertificateValidator = configuration.CertificateValidator!
                     .GetChannelValidator();
             }
 

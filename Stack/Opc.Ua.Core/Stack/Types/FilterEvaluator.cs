@@ -155,12 +155,12 @@ namespace Opc.Ua
                     throw ServiceResultException.Unexpected("FilterOperand is null.");
                 }
 
-                if (!extension.TryGetEncodeable(out FilterOperand operand))
+                if (!extension.TryGetEncodeable(out FilterOperand? operand))
                 {
                     throw ServiceResultException.Unexpected("FilterOperand is not supported.");
                 }
 
-                operands[ii++] = operand;
+                operands[ii++] = operand!;
             }
 
             if (expectedCount > 0 && expectedCount != operands.Length)
@@ -498,7 +498,7 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 2);
 
             Variant firstOperand = GetValue(operands[0]);
-            string lhs;
+            string? lhs;
             if (firstOperand.TryGet(out LocalizedText firstOperandLocalizedText))
             {
                 lhs = firstOperandLocalizedText.Text;
@@ -509,7 +509,7 @@ namespace Opc.Ua
             }
 
             Variant secondOperand = GetValue(operands[1]);
-            string rhs;
+            string? rhs;
             if (secondOperand.TryGet(out LocalizedText secondOperandLocalizedText))
             {
                 rhs = secondOperandLocalizedText.Text;
@@ -714,7 +714,7 @@ namespace Opc.Ua
                     var nestedType = ExtensionObject.ToEncodeable(
                         chainedElement.FilterOperands[0]) as FilterOperand;
 
-                    targetTypeId = GetValue(nestedType).TryGet(out NodeId n) ? n : default;
+                    targetTypeId = GetValue(nestedType!).TryGet(out NodeId n) ? n : default;
                     if (targetTypeId.IsNull)
                     {
                         return false;

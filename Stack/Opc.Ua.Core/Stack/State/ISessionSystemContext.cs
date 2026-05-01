@@ -307,7 +307,7 @@ namespace Opc.Ua
         }
 
         // ISessionOperationContext requires non-nullable SessionId and UserIdentity.
-        NodeId ISessionOperationContext.SessionId => SessionId!;
+        NodeId ISessionOperationContext.SessionId => SessionId ?? NodeId.Null;
         IUserIdentity ISessionOperationContext.UserIdentity => UserIdentity!;
 
         private NodeId? m_sessionId;

@@ -384,15 +384,19 @@ namespace Opc.Ua.Bindings
             m_url = url;
             m_settings = settings;
 
-            OperationTimeout = settings.Configuration.OperationTimeout;
+            EndpointConfiguration configuration = settings.Configuration
+                ?? throw new ArgumentException("EndpointConfiguration is required.", nameof(settings));
+            IEncodeableFactory factory = settings.Factory
+                ?? throw new ArgumentException("Factory is required.", nameof(settings));
+
+            OperationTimeout = configuration.OperationTimeout;
             if (OperationTimeout <= 0)
             {
                 throw new ArgumentException("Timeout must be greater than 0");
             }
 
             // initialize the quotas.
-            EndpointConfiguration configuration = m_settings.Configuration;
-            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, m_settings.Factory)
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, factory)
             {
                 MaxArrayLength = configuration.MaxArrayLength,
                 MaxByteStringLength = configuration.MaxByteStringLength,
@@ -401,7 +405,7 @@ namespace Opc.Ua.Bindings
                 MaxStringLength = configuration.MaxStringLength,
                 MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
-                NamespaceUris = m_settings.NamespaceUris,
+                NamespaceUris = settings.NamespaceUris ?? new NamespaceTable(),
                 ServerUris = new StringTable()
             })
             {
@@ -416,7 +420,7 @@ namespace Opc.Ua.Bindings
             // create the buffer manager.
             m_bufferManager = new BufferManager(
                 "Client",
-                settings.Configuration.MaxBufferSize,
+                configuration.MaxBufferSize,
                 m_telemetry);
         }
 
