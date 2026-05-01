@@ -251,12 +251,14 @@ namespace Opc.Ua
                     if (ServiceResult.IsGood(result!))
                     {
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
                         if (dataTypeDefinition.TryGetEncodeable(out StructureDefinition structureType) &&
                             structureType.DefaultEncodingId.IsNull)
                         {
                             // one time set the id for binary encoding, currently the only supported encoding
                             structureType.SetDefaultEncodingId(context, NodeId, default);
                         }
+#pragma warning restore CS8602
 #pragma warning restore CS8600
                         value = dataTypeDefinition;
                     }
