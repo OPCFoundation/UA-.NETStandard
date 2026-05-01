@@ -152,7 +152,7 @@ namespace Opc.Ua
             string thumbprint,
             string? subjectName,
             string? applicationUri,
-            NodeId? certificateType,
+            NodeId certificateType,
             char[]? password,
             CancellationToken ct = default);
 

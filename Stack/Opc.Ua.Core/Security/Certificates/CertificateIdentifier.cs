@@ -82,7 +82,7 @@ namespace Opc.Ua
                 return GetDisplayName(m_certificate);
             }
 
-            return m_subjectName ?? m_thumbprint;
+            return m_subjectName ?? m_thumbprint ?? string.Empty;
         }
 
         /// <summary>
@@ -148,7 +148,7 @@ namespace Opc.Ua
         /// Gets or sets the actual certificate.
         /// </summary>
         /// <value>The X509 certificate used by this instance.</value>
-        public X509Certificate2 Certificate
+        public X509Certificate2? Certificate
         {
             get => m_certificate;
             set
@@ -202,8 +202,8 @@ namespace Opc.Ua
             if (StoreType != CertificateStoreType.X509Store)
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                    StorePath,
-                    StoreType,
+                    StorePath ?? string.Empty,
+                    StoreType ?? string.Empty,
                     false);
                 using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry!);
                 if (store?.SupportsLoadPrivateKey == true)
@@ -211,7 +211,7 @@ namespace Opc.Ua
                     char[]? password = passwordProvider?.GetPassword(this);
                     m_certificate = await store
                         .LoadPrivateKeyAsync(
-                            Thumbprint,
+                            Thumbprint ?? string.Empty,
                             SubjectName,
                             applicationUri: null,
                             CertificateType,
@@ -224,7 +224,7 @@ namespace Opc.Ua
                     {
                         m_certificate = await store
                             .LoadPrivateKeyAsync(
-                                Thumbprint,
+                                Thumbprint ?? string.Empty,
                                 subjectName: null,
                                 applicationUri,
                                 CertificateType,
@@ -280,7 +280,7 @@ namespace Opc.Ua
             else
             {
                 // open store.
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(StorePath, false);
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(StorePath ?? string.Empty, false);
                 using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry!);
                 if (store == null)
                 {
@@ -531,7 +531,7 @@ namespace Opc.Ua
             string? thumbprint,
             string? subjectName,
             string? applicationUri,
-            NodeId? certificateType,
+            NodeId certificateType,
             bool needPrivateKey)
         {
             // find by thumbprint.
@@ -583,7 +583,7 @@ namespace Opc.Ua
                     return PickBestCertificate(matchesOnCriteria);
                 }
 
-                bool hasCommonName = subjectName.Contains("CN=", StringComparison.OrdinalIgnoreCase);
+                bool hasCommonName = subjectName!.Contains("CN=", StringComparison.OrdinalIgnoreCase);
 
                 // If parsedSubjectName did not match the certificate distinguished name
                 // If "CN=" exists in the subject name than an exact match on CN is required
@@ -677,8 +677,8 @@ namespace Opc.Ua
         /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
         public ICertificateStore OpenStore(ITelemetryContext telemetry)
         {
-            ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType, telemetry);
-            store.Open(StorePath, false);
+            ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType ?? string.Empty, telemetry);
+            store.Open(StorePath ?? string.Empty, false);
             return store;
         }
 
@@ -729,9 +729,9 @@ namespace Opc.Ua
         /// <param name="certificateType">The NodeId of the certificate type.</param>
         public static bool ValidateCertificateType(
             X509Certificate2 certificate,
-            NodeId? certificateType)
+            NodeId certificateType)
         {
-            if (certificateType == null || certificateType.IsNull)
+            if (certificateType.IsNull)
             {
                 return true;
             }
@@ -746,7 +746,7 @@ namespace Opc.Ua
                     {
                         return false;
                     }
-                    else if (certType == certificateType)
+                    else if (Utils.IsEqual(certType, certificateType))
                     {
                         return true;
                     }
@@ -1167,7 +1167,7 @@ namespace Opc.Ua
             string thumbprint,
             string? subjectName,
             string? applicationUri,
-            NodeId? certificateType,
+            NodeId certificateType,
             char[]? password,
             CancellationToken ct = default)
         {

@@ -72,8 +72,8 @@ namespace Opc.Ua
             string storeType,
             bool noPrivateKeys = true)
         {
-            StorePath = storePath;
-            StoreType = storeType;
+            StorePath = storePath ?? string.Empty;
+            StoreType = storeType ?? string.Empty;
             m_noPrivateKeys = noPrivateKeys;
         }
 
@@ -110,10 +110,10 @@ namespace Opc.Ua
         {
             if (string.IsNullOrEmpty(StoreType))
             {
-                return Utils.Format("{0}", StorePath);
+                return Utils.Format("{0}", StorePath ?? string.Empty);
             }
 
-            return Utils.Format("[{0}]{1}", StoreType, StorePath);
+            return Utils.Format("[{0}]{1}", StoreType ?? string.Empty, StorePath ?? string.Empty);
         }
 
         /// <summary>
@@ -255,7 +255,7 @@ namespace Opc.Ua
                 !string.IsNullOrEmpty(StoreType) &&
                 !string.IsNullOrEmpty(StorePath))
             {
-                store = CreateStore(StoreType, telemetry);
+                store = CreateStore(StoreType!, telemetry);
                 ICertificateStore? currentStore = Interlocked.CompareExchange(
                     ref m_store,
                     store,
@@ -267,7 +267,7 @@ namespace Opc.Ua
                 }
             }
 
-            store?.Open(StorePath, m_noPrivateKeys);
+            store?.Open(StorePath ?? string.Empty, m_noPrivateKeys);
 
             return store!;
         }
