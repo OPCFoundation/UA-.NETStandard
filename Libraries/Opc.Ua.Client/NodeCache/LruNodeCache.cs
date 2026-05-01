@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -578,7 +576,7 @@ namespace Opc.Ua.Client
             {
                 return null;
             }
-            NodeId localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
             if (localId.IsNull)
             {
                 return null;
@@ -699,7 +697,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<Node?> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
-            NodeId localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
             if (localId.IsNull)
             {
                 return null;
@@ -1175,7 +1173,6 @@ namespace Opc.Ua.Client
             }
             return NodeId.Null;
         }
-
 
         /// <summary>
         /// Get or add references to cache

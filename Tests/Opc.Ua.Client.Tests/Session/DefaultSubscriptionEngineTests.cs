@@ -34,7 +34,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Engine;
 
@@ -131,7 +130,7 @@ namespace Opc.Ua.Client.Tests
         public void ConstructorThrowsOnNullContext()
         {
             Assert.That(
-                () => new DefaultSubscriptionEngine(null!),
+                () => new DefaultSubscriptionEngine(null),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -228,7 +227,7 @@ namespace Opc.Ua.Client.Tests
         public void BridgeConstructorThrowsOnNullSink()
         {
             Assert.That(
-                () => new SubscriptionBridge(null!),
+                () => new SubscriptionBridge(null),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -371,10 +370,10 @@ namespace Opc.Ua.Client.Tests
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(
-                captured!.NotificationData.Count, Is.EqualTo(1));
+                captured.NotificationData.Count, Is.EqualTo(1));
             ExtensionObject ext = captured.NotificationData[0];
             Assert.That(
-                ext.TryGetEncodeable<DataChangeNotification>(
+                ext.TryGetEncodeable(
                     out DataChangeNotification dcn),
                 Is.True);
             Assert.That(

@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.None,
                 ServiceLevel = 200,
-                RedundantServers = [],
+                RedundantServers = []
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -79,8 +79,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 ServiceLevel = 200,
                 RedundantServers = new List<RedundantServer>
                 {
-                    CreateServerInfo("urn:backup", 200, ServerState.Running),
-                },
+                    CreateServerInfo("urn:backup", 200, ServerState.Running)
+                }
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -100,8 +100,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 {
                     CreateServerInfo("urn:server-low", 100, ServerState.Running),
                     CreateServerInfo("urn:server-high", 250, ServerState.Running),
-                    CreateServerInfo("urn:server-mid", 180, ServerState.Running),
-                },
+                    CreateServerInfo("urn:server-mid", 180, ServerState.Running)
+                }
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -123,8 +123,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 RedundantServers = new List<RedundantServer>
                 {
                     CreateServerInfo("urn:current", 255, ServerState.Running),
-                    CreateServerInfo("urn:backup", 100, ServerState.Running),
-                },
+                    CreateServerInfo("urn:backup", 100, ServerState.Running)
+                }
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -147,8 +147,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 {
                     CreateServerInfo("urn:suspended", 255, ServerState.Suspended),
                     CreateServerInfo("urn:shutdown", 240, ServerState.Shutdown),
-                    CreateServerInfo("urn:running", 100, ServerState.Running),
-                },
+                    CreateServerInfo("urn:running", 100, ServerState.Running)
+                }
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -171,8 +171,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 {
                     CreateServerInfo("urn:current", 200, ServerState.Running),
                     CreateServerInfo("urn:down", 100, ServerState.Shutdown),
-                    CreateServerInfo("urn:failed", 50, ServerState.Failed),
-                },
+                    CreateServerInfo("urn:failed", 50, ServerState.Failed)
+                }
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -190,8 +190,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 ServiceLevel = 200,
                 RedundantServers = new List<RedundantServer>
                 {
-                    CreateServerInfo("urn:backup", 150, ServerState.Running),
-                },
+                    CreateServerInfo("urn:backup", 150, ServerState.Running)
+                }
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -212,8 +212,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 ServiceLevel = 200,
                 RedundantServers = new List<RedundantServer>
                 {
-                    CreateServerInfo("urn:backup", 150, ServerState.Running),
-                },
+                    CreateServerInfo("urn:backup", 150, ServerState.Running)
+                }
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -234,8 +234,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 ServiceLevel = 200,
                 RedundantServers = new List<RedundantServer>
                 {
-                    CreateServerInfo("urn:backup", 150, ServerState.Running),
-                },
+                    CreateServerInfo("urn:backup", 150, ServerState.Running)
+                }
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -256,8 +256,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 ServiceLevel = 200,
                 RedundantServers = new List<RedundantServer>
                 {
-                    CreateServerInfo("urn:backup", 150, ServerState.Running),
-                },
+                    CreateServerInfo("urn:backup", 150, ServerState.Running)
+                }
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -274,7 +274,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             Mock<ISession> mockSession = CreateMockSession(
                 redundancySupport: (int)RedundancySupport.None,
-                serviceLevel: (byte)200);
+                serviceLevel: 200);
 
             ServerRedundancyInfo info = await m_handler.FetchRedundancyInfoAsync(
                 mockSession.Object).ConfigureAwait(false);
@@ -288,7 +288,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             Mock<ISession> mockSession = CreateMockSession(
                 redundancySupport: (int)RedundancySupport.None,
-                serviceLevel: (byte)175);
+                serviceLevel: 175);
 
             ServerRedundancyInfo info = await m_handler.FetchRedundancyInfoAsync(
                 mockSession.Object).ConfigureAwait(false);
@@ -303,18 +303,18 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 ServerId = "urn:server1",
                 ServiceLevel = 200,
-                ServerState = ServerState.Running,
+                ServerState = ServerState.Running
             };
             var serverData2 = new RedundantServerDataType
             {
                 ServerId = "urn:server2",
                 ServiceLevel = 150,
-                ServerState = ServerState.Suspended,
+                ServerState = ServerState.Suspended
             };
 
             Mock<ISession> mockSession = CreateMockSession(
                 redundancySupport: (int)RedundancySupport.Hot,
-                serviceLevel: (byte)200,
+                serviceLevel: 200,
                 redundantServers: [serverData1, serverData2]);
 
             ServerRedundancyInfo info = await m_handler.FetchRedundancyInfoAsync(
@@ -357,7 +357,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 ServerUri = uri,
                 ServiceLevel = serviceLevel,
-                ServerState = state,
+                ServerState = state
             };
         }
 
@@ -368,8 +368,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 EndpointUrl = applicationUri,
                 Server = new ApplicationDescription
                 {
-                    ApplicationUri = applicationUri,
-                },
+                    ApplicationUri = applicationUri
+                }
             };
 
             return new ConfiguredEndpoint(null, description);
@@ -400,9 +400,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     Results =
                     [
                         new DataValue(new Variant(redundancySupport), StatusCodes.Good),
-                        new DataValue(new Variant(serviceLevel), StatusCodes.Good),
+                        new DataValue(new Variant(serviceLevel), StatusCodes.Good)
                     ],
-                    DiagnosticInfos = [],
+                    DiagnosticInfos = []
                 });
 
             // ReadValueAsync for the redundant server array (single-node read)
@@ -423,9 +423,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                         [
                             new DataValue(
                                 new Variant(extensionObjects),
-                                StatusCodes.Good),
+                                StatusCodes.Good)
                         ],
-                        DiagnosticInfos = [],
+                        DiagnosticInfos = []
                     });
             }
 
@@ -450,9 +450,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     Results =
                     [
                         new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown),
-                        new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown),
+                        new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown)
                     ],
-                    DiagnosticInfos = [],
+                    DiagnosticInfos = []
                 });
 
             return mock;

@@ -227,7 +227,7 @@ namespace Opc.Ua.Client.Tests
         public void ConstructorThrowsOnNullContext()
         {
             Assert.That(
-                () => new ClassicSubscriptionEngine(null!),
+                () => new ClassicSubscriptionEngine(null),
                 Throws.TypeOf<ArgumentNullException>());
         }
 

@@ -49,10 +49,13 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
     {
         private const ushort kNamespaceIndex = 3;
         private const string kTypeNamespace = Namespaces.OpcUaEncoderTests;
+
         private static readonly ExpandedNodeId s_typeId =
             new(1001u, kTypeNamespace);
+
         private static readonly ExpandedNodeId s_binaryId =
             new(1002u, kTypeNamespace);
+
         private static readonly ExpandedNodeId s_xmlId =
             new(1003u, kTypeNamespace);
 
@@ -132,13 +135,13 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             Assert.That(optionSet["HistoryWrite"], Is.True);
 
             // Value bits 0 and 3 set => 0b1001 = 0x09
-            Assert.That(optionSet.Value.Span.ToArray(), Is.EqualTo(new byte[] { 0x09 }));
+            Assert.That(optionSet.Value.Span.ToArray(), Is.EqualTo("\t"u8.ToArray()));
             // ValidBits mirror any Set bit
-            Assert.That(optionSet.ValidBits.Span.ToArray(), Is.EqualTo(new byte[] { 0x09 }));
+            Assert.That(optionSet.ValidBits.Span.ToArray(), Is.EqualTo("\t"u8.ToArray()));
 
             Assert.That(
                 optionSet.GetSetFieldNames(),
-                Is.EqualTo(new[] { "CurrentRead", "HistoryWrite" }));
+                Is.EqualTo(["CurrentRead", "HistoryWrite"]));
         }
 
         [Test]
@@ -256,7 +259,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             Assert.That(decoded[2], Is.False);
             Assert.That(
                 decoded.GetSetFieldNames(),
-                Is.EqualTo(new[] { "CurrentRead", "CurrentWrite" }));
+                Is.EqualTo(["CurrentRead", "CurrentWrite"]));
         }
 
         [Test]

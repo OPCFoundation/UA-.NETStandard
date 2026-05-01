@@ -27,13 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Moq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Moq;
 using NUnit.Framework;
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     It.IsAny<IOptionsMonitor<MonitoredItemOptions>>(),
                     It.IsAny<IMonitoredItemContext>()))
                 .Returns((string name, IOptionsMonitor<MonitoredItemOptions> options, IMonitoredItemContext context) =>
-                    new TestMonitoredItem(context, name, (Opc.Ua.OptionsMonitor<MonitoredItemOptions>)options, m_mockLogger.Object));
+                    new TestMonitoredItem(context, name, (OptionsMonitor<MonitoredItemOptions>)options, m_mockLogger.Object));
         }
 
         [Test]
@@ -125,13 +125,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem4);
 
             sut.NotifySubscriptionManagerPaused(true);
-            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused == true));
+            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused));
             sut.NotifySubscriptionManagerPaused(false);
-            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused == false));
+            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => !((TestMonitoredItem)i).Paused));
             sut.NotifySubscriptionManagerPaused(false);
-            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused == false));
+            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => !((TestMonitoredItem)i).Paused));
             sut.NotifySubscriptionManagerPaused(true);
-            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused == true));
+            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused));
 
             // Assert
             m_contextMock.Verify();
@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(result.ToArray(), Has.Exactly(1).Items);
             Assert.That(result.ToArray().Single(), Is.TypeOf<DataValueChange>());
-            var single = (DataValueChange)result.ToArray().Single();
+            var single = result.ToArray().Single();
         }
 
         [Test]
@@ -214,14 +214,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(result.Length, Is.EqualTo(3));
             Assert.That(result.Span[0], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)result.Span[0]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test1"));
-            Assert.That(((DataValueChange)result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem2));
+            Assert.That(result.Span[0].Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test1"));
+            Assert.That(result.Span[0].MonitoredItem, Is.SameAs(monitoredItem2));
             Assert.That(result.Span[1], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)result.Span[1]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test2"));
-            Assert.That(((DataValueChange)result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem2));
+            Assert.That(result.Span[1].Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test2"));
+            Assert.That(result.Span[1].MonitoredItem, Is.SameAs(monitoredItem2));
             Assert.That(result.Span[2], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)result.Span[2]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test3"));
-            Assert.That(((DataValueChange)result.Span[2]).MonitoredItem , Is.SameAs(monitoredItem1));
+            Assert.That(result.Span[2].Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test3"));
+            Assert.That(result.Span[2].MonitoredItem, Is.SameAs(monitoredItem1));
         }
 
         [Test]
@@ -269,14 +269,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(result.Length, Is.EqualTo(3));
             Assert.That(result.Span[0], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)result.Span[0]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test1"));
-            Assert.That(((DataValueChange)result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem2));
+            Assert.That(result.Span[0].Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test1"));
+            Assert.That(result.Span[0].MonitoredItem, Is.SameAs(monitoredItem2));
             Assert.That(result.Span[1], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)result.Span[1]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test2"));
-            Assert.That(((DataValueChange)result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem2));
+            Assert.That(result.Span[1].Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test2"));
+            Assert.That(result.Span[1].MonitoredItem, Is.SameAs(monitoredItem2));
             Assert.That(result.Span[2], Is.TypeOf<DataValueChange>());
-            Assert.That(((DataValueChange)result.Span[2]).Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test3"));
-            Assert.That(((DataValueChange)result.Span[2]).MonitoredItem , Is.SameAs(monitoredItem1));
+            Assert.That(result.Span[2].Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test3"));
+            Assert.That(result.Span[2].MonitoredItem, Is.SameAs(monitoredItem1));
         }
 
         [Test]
@@ -308,7 +308,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(result.ToArray(), Has.Exactly(1).Items);
             Assert.That(result.ToArray().Single(), Is.TypeOf<EventNotification>());
-            var single = (EventNotification)result.ToArray().Single();
+            var single = result.ToArray().Single();
         }
 
         [Test]
@@ -348,11 +348,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(result.Length, Is.EqualTo(2));
             Assert.That(result.Span[0], Is.TypeOf<EventNotification>());
-            Assert.That(((EventNotification)result.Span[0]).Fields[0].AsBoxedObject(), Is.EqualTo("Event1"));
-            Assert.That(((EventNotification)result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem1));
+            Assert.That(result.Span[0].Fields[0].AsBoxedObject(), Is.EqualTo("Event1"));
+            Assert.That(result.Span[0].MonitoredItem, Is.SameAs(monitoredItem1));
             Assert.That(result.Span[1], Is.TypeOf<EventNotification>());
-            Assert.That(((EventNotification)result.Span[1]).Fields[0].AsBoxedObject(), Is.EqualTo("Event2"));
-            Assert.That(((EventNotification)result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem3));
+            Assert.That(result.Span[1].Fields[0].AsBoxedObject(), Is.EqualTo("Event2"));
+            Assert.That(result.Span[1].MonitoredItem, Is.SameAs(monitoredItem3));
         }
 
         [Test]
@@ -394,11 +394,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(result.Length, Is.EqualTo(2));
             Assert.That(result.Span[0], Is.TypeOf<EventNotification>());
-            Assert.That(((EventNotification)result.Span[0]).Fields[0].AsBoxedObject(), Is.EqualTo("Event1"));
-            Assert.That(((EventNotification)result.Span[0]).MonitoredItem , Is.SameAs(monitoredItem1));
+            Assert.That(result.Span[0].Fields[0].AsBoxedObject(), Is.EqualTo("Event1"));
+            Assert.That(result.Span[0].MonitoredItem, Is.SameAs(monitoredItem1));
             Assert.That(result.Span[1], Is.TypeOf<EventNotification>());
-            Assert.That(((EventNotification)result.Span[1]).Fields[0].AsBoxedObject(), Is.EqualTo("Event2"));
-            Assert.That(((EventNotification)result.Span[1]).MonitoredItem , Is.SameAs(monitoredItem3));
+            Assert.That(result.Span[1].Fields[0].AsBoxedObject(), Is.EqualTo("Event2"));
+            Assert.That(result.Span[1].MonitoredItem, Is.SameAs(monitoredItem3));
         }
 
         [Test]
@@ -416,7 +416,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             IReadOnlyList<IMonitoredItem> result = sut.Update(state);
 
             // Assert
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result.Select(i => i.Name), Does.Contain("Item1").And.Contain("Item2"));
             m_contextMock.Verify();
         }
@@ -503,7 +503,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             bool success = sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem);
             Assert.That(existingItem, Is.TypeOf<TestMonitoredItem>());
-            Assert.That(((TestMonitoredItem)existingItem!).Options.CurrentValue.SamplingInterval, Is.Not.EqualTo(TimeSpan.FromSeconds(100)));
+            Assert.That(((TestMonitoredItem)existingItem).Options.CurrentValue.SamplingInterval, Is.Not.EqualTo(TimeSpan.FromSeconds(100)));
             OptionsMonitor<MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItemOptions>(o => o with
             {
                 SamplingInterval = TimeSpan.FromSeconds(100)
@@ -528,7 +528,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public bool Paused { get; private set; }
 
             public TestMonitoredItem(IMonitoredItemContext subscription, string name,
-                Opc.Ua.OptionsMonitor<MonitoredItemOptions> options, ILogger logger)
+                OptionsMonitor<MonitoredItemOptions> options, ILogger logger)
                 : base(subscription, name, options, logger)
             {
                 options.Configure(o => o with

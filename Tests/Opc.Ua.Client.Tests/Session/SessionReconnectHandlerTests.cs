@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class SessionReconnectHandlerTests
     {
-        private ITelemetryContext _telemetry = null!;
+        private ITelemetryContext _telemetry;
 
         [SetUp]
         public void SetUp()
@@ -300,7 +300,7 @@ namespace Opc.Ua.Client.Tests
                 .GetMethod("DoReconnectAsync", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("DoReconnectAsync method not found");
 
-            return (Task<bool>)method.Invoke(handler, null)!;
+            return (Task<bool>)method.Invoke(handler, null);
         }
 
         private static void SetSessionHandlerField(
@@ -329,7 +329,7 @@ namespace Opc.Ua.Client.Tests
             FieldInfo field = typeof(SessionReconnectHandler)
                 .GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException($"Field {fieldName} not found");
-            return (T)field.GetValue(handler)!;
+            return (T)field.GetValue(handler);
         }
 
         /// <summary>

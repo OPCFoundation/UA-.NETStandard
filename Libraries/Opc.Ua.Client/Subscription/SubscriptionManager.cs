@@ -324,7 +324,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     return remaining;
                 }
-                ArrayOf<uint> subscriptionIds = subscriptions.Select(s => s.Id).ToArrayOf();
+                var subscriptionIds = subscriptions.Select(s => s.Id).ToArrayOf();
                 TransferSubscriptionsResponse response = await m_session.TransferSubscriptionsAsync(
                     null,
                     subscriptionIds,

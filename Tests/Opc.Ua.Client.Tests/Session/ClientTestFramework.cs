@@ -34,11 +34,11 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -167,7 +167,7 @@ namespace Opc.Ua.Client.Tests
                             .Where(policy => !string.IsNullOrEmpty(policy))
                             .Distinct()
                             .OrderBy(policy => policy, StringComparer.Ordinal));
-                NUnit.Framework.Assert.Ignore(
+                Assert.Ignore(
                     $"SecurityPolicy '{securityPolicyUri}' is not advertised by the server. " +
                     $"Advertised: {advertisedPolicies}");
             }

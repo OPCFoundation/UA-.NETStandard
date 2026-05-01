@@ -296,7 +296,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     null);
 
             var managed =
-                (ManagedSessionClass)ctor!.Invoke(
+                (ManagedSessionClass)ctor.Invoke(
                 [
                     configuration,
                     endpoint,
@@ -304,7 +304,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     reconnectPolicy,
                     null,
                     logger,
-                    (IUserIdentity)null,
+                    null,
                     default(ArrayOf<string>),
                     "TestManagedSession",
                     60000u,
@@ -315,7 +315,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             typeof(ManagedSessionClass)
                 .GetField(
                     "m_session",
-                    BindingFlags.NonPublic | BindingFlags.Instance)!
+                    BindingFlags.NonPublic | BindingFlags.Instance)
                 .SetValue(managed, innerSession);
 
             // Wire events so the ManagedSession forwards inner
@@ -323,7 +323,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             typeof(ManagedSessionClass)
                 .GetMethod(
                     "WireSessionEvents",
-                    BindingFlags.NonPublic | BindingFlags.Instance)!
+                    BindingFlags.NonPublic | BindingFlags.Instance)
                 .Invoke(managed, [innerSession]);
 
             return managed;
@@ -334,7 +334,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             FieldInfo field = typeof(Session).GetField(
                 "m_KeepAlive",
                 BindingFlags.NonPublic | BindingFlags.Instance);
-            var handler = (KeepAliveEventHandler)field!.GetValue(session);
+            var handler = (KeepAliveEventHandler)field.GetValue(session);
             handler?.Invoke(
                 session,
                 new KeepAliveEventArgs(
@@ -347,7 +347,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 "m_Publish",
                 BindingFlags.NonPublic | BindingFlags.Instance);
             var handler =
-                (NotificationEventHandler)field!.GetValue(session);
+                (NotificationEventHandler)field.GetValue(session);
             handler?.Invoke(
                 session,
                 new NotificationEventArgs(null, null, default));
@@ -359,7 +359,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 "m_PublishError",
                 BindingFlags.NonPublic | BindingFlags.Instance);
             var handler =
-                (PublishErrorEventHandler)field!.GetValue(session);
+                (PublishErrorEventHandler)field.GetValue(session);
             handler?.Invoke(
                 session,
                 new PublishErrorEventArgs(
@@ -372,7 +372,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             FieldInfo field = typeof(Session).GetField(
                 "m_SubscriptionsChanged",
                 BindingFlags.NonPublic | BindingFlags.Instance);
-            var handler = (EventHandler)field!.GetValue(session);
+            var handler = (EventHandler)field.GetValue(session);
             handler?.Invoke(session, EventArgs.Empty);
         }
     }

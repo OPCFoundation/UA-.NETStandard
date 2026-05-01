@@ -43,7 +43,7 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class DefaultSessionFactoryTests
     {
-        private ITelemetryContext m_telemetry = null!;
+        private ITelemetryContext m_telemetry;
 
         [SetUp]
         public void SetUp()
@@ -213,7 +213,7 @@ namespace Opc.Ua.Client.Tests
 
             Task<ISession> task = factory.Object.CreateAsync(
                 configuration,
-                (ReverseConnectManager)null!,
+                (ReverseConnectManager)null,
                 endpoint,
                 false,
                 false,
@@ -287,7 +287,7 @@ namespace Opc.Ua.Client.Tests
             ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(mockSession.Object).ConfigureAwait(false));
 
-            Assert.That(ex!.ParamName, Is.EqualTo("sessionTemplate"));
+            Assert.That(ex.ParamName, Is.EqualTo("sessionTemplate"));
         }
 
         [Test]
@@ -300,7 +300,7 @@ namespace Opc.Ua.Client.Tests
             ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(mockSession.Object, mockConnection.Object).ConfigureAwait(false));
 
-            Assert.That(ex!.ParamName, Is.EqualTo("sessionTemplate"));
+            Assert.That(ex.ParamName, Is.EqualTo("sessionTemplate"));
         }
 
         [Test]
@@ -313,7 +313,7 @@ namespace Opc.Ua.Client.Tests
             ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(mockSession.Object, mockChannel.Object).ConfigureAwait(false));
 
-            Assert.That(ex!.ParamName, Is.EqualTo("sessionTemplate"));
+            Assert.That(ex.ParamName, Is.EqualTo("sessionTemplate"));
         }
 
         [Test]

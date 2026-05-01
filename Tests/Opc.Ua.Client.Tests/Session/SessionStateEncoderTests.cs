@@ -42,7 +42,7 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class SessionStateEncoderTests
     {
-        private ServiceMessageContext m_context = null!;
+        private ServiceMessageContext m_context;
 
         [SetUp]
         public void SetUp()
@@ -165,7 +165,7 @@ namespace Opc.Ua.Client.Tests
             MonitoredItemState decoded = RoundTrip(original);
 
             Assert.That(decoded.Filter, Is.InstanceOf<EventFilter>());
-            var eventFilter = (EventFilter)decoded.Filter!;
+            var eventFilter = (EventFilter)decoded.Filter;
             Assert.That(eventFilter.SelectClauses.Count, Is.EqualTo(1));
         }
 
@@ -345,7 +345,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(decoded.SessionName, Is.EqualTo("EndpointSession"));
             Assert.That(decoded.CheckDomain, Is.True);
             Assert.That(decoded.ConfiguredEndpoint, Is.Not.Null);
-            Assert.That(decoded.ConfiguredEndpoint!.Description.EndpointUrl,
+            Assert.That(decoded.ConfiguredEndpoint.Description.EndpointUrl,
                 Is.EqualTo("opc.tcp://localhost:4840"));
             Assert.That(decoded.ConfiguredEndpoint.Description.SecurityMode,
                 Is.EqualTo(MessageSecurityMode.None));
@@ -383,7 +383,7 @@ namespace Opc.Ua.Client.Tests
             SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.ConfiguredEndpoint, Is.Not.Null);
-            Assert.That(decoded.ConfiguredEndpoint!.Configuration, Is.Not.Null);
+            Assert.That(decoded.ConfiguredEndpoint.Configuration, Is.Not.Null);
         }
 
         [Test]
@@ -456,7 +456,7 @@ namespace Opc.Ua.Client.Tests
             SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.Identity, Is.Not.Null);
-            Assert.That(decoded.Identity!.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+            Assert.That(decoded.Identity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
         }
 
         [Test]
@@ -476,7 +476,7 @@ namespace Opc.Ua.Client.Tests
             SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.Identity, Is.Not.Null);
-            Assert.That(decoded.Identity!.TokenType, Is.EqualTo(UserTokenType.UserName));
+            Assert.That(decoded.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
         }
 
         [Test]
@@ -511,8 +511,8 @@ namespace Opc.Ua.Client.Tests
             SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.ConfiguredEndpoint, Is.Not.Null);
-            Assert.That(decoded.ConfiguredEndpoint!.ReverseConnect, Is.Not.Null);
-            Assert.That(decoded.ConfiguredEndpoint.ReverseConnect!.Enabled, Is.True);
+            Assert.That(decoded.ConfiguredEndpoint.ReverseConnect, Is.Not.Null);
+            Assert.That(decoded.ConfiguredEndpoint.ReverseConnect.Enabled, Is.True);
             Assert.That(decoded.ConfiguredEndpoint.ReverseConnect.ServerUri, Is.EqualTo("urn:testserver"));
             Assert.That(decoded.ConfiguredEndpoint.ReverseConnect.Thumbprint, Is.EqualTo("AABBCCDD"));
         }
@@ -544,7 +544,7 @@ namespace Opc.Ua.Client.Tests
             SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.ConfiguredEndpoint, Is.Not.Null);
-            Assert.That(decoded.ConfiguredEndpoint!.ReverseConnect?.Enabled, Is.Not.True);
+            Assert.That(decoded.ConfiguredEndpoint.ReverseConnect?.Enabled, Is.Not.True);
         }
 
         [Test]
@@ -634,7 +634,7 @@ namespace Opc.Ua.Client.Tests
             var decoded = SessionConfiguration.Create(readStream, telemetry);
 
             Assert.That(decoded, Is.Not.Null);
-            Assert.That(decoded!.SessionName, Is.EqualTo("StreamSession"));
+            Assert.That(decoded.SessionName, Is.EqualTo("StreamSession"));
             Assert.That(decoded.SessionId, Is.EqualTo(new NodeId(999)));
             Assert.That(decoded.AuthenticationToken, Is.EqualTo(new NodeId(888)));
         }
@@ -677,7 +677,7 @@ namespace Opc.Ua.Client.Tests
 
             SessionConfiguration decoded = RoundTrip(original);
 
-            EndpointConfiguration cfg = decoded.ConfiguredEndpoint!.Configuration;
+            EndpointConfiguration cfg = decoded.ConfiguredEndpoint.Configuration;
             Assert.That(cfg.OperationTimeout, Is.EqualTo(30000));
             Assert.That(cfg.UseBinaryEncoding, Is.True);
             Assert.That(cfg.MaxMessageSize, Is.EqualTo(2097152));

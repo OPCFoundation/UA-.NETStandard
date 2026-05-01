@@ -41,7 +41,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
     /// Unit tests for ManagedSession components including
     /// <see cref="ReconnectPolicy"/>, <see cref="ConnectionState"/>,
     /// <see cref="ConnectionStateMachine"/>, and
-    /// <see cref="Opc.Ua.Client.ManagedSession"/> factory methods.
+    /// <see cref="Client.ManagedSession"/> factory methods.
     /// </summary>
     [TestFixture]
     public sealed class ManagedSessionTests
@@ -49,7 +49,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public void ExponentialBackoffIncreasesDelay()
         {
-            var policy = new ReconnectPolicy {
+            var policy = new ReconnectPolicy
+            {
                 Strategy = BackoffStrategy.Exponential,
                 InitialDelay = TimeSpan.FromSeconds(1),
                 MaxDelay = TimeSpan.FromMinutes(10),
@@ -65,15 +66,16 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(delay2, Is.Not.Null);
 
             // Exponential: 1s * 2^0 = 1s, 1s * 2^1 = 2s, 1s * 2^2 = 4s
-            Assert.That(delay0!.Value.TotalSeconds, Is.EqualTo(1.0));
-            Assert.That(delay1!.Value.TotalSeconds, Is.EqualTo(2.0));
-            Assert.That(delay2!.Value.TotalSeconds, Is.EqualTo(4.0));
+            Assert.That(delay0.Value.TotalSeconds, Is.EqualTo(1.0));
+            Assert.That(delay1.Value.TotalSeconds, Is.EqualTo(2.0));
+            Assert.That(delay2.Value.TotalSeconds, Is.EqualTo(4.0));
         }
 
         [Test]
         public void LinearBackoffIncreasesLinearly()
         {
-            var policy = new ReconnectPolicy {
+            var policy = new ReconnectPolicy
+            {
                 Strategy = BackoffStrategy.Linear,
                 InitialDelay = TimeSpan.FromSeconds(2),
                 MaxDelay = TimeSpan.FromMinutes(10),
@@ -89,15 +91,16 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(delay2, Is.Not.Null);
 
             // Linear: 2s * (0+1) = 2s, 2s * (1+1) = 4s, 2s * (2+1) = 6s
-            Assert.That(delay0!.Value.TotalSeconds, Is.EqualTo(2.0));
-            Assert.That(delay1!.Value.TotalSeconds, Is.EqualTo(4.0));
-            Assert.That(delay2!.Value.TotalSeconds, Is.EqualTo(6.0));
+            Assert.That(delay0.Value.TotalSeconds, Is.EqualTo(2.0));
+            Assert.That(delay1.Value.TotalSeconds, Is.EqualTo(4.0));
+            Assert.That(delay2.Value.TotalSeconds, Is.EqualTo(6.0));
         }
 
         [Test]
         public void ConstantBackoffReturnsSameDelay()
         {
-            var policy = new ReconnectPolicy {
+            var policy = new ReconnectPolicy
+            {
                 Strategy = BackoffStrategy.Constant,
                 InitialDelay = TimeSpan.FromSeconds(5),
                 JitterFactor = 0.0
@@ -111,15 +114,16 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(delay1, Is.Not.Null);
             Assert.That(delay2, Is.Not.Null);
 
-            Assert.That(delay0!.Value.TotalSeconds, Is.EqualTo(5.0));
-            Assert.That(delay1!.Value.TotalSeconds, Is.EqualTo(5.0));
-            Assert.That(delay2!.Value.TotalSeconds, Is.EqualTo(5.0));
+            Assert.That(delay0.Value.TotalSeconds, Is.EqualTo(5.0));
+            Assert.That(delay1.Value.TotalSeconds, Is.EqualTo(5.0));
+            Assert.That(delay2.Value.TotalSeconds, Is.EqualTo(5.0));
         }
 
         [Test]
         public void MaxDelayIsCapped()
         {
-            var policy = new ReconnectPolicy {
+            var policy = new ReconnectPolicy
+            {
                 Strategy = BackoffStrategy.Exponential,
                 InitialDelay = TimeSpan.FromSeconds(1),
                 MaxDelay = TimeSpan.FromSeconds(10),
@@ -131,14 +135,15 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(delay, Is.Not.Null);
             Assert.That(
-                delay!.Value.TotalSeconds,
+                delay.Value.TotalSeconds,
                 Is.EqualTo(10.0));
         }
 
         [Test]
         public void MaxRetriesStopsAfterLimit()
         {
-            var policy = new ReconnectPolicy {
+            var policy = new ReconnectPolicy
+            {
                 Strategy = BackoffStrategy.Constant,
                 InitialDelay = TimeSpan.FromSeconds(1),
                 MaxRetries = 3,
@@ -157,7 +162,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public void UnlimitedRetriesNeverReturnsNull()
         {
-            var policy = new ReconnectPolicy {
+            var policy = new ReconnectPolicy
+            {
                 Strategy = BackoffStrategy.Constant,
                 InitialDelay = TimeSpan.FromSeconds(1),
                 MaxRetries = 0,
@@ -176,7 +182,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public void JitterAppliesVariation()
         {
-            var policy = new ReconnectPolicy {
+            var policy = new ReconnectPolicy
+            {
                 Strategy = BackoffStrategy.Constant,
                 InitialDelay = TimeSpan.FromSeconds(10),
                 MaxDelay = TimeSpan.FromSeconds(30),
@@ -188,11 +195,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 TimeSpan? delay = policy.GetNextDelay(0);
                 Assert.That(delay, Is.Not.Null);
-                delays.Add(delay!.Value.TotalMilliseconds);
+                delays.Add(delay.Value.TotalMilliseconds);
             }
 
             // With 50% jitter over 50 iterations we expect variation
-            Assert.That(delays.Count, Is.GreaterThan(1),
+            Assert.That(delays, Has.Count.GreaterThan(1),
                 "Jitter should produce varying delays");
         }
 
@@ -200,7 +207,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public void ConnectionStateChangedEventArgsHasCorrectProperties()
         {
             var error = new ServiceResult(StatusCodes.BadCommunicationError);
-            var args = new ConnectionStateChangedEventArgs {
+            var args = new ConnectionStateChangedEventArgs
+            {
                 PreviousState = ConnectionState.Connected,
                 NewState = ConnectionState.Reconnecting,
                 Error = error,
@@ -210,7 +218,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(args.PreviousState, Is.EqualTo(ConnectionState.Connected));
             Assert.That(args.NewState, Is.EqualTo(ConnectionState.Reconnecting));
             Assert.That(args.Error, Is.Not.Null);
-            Assert.That(args.Error!.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
+            Assert.That(args.Error.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
             Assert.That(args.ReconnectAttempt, Is.EqualTo(3));
         }
 
@@ -252,8 +260,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 new EndpointDescription("opc.tcp://localhost:4840"));
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await Opc.Ua.Client.ManagedSession.CreateAsync(
-                    configuration: null!,
+                await Client.ManagedSession.CreateAsync(
+                    configuration: null,
                     endpoint: endpoint,
                     sessionFactory: mockFactory.Object).ConfigureAwait(false));
         }
@@ -265,18 +273,20 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             mockFactory.Setup(f => f.Telemetry)
                 .Returns(new Mock<ITelemetryContext>().Object);
 
-            var config = new ApplicationConfiguration {
+            var config = new ApplicationConfiguration
+            {
                 ApplicationName = "TestApp",
                 ApplicationType = ApplicationType.Client,
-                SecurityConfiguration = new SecurityConfiguration {
+                SecurityConfiguration = new SecurityConfiguration
+                {
                     ApplicationCertificate = new CertificateIdentifier()
                 }
             };
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await Opc.Ua.Client.ManagedSession.CreateAsync(
+                await Client.ManagedSession.CreateAsync(
                     configuration: config,
-                    endpoint: null!,
+                    endpoint: null,
                     sessionFactory: mockFactory.Object).ConfigureAwait(false));
         }
     }

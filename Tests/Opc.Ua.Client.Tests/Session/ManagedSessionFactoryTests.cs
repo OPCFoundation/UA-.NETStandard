@@ -29,7 +29,6 @@
 
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests
@@ -41,7 +40,7 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class ManagedSessionFactoryTests
     {
-        private ITelemetryContext m_telemetry = null!;
+        private ITelemetryContext m_telemetry;
 
         [SetUp]
         public void SetUp()

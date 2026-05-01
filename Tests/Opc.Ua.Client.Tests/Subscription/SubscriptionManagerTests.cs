@@ -27,13 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Moq;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Moq;
 using NUnit.Framework;
 
 namespace Opc.Ua.Client.Subscriptions
@@ -291,12 +291,12 @@ namespace Opc.Ua.Client.Subscriptions
                     ArrayOf<SubscriptionAcknowledgement> s, CancellationToken ct)
                     => new PublishResponse
                     {
-                        AvailableSequenceNumbers = ArrayOf<uint>.Empty,
+                        AvailableSequenceNumbers = [],
                         NotificationMessage = new NotificationMessage
                         {
                             SequenceNumber = h.RequestHandle
                         },
-                        Results = s.ToArray().Select(_ => (StatusCode)StatusCodes.Good).ToArrayOf(),
+                        Results = s.ToArray().Select(_ => StatusCodes.Good).ToArrayOf(),
                         SubscriptionId = 1,
                         MoreNotifications = false,
                         ResponseHeader = new ResponseHeader
@@ -485,6 +485,7 @@ namespace Opc.Ua.Client.Subscriptions
             await m_subscriptionManager.RecreateSubscriptionsAsync(null, CancellationToken.None).ConfigureAwait(false);
             mockSubscription.Verify(s => s.RecreateAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
+
         private Mock<ISubscriptionManagerContext> m_mockSession;
         private Mock<ILoggerFactory> m_mockLoggerFactory;
         private Mock<ILogger<SubscriptionManager>> m_mockLogger;

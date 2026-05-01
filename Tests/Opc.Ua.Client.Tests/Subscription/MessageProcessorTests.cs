@@ -207,10 +207,10 @@ namespace Opc.Ua.Client.Subscriptions
             var stringTable = new List<string> { "test" };
 
             // Arrange
-            NotificationMessage[] messages = Enumerable.Range(2, 99).Select(i => new NotificationMessage
+            NotificationMessage[] messages = [.. Enumerable.Range(2, 99).Select(i => new NotificationMessage
             {
                 SequenceNumber = (uint)i
-            }).ToArray();
+            })];
 
             UnsecureRandom.Shared.Shuffle(messages);
 
@@ -241,6 +241,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
             Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(100));
         }
+
         [Test]
         public async Task ReceivingTransferStatusUpdateShouldUpdatePublishStateAsync()
         {
@@ -309,6 +310,7 @@ namespace Opc.Ua.Client.Subscriptions
                 get => base.AvailableInRetransmissionQueue;
                 set => base.AvailableInRetransmissionQueue = value;
             }
+
             public SemaphoreSlim Block { get; } = new(1, 1);
 
             public AsyncManualResetEvent DataChangeNotificationReceived { get; } = new();
@@ -322,14 +324,17 @@ namespace Opc.Ua.Client.Subscriptions
                 get => base.LastSequenceNumberProcessed;
                 set => base.LastSequenceNumberProcessed = value;
             }
+
             public PublishState PublishState { get; set; }
             public List<uint> ReceivedSequenceNumbers { get; } = [];
             public AsyncManualResetEvent StatusChangeNotificationReceived { get; } = new();
+
             public async ValueTask WaitAsync()
             {
                 await Block.WaitAsync().ConfigureAwait(false);
                 Block.Release();
             }
+
             protected override ValueTask OnDataChangeNotificationAsync(uint sequenceNumber,
                 DateTime publishTime, DataChangeNotification notification,
                 PublishState publishStateMask, IReadOnlyList<string> stringTable)
@@ -367,6 +372,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 return WaitAsync();
             }
+
             protected override void OnPublishStateChanged(PublishState stateMask)
             {
                 PublishState = stateMask;
@@ -386,6 +392,7 @@ namespace Opc.Ua.Client.Subscriptions
                 await WaitAsync().ConfigureAwait(false);
             }
         }
+
         private Mock<IMessageAckQueue> m_mockCompletion;
         private Mock<ILogger<Subscription>> m_mockLogger;
         private Mock<ITelemetryContext> m_mockObservability;

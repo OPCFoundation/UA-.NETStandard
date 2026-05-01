@@ -57,11 +57,13 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             IReconnectPolicy policy = null)
         {
             return new ConnectionStateMachine(
-                policy ?? new ReconnectPolicy {
-                    JitterFactor = 0.0,
-                    Strategy = BackoffStrategy.Constant,
-                    InitialDelay = TimeSpan.FromMilliseconds(10)
-                },
+                policy ??
+                new ReconnectPolicy
+                    {
+                        JitterFactor = 0.0,
+                        Strategy = BackoffStrategy.Constant,
+                        InitialDelay = TimeSpan.FromMilliseconds(10)
+                    },
                 m_logger);
         }
 
@@ -122,7 +124,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         /// </summary>
         private sealed class StateTransitionRecorder
         {
-            private readonly List<ConnectionStateChangedEventArgs> m_transitions = new();
+            private readonly List<ConnectionStateChangedEventArgs> m_transitions = [];
+
             private readonly TaskCompletionSource<bool> m_done = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -134,8 +137,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 lock (m_transitions)
                 {
                     m_transitions.Add(e);
-                    if (m_waitTarget.HasValue
-                        && e.NewState == m_waitTarget.Value)
+                    if (m_waitTarget.HasValue &&
+                        e.NewState == m_waitTarget.Value)
                     {
                         m_done.TrySetResult(true);
                     }
@@ -167,8 +170,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 lock (m_transitions)
                 {
-                    return new List<ConnectionStateChangedEventArgs>(
-                        m_transitions);
+                    return [.. m_transitions];
                 }
             }
 
@@ -305,10 +307,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             sm.ConnectAsync = _ =>
                 Task.FromResult(ServiceResult.Good);
 
-            sm.CloseSessionAsync = async _ =>
-            {
-                await closeTcs.Task.ConfigureAwait(false);
-            };
+            sm.CloseSessionAsync = async _ => await closeTcs.Task.ConfigureAwait(false);
 
             sm.Start();
             sm.RequestConnect();
@@ -450,7 +449,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task ReconnectUsesBackoffDelays()
         {
-            var policy = new ReconnectPolicy {
+            var policy = new ReconnectPolicy
+            {
                 Strategy = BackoffStrategy.Exponential,
                 InitialDelay = TimeSpan.FromMilliseconds(10),
                 MaxDelay = TimeSpan.FromSeconds(5),
@@ -493,8 +493,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             lock (attemptTimes)
             {
                 Assert.That(
-                    attemptTimes.Count,
-                    Is.GreaterThanOrEqualTo(2),
+                    attemptTimes,
+                    Has.Count.GreaterThanOrEqualTo(2),
                     "Expected multiple reconnect attempts");
 
                 if (attemptTimes.Count >= 3)
@@ -515,7 +515,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task ReconnectStopsAfterMaxRetries()
         {
-            var policy = new ReconnectPolicy {
+            var policy = new ReconnectPolicy
+            {
                 Strategy = BackoffStrategy.Constant,
                 InitialDelay = TimeSpan.FromMilliseconds(5),
                 MaxRetries = 3,

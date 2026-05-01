@@ -27,14 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+#if !NET8_0_OR_GREATER
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
+#endif
 
 namespace System.Threading.Channels
 {
-
 #if !NET8_0_OR_GREATER
     /// <summary>
     /// Options for <see cref="PrioritizedChannelHelper"/>.
@@ -184,7 +183,7 @@ namespace System.Threading.Channels
                     : new ValueTask<bool>(true);
             }
 
-            public override bool TryComplete(System.Exception? error = null)
+            public override bool TryComplete(Exception? error = null)
             {
                 lock (m_channel.m_lock)
                 {
@@ -267,4 +266,3 @@ namespace System.Threading.Channels
     }
 #endif
 }
-

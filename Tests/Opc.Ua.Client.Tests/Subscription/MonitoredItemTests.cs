@@ -396,7 +396,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
 
             var monitoredItem = new TestMonitoredItem(mockContext.Object, options, mockLogger.Object);
-            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c)) { monitoredItem.CompleteChange(c); }
+            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
+            {
+                monitoredItem.CompleteChange(c);
+            }
 
             // Act
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.FromMilliseconds(500));
@@ -423,7 +426,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
 
             var monitoredItem = new TestMonitoredItem(mockContext.Object, options, mockLogger.Object);
-            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c)) { monitoredItem.CompleteChange(c); }
+            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
+            {
+                monitoredItem.CompleteChange(c);
+            }
 
             // Act
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.FromMilliseconds(500));
@@ -448,7 +454,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
 
             var monitoredItem = new TestMonitoredItem(mockContext.Object, options, mockLogger.Object);
-            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c)) { monitoredItem.CompleteChange(c); }
+            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
+            {
+                monitoredItem.CompleteChange(c);
+            }
 
             // Act
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.Zero);
@@ -473,7 +482,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
 
             var monitoredItem = new TestMonitoredItem(mockContext.Object, options, mockLogger.Object);
-            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c)) { monitoredItem.CompleteChange(c); }
+            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
+            {
+                monitoredItem.CompleteChange(c);
+            }
 
             // Act
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.FromMilliseconds(500));
@@ -498,7 +510,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
 
             var monitoredItem = new TestMonitoredItem(mockContext.Object, options, mockLogger.Object);
-            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c)) { monitoredItem.CompleteChange(c); }
+            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
+            {
+                monitoredItem.CompleteChange(c);
+            }
 
             // Act
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.FromMilliseconds(500));

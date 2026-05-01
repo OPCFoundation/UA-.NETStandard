@@ -75,7 +75,7 @@ namespace Opc.Ua.Types.Polyfills.Tests
                 results.Add(item);
             }
 
-            Assert.That(results, Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
+            Assert.That(results, Is.EqualTo([1, 2, 3, 4, 5]));
         }
 
         [Test]
@@ -120,7 +120,7 @@ namespace Opc.Ua.Types.Polyfills.Tests
 
             const int writerCount = 4;
             const int itemsPerWriter = 50;
-            int totalItems = writerCount * itemsPerWriter;
+            const int totalItems = writerCount * itemsPerWriter;
 
             var writers = new Task[writerCount];
             for (int w = 0; w < writerCount; w++)
@@ -219,7 +219,7 @@ namespace Opc.Ua.Types.Polyfills.Tests
                 }
             }
 
-            Assert.That(results, Is.EqualTo(new[] { 1, 2, 3 }));
+            Assert.That(results, Is.EqualTo([1, 2, 3]));
         }
     }
 }
