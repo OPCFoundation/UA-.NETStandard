@@ -99,7 +99,7 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel operation with</param>
         Task AddAsync(
             X509Certificate2 certificate,
-            char[] password = null,
+            char[]? password = null,
             CancellationToken ct = default);
 
         /// <summary>
@@ -148,12 +148,12 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
         /// <returns>The matching certificate with private key</returns>
-        Task<X509Certificate2> LoadPrivateKeyAsync(
+        Task<X509Certificate2?> LoadPrivateKeyAsync(
             string thumbprint,
-            string subjectName,
-            string applicationUri,
-            NodeId certificateType,
-            char[] password,
+            string? subjectName,
+            string? applicationUri,
+            NodeId? certificateType,
+            char[]? password,
             CancellationToken ct = default);
 
         /// <summary>

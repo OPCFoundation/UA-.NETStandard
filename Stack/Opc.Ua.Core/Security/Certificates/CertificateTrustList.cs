@@ -69,7 +69,7 @@ namespace Opc.Ua
         [Obsolete("Use GetCertificatesAsync() instead.")]
         public Task<X509Certificate2Collection> GetCertificates()
         {
-            return GetCertificatesAsync(null);
+            return GetCertificatesAsync(null!);
         }
 
         /// <summary>
@@ -84,7 +84,7 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(StorePath))
             {
-                ICertificateStore store = null;
+                ICertificateStore? store = null;
                 try
                 {
                     store = OpenStore(telemetry);
@@ -111,7 +111,7 @@ namespace Opc.Ua
             for (int i = 0; i < TrustedCertificates.Count; i++)
             {
                 CertificateIdentifier trustedCertificate = TrustedCertificates[i];
-                X509Certificate2 certificate = await trustedCertificate.FindAsync(null, telemetry, ct)
+                X509Certificate2? certificate = await trustedCertificate.FindAsync(null!, telemetry, ct)
                     .ConfigureAwait(false);
 
                 if (certificate != null)
