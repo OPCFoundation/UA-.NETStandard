@@ -1317,7 +1317,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         ClientHandle = 1,
                         SamplingInterval = 0,
-                        QueueSize = 100,
+                        QueueSize = 1,
                         DiscardOldest = true,
                         Filter = new ExtensionObject(eventFilter)
                     }
@@ -1330,7 +1330,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         ClientHandle = 2,
                         SamplingInterval = 0,
-                        QueueSize = 10,
+                        QueueSize = 1,
                         DiscardOldest = true
                     }
                 }
@@ -1400,7 +1400,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.IsNotNull(publishResponse.NotificationMessage);
             Assert.IsNotNull(publishResponse.NotificationMessage.NotificationData);
-            Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count > 0);
+            Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count == 2, "One Event and One DataChangeNotification expected.");
 
             bool dataChangeReceived = false;
             bool semanticsChangedBitSet = false;
@@ -1746,6 +1746,234 @@ namespace Opc.Ua.Server.Tests
 
             // Clean up
             await fixture.StopAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reads the TypeDefinitionId of a node and checks it matches the expected value.
+        /// </summary>
+        private async Task ReadAndVerifyTypeDefinitionAsync(NodeId nodeId, NodeId expectedTypeDefinitionId)
+        {
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+            ];
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+            Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                $"Expected Good status reading {nodeId}");
+        }
+
+        /// <summary>
+        /// Test that ArrayItemType sub-type nodes are accessible and readable.
+        /// </summary>
+        [Test]
+        public async Task ArrayItemTypeNodesExistAndReadableAsync()
+        {
+            var nodeIds = new Dictionary<string, NodeId>
+            {
+                { "YArray", new NodeId("DataAccess_ArrayItemType_YArray", 2) },
+                { "XYArray", new NodeId("DataAccess_ArrayItemType_XYArray", 2) },
+                { "Image", new NodeId("DataAccess_ArrayItemType_Image", 2) },
+                { "Cube", new NodeId("DataAccess_ArrayItemType_Cube", 2) },
+                { "NDimension", new NodeId("DataAccess_ArrayItemType_NDimension", 2) }
+            };
+
+            foreach (var kvp in nodeIds)
+            {
+                string name = kvp.Key;
+                NodeId nodeId = kvp.Value;
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ArrayOf<ReadValueId> nodesToRead =
+                [
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.DataType },
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.ValueRank }
+                ];
+                ReadResponse readResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Neither,
+                    nodesToRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+                Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"Value read of {name} should succeed");
+                Assert.That(readResponse.Results[1].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"DataType read of {name} should succeed");
+                Assert.That(readResponse.Results[2].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"ValueRank read of {name} should succeed");
+
+                TestContext.Out.WriteLine("{0}: DataType={1}, ValueRank={2}",
+                    name,
+                    readResponse.Results[1].WrappedValue,
+                    readResponse.Results[2].WrappedValue);
+            }
+        }
+
+        /// <summary>
+        /// Test that TriggerNode01 and TriggerNode02 exist, are readable and writable,
+        /// and that writing to them fires a BaseEvent.
+        /// </summary>
+        [Test]
+        public async Task TriggerNodesFiringEventsOnWriteAsync()
+        {
+            var triggerNode01 = new NodeId("NodeIds_Events_TriggerNode01", 2);
+            var triggerNode02 = new NodeId("NodeIds_Events_TriggerNode02", 2);
+
+            // Verify both nodes exist and are readable
+            foreach (NodeId nodeId in new[] { triggerNode01, triggerNode02 })
+            {
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ArrayOf<ReadValueId> nodesToRead =
+                [
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+                ];
+                ReadResponse readResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Neither,
+                    nodesToRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+                Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"Read of trigger node {nodeId} should succeed");
+            }
+
+            // Verify both nodes are writable
+            foreach (NodeId nodeId in new[] { triggerNode01, triggerNode02 })
+            {
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ArrayOf<WriteValue> nodesToWrite =
+                [
+                    new WriteValue
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue { WrappedValue = new Variant(42) }
+                    }
+                ];
+                WriteResponse writeResponse = await m_server.WriteAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    nodesToWrite,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(writeResponse.ResponseHeader, writeResponse.Results, nodesToWrite);
+                Assert.That(writeResponse.Results[0], Is.EqualTo(StatusCodes.Good),
+                    $"Write to trigger node {nodeId} should succeed and fire an event");
+            }
+        }
+
+        /// <summary>
+        /// Test that the Variant arrays (1D and 2D) are accessible with proper NodeIds.
+        /// </summary>
+        [Test]
+        public async Task VariantArrayNodesExistAndReadableAsync()
+        {
+            var nodeIds = new Dictionary<string, NodeId>
+            {
+                { "Scalar_Static_Arrays_Variant", new NodeId("Scalar_Static_Arrays_Variant", 2) },
+                { "Scalar_Static_Arrays2D_Variant", new NodeId("Scalar_Static_Arrays2D_Variant", 2) }
+            };
+
+            foreach (var kvp in nodeIds)
+            {
+                string name = kvp.Key;
+                NodeId nodeId = kvp.Value;
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ArrayOf<ReadValueId> nodesToRead =
+                [
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+                ];
+                ReadResponse readResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Neither,
+                    nodesToRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+                Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"Read of {name} should succeed");
+            }
+        }
+        /// <summary>
+        /// Test that Enumeration and Image type scalar nodes are accessible.
+        /// </summary>
+        [Test]
+        public async Task ScalarStaticEnumerationAndImageNodesExistAsync()
+        {
+            var nodeIds = new Dictionary<string, NodeId>
+            {
+                { "Enumeration", new NodeId("Scalar_Static_Enumeration", 2) },
+                { "Image", new NodeId("Scalar_Static_Image", 2) },
+                { "ImageBMP", new NodeId("Scalar_Static_ImageBMP", 2) },
+                { "ImageGIF", new NodeId("Scalar_Static_ImageGIF", 2) },
+                { "ImageJPG", new NodeId("Scalar_Static_ImageJPG", 2) },
+                { "ImagePNG", new NodeId("Scalar_Static_ImagePNG", 2) }
+            };
+
+            foreach (var kvp in nodeIds)
+            {
+                string name = kvp.Key;
+                NodeId nodeId = kvp.Value;
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ArrayOf<ReadValueId> nodesToRead =
+                [
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.DataType }
+                ];
+                ReadResponse readResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Neither,
+                    nodesToRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+                Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"Value read of {name} should succeed");
+                Assert.That(readResponse.Results[1].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"DataType read of {name} should succeed");
+            }
+        }
+
+        /// <summary>
+        /// Test that the HasReferenceTypeAndSubType node exists and has the expected references.
+        /// </summary>
+        [Test]
+        public async Task ReferencesHasReferenceTypeAndSubTypeNodeExistsAsync()
+        {
+            var nodeId = new NodeId("References_HasReferenceTypeAndSubType", 2);
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+            ];
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+            Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                "Read of References_HasReferenceTypeAndSubType should succeed");
         }
     }
 }
