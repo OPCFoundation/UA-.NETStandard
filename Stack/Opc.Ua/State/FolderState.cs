@@ -39,7 +39,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public FolderState(NodeState parent)
+        public FolderState(NodeState? parent)
             : base(parent)
         {
         }

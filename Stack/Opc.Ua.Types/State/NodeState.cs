@@ -4545,11 +4545,11 @@ namespace Opc.Ua
         /// <remarks>Creates the child if does not already exist.</remarks>
         public bool SetChildValue(
             ISystemContext context,
-            string browseName,
-            BaseInstanceState source,
+            string? browseName,
+            BaseInstanceState? source,
             bool copy)
         {
-            return SetChildValue(context, QualifiedName.From(browseName), source, copy);
+            return SetChildValue(context, QualifiedName.From(browseName ?? string.Empty), source, copy);
         }
 
         /// <summary>
@@ -4560,7 +4560,7 @@ namespace Opc.Ua
         public bool SetChildValue(
             ISystemContext context,
             QualifiedName browseName,
-            BaseInstanceState source,
+            BaseInstanceState? source,
             bool copy)
         {
             if (source == null)
