@@ -154,13 +154,13 @@ namespace Opc.Ua
         /// <param name="throwOnError">Whether to throw an exception on error.</param>
         /// <returns>The decoded instance. Null on error.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        public static object DecodeExtensionObject(
+        public static object? DecodeExtensionObject(
             ISystemContext context,
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type targetType,
             ExtensionObject extension,
             bool throwOnError)
         {
-            if (extension.TryGetEncodeable(out IEncodeable encodeable) &&
+            if (extension.TryGetEncodeable(out IEncodeable? encodeable) &&
                 targetType.IsInstanceOfType(encodeable))
             {
                 return encodeable;
@@ -168,7 +168,7 @@ namespace Opc.Ua
 
             if (Activator.CreateInstance(targetType) is IEncodeable instance)
             {
-                IDecoder decoder = null;
+                IDecoder? decoder = null;
                 try
                 {
                     IServiceMessageContext messageContext;
@@ -895,7 +895,7 @@ namespace Opc.Ua
 
             if ((attributesToSave & AttributesToSave.ArrayDimensions) != 0)
             {
-                encoder.WriteUInt32Array(null, m_arrayDimensions.ToArray());
+                encoder.WriteUInt32Array(null, m_arrayDimensions.ToArray() ?? []);
             }
 
             if ((attributesToSave & AttributesToSave.AccessLevel) != 0)
@@ -983,7 +983,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="arrayDimensions">The array dimensions.</param>
         /// <returns>The XML string value.</returns>
-        public static string ArrayDimensionsToXml(ArrayOf<uint> arrayDimensions)
+        public static string? ArrayDimensionsToXml(ArrayOf<uint> arrayDimensions)
         {
             if (arrayDimensions.IsEmpty)
             {
@@ -1010,7 +1010,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The XML string value.</param>
         /// <returns>The array dimensions list.</returns>
-        public static ArrayOf<uint> ArrayDimensionsFromXml(string value)
+        public static ArrayOf<uint> ArrayDimensionsFromXml(string? value)
         {
             if (string.IsNullOrEmpty(value))
             {
@@ -1079,7 +1079,7 @@ namespace Opc.Ua
             uint attributeId,
             ref Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult result = ServiceResult.Good;
 
             switch (attributeId)
             {
@@ -1268,7 +1268,7 @@ namespace Opc.Ua
             value = m_value;
             StatusCode statusCode = m_statusCode;
 
-            ServiceResult result = null;
+            ServiceResult result = ServiceResult.Good;
 
             NodeValueEventHandler? onReadValue = OnReadValue;
 
@@ -1394,7 +1394,7 @@ namespace Opc.Ua
             uint attributeId,
             Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult result = ServiceResult.Good;
 
             switch (attributeId)
             {
@@ -1599,7 +1599,7 @@ namespace Opc.Ua
             StatusCode statusCode,
             DateTimeUtc sourceTimestamp)
         {
-            ServiceResult result = null;
+            ServiceResult result = ServiceResult.Good;
 
             // check the access level for the variable.
             if ((m_accessLevel & AccessLevels.CurrentWrite) == 0)
@@ -1783,7 +1783,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the current error state.
         /// </summary>
-        public ServiceResult Error { get; set; }
+        public ServiceResult? Error { get; set; }
 
         /// <summary>
         /// Gets or sets the timestamp associated with the value.
@@ -1859,7 +1859,7 @@ namespace Opc.Ua
                 if (ServiceResult.IsBad(Error))
                 {
                     value = Variant.Null;
-                    statusCode = Error.StatusCode;
+                    statusCode = Error!.StatusCode;
                     return Error;
                 }
 
@@ -1921,7 +1921,7 @@ namespace Opc.Ua
             }
         }
 
-        private BaseInstanceState[] m_updateList;
+        private BaseInstanceState[]? m_updateList;
     }
 
     /// <summary>
