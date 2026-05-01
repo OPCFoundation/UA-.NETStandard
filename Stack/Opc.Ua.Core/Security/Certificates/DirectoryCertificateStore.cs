@@ -106,7 +106,12 @@ namespace Opc.Ua
                 finally
                 {
                     m_lock.Release();
-                    m_lock.Dispose();
+                    // Do NOT dispose m_lock here. The store is cached in
+                    // CertificateStoreIdentifier.m_store and may be reopened
+                    // after a caller disposes the result of OpenStore.
+                    // Disposing the semaphore would break the cached store
+                    // on the next call. The lock is reclaimed when the
+                    // store itself is finalized.
                 }
             }
             Close();
@@ -1360,7 +1365,13 @@ namespace Opc.Ua
             public DateTime LastWriteTimeUtc;
         }
 
+        // m_lock is intentionally NOT disposed: the store is cached by
+        // CertificateStoreIdentifier and may be reopened after a caller
+        // disposes the OpenStore result. The semaphore is reclaimed at
+        // finalization.
+#pragma warning disable CA2213 // Disposable fields should be disposed
         private readonly SemaphoreSlim m_lock = new(1, 1);
+#pragma warning restore CA2213
         private readonly ILogger m_logger;
         private readonly bool m_noSubDirs;
         private DirectoryInfo m_certificateSubdir;

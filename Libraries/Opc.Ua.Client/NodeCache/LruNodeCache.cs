@@ -1222,11 +1222,20 @@ namespace Opc.Ua.Client
 
             Debug.Assert(nodes.Count == localIds.Count);
             Debug.Assert(readErrors.Count == localIds.Count);
+
             int resultMissingIndex = 0;
             for (int index = 0; index < localIds.Count; index++)
             {
                 if (!ServiceResult.IsBad(readErrors[index]))
                 {
+                    // Populate each node's ReferenceTable so callers can
+                    // introspect references without extra round trips.
+                    // Mirrors legacy NodeCache behavior. Property nodes
+                    // need this so leaf-detection (HasTypeDefinition →
+                    // PropertyType) works without re-fetch.
+                    await PopulateReferenceTableAsync(
+                        remainingIds[index], nodes[index], ct)
+                        .ConfigureAwait(false);
                     m_nodes.AddOrUpdate(remainingIds[index], nodes[index]);
                 }
                 while (result[resultMissingIndex] != null)
