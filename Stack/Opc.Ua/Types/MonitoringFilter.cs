@@ -1039,7 +1039,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    m_parsedIndexRange = NumericRange.Parse(m_indexRange);
+                    m_parsedIndexRange = NumericRange.Parse(m_indexRange!);
                 }
                 catch (Exception e)
                 {
@@ -1047,7 +1047,7 @@ namespace Opc.Ua
                         e,
                         StatusCodes.BadIndexRangeInvalid,
                         "SimpleAttributeOperand does not specify a valid BrowsePath ({0}).",
-                        m_indexRange);
+                        m_indexRange!);
                 }
 
                 if (m_attributeId != Attributes.Value)
@@ -1071,7 +1071,7 @@ namespace Opc.Ua
         {
             var buffer = new StringBuilder();
 
-            INode node = nodeTable.Find(TypeDefinitionId);
+            INode? node = nodeTable.Find(TypeDefinitionId);
 
             if (node != null)
             {
@@ -1093,7 +1093,7 @@ namespace Opc.Ua
                 buffer.AppendFormat(
                     CultureInfo.InvariantCulture,
                     "[{0}]",
-                    NumericRange.Parse(IndexRange));
+                    NumericRange.Parse(IndexRange!));
             }
 
             return buffer.ToString();

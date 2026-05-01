@@ -225,7 +225,7 @@ namespace Opc.Ua
                 return node.NodeClass.ToString();
             }
 
-            return node.DisplayName.Text;
+            return node.DisplayName.Text!;
         }
 
         /// <summary>

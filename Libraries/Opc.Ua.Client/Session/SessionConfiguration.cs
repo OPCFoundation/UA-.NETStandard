@@ -178,10 +178,10 @@ namespace Opc.Ua.Client
             var context = ServiceMessageContext.Create(telemetry);
             context.Factory.Builder.AddOpcUaClientDataTypes();
             using var decoder = new BinaryDecoder(stream, context, true);
-            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string> serverUris = decoder.ReadStringArray(null);
-            context.NamespaceUris = new NamespaceTable(nsUris.Memory.ToArray());
-            context.ServerUris = new StringTable(serverUris.Memory.ToArray());
+            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
+            context.NamespaceUris = new NamespaceTable(nsUris.Memory.ToArray()!);
+            context.ServerUris = new StringTable(serverUris.Memory.ToArray()!);
             var config = new SessionConfiguration();
             config.Decode(decoder);
             return config;

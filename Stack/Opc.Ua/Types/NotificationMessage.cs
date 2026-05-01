@@ -69,14 +69,14 @@ namespace Opc.Ua
             for (int jj = 0; jj < m_notificationData.Count; jj++)
             {
                 ExtensionObject extension = m_notificationData[jj];
-                if (!extension.TryGetEncodeable(out DataChangeNotification notification))
+                if (!extension.TryGetEncodeable(out DataChangeNotification? notification))
                 {
                     continue;
                 }
 
                 if (reverse)
                 {
-                    for (int ii = notification.MonitoredItems.Count - 1; ii >= 0; ii--)
+                    for (int ii = notification!.MonitoredItems.Count - 1; ii >= 0; ii--)
                     {
                         MonitoredItemNotification datachange = notification.MonitoredItems[ii];
 
@@ -89,7 +89,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    for (int ii = 0; ii < notification.MonitoredItems.Count; ii++)
+                    for (int ii = 0; ii < notification!.MonitoredItems.Count; ii++)
                     {
                         MonitoredItemNotification datachange = notification.MonitoredItems[ii];
 
@@ -114,14 +114,14 @@ namespace Opc.Ua
 
             foreach (ExtensionObject extension in m_notificationData)
             {
-                if (!extension.TryGetEncodeable(out EventNotificationList notification))
+                if (!extension.TryGetEncodeable(out EventNotificationList? notification))
                 {
                     continue;
                 }
 
                 if (reverse)
                 {
-                    for (int ii = notification.Events.Count - 1; ii >= 0; ii--)
+                    for (int ii = notification!.Events.Count - 1; ii >= 0; ii--)
                     {
                         EventFieldList eventFields = notification.Events[ii];
 
@@ -134,7 +134,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    for (int ii = 0; ii < notification.Events.Count; ii++)
+                    for (int ii = 0; ii < notification!.Events.Count; ii++)
                     {
                         EventFieldList eventFields = notification.Events[ii];
 

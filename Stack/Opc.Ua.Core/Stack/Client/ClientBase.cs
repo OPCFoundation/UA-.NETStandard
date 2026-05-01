@@ -431,10 +431,10 @@ namespace Opc.Ua
                         = new ExtensionObject(additionalHeader);
                 }
                 else if (request.RequestHeader.AdditionalHeader.TryGetEncodeable(
-                    out AdditionalParametersType existingParameters))
+                    out AdditionalParametersType? existingParameters))
                 {
                     // Merge the trace data into the existing parameters.
-                    existingParameters.Parameters =
+                    existingParameters!.Parameters =
                         existingParameters.Parameters.AddItem(spanContextParameter);
                 }
             }

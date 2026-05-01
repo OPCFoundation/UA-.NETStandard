@@ -837,9 +837,11 @@ namespace Opc.Ua.Client
                     foreach (ExtensionObject rolePermission in rolePermissions)
                     {
                         rolePermissionList.Add(rolePermission.TryGetEncodeable(
-                            out RolePermissionType rolePermissionType) ? rolePermissionType : null);
+                            out RolePermissionType? rolePermissionType) ? rolePermissionType : null);
                     }
+#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
                     node.RolePermissions = rolePermissionList;
+#pragma warning restore CS8619
                 }
             }
 
@@ -853,9 +855,11 @@ namespace Opc.Ua.Client
                     foreach (ExtensionObject rolePermission in userRolePermissions)
                     {
                         userRolePermissionList.Add(rolePermission.TryGetEncodeable(
-                            out RolePermissionType rolePermissionType) ? rolePermissionType : null);
+                            out RolePermissionType? rolePermissionType) ? rolePermissionType : null);
                     }
+#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
                     node.UserRolePermissions = userRolePermissionList;
+#pragma warning restore CS8619
                 }
             }
 

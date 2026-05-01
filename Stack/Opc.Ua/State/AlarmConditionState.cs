@@ -385,7 +385,7 @@ namespace Opc.Ua
 
             var builder = new StringBuilder();
 
-            string locale = ActiveState!.Value.Locale;
+            string? locale = ActiveState!.Value.Locale;
 
             if (ActiveState!.Id!.Value)
             {
@@ -441,7 +441,7 @@ namespace Opc.Ua
                     .Append(ackState);
             }
 
-            var effectiveState = new LocalizedText(locale, builder.ToString());
+            var effectiveState = new LocalizedText(locale!, builder.ToString());
 
             SetEffectiveSubState(context, effectiveState, DateTime.MinValue);
         }

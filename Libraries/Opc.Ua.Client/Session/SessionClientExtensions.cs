@@ -411,7 +411,7 @@ namespace Opc.Ua.Client
 
                 if (!displayName.IsNullOrEmpty)
                 {
-                    displayNames[ii] = displayName.Text;
+                    displayNames[ii] = displayName.Text!;
                 }
             }
 
@@ -465,10 +465,10 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             DataValue dataValue = await session.ReadValueAsync(nodeId, ct).ConfigureAwait(false);
-            object value;
+            object? value;
 
             if (dataValue.WrappedValue.TryGet(out ExtensionObject extension) &&
-                extension.TryGetEncodeable(out IEncodeable encodeable))
+                extension.TryGetEncodeable(out IEncodeable? encodeable))
             {
                 value = encodeable;
             }
@@ -484,7 +484,7 @@ namespace Opc.Ua.Client
                     "Server returned value unexpected type: {0}",
                     value != null ? value.GetType().Name : "(null)");
             }
-            return (T)value;
+            return (T)value!;
         }
 
         /// <summary>

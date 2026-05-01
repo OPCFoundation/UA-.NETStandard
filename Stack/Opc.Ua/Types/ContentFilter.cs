@@ -163,6 +163,7 @@ namespace Opc.Ua
             {
                 // check if a FilterOperand was provided.
 
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type. (TryGetStructure uses MaybeNullWhen(false); we check the bool.)
                 if (operands[ii].TryGetStructure(out FilterOperand filterOperand))
                 {
                     element.FilterOperands =
@@ -172,6 +173,7 @@ namespace Opc.Ua
                 {
                     // check for reference to another ContentFilterElement.
                     int index = FindElementIndex(existingElement);
+#pragma warning restore CS8600
 
                     if (index == -1)
                     {
@@ -202,9 +204,9 @@ namespace Opc.Ua
             {
                 foreach (ExtensionObject extension in m_elements[ii].FilterOperands)
                 {
-                    if (extension.TryGetEncodeable(out ElementOperand operand))
+                    if (extension.TryGetEncodeable(out ElementOperand? operand))
                     {
-                        operand.Index++;
+                        operand!.Index++;
                     }
                 }
             }
@@ -564,7 +566,7 @@ namespace Opc.Ua
 
                 // check that the extension object contains a filter operand.
 
-                if (!operand.TryGetEncodeable(out FilterOperand filterOperand))
+                if (!operand.TryGetEncodeable(out FilterOperand? filterOperand))
                 {
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,
@@ -577,7 +579,7 @@ namespace Opc.Ua
                 }
 
                 // validate the operand.
-                filterOperand.Parent = this;
+                filterOperand!.Parent = this;
                 operandResult = filterOperand.Validate(context, index);
 
                 if (ServiceResult.IsBad(operandResult))
@@ -613,9 +615,9 @@ namespace Opc.Ua
 
             foreach (ExtensionObject extension in FilterOperands)
             {
-                if (extension.TryGetEncodeable(out FilterOperand operand))
+                if (extension.TryGetEncodeable(out FilterOperand? operand))
                 {
-                    operands.Add(operand);
+                    operands.Add(operand!);
                 }
             }
 
@@ -730,7 +732,7 @@ namespace Opc.Ua
                         {
                             nodeIdValue = default;
                         }
-                        INode node = nodeTable.Find(nodeIdValue);
+                        INode? node = nodeTable.Find(nodeIdValue);
                         if (node != null)
                         {
                             referenceType = CoreUtils.Format("{0}", node);
@@ -969,7 +971,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    m_parsedIndexRange = NumericRange.Parse(m_indexRange);
+                    m_parsedIndexRange = NumericRange.Parse(m_indexRange!);
                 }
                 catch (Exception e)
                 {
@@ -977,7 +979,7 @@ namespace Opc.Ua
                         e,
                         StatusCodes.BadIndexRangeInvalid,
                         "AttributeOperand does not specify a valid BrowsePath ({0}).",
-                        m_indexRange);
+                        m_indexRange!);
                 }
 
                 if (m_attributeId != Attributes.Value)
@@ -1003,7 +1005,7 @@ namespace Opc.Ua
         {
             var buffer = new StringBuilder();
 
-            INode node = nodeTable.Find(m_nodeId);
+            INode? node = nodeTable.Find(m_nodeId);
 
             if (node != null)
             {
@@ -1027,7 +1029,7 @@ namespace Opc.Ua
                 buffer.AppendFormat(
                     CultureInfo.InvariantCulture,
                     "[{0}]",
-                    NumericRange.Parse(IndexRange));
+                    NumericRange.Parse(IndexRange!));
             }
 
             if (!string.IsNullOrEmpty(Alias))
@@ -1194,7 +1196,7 @@ namespace Opc.Ua
 
             if (!nodeId.IsNull)
             {
-                INode node = nodeTable.Find(nodeId);
+                INode? node = nodeTable.Find(nodeId);
 
                 if (node != null)
                 {

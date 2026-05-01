@@ -78,7 +78,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    valueId.ParsedIndexRange = NumericRange.Parse(valueId.IndexRange);
+                    valueId.ParsedIndexRange = NumericRange.Parse(valueId.IndexRange!);
                 }
                 catch (Exception e)
                 {

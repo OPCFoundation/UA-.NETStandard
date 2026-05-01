@@ -784,7 +784,7 @@ namespace Opc.Ua
                 "en-US",
                 "The {0} state machine moved to the {1} state.",
                 GetDisplayPath(3, '.'),
-                CurrentState?.Value);
+                CurrentState?.Value!);
 
             e.Initialize(context, this, EventSeverity.Medium, new LocalizedText(info));
 

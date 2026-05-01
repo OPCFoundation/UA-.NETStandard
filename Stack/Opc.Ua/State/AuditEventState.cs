@@ -63,7 +63,7 @@ namespace Opc.Ua
 
             if (context.NamespaceUris != null)
             {
-                m_serverId = PropertyState<string>.With<VariantBuilder>(this, context.NamespaceUris.GetString(1));
+                m_serverId = PropertyState<string>.With<VariantBuilder>(this, context.NamespaceUris.GetString(1)!);
             }
 
             if (context.AuditEntryId != null)

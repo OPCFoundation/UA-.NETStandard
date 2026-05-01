@@ -119,7 +119,7 @@ namespace Opc.Ua
                 builder.Append(DialogState!.Value);
             }
 
-            var effectiveState = new LocalizedText(locale, builder.ToString());
+            var effectiveState = new LocalizedText(locale!, builder.ToString());
 
             SetEffectiveSubState(context, effectiveState, DateTime.MinValue);
         }

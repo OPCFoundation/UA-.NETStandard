@@ -87,7 +87,7 @@ namespace Opc.Ua
                     .Append(result.AdditionalInfo);
             }
 
-            ServiceResult innerResult = result.InnerResult;
+            ServiceResult? innerResult = result.InnerResult;
 
             if (innerResult != null)
             {

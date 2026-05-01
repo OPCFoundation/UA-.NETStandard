@@ -718,10 +718,10 @@ namespace Opc.Ua.Client
         {
             var context = ServiceMessageContext.Create(telemetry);
             using var decoder = new BinaryDecoder(stream, context, true);
-            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string> serverUris = decoder.ReadStringArray(null);
-            context.NamespaceUris = new NamespaceTable(nsUris.Memory.ToArray());
-            context.ServerUris = new StringTable(serverUris.Memory.ToArray());
+            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
+            context.NamespaceUris = new NamespaceTable(nsUris.Memory.ToArray()!);
+            context.ServerUris = new StringTable(serverUris.Memory.ToArray()!);
             BrowserOptions options = new BrowserOptions();
             options.Decode(decoder);
             return new Browser(telemetry, options);

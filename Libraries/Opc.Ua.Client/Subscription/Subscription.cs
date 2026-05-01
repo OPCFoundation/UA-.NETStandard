@@ -2587,9 +2587,9 @@ namespace Opc.Ua.Client
                         {
                             foreach (ExtensionObject notificationData in message.NotificationData)
                             {
-                                if (notificationData.TryGetEncodeable(out DataChangeNotification datachange))
+                                if (notificationData.TryGetEncodeable(out DataChangeNotification? datachange))
                                 {
-                                    datachange.PublishTime = message.PublishTime;
+                                    datachange!.PublishTime = message.PublishTime;
                                     datachange.SequenceNumber = message.SequenceNumber;
                                     datachange.MoreNotifications = message.MoreNotifications;
 
@@ -2605,9 +2605,9 @@ namespace Opc.Ua.Client
                                         datachange,
                                         message.StringTable);
                                 }
-                                else if (notificationData.TryGetEncodeable(out EventNotificationList events))
+                                else if (notificationData.TryGetEncodeable(out EventNotificationList? events))
                                 {
-                                    events.PublishTime = message.PublishTime;
+                                    events!.PublishTime = message.PublishTime;
                                     events.SequenceNumber = message.SequenceNumber;
                                     events.MoreNotifications = message.MoreNotifications;
 
@@ -2620,9 +2620,9 @@ namespace Opc.Ua.Client
 
                                     eventCallback?.Invoke(this, events, message.StringTable);
                                 }
-                                else if (notificationData.TryGetEncodeable(out StatusChangeNotification statusChanged))
+                                else if (notificationData.TryGetEncodeable(out StatusChangeNotification? statusChanged))
                                 {
-                                    statusChanged.PublishTime = message.PublishTime;
+                                    statusChanged!.PublishTime = message.PublishTime;
                                     statusChanged.SequenceNumber = message.SequenceNumber;
                                     statusChanged.MoreNotifications = message.MoreNotifications;
 

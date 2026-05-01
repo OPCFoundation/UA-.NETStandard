@@ -160,9 +160,9 @@ namespace Opc.Ua.Client
             FilterResult = null;
             Error = error;
 
-            if (request.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter filter))
+            if (request.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter? filter))
             {
-                Filter = CoreUtils.Clone(filter);
+                Filter = CoreUtils.Clone(filter!);
             }
 
             if (ServiceResult.IsGood(error))
@@ -171,9 +171,9 @@ namespace Opc.Ua.Client
                 SamplingInterval = result.RevisedSamplingInterval;
                 QueueSize = result.RevisedQueueSize;
 
-                if (result.FilterResult.TryGetEncodeable(out MonitoringFilterResult filterResult))
+                if (result.FilterResult.TryGetEncodeable(out MonitoringFilterResult? filterResult))
                 {
-                    FilterResult = CoreUtils.Clone(filterResult);
+                    FilterResult = CoreUtils.Clone(filterResult!);
                 }
             }
 
@@ -240,17 +240,17 @@ namespace Opc.Ua.Client
                 Filter = null;
                 FilterResult = null;
 
-                if (request.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter filter))
+                if (request.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter? filter))
                 {
-                    Filter = CoreUtils.Clone(filter);
+                    Filter = CoreUtils.Clone(filter!);
                 }
 
                 SamplingInterval = result.RevisedSamplingInterval;
                 QueueSize = result.RevisedQueueSize;
 
-                if (result.FilterResult.TryGetEncodeable(out MonitoringFilterResult filterResult))
+                if (result.FilterResult.TryGetEncodeable(out MonitoringFilterResult? filterResult))
                 {
-                    FilterResult = CoreUtils.Clone(filterResult);
+                    FilterResult = CoreUtils.Clone(filterResult!);
                 }
             }
         }

@@ -1266,7 +1266,7 @@ namespace Opc.Ua
                 m_writer.WriteStringValue(CoreUtils.Format("{0}", numeric));
                 return;
             }
-            m_writer.WriteStringValue(CoreUtils.Format("{0}_{1}", symbol, numeric));
+            m_writer.WriteStringValue(CoreUtils.Format("{0}_{1}", symbol!, numeric));
         }
 
         /// <summary>
@@ -1333,7 +1333,7 @@ namespace Opc.Ua
                 m_writer.WriteNullValue();
                 return;
             }
-            value.TryGetEncodeable(out IEncodeable encodeable);
+            value.TryGetEncodeable(out IEncodeable? encodeable);
             ExpandedNodeId typeId = !value.TypeId.IsNull
                 ? value.TypeId
                 : encodeable?.TypeId ?? NodeId.Null;
@@ -1348,7 +1348,7 @@ namespace Opc.Ua
             switch (value.Encoding)
             {
                 case ExtensionObjectEncoding.Json:
-                    if (!value.TryGetAsJson(out string rawJson))
+                    if (!value.TryGetAsJson(out string? rawJson))
                     {
                         break;
                     }
@@ -1609,7 +1609,7 @@ namespace Opc.Ua
                 WriteUInt32(JsonProperties.Code, value.Code);
                 if (m_options == JsonEncoderOptions.Verbose)
                 {
-                    string symbolicId = value.SymbolicId;
+                    string? symbolicId = value.SymbolicId;
                     if (!string.IsNullOrEmpty(symbolicId))
                     {
                         WriteString(JsonProperties.Symbol, symbolicId);

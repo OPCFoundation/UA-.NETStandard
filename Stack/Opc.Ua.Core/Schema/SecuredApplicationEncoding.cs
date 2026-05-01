@@ -199,7 +199,7 @@ namespace Opc.Ua.Security
             app.ApplicationName = decoder.ReadString("ApplicationName");
             app.ApplicationUri = decoder.ReadString("ApplicationUri");
 
-            string appTypeStr = decoder.ReadString("ApplicationType");
+            string? appTypeStr = decoder.ReadString("ApplicationType");
             if (appTypeStr != null)
             {
                 app.ApplicationType = ParseEnum<ApplicationType>(appTypeStr);

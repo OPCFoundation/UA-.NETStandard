@@ -1027,11 +1027,11 @@ namespace Opc.Ua.Client
                 ?? throw new InvalidOperationException("Missing service message context");
             using var decoder = new BinaryDecoder(
                 stream, context, true);
-            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(
-                new NamespaceTable(nsUris.Memory.ToArray()),
-                new StringTable(serverUris.Memory.ToArray()));
+                new NamespaceTable(nsUris.Memory.ToArray()!),
+                new StringTable(serverUris.Memory.ToArray()!));
 
             int count = decoder.ReadInt32(null);
             if (count <= 0)
@@ -3500,7 +3500,7 @@ namespace Opc.Ua.Client
                     "Retrieved namespaces are missing OPC UA namespace at index 0.");
             }
 
-            NamespaceUris.Update(namespaceArray.ToArray());
+            NamespaceUris.Update(namespaceArray.ToArray()!);
 
             if (StatusCode.IsBad(values[1].StatusCode))
             {
@@ -3526,7 +3526,7 @@ namespace Opc.Ua.Client
 
             if (values[1].WrappedValue.TryGet(out ArrayOf<string> serverArray))
             {
-                ServerUris.Update(serverArray.ToArray());
+                ServerUris.Update(serverArray.ToArray()!);
             }
         }
 
@@ -5082,7 +5082,7 @@ namespace Opc.Ua.Client
             X509Certificate2? serverCertificate)
         {
             if (responseHeader != null &&
-                responseHeader.AdditionalHeader.TryGetEncodeable(out IEncodeable e) &&
+                responseHeader.AdditionalHeader.TryGetEncodeable(out IEncodeable? e) &&
                 e is AdditionalParametersType parameters)
             {
                 foreach (KeyValuePair ii in parameters.Parameters)

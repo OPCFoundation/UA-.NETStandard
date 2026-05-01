@@ -198,7 +198,7 @@ namespace Opc.Ua
                 for (int ii = 0; ii < output.Length; ii++)
                 {
                     if (extensions.GetValue(ii) is ExtensionObject e &&
-                        e.TryGetEncodeable(out IEncodeable element) &&
+                        e.TryGetEncodeable(out IEncodeable? element) &&
                         elementType.IsInstanceOfType(element))
                     {
                         output.SetValue(element, ii);

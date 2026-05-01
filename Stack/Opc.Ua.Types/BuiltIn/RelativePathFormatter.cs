@@ -97,7 +97,7 @@ namespace Opc.Ua
                 targetTable.Append("---");
             }
 
-            string[] uris = new string[mappings.Length];
+            string?[] uris = new string?[mappings.Length];
 
             for (int ii = 2; ii < mappings.Length; ii++)
             {
@@ -105,7 +105,7 @@ namespace Opc.Ua
 
                 if (uris[ii] != null)
                 {
-                    mappings[ii] = targetTable.GetIndex(uris[ii]);
+                    mappings[ii] = targetTable.GetIndex(uris[ii]!);
                 }
             }
 
@@ -121,7 +121,7 @@ namespace Opc.Ua
                     mappings[qname.NamespaceIndex] == -1)
                 {
                     mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(
-                        uris[qname.NamespaceIndex]);
+                        uris[qname.NamespaceIndex]!);
                 }
 
                 // check target name.
@@ -133,7 +133,7 @@ namespace Opc.Ua
                     mappings[qname.NamespaceIndex] == -1)
                 {
                     mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(
-                        uris[qname.NamespaceIndex]);
+                        uris[qname.NamespaceIndex]!);
                 }
             }
         }
@@ -153,7 +153,7 @@ namespace Opc.Ua
             mappings[0] = 0;
 
             // copy mappings.
-            string[] uris = new string[mappings.Length];
+            string?[] uris = new string?[mappings.Length];
 
             for (int ii = 1; ii < mappings.Length; ii++)
             {
@@ -161,7 +161,7 @@ namespace Opc.Ua
 
                 if (uris[ii] != null)
                 {
-                    mappings[ii] = targetTable.GetIndex(uris[ii]);
+                    mappings[ii] = targetTable.GetIndex(uris[ii]!);
                 }
             }
 

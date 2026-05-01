@@ -36,6 +36,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -192,17 +193,17 @@ namespace Opc.Ua
 
                 for (uint ii = 0; ii < namespaceUris.Count; ii++)
                 {
-                    string uri = namespaceUris.GetString(ii);
+                    string? uri = namespaceUris.GetString(ii);
 
                     if (m_options.UpdateNamespaceTable)
                     {
                         namespaceMappings[ii] =
-                            Context.NamespaceUris.GetIndexOrAppend(uri);
+                            Context.NamespaceUris.GetIndexOrAppend(uri!);
                     }
                     else
                     {
                         int index =
-                            Context.NamespaceUris.GetIndex(namespaceUris.GetString(ii));
+                            Context.NamespaceUris.GetIndex(namespaceUris.GetString(ii)!);
                         namespaceMappings[ii] =
                             index >= 0 ? (ushort)index : ushort.MaxValue;
                     }
@@ -219,17 +220,17 @@ namespace Opc.Ua
 
                 for (uint ii = 0; ii < serverUris.Count; ii++)
                 {
-                    string uri = serverUris.GetString(ii);
+                    string? uri = serverUris.GetString(ii);
 
                     if (m_options.UpdateNamespaceTable)
                     {
                         serverMappings[ii] =
-                            Context.ServerUris.GetIndexOrAppend(uri);
+                            Context.ServerUris.GetIndexOrAppend(uri!);
                     }
                     else
                     {
                         int index =
-                            Context.ServerUris.GetIndex(serverUris.GetString(ii));
+                            Context.ServerUris.GetIndex(serverUris.GetString(ii)!);
                         serverMappings[ii] =
                             index >= 0 ? (ushort)index : ushort.MaxValue;
                     }
@@ -1807,7 +1808,7 @@ namespace Opc.Ua
                 case JsonValueKind.String:
                     return ExpandedNodeId.TryParse(
                         Context,
-                        element.GetString(),
+                        element.GetString()!,
                         new NodeIdParsingOptions
                         {
                             UpdateTables = m_options.UpdateNamespaceTable,
@@ -2314,7 +2315,7 @@ namespace Opc.Ua
                                 GetPropertyElement(JsonProperties.Text),
                                 out string? text))
                         {
-                            value = new LocalizedText(locale, text);
+                            value = new LocalizedText(locale!, text!);
                             return true;
                         }
                         value = LocalizedText.Null;
@@ -2325,7 +2326,7 @@ namespace Opc.Ua
                         m_stack.Pop();
                     }
                 case JsonValueKind.String:
-                    value = LocalizedText.From(element.GetString());
+                    value = LocalizedText.From(element.GetString()!);
                     return true;
                 default:
                     value = LocalizedText.Null;
@@ -2378,7 +2379,7 @@ namespace Opc.Ua
                 case JsonValueKind.String:
                     if (ExpandedNodeId.TryParse(
                         Context,
-                        element.GetString(),
+                        element.GetString()!,
                         new NodeIdParsingOptions
                         {
                             UpdateTables = m_options.UpdateNamespaceTable,
@@ -2712,7 +2713,7 @@ namespace Opc.Ua
                                     if (TryGetByteStringFromElement(uaBody, out ByteString bytes))
                                     {
                                         using var decoder = new BinaryDecoder(bytes.ToArray(), Context);
-                                        value = decoder.ReadEncodeable<T>(null, typeId);
+                                        value = decoder.ReadEncodeable<T>(null!, typeId);
                                         return true;
                                     }
                                     break;
@@ -3281,7 +3282,7 @@ namespace Opc.Ua
                     case BuiltInType.String when TryGetStringFromElement(
                         element,
                         out string? v):
-                        value = Variant.From(v);
+                        value = Variant.From(v!);
                         return true;
                     case BuiltInType.DateTime when TryGetDateTimeFromElement(
                         element,
@@ -3331,7 +3332,7 @@ namespace Opc.Ua
                     case BuiltInType.DataValue when TryGetDataValueFromElement(
                         element,
                         out DataValue? v):
-                        value = Variant.From(v);
+                        value = Variant.From(v!);
                         return true;
                     case BuiltInType.ExtensionObject when TryGetExtensionObjectFromElement(
                         element,
@@ -3429,7 +3430,9 @@ namespace Opc.Ua
                     case BuiltInType.String when TryGetStringArrayFromElement(
                         element,
                         out ArrayOf<string?> v):
+#pragma warning disable CS8620 // Argument cannot be used due to nullability differences. ArrayOf<string?> and ArrayOf<string> share runtime layout; null elements are tolerated by Variant.
                         value = Variant.From(v);
+#pragma warning restore CS8620
                         return true;
                     case BuiltInType.DateTime when TryGetDateTimeArrayFromElement(
                         element,
@@ -3478,7 +3481,9 @@ namespace Opc.Ua
                     case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
                         element,
                         out ArrayOf<DataValue?> v):
+#pragma warning disable CS8620 // Argument cannot be used due to nullability differences. ArrayOf<DataValue?> and ArrayOf<DataValue> share runtime layout; null elements are tolerated by Variant.
                         value = Variant.From(v);
+#pragma warning restore CS8620
                         return true;
                     case BuiltInType.ExtensionObject when TryGetExtensionObjectArrayFromElement(
                         element,
@@ -3613,7 +3618,9 @@ namespace Opc.Ua
                         case BuiltInType.String when TryGetStringArrayFromElement(
                             element,
                             out ArrayOf<string?> v):
+#pragma warning disable CS8620 // Argument cannot be used due to nullability differences. MatrixOf<string?> and MatrixOf<string> share runtime layout; null elements are tolerated by Variant.
                             value = Variant.From(v.ToMatrix(dims));
+#pragma warning restore CS8620
                             return true;
                         case BuiltInType.DateTime when TryGetDateTimeArrayFromElement(
                             element,
@@ -3662,7 +3669,9 @@ namespace Opc.Ua
                         case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
                             element,
                             out ArrayOf<DataValue?> v):
+#pragma warning disable CS8620 // Argument cannot be used due to nullability differences. MatrixOf<DataValue?> and MatrixOf<DataValue> share runtime layout; null elements are tolerated by Variant.
                             value = Variant.From(v.ToMatrix(dims));
+#pragma warning restore CS8620
                             return true;
                         case BuiltInType.ExtensionObject when TryGetExtensionObjectArrayFromElement(
                             element,
@@ -3927,11 +3936,11 @@ namespace Opc.Ua
                             NamespaceTable namespaces =
                                 namespaceUris.Count == 0
                                     ? Context.NamespaceUris
-                                    : new NamespaceTable(namespaceUris.ToArray());
+                                    : new NamespaceTable(namespaceUris.ToArray()!.Cast<string>());
                             StringTable servers =
                                 serverUris.Count == 0
                                     ? Context.ServerUris
-                                    : new StringTable(serverUris.ToArray());
+                                    : new StringTable(serverUris.ToArray()!.Cast<string>());
 
                             SetMappingTables(namespaces, servers);
                         }

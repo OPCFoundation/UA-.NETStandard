@@ -273,7 +273,7 @@ namespace Opc.Ua
             {
                 if (!string.IsNullOrEmpty(DisplayName.Text))
                 {
-                    return DisplayName.Text;
+                    return DisplayName.Text!;
                 }
 
                 if (!BrowseName.IsNull)

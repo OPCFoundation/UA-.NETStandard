@@ -506,9 +506,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         continue;
                     }
-                    string targetDictionaryNamespace = dictionary.TypeDictionary.TargetNamespace;
+                    string? targetDictionaryNamespace = dictionary.TypeDictionary.TargetNamespace;
                     int targetNamespaceIndex = m_complexTypeResolver.NamespaceUris
-                        .GetIndex(targetDictionaryNamespace);
+                        .GetIndex(targetDictionaryNamespace!);
                     var structureList = new List<Schema.Binary.TypeDescription>();
                     var enumList = new List<Schema.Binary.TypeDescription>();
 
@@ -518,7 +518,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                     // create assembly for all types in the same module
                     IComplexTypeBuilder complexTypeBuilder = m_complexTypeBuilderFactory.Create(
-                        targetDictionaryNamespace,
+                        targetDictionaryNamespace!,
                         targetNamespaceIndex,
                         dictionary.Name);
 
@@ -820,9 +820,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (complexTypeBuilder == null)
                     {
-                        string targetNamespace = m_complexTypeResolver.NamespaceUris.GetString(i);
+                        string? targetNamespace = m_complexTypeResolver.NamespaceUris.GetString(i);
                         complexTypeBuilder = m_complexTypeBuilderFactory.Create(
-                            targetNamespace,
+                            targetNamespace!,
                             (int)i);
                     }
                     foreach (INode enumType in enumTypes)
@@ -888,10 +888,10 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         if (complexTypeBuilder == null)
                         {
-                            string targetNamespace = m_complexTypeResolver.NamespaceUris
+                            string? targetNamespace = m_complexTypeResolver.NamespaceUris
                                 .GetString(i);
                             complexTypeBuilder = m_complexTypeBuilderFactory.Create(
-                                targetNamespace,
+                                targetNamespace!,
                                 (int)i);
                         }
                         foreach (INode? structType in structTypes)
@@ -1076,11 +1076,11 @@ namespace Opc.Ua.Client.ComplexTypes
         private static StructureDefinition? GetStructureDefinition(DataTypeNode dataTypeNode)
         {
             if (dataTypeNode.DataTypeDefinition.TryGetEncodeable(
-                out StructureDefinition structureDefinition))
+                out StructureDefinition? structureDefinition))
             {
                 // Validate the DataTypeDefinition structure,
                 // but not if the type is supported
-                if (structureDefinition.Fields.IsNull ||
+                if (structureDefinition!.Fields.IsNull ||
                     structureDefinition.BaseDataType.IsNull ||
                     structureDefinition.BinaryEncodingId.IsNull)
                 {
@@ -1221,7 +1221,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         // 1. use Dictionary entry
                         var enumDefinition = enumeratedObject.ToEnumDefinition(
-                            enumeratedObject.Name);
+                            enumeratedObject.Name!);
 
                         if (enumDefinition != null)
                         {
@@ -1229,7 +1229,7 @@ namespace Opc.Ua.Client.ComplexTypes
                             m_dataTypeDefinitionCache[enumType.NodeId] = enumDefinition;
 
                             newType = complexTypeBuilder.AddEnumType(
-                                QualifiedName.From(enumeratedObject.Name),
+                                QualifiedName.From(enumeratedObject.Name!),
                                 enumDefinition);
                         }
                     }
@@ -1677,13 +1677,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 throw new ArgumentException("Type dictionary in dictionary was not validated");
             }
 
-            foreach (Schema.Binary.TypeDescription item in dictionary.TypeDictionary.Items)
+            foreach (Schema.Binary.TypeDescription item in dictionary.TypeDictionary.Items!)
             {
                 if (item is Schema.Binary.StructuredType structuredObject)
                 {
-                    IEnumerable<Schema.Binary.FieldType> dependentFields = structuredObject.Field
+                    IEnumerable<Schema.Binary.FieldType> dependentFields = structuredObject.Field!
                         .Where(f =>
-                            f.TypeName.Namespace == dictionary.TypeDictionary.TargetNamespace);
+                            f.TypeName!.Namespace == dictionary.TypeDictionary.TargetNamespace);
                     if (!dependentFields.Any())
                     {
                         structureList.Insert(0, structuredObject);

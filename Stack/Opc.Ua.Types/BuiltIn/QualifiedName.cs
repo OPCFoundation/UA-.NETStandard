@@ -532,11 +532,11 @@ namespace Opc.Ua
             {
                 if (useNamespaceUri)
                 {
-                    string namespaceUri = context.NamespaceUris.GetString(NamespaceIndex);
+                    string? namespaceUri = context.NamespaceUris.GetString(NamespaceIndex);
                     if (!string.IsNullOrEmpty(namespaceUri))
                     {
                         buffer.Append("nsu=")
-                            .Append(CoreUtils.EscapeUri(namespaceUri))
+                            .Append(CoreUtils.EscapeUri(namespaceUri!))
                             .Append(';');
                     }
                     else
