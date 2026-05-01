@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using Opc.Ua.Types;
 
@@ -293,22 +295,22 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the InverseName attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<LocalizedText> OnReadInverseName;
+        public NodeAttributeEventHandler<LocalizedText>? OnReadInverseName;
 
         /// <summary>
         /// Raised when the InverseName attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<LocalizedText> OnWriteInverseName;
+        public NodeAttributeEventHandler<LocalizedText>? OnWriteInverseName;
 
         /// <summary>
         /// Raised when the Symmetric attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<bool> OnReadSymmetric;
+        public NodeAttributeEventHandler<bool>? OnReadSymmetric;
 
         /// <summary>
         /// Raised when the Symmetric attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<bool> OnWriteSymmetric;
+        public NodeAttributeEventHandler<bool>? OnWriteSymmetric;
 
         /// <summary>
         /// Reads the value for any non-value attribute.
@@ -318,21 +320,21 @@ namespace Opc.Ua
             uint attributeId,
             ref Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
                 case Attributes.InverseName:
                     LocalizedText inverseName = m_inverseName;
 
-                    NodeAttributeEventHandler<LocalizedText> onReadInverseName = OnReadInverseName;
+                    NodeAttributeEventHandler<LocalizedText>? onReadInverseName = OnReadInverseName;
 
                     if (onReadInverseName != null)
                     {
                         result = onReadInverseName(context, this, ref inverseName);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         if (inverseName.IsNullOrEmpty)
                         {
@@ -344,23 +346,23 @@ namespace Opc.Ua
                         }
                     }
 
-                    return result;
+                    return result!;
                 case Attributes.Symmetric:
                     bool symmetric = m_symmetric;
 
-                    NodeAttributeEventHandler<bool> onReadSymmetric = OnReadSymmetric;
+                    NodeAttributeEventHandler<bool>? onReadSymmetric = OnReadSymmetric;
 
                     if (onReadSymmetric != null)
                     {
                         result = onReadSymmetric(context, this, ref symmetric);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         value = symmetric;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.ReadNonValueAttribute(context, attributeId, ref value);
             }
@@ -374,7 +376,7 @@ namespace Opc.Ua
             uint attributeId,
             Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
@@ -394,7 +396,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<LocalizedText> onWriteInverseName
+                    NodeAttributeEventHandler<LocalizedText>? onWriteInverseName
                         = OnWriteInverseName;
 
                     if (onWriteInverseName != null)
@@ -402,12 +404,12 @@ namespace Opc.Ua
                         result = onWriteInverseName(context, this, ref inverseName);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         InverseName = inverseName;
                     }
 
-                    return result;
+                    return result!;
                 case Attributes.Symmetric:
                     if (!value.TryGet(out bool symmetric))
                     {
@@ -419,19 +421,19 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<bool> onWriteSymmetric = OnWriteSymmetric;
+                    NodeAttributeEventHandler<bool>? onWriteSymmetric = OnWriteSymmetric;
 
                     if (onWriteSymmetric != null)
                     {
                         result = onWriteSymmetric(context, this, ref symmetric);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         Symmetric = symmetric;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.WriteNonValueAttribute(context, attributeId, value);
             }
