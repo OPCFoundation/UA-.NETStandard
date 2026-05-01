@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System.Collections.Generic;
 using System.Threading;
@@ -224,7 +226,7 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             uint causeId,
             AuditUpdateStateEventState e,
-            ServiceResult result)
+            ServiceResult? result)
         {
             base.UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
 
@@ -238,7 +240,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an instance of an transition event.
         /// </summary>
-        protected override TransitionEventState CreateTransitionEvent(
+        protected override TransitionEventState? CreateTransitionEvent(
             ISystemContext context,
             uint transitionId,
             uint causeId)

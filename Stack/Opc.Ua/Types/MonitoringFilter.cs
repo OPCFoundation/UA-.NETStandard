@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -711,7 +713,7 @@ namespace Opc.Ua
             /// <summary>
             /// The result for the entire filter.
             /// </summary>
-            public ServiceResult Status { get; set; }
+            public ServiceResult Status { get; set; } = ServiceResult.Good;
 
             /// <summary>
             /// Returns a string containing the errors reported.
@@ -732,7 +734,7 @@ namespace Opc.Ua
                     }
                 }
 
-                if (ServiceResult.IsBad(WhereClauseResult.Status))
+                if (WhereClauseResult != null && ServiceResult.IsBad(WhereClauseResult.Status))
                 {
                     buffer.AppendFormat(
                         CultureInfo.InvariantCulture,
@@ -777,7 +779,7 @@ namespace Opc.Ua
             /// <summary>
             /// The results for the where clause.
             /// </summary>
-            public ContentFilter.Result WhereClauseResult { get; internal set; }
+            public ContentFilter.Result? WhereClauseResult { get; internal set; }
 
             /// <summary>
             /// Converts the object to an EventFilterResult.
@@ -809,7 +811,7 @@ namespace Opc.Ua
                             result.SelectClauseResults =
                                 result.SelectClauseResults.AddItem(StatusCodes.Good);
                             result.SelectClauseDiagnosticInfos =
-                                result.SelectClauseDiagnosticInfos.AddItem(null);
+                                result.SelectClauseDiagnosticInfos.AddItem(null!);
                         }
                     }
                 }
@@ -825,7 +827,7 @@ namespace Opc.Ua
                 return result;
             }
 
-            private List<ServiceResult> m_selectClauseResults;
+            private List<ServiceResult>? m_selectClauseResults;
         }
 
         /// <summary>
@@ -861,7 +863,7 @@ namespace Opc.Ua
 
             foreach (SimpleAttributeOperand clause in m_selectClauses)
             {
-                ServiceResult clauseResult = null;
+                ServiceResult? clauseResult = null;
 
                 // check for null.
                 if (clause == null)
@@ -886,7 +888,7 @@ namespace Opc.Ua
                 }
 
                 // clause ok.
-                result.SelectClauseResults.Add(null);
+                result.SelectClauseResults.Add(null!);
             }
 
             if (error)
@@ -980,7 +982,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {

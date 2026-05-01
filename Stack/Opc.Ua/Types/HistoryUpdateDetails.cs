@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -52,7 +54,7 @@ namespace Opc.Ua
         /// <summary>
         /// Validates a HistoryUpdateDetails parameter.
         /// </summary>
-        public static ServiceResult Validate(HistoryUpdateDetails valueId)
+        public static ServiceResult? Validate(HistoryUpdateDetails valueId)
         {
             // check for null structure.
             if (valueId == null)

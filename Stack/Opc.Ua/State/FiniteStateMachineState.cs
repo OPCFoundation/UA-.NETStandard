@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -105,27 +107,27 @@ namespace Opc.Ua
         /// <summary>
         /// The table of states belonging to the state machine.
         /// </summary>
-        protected virtual ElementInfo[] StateTable => null;
+        protected virtual ElementInfo[]? StateTable => null;
 
         /// <summary>
         /// The table of transitions belonging to the state machine.
         /// </summary>
-        protected virtual ElementInfo[] TransitionTable => null;
+        protected virtual ElementInfo[]? TransitionTable => null;
 
         /// <summary>
         /// The mapping between transitions and their from and to states.
         /// </summary>
-        protected virtual uint[,] TransitionMappings => null;
+        protected virtual uint[,]? TransitionMappings => null;
 
         /// <summary>
         /// The mapping between causes, the current state and a transition.
         /// </summary>
-        protected virtual uint[,] CauseMappings => null;
+        protected virtual uint[,]? CauseMappings => null;
 
         /// <summary>
         /// The last state that the machine was in.
         /// </summary>
-        protected FiniteStateVariableState LastState { get; set; }
+        protected FiniteStateVariableState? LastState { get; set; }
 
         /// <summary>
         /// Returns the current state of for the state machine.
@@ -162,7 +164,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            uint[,] transitionMappings = TransitionMappings;
+            uint[,]? transitionMappings = TransitionMappings;
 
             if (transitionMappings == null)
             {
@@ -188,7 +190,7 @@ namespace Opc.Ua
         /// </summary>
         protected virtual bool TransitionHasEffect(ISystemContext context, uint transitionId)
         {
-            uint[,] transitionMappings = TransitionMappings;
+            uint[,]? transitionMappings = TransitionMappings;
 
             if (transitionMappings == null)
             {
@@ -220,7 +222,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            uint[,] causeMappings = CauseMappings;
+            uint[,]? causeMappings = CauseMappings;
 
             if (causeMappings == null)
             {
@@ -252,7 +254,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            uint[,] transitionMappings = TransitionMappings;
+            uint[,]? transitionMappings = TransitionMappings;
 
             if (transitionMappings == null)
             {
@@ -279,7 +281,7 @@ namespace Opc.Ua
         protected void UpdateStateVariable(
             ISystemContext context,
             uint stateId,
-            FiniteStateVariableState variable)
+            FiniteStateVariableState? variable)
         {
             if (variable == null)
             {
@@ -289,14 +291,17 @@ namespace Opc.Ua
             if (stateId == 0)
             {
                 variable.Value = default;
-                variable.Id.Value = default;
+                if (variable.Id != null)
+                {
+                    variable.Id.Value = default!;
+                }
 
                 variable.Number?.Value = 0;
 
                 return;
             }
 
-            ElementInfo[] stateTable = StateTable;
+            ElementInfo[]? stateTable = StateTable;
 
             if (stateTable == null)
             {
@@ -310,7 +315,10 @@ namespace Opc.Ua
                 if (state.Id == stateId)
                 {
                     variable.Value = new LocalizedText(state.Name);
-                    variable.Id.Value = new NodeId(state.Id, ElementNamespaceIndex);
+                    if (variable.Id != null)
+                    {
+                        variable.Id.Value = new NodeId(state.Id, ElementNamespaceIndex);
+                    }
 
                     variable.Number?.Value = state.Number;
 
@@ -325,7 +333,7 @@ namespace Opc.Ua
         protected void UpdateTransitionVariable(
             ISystemContext context,
             uint transitionId,
-            FiniteTransitionVariableState variable)
+            FiniteTransitionVariableState? variable)
         {
             if (variable == null)
             {
@@ -335,7 +343,10 @@ namespace Opc.Ua
             if (transitionId == 0)
             {
                 variable.Value = default;
-                variable.Id.Value = default;
+                if (variable.Id != null)
+                {
+                    variable.Id.Value = default!;
+                }
 
                 variable.TransitionTime?.Value = DateTime.MinValue;
 
@@ -344,7 +355,7 @@ namespace Opc.Ua
                 return;
             }
 
-            ElementInfo[] transitionTable = TransitionTable;
+            ElementInfo[]? transitionTable = TransitionTable;
 
             if (transitionTable == null)
             {
@@ -358,7 +369,10 @@ namespace Opc.Ua
                 if (transition.Id == transitionId)
                 {
                     variable.Value = new LocalizedText(transition.Name);
-                    variable.Id.Value = new NodeId(transition.Id, ElementNamespaceIndex);
+                    if (variable.Id != null)
+                    {
+                        variable.Id.Value = new NodeId(transition.Id, ElementNamespaceIndex);
+                    }
 
                     variable.TransitionTime?.Value = DateTime.UtcNow;
 
@@ -372,17 +386,17 @@ namespace Opc.Ua
         /// <summary>
         /// Raised to check whether the current user is allowed to execute the command.
         /// </summary>
-        public StateMachineTransitionHandler OnCheckUserPermission;
+        public StateMachineTransitionHandler? OnCheckUserPermission;
 
         /// <summary>
         /// Raised before a transition occurs.
         /// </summary>
-        public StateMachineTransitionHandler OnBeforeTransition;
+        public StateMachineTransitionHandler? OnBeforeTransition;
 
         /// <summary>
         /// Raises after a transition occurs. Errors are ignored.
         /// </summary>
-        public StateMachineTransitionHandler OnAfterTransition;
+        public StateMachineTransitionHandler? OnAfterTransition;
 
         /// <summary>
         /// If true transition events will not be produced by the state machine.
@@ -393,13 +407,13 @@ namespace Opc.Ua
         /// Invokes the callback function if it has been specified.
         /// </summary>
         protected ServiceResult InvokeCallback(
-            StateMachineTransitionHandler callback,
+            StateMachineTransitionHandler? callback,
             ISystemContext context,
             StateMachineState machine,
             uint transitionId,
             uint causeId,
             ArrayOf<Variant> inputArguments,
-            List<Variant> outputArguments)
+            List<Variant>? outputArguments)
         {
             if (callback != null)
             {
@@ -478,7 +492,7 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             try
             {
@@ -543,7 +557,7 @@ namespace Opc.Ua
                 }
             }
 
-            return result;
+            return result ?? ServiceResult.Good;
         }
 
         /// <summary>
@@ -566,7 +580,7 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             uint causeId,
             AuditUpdateStateEventState e,
-            ServiceResult result)
+            ServiceResult? result)
         {
             var info = new TranslationInfo(
                 "StateTransition",
@@ -608,7 +622,7 @@ namespace Opc.Ua
             MethodState causeMethod,
             uint causeId,
             ArrayOf<Variant> inputArguments,
-            ServiceResult result)
+            ServiceResult? result)
         {
             try
             {
@@ -619,7 +633,7 @@ namespace Opc.Ua
                 e.SetChildValue(
                     context,
                     BrowseNames.TransitionNumber,
-                    LastTransition.Number.Value,
+                    LastTransition?.Number?.Value ?? 0,
                     false);
 
                 ReportEvent(context, e);
@@ -728,7 +742,7 @@ namespace Opc.Ua
             // report the event.
             if (AreEventsMonitored && !SuppressTransitionEvents)
             {
-                TransitionEventState e = CreateTransitionEvent(context, transitionId, causeId);
+                TransitionEventState? e = CreateTransitionEvent(context, transitionId, causeId);
 
                 if (e != null)
                 {
@@ -743,7 +757,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an instance of an transition event.
         /// </summary>
-        protected virtual TransitionEventState CreateTransitionEvent(
+        protected virtual TransitionEventState? CreateTransitionEvent(
             ISystemContext context,
             uint transitionId,
             uint causeId)
@@ -770,7 +784,7 @@ namespace Opc.Ua
                 "en-US",
                 "The {0} state machine moved to the {1} state.",
                 GetDisplayPath(3, '.'),
-                CurrentState.Value);
+                CurrentState?.Value);
 
             e.Initialize(context, this, EventSeverity.Medium, new LocalizedText(info));
 
@@ -792,5 +806,5 @@ namespace Opc.Ua
         uint transitionId,
         uint causeId,
         ArrayOf<Variant> inputArguments,
-        List<Variant> outputArguments);
+        List<Variant>? outputArguments);
 }

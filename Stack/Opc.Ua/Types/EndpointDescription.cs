@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 
 namespace Opc.Ua
@@ -40,9 +42,8 @@ namespace Opc.Ua
         /// Creates an endpoint configuration from a url.
         /// </summary>
         public EndpointDescription(string url)
+            : this()
         {
-            Initialize();
-
             var parsedUrl = new UriBuilder(url);
 
             if (parsedUrl.Scheme == Uri.UriSchemeHttps &&
@@ -59,7 +60,7 @@ namespace Opc.Ua
             Server.ApplicationUri = url;
             Server.ApplicationName = new LocalizedText(url);
             SecurityMode = MessageSecurityMode.None;
-            SecurityPolicyUri = null; // SecurityPolicies.None;
+            SecurityPolicyUri = null!; // SecurityPolicies.None;
         }
 
         /// <summary>
@@ -70,6 +71,6 @@ namespace Opc.Ua
         /// <summary>
         /// The proxy url to use when connecting to the endpoint.
         /// </summary>
-        public Uri ProxyUrl { get; set; }
+        public Uri? ProxyUrl { get; set; }
     }
 }

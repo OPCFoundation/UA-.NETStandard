@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -37,7 +39,7 @@ namespace Opc.Ua
         /// <summary>
         /// The handle cast to a notification message.
         /// </summary>
-        public NotificationMessage Message
+        public NotificationMessage? Message
         {
             get => Handle as NotificationMessage;
             set => Handle = value;
@@ -46,6 +48,6 @@ namespace Opc.Ua
         /// <summary>
         /// A handle associated withe the event instance.
         /// </summary>
-        public object Handle { get; set; }
+        public object? Handle { get; set; }
     }
 }

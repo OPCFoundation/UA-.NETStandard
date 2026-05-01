@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 
 namespace Opc.Ua
@@ -54,7 +56,7 @@ namespace Opc.Ua
         /// <summary>
         /// Validates a read value id parameter.
         /// </summary>
-        public static ServiceResult Validate(HistoryReadValueId valueId)
+        public static ServiceResult? Validate(HistoryReadValueId valueId)
         {
             // check for null structure.
             if (valueId == null)

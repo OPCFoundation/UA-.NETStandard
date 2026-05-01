@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -59,7 +61,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -83,7 +85,7 @@ namespace Opc.Ua
         /// <returns>The result of validation.</returns>
         public Result Validate(IFilterContext context)
         {
-            var result = new Result(null);
+            var result = new Result(null!);
 
             // check for empty filter.
             if (m_elements.IsEmpty)
@@ -122,7 +124,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                result.ElementResults.Add(null);
+                result.ElementResults.Add(null!);
             }
 
             // ensure the global error code.
@@ -287,7 +289,7 @@ namespace Opc.Ua
 
                 foreach (ElementResult elementResult in m_elementResults)
                 {
-                    ContentFilterElementResult elementResult2 = null;
+                    ContentFilterElementResult? elementResult2 = null;
 
                     if (elementResult == null || ServiceResult.IsGood(elementResult.Status))
                     {
@@ -297,7 +299,7 @@ namespace Opc.Ua
                         };
 
                         result.ElementResults = result.ElementResults.AddItem(elementResult2);
-                        result.ElementDiagnosticInfos = result.ElementDiagnosticInfos.AddItem(null);
+                        result.ElementDiagnosticInfos = result.ElementDiagnosticInfos.AddItem(null!);
                         continue;
                     }
 
@@ -326,7 +328,7 @@ namespace Opc.Ua
                 return result;
             }
 
-            private List<ElementResult> m_elementResults;
+            private List<ElementResult>? m_elementResults;
         }
 
         /// <summary>
@@ -396,7 +398,7 @@ namespace Opc.Ua
                     if (ServiceResult.IsGood(operandResult))
                     {
                         result.OperandStatusCodes = result.OperandStatusCodes.AddItem(StatusCodes.Good);
-                        result.OperandDiagnosticInfos = result.OperandDiagnosticInfos.AddItem(null);
+                        result.OperandDiagnosticInfos = result.OperandDiagnosticInfos.AddItem(null!);
                     }
                     else
                     {
@@ -414,7 +416,7 @@ namespace Opc.Ua
                 return result;
             }
 
-            private List<ServiceResult> m_operandResults;
+            private List<ServiceResult>? m_operandResults;
         }
     }
 
@@ -433,7 +435,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -476,7 +478,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public virtual ContentFilter.ElementResult Validate(IFilterContext context, int index)
         {
-            var result = new ContentFilter.ElementResult(null);
+            var result = new ContentFilter.ElementResult(null!);
 
             // check the number of operands.
             int operandCount;
@@ -585,7 +587,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                result.OperandResults.Add(null);
+                result.OperandResults.Add(null!);
             }
 
             // ensure the global error code.
@@ -649,9 +651,9 @@ namespace Opc.Ua
         {
             List<FilterOperand> operands = GetOperands();
 
-            string operand1 = operands.Count > 0 ? operands[0].ToString(nodeTable) : null;
-            string operand2 = operands.Count > 1 ? operands[1].ToString(nodeTable) : null;
-            string operand3 = operands.Count > 2 ? operands[2].ToString(nodeTable) : null;
+            string? operand1 = operands.Count > 0 ? operands[0].ToString(nodeTable) : null;
+            string? operand2 = operands.Count > 1 ? operands[1].ToString(nodeTable) : null;
+            string? operand3 = operands.Count > 2 ? operands[2].ToString(nodeTable) : null;
 
             var buffer = new StringBuilder();
 
@@ -720,7 +722,7 @@ namespace Opc.Ua
                 case FilterOperator.RelatedTo:
                     buffer.AppendFormat(CultureInfo.InvariantCulture, "'{0}' ", operand1);
 
-                    string referenceType = operand2;
+                    string? referenceType = operand2;
 
                     if (operands.Count > 1 && operands[1] is LiteralOperand literalOperand)
                     {
@@ -893,7 +895,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -1063,7 +1065,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -1143,7 +1145,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {

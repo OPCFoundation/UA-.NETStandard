@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -57,23 +59,23 @@ namespace Opc.Ua
 
             if (ShelvingState != null)
             {
-                if (ShelvingState.UnshelveTime != null)
+                if (ShelvingState!.UnshelveTime != null)
                 {
-                    ShelvingState.UnshelveTime.OnSimpleReadValue = OnReadUnshelveTime;
-                    ShelvingState.UnshelveTime.MinimumSamplingInterval = 1000;
+                    ShelvingState!.UnshelveTime!.OnSimpleReadValue = OnReadUnshelveTime;
+                    ShelvingState!.UnshelveTime!.MinimumSamplingInterval = 1000;
                 }
 
-                ShelvingState.OneShotShelve.OnCallMethod = OnOneShotShelve;
-                ShelvingState.OneShotShelve.OnReadExecutable = IsOneShotShelveExecutable;
-                ShelvingState.OneShotShelve.OnReadUserExecutable = IsOneShotShelveExecutable;
+                ShelvingState!.OneShotShelve!.OnCallMethod = OnOneShotShelve;
+                ShelvingState!.OneShotShelve!.OnReadExecutable = IsOneShotShelveExecutable;
+                ShelvingState!.OneShotShelve!.OnReadUserExecutable = IsOneShotShelveExecutable;
 
-                ShelvingState.TimedShelve.OnCall = OnTimedShelve;
-                ShelvingState.TimedShelve.OnReadExecutable = IsTimedShelveExecutable;
-                ShelvingState.TimedShelve.OnReadUserExecutable = IsTimedShelveExecutable;
+                ShelvingState!.TimedShelve!.OnCall = OnTimedShelve;
+                ShelvingState!.TimedShelve!.OnReadExecutable = IsTimedShelveExecutable;
+                ShelvingState!.TimedShelve!.OnReadUserExecutable = IsTimedShelveExecutable;
 
-                ShelvingState.Unshelve.OnCallMethod = OnUnshelve;
-                ShelvingState.Unshelve.OnReadExecutable = IsUnshelveExecutable;
-                ShelvingState.Unshelve.OnReadUserExecutable = IsUnshelveExecutable;
+                ShelvingState!.Unshelve!.OnCallMethod = OnUnshelve;
+                ShelvingState!.Unshelve!.OnReadExecutable = IsUnshelveExecutable;
+                ShelvingState!.Unshelve!.OnReadUserExecutable = IsUnshelveExecutable;
             }
         }
 
@@ -110,17 +112,17 @@ namespace Opc.Ua
             LocalizedText displayName,
             DateTime transitionTime)
         {
-            ActiveState.EffectiveDisplayName?.Value = displayName;
+            ActiveState!.EffectiveDisplayName?.Value = displayName;
 
-            if (ActiveState.EffectiveTransitionTime != null)
+            if (ActiveState!.EffectiveTransitionTime != null)
             {
                 if (transitionTime != DateTime.MinValue)
                 {
-                    ActiveState.EffectiveTransitionTime.Value = transitionTime;
+                    ActiveState!.EffectiveTransitionTime!.Value = transitionTime;
                 }
                 else
                 {
-                    ActiveState.EffectiveTransitionTime.Value = DateTimeUtc.Now;
+                    ActiveState!.EffectiveTransitionTime!.Value = DateTimeUtc.Now;
                 }
             }
         }
@@ -160,12 +162,12 @@ namespace Opc.Ua
                     ConditionStateNames.Inactive);
             }
 
-            ActiveState.Value = new LocalizedText(state);
-            ActiveState.Id.Value = active;
+            ActiveState!.Value = new LocalizedText(state);
+            ActiveState!.Id!.Value = active;
 
-            ActiveState.TransitionTime?.Value = DateTimeUtc.Now;
+            ActiveState!.TransitionTime?.Value = DateTimeUtc.Now;
 
-            ActiveState.Timestamp = DateTimeUtc.Now;
+            ActiveState!.Timestamp = DateTimeUtc.Now;
             UpdateEffectiveState(context);
             ClearChangeMasks(context, includeChildren: true);
         }
@@ -185,7 +187,7 @@ namespace Opc.Ua
             TranslationInfo state;
             if (suppressed)
             {
-                SuppressedOrShelved.Value = true;
+                SuppressedOrShelved!.Value = true;
 
                 state = new TranslationInfo(
                     "ConditionStateSuppressed",
@@ -195,10 +197,10 @@ namespace Opc.Ua
             else
             {
                 if (ShelvingState == null ||
-                    ShelvingState.CurrentState.Id.Value == ObjectIds
+                    ShelvingState!.CurrentState!.Id!.Value == ObjectIds
                         .ShelvedStateMachineType_Unshelved)
                 {
-                    SuppressedOrShelved.Value = false;
+                    SuppressedOrShelved!.Value = false;
                 }
 
                 state = new TranslationInfo(
@@ -207,12 +209,12 @@ namespace Opc.Ua
                     ConditionStateNames.Unsuppressed);
             }
 
-            SuppressedState.Value = new LocalizedText(state);
-            SuppressedState.Id.Value = suppressed;
+            SuppressedState!.Value = new LocalizedText(state);
+            SuppressedState!.Id!.Value = suppressed;
 
-            SuppressedState.TransitionTime?.Value = DateTimeUtc.Now;
+            SuppressedState!.TransitionTime?.Value = DateTimeUtc.Now;
 
-            SuppressedState.Timestamp = DateTimeUtc.Now;
+            SuppressedState!.Timestamp = DateTimeUtc.Now;
             UpdateEffectiveState(context);
             ClearChangeMasks(context, includeChildren: true);
         }
@@ -245,28 +247,28 @@ namespace Opc.Ua
 
             if (!shelved)
             {
-                if (SuppressedState == null || !SuppressedState.Id.Value)
+                if (SuppressedState == null || !SuppressedState!.Id!.Value)
                 {
-                    SuppressedOrShelved.Value = false;
+                    SuppressedOrShelved!.Value = false;
                 }
 
-                ShelvingState.UnshelveTime.Value = 0.0;
+                ShelvingState!.UnshelveTime!.Value = 0.0;
 
-                ShelvingState.CauseProcessingCompleted(
+                ShelvingState!.CauseProcessingCompleted(
                     context,
                     Methods.ShelvedStateMachineType_Unshelve);
             }
             else
             {
-                SuppressedOrShelved.Value = true;
+                SuppressedOrShelved!.Value = true;
                 m_oneShot = oneShot;
 
                 // Unshelve time is still valid even for OneShotShelved -  See Mantis 6462
 
                 double maxTimeShelved = double.MaxValue;
-                if (MaxTimeShelved != null && MaxTimeShelved.Value > 0)
+                if (MaxTimeShelved != null && MaxTimeShelved!.Value > 0)
                 {
-                    maxTimeShelved = MaxTimeShelved.Value;
+                    maxTimeShelved = MaxTimeShelved!.Value;
                 }
 
                 double shelveTime = maxTimeShelved;
@@ -281,7 +283,7 @@ namespace Opc.Ua
                     state = Methods.ShelvedStateMachineType_TimedShelve;
                 }
 
-                ShelvingState.UnshelveTime.Value = shelveTime;
+                ShelvingState!.UnshelveTime!.Value = shelveTime;
                 UnshelveTime = DateTime.UtcNow.AddMilliseconds((int)shelveTime);
 
                 m_updateUnshelveTimer = new Timer(
@@ -295,10 +297,10 @@ namespace Opc.Ua
                     context,
                     (int)shelveTime,
                     Timeout.Infinite);
-                ShelvingState.CauseProcessingCompleted(context, state);
+                ShelvingState!.CauseProcessingCompleted(context, state);
             }
 
-            ShelvingState.UnshelveTime?.Timestamp = DateTimeUtc.Now;
+            ShelvingState!.UnshelveTime?.Timestamp = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
             ClearChangeMasks(context, includeChildren: true);
@@ -315,11 +317,11 @@ namespace Opc.Ua
         {
             bool retainState = false;
 
-            if (EnabledState.Id.Value)
+            if (EnabledState!.Id!.Value)
             {
                 retainState = base.GetRetainState();
 
-                if (!IsBranch() && ActiveState.Id.Value)
+                if (!IsBranch() && ActiveState!.Id!.Value)
                 {
                     retainState = true;
                 }
@@ -339,13 +341,13 @@ namespace Opc.Ua
         /// It is possible to call ShelvingState Methods by using only the ConditionId (1.04 Part 9 5.8.10.4).
         /// Look to the Shelving State object for the method if it cannot be found by the normal mechanism.
         /// </remarks>
-        public override MethodState FindMethod(ISystemContext context, NodeId methodId)
+        public override MethodState? FindMethod(ISystemContext context, NodeId methodId)
         {
-            MethodState method = base.FindMethod(context, methodId);
+            MethodState? method = base.FindMethod(context, methodId);
 
             if (method == null && ShelvingState != null)
             {
-                method = ShelvingState.FindMethod(context, methodId);
+                method = ShelvingState!.FindMethod(context, methodId);
             }
 
             return method;
@@ -375,7 +377,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         protected override void UpdateEffectiveState(ISystemContext context)
         {
-            if (!EnabledState.Id.Value)
+            if (!EnabledState!.Id!.Value)
             {
                 base.UpdateEffectiveState(context);
                 return;
@@ -383,36 +385,36 @@ namespace Opc.Ua
 
             var builder = new StringBuilder();
 
-            string locale = ActiveState.Value.Locale;
+            string locale = ActiveState!.Value.Locale;
 
-            if (ActiveState.Id.Value)
+            if (ActiveState!.Id!.Value)
             {
-                if (ActiveState.EffectiveDisplayName != null &&
-                    !ActiveState.EffectiveDisplayName.Value.IsNullOrEmpty)
+                if (ActiveState!.EffectiveDisplayName != null &&
+                    !ActiveState!.EffectiveDisplayName!.Value.IsNullOrEmpty)
                 {
-                    builder.Append(ActiveState.EffectiveDisplayName.Value);
+                    builder.Append(ActiveState!.EffectiveDisplayName!.Value);
                 }
                 else
                 {
-                    builder.Append(ActiveState.Value);
+                    builder.Append(ActiveState!.Value);
                 }
             }
             else
             {
-                builder.Append(ActiveState.Value);
+                builder.Append(ActiveState!.Value);
             }
 
             LocalizedText suppressedState = default;
 
-            if (SuppressedState != null && SuppressedState.Id.Value)
+            if (SuppressedState != null && SuppressedState!.Id!.Value)
             {
-                suppressedState = SuppressedState.Value;
+                suppressedState = SuppressedState!.Value;
             }
 
             if (ShelvingState != null &&
-                ShelvingState.CurrentState.Id.Value != ObjectIds.ShelvedStateMachineType_Unshelved)
+                ShelvingState!.CurrentState!.Id!.Value != ObjectIds.ShelvedStateMachineType_Unshelved)
             {
-                suppressedState = ShelvingState.CurrentState.Value;
+                suppressedState = ShelvingState!.CurrentState!.Value;
             }
 
             if (!suppressedState.IsNullOrEmpty)
@@ -423,14 +425,14 @@ namespace Opc.Ua
 
             LocalizedText ackState = default;
 
-            if (ConfirmedState != null && !ConfirmedState.Id.Value)
+            if (ConfirmedState != null && !ConfirmedState!.Id!.Value)
             {
-                ackState = ConfirmedState.Value;
+                ackState = ConfirmedState!.Value;
             }
 
-            if (AckedState != null && !AckedState.Id.Value)
+            if (AckedState != null && !AckedState!.Id!.Value)
             {
-                ackState = AckedState.Value;
+                ackState = AckedState!.Value;
             }
 
             if (!ackState.IsNullOrEmpty)
@@ -477,7 +479,7 @@ namespace Opc.Ua
             NodeState node,
             ref bool value)
         {
-            value = ShelvingState.IsCausePermitted(
+            value = ShelvingState!.IsCausePermitted(
                 context,
                 Methods.ShelvedStateMachineType_OneShotShelve,
                 false);
@@ -493,16 +495,16 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            ServiceResult error = null;
+            ServiceResult? error = null;
 
             try
             {
-                if (!EnabledState.Id.Value)
+                if (!EnabledState!.Id!.Value)
                 {
                     return error = StatusCodes.BadConditionDisabled;
                 }
 
-                if (!ShelvingState.IsCausePermitted(
+                if (!ShelvingState!.IsCausePermitted(
                     context,
                     Methods.ShelvedStateMachineType_OneShotShelve,
                     false))
@@ -563,7 +565,7 @@ namespace Opc.Ua
             NodeState node,
             ref bool value)
         {
-            value = ShelvingState.IsCausePermitted(
+            value = ShelvingState!.IsCausePermitted(
                 context,
                 Methods.ShelvedStateMachineType_TimedShelve,
                 false);
@@ -579,22 +581,22 @@ namespace Opc.Ua
             NodeId objectId,
             double shelvingTime)
         {
-            ServiceResult error = null;
+            ServiceResult? error = null;
 
             try
             {
-                if (!EnabledState.Id.Value)
+                if (!EnabledState!.Id!.Value)
                 {
                     return error = StatusCodes.BadConditionDisabled;
                 }
 
                 if (shelvingTime <= 0 ||
-                    (MaxTimeShelved != null && shelvingTime > MaxTimeShelved.Value))
+                    (MaxTimeShelved != null && shelvingTime > MaxTimeShelved!.Value))
                 {
                     return error = StatusCodes.BadShelvingTimeOutOfRange;
                 }
 
-                if (!ShelvingState.IsCausePermitted(
+                if (!ShelvingState!.IsCausePermitted(
                     context,
                     Methods.ShelvedStateMachineType_TimedShelve,
                     false))
@@ -661,7 +663,7 @@ namespace Opc.Ua
             NodeState node,
             ref bool value)
         {
-            value = ShelvingState.IsCausePermitted(
+            value = ShelvingState!.IsCausePermitted(
                 context,
                 Methods.ShelvedStateMachineType_Unshelve,
                 false);
@@ -677,16 +679,16 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            ServiceResult error = null;
+            ServiceResult? error = null;
 
             try
             {
-                if (!EnabledState.Id.Value)
+                if (!EnabledState!.Id!.Value)
                 {
                     return error = StatusCodes.BadConditionDisabled;
                 }
 
-                if (!ShelvingState.IsCausePermitted(
+                if (!ShelvingState!.IsCausePermitted(
                     context,
                     Methods.ShelvedStateMachineType_Unshelve,
                     false))
@@ -743,11 +745,11 @@ namespace Opc.Ua
         /// <summary>
         /// Called when timed shelve period expires.
         /// </summary>
-        private void OnTimerExpired(object state)
+        private void OnTimerExpired(object? state)
         {
             try
             {
-                OnTimedUnshelve?.Invoke((ISystemContext)state, this);
+                OnTimedUnshelve?.Invoke((ISystemContext)state!, this);
                 OnUnshelveTimeUpdate(state);
             }
             catch (Exception e)
@@ -759,17 +761,17 @@ namespace Opc.Ua
         /// <summary>
         /// Called when shelved state is not Unshelved to update the UnshelveTime value.
         /// </summary>
-        private void OnUnshelveTimeUpdate(object state)
+        private void OnUnshelveTimeUpdate(object? state)
         {
             try
             {
-                var context = (ISystemContext)state;
+                var context = (ISystemContext)state!;
                 Variant unshelveTimeObject = default;
-                OnReadUnshelveTime(context, null, ref unshelveTimeObject);
+                OnReadUnshelveTime(context, null!, ref unshelveTimeObject);
                 double unshelveTime = (double)unshelveTimeObject;
-                if (unshelveTime != ShelvingState.UnshelveTime.Value)
+                if (unshelveTime != ShelvingState!.UnshelveTime!.Value)
                 {
-                    ShelvingState.UnshelveTime.Value = unshelveTime;
+                    ShelvingState!.UnshelveTime!.Value = unshelveTime;
                     ClearChangeMasks(context, true);
                 }
             }
@@ -781,8 +783,8 @@ namespace Opc.Ua
 
         private readonly ILogger m_logger;
         private bool m_oneShot;
-        private Timer m_unshelveTimer;
-        private Timer m_updateUnshelveTimer;
+        private Timer? m_unshelveTimer;
+        private Timer? m_updateUnshelveTimer;
     }
 
     /// <summary>

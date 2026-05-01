@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Globalization;
@@ -57,10 +59,10 @@ namespace Opc.Ua
                 "en-US",
                 ConditionStateNames.Active);
 
-            DialogState.Value = new LocalizedText(state);
-            DialogState.Id.Value = true;
+            DialogState!.Value = new LocalizedText(state);
+            DialogState!.Id!.Value = true;
 
-            DialogState.TransitionTime?.Value = DateTime.UtcNow;
+            DialogState!.TransitionTime?.Value = DateTime.UtcNow;
 
             UpdateEffectiveState(context);
         }
@@ -72,17 +74,17 @@ namespace Opc.Ua
         /// <param name="response">The selected response.</param>
         public virtual void SetResponse(ISystemContext context, int response)
         {
-            LastResponse.Value = response;
+            LastResponse!.Value = response;
 
             var state = new TranslationInfo(
                 "ConditionStateDialogInactive",
                 "en-US",
                 ConditionStateNames.Inactive);
 
-            DialogState.Value = new LocalizedText(state);
-            DialogState.Id.Value = false;
+            DialogState!.Value = new LocalizedText(state);
+            DialogState!.Id!.Value = false;
 
-            DialogState.TransitionTime?.Value = DateTime.UtcNow;
+            DialogState!.TransitionTime?.Value = DateTime.UtcNow;
 
             UpdateEffectiveState(context);
         }
@@ -101,7 +103,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         protected override void UpdateEffectiveState(ISystemContext context)
         {
-            if (!EnabledState.Id.Value)
+            if (!EnabledState!.Id!.Value)
             {
                 base.UpdateEffectiveState(context);
                 return;
@@ -109,12 +111,12 @@ namespace Opc.Ua
 
             var builder = new StringBuilder();
 
-            string locale = null;
+            string? locale = null;
 
-            if (!DialogState.Value.IsNullOrEmpty)
+            if (!DialogState!.Value.IsNullOrEmpty)
             {
-                locale = DialogState.Value.Locale;
-                builder.Append(DialogState.Value);
+                locale = DialogState!.Value.Locale;
+                builder.Append(DialogState!.Value);
             }
 
             var effectiveState = new LocalizedText(locale, builder.ToString());
@@ -136,21 +138,21 @@ namespace Opc.Ua
             NodeId objectId,
             int selectedResponse)
         {
-            ServiceResult error = null;
+            ServiceResult? error = null;
 
             try
             {
-                if (!EnabledState.Id.Value)
+                if (!EnabledState!.Id!.Value)
                 {
                     return error = StatusCodes.BadConditionDisabled;
                 }
 
-                if (!DialogState.Id.Value)
+                if (!DialogState!.Id!.Value)
                 {
                     return error = StatusCodes.BadDialogNotActive;
                 }
 
-                if (selectedResponse < 0 || selectedResponse >= ResponseOptionSet.Value.Count)
+                if (selectedResponse < 0 || selectedResponse >= ResponseOptionSet!.Value.Count)
                 {
                     return error = StatusCodes.BadDialogResponseInvalid;
                 }

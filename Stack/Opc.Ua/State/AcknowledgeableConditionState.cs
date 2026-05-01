@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Threading;
@@ -62,7 +64,7 @@ namespace Opc.Ua
                 UpdateStateAfterUnacknowledge(context);
             }
 
-            AckedState.Timestamp = DateTimeUtc.Now;
+            AckedState!.Timestamp = DateTimeUtc.Now;
             ClearChangeMasks(context, includeChildren: true);
         }
 
@@ -109,21 +111,21 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         protected override void UpdateEffectiveState(ISystemContext context)
         {
-            if (!EnabledState.Id.Value)
+            if (!EnabledState!.Id!.Value)
             {
                 base.UpdateEffectiveState(context);
                 return;
             }
 
-            if (SupportsConfirm() && !ConfirmedState.Id.Value)
+            if (SupportsConfirm() && !ConfirmedState!.Id!.Value)
             {
-                SetEffectiveSubState(context, ConfirmedState.Value, DateTime.MinValue);
+                SetEffectiveSubState(context, ConfirmedState!.Value, DateTime.MinValue);
                 return;
             }
 
             if (AckedState != null)
             {
-                SetEffectiveSubState(context, AckedState.Value, DateTime.MinValue);
+                SetEffectiveSubState(context, AckedState!.Value, DateTime.MinValue);
             }
         }
 
@@ -147,7 +149,7 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
-                AcknowledgeableConditionState branch = GetAcknowledgeableBranch(eventId);
+                AcknowledgeableConditionState? branch = GetAcknowledgeableBranch(eventId);
 
                 if (branch != null)
                 {
@@ -175,7 +177,7 @@ namespace Opc.Ua
                 // If this is a branch, the comment goes to both the branch and the original event
                 if (CanSetComment(comment))
                 {
-                    SetComment(context, comment, GetCurrentUserId(context));
+                    SetComment(context, comment, GetCurrentUserId(context) ?? string.Empty);
                 }
 
                 UpdateRetainState();
@@ -240,7 +242,7 @@ namespace Opc.Ua
                 return StatusCodes.BadEventIdUnknown;
             }
 
-            if (!EnabledState.Id.Value)
+            if (!EnabledState!.Id!.Value)
             {
                 return StatusCodes.BadConditionDisabled;
             }
@@ -274,10 +276,10 @@ namespace Opc.Ua
                 "en-US",
                 ConditionStateNames.Acknowledged);
 
-            AckedState.Value = new LocalizedText(state);
-            AckedState.Id.Value = true;
+            AckedState!.Value = new LocalizedText(state);
+            AckedState!.Id!.Value = true;
 
-            AckedState.TransitionTime?.Value = DateTimeUtc.Now;
+            AckedState!.TransitionTime?.Value = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
         }
@@ -293,10 +295,10 @@ namespace Opc.Ua
                 "en-US",
                 ConditionStateNames.Unacknowledged);
 
-            AckedState.Value = new LocalizedText(state);
-            AckedState.Id.Value = false;
+            AckedState!.Value = new LocalizedText(state);
+            AckedState!.Id!.Value = false;
 
-            AckedState.TransitionTime?.Value = DateTimeUtc.Now;
+            AckedState!.TransitionTime?.Value = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
         }
@@ -321,7 +323,7 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
-                AcknowledgeableConditionState branch = GetAcknowledgeableBranch(eventId);
+                AcknowledgeableConditionState? branch = GetAcknowledgeableBranch(eventId);
 
                 if (branch != null)
                 {
@@ -336,7 +338,7 @@ namespace Opc.Ua
                 // If this is a branch, the comment goes to both the branch and the original event
                 if (CanSetComment(comment))
                 {
-                    SetComment(context, comment, GetCurrentUserId(context));
+                    SetComment(context, comment, GetCurrentUserId(context) ?? string.Empty);
                 }
 
                 UpdateRetainState();
@@ -401,7 +403,7 @@ namespace Opc.Ua
                 return StatusCodes.BadEventIdUnknown;
             }
 
-            if (!EnabledState.Id.Value)
+            if (!EnabledState!.Id!.Value)
             {
                 return StatusCodes.BadConditionDisabled;
             }
@@ -437,10 +439,10 @@ namespace Opc.Ua
                     "en-US",
                     ConditionStateNames.Confirmed);
 
-                ConfirmedState.Value = new LocalizedText(state);
-                ConfirmedState.Id.Value = true;
+                ConfirmedState!.Value = new LocalizedText(state);
+                ConfirmedState!.Id!.Value = true;
 
-                ConfirmedState.TransitionTime?.Value = DateTimeUtc.Now;
+                ConfirmedState!.TransitionTime?.Value = DateTimeUtc.Now;
 
                 UpdateEffectiveState(context);
             }
@@ -459,10 +461,10 @@ namespace Opc.Ua
                     "en-US",
                     ConditionStateNames.Unconfirmed);
 
-                ConfirmedState.Value = new LocalizedText(state);
-                ConfirmedState.Id.Value = false;
+                ConfirmedState!.Value = new LocalizedText(state);
+                ConfirmedState!.Id!.Value = false;
 
-                ConfirmedState.TransitionTime?.Value = DateTimeUtc.Now;
+                ConfirmedState!.TransitionTime?.Value = DateTimeUtc.Now;
 
                 UpdateEffectiveState(context);
             }
@@ -511,7 +513,7 @@ namespace Opc.Ua
             bool supportsConfirm = false;
 
             if (ConfirmedState != null &&
-                !ConfirmedState.Value.IsNullOrEmpty)
+                !ConfirmedState!.Value.IsNullOrEmpty)
             {
                 supportsConfirm = true;
             }
@@ -526,14 +528,14 @@ namespace Opc.Ua
         /// <returns>
         /// AcknowledgeableConditionState branch if it exists
         /// </returns>
-        private AcknowledgeableConditionState GetAcknowledgeableBranch(ByteString eventId)
+        private AcknowledgeableConditionState? GetAcknowledgeableBranch(ByteString eventId)
         {
-            AcknowledgeableConditionState acknowledgeableBranch = null;
-            ConditionState branch = GetBranch(eventId);
+            AcknowledgeableConditionState? acknowledgeableBranch = null;
+            ConditionState? branch = GetBranch(eventId);
 
             if (branch != null)
             {
-                object acknowledgeable = branch as AcknowledgeableConditionState;
+                object? acknowledgeable = branch as AcknowledgeableConditionState;
                 if (acknowledgeable != null)
                 {
                     acknowledgeableBranch = (AcknowledgeableConditionState)acknowledgeable;
@@ -554,15 +556,15 @@ namespace Opc.Ua
         {
             bool retainState = false;
 
-            if (EnabledState.Id.Value)
+            if (EnabledState!.Id!.Value)
             {
                 retainState = base.GetRetainState();
 
-                if (!AckedState.Id.Value)
+                if (!AckedState!.Id!.Value)
                 {
                     retainState = true;
                 }
-                else if (SupportsConfirm() && !ConfirmedState.Id.Value)
+                else if (SupportsConfirm() && !ConfirmedState!.Id!.Value)
                 {
                     retainState = true;
                 }
