@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -69,7 +71,7 @@ namespace Opc.Ua
         [Obsolete("Use UANodeSet (NodeSet2 format) instead.")]
         [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
-        public static NodeSet Read(Stream istrm)
+        public static NodeSet? Read(Stream istrm)
         {
 #pragma warning disable CS0618 // Type or member is obsolete
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<NodeSet>();
@@ -265,7 +267,7 @@ namespace Opc.Ua
             NamespaceTable namespaceUris,
             StringTable serverUris)
         {
-            var node = Node.Copy(nodeToExport);
+            var node = Node.Copy(nodeToExport)!;
 
             node.NodeId = Translate(nodeToExport.NodeId, m_namespaceUris, namespaceUris);
             node.BrowseName = Translate(nodeToExport.BrowseName, m_namespaceUris, namespaceUris);
@@ -392,9 +394,9 @@ namespace Opc.Ua
         /// <remarks>
         /// The NodeId must reference the strings for the node set.
         /// </remarks>
-        public Node Find(NodeId nodeId)
+        public Node? Find(NodeId nodeId)
         {
-            if (m_nodes.TryGetValue(nodeId, out Node node))
+            if (m_nodes.TryGetValue(nodeId, out Node? node))
             {
                 return node;
             }
@@ -413,7 +415,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="nodeId"/> is <c>null</c>.</exception>
-        public Node Find(NodeId nodeId, NamespaceTable namespaceUris)
+        public Node? Find(NodeId nodeId, NamespaceTable namespaceUris)
         {
             if (nodeId.IsNull)
             {
@@ -426,7 +428,7 @@ namespace Opc.Ua
             }
 
             // check for unknown namespace index.
-            string ns = namespaceUris.GetString(nodeId.NamespaceIndex);
+            string? ns = namespaceUris.GetString(nodeId.NamespaceIndex);
 
             if (ns == null)
             {
@@ -445,7 +447,7 @@ namespace Opc.Ua
             NodeId localId = nodeId.WithNamespaceIndex((ushort)nsIndex);
 
             // look up node.
-            if (m_nodes.TryGetValue(localId, out Node node))
+            if (m_nodes.TryGetValue(localId, out Node? node))
             {
                 return node;
             }
@@ -465,7 +467,7 @@ namespace Opc.Ua
         /// </remarks>
         public Node Copy(Node nodeToImport, NamespaceTable namespaceUris, StringTable serverUris)
         {
-            var node = Node.Copy(nodeToImport);
+            var node = Node.Copy(nodeToImport)!;
 
             node.NodeId = Translate(nodeToImport.NodeId, namespaceUris, m_namespaceUris);
             node.BrowseName = Translate(nodeToImport.BrowseName, namespaceUris, m_namespaceUris);
@@ -688,7 +690,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    m_namespaceUris = new NamespaceTable(value.ToArray());
+                    m_namespaceUris = new NamespaceTable(value.ToArray()!);
                 }
             }
         }
@@ -708,7 +710,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    m_serverUris = new StringTable(value.ToArray());
+                    m_serverUris = new StringTable(value.ToArray()!);
                 }
             }
         }
@@ -763,13 +765,13 @@ namespace Opc.Ua
 
             if (nodeId.NamespaceIndex > 0)
             {
-                string uri = sourceNamespaceUris.GetString(nodeId.NamespaceIndex);
+                string? uri = sourceNamespaceUris.GetString(nodeId.NamespaceIndex);
 
-                int index = targetNamespaceUris.GetIndex(uri);
+                int index = targetNamespaceUris.GetIndex(uri!);
 
                 if (index == -1)
                 {
-                    index = targetNamespaceUris.Append(uri);
+                    index = targetNamespaceUris.Append(uri!);
                 }
 
                 namespaceIndex = (ushort)index;
@@ -811,7 +813,7 @@ namespace Opc.Ua
 
             if (qname.NamespaceIndex > 0)
             {
-                string uri = sourceNamespaceUris.GetString(qname.NamespaceIndex);
+                string? uri = sourceNamespaceUris.GetString(qname.NamespaceIndex);
 
                 if (uri == null)
                 {
@@ -882,7 +884,7 @@ namespace Opc.Ua
                 return Translate((NodeId)nodeId, targetNamespaceUris, sourceNamespaceUris);
             }
 
-            string namespaceUri = nodeId.NamespaceUri;
+            string? namespaceUri = nodeId.NamespaceUri;
 
             if (nodeId.ServerIndex > 0)
             {
@@ -891,13 +893,13 @@ namespace Opc.Ua
                     namespaceUri = sourceNamespaceUris.GetString(nodeId.NamespaceIndex);
                 }
 
-                string serverUri = sourceServerUris.GetString(nodeId.ServerIndex);
+                string? serverUri = sourceServerUris.GetString(nodeId.ServerIndex);
 
-                int index = targetServerUris.GetIndex(serverUri);
+                int index = targetServerUris.GetIndex(serverUri!);
 
                 if (index == -1)
                 {
-                    index = targetServerUris.Append(serverUri);
+                    index = targetServerUris.Append(serverUri!);
                 }
 
                 return new ExpandedNodeId(
@@ -948,6 +950,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(sourceNamespaceUris));
             }
 
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
             if (extensionObject.TryGetEncodeable(out Argument argument))
             {
                 argument.DataType = Translate(
@@ -956,6 +960,8 @@ namespace Opc.Ua
                     targetNamespaceUris);
                 return new ExtensionObject(argument);
             }
+#pragma warning restore CS8602
+#pragma warning restore CS8600
 
             return extensionObject;
         }
