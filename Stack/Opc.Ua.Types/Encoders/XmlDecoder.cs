@@ -305,7 +305,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
+        public void SetMappingTables(NamespaceTable? namespaceUris, StringTable? serverUris)
         {
             m_namespaceMappings = null;
 

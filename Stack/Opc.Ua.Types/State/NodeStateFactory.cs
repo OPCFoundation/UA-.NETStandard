@@ -119,7 +119,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public NodeState CreateInstance(
             ISystemContext context,
-            NodeState parent,
+            NodeState? parent,
             NodeClass nodeClass,
             QualifiedName browseName,
             NodeId referenceTypeId,

@@ -197,7 +197,7 @@ namespace Opc.Ua
                 }
             }
 
-            List<BaseInstanceState> children;
+            List<BaseInstanceState>? children;
             lock (m_childrenLock)
             {
                 children = m_children != null ? [.. m_children] : null;
@@ -227,7 +227,7 @@ namespace Opc.Ua
         /// </summary>
         protected object CloneChildren(NodeState clone)
         {
-            List<BaseInstanceState> children;
+            List<BaseInstanceState>? children;
 
             lock (m_childrenLock)
             {
@@ -240,7 +240,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < children.Count; ii++)
                 {
-                    BaseInstanceState child = CoreUtils.Clone(children[ii]);
+                    BaseInstanceState child = CoreUtils.Clone(children[ii])!;
                     clone.m_children.Add(child);
                 }
             }
@@ -356,7 +356,7 @@ namespace Opc.Ua
             for (int ii = 0; ii < children.Count; ii++)
             {
                 BaseInstanceState sourceChild = children[ii];
-                BaseInstanceState child = CreateChild(context, sourceChild.BrowseName);
+                BaseInstanceState? child = CreateChild(context, sourceChild.BrowseName);
 
                 if (child == null)
                 {
@@ -1222,7 +1222,7 @@ namespace Opc.Ua
         protected BaseInstanceState UpdateChild(ISystemContext context, BinaryDecoder decoder)
         {
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
-            string symbolicName = null;
+            string? symbolicName = null;
             QualifiedName browseName = default;
 
             NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>(null!);
@@ -1246,7 +1246,7 @@ namespace Opc.Ua
             }
 
             // check for children defined by the type.
-            BaseInstanceState child = CreateChild(context, browseName);
+            BaseInstanceState? child = CreateChild(context, browseName);
 
             if (child != null)
             {
@@ -1295,7 +1295,7 @@ namespace Opc.Ua
         public static NodeState LoadNode(ISystemContext context, BinaryDecoder decoder)
         {
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
-            string symbolicName = null;
+            string? symbolicName = null;
             QualifiedName browseName = default;
 
             NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>(null!);
@@ -1809,10 +1809,10 @@ namespace Opc.Ua
         /// Recursively updates any children of the child.
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
-        protected BaseInstanceState UpdateChild(ISystemContext context, XmlDecoder decoder)
+        protected BaseInstanceState? UpdateChild(ISystemContext context, XmlDecoder decoder)
         {
             // get the name of the child element.
-            XmlQualifiedName childName = decoder.Peek(XmlNodeType.Element);
+            XmlQualifiedName? childName = decoder.Peek(XmlNodeType.Element);
 
             if (childName == null)
             {
@@ -1843,7 +1843,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
 
             // check for children defined by the type.
-            BaseInstanceState child = CreateChild(context, browseName);
+            BaseInstanceState? child = CreateChild(context, browseName);
 
             if (child != null)
             {
@@ -1885,10 +1885,10 @@ namespace Opc.Ua
         /// <param name="decoder">The decoder.</param>
         /// <returns>The new node.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        public static NodeState LoadNode(ISystemContext context, XmlDecoder decoder)
+        public static NodeState? LoadNode(ISystemContext context, XmlDecoder decoder)
         {
             // get the name of the child element.
-            XmlQualifiedName childName = decoder.Peek(XmlNodeType.Element);
+            XmlQualifiedName? childName = decoder.Peek(XmlNodeType.Element);
 
             if (childName == null)
             {
@@ -2403,14 +2403,14 @@ namespace Opc.Ua
 
             while (true)
             {
-                instance = root as BaseInstanceState;
+                BaseInstanceState? next = root as BaseInstanceState;
 
-                if (instance == null || instance.Parent == null)
+                if (next == null || next.Parent == null)
                 {
                     return root;
                 }
 
-                root = instance.Parent;
+                root = next.Parent;
             }
         }
 
@@ -2463,7 +2463,7 @@ namespace Opc.Ua
                     children[ii].SetAreEventsMonitored(context, areEventsMonitored, true);
                 }
 
-                List<Notifier> notifiers;
+                List<Notifier>? notifiers;
 
                 lock (m_notifiersLock)
                 {
@@ -2496,7 +2496,7 @@ namespace Opc.Ua
         {
             OnReportEvent?.Invoke(context, this, e);
 
-            List<Notifier> notifiers;
+            List<Notifier>? notifiers;
 
             lock (m_notifiersLock)
             {
@@ -2545,7 +2545,7 @@ namespace Opc.Ua
                 m_notifiers ??= [];
 
                 // check for existing reference.
-                Notifier entry = null;
+                Notifier? entry = null;
 
                 for (int ii = 0; ii < m_notifiers.Count; ii++)
                 {
@@ -2580,7 +2580,7 @@ namespace Opc.Ua
             NodeState target,
             bool bidirectional)
         {
-            NodeState nodeState = null;
+            NodeState? nodeState = null;
 
             lock (m_notifiersLock)
             {
@@ -2679,7 +2679,7 @@ namespace Opc.Ua
                     children[ii].ConditionRefresh(context, events, true);
                 }
 
-                List<Notifier> notifiers;
+                List<Notifier>? notifiers;
 
                 lock (m_notifiersLock)
                 {
@@ -3348,7 +3348,7 @@ namespace Opc.Ua
                 }
             }
 
-            List<Notifier> notifiers;
+            List<Notifier>? notifiers;
 
             lock (m_notifiersLock)
             {
@@ -4296,7 +4296,7 @@ namespace Opc.Ua
         /// This method assumes the symbolicPath consists of symbolic names separated by a slash ('/').
         /// Leading and trailing slashes are ignored.
         /// </remarks>
-        public virtual BaseInstanceState FindChildBySymbolicName(
+        public virtual BaseInstanceState? FindChildBySymbolicName(
             ISystemContext context,
             string symbolicPath)
         {
@@ -4375,7 +4375,7 @@ namespace Opc.Ua
         /// <param name="context">The context to use.</param>
         /// <param name="browseName">The browse name.</param>
         /// <returns>The target if found. Null otherwise.</returns>
-        public virtual BaseInstanceState FindChild(ISystemContext context, QualifiedName browseName)
+        public virtual BaseInstanceState? FindChild(ISystemContext context, QualifiedName browseName)
         {
             return FindChild(context, browseName, false, null);
         }
@@ -4388,7 +4388,7 @@ namespace Opc.Ua
         /// <param name="index">The current position in the browse path.</param>
         /// <returns>The target if found. Null otherwise.</returns>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public virtual BaseInstanceState FindChild(
+        public virtual BaseInstanceState? FindChild(
             ISystemContext context,
             ArrayOf<QualifiedName> browsePath,
             int index)
@@ -4398,7 +4398,7 @@ namespace Opc.Ua
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
 
-            BaseInstanceState instance = FindChild(context, browsePath[index], false, null);
+            BaseInstanceState? instance = FindChild(context, browsePath[index], false, null);
 
             if (instance != null)
             {
@@ -4419,7 +4419,7 @@ namespace Opc.Ua
         /// <param name="context">The context to use.</param>
         /// <param name="browseName">The browse name.</param>
         /// <returns>The child if available. Null otherwise.</returns>
-        public virtual BaseInstanceState CreateChild(
+        public virtual BaseInstanceState? CreateChild(
             ISystemContext context,
             QualifiedName browseName)
         {
@@ -4763,7 +4763,7 @@ namespace Opc.Ua
             }
 
             // find the child at the current level.
-            BaseInstanceState child = FindChild(context, relativePath[index], false, null);
+            BaseInstanceState? child = FindChild(context, relativePath[index], false, null);
 
             if (child == null)
             {
@@ -5095,7 +5095,7 @@ namespace Opc.Ua
         /// instance of the required type (for narrowing conversation to the type
         /// definition</param>
         /// <returns>The child.</returns>
-        protected virtual BaseInstanceState FindChild(
+        protected virtual BaseInstanceState? FindChild(
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
@@ -5149,7 +5149,7 @@ namespace Opc.Ua
             /// <summary>
             /// The node state.
             /// </summary>
-            public NodeState? Node;
+            public NodeState Node = null!;
 
             /// <summary>
             /// The reference type id.

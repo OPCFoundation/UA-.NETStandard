@@ -133,7 +133,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="namespaceUris">The namespaces URIs referenced by the data being decoded.</param>
         /// <param name="serverUris">The server URIs referenced by the data being decoded.</param>
-        public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
+        public void SetMappingTables(NamespaceTable? namespaceUris, StringTable? serverUris)
         {
             m_namespaceMappings = null;
 
