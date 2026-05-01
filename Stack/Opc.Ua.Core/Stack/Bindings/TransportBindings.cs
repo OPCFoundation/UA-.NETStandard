@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 
 namespace Opc.Ua.Bindings
@@ -68,7 +70,7 @@ namespace Opc.Ua.Bindings
         /// <param name="uriScheme"></param>
         /// <param name="telemetry"></param>
         /// <returns></returns>
-        ITransportChannel Create(string uriScheme, ITelemetryContext telemetry);
+        ITransportChannel? Create(string uriScheme, ITelemetryContext telemetry);
     }
 
     /// <summary>
@@ -82,7 +84,7 @@ namespace Opc.Ua.Bindings
         /// <param name="uriScheme"></param>
         /// <param name="telemetry"></param>
         /// <returns></returns>
-        ITransportListener Create(string uriScheme, ITelemetryContext telemetry);
+        ITransportListener? Create(string uriScheme, ITelemetryContext telemetry);
     }
 
     /// <summary>
@@ -113,9 +115,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="uriScheme">The uri scheme of the transport.</param>
         /// <param name="telemetry">Telemetry context to use</param>
-        public ITransportChannel Create(string uriScheme, ITelemetryContext telemetry)
+        public ITransportChannel? Create(string uriScheme, ITelemetryContext telemetry)
         {
-            ITransportChannelFactory binding = GetBinding(uriScheme, telemetry);
+            ITransportChannelFactory? binding = GetBinding(uriScheme, telemetry);
             return binding?.Create(telemetry);
         }
     }
@@ -148,9 +150,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="uriScheme">The uri scheme of the transport.</param>
         /// <param name="telemetry">Telemetry context to use</param>
-        public ITransportListener Create(string uriScheme, ITelemetryContext telemetry)
+        public ITransportListener? Create(string uriScheme, ITelemetryContext telemetry)
         {
-            ITransportListenerFactory binding = GetBinding(uriScheme, telemetry);
+            ITransportListenerFactory? binding = GetBinding(uriScheme, telemetry);
             return binding?.Create(telemetry);
         }
     }

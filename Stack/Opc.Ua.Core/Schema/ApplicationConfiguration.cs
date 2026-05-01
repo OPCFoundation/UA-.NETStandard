@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
@@ -118,19 +120,19 @@ namespace Opc.Ua
         /// A descriptive name for the application (not necessarily unique).
         /// </summary>
         [DataTypeField(Order = 0, IsRequired = true)]
-        public string ApplicationName { get; set; }
+        public string? ApplicationName { get; set; }
 
         /// <summary>
         /// A unique identifier for the application instance.
         /// </summary>
         [DataTypeField(Order = 1, IsRequired = true)]
-        public string ApplicationUri { get; set; }
+        public string? ApplicationUri { get; set; }
 
         /// <summary>
         /// A unique identifier for the product.
         /// </summary>
         [DataTypeField(Order = 2)]
-        public string ProductUri { get; set; }
+        public string? ProductUri { get; set; }
 
         /// <summary>
         /// The type of application.
@@ -162,25 +164,25 @@ namespace Opc.Ua
         /// The quotas that are used at the transport layer.
         /// </summary>
         [DataTypeField(Order = 6, StructureHandling = StructureHandling.Inline)]
-        public TransportQuotas TransportQuotas { get; set; }
+        public TransportQuotas? TransportQuotas { get; set; }
 
         /// <summary>
         /// Additional configuration for server applications.
         /// </summary>
         [DataTypeField(Order = 7, StructureHandling = StructureHandling.Inline)]
-        public ServerConfiguration ServerConfiguration { get; set; }
+        public ServerConfiguration? ServerConfiguration { get; set; }
 
         /// <summary>
         /// Additional configuration for client applications.
         /// </summary>
         [DataTypeField(Order = 8, StructureHandling = StructureHandling.Inline)]
-        public ClientConfiguration ClientConfiguration { get; set; }
+        public ClientConfiguration? ClientConfiguration { get; set; }
 
         /// <summary>
         /// Additional configuration of the discovery server.
         /// </summary>
         [DataTypeField(Order = 9, StructureHandling = StructureHandling.Inline)]
-        public DiscoveryServerConfiguration DiscoveryServerConfiguration { get; set; }
+        public DiscoveryServerConfiguration? DiscoveryServerConfiguration { get; set; }
 
         /// <summary>
         /// A bucket to store additional application specific configuration data.
@@ -196,7 +198,7 @@ namespace Opc.Ua
         /// Configuration of the trace and information about log file
         /// </summary>
         [DataTypeField(Order = 11, StructureHandling = StructureHandling.Inline)]
-        public TraceConfiguration TraceConfiguration { get; set; }
+        public TraceConfiguration? TraceConfiguration { get; set; }
 
         /// <summary>
         /// Disabling / enabling high resolution clock
@@ -204,8 +206,8 @@ namespace Opc.Ua
         [DataTypeField(Order = 12)]
         public bool DisableHiResClock { get; set; }
 
-        private readonly ITelemetryContext m_telemetry;
-        private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry = null!;
+        private readonly ILogger m_logger = null!;
         private SecurityConfiguration m_securityConfiguration;
         private ArrayOf<TransportConfiguration> m_transportConfigurations;
         private ArrayOf<XmlElement> m_extensions;
@@ -314,7 +316,7 @@ namespace Opc.Ua
         /// The output file used to log the trace information.
         /// </summary>
         [DataTypeField(Order = 0)]
-        public string OutputFilePath { get; set; }
+        public string? OutputFilePath { get; set; }
 
         /// <summary>
         /// Whether the existing log file should be deleted when the
@@ -364,14 +366,14 @@ namespace Opc.Ua
         public TransportConfiguration(string urlScheme, Type type)
         {
             UriScheme = urlScheme;
-            TypeName = type.AssemblyQualifiedName;
+            TypeName = type.AssemblyQualifiedName!;
         }
 
         /// <summary>
         /// The URL prefix used by the application (http, opc.tcp, net.tpc, etc.).
         /// </summary>
         [DataTypeField(IsRequired = true, Order = 0)]
-        public string UriScheme { get; set; }
+        public string UriScheme { get; set; } = string.Empty;
 
         /// <summary>
         /// The name of the class that defines the binding for the transport.
@@ -386,7 +388,7 @@ namespace Opc.Ua
         /// </para>
         /// </summary>
         [DataTypeField(IsRequired = true, Order = 1)]
-        public string TypeName { get; set; }
+        public string TypeName { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -439,7 +441,7 @@ namespace Opc.Ua
         /// The security policy to use.
         /// </summary>
         [DataTypeField(Order = 1)]
-        public string SecurityPolicyUri { get; set; }
+        public string SecurityPolicyUri { get; set; } = SecurityPolicies.Basic256Sha256;
     }
 
     /// <summary>
@@ -451,7 +453,12 @@ namespace Opc.Ua
         /// <summary>
         /// The default constructor.
         /// </summary>
+        // CertificatePasswordProvider is set externally by callers via LoadAsync after the
+        // constructor returns, so the property remains uninitialized here. The partial declaration
+        // lives in Security/Certificates/SecurityConfiguration.cs.
+#pragma warning disable CS8618 // Non-nullable property uninitialized
         public SecurityConfiguration()
+#pragma warning restore CS8618
         {
             m_applicationCertificates = [];
             m_trustedIssuerCertificates = new CertificateTrustList();
@@ -466,7 +473,7 @@ namespace Opc.Ua
         /// This certificate must contain the application uri.
         /// For servers, URLs for each supported protocol must also be present.
         /// </summary>
-        public CertificateIdentifier ApplicationCertificate
+        public CertificateIdentifier? ApplicationCertificate
         {
             get
             {
@@ -511,7 +518,7 @@ namespace Opc.Ua
         /// certificate element. It is emitted only when the configuration was marked deprecated.
         /// </summary>
         [DataTypeField(Order = 0, StructureHandling = StructureHandling.Inline, Name = "ApplicationCertificate")]
-        private CertificateIdentifier ApplicationCertificateLegacy
+        private CertificateIdentifier? ApplicationCertificateLegacy
         {
             get => IsDeprecatedConfiguration ? ApplicationCertificate : null;
             set
@@ -550,7 +557,7 @@ namespace Opc.Ua
                 // prefer the modern representation and clear the
                 // deprecated flag when we process the collection below.
 
-                var newCertificates = new List<CertificateIdentifier>(value.ToArray());
+                var newCertificates = new List<CertificateIdentifier>(value.ToArray() ?? []);
 
                 // Remove unsupported certificate types
                 for (int i = newCertificates.Count - 1; i >= 0; i--)
@@ -574,15 +581,15 @@ namespace Opc.Ua
                         if (newCertificates[i].Certificate != null && newCertificates[j].Certificate != null)
                         {
                             // Compare by actual certificate thumbprint
-                            isDuplicate = newCertificates[i].Certificate.Thumbprint.Equals(
-                                newCertificates[j].Certificate.Thumbprint,
+                            isDuplicate = newCertificates[i].Certificate!.Thumbprint.Equals(
+                                newCertificates[j].Certificate!.Thumbprint,
                                 StringComparison.OrdinalIgnoreCase);
                         }
                         // If certificates aren't loaded yet, compare by explicit thumbprint configuration
                         else if (!string.IsNullOrEmpty(newCertificates[i].Thumbprint) &&
                             !string.IsNullOrEmpty(newCertificates[j].Thumbprint))
                         {
-                            isDuplicate = newCertificates[i].Thumbprint.Equals(
+                            isDuplicate = newCertificates[i].Thumbprint!.Equals(
                                 newCertificates[j].Thumbprint,
                                 StringComparison.OrdinalIgnoreCase);
                         }
@@ -634,7 +641,7 @@ namespace Opc.Ua
         /// by the administrator.
         /// </summary>
         [DataTypeField(Order = 5, StructureHandling = StructureHandling.Inline)]
-        public CertificateStoreIdentifier RejectedCertificateStore { get; set; }
+        public CertificateStoreIdentifier? RejectedCertificateStore { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating how many certificates are kept
@@ -669,7 +676,7 @@ namespace Opc.Ua
         /// users roles.
         /// </summary>
         [DataTypeField(Order = 8)]
-        public string UserRoleDirectory { get; set; }
+        public string? UserRoleDirectory { get; set; }
 
         /// <summary>
         /// This flag can be set to false by servers that accept SHA-1
@@ -727,7 +734,7 @@ namespace Opc.Ua
         /// The store containing additional user issuer certificates.
         /// </summary>
         [DataTypeField(Order = 15, StructureHandling = StructureHandling.Inline)]
-        public CertificateTrustList UserIssuerCertificates
+        public CertificateTrustList? UserIssuerCertificates
         {
             get => m_userIssuerCertificates;
             set => m_userIssuerCertificates = value;
@@ -737,7 +744,7 @@ namespace Opc.Ua
         /// The store containing trusted user certificates.
         /// </summary>
         [DataTypeField(Order = 16, StructureHandling = StructureHandling.Inline)]
-        public CertificateTrustList TrustedUserCertificates
+        public CertificateTrustList? TrustedUserCertificates
         {
             get => m_trustedUserCertificates;
             set => m_trustedUserCertificates = value;
@@ -747,7 +754,7 @@ namespace Opc.Ua
         /// The store containing additional Https issuer certificates.
         /// </summary>
         [DataTypeField(Order = 17, StructureHandling = StructureHandling.Inline)]
-        public CertificateTrustList HttpsIssuerCertificates
+        public CertificateTrustList? HttpsIssuerCertificates
         {
             get => m_httpsIssuerCertificates;
             set => m_httpsIssuerCertificates = value;
@@ -757,7 +764,7 @@ namespace Opc.Ua
         /// The store containing trusted Https certificates.
         /// </summary>
         [DataTypeField(Order = 18, StructureHandling = StructureHandling.Inline)]
-        public CertificateTrustList TrustedHttpsCertificates
+        public CertificateTrustList? TrustedHttpsCertificates
         {
             get => m_trustedHttpsCertificates;
             set => m_trustedHttpsCertificates = value;
@@ -783,10 +790,10 @@ namespace Opc.Ua
         private ArrayOf<CertificateIdentifier> m_applicationCertificates;
         private CertificateTrustList m_trustedIssuerCertificates;
         private CertificateTrustList m_trustedPeerCertificates;
-        private CertificateTrustList m_httpsIssuerCertificates;
-        private CertificateTrustList m_trustedHttpsCertificates;
-        private CertificateTrustList m_userIssuerCertificates;
-        private CertificateTrustList m_trustedUserCertificates;
+        private CertificateTrustList? m_httpsIssuerCertificates;
+        private CertificateTrustList? m_trustedHttpsCertificates;
+        private CertificateTrustList? m_userIssuerCertificates;
+        private CertificateTrustList? m_trustedUserCertificates;
     }
 
     /// <summary>
@@ -1152,7 +1159,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The registration endpoint.</value>
         [DataTypeField(Order = 19, StructureHandling = StructureHandling.Inline)]
-        public EndpointDescription RegistrationEndpoint { get; set; }
+        public EndpointDescription? RegistrationEndpoint { get; set; }
 
         /// <summary>
         /// The maximum time between registration attempts (in milliseconds).
@@ -1166,7 +1173,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The path to the file containing nodes persisted by the core node manager.</value>
         [DataTypeField(Order = 21)]
-        public string NodeManagerSaveFile { get; set; }
+        public string? NodeManagerSaveFile { get; set; }
 
         /// <summary>
         /// The minimum lifetime for a subscription (in milliseconds).
@@ -1254,7 +1261,7 @@ namespace Opc.Ua
         /// Gets or sets reverse connect server configuration.
         /// </summary>
         [DataTypeField(Order = 32, StructureHandling = StructureHandling.Inline)]
-        public ReverseConnectServerConfiguration ReverseConnect { get; set; }
+        public ReverseConnectServerConfiguration? ReverseConnect { get; set; }
 
         /// <summary>
         /// Gets or sets the operation limits of the OPC UA Server.
@@ -1464,7 +1471,7 @@ namespace Opc.Ua
         /// The endpoint Url of the reverse connect client endpoint.
         /// </summary>
         [DataTypeField(Order = 0)]
-        public string EndpointUrl { get; set; }
+        public string? EndpointUrl { get; set; }
 
         /// <summary>
         /// The timeout to wait for a response to a reverse connection.
@@ -1539,7 +1546,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The path to the file containing the cached endpoints.</value>
         [DataTypeField(Order = 3)]
-        public string EndpointCacheFilePath { get; set; }
+        public string EndpointCacheFilePath { get; set; } = string.Empty;
 
         /// <summary>
         /// The minimum lifetime for a subscription (in milliseconds).
@@ -1552,7 +1559,7 @@ namespace Opc.Ua
         /// The reverse connect Client configuration.
         /// </summary>
         [DataTypeField(Order = 5, StructureHandling = StructureHandling.Inline)]
-        public ReverseConnectClientConfiguration ReverseConnect { get; set; }
+        public ReverseConnectClientConfiguration? ReverseConnect { get; set; }
 
         /// <summary>
         /// Gets or sets the default operation limits of the OPC UA client.
@@ -1604,7 +1611,7 @@ namespace Opc.Ua
         /// The endpoint Url of a reverse connect client.
         /// </summary>
         [DataTypeField(Order = 0)]
-        public string EndpointUrl { get; set; }
+        public string? EndpointUrl { get; set; }
     }
 
     /// <summary>
@@ -1634,7 +1641,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The discovery server cache file.</value>
         [DataTypeField(Order = 1)]
-        public string DiscoveryServerCacheFile { get; set; }
+        public string? DiscoveryServerCacheFile { get; set; }
 
         /// <summary>
         /// Gets or sets the server registrations associated with the discovery server.
@@ -1663,7 +1670,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The application uri.</value>
         [DataTypeField(Order = 0)]
-        public string ApplicationUri { get; set; }
+        public string? ApplicationUri { get; set; }
 
         /// <summary>
         /// Gets or sets the alternate discovery urls.
@@ -1699,7 +1706,7 @@ namespace Opc.Ua
         /// If the StoreName is not empty, the CertificateStoreType.X509Store is returned, otherwise the StoreType is returned.
         /// </value>
         [DataTypeField(Order = 0)]
-        public string StoreType { get; set; }
+        public string? StoreType { get; set; }
 
         /// <summary>
         /// The path that identifies the certificate store.
@@ -1710,7 +1717,7 @@ namespace Opc.Ua
         /// If the StoreName is empty, the m_storePath is returned.
         /// </value>
         [DataTypeField(Order = 1)]
-        public string StorePath
+        public string? StorePath
         {
             get => m_storePath;
             set
@@ -1719,7 +1726,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(m_storePath) && string.IsNullOrEmpty(StoreType))
                 {
-                    StoreType = DetermineStoreType(m_storePath);
+                    StoreType = DetermineStoreType(m_storePath!);
                 }
             }
         }
@@ -1734,7 +1741,7 @@ namespace Opc.Ua
             set => ValidationOptions = (CertificateValidationOptions)value;
         }
 
-        private string m_storePath;
+        private string? m_storePath;
     }
 
     [DataType(Namespace = Namespaces.OpcUaConfig)]
@@ -1806,14 +1813,14 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The type of the store - defined in the <see cref="CertificateStoreType"/>.</value>
         [DataTypeField(Order = 0)]
-        public string StoreType { get; set; }
+        public string? StoreType { get; set; }
 
         /// <summary>
         /// The path that identifies the certificate store.
         /// </summary>
         /// <value>The store path in the form <c>StoreName\\Store Location</c> .</value>
         [DataTypeField(Order = 1)]
-        public string StorePath
+        public string? StorePath
         {
             get => m_storePath;
             set
@@ -1822,7 +1829,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(m_storePath) && string.IsNullOrEmpty(StoreType))
                 {
-                    StoreType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
+                    StoreType = CertificateStoreIdentifier.DetermineStoreType(m_storePath!);
                 }
             }
         }
@@ -1879,7 +1886,7 @@ namespace Opc.Ua
         /// <seealso cref="System.Security.Cryptography.AsnEncodedData"/>
         /// <exception cref="ArgumentException"></exception>
         [DataTypeField(Order = 2)]
-        public string SubjectName
+        public string? SubjectName
         {
             get
             {
@@ -1911,7 +1918,7 @@ namespace Opc.Ua
         /// <seealso cref="X509Certificate2"/>
         /// <exception cref="ArgumentException"></exception>
         [DataTypeField(Order = 3)]
-        public string Thumbprint
+        public string? Thumbprint
         {
             get
             {
@@ -1940,7 +1947,7 @@ namespace Opc.Ua
         /// Gets the DER encoded certificate data or create embedded in this instance certificate using the DER encoded certificate data.
         /// </summary>
         /// <value>A byte array containing the X.509 certificate data.</value>
-        public byte[] RawData
+        public byte[]? RawData
         {
             get
             {
@@ -1989,16 +1996,16 @@ namespace Opc.Ua
         /// </summary>
         /// <value>Rsa, RsaMin, RsaSha256, NistP256, NistP384, BrainpoolP256r1, BrainpoolP384r1, Curve25519, Curve448</value>
         [DataTypeField(Order = 6)]
-        public string CertificateTypeString
+        public string? CertificateTypeString
         {
             get => EncodeCertificateType(CertificateType);
             set => CertificateType = DecodeCertificateType(value);
         }
 
-        private string m_storePath;
-        private string m_subjectName;
-        private string m_thumbprint;
-        private X509Certificate2 m_certificate;
+        private string? m_storePath;
+        private string? m_subjectName;
+        private string? m_thumbprint;
+        private X509Certificate2? m_certificate;
     }
 
     /// <summary>
@@ -2062,16 +2069,16 @@ namespace Opc.Ua
         /// <summary>
         /// The URL of the UA TCP proxy server.
         /// </summary>
-        public Uri TcpProxyUrl { get; set; }
+        public Uri? TcpProxyUrl { get; set; }
 
         [DataTypeField(Order = 2, Name = "TcpProxyUrl")]
-        private string TcpProxyUrlString
+        private string? TcpProxyUrlString
         {
             get => TcpProxyUrl?.ToString();
             set => TcpProxyUrl = value != null ? new Uri(value) : null;
         }
 
-        private string m_filepath;
+        private string? m_filepath;
         private ArrayOf<string> m_knownHosts;
         private ArrayOf<string> m_discoveryUrls;
         private List<ConfiguredEndpoint> m_endpoints;
@@ -2106,7 +2113,7 @@ namespace Opc.Ua
         /// The configuration to use when connecting to an endpoint.
         /// </summary>
         [DataTypeField(Order = 1, StructureHandling = StructureHandling.Inline)]
-        public EndpointConfiguration Configuration
+        public EndpointConfiguration? Configuration
         {
             get => m_configuration;
             set
@@ -2163,13 +2170,13 @@ namespace Opc.Ua
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
         [DataTypeField(Order = 5, StructureHandling = StructureHandling.Inline)]
-        public UserIdentityToken UserIdentity { get; set; }
+        public UserIdentityToken? UserIdentity { get; set; }
 
         /// <summary>
         /// The reverse connect information.
         /// </summary>
         [DataTypeField(Order = 6, StructureHandling = StructureHandling.Inline)]
-        public ReverseConnectEndpoint ReverseConnect { get; set; }
+        public ReverseConnectEndpoint? ReverseConnect { get; set; }
 
         /// <summary>
         /// A bucket to store additional application specific configuration data.
@@ -2181,9 +2188,9 @@ namespace Opc.Ua
             set => m_extensions = value;
         }
 
-        private ConfiguredEndpointCollection m_collection;
+        private ConfiguredEndpointCollection? m_collection;
         private EndpointDescription m_description;
-        private EndpointConfiguration m_configuration;
+        private EndpointConfiguration? m_configuration;
         private ArrayOf<XmlElement> m_extensions;
     }
 
@@ -2235,13 +2242,13 @@ namespace Opc.Ua
         /// The server Uri of the endpoint.
         /// </summary>
         [DataTypeField(Order = 2)]
-        public string ServerUri { get; set; }
+        public string? ServerUri { get; set; }
 
         /// <summary>
         /// The thumbprint of the certificate which contains
         /// the server Uri.
         /// </summary>
         [DataTypeField(Order = 3)]
-        public string Thumbprint { get; set; }
+        public string? Thumbprint { get; set; }
     }
 }

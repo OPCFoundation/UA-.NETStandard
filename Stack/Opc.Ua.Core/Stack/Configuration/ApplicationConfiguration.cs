@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -60,7 +62,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(section));
             }
 
-            XmlNode element = section.FirstChild;
+            XmlNode? element = section.FirstChild;
 
             while (element != null && typeof(XmlElement) != element.GetType())
             {
@@ -69,8 +71,8 @@ namespace Opc.Ua
 
             using var parser = new XmlParser(
                 typeof(ConfigurationLocation),
-                element.OuterXml,
-                ServiceMessageContext.CreateEmpty(null));
+                element!.OuterXml,
+                ServiceMessageContext.CreateEmpty(null!));
             return new ConfigurationLocation { FilePath = parser.ReadString("FilePath") };
         }
     }
@@ -86,7 +88,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The file path.</value>
         [DataMember(IsRequired = true, Order = 0)]
-        public string FilePath { get; set; }
+        public string? FilePath { get; set; }
     }
 
     /// <summary>
@@ -98,12 +100,12 @@ namespace Opc.Ua
         /// Gets the file that was used to load the configuration.
         /// </summary>
         /// <value>The source file path.</value>
-        public string SourceFilePath { get; private set; }
+        public string? SourceFilePath { get; private set; }
 
         /// <summary>
         /// Gets or sets the certificate validator which is configured to use.
         /// </summary>
-        public CertificateValidator CertificateValidator { get; set; }
+        public CertificateValidator? CertificateValidator { get; set; }
 
         /// <summary>
         /// Returns the domain names which the server is configured to use.
@@ -142,7 +144,7 @@ namespace Opc.Ua
             var domainNames = new List<string>();
             for (int ii = 0; ii < baseAddresses.Count; ii++)
             {
-                Uri url = Utils.ParseUri(baseAddresses[ii]);
+                Uri? url = Utils.ParseUri(baseAddresses[ii]);
 
                 if (url == null)
                 {
@@ -194,7 +196,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="factory">The private encodeable factory to use. If null, a new factory will be created.</param>
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
-        public ServiceMessageContext CreateMessageContext(IEncodeableFactory factory)
+        public ServiceMessageContext CreateMessageContext(IEncodeableFactory? factory)
         {
             var messageContext = new ServiceMessageContext(
                 m_telemetry,
@@ -242,7 +244,7 @@ namespace Opc.Ua
             string sectionName,
             ApplicationType applicationType,
             ILogger logger,
-            ITelemetryContext telemetry,
+            ITelemetryContext? telemetry,
             CancellationToken ct = default)
         {
             return LoadAsync(
@@ -288,7 +290,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
             ILogger logger,
-            ITelemetryContext telemetry,
+            ITelemetryContext? telemetry,
             CancellationToken ct = default)
         {
             string filePath = GetFilePathFromAppConfig(sectionName, logger);
@@ -317,26 +319,26 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static ApplicationConfiguration LoadWithNoValidation(
             FileInfo file,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
-            ITelemetryContext telemetry)
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? systemType,
+            ITelemetryContext? telemetry)
         {
             systemType ??= typeof(ApplicationConfiguration);
 
             using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
             try
             {
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
                 IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
-                    ServiceMessageContext.CreateEmpty(telemetry);
+                    ServiceMessageContext.CreateEmpty(telemetry!);
                 using var parser = new XmlParser(typeof(ApplicationConfiguration), stream, context);
                 ApplicationConfiguration configuration;
                 if (systemType == typeof(ApplicationConfiguration))
                 {
-                    configuration = new ApplicationConfiguration(telemetry);
+                    configuration = new ApplicationConfiguration(telemetry!);
                 }
                 else
                 {
-                    configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType, [telemetry]);
+                    configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType, [telemetry])!;
                 }
 
                 configuration.Decode(parser);
@@ -366,7 +368,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             FileInfo file,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType)
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? systemType)
         {
             return LoadAsync(file, applicationType, systemType, null);
         }
@@ -383,8 +385,8 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
-            ITelemetryContext telemetry,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? systemType,
+            ITelemetryContext? telemetry,
             CancellationToken ct = default)
         {
             return LoadAsync(file, applicationType, systemType, true, telemetry, ct: ct);
@@ -403,9 +405,9 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             FileInfo file,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? systemType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null)
+            ICertificatePasswordProvider? certificatePasswordProvider = null)
         {
             return LoadAsync(
                 file,
@@ -431,13 +433,13 @@ namespace Opc.Ua
         public static async Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? systemType,
             bool applyTraceSettings,
-            ITelemetryContext telemetry,
-            ICertificatePasswordProvider certificatePasswordProvider = null,
+            ITelemetryContext? telemetry,
+            ICertificatePasswordProvider? certificatePasswordProvider = null,
             CancellationToken ct = default)
         {
-            ApplicationConfiguration configuration = null;
+            ApplicationConfiguration? configuration = null;
 
             try
             {
@@ -460,7 +462,7 @@ namespace Opc.Ua
                     e.Message);
             }
 
-            configuration?.SourceFilePath = file.FullName;
+            configuration!.SourceFilePath = file.FullName;
 
             return configuration;
         }
@@ -478,9 +480,9 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             Stream stream,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? systemType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null)
+            ICertificatePasswordProvider? certificatePasswordProvider = null)
         {
             return LoadAsync(
                 stream,
@@ -506,10 +508,10 @@ namespace Opc.Ua
         public static async Task<ApplicationConfiguration> LoadAsync(
             Stream stream,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type systemType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? systemType,
             bool applyTraceSettings,
-            ITelemetryContext telemetry,
-            ICertificatePasswordProvider certificatePasswordProvider = null,
+            ITelemetryContext? telemetry,
+            ICertificatePasswordProvider? certificatePasswordProvider = null,
             CancellationToken ct = default)
         {
             systemType ??= typeof(ApplicationConfiguration);
@@ -517,17 +519,17 @@ namespace Opc.Ua
             ApplicationConfiguration configuration;
             try
             {
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
                 IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
-                    ServiceMessageContext.CreateEmpty(telemetry);
+                    ServiceMessageContext.CreateEmpty(telemetry!);
                 using var parser = new XmlParser(typeof(ApplicationConfiguration), stream, ctx);
                 if (systemType == typeof(ApplicationConfiguration))
                 {
-                    configuration = new ApplicationConfiguration(telemetry);
+                    configuration = new ApplicationConfiguration(telemetry!);
                 }
                 else
                 {
-                    configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType, [telemetry]);
+                    configuration = (ApplicationConfiguration)Activator.CreateInstance(systemType, [telemetry])!;
                 }
                 configuration.Decode(parser);
                 configuration.ServerConfiguration?.ValidateSecurityPolicies();
@@ -557,7 +559,7 @@ namespace Opc.Ua
                 await configuration.ValidateAsync(applicationType, ct).ConfigureAwait(false);
             }
 
-            return configuration;
+            return configuration!;
         }
 
         /// <summary>
@@ -572,7 +574,7 @@ namespace Opc.Ua
             // convert to absolute file path (expands environment strings).
             try
             {
-                string absolutePath = Utils.GetAbsoluteFilePath(
+                string? absolutePath = Utils.GetAbsoluteFilePath(
                     sectionName + ".Config.xml",
                     checkCurrentDirectory: true,
                     createAlways: false);
@@ -709,7 +711,7 @@ namespace Opc.Ua
                 ServerConfiguration.PublishingResolution = 50;
             }
 
-            await CertificateValidator.UpdateAsync(
+            await CertificateValidator!.UpdateAsync(
                 SecurityConfiguration,
                 applicationUri: null,
                 ct)
@@ -746,7 +748,7 @@ namespace Opc.Ua
                 throw new InvalidOperationException("Only valid for client configurations.");
             }
 
-            string filePath;
+            string? filePath;
             try
             {
                 filePath = Utils.GetAbsoluteFilePath(
@@ -768,10 +770,10 @@ namespace Opc.Ua
 
                 if (!Utils.IsPathRooted(filePath))
                 {
-                    var sourceFile = new FileInfo(SourceFilePath);
+                    var sourceFile = new FileInfo(SourceFilePath!);
                     filePath = Utils.Format(
                         "{0}{1}{2}",
-                        sourceFile.DirectoryName,
+                        sourceFile.DirectoryName!,
                         Path.DirectorySeparatorChar,
                         filePath);
                 }
@@ -829,7 +831,7 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (required).</param>
         /// <param name="decoderFunc">A function that reads the value from an <see cref="IDecoder"/>.</param>
         /// <returns>The extension if found. Default otherwise.</returns>
-        public T ParseExtension<T>(XmlQualifiedName elementName, Func<IDecoder, T> decoderFunc)
+        public T? ParseExtension<T>(XmlQualifiedName elementName, Func<IDecoder, T> decoderFunc)
         {
             return Utils.ParseExtension(m_extensions, elementName, m_telemetry, decoderFunc);
         }
@@ -852,7 +854,7 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension (must implement IEncodeable).</typeparam>
         /// <param name="elementName">Name of the element (null to derive from type).</param>
         /// <returns>The extension if found. Default otherwise.</returns>
-        public T ParseExtension<T>(XmlQualifiedName elementName = null)
+        public T? ParseExtension<T>(XmlQualifiedName? elementName = null)
             where T : IEncodeable, new()
         {
             return Utils.ParseExtension<T>(m_extensions, elementName, m_telemetry);
@@ -864,7 +866,7 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension (must implement IEncodeable).</typeparam>
         /// <param name="elementName">Name of the element (null to derive from type).</param>
         /// <param name="value">The value to encode.</param>
-        public void UpdateExtension<T>(XmlQualifiedName elementName, T value)
+        public void UpdateExtension<T>(XmlQualifiedName? elementName, T value)
             where T : IEncodeable
         {
             Utils.UpdateExtension(ref m_extensions, elementName, value, m_telemetry);

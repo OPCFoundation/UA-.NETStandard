@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
 #define STREAM_WITH_SPAN_SUPPORT
 #endif
@@ -108,7 +110,7 @@ namespace Opc.Ua.Bindings
                             "ArraySegmentStream.Dispose");
                     }
                     m_buffers.Clear();
-                    m_buffers = null;
+                    m_buffers = null!;
                 }
                 m_bufferManager = null;
             }
@@ -126,9 +128,9 @@ namespace Opc.Ua.Bindings
 
             for (int ii = 0; ii < m_buffers.Count; ii++)
             {
-                m_bufferManager.TransferBuffer(m_buffers[ii].Array, owner);
+                m_bufferManager?.TransferBuffer(m_buffers[ii].Array, owner);
                 buffers.Add(new ArraySegment<byte>(
-                    m_buffers[ii].Array,
+                    m_buffers[ii].Array!,
                     m_buffers[ii].Offset,
                     GetBufferCount(ii)));
             }
@@ -151,22 +153,22 @@ namespace Opc.Ua.Bindings
             if (m_buffers.Count == 0)
             {
                 return new BufferSequence(
-                    m_bufferManager,
+                    m_bufferManager!,
                     owner,
-                    null,
+                    null!,
                     ReadOnlySequence<byte>.Empty);
             }
 
             int endIndex = GetBufferCount(0);
-            var firstSegment = new BufferSegment(m_buffers[0].Array, m_buffers[0].Offset, endIndex);
-            m_bufferManager.TransferBuffer(m_buffers[0].Array, owner);
+            var firstSegment = new BufferSegment(m_buffers[0].Array!, m_buffers[0].Offset, endIndex);
+            m_bufferManager?.TransferBuffer(m_buffers[0].Array, owner);
             BufferSegment nextSegment = firstSegment;
             for (int ii = 1; ii < m_buffers.Count; ii++)
             {
-                m_bufferManager.TransferBuffer(m_buffers[ii].Array, owner);
+                m_bufferManager?.TransferBuffer(m_buffers[ii].Array, owner);
                 endIndex = GetBufferCount(ii);
                 nextSegment = nextSegment.Append(
-                    m_buffers[ii].Array,
+                    m_buffers[ii].Array!,
                     m_buffers[ii].Offset,
                     endIndex);
             }
@@ -175,7 +177,7 @@ namespace Opc.Ua.Bindings
 
             ClearBuffers();
 
-            return new BufferSequence(m_bufferManager, owner, firstSegment, sequence);
+            return new BufferSequence(m_bufferManager!, owner, firstSegment, sequence);
         }
 
         /// <inheritdoc/>
@@ -222,7 +224,7 @@ namespace Opc.Ua.Bindings
 #if STREAM_WITH_SPAN_SUPPORT
                     return m_currentBuffer[m_currentPosition++];
 #else
-                    return m_currentBuffer.Array[m_currentBuffer.Offset + m_currentPosition++];
+                    return m_currentBuffer.Array![m_currentBuffer.Offset + m_currentPosition++];
 #endif
                 }
 
@@ -302,7 +304,7 @@ namespace Opc.Ua.Bindings
                 if (bytesLeft > count)
                 {
                     Array.Copy(
-                        m_currentBuffer.Array,
+                        m_currentBuffer.Array!,
                         m_currentPosition + m_currentBuffer.Offset,
                         buffer,
                         offset,
@@ -314,7 +316,7 @@ namespace Opc.Ua.Bindings
 
                 // copy the bytes available and move to next buffer.
                 Array.Copy(
-                    m_currentBuffer.Array,
+                    m_currentBuffer.Array!,
                     m_currentPosition + m_currentBuffer.Offset,
                     buffer,
                     offset,
@@ -406,7 +408,7 @@ namespace Opc.Ua.Bindings
 #if STREAM_WITH_SPAN_SUPPORT
                     m_currentBuffer[m_currentPosition] = value;
 #else
-                    m_currentBuffer.Array[m_currentBuffer.Offset + m_currentPosition] = value;
+                    m_currentBuffer.Array![m_currentBuffer.Offset + m_currentPosition] = value;
 #endif
                     UpdateCurrentPosition(1);
 
@@ -479,7 +481,7 @@ namespace Opc.Ua.Bindings
                     Array.Copy(
                         buffer,
                         offset,
-                        m_currentBuffer.Array,
+                        m_currentBuffer.Array!,
                         m_currentPosition + m_currentBuffer.Offset,
                         count);
 
@@ -492,7 +494,7 @@ namespace Opc.Ua.Bindings
                 Array.Copy(
                     buffer,
                     offset,
-                    m_currentBuffer.Array,
+                    m_currentBuffer.Array!,
                     m_currentPosition + m_currentBuffer.Offset,
                     bytesLeft);
 
@@ -528,7 +530,7 @@ namespace Opc.Ua.Bindings
             for (int ii = 0; ii < m_buffers.Count; ii++)
             {
                 int length = GetBufferCount(ii);
-                Array.Copy(m_buffers[ii].Array, m_buffers[ii].Offset, buffer, offset, length);
+                Array.Copy(m_buffers[ii].Array!, m_buffers[ii].Offset, buffer, offset, length);
                 offset += length;
             }
 
@@ -660,7 +662,7 @@ namespace Opc.Ua.Bindings
         private ArraySegment<byte> m_currentBuffer;
         private int m_currentPosition;
         private BufferCollection m_buffers;
-        private BufferManager m_bufferManager;
+        private BufferManager? m_bufferManager;
         private readonly int m_start;
         private readonly int m_count;
         private readonly int m_bufferSize;

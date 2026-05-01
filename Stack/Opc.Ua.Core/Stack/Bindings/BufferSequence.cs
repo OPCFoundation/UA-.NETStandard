@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Buffers;
 
@@ -55,11 +57,11 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void Dispose()
         {
-            BufferSegment segment = m_firstSegment;
+            BufferSegment? segment = m_firstSegment;
             while (segment != null)
             {
                 m_bufferManager.ReturnBuffer(segment.Array(), m_owner);
-                segment = (BufferSegment)segment.Next;
+                segment = (BufferSegment?)segment.Next;
             }
             Sequence = ReadOnlySequence<byte>.Empty;
             m_firstSegment = null;
@@ -72,7 +74,7 @@ namespace Opc.Ua.Bindings
         public ReadOnlySequence<byte> Sequence { get; private set; }
 
         private readonly BufferManager m_bufferManager;
-        private BufferSegment m_firstSegment;
+        private BufferSegment? m_firstSegment;
         private readonly string m_owner;
     }
 }

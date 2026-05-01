@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.IO;
 using Microsoft.Extensions.Logging;
@@ -52,7 +54,7 @@ namespace Opc.Ua
 
             m_logger = telemetry.CreateLogger<ConfigurationWatcher>();
 
-            var fileInfo = new FileInfo(configuration.SourceFilePath);
+            var fileInfo = new FileInfo(configuration.SourceFilePath!);
 
             if (!fileInfo.Exists)
             {
@@ -90,7 +92,7 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the configuration file changes.
         /// </summary>
-        public event EventHandler<ConfigurationWatcherEventArgs> Changed
+        public event EventHandler<ConfigurationWatcherEventArgs>? Changed
         {
             add => m_Changed += value;
             remove => m_Changed -= value;
@@ -99,11 +101,11 @@ namespace Opc.Ua
         /// <summary>
         /// Handles a file changed event.
         /// </summary>
-        private void Watcher_Changed(object state)
+        private void Watcher_Changed(object? state)
         {
             try
             {
-                var fileInfo = new FileInfo(m_configuration.SourceFilePath);
+                var fileInfo = new FileInfo(m_configuration.SourceFilePath!);
 
                 if (!fileInfo.Exists)
                 {
@@ -121,7 +123,7 @@ namespace Opc.Ua
                     this,
                     new ConfigurationWatcherEventArgs(
                         m_configuration,
-                        m_configuration.SourceFilePath));
+                        m_configuration.SourceFilePath!));
             }
             catch (Exception exception)
             {
@@ -133,9 +135,9 @@ namespace Opc.Ua
 
         private readonly ILogger m_logger;
         private readonly ApplicationConfiguration m_configuration;
-        private System.Threading.Timer m_watcher;
+        private System.Threading.Timer? m_watcher;
         private DateTime m_lastWriteTime;
-        private event EventHandler<ConfigurationWatcherEventArgs> m_Changed;
+        private event EventHandler<ConfigurationWatcherEventArgs>? m_Changed;
     }
 
     /// <summary>
