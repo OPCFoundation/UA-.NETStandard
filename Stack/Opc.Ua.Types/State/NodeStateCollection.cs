@@ -425,7 +425,7 @@ namespace Opc.Ua
             IServiceMessageContext messageContext = context.AsMessageContext();
 
             using var reader = XmlReader.Create(istrm, CoreUtils.DefaultXmlReaderSettings());
-            using var decoder = new XmlDecoder(null, reader, messageContext);
+            using var decoder = new XmlDecoder(null!, reader, messageContext);
             var namespaceUris = new NamespaceTable();
 
             if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))

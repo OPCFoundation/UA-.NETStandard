@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -103,7 +105,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (!m_nodes.TryGetValue(localId, out TypeInfo typeInfo))
+                if (!m_nodes.TryGetValue(localId, out TypeInfo? typeInfo))
                 {
                     return NodeId.Null;
                 }
@@ -127,7 +129,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (!m_nodes.TryGetValue(typeId, out TypeInfo typeInfo))
+                if (!m_nodes.TryGetValue(typeId, out TypeInfo? typeInfo))
                 {
                     return NodeId.Null;
                 }
@@ -172,7 +174,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (m_nodes.TryGetValue(localId, out TypeInfo typeInfo))
+                if (m_nodes.TryGetValue(localId, out TypeInfo? typeInfo))
                 {
                     typeInfo.GetSubtypes(subtypes);
                 }
@@ -216,7 +218,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (!m_nodes.TryGetValue(startId, out TypeInfo typeInfo))
+                if (!m_nodes.TryGetValue(startId, out TypeInfo? typeInfo))
                 {
                     return false;
                 }
@@ -242,7 +244,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (!m_nodes.TryGetValue(subTypeId, out TypeInfo typeInfo))
+                if (!m_nodes.TryGetValue(subTypeId, out TypeInfo? typeInfo))
                 {
                     return false;
                 }
@@ -256,7 +258,7 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                if (!m_nodes.TryGetValue(referenceTypeId, out TypeInfo typeInfo))
+                if (!m_nodes.TryGetValue(referenceTypeId, out TypeInfo? typeInfo))
                 {
                     return default;
                 }
@@ -276,7 +278,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (!m_referenceTypes.TryGetValue(browseName, out TypeInfo typeInfo))
+                if (!m_referenceTypes.TryGetValue(browseName, out TypeInfo? typeInfo))
                 {
                     return default;
                 }
@@ -312,7 +314,7 @@ namespace Opc.Ua
             {
                 // lookup the immediate basetype of the subtype.
 
-                if (!m_encodings.TryGetValue(localId, out TypeInfo typeInfo))
+                if (!m_encodings.TryGetValue(localId, out TypeInfo? typeInfo))
                 {
                     return false;
                 }
@@ -324,7 +326,7 @@ namespace Opc.Ua
                 }
 
                 // check if the encoding is a representation of a subtype of the expected datatype id.
-                TypeInfo superTypeInfo = typeInfo.SuperType;
+                TypeInfo? superTypeInfo = typeInfo.SuperType;
 
                 while (superTypeInfo != null)
                 {
@@ -430,7 +432,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (!m_encodings.TryGetValue(localId, out TypeInfo typeInfo))
+                if (!m_encodings.TryGetValue(localId, out TypeInfo? typeInfo))
                 {
                     return NodeId.Null;
                 }
@@ -444,7 +446,7 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                if (!m_encodings.TryGetValue(encodingId, out TypeInfo typeInfo))
+                if (!m_encodings.TryGetValue(encodingId, out TypeInfo? typeInfo))
                 {
                     return NodeId.Null;
                 }
@@ -513,7 +515,7 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 // lookup the supertype.
-                TypeInfo superTypeInfo = null;
+                TypeInfo? superTypeInfo = null;
 
                 if (!localsuperTypeId.IsNull &&
                     !m_nodes.TryGetValue(localsuperTypeId, out superTypeInfo))
@@ -524,7 +526,7 @@ namespace Opc.Ua
                 }
 
                 // create the type info.
-                if (!m_nodes.TryGetValue(node.NodeId, out TypeInfo typeInfo))
+                if (!m_nodes.TryGetValue(node.NodeId, out TypeInfo? typeInfo))
                 {
                     typeInfo = new TypeInfo();
                     m_nodes.Add(node.NodeId, typeInfo);
@@ -623,7 +625,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (!m_nodes.TryGetValue(dataTypeId, out TypeInfo typeInfo))
+                if (!m_nodes.TryGetValue(dataTypeId, out TypeInfo? typeInfo))
                 {
                     return false;
                 }
@@ -660,7 +662,7 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 // lookup the supertype.
-                TypeInfo superTypeInfo = null;
+                TypeInfo? superTypeInfo = null;
 
                 if (!superTypeId.IsNull &&
                     !m_nodes.TryGetValue(superTypeId, out superTypeInfo))
@@ -671,7 +673,7 @@ namespace Opc.Ua
                 }
 
                 // create the type info.
-                if (!m_nodes.TryGetValue(subTypeId, out TypeInfo typeInfo))
+                if (!m_nodes.TryGetValue(subTypeId, out TypeInfo? typeInfo))
                 {
                     typeInfo = new TypeInfo();
                     m_nodes.Add(subTypeId, typeInfo);
@@ -725,7 +727,7 @@ namespace Opc.Ua
             {
                 // remove type.
 
-                if (!m_nodes.TryGetValue(localId, out TypeInfo typeInfo))
+                if (!m_nodes.TryGetValue(localId, out TypeInfo? typeInfo))
                 {
                     return;
                 }
@@ -761,11 +763,11 @@ namespace Opc.Ua
         private class TypeInfo
         {
             public bool Deleted;
-            public NodeId NodeId;
-            public QualifiedName BrowseName;
-            public TypeInfo SuperType;
-            public NodeId[] Encodings;
-            public NodeIdDictionary<TypeInfo> SubTypes;
+            public NodeId NodeId = NodeId.Null;
+            public QualifiedName BrowseName = QualifiedName.Null;
+            public TypeInfo? SuperType;
+            public NodeId[]? Encodings;
+            public NodeIdDictionary<TypeInfo>? SubTypes;
 
             /// <summary>
             /// Checks if the type is a subtype of the specified node.
@@ -776,7 +778,7 @@ namespace Opc.Ua
             /// </returns>
             public bool IsTypeOf(NodeId nodeId)
             {
-                TypeInfo typeInfo = SuperType;
+                TypeInfo? typeInfo = SuperType;
 
                 while (typeInfo != null)
                 {
