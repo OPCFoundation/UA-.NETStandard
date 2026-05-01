@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.Globalization;
 using System.Numerics;
@@ -571,8 +573,8 @@ namespace Opc.Ua
             SecurityPolicyInfo securityPolicy,
             byte[] encryptingKey,
             byte[] iv,
-            byte[] signingKey = null,
-            HMAC hmac = null,
+            byte[]? signingKey = null,
+            HMAC? hmac = null,
             bool signOnly = false,
             uint tokenId = 0,
             uint lastSequenceNumber = 0)
@@ -933,7 +935,7 @@ namespace Opc.Ua
            SecurityPolicyInfo securityPolicy,
            byte[] encryptingKey,
            byte[] iv,
-           byte[] signingKey = null,
+           byte[]? signingKey = null,
            bool signOnly = false,
            uint tokenId = 0,
            uint lastSequenceNumber = 0)

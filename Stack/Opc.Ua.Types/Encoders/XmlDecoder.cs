@@ -89,7 +89,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a XML reader.
         /// </summary>
-        public XmlDecoder(Type systemType, XmlReader reader, IServiceMessageContext context)
+        public XmlDecoder(Type? systemType, XmlReader reader, IServiceMessageContext context)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry.CreateLogger<XmlDecoder>();

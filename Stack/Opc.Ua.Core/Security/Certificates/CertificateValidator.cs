@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
@@ -205,7 +207,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         public virtual async Task UpdateAsync(
             SecurityConfiguration configuration,
-            string applicationUri = null,
+            string? applicationUri = null,
             CancellationToken ct = default)
         {
             if (configuration == null)
@@ -287,7 +289,7 @@ namespace Opc.Ua
         /// </summary>
         public virtual async Task UpdateCertificateAsync(
             SecurityConfiguration securityConfiguration,
-            string applicationUri = null,
+            string? applicationUri = null,
             CancellationToken ct = default)
         {
             await m_semaphore.WaitAsync(ct).ConfigureAwait(false);

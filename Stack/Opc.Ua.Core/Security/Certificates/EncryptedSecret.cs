@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.IO;
 using System.Security.Cryptography;
@@ -40,12 +42,12 @@ namespace Opc.Ua
         public EncryptedSecret(
             IServiceMessageContext context,
             string securityPolicyUri,
-            X509Certificate2Collection senderIssuerCertificates,
+            X509Certificate2Collection? senderIssuerCertificates,
             X509Certificate2 receiverCertificate,
-            Nonce receiverNonce,
-            X509Certificate2 senderCertificate,
-            Nonce senderNonce,
-            CertificateValidator validator = null,
+            Nonce? receiverNonce,
+            X509Certificate2? senderCertificate,
+            Nonce? senderNonce,
+            CertificateValidator? validator = null,
             bool doNotEncodeSenderCertificate = false)
         {
             SenderCertificate = senderCertificate;
@@ -71,7 +73,7 @@ namespace Opc.Ua
             IServiceMessageContext context,
             string securityPolicyUri,
             X509Certificate2 receiverCertificate,
-            Nonce receiverNonce = null)
+            Nonce? receiverNonce = null)
         {
             return new EncryptedSecret(
                 context: context,
@@ -94,7 +96,7 @@ namespace Opc.Ua
             Nonce receiverNonce,
             X509Certificate2 senderCertificate,
             Nonce senderNonce,
-            CertificateValidator validator = null,
+            CertificateValidator? validator = null,
             bool doNotEncodeSenderCertificate = false)
         {
             return new EncryptedSecret(
@@ -112,12 +114,12 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the X.509 certificate of the sender.
         /// </summary>
-        public X509Certificate2 SenderCertificate { get; private set; }
+        public X509Certificate2? SenderCertificate { get; private set; }
 
         /// <summary>
         /// Gets or sets the collection of X.509 certificates of the sender's issuer.
         /// </summary>
-        public X509Certificate2Collection SenderIssuerCertificates { get; private set; }
+        public X509Certificate2Collection? SenderIssuerCertificates { get; private set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the sender's certificate should not be encoded.
@@ -127,12 +129,12 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the nonce of the sender.
         /// </summary>
-        public Nonce SenderNonce { get; private set; }
+        public Nonce? SenderNonce { get; private set; }
 
         /// <summary>
         /// Gets or sets the nonce of the receiver.
         /// </summary>
-        public Nonce ReceiverNonce { get; }
+        public Nonce? ReceiverNonce { get; }
 
         /// <summary>
         /// Gets or sets the X.509 certificate of the receiver.
@@ -142,7 +144,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the certificate validator.
         /// </summary>
-        public CertificateValidator Validator { get; }
+        public CertificateValidator? Validator { get; }
 
         /// <summary>
         /// Gets or sets the security policy.

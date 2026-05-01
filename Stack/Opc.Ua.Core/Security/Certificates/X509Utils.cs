@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -820,7 +822,7 @@ namespace Opc.Ua
             this X509Certificate2 certificate,
             string storeType,
             string storePath,
-            string password = null)
+            string? password = null)
         {
             return AddToStoreAsync(
                 certificate,
@@ -845,7 +847,7 @@ namespace Opc.Ua
         public static X509Certificate2 AddToStore(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
-            string password = null)
+            string? password = null)
         {
             return AddToStoreAsync(
                 certificate,
@@ -872,8 +874,8 @@ namespace Opc.Ua
             this X509Certificate2 certificate,
             string storeType,
             string storePath,
-            char[] password = null,
-            ITelemetryContext telemetry = null,
+            char[]? password = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             // add cert to the store.
@@ -904,7 +906,7 @@ namespace Opc.Ua
         public static async Task<X509CRL> AddToStoreAsync(
             this X509CRL crl,
             CertificateStoreIdentifier storeIdentifier,
-            ITelemetryContext telemetry = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             // add cert to the store.
@@ -943,8 +945,8 @@ namespace Opc.Ua
         public static async Task<X509Certificate2> AddToStoreAsync(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
-            char[] password = null,
-            ITelemetryContext telemetry = null,
+            char[]? password = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             // add cert to the store.

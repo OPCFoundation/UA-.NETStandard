@@ -1453,7 +1453,7 @@ namespace Opc.Ua
 
             using var decoder = new XmlDecoder(null, reader, messageContext);
             // check if a namespace table was provided.
-            var namespaceUris = new NamespaceTable();
+            NamespaceTable? namespaceUris = new NamespaceTable();
 
             if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
             {
@@ -1930,7 +1930,7 @@ namespace Opc.Ua
         private static BaseInstanceState UpdateUnknownChild(
             ISystemContext context,
             BinaryDecoder decoder,
-            NodeState parent,
+            NodeState? parent,
             AttributesToSave attributesToLoad,
             NodeClass nodeClass,
             string symbolicName,
@@ -2180,7 +2180,7 @@ namespace Opc.Ua
         private static BaseInstanceState UpdateUnknownChild(
             ISystemContext context,
             XmlDecoder decoder,
-            NodeState parent,
+            NodeState? parent,
             XmlQualifiedName childName,
             NodeClass nodeClass,
             QualifiedName browseName)
@@ -2907,7 +2907,7 @@ namespace Opc.Ua
         /// </summary>
         private void CallOnBeforeAssignNodeIds(
             ISystemContext context,
-            List<BaseInstanceState> children)
+            List<BaseInstanceState>? children)
         {
             OnBeforeAssignNodeIds(context);
 
@@ -2926,7 +2926,7 @@ namespace Opc.Ua
         /// <summary>
         /// Recusivesly calls OnAfterCreate for the node and its children.
         /// </summary>
-        private void CallOnAfterCreate(ISystemContext context, List<BaseInstanceState> children, CancellationToken ct = default)
+        private void CallOnAfterCreate(ISystemContext context, List<BaseInstanceState>? children, CancellationToken ct = default)
         {
             if (children == null)
             {
@@ -3702,7 +3702,7 @@ namespace Opc.Ua
             uint attributeId,
             ref Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult result = ServiceResult.Good;
 
             switch (attributeId)
             {
@@ -4005,7 +4005,7 @@ namespace Opc.Ua
             uint attributeId,
             Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult result = ServiceResult.Good;
 
             switch (attributeId)
             {
@@ -5185,7 +5185,7 @@ namespace Opc.Ua
         private ArrayOf<RolePermissionType> m_rolePermissions;
         private ArrayOf<RolePermissionType> m_userRolePermissions;
         private AccessRestrictionType? m_accessRestrictions;
-        private ReferenceDictionary<object>? m_references;
+        private ReferenceDictionary<object?>? m_references;
         private int m_areEventsMonitored;
         private List<Notifier>? m_notifiers;
     }

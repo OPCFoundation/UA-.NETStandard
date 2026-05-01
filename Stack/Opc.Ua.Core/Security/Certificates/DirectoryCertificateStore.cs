@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -209,7 +211,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async Task AddAsync(
             X509Certificate2 certificate,
-            char[] password = null,
+            char[]? password = null,
             CancellationToken ct = default)
         {
             if (certificate == null)
@@ -572,12 +574,12 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key from a PFX file in the certificate store.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKeyAsync(
+        public async Task<X509Certificate2?> LoadPrivateKeyAsync(
             string thumbprint,
-            string subjectName,
-            string applicationUri,
-            NodeId certificateType,
-            char[] password,
+            string? subjectName,
+            string? applicationUri,
+            NodeId? certificateType,
+            char[]? password,
             CancellationToken ct = default)
         {
             if (NoPrivateKeys ||
@@ -598,7 +600,7 @@ namespace Opc.Ua
             for (int i = 0; ; i++)
             {
                 bool certificateFound = false;
-                Exception importException = null;
+                Exception? importException = null;
                 IEnumerable<FileInfo> files = m_certificateSubdir
                     .GetFiles(kCertSearchString)
                     .Concat(m_certificateSubdir.GetFiles(kPemCertSearchString));
