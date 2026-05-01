@@ -227,7 +227,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        protected BaseDataVariableState(NodeState parent)
+        protected BaseDataVariableState(NodeState? parent)
             : base(parent)
         {
         }
@@ -267,7 +267,7 @@ namespace Opc.Ua
             where TBuilder : struct, IVariantBuilder<T>
         {
             /// <inheritdoc/>
-            public Implementation(NodeState parent)
+            public Implementation(NodeState? parent)
                 : base(parent)
             {
                 Value = default!;

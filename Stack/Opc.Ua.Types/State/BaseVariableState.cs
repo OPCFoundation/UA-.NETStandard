@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -48,7 +50,7 @@ namespace Opc.Ua
         /// Initializes the instance with its default attribute values.
         /// </summary>
         /// <param name="parent">The parent node.</param>
-        protected BaseVariableState(NodeState parent)
+        protected BaseVariableState(NodeState? parent)
             : base(NodeClass.Variable, parent)
         {
             m_value = Variant.Null;
@@ -544,102 +546,102 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the Value attribute is read.
         /// </summary>
-        public NodeValueSimpleEventHandler OnSimpleReadValue;
+        public NodeValueSimpleEventHandler? OnSimpleReadValue;
 
         /// <summary>
         /// Raised when the Value attribute is written.
         /// </summary>
-        public NodeValueSimpleEventHandler OnSimpleWriteValue;
+        public NodeValueSimpleEventHandler? OnSimpleWriteValue;
 
         /// <summary>
         /// Raised when the Value attribute is read.
         /// </summary>
-        public NodeValueEventHandler OnReadValue;
+        public NodeValueEventHandler? OnReadValue;
 
         /// <summary>
         /// Raised when the Value attribute is written.
         /// </summary>
-        public NodeValueEventHandler OnWriteValue;
+        public NodeValueEventHandler? OnWriteValue;
 
         /// <summary>
         /// Raised when the DataType attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<NodeId> OnReadDataType;
+        public NodeAttributeEventHandler<NodeId>? OnReadDataType;
 
         /// <summary>
         /// Raised when the DataType attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<NodeId> OnWriteDataType;
+        public NodeAttributeEventHandler<NodeId>? OnWriteDataType;
 
         /// <summary>
         /// Raised when the ValueRank attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<int> OnReadValueRank;
+        public NodeAttributeEventHandler<int>? OnReadValueRank;
 
         /// <summary>
         /// Raised when the ValueRank attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<int> OnWriteValueRank;
+        public NodeAttributeEventHandler<int>? OnWriteValueRank;
 
         /// <summary>
         /// Raised when the ArrayDimensions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<ArrayOf<uint>> OnReadArrayDimensions;
+        public NodeAttributeEventHandler<ArrayOf<uint>>? OnReadArrayDimensions;
 
         /// <summary>
         /// Raised when the ArrayDimensions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<ArrayOf<uint>> OnWriteArrayDimensions;
+        public NodeAttributeEventHandler<ArrayOf<uint>>? OnWriteArrayDimensions;
 
         /// <summary>
         /// Raised when the AccessLevel attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<byte> OnReadAccessLevel;
+        public NodeAttributeEventHandler<byte>? OnReadAccessLevel;
 
         /// <summary>
         /// Raised when the AccessLevel attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<byte> OnWriteAccessLevel;
+        public NodeAttributeEventHandler<byte>? OnWriteAccessLevel;
 
         /// <summary>
         /// Raised when the UserAccessLevel attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<byte> OnReadUserAccessLevel;
+        public NodeAttributeEventHandler<byte>? OnReadUserAccessLevel;
 
         /// <summary>
         /// Raised when the UserAccessLevel attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<byte> OnWriteUserAccessLevel;
+        public NodeAttributeEventHandler<byte>? OnWriteUserAccessLevel;
 
         /// <summary>
         /// Raised when the MinimumSamplingInterval attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<double> OnReadMinimumSamplingInterval;
+        public NodeAttributeEventHandler<double>? OnReadMinimumSamplingInterval;
 
         /// <summary>
         /// Raised when the MinimumSamplingInterval attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<double> OnWriteMinimumSamplingInterval;
+        public NodeAttributeEventHandler<double>? OnWriteMinimumSamplingInterval;
 
         /// <summary>
         /// Raised when the Historizing attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<bool> OnReadHistorizing;
+        public NodeAttributeEventHandler<bool>? OnReadHistorizing;
 
         /// <summary>
         /// Raised when the Historizing attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<bool> OnWriteHistorizing;
+        public NodeAttributeEventHandler<bool>? OnWriteHistorizing;
 
         /// <summary>
         /// Raised when the AccessLevelEx attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<uint> OnReadAccessLevelEx;
+        public NodeAttributeEventHandler<uint>? OnReadAccessLevelEx;
 
         /// <summary>
         /// Raised when the AccessLevelEx attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<uint> OnWriteAccessLevelEx;
+        public NodeAttributeEventHandler<uint>? OnWriteAccessLevelEx;
 
         /// <summary>
         /// Exports a copy of the node to a <paramref name="node"/> node provided the
@@ -1084,7 +1086,7 @@ namespace Opc.Ua
                 case Attributes.DataType:
                     NodeId dataType = m_dataType;
 
-                    NodeAttributeEventHandler<NodeId> onReadDataType = OnReadDataType;
+                    NodeAttributeEventHandler<NodeId>? onReadDataType = OnReadDataType;
 
                     if (onReadDataType != null)
                     {
@@ -1100,7 +1102,7 @@ namespace Opc.Ua
                 case Attributes.ValueRank:
                     int valueRank = m_valueRank;
 
-                    NodeAttributeEventHandler<int> onReadValueRank = OnReadValueRank;
+                    NodeAttributeEventHandler<int>? onReadValueRank = OnReadValueRank;
 
                     if (onReadValueRank != null)
                     {
@@ -1116,7 +1118,7 @@ namespace Opc.Ua
                 case Attributes.ArrayDimensions:
                     ArrayOf<uint> arrayDimensions = m_arrayDimensions;
 
-                    NodeAttributeEventHandler<ArrayOf<uint>> onReadArrayDimensions
+                    NodeAttributeEventHandler<ArrayOf<uint>>? onReadArrayDimensions
                         = OnReadArrayDimensions;
 
                     if (onReadArrayDimensions != null)
@@ -1133,7 +1135,7 @@ namespace Opc.Ua
                 case Attributes.AccessLevel:
                     byte accessLevel = AccessLevel;
 
-                    NodeAttributeEventHandler<byte> onReadAccessLevel = OnReadAccessLevel;
+                    NodeAttributeEventHandler<byte>? onReadAccessLevel = OnReadAccessLevel;
 
                     if (onReadAccessLevel != null)
                     {
@@ -1149,7 +1151,7 @@ namespace Opc.Ua
                 case Attributes.AccessLevelEx:
                     uint accessLevelEx = m_accessLevel;
 
-                    NodeAttributeEventHandler<uint> onReadAccessLevelEx = OnReadAccessLevelEx;
+                    NodeAttributeEventHandler<uint>? onReadAccessLevelEx = OnReadAccessLevelEx;
 
                     if (onReadAccessLevelEx != null)
                     {
@@ -1165,7 +1167,7 @@ namespace Opc.Ua
                 case Attributes.UserAccessLevel:
                     byte userAccessLevel = m_userAccessLevel;
 
-                    NodeAttributeEventHandler<byte> onReadUserAccessLevel = OnReadUserAccessLevel;
+                    NodeAttributeEventHandler<byte>? onReadUserAccessLevel = OnReadUserAccessLevel;
 
                     if (onReadUserAccessLevel != null)
                     {
@@ -1181,7 +1183,7 @@ namespace Opc.Ua
                 case Attributes.MinimumSamplingInterval:
                     double minimumSamplingInterval = m_minimumSamplingInterval;
 
-                    NodeAttributeEventHandler<double> onReadMinimumSamplingInterval
+                    NodeAttributeEventHandler<double>? onReadMinimumSamplingInterval
                         = OnReadMinimumSamplingInterval;
 
                     if (onReadMinimumSamplingInterval != null)
@@ -1201,7 +1203,7 @@ namespace Opc.Ua
                 case Attributes.Historizing:
                     bool historizing = m_historizing;
 
-                    NodeAttributeEventHandler<bool> onReadHistorizing = OnReadHistorizing;
+                    NodeAttributeEventHandler<bool>? onReadHistorizing = OnReadHistorizing;
 
                     if (onReadHistorizing != null)
                     {
@@ -1268,7 +1270,7 @@ namespace Opc.Ua
 
             ServiceResult result = null;
 
-            NodeValueEventHandler onReadValue = OnReadValue;
+            NodeValueEventHandler? onReadValue = OnReadValue;
 
             // check if the read behavior has been overridden.
             if (onReadValue != null)
@@ -1296,7 +1298,7 @@ namespace Opc.Ua
                 return result;
             }
 
-            NodeValueSimpleEventHandler onSimpleReadValue = OnSimpleReadValue;
+            NodeValueSimpleEventHandler? onSimpleReadValue = OnSimpleReadValue;
 
             // use default behavior.
             if (onSimpleReadValue != null)
@@ -1407,7 +1409,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<NodeId> onWriteDataType = OnWriteDataType;
+                    NodeAttributeEventHandler<NodeId>? onWriteDataType = OnWriteDataType;
 
                     if (onWriteDataType != null)
                     {
@@ -1431,7 +1433,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<int> onWriteValueRank = OnWriteValueRank;
+                    NodeAttributeEventHandler<int>? onWriteValueRank = OnWriteValueRank;
 
                     if (onWriteValueRank != null)
                     {
@@ -1459,7 +1461,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<ArrayOf<uint>> onWriteArrayDimensions
+                    NodeAttributeEventHandler<ArrayOf<uint>>? onWriteArrayDimensions
                         = OnWriteArrayDimensions;
 
                     if (onWriteArrayDimensions != null)
@@ -1484,7 +1486,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<byte> onWriteAccessLevel = OnWriteAccessLevel;
+                    NodeAttributeEventHandler<byte>? onWriteAccessLevel = OnWriteAccessLevel;
 
                     if (onWriteAccessLevel != null)
                     {
@@ -1508,7 +1510,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<byte> onWriteUserAccessLevel = OnWriteUserAccessLevel;
+                    NodeAttributeEventHandler<byte>? onWriteUserAccessLevel = OnWriteUserAccessLevel;
 
                     if (onWriteUserAccessLevel != null)
                     {
@@ -1532,7 +1534,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<double> onWriteMinimumSamplingInterval
+                    NodeAttributeEventHandler<double>? onWriteMinimumSamplingInterval
                         = OnWriteMinimumSamplingInterval;
 
                     if (onWriteMinimumSamplingInterval != null)
@@ -1560,7 +1562,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<bool> onWriteHistorizing = OnWriteHistorizing;
+                    NodeAttributeEventHandler<bool>? onWriteHistorizing = OnWriteHistorizing;
 
                     if (onWriteHistorizing != null)
                     {
@@ -1614,7 +1616,7 @@ namespace Opc.Ua
                 return StatusCodes.BadUserAccessDenied;
             }
 
-            NodeValueEventHandler onWriteValue = OnWriteValue;
+            NodeValueEventHandler? onWriteValue = OnWriteValue;
 
             // check if the write behavior has been overridden.
             if (onWriteValue != null)
@@ -1692,7 +1694,7 @@ namespace Opc.Ua
                 value = CoreUtils.Clone(value);
             }
 
-            NodeValueSimpleEventHandler onSimpleWriteValue = OnSimpleWriteValue;
+            NodeValueSimpleEventHandler? onSimpleWriteValue = OnSimpleWriteValue;
 
             // check for simple write value handler.
             if (onSimpleWriteValue != null)
@@ -1814,12 +1816,12 @@ namespace Opc.Ua
         /// <summary>
         /// Raised before the value is read.
         /// </summary>
-        public VariableValueEventHandler OnBeforeRead;
+        public VariableValueEventHandler? OnBeforeRead;
 
         /// <summary>
         /// Raised after the value is written.
         /// </summary>
-        public VariableValueEventHandler OnAfterWrite;
+        public VariableValueEventHandler? OnAfterWrite;
 
         /// <summary>
         /// Does any processing before a read operation takes place.

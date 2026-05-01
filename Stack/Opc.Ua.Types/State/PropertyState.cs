@@ -43,7 +43,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public PropertyState(NodeState parent)
+        public PropertyState(NodeState? parent)
             : base(parent)
         {
             StatusCode = StatusCodes.BadWaitingForInitialData;
@@ -109,7 +109,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        protected PropertyState(NodeState parent)
+        protected PropertyState(NodeState? parent)
             : base(parent)
         {
         }
@@ -158,7 +158,7 @@ namespace Opc.Ua
             where TBuilder : struct, IVariantBuilder<T>
         {
             /// <inheritdoc/>
-            public Implementation(NodeState parent)
+            public Implementation(NodeState? parent)
                 : base(parent)
             {
                 Value = default!;
