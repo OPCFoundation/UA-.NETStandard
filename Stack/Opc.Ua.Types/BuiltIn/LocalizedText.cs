@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -185,7 +187,7 @@ namespace Opc.Ua
         public LocalizedText(
             IReadOnlyDictionary<string, string> translations,
             TranslationInfo translationInfo = default)
-            : this(LocalizedTextFormatAndTranslation.Create(translations, translationInfo))
+            : this(LocalizedTextFormatAndTranslation.Create(translations, translationInfo)!)
         {
         }
 
@@ -197,7 +199,7 @@ namespace Opc.Ua
         /// <param name="key">A key used to look up the text for different locales</param>
         /// <param name="translations">key = locale, value = text</param>
         public LocalizedText(string key, IReadOnlyDictionary<string, string> translations)
-            : this(LocalizedTextFormatAndTranslation.Create(key, translations))
+            : this(LocalizedTextFormatAndTranslation.Create(key, translations)!)
         {
         }
 
@@ -206,7 +208,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="translation"></param>
         /// <exception cref="ArgumentNullException"></exception>
-        internal LocalizedText(LocalizedTextFormatAndTranslation translation)
+        internal LocalizedText(LocalizedTextFormatAndTranslation? translation)
         {
             m_translation = translation;
             m_locale = translation?.GetLocale();
@@ -219,7 +221,7 @@ namespace Opc.Ua
         /// <param name="locale">The locale code applicable for the specified text</param>
         /// <param name="text">The text to store</param>
         /// <param name="translation">The translation information</param>
-        internal LocalizedText(string locale, string text, LocalizedTextFormatAndTranslation translation)
+        internal LocalizedText(string? locale, string? text, LocalizedTextFormatAndTranslation? translation)
         {
             m_text = text;
             m_locale = locale;
@@ -229,20 +231,20 @@ namespace Opc.Ua
         /// <summary>
         /// The locale used to create the text.
         /// </summary>
-        public string Locale
+        public string? Locale
             => IsMultiLanguage ? m_locale : m_translation?.GetLocale() ?? m_locale;
 
         /// <summary>
         /// The localized text.
         /// </summary>
-        public string Text
+        public string? Text
             => IsMultiLanguage ? m_text : m_translation?.FormatText() ?? m_text;
 
         /// <summary>
         /// Translations
         /// </summary>
         [JsonIgnore]
-        public IReadOnlyDictionary<string, string> Translations
+        public IReadOnlyDictionary<string, string>? Translations
             => m_translation?.Translations;
 
         /// <summary>
@@ -270,7 +272,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj switch
             {
@@ -293,7 +295,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(string ltext)
+        public bool Equals(string? ltext)
         {
             if (!string.IsNullOrEmpty(Locale))
             {
@@ -345,7 +347,7 @@ namespace Opc.Ua
         /// <param name="format">(Unused). Always pass NULL/NOTHING</param>
         /// <param name="formatProvider">(Unused). Always pass NULL/NOTHING</param>
         /// <exception cref="FormatException">Thrown if non-null parameters are used</exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -435,13 +437,13 @@ namespace Opc.Ua
                 m_locale,
                 m_text,
                 LocalizedTextFormatAndTranslation.Create(
-                    m_translation?.Translations,
+                    m_translation?.Translations!,
                     info));
         }
 
-        private readonly string m_text;
-        private readonly string m_locale; // TODO: make union with m_translation?
-        private readonly LocalizedTextFormatAndTranslation m_translation;
+        private readonly string? m_text;
+        private readonly string? m_locale; // TODO: make union with m_translation?
+        private readonly LocalizedTextFormatAndTranslation? m_translation;
     }
 
     /// <summary>
@@ -477,10 +479,10 @@ namespace Opc.Ua
 
             // If the translation info uses the "mul" locale, decode it into a
             // translations dictionary to use during formatting.
-            string locale = translationInfo.Locale;
-            string text = translationInfo.Text;
+            string? locale = translationInfo.Locale;
+            string? text = translationInfo.Text;
             return new LocalizedTextFormatAndTranslation(
-                DecodeMulLocale(locale, text),
+                DecodeMulLocale(locale, text)!,
                 translationInfo);
         }
 
@@ -489,11 +491,11 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="locale">The locale code applicable for the specified text</param>
         /// <param name="text">The text to store</param>
-        public static LocalizedTextFormatAndTranslation Create(
+        public static LocalizedTextFormatAndTranslation? Create(
             string locale,
             string text)
         {
-            ReadOnlyDictionary<string, string> translations = DecodeMulLocale(locale, text);
+            ReadOnlyDictionary<string, string>? translations = DecodeMulLocale(locale, text);
             return translations == null ?
                 null :
                 new LocalizedTextFormatAndTranslation(translations);
@@ -511,7 +513,7 @@ namespace Opc.Ua
             string text)
         {
             return new LocalizedTextFormatAndTranslation(
-                DecodeMulLocale(locale, text),
+                DecodeMulLocale(locale, text)!,
                 new TranslationInfo(key, locale, text));
         }
 
@@ -521,7 +523,7 @@ namespace Opc.Ua
         /// <param name="key"></param>
         /// <param name="translations"></param>
         /// <returns></returns>
-        public static LocalizedTextFormatAndTranslation Create(
+        public static LocalizedTextFormatAndTranslation? Create(
             string key,
             IReadOnlyDictionary<string, string> translations)
         {
@@ -532,7 +534,7 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(key))
             {
                 return new LocalizedTextFormatAndTranslation(
-                    translations, new TranslationInfo(key, null, null));
+                    translations!, new TranslationInfo(key, null!, null!));
             }
             return new LocalizedTextFormatAndTranslation(translations);
         }
@@ -543,7 +545,7 @@ namespace Opc.Ua
         /// <param name="translations"></param>
         /// <param name="translationInfo"></param>
         /// <returns></returns>
-        public static LocalizedTextFormatAndTranslation Create(
+        public static LocalizedTextFormatAndTranslation? Create(
             IReadOnlyDictionary<string, string> translations,
             TranslationInfo translationInfo)
         {
@@ -552,7 +554,7 @@ namespace Opc.Ua
                 return null;
             }
             return new LocalizedTextFormatAndTranslation(
-                translations,
+                translations!,
                 translationInfo);
         }
 
@@ -565,7 +567,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentException">Thrown if both arguments are null
         /// or empty.</exception>"
         private LocalizedTextFormatAndTranslation(
-            IReadOnlyDictionary<string, string> translations,
+            IReadOnlyDictionary<string, string>? translations,
             TranslationInfo translationInfo = default)
         {
             if (translationInfo.IsNull &&
@@ -592,12 +594,12 @@ namespace Opc.Ua
         /// <summary>
         /// Translations
         /// </summary>
-        public IReadOnlyDictionary<string, string> Translations { get; }
+        public IReadOnlyDictionary<string, string>? Translations { get; }
 
         /// <summary>
         /// Get locale
         /// </summary>
-        public string GetLocale()
+        public string? GetLocale()
         {
             return TranslationInfo.Locale;
         }
@@ -606,13 +608,13 @@ namespace Opc.Ua
         /// Format the translation info text with args and locale
         /// </summary>
         /// <returns></returns>
-        public string FormatText(string locale = null, string fallbackText = null)
+        public string? FormatText(string? locale = null, string? fallbackText = null)
         {
-            string text = TranslationInfo.Text;
+            string? text = TranslationInfo.Text;
             locale ??= TranslationInfo.Locale;
             if (Translations != null &&
                 locale != null &&
-                Translations.TryGetValue(locale, out string localizedText))
+                Translations.TryGetValue(locale, out string? localizedText))
             {
                 text = localizedText;
             }
@@ -679,7 +681,7 @@ namespace Opc.Ua
                     var filtered = new Dictionary<string, string>();
                     for (int i = 1; i < preferredLocales.Count; i++)
                     {
-                        if (Translations.TryGetValue(preferredLocales[i], out string t))
+                        if (Translations.TryGetValue(preferredLocales[i], out string? t))
                         {
                             filtered.Add(preferredLocales[i], t);
                         }
@@ -701,9 +703,9 @@ namespace Opc.Ua
             // Try to find the first matching locale and then return a formatted text or the raw text
             foreach (string locale in preferredLocales)
             {
-                if (Translations.TryGetValue(locale, out string text))
+                if (Translations.TryGetValue(locale, out string? text))
                 {
-                    return new LocalizedText(locale, FormatText(locale, text));
+                    return new LocalizedText(locale, FormatText(locale, text)!);
                 }
             }
 
@@ -716,14 +718,14 @@ namespace Opc.Ua
                     if (kvp.Key.StartsWith(language + "-", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(kvp.Key, language, StringComparison.OrdinalIgnoreCase))
                     {
-                        return new LocalizedText(kvp.Key, FormatText(kvp.Key, kvp.Value));
+                        return new LocalizedText(kvp.Key, FormatText(kvp.Key, kvp.Value)!);
                     }
                 }
             }
 
             // Return the first entry instead
             KeyValuePair<string, string> first = Translations.First();
-            return new LocalizedText(first.Key, FormatText(first.Key, first.Value));
+            return new LocalizedText(first.Key, FormatText(first.Key, first.Value)!);
         }
 
         /// <summary>
@@ -731,7 +733,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="locale"></param>
         /// <returns></returns>
-        public static bool IsMultiLanguage(string locale)
+        public static bool IsMultiLanguage(string? locale)
         {
             return string.Equals(locale, kMulLocale, StringComparison.OrdinalIgnoreCase);
         }
@@ -753,13 +755,13 @@ namespace Opc.Ua
                 }
                 t.Add([
                     TranslationInfo.Locale ?? "en-US",
-                    FormatText(TranslationInfo.Text, string.Empty)]);
+                    FormatText(TranslationInfo.Text, string.Empty)!]);
             }
             else
             {
                 foreach (KeyValuePair<string, string> kvp in Translations)
                 {
-                    t.Add([kvp.Key, FormatText(kvp.Key, kvp.Value)]);
+                    t.Add([kvp.Key, FormatText(kvp.Key, kvp.Value)!]);
                 }
             }
             if (t.Count == 1 && !force)
@@ -796,9 +798,9 @@ namespace Opc.Ua
         /// JSON Text. Otherwise, returns null. The expected JSON structure is defined in
         /// https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
         /// </summary>
-        private static ReadOnlyDictionary<string, string> DecodeMulLocale(
-            string encodedLocale,
-            string encodedText)
+        private static ReadOnlyDictionary<string, string>? DecodeMulLocale(
+            string? encodedLocale,
+            string? encodedText)
         {
             if (!IsMultiLanguage(encodedLocale) || string.IsNullOrWhiteSpace(encodedText))
             {
@@ -807,8 +809,8 @@ namespace Opc.Ua
             var result = new Dictionary<string, string>();
             try
             {
-                Dictionary<string, List<string[]>> json = Deserialize(encodedText);
-                if (json.TryGetValue(kMulLocaleDictionaryKey, out List<string[]> tValue))
+                Dictionary<string, List<string[]>>? json = Deserialize(encodedText!);
+                if (json != null && json.TryGetValue(kMulLocaleDictionaryKey, out List<string[]>? tValue))
                 {
                     foreach (string[] pair in tValue)
                     {
@@ -839,7 +841,7 @@ namespace Opc.Ua
             Justification = "JSON deserialization uses only primitive dictionary types.")]
         [UnconditionalSuppressMessage("AOT", "IL3050",
             Justification = "JSON deserialization uses only primitive dictionary types.")]
-        private static Dictionary<string, List<string[]>> Deserialize(string encodedText)
+        private static Dictionary<string, List<string[]>>? Deserialize(string encodedText)
         {
             return JsonSerializer.Deserialize<Dictionary<string, List<string[]>>>(encodedText);
         }

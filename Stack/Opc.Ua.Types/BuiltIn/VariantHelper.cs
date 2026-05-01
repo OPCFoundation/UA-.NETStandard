@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -54,7 +56,7 @@ namespace Opc.Ua
             if (value.IsNull)
             {
                 // Use default either null or default value of value type
-                result = default;
+                result = default!;
                 return true;
             }
             switch (typeof(T))
@@ -140,12 +142,12 @@ namespace Opc.Ua
                     break;
                 case Type t when typeof(IEncodeable).IsAssignableFrom(t):
                     if (!value.GetExtensionObject()
-                        .TryGetEncodeable(out IEncodeable encodeable))
+                        .TryGetEncodeable(out IEncodeable? encodeable))
                     {
-                        result = default;
+                        result = default!;
                         return false;
                     }
-                    result = (T)(object)encodeable;
+                    result = (T)(object)encodeable!;
                     break;
                 case Type t when t == typeof(ArrayOf<bool>):
                     result = AsT(value.GetBooleanArray());
@@ -298,99 +300,100 @@ namespace Opc.Ua
                     result = AsT(value.GetExtensionObjectMatrix());
                     break;
                 case Type t when t == typeof(bool[]):
-                    result = AsRefT(value.GetBooleanArray().ToArray());
+                    result = AsRefT(value.GetBooleanArray().ToArray()!);
                     break;
                 case Type t when t == typeof(byte[]):
-                    result = AsRefT(value.GetByteArray().ToArray());
+                    result = AsRefT(value.GetByteArray().ToArray()!);
                     break;
                 case Type t when t == typeof(sbyte[]):
-                    result = AsRefT(value.GetSByteArray().ToArray());
+                    result = AsRefT(value.GetSByteArray().ToArray()!);
                     break;
                 case Type t when t == typeof(ushort[]):
-                    result = AsRefT(value.GetUInt16Array().ToArray());
+                    result = AsRefT(value.GetUInt16Array().ToArray()!);
                     break;
                 case Type t when t == typeof(short[]):
-                    result = AsRefT(value.GetInt16Array().ToArray());
+                    result = AsRefT(value.GetInt16Array().ToArray()!);
                     break;
                 case Type t when t == typeof(uint[]):
-                    result = AsRefT(value.GetUInt32Array().ToArray());
+                    result = AsRefT(value.GetUInt32Array().ToArray()!);
                     break;
                 case Type t when t == typeof(int[]):
-                    result = AsRefT(value.GetInt32Array().ToArray());
+                    result = AsRefT(value.GetInt32Array().ToArray()!);
                     break;
                 case Type t when t == typeof(ulong[]):
-                    result = AsRefT(value.GetUInt64Array().ToArray());
+                    result = AsRefT(value.GetUInt64Array().ToArray()!);
                     break;
                 case Type t when t == typeof(long[]):
-                    result = AsRefT(value.GetInt64Array().ToArray());
+                    result = AsRefT(value.GetInt64Array().ToArray()!);
                     break;
                 case Type t when t == typeof(double[]):
-                    result = AsRefT(value.GetDoubleArray().ToArray());
+                    result = AsRefT(value.GetDoubleArray().ToArray()!);
                     break;
                 case Type t when t == typeof(float[]):
-                    result = AsRefT(value.GetFloatArray().ToArray());
+                    result = AsRefT(value.GetFloatArray().ToArray()!);
                     break;
                 case Type t when t == typeof(string[]):
-                    result = AsRefT(value.GetStringArray().ToArray());
+                    result = AsRefT(value.GetStringArray().ToArray()!);
                     break;
                 case Type t when t == typeof(DateTimeUtc[]):
-                    result = AsRefT(value.GetDateTimeArray().ToArray());
+                    result = AsRefT(value.GetDateTimeArray().ToArray()!);
                     break;
                 case Type t when t == typeof(Uuid[]):
-                    result = AsRefT(value.GetGuidArray().ToArray());
+                    result = AsRefT(value.GetGuidArray().ToArray()!);
                     break;
                 case Type t when t == typeof(ByteString[]):
-                    result = AsRefT(value.GetByteStringArray().ToArray());
+                    result = AsRefT(value.GetByteStringArray().ToArray()!);
                     break;
                 case Type t when t == typeof(XmlElement[]):
-                    result = AsRefT(value.GetXmlElementArray().ToArray());
+                    result = AsRefT(value.GetXmlElementArray().ToArray()!);
                     break;
                 case Type t when t == typeof(NodeId[]):
-                    result = AsRefT(value.GetNodeIdArray().ToArray());
+                    result = AsRefT(value.GetNodeIdArray().ToArray()!);
                     break;
                 case Type t when t == typeof(ExpandedNodeId[]):
-                    result = AsRefT(value.GetExpandedNodeIdArray().ToArray());
+                    result = AsRefT(value.GetExpandedNodeIdArray().ToArray()!);
                     break;
                 case Type t when t == typeof(LocalizedText[]):
-                    result = AsRefT(value.GetLocalizedTextArray().ToArray());
+                    result = AsRefT(value.GetLocalizedTextArray().ToArray()!);
                     break;
                 case Type t when t == typeof(QualifiedName[]):
-                    result = AsRefT(value.GetQualifiedNameArray().ToArray());
+                    result = AsRefT(value.GetQualifiedNameArray().ToArray()!);
                     break;
                 case Type t when t == typeof(StatusCode[]):
-                    result = AsRefT(value.GetStatusCodeArray().ToArray());
+                    result = AsRefT(value.GetStatusCodeArray().ToArray()!);
                     break;
                 case Type t when t == typeof(DataValue[]):
-                    result = AsRefT(value.GetDataValueArray().ToArray());
+                    result = AsRefT(value.GetDataValueArray().ToArray()!);
                     break;
                 case Type t when t == typeof(Variant[]):
-                    result = AsRefT(value.GetVariantArray().ToArray());
+                    result = AsRefT(value.GetVariantArray().ToArray()!);
                     break;
                 case Type t when t == typeof(ExtensionObject[]):
-                    result = AsRefT(value.GetExtensionObjectArray().ToArray());
+                    result = AsRefT(value.GetExtensionObjectArray().ToArray()!);
                     break;
                 case Type t when t == typeof(Guid[]):
-                    result = AsRefT(value.GetGuidArray().ConvertAll(g => g.Guid).ToArray());
+                    result = AsRefT(value.GetGuidArray().ConvertAll(g => g.Guid).ToArray()!);
                     break;
                 case Type t when typeof(IEncodeable[]).IsAssignableFrom(t):
                     ArrayOf<ExtensionObject> extensionObjects = value.GetExtensionObjectArray();
                     var encodeables = new IEncodeable[extensionObjects.Count];
                     for (int ii = 0; ii < encodeables.Length; ii++)
                     {
-                        if (!extensionObjects[ii].TryGetEncodeable(out encodeables[ii]))
+                        if (!extensionObjects[ii].TryGetEncodeable(out IEncodeable? e))
                         {
-                            result = default;
+                            result = default!;
                             return false;
                         }
+                        encodeables[ii] = e!;
                     }
                     result = AsRefT(encodeables);
                     break;
-                case Type t when t.IsArray && t.GetArrayRank() == 1 && t.GetElementType().IsEnum:
+                case Type t when t.IsArray && t.GetArrayRank() == 1 && t.GetElementType()!.IsEnum:
                     ArrayOf<int> enumValues = value.GetInt32Array();
-                    result = AsRefT(enumValues.ToArray());
+                    result = AsRefT(enumValues.ToArray()!);
                     break;
                 default:
-                    result = default;
+                    result = default!;
                     return false;
             }
             return true;
@@ -445,7 +448,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadTypeMismatch,
                     "Failed to cast type '{0}' to Variant (incl via reflection).",
-                    value?.GetType().FullName);
+                    value?.GetType().FullName ?? "null");
             }
             return variant;
         }
@@ -482,7 +485,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadTypeMismatch,
                     "Failed to cast type '{0}' to Variant.",
-                    value?.GetType().FullName);
+                    value?.GetType().FullName ?? "null");
             }
             return variant;
         }
@@ -1041,7 +1044,7 @@ namespace Opc.Ua
         private static bool TryCastFromWithReflection<T>(T value, out Variant variant)
         {
             // Convert from ArrayOf<T> where T : IEncodeable or T : Enum
-            Type valueType = value.GetType();
+            Type valueType = value!.GetType();
             if (valueType.IsGenericType &&
                 valueType.GetGenericTypeDefinition() == typeof(ArrayOf<>))
             {
@@ -1049,13 +1052,13 @@ namespace Opc.Ua
                 bool isEncodeable = typeof(IEncodeable).IsAssignableFrom(genericArg);
                 try
                 {
-                    MethodInfo variantFrom = typeof(VariantHelper).GetMethod(
+                    MethodInfo? variantFrom = typeof(VariantHelper).GetMethod(
                         isEncodeable ?
                             nameof(FromArrayOfEncodeable) :
                             nameof(FromArrayOfEnumerated),
                         BindingFlags.Static | BindingFlags.NonPublic);
-                    variant = (Variant)variantFrom.MakeGenericMethod(genericArg)
-                        .Invoke(null, [value]);
+                    variant = (Variant)variantFrom!.MakeGenericMethod(genericArg)
+                        .Invoke(null, [value])!;
                     return !variant.IsNull;
                 }
                 catch
@@ -1075,8 +1078,8 @@ namespace Opc.Ua
                 return false;
             }
 
-            Type elementType = valueType.GetElementType();
-            if (TypeInfo.Construct(elementType).IsUnknown)
+            Type? elementType = valueType.GetElementType();
+            if (TypeInfo.Construct(elementType!).IsUnknown)
             {
                 variant = default;
                 return false;
@@ -1085,18 +1088,18 @@ namespace Opc.Ua
             {
                 MethodInfo matrixFromArray = typeof(MatrixOf).GetMethod(
                     nameof(MatrixOf.From),
-                    BindingFlags.Static | BindingFlags.Public)
-                    .MakeGenericMethod([elementType]);
+                    BindingFlags.Static | BindingFlags.Public)!
+                    .MakeGenericMethod([elementType!]);
                 Type matrixType = typeof(MatrixOf<>)
-                    .MakeGenericType(elementType);
-                MethodInfo variantFromMatrix = typeof(Variant).GetMethod(
+                    .MakeGenericType(elementType!);
+                MethodInfo? variantFromMatrix = typeof(Variant).GetMethod(
                     nameof(Variant.From),
                     BindingFlags.Static | BindingFlags.Public,
                     null,
                     [matrixType],
                     null);
-                variant = (Variant)variantFromMatrix.Invoke(null,
-                    [matrixFromArray.Invoke(null, [array])]);
+                variant = (Variant)variantFromMatrix!.Invoke(null,
+                    [matrixFromArray.Invoke(null, [array])])!;
                 return !variant.IsNull;
             }
             catch

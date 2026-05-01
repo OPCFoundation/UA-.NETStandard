@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -972,7 +974,7 @@ namespace Opc.Ua
         /// <summary>
         /// Private constructor for internal use.
         /// </summary>
-        internal Variant(Union union, TypeInfo typeInfo, object value = null)
+        internal Variant(Union union, TypeInfo typeInfo, object? value = null)
         {
             m_union = union;
             m_value = value;
@@ -1000,7 +1002,7 @@ namespace Opc.Ua
         /// </summary>
         [JsonIgnore]
         [Obsolete("Use TryGet pattern to access values or AsBoxedObject.")]
-        public object Value => AsBoxedObject(BoxingBehavior.Legacy);
+        public object? Value => AsBoxedObject(BoxingBehavior.Legacy);
 
         /// <summary>
         /// The type information for the matrix.
@@ -1011,7 +1013,7 @@ namespace Opc.Ua
 #pragma warning restore RCS1085 // Use auto-implemented property
 
         [JsonPropertyName("Value")]
-        internal object Raw => AsBoxedObject(BoxingBehavior.None);
+        internal object? Raw => AsBoxedObject(BoxingBehavior.None);
 
         /// <inheritdoc/>
         public override int GetHashCode()
@@ -1052,7 +1054,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -1185,10 +1187,12 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public T GetStructure<T>(
-            T defaultValue = default,
-            IServiceMessageContext context = null) where T : IEncodeable
+            T defaultValue = default!,
+            IServiceMessageContext? context = null) where T : IEncodeable
         {
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type
             return TryGet(out T v, context) ? v : defaultValue;
+#pragma warning restore CS8600
         }
 
         /// <summary>
@@ -1242,7 +1246,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts the variant to a string value or returns the default.
         /// </summary>
-        public string GetString(string defaultValue = default)
+        public string GetString(string defaultValue = "")
         {
             return TryGet(out string v) ? v : defaultValue;
         }
@@ -1322,7 +1326,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts the variant to a ExtensionObject value or returns the default.
         /// </summary>
-        public ExtensionObject GetExtensionObject(ExtensionObject defaultValue = default)
+        public ExtensionObject GetExtensionObject(ExtensionObject defaultValue = default!)
         {
             return TryGet(out ExtensionObject v) ? v : defaultValue;
         }
@@ -1330,7 +1334,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts the variant to a DataValue value or returns the default.
         /// </summary>
-        public DataValue GetDataValue(DataValue defaultValue = default)
+        public DataValue GetDataValue(DataValue defaultValue = default!)
         {
             return TryGet(out DataValue v) ? v : defaultValue;
         }
@@ -1407,7 +1411,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public ArrayOf<T> GetStructureArray<T>(
             ArrayOf<T> defaultValue = default,
-            IServiceMessageContext context = null) where T : IEncodeable
+            IServiceMessageContext? context = null) where T : IEncodeable
         {
             return TryGet(out ArrayOf<T> v, context) ? v : defaultValue;
         }
@@ -1628,7 +1632,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public MatrixOf<T> GetStructureMatrix<T>(
             MatrixOf<T> defaultValue = default,
-            IServiceMessageContext context = null) where T : IEncodeable
+            IServiceMessageContext? context = null) where T : IEncodeable
         {
             return TryGet(out MatrixOf<T> v, context) ? v : defaultValue;
         }
@@ -1855,12 +1859,15 @@ namespace Opc.Ua
         /// <param name="value">The structure value to get.</param>
         /// <param name="context">The context to use when decoding the structure.
         /// </param>
-        public bool TryGet<T>(out T value, IServiceMessageContext context)
+        public bool TryGet<T>([System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T value, IServiceMessageContext? context)
             where T : IEncodeable
         {
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type
             if (TryGet(out ExtensionObject v) &&
-                v.TryGetEncodeable(out value, context))
+                v.TryGetEncodeable(out T result, context))
+#pragma warning restore CS8600
             {
+                value = result!;
                 return true;
             }
             value = default;
@@ -1875,7 +1882,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The structure value to get
         /// </param>
-        public bool TryGetStructure<T>(out T value) where T : IEncodeable
+        public bool TryGetStructure<T>([System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T value) where T : IEncodeable
         {
             return TryGet(out value, null);
         }
@@ -2127,7 +2134,7 @@ namespace Opc.Ua
             scoped ref readonly T data,
             out T value,
             BuiltInType builtInType,
-            T defaultValue = default)
+            T defaultValue = default!)
         {
             bool success = TypeInfo.BuiltInType == builtInType && TypeInfo.IsScalar;
             value = success ? data : defaultValue;
@@ -2145,7 +2152,7 @@ namespace Opc.Ua
                 // But it could be convertable from one to the other, ie change type will work.
                 if (!IsConvertible(TypeInfo, new TypeInfo(expectedType, TypeInfo.ValueRank)))
                 {
-                    value = default;
+                    value = default!;
                     return false;
                 }
             }
@@ -2156,7 +2163,7 @@ namespace Opc.Ua
             }
             if (m_value == null)
             {
-                value = default;
+                value = default!;
                 return true;
             }
             try
@@ -2166,7 +2173,7 @@ namespace Opc.Ua
             }
             catch
             {
-                value = default;
+                value = default!;
                 return false;
             }
         }
@@ -2262,7 +2269,7 @@ namespace Opc.Ua
         /// <param name="value">The structure value to get.</param>
         /// <param name="context">The context to use when decoding the structure.
         /// </param>
-        public bool TryGet<T>(out ArrayOf<T> value, IServiceMessageContext context)
+        public bool TryGet<T>(out ArrayOf<T> value, IServiceMessageContext? context)
             where T : IEncodeable
         {
             if (!TryGet(out ArrayOf<ExtensionObject> v))
@@ -2273,11 +2280,16 @@ namespace Opc.Ua
             var buffer = new T[v.Count];
             for (int ii = 0; ii < v.Count; ii++)
             {
-                if (!v.Span[ii].TryGetEncodeable(out buffer[ii], context))
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type
+                if (!v.Span[ii].TryGetEncodeable(out T element, context))
+#pragma warning restore CS8600
                 {
                     value = default;
                     return false;
                 }
+#pragma warning disable CS8601 // Possible null reference assignment
+                buffer[ii] = element;
+#pragma warning restore CS8601
             }
             value = buffer;
             return true;
@@ -2613,7 +2625,7 @@ namespace Opc.Ua
         /// <param name="value">The structure value to get.</param>
         /// <param name="context">The context to use when decoding the structure.
         /// </param>
-        public bool TryGet<T>(out MatrixOf<T> value, IServiceMessageContext context)
+        public bool TryGet<T>(out MatrixOf<T> value, IServiceMessageContext? context)
             where T : IEncodeable
         {
             if (!TryGet(out MatrixOf<ExtensionObject> v))
@@ -2624,11 +2636,16 @@ namespace Opc.Ua
             var buffer = new T[v.Count];
             for (int ii = 0; ii < v.Count; ii++)
             {
-                if (!v.Span[ii].TryGetEncodeable(out buffer[ii], context))
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type
+                if (!v.Span[ii].TryGetEncodeable(out T element, context))
+#pragma warning restore CS8600
                 {
                     value = default;
                     return false;
                 }
+#pragma warning disable CS8601 // Possible null reference assignment
+                buffer[ii] = element;
+#pragma warning restore CS8601
             }
             value = ArrayOf.Create(buffer).ToMatrix(v.Dimensions);
             return true;
@@ -2926,7 +2943,7 @@ namespace Opc.Ua
                 switch (TypeInfo.BuiltInType)
                 {
                     case BuiltInType.Int32 when TryGet(out ArrayOf<int> bits):
-                        value = new decimal(bits.ToArray());
+                        value = new decimal(bits.ToArray()!);
                         return true;
                 }
             }
@@ -5448,11 +5465,11 @@ namespace Opc.Ua
                 case BuiltInType.ExpandedNodeId:
                     return GetExpandedNodeId().ToString();
                 case BuiltInType.LocalizedText:
-                    return GetLocalizedText().Text;
+                    return GetLocalizedText().Text!;
                 case BuiltInType.QualifiedName:
                     return GetQualifiedName().ToString();
                 case BuiltInType.XmlElement:
-                    return GetXmlElement().OuterXml;
+                    return GetXmlElement().OuterXml!;
                 case BuiltInType.StatusCode:
                     return GetStatusCode().Code.ToString(CultureInfo.InvariantCulture);
                 case BuiltInType.ExtensionObject:
@@ -5868,7 +5885,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(string value)
+        public bool Equals(string? value)
         {
             return TryGet(out string v) && v == value;
         }
@@ -5935,7 +5952,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(DataValue value)
+        public bool Equals(DataValue? value)
         {
             return TryGet(out DataValue v) && v == value;
         }
@@ -7511,7 +7528,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             // Sign before uns
             return obj switch
@@ -7874,7 +7891,7 @@ namespace Opc.Ua
                 return items.Span[0];
             }
             TypeInfo typeInfo = items.Span[0].TypeInfo;
-            if (!items.ToArray().All(v => v.TypeInfo == typeInfo))
+            if (!items.ToArray()!.All(v => v.TypeInfo == typeInfo))
             {
                 // Variant of variants
                 return new Variant(items);
@@ -7950,7 +7967,7 @@ namespace Opc.Ua
         /// <summary>
         /// Format the internal value
         /// </summary>
-        private string ToStringCore(IFormatProvider provider)
+        private string ToStringCore(IFormatProvider? provider)
         {
             if (TypeInfo.IsScalar)
             {
@@ -7991,19 +8008,19 @@ namespace Opc.Ua
                             Type type = enumType.GetEnumUnderlyingType();
                             if (type == typeof(int) || type == typeof(uint))
                             {
-                                return Enum.ToObject(enumType, m_union.Int32).ToString();
+                                return Enum.ToObject(enumType, m_union.Int32).ToString()!;
                             }
                             if (type == typeof(byte) || type == typeof(sbyte))
                             {
-                                return Enum.ToObject(enumType, m_union.Byte).ToString();
+                                return Enum.ToObject(enumType, m_union.Byte).ToString()!;
                             }
                             if (type == typeof(short) || type == typeof(ushort))
                             {
-                                return Enum.ToObject(enumType, m_union.Int16).ToString();
+                                return Enum.ToObject(enumType, m_union.Int16).ToString()!;
                             }
                             if (type == typeof(long) || type == typeof(ulong))
                             {
-                                return Enum.ToObject(enumType, m_union.Int64).ToString();
+                                return Enum.ToObject(enumType, m_union.Int64).ToString()!;
                             }
                         }
                         return m_union.Int32.ToString(provider);
@@ -8032,7 +8049,7 @@ namespace Opc.Ua
         /// From enumeration
         /// </summary>
         [Experimental("UA_NETStandard_1")]
-        public static Variant FromEnumeration(int value, Type enumType = null)
+        public static Variant FromEnumeration(int value, Type? enumType = null)
         {
             return From(EnumValue.From(value, enumType));
         }
@@ -8041,7 +8058,7 @@ namespace Opc.Ua
         /// From enumeration array
         /// </summary>
         [Experimental("UA_NETStandard_1")]
-        public static Variant FromEnumeration(ArrayOf<int> value, Type enumType = null)
+        public static Variant FromEnumeration(ArrayOf<int> value, Type? enumType = null)
         {
             return From(EnumValue.From(value, enumType));
         }
@@ -8050,7 +8067,7 @@ namespace Opc.Ua
         /// From enumeration matrix
         /// </summary>
         [Experimental("UA_NETStandard_1")]
-        public static Variant FromEnumeration(MatrixOf<int> value, Type enumType = null)
+        public static Variant FromEnumeration(MatrixOf<int> value, Type? enumType = null)
         {
             return From(EnumValue.From(value, enumType));
         }
@@ -8059,7 +8076,7 @@ namespace Opc.Ua
         /// Box the value stored in the Variant as object
         /// </summary>
         /// <returns></returns>
-        public object AsBoxedObject(BoxingBehavior boxingBehavior = BoxingBehavior.None)
+        public object? AsBoxedObject(BoxingBehavior boxingBehavior = BoxingBehavior.None)
         {
             if (TypeInfo.IsUnknown)
             {
@@ -8243,7 +8260,7 @@ namespace Opc.Ua
         }
 
 #pragma warning disable IDE0032 // Use auto property
-        private readonly object m_value;
+        private readonly object? m_value;
         private readonly Union m_union;
         private readonly TypeInfo m_typeInfo;
 #pragma warning restore IDE0032 // Use auto property

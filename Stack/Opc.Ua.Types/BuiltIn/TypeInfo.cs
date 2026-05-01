@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
@@ -118,7 +120,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj switch
             {
@@ -156,7 +158,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -732,7 +734,7 @@ namespace Opc.Ua
         /// <param name="value">The value instance to check the data type.</param>
         /// <param name="namespaceTable">The namespace table.</param>
         /// <returns>An data type identifier for a node in a server's address space.</returns>
-        public static NodeId GetDataTypeId(Variant value, NamespaceTable namespaceTable = null)
+        public static NodeId GetDataTypeId(Variant value, NamespaceTable? namespaceTable = null)
         {
             if (value.IsNull)
             {
@@ -740,11 +742,11 @@ namespace Opc.Ua
             }
 
             if (value.TryGet(out ExtensionObject eo) &&
-                eo.TryGetEncodeable(out IEncodeable encodable) &&
-                !encodable.TypeId.IsNull)
+                eo.TryGetEncodeable(out IEncodeable? encodable) &&
+                !encodable!.TypeId.IsNull)
             {
                 namespaceTable ??= AmbientMessageContext.CurrentContext?.NamespaceUris;
-                return ExpandedNodeId.ToNodeId(encodable.TypeId, namespaceTable);
+                return ExpandedNodeId.ToNodeId(encodable.TypeId, namespaceTable!);
             }
 
             NodeId dataTypeId = GetDataTypeId(value.TypeInfo);
@@ -970,7 +972,7 @@ namespace Opc.Ua
         /// <returns>
         /// A <see cref="BuiltInType"/> value for <paramref name="datatypeId"/>
         /// </returns>
-        public static BuiltInType GetBuiltInType(NodeId datatypeId, ITypeTable typeTree)
+        public static BuiltInType GetBuiltInType(NodeId datatypeId, ITypeTable? typeTree)
         {
             NodeId typeId = datatypeId;
 
@@ -1042,7 +1044,7 @@ namespace Opc.Ua
         /// <param name="datatypeId">The datatype id.</param>
         /// <param name="factory">The factory used to store and retrieve underlying OPC UA system types.</param>
         /// <returns>The system type for the <paramref name="datatypeId"/>.</returns>
-        public static IType GetSystemType(ExpandedNodeId datatypeId, IEncodeableTypeLookup factory)
+        public static IType? GetSystemType(ExpandedNodeId datatypeId, IEncodeableTypeLookup factory)
         {
             if (datatypeId.IsNull)
             {
@@ -1154,7 +1156,7 @@ namespace Opc.Ua
                 }
             }
 
-            return factory.TryGetType(datatypeId, out IType type) ? type : default;
+            return factory.TryGetType(datatypeId, out IType? type) ? type : default;
         }
 
         /// <summary>
@@ -1514,16 +1516,20 @@ namespace Opc.Ua
 
             if (BuiltInType == BuiltInType.ExtensionObject)
             {
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type
                 if (value.TryGetStructure(out IEncodeable encodeable))
+#pragma warning restore CS8600
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                 }
 
                 if (value.TryGet(out ExtensionObject extension))
                 {
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type
                     if (extension.TryGetEncodeable(out encodeable))
+#pragma warning restore CS8600
                     {
-                        return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
+                        return ExpandedNodeId.ToNodeId(encodeable!.TypeId, namespaceUris);
                     }
 
                     return typeTree.FindDataTypeId(extension.TypeId);
@@ -1599,7 +1605,7 @@ namespace Opc.Ua
             string name = systemType.Name;
 
             // parse array types.
-            string dimensions = null;
+            string? dimensions = null;
 
             if (name[^1] == ']')
             {
@@ -1638,9 +1644,9 @@ namespace Opc.Ua
                     }
 
                     // check for encodeable object.
-                    if (systemType.GetTypeInfo().BaseType.GetTypeInfo().IsGenericType)
+                    if (systemType.GetTypeInfo().BaseType?.GetTypeInfo().IsGenericType == true)
                     {
-                        return Construct(systemType.GetTypeInfo().BaseType);
+                        return Construct(systemType.GetTypeInfo().BaseType!);
                     }
 
                     return Unknown;
@@ -1699,13 +1705,13 @@ namespace Opc.Ua
 
                 // check for encodeable object.
                 if (typeof(IEncodeable).GetTypeInfo()
-                        .IsAssignableFrom(systemType.GetElementType().GetTypeInfo()) ||
+                        .IsAssignableFrom(systemType.GetElementType()?.GetTypeInfo()) ||
                     name == "IEncodeable")
                 {
                     return Arrays.ExtensionObject;
                 }
 
-                if (systemType.GetTypeInfo().GetElementType().IsEnum)
+                if (systemType.GetTypeInfo().GetElementType()!.IsEnum)
                 {
                     return Arrays.Enumeration;
                 }
@@ -1791,7 +1797,7 @@ namespace Opc.Ua
                 case BuiltInType.Double:
                     return (double)0;
                 case BuiltInType.String:
-                    return (string)null;
+                    return (string)null!;
                 case BuiltInType.DateTime:
                     return DateTimeUtc.MinValue;
                 case BuiltInType.Guid:
@@ -1813,7 +1819,7 @@ namespace Opc.Ua
                 case BuiltInType.Variant:
                     return Variant.Null;
                 case BuiltInType.DataValue:
-                    return (DataValue)null;
+                    return (DataValue)null!;
                 case BuiltInType.Enumeration:
                     return 0;
                 case BuiltInType.Number:
@@ -1841,7 +1847,7 @@ namespace Opc.Ua
         /// <returns>The default value.</returns>
         public static Variant GetDefaultVariantValue(NodeId dataType, int valueRank)
         {
-            return GetDefaultVariantValue(dataType, valueRank, null);
+            return GetDefaultVariantValue(dataType, valueRank, null!);
         }
 
         /// <summary>
@@ -1981,7 +1987,7 @@ namespace Opc.Ua
         /// <param name="type">The Built-in type.</param>
         /// <returns>The default value.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        public static object GetDefaultValue(BuiltInType type)
+        public static object? GetDefaultValue(BuiltInType type)
         {
             switch (type)
             {
@@ -2053,7 +2059,7 @@ namespace Opc.Ua
         /// <param name="valueRank">The value rank.</param>
         /// <returns>The default value.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        public static object GetDefaultValue(BuiltInType type, int valueRank)
+        public static object? GetDefaultValue(BuiltInType type, int valueRank)
         {
             return GetDefaultValue((NodeId)(uint)type, valueRank);
         }
@@ -2064,7 +2070,7 @@ namespace Opc.Ua
         /// <param name="dataType">The data type.</param>
         /// <param name="valueRank">The value rank.</param>
         /// <returns>The default value.</returns>
-        public static object GetDefaultValue(NodeId dataType, int valueRank)
+        public static object? GetDefaultValue(NodeId dataType, int valueRank)
         {
             return GetDefaultValue(dataType, valueRank, null);
         }
@@ -2076,7 +2082,7 @@ namespace Opc.Ua
         /// <param name="valueRank">The value rank.</param>
         /// <param name="typeTree">The type tree for a server.</param>
         /// <returns>A default value.</returns>
-        public static object GetDefaultValue(NodeId dataType, int valueRank, ITypeTable typeTree)
+        public static object? GetDefaultValue(NodeId dataType, int valueRank, ITypeTable? typeTree)
         {
             if (valueRank != ValueRanks.Scalar)
             {
@@ -2122,7 +2128,7 @@ namespace Opc.Ua
                     return GetDefaultValueInternal(dataType, typeTree);
             }
 
-            static object GetDefaultValueInternal(NodeId dataType, ITypeTable typeTree)
+            static object? GetDefaultValueInternal(NodeId dataType, ITypeTable? typeTree)
             {
                 BuiltInType builtInType = GetBuiltInType(dataType, typeTree);
                 if (builtInType != BuiltInType.Null)
@@ -2300,7 +2306,7 @@ namespace Opc.Ua
         /// <returns>An data type identifier for a node in a server's address space.</returns>
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2067",
             Justification = "IEncodeable types registered in the factory have parameterless constructors preserved.")]
-        public static NodeId GetDataTypeId(Type type, NamespaceTable namespaceTable = null)
+        public static NodeId GetDataTypeId(Type type, NamespaceTable? namespaceTable = null)
         {
             TypeInfo typeInfo = Construct(type);
 
@@ -2309,7 +2315,7 @@ namespace Opc.Ua
             if (dataTypeId.IsNull)
             {
                 if (type.GetTypeInfo().IsEnum ||
-                    (type.IsArray && type.GetElementType().GetTypeInfo().IsEnum))
+                    (type.IsArray && type.GetElementType()!.GetTypeInfo().IsEnum))
                 {
                     return DataTypeIds.Enumeration;
                 }
@@ -2327,7 +2333,7 @@ namespace Opc.Ua
                     if (instance?.TypeId != null)
                     {
                         namespaceTable ??= AmbientMessageContext.CurrentContext?.NamespaceUris;
-                        return ExpandedNodeId.ToNodeId(instance.TypeId, namespaceTable);
+                        return ExpandedNodeId.ToNodeId(instance.TypeId, namespaceTable!);
                     }
                 }
                 catch (MissingMethodException)
@@ -2363,7 +2369,7 @@ namespace Opc.Ua
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
                 if (type.GetTypeInfo().IsEnum ||
-                    (type.IsArray && type.GetElementType().GetTypeInfo().IsEnum))
+                    (type.IsArray && type.GetElementType()!.GetTypeInfo().IsEnum))
                 {
                     if (type.IsArray)
                     {
@@ -2384,7 +2390,7 @@ namespace Opc.Ua
         /// Returns the xml qualified name for the specified system type id.
         /// </remarks>
         /// <param name="systemType">The underlying type to query and return the Xml qualified name of</param>
-        public static XmlQualifiedName GetXmlName(Type systemType)
+        public static XmlQualifiedName? GetXmlName(Type? systemType)
         {
             if (systemType == null)
             {
@@ -2451,7 +2457,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The object to query and return the Xml qualified name of</param>
         /// <param name="context">Context</param>
-        public static XmlQualifiedName GetXmlName(object value, IServiceMessageContext context)
+        public static XmlQualifiedName? GetXmlName(object? value, IServiceMessageContext context)
         {
             if (value is IDynamicComplexTypeInstance xmlEncodeable)
             {

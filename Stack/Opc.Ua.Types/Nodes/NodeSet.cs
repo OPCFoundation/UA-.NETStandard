@@ -912,11 +912,11 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(namespaceUri))
             {
-                int index = targetNamespaceUris.GetIndex(namespaceUri);
+                int index = targetNamespaceUris.GetIndex(namespaceUri!);
 
                 if (index == -1)
                 {
-                    index = targetNamespaceUris.Append(namespaceUri);
+                    index = targetNamespaceUris.Append(namespaceUri!);
                 }
 
                 namespaceIndex = (ushort)index;

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -174,7 +176,7 @@ namespace Opc.Ua
         /// <param name="code">The numeric code to apply to this status code</param>
         /// <param name="symbolicId">The symbol for the status code</param>
         [JsonConstructor]
-        public StatusCode(uint code, string symbolicId)
+        public StatusCode(uint code, string? symbolicId)
         {
             if (symbolicId == null &&
                 TryGetInternedStatusCode(code, out StatusCode s))
@@ -203,7 +205,7 @@ namespace Opc.Ua
         /// <param name="defaultCode">The default code to apply if the routine
         /// cannot determine the code from the Exception</param>
         /// <param name="symbolicId">The optional symbol</param>
-        public StatusCode(Exception e, uint defaultCode, string symbolicId)
+        public StatusCode(Exception e, uint defaultCode, string? symbolicId)
         {
             if (e is ServiceResultException sre)
             {
@@ -258,7 +260,7 @@ namespace Opc.Ua
         /// The symbolic name for the code bits of the status code.
         /// This value is not serialized and lost on deserialization.
         /// </summary>
-        public string SymbolicId { get; }
+        public string? SymbolicId { get; }
 
         /// <summary>
         /// The 16 code bits of the status code.
@@ -509,7 +511,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int CompareTo(object obj)
+        public int CompareTo(object? obj)
         {
             // compare codes
             if (obj is StatusCode statusCode)
@@ -548,7 +550,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -564,7 +566,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is StatusCode s ? Equals(s) : obj is uint code && Equals(code);
         }
@@ -757,7 +759,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="code"></param>
         [Obsolete("Use SymbolicId property directly.")]
-        public static string LookupSymbolicId(uint code)
+        public static string? LookupSymbolicId(uint code)
         {
             return TryGetInternedStatusCode(code, out StatusCode s) ?
                 s.SymbolicId :
@@ -769,10 +771,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="code">The numeric error-code to convert to a textual
         /// description</param>
-        public static byte[] LookupUtf8SymbolicId(uint code)
+        public static byte[]? LookupUtf8SymbolicId(uint code)
         {
             return TryGetInternedStatusCode(code, out StatusCode s) ?
-                Encoding.UTF8.GetBytes(s.SymbolicId) :
+                Encoding.UTF8.GetBytes(s.SymbolicId!) :
                 null;
         }
 
