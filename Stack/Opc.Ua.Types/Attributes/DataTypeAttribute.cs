@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -191,7 +191,7 @@ namespace Opc.Ua
 
             string? nodeIdString = dataTypeIdString;
             // Parsing null string succeeds with true and returns NodeId.Null
-            if (!NodeId.TryParse(nodeIdString, out NodeId nodeId))
+            if (!NodeId.TryParse(nodeIdString!, out NodeId nodeId))
             {
                 return false;
             }
@@ -200,14 +200,14 @@ namespace Opc.Ua
                 new ExpandedNodeId(nodeId, namespaceUri);
 
             // Parse the rest but fail if parsing the identifier fails.
-            if (!NodeId.TryParse(binaryEncodingIdString, out nodeId))
+            if (!NodeId.TryParse(binaryEncodingIdString!, out nodeId))
             {
                 return false;
             }
             binaryEncodingId = nodeId.IsNull ?
                 default :
                 new ExpandedNodeId(nodeId, namespaceUri);
-            if (!NodeId.TryParse(xmlEncodingIdString, out nodeId))
+            if (!NodeId.TryParse(xmlEncodingIdString!, out nodeId))
             {
                 return false;
             }

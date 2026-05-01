@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Diagnostics.Contracts;
@@ -123,7 +125,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int CompareTo(object obj)
+        public int CompareTo(object? obj)
         {
             return obj switch
             {
@@ -169,7 +171,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int CompareTo(string obj)
+        public int CompareTo(string? obj)
         {
             if (NamespaceIndex != 0)
             {
@@ -204,7 +206,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj switch
             {
@@ -237,7 +239,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(string qname)
+        public bool Equals(string? qname)
         {
             if (NamespaceIndex != 0)
             {
@@ -277,7 +279,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -404,7 +406,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(namespaceTable));
             }
 
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
             context.NamespaceUris = namespaceTable;
 
             // Parse(IServiceMessageContext, string, bool) is already strict on

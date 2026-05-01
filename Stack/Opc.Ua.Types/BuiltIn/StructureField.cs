@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
@@ -45,8 +47,7 @@ namespace Opc.Ua
         /// <summary>
         /// Name
         /// </summary>
-        [DataMember(Name = "Name", IsRequired = false, Order = 1)]
-        public string Name { get; set; }
+        [DataMember(Name = "Name", IsRequired = false, Order = 1)]public string Name { get; set; } = string.Empty;
 
         /// <summary>
         /// Description
@@ -114,7 +115,7 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            Name = decoder.ReadString("Name");
+            Name = decoder.ReadString("Name") ?? string.Empty;
             Description = decoder.ReadLocalizedText("Description");
             DataType = decoder.ReadNodeId("DataType");
             ValueRank = decoder.ReadInt32("ValueRank");
@@ -126,7 +127,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -177,7 +178,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return IsEqual(obj as IEncodeable);
         }
@@ -196,19 +197,20 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(StructureField other)
+        public bool Equals(StructureField? other)
         {
-            return IsEqual(other);
+            return IsEqual(other)!;
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(StructureField left, StructureField right)
+        public static bool operator ==(StructureField? left, StructureField? right)
         {
-            return EqualityComparer<StructureField>.Default.Equals(left, right);
+            if (left is null) return right is null;
+            return left.Equals(right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(StructureField left, StructureField right)
+        public static bool operator !=(StructureField? left, StructureField? right)
         {
             return !(left == right);
         }

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Runtime.Serialization;
@@ -62,7 +64,7 @@ namespace Opc.Ua
         /// Checks if the value has changed.
         /// </summary>
         /// <exception cref="NotImplementedException"></exception>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             throw new NotImplementedException("Subclass must implement this method.");
         }
@@ -96,7 +98,7 @@ namespace Opc.Ua
 
             try
             {
-                IEncodeable[] encodeables = null;
+                IEncodeable[]? encodeables = null;
 
                 // check for array of extension objects.
                 if (value.TryGet(out ArrayOf<ExtensionObject> extensions))
@@ -108,7 +110,7 @@ namespace Opc.Ua
                     {
                         if (extensions[ii].IsNull)
                         {
-                            encodeables[ii] = null;
+                            encodeables[ii] = null!;
                             continue;
                         }
 
@@ -194,7 +196,7 @@ namespace Opc.Ua
         {
             using var encoder = new BinaryEncoder(context);
             // Wrute body
-            encoder.WriteEncodeable(null, encodeable, encodeable.TypeId);
+            encoder.WriteEncodeable(null!, encodeable, encodeable.TypeId);
             // Return as byte string
             return ByteString.From(encoder.CloseAndReturnBuffer());
         }

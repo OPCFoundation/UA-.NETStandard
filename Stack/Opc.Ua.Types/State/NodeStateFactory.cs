@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Concurrent;
 using Opc.Ua.Types;
@@ -47,7 +49,7 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             NodeId typeDefinitionId)
         {
-            INodeStateFactory factory;
+            INodeStateFactory? factory;
             if (typeDefinitionId.IsNull)
             {
                 factory = DefaultNodeStateActivator.Instance;
@@ -158,7 +160,7 @@ namespace Opc.Ua
                     child = new ViewState();
                     break;
                 case NodeClass.Unspecified:
-                    child = null;
+                    child = null!;
                     break;
                 default:
                     throw ServiceResultException.Unexpected(

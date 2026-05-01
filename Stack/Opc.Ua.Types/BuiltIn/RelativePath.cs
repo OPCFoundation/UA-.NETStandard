@@ -284,6 +284,11 @@ namespace Opc.Ua
             var formatter = RelativePathFormatter.Parse(browsePath, currentTable, targetTable);
             var elements = new List<RelativePathElement>();
 
+            if (formatter == null)
+            {
+                return new RelativePath { Elements = elements.ToArrayOf() };
+            }
+
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {
                 var parsedElement = new RelativePathElement

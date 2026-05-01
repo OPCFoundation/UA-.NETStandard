@@ -2449,7 +2449,7 @@ namespace Opc.Ua
                 case JsonValueKind.String:
                     value = QualifiedName.Parse(
                         Context,
-                        element.GetString(),
+                        element.GetString()!,
                         m_options.UpdateNamespaceTable);
                     return true;
                 default:

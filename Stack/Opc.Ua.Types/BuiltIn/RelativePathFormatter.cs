@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -230,7 +232,7 @@ namespace Opc.Ua
         /// <param name="format">(Unused) Always pass null</param>
         /// <param name="formatProvider">(Unused) Always pass null</param>
         /// <exception cref="FormatException">Thrown if non-null parameters are passed</exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -267,12 +269,12 @@ namespace Opc.Ua
         /// Parses a string representing a relative path.
         /// </remarks>
         /// <exception cref="ServiceResultException">Thrown if any errors occur during parsing</exception>
-        public static RelativePathFormatter Parse(
+        public static RelativePathFormatter? Parse(
             string textToParse,
             NamespaceTable currentTable,
             NamespaceTable targetTable)
         {
-            RelativePathFormatter path = Parse(textToParse);
+            RelativePathFormatter? path = Parse(textToParse);
 
             path?.TranslateNamespaceIndexes(currentTable, targetTable);
 
@@ -413,7 +415,7 @@ namespace Opc.Ua
             /// <param name="formatProvider">(Unused) Always pass null</param>
             /// <exception cref="FormatException">Thrown if non-null parameters are passed</exception>
             /// <exception cref="ServiceResultException"></exception>
-            public string ToString(string format, IFormatProvider formatProvider)
+            public string ToString(string? format, IFormatProvider? formatProvider)
             {
                 if (format == null)
                 {

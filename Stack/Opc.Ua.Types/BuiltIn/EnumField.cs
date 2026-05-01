@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
@@ -43,8 +45,7 @@ namespace Opc.Ua
         /// <summary>
         /// Name
         /// </summary>
-        [DataMember(Name = "Name", IsRequired = false, Order = 1)]
-        public string Name { get; set; }
+        [DataMember(Name = "Name", IsRequired = false, Order = 1)]public string Name { get; set; } = string.Empty;
 
         /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.EnumField;
@@ -74,13 +75,13 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            Name = decoder.ReadString("Name");
+            Name = decoder.ReadString("Name") ?? string.Empty;
 
             decoder.PopNamespace();
         }
 
         /// <inheritdoc/>
-        public override bool IsEqual(IEncodeable encodeable)
+        public override bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -101,7 +102,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return IsEqual(obj as IEncodeable);
         }
@@ -113,19 +114,20 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(EnumField other)
+        public bool Equals(EnumField? other)
         {
-            return IsEqual(other);
+            return IsEqual(other)!;
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(EnumField left, EnumField right)
+        public static bool operator ==(EnumField? left, EnumField? right)
         {
-            return EqualityComparer<EnumField>.Default.Equals(left, right);
+            if (left is null) return right is null;
+            return left.Equals(right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(EnumField left, EnumField right)
+        public static bool operator !=(EnumField? left, EnumField? right)
         {
             return !(left == right);
         }

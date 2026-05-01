@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -150,7 +152,7 @@ namespace Opc.Ua
             /// </summary>
             /// <typeparam name="T"></typeparam>
             [Obsolete("Use ExtensionObject.ToArray<T> instead.")]
-            public static List<T> ToList<T>(object source)
+            public static List<T>? ToList<T>(object source)
                 where T : class
             {
                 if (source is not Array extensions)
@@ -163,14 +165,14 @@ namespace Opc.Ua
                 for (int ii = 0; ii < extensions.Length; ii++)
                 {
                     if (extensions.GetValue(ii) is ExtensionObject e &&
-                        e.TryGetEncodeable(out IEncodeable element) &&
+                        e.TryGetEncodeable(out IEncodeable? element) &&
                         element is T typedElement)
                     {
                         list.Add(typedElement);
                     }
                     else
                     {
-                        list.Add(null);
+                        list.Add(null!);
                     }
                 }
 
@@ -184,7 +186,7 @@ namespace Opc.Ua
             [Obsolete("Use ExtensionObject.ToArray<T> instead.")]
             [UnconditionalSuppressMessage("AOT", "IL3050",
                 Justification = "Array.CreateInstance is used with known OPC UA types.")]
-            public static Array ToArray(object source, Type elementType)
+            public static Array? ToArray(object source, Type elementType)
             {
                 if (source is not Array extensions)
                 {

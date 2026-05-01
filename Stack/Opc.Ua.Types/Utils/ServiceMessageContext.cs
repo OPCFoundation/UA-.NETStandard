@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 
 namespace Opc.Ua
@@ -41,7 +43,7 @@ namespace Opc.Ua
         /// </summary>
         [Obsolete("Use ServiceMessageContext.Create(ITelemetryContext) instead.")]
         public ServiceMessageContext()
-            : this(null)
+            : this(null!)
         {
         }
 
@@ -53,7 +55,7 @@ namespace Opc.Ua
         /// </summary>
         [Obsolete("Use ServiceMessageContext.Create(ITelemetryContext) instead.")]
         public ServiceMessageContext(ITelemetryContext telemetry)
-            : this(telemetry, null)
+            : this(telemetry, null!)
         {
         }
 
@@ -112,7 +114,7 @@ namespace Opc.Ua
         /// The default context for the process (used only during XML serialization).
         /// </summary>
         [Obsolete("Use CreateEmpty() to create an empty context or a copy of an existing one for a scope.")]
-        public static ServiceMessageContext GlobalContext { get; } = new(null);
+        public static ServiceMessageContext GlobalContext { get; } = new(null!);
 
         /// <summary>
         /// The default context for the thread (used only during XML serialization).
