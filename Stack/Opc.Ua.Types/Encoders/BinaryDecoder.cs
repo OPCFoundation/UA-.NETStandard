@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -61,7 +63,7 @@ namespace Opc.Ua
         public BinaryDecoder(
             ArraySegment<byte> buffer,
             IServiceMessageContext context)
-            : this(buffer.Array, buffer.Offset, buffer.Count, context)
+            : this(buffer.Array!, buffer.Offset, buffer.Count, context)
         {
         }
 
@@ -122,7 +124,7 @@ namespace Opc.Ua
             if (disposing)
             {
                 m_reader?.Dispose();
-                m_reader = null;
+                m_reader = null!;
             }
         }
 
@@ -185,7 +187,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the stream that the decoder is reading from.
         /// </summary>
-        public Stream BaseStream => m_reader?.BaseStream;
+        public Stream BaseStream => m_reader?.BaseStream!;
 
         /// <summary>
         /// Decodes a message from a stream.
@@ -225,7 +227,7 @@ namespace Opc.Ua
 
             for (uint ii = 0; ii < count; ii++)
             {
-                stringTable.Append(ReadString(null));
+                stringTable.Append(ReadString(null) ?? string.Empty);
             }
 
             return true;
@@ -261,7 +263,7 @@ namespace Opc.Ua
             var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
 
             // read the message.
-            T message = ReadEncodeable<T>(null, absoluteId);
+            T message = ReadEncodeable<T>(null!, absoluteId);
 
             // check that the max message size was not exceeded.
             int messageLength = Position - start;
@@ -279,73 +281,73 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool ReadBoolean(string fieldName)
+        public bool ReadBoolean(string? fieldName)
         {
             return SafeReadBoolean();
         }
 
         /// <inheritdoc/>
-        public sbyte ReadSByte(string fieldName)
+        public sbyte ReadSByte(string? fieldName)
         {
             return SafeReadSByte();
         }
 
         /// <inheritdoc/>
-        public byte ReadByte(string fieldName)
+        public byte ReadByte(string? fieldName)
         {
             return SafeReadByte();
         }
 
         /// <inheritdoc/>
-        public short ReadInt16(string fieldName)
+        public short ReadInt16(string? fieldName)
         {
             return SafeReadInt16();
         }
 
         /// <inheritdoc/>
-        public ushort ReadUInt16(string fieldName)
+        public ushort ReadUInt16(string? fieldName)
         {
             return SafeReadUInt16();
         }
 
         /// <inheritdoc/>
-        public int ReadInt32(string fieldName)
+        public int ReadInt32(string? fieldName)
         {
             return SafeReadInt32();
         }
 
         /// <inheritdoc/>
-        public uint ReadUInt32(string fieldName)
+        public uint ReadUInt32(string? fieldName)
         {
             return SafeReadUInt32();
         }
 
         /// <inheritdoc/>
-        public long ReadInt64(string fieldName)
+        public long ReadInt64(string? fieldName)
         {
             return SafeReadInt64();
         }
 
         /// <inheritdoc/>
-        public ulong ReadUInt64(string fieldName)
+        public ulong ReadUInt64(string? fieldName)
         {
             return SafeReadUInt64();
         }
 
         /// <inheritdoc/>
-        public float ReadFloat(string fieldName)
+        public float ReadFloat(string? fieldName)
         {
             return SafeReadFloat();
         }
 
         /// <inheritdoc/>
-        public double ReadDouble(string fieldName)
+        public double ReadDouble(string? fieldName)
         {
             return SafeReadDouble();
         }
 
         /// <inheritdoc/>
-        public string ReadString(string fieldName)
+        public string? ReadString(string? fieldName)
         {
             return ReadString(fieldName, Context.MaxStringLength);
         }
@@ -355,7 +357,7 @@ namespace Opc.Ua
         /// its length is invalid or exceeds the limit specified).
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public string ReadString(string fieldName, int maxStringLength)
+        public string? ReadString(string? fieldName, int maxStringLength)
         {
             int length = SafeReadInt32();
 
@@ -381,7 +383,7 @@ namespace Opc.Ua
             // length is always >= 1 here
 #if NET6_0_OR_GREATER
             const int maxStackAlloc = 1024;
-            byte[] buffer = null;
+            byte[]? buffer = null;
             try
             {
                 Span<byte> bytes =
@@ -420,13 +422,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DateTimeUtc ReadDateTime(string fieldName)
+        public DateTimeUtc ReadDateTime(string? fieldName)
         {
             return new DateTimeUtc(SafeReadInt64());
         }
 
         /// <inheritdoc/>
-        public Uuid ReadGuid(string fieldName)
+        public Uuid ReadGuid(string? fieldName)
         {
             const int kGuidLength = 16;
             byte[] bytes = SafeReadBytes(kGuidLength);
@@ -434,7 +436,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ByteString ReadByteString(string fieldName)
+        public ByteString ReadByteString(string? fieldName)
         {
             return ReadByteString(Context.MaxByteStringLength);
         }
@@ -465,7 +467,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public XmlElement ReadXmlElement(string fieldName)
+        public XmlElement ReadXmlElement(string? fieldName)
         {
             ByteString bytes = ReadByteString(Context.MaxStringLength);
 
@@ -485,7 +487,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public NodeId ReadNodeId(string fieldName)
+        public NodeId ReadNodeId(string? fieldName)
         {
             byte encodingByte = SafeReadByte();
 
@@ -500,7 +502,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ExpandedNodeId ReadExpandedNodeId(string fieldName)
+        public ExpandedNodeId ReadExpandedNodeId(string? fieldName)
         {
             byte encodingByte = SafeReadByte();
 
@@ -510,7 +512,7 @@ namespace Opc.Ua
             // read the namespace uri if present.
             if ((encodingByte & 0x80) != 0)
             {
-                string namespaceUri = ReadString(null);
+                string? namespaceUri = ReadString(null);
                 expandedNodeId = expandedNodeId.WithNamespaceUri(namespaceUri);
             }
 
@@ -539,22 +541,22 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public StatusCode ReadStatusCode(string fieldName)
+        public StatusCode ReadStatusCode(string? fieldName)
         {
             return SafeReadUInt32();
         }
 
         /// <inheritdoc/>
-        public DiagnosticInfo ReadDiagnosticInfo(string fieldName)
+        public DiagnosticInfo? ReadDiagnosticInfo(string? fieldName)
         {
             return ReadDiagnosticInfo(0);
         }
 
         /// <inheritdoc/>
-        public QualifiedName ReadQualifiedName(string fieldName)
+        public QualifiedName ReadQualifiedName(string? fieldName)
         {
             ushort namespaceIndex = ReadUInt16(null);
-            string name = ReadString(null);
+            string name = ReadString(null) ?? string.Empty;
 
             if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
             {
@@ -565,13 +567,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public LocalizedText ReadLocalizedText(string fieldName)
+        public LocalizedText ReadLocalizedText(string? fieldName)
         {
             // read the encoding byte.
             byte encodingByte = SafeReadByte();
 
-            string text = null;
-            string locale = null;
+            string? text = null;
+            string? locale = null;
 
             // read the fields of the diagnostic info structure.
             if ((encodingByte & (byte)LocalizedTextEncodingBits.Locale) != 0)
@@ -584,11 +586,11 @@ namespace Opc.Ua
                 text = ReadString(null);
             }
 
-            return new LocalizedText(locale, text);
+            return new LocalizedText(locale ?? string.Empty, text ?? string.Empty);
         }
 
         /// <inheritdoc/>
-        public Variant ReadVariant(string fieldName)
+        public Variant ReadVariant(string? fieldName)
         {
             CheckAndIncrementNestingLevel();
 
@@ -612,7 +614,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DataValue ReadDataValue(string fieldName)
+        public DataValue? ReadDataValue(string? fieldName)
         {
             // read the encoding byte.
             byte encodingByte = SafeReadByte();
@@ -667,7 +669,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ExtensionObject ReadExtensionObject(string fieldName)
+        public ExtensionObject ReadExtensionObject(string? fieldName)
         {
             // read type id.
             NodeId typeId = ReadNodeId(null);
@@ -705,7 +707,7 @@ namespace Opc.Ua
             // check for known type.
             if (!Context.Factory.TryGetEncodeableType(
                 extension.TypeId,
-                out IEncodeableType activator))
+                out IEncodeableType? activator))
             {
                 m_logger.LogDebug("Failed to retrieve activator for extension object.");
                 // Continue without registered type by reading the binary blob for later.
@@ -725,8 +727,8 @@ namespace Opc.Ua
                     using var xmlDecoder = new XmlDecoder(element, Context);
                     try
                     {
-                        System.Xml.XmlElement xmlElement = element.AsXmlElement();
-                        xmlDecoder.PushNamespace(xmlElement.NamespaceURI);
+                        System.Xml.XmlElement? xmlElement = element.AsXmlElement();
+                        xmlDecoder.PushNamespace(xmlElement!.NamespaceURI);
                         IEncodeable body = xmlDecoder.ReadEncodeable<IEncodeable>(
                             xmlElement.LocalName,
                             extension.TypeId);
@@ -758,7 +760,7 @@ namespace Opc.Ua
             int start = Position;
 
             // create instance of type.
-            IEncodeable encodeable = null;
+            IEncodeable? encodeable = null;
             if (activator != null && length >= -1)
             {
                 encodeable = activator.CreateInstance();
@@ -769,7 +771,7 @@ namespace Opc.Ua
             {
                 bool resetStream = true;
                 string errorMessage = string.Empty;
-                Exception exception = null;
+                Exception? exception = null;
                 uint nestingLevel = m_nestingLevel;
 
                 CheckAndIncrementNestingLevel();
@@ -822,7 +824,7 @@ namespace Opc.Ua
                                 StatusCodes.BadDecodingError,
                                 "{0}, failed to decode encodeable type '{1}', NodeId='{2}'.",
                                 errorMessage,
-                                activator.XmlName,
+                                activator!.XmlName,
                                 extension.TypeId);
                     }
                     else if (m_encodeablesRecovered == 0)
@@ -832,7 +834,7 @@ namespace Opc.Ua
                             exception,
                             "{Message}, failed to decode encodeable type '{Name}', NodeId='{NodeId}'. BinaryDecoder recovered.",
                             errorMessage,
-                            activator.XmlName,
+                            activator!.XmlName,
                             extension.TypeId);
                     }
 
@@ -895,7 +897,7 @@ namespace Opc.Ua
         {
             if (!Context.Factory.TryGetEncodeableType(
                 encodeableTypeId,
-                out IEncodeableType activator))
+                out IEncodeableType? activator))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -937,11 +939,11 @@ namespace Opc.Ua
             where T : IEncodeable
         {
             ExtensionObject extensionObject = ReadExtensionObject(fieldName);
-            if (extensionObject.TryGetEncodeable(out T value))
+            if (extensionObject.TryGetEncodeable(out T? value))
             {
-                return value;
+                return value!;
             }
-            return default;
+            return default!;
         }
 
         /// <inheritdoc/>
@@ -951,13 +953,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public EnumValue ReadEnumerated(string fieldName)
+        public EnumValue ReadEnumerated(string? fieldName)
         {
             return EnumValue.From(SafeReadInt32());
         }
 
         /// <inheritdoc/>
-        public ArrayOf<bool> ReadBooleanArray(string fieldName)
+        public ArrayOf<bool> ReadBooleanArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -975,7 +977,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<sbyte> ReadSByteArray(string fieldName)
+        public ArrayOf<sbyte> ReadSByteArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -995,7 +997,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<byte> ReadByteArray(string fieldName)
+        public ArrayOf<byte> ReadByteArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1013,7 +1015,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<short> ReadInt16Array(string fieldName)
+        public ArrayOf<short> ReadInt16Array(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1033,7 +1035,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ushort> ReadUInt16Array(string fieldName)
+        public ArrayOf<ushort> ReadUInt16Array(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1053,7 +1055,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<int> ReadInt32Array(string fieldName)
+        public ArrayOf<int> ReadInt32Array(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1073,7 +1075,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<uint> ReadUInt32Array(string fieldName)
+        public ArrayOf<uint> ReadUInt32Array(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1093,7 +1095,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<long> ReadInt64Array(string fieldName)
+        public ArrayOf<long> ReadInt64Array(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1113,7 +1115,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ulong> ReadUInt64Array(string fieldName)
+        public ArrayOf<ulong> ReadUInt64Array(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1133,7 +1135,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<float> ReadFloatArray(string fieldName)
+        public ArrayOf<float> ReadFloatArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1153,7 +1155,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<double> ReadDoubleArray(string fieldName)
+        public ArrayOf<double> ReadDoubleArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1173,7 +1175,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<string> ReadStringArray(string fieldName)
+        public ArrayOf<string?> ReadStringArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1182,7 +1184,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            string[] values = new string[length];
+            string?[] values = new string?[length];
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1193,7 +1195,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DateTimeUtc> ReadDateTimeArray(string fieldName)
+        public ArrayOf<DateTimeUtc> ReadDateTimeArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1213,7 +1215,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<Uuid> ReadGuidArray(string fieldName)
+        public ArrayOf<Uuid> ReadGuidArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1233,7 +1235,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ByteString> ReadByteStringArray(string fieldName)
+        public ArrayOf<ByteString> ReadByteStringArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1253,7 +1255,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<XmlElement> ReadXmlElementArray(string fieldName)
+        public ArrayOf<XmlElement> ReadXmlElementArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1273,7 +1275,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<NodeId> ReadNodeIdArray(string fieldName)
+        public ArrayOf<NodeId> ReadNodeIdArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1293,7 +1295,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string fieldName)
+        public ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1313,7 +1315,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<StatusCode> ReadStatusCodeArray(string fieldName)
+        public ArrayOf<StatusCode> ReadStatusCodeArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1333,7 +1335,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DiagnosticInfo> ReadDiagnosticInfoArray(string fieldName)
+        public ArrayOf<DiagnosticInfo?> ReadDiagnosticInfoArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1342,7 +1344,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            var values = new DiagnosticInfo[length];
+            var values = new DiagnosticInfo?[length];
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1353,7 +1355,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<QualifiedName> ReadQualifiedNameArray(string fieldName)
+        public ArrayOf<QualifiedName> ReadQualifiedNameArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1373,7 +1375,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<LocalizedText> ReadLocalizedTextArray(string fieldName)
+        public ArrayOf<LocalizedText> ReadLocalizedTextArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1393,7 +1395,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<Variant> ReadVariantArray(string fieldName)
+        public ArrayOf<Variant> ReadVariantArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1413,7 +1415,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DataValue> ReadDataValueArray(string fieldName)
+        public ArrayOf<DataValue?> ReadDataValueArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1422,7 +1424,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            var values = new DataValue[length];
+            var values = new DataValue?[length];
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1433,7 +1435,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string fieldName)
+        public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1468,7 +1470,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values[ii] = ReadEncodeable<T>(null, encodeableTypeId);
+                values[ii] = ReadEncodeable<T>(null!, encodeableTypeId);
             }
 
             return values;
@@ -1480,7 +1482,7 @@ namespace Opc.Ua
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             ArrayOf<int> dimensions = ReadInt32Array(null);
-            ArrayOf<T> array = ReadEncodeableArray<T>(null, encodeableTypeId);
+            ArrayOf<T> array = ReadEncodeableArray<T>(null!, encodeableTypeId);
             if (dimensions.IsEmpty)
             {
                 return default;
@@ -1503,7 +1505,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values[ii] = ReadEncodeableAsExtensionObject<T>(null);
+                values[ii] = ReadEncodeableAsExtensionObject<T>(null!);
             }
 
             return values;
@@ -1524,7 +1526,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values[ii] = ReadEncodeable<T>(null);
+                values[ii] = ReadEncodeable<T>(null!);
             }
 
             return values;
@@ -1544,14 +1546,14 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values[ii] = ReadEnumerated<T>(null);
+                values[ii] = ReadEnumerated<T>(null!);
             }
 
             return values;
         }
 
         /// <inheritdoc/>
-        public ArrayOf<EnumValue> ReadEnumeratedArray(string fieldName)
+        public ArrayOf<EnumValue> ReadEnumeratedArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1577,7 +1579,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public uint ReadSwitchField(IList<string> switches, out string fieldName)
+        public uint ReadSwitchField(IList<string> switches, out string? fieldName)
         {
             fieldName = null;
             return ReadUInt32("SwitchField");
@@ -1639,7 +1641,7 @@ namespace Opc.Ua
                     case BuiltInType.Double:
                         return Variant.From(SafeReadDouble());
                     case BuiltInType.String:
-                        return Variant.From(ReadString(null));
+                        return Variant.From(ReadString(null) ?? string.Empty);
                     case BuiltInType.DateTime:
                         return Variant.From(ReadDateTime(null));
                     case BuiltInType.Guid:
@@ -1709,7 +1711,9 @@ namespace Opc.Ua
                     case BuiltInType.Double:
                         return Variant.From(ReadDoubleArray(null));
                     case BuiltInType.String:
+#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
                         return Variant.From(ReadStringArray(null));
+#pragma warning restore CS8620
                     case BuiltInType.DateTime:
                         return Variant.From(ReadDateTimeArray(null));
                     case BuiltInType.Guid:
@@ -1731,7 +1735,9 @@ namespace Opc.Ua
                     case BuiltInType.ExtensionObject:
                         return Variant.From(ReadExtensionObjectArray(null));
                     case BuiltInType.DataValue:
+#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
                         return Variant.From(ReadDataValueArray(null));
+#pragma warning restore CS8620
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
@@ -1751,7 +1757,7 @@ namespace Opc.Ua
             }
             else
             {
-                int[] dim = null;
+                int[]? dim = null;
                 // read the dimensions for array encoding before the array.
                 // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
                 if (readRawValue)
@@ -1760,7 +1766,7 @@ namespace Opc.Ua
                 }
                 // read the dimensions for variant encoding after the array.
                 // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.16
-                int[] ReadDims() => dim ?? ReadInt32Array(null).ToArray();
+                int[] ReadDims() => dim ?? ReadInt32Array(null).ToArray() ?? [];
                 switch (typeInfo.BuiltInType)
                 {
                     case BuiltInType.Null:
@@ -1790,7 +1796,9 @@ namespace Opc.Ua
                     case BuiltInType.Double:
                         return Variant.From(ReadDoubleArray(null).ToMatrix(ReadDims()));
                     case BuiltInType.String:
+#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
                         return Variant.From(ReadStringArray(null).ToMatrix(ReadDims()));
+#pragma warning restore CS8620
                     case BuiltInType.DateTime:
                         return Variant.From(ReadDateTimeArray(null).ToMatrix(ReadDims()));
                     case BuiltInType.Guid:
@@ -1812,7 +1820,9 @@ namespace Opc.Ua
                     case BuiltInType.ExtensionObject:
                         return Variant.From(ReadExtensionObjectArray(null).ToMatrix(ReadDims()));
                     case BuiltInType.DataValue:
+#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
                         return Variant.From(ReadDataValueArray(null).ToMatrix(ReadDims()));
+#pragma warning restore CS8620
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
@@ -1837,7 +1847,7 @@ namespace Opc.Ua
         /// Limits the InnerDiagnosticInfo nesting level.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private DiagnosticInfo ReadDiagnosticInfo(int depth)
+        private DiagnosticInfo? ReadDiagnosticInfo(int depth)
         {
             if (depth >= DiagnosticInfo.MaxInnerDepth)
             {
@@ -1954,7 +1964,7 @@ namespace Opc.Ua
                     break;
                 case NodeIdEncodingBits.String:
                     namespaceIndex = SafeReadUInt16();
-                    value = new NodeId(ReadString(null), namespaceIndex);
+                    value = new NodeId(ReadString(null) ?? string.Empty, namespaceIndex);
                     break;
                 case NodeIdEncodingBits.Guid:
                     namespaceIndex = SafeReadUInt16();
@@ -1980,7 +1990,7 @@ namespace Opc.Ua
         /// <param name="functionName">The name of the calling function.</param>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private byte[] SafeReadBytes(int length, [CallerMemberName] string functionName = null)
+        private byte[] SafeReadBytes(int length, [CallerMemberName] string? functionName = null)
         {
             if (length == 0)
             {
@@ -1994,7 +2004,7 @@ namespace Opc.Ua
                     StatusCodes.BadDecodingError,
                     "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
                     length,
-                    functionName,
+                    functionName ?? string.Empty,
                     bytes.Length);
             }
             return bytes;
@@ -2011,7 +2021,7 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int SafeReadCharBytes(
             Span<byte> bytes,
-            [CallerMemberName] string functionName = null)
+            [CallerMemberName] string? functionName = null)
         {
             int length = m_reader.Read(bytes);
 
@@ -2021,7 +2031,7 @@ namespace Opc.Ua
                     StatusCodes.BadDecodingError,
                     "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
                     length,
-                    functionName,
+                    functionName ?? string.Empty,
                     bytes.Length);
             }
 
@@ -2034,7 +2044,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool SafeReadBoolean([CallerMemberName] string functionName = null)
+        private bool SafeReadBoolean([CallerMemberName] string? functionName = null)
         {
             try
             {
@@ -2051,7 +2061,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private sbyte SafeReadSByte([CallerMemberName] string functionName = null)
+        private sbyte SafeReadSByte([CallerMemberName] string? functionName = null)
         {
             try
             {
@@ -2068,7 +2078,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private byte SafeReadByte([CallerMemberName] string functionName = null)
+        private byte SafeReadByte([CallerMemberName] string? functionName = null)
         {
             try
             {
@@ -2085,7 +2095,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private short SafeReadInt16([CallerMemberName] string functionName = null)
+        private short SafeReadInt16([CallerMemberName] string? functionName = null)
         {
             try
             {
@@ -2102,7 +2112,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ushort SafeReadUInt16([CallerMemberName] string functionName = null)
+        private ushort SafeReadUInt16([CallerMemberName] string? functionName = null)
         {
             try
             {
@@ -2119,7 +2129,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int SafeReadInt32([CallerMemberName] string functionName = null)
+        private int SafeReadInt32([CallerMemberName] string? functionName = null)
         {
             try
             {
@@ -2136,7 +2146,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private uint SafeReadUInt32([CallerMemberName] string functionName = null)
+        private uint SafeReadUInt32([CallerMemberName] string? functionName = null)
         {
             try
             {
@@ -2153,7 +2163,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private long SafeReadInt64([CallerMemberName] string functionName = null)
+        private long SafeReadInt64([CallerMemberName] string? functionName = null)
         {
             try
             {
@@ -2170,7 +2180,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ulong SafeReadUInt64([CallerMemberName] string functionName = null)
+        private ulong SafeReadUInt64([CallerMemberName] string? functionName = null)
         {
             try
             {
@@ -2187,7 +2197,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private float SafeReadFloat([CallerMemberName] string functionName = null)
+        private float SafeReadFloat([CallerMemberName] string? functionName = null)
         {
             try
             {
@@ -2204,7 +2214,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private double SafeReadDouble([CallerMemberName] string functionName = null)
+        private double SafeReadDouble([CallerMemberName] string? functionName = null)
         {
             try
             {
@@ -2224,13 +2234,13 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         private static ServiceResultException CreateDecodingError(
             string dataTypeName,
-            string functionName)
+            string? functionName)
         {
             return ServiceResultException.Create(
                 StatusCodes.BadDecodingError,
                 "Reading {0} in {1} reached end of stream.",
                 dataTypeName,
-                functionName);
+                functionName ?? string.Empty);
         }
 
         /// <summary>
@@ -2250,8 +2260,8 @@ namespace Opc.Ua
         }
 
         private BinaryReader m_reader;
-        private ushort[] m_namespaceMappings;
-        private ushort[] m_serverMappings;
+        private ushort[]? m_namespaceMappings;
+        private ushort[]? m_serverMappings;
         private uint m_nestingLevel;
         private uint m_encodeablesRecovered;
         private readonly ILogger m_logger;
