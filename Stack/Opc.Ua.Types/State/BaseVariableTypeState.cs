@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using Opc.Ua.Types;
 
@@ -76,9 +78,9 @@ namespace Opc.Ua
         /// <summary>
         /// Sets the value to its default value if it is not valid.
         /// </summary>
-        protected virtual object ExtractValueFromVariant(
+        protected virtual object? ExtractValueFromVariant(
             ISystemContext context,
-            object value,
+            object? value,
             bool throwOnError)
         {
             return value;
@@ -205,42 +207,42 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the Value attribute is read.
         /// </summary>
-        public NodeValueSimpleEventHandler OnSimpleReadValue;
+        public NodeValueSimpleEventHandler? OnSimpleReadValue;
 
         /// <summary>
         /// Raised when the Value attribute is written.
         /// </summary>
-        public NodeValueSimpleEventHandler OnSimpleWriteValue;
+        public NodeValueSimpleEventHandler? OnSimpleWriteValue;
 
         /// <summary>
         /// Raised when the DataType attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<NodeId> OnReadDataType;
+        public NodeAttributeEventHandler<NodeId>? OnReadDataType;
 
         /// <summary>
         /// Raised when the DataType attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<NodeId> OnWriteDataType;
+        public NodeAttributeEventHandler<NodeId>? OnWriteDataType;
 
         /// <summary>
         /// Raised when the ValueRank attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<int> OnReadValueRank;
+        public NodeAttributeEventHandler<int>? OnReadValueRank;
 
         /// <summary>
         /// Raised when the ValueRank attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<int> OnWriteValueRank;
+        public NodeAttributeEventHandler<int>? OnWriteValueRank;
 
         /// <summary>
         /// Raised when the ArrayDimensions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<ArrayOf<uint>> OnReadArrayDimensions;
+        public NodeAttributeEventHandler<ArrayOf<uint>>? OnReadArrayDimensions;
 
         /// <summary>
         /// Raised when the ArrayDimensions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<ArrayOf<uint>> OnWriteArrayDimensions;
+        public NodeAttributeEventHandler<ArrayOf<uint>>? OnWriteArrayDimensions;
 
         /// <summary>
         /// Exports a copy of the node to a node table.
@@ -393,7 +395,7 @@ namespace Opc.Ua
 
             if ((attributesToSave & AttributesToSave.ArrayDimensions) != 0)
             {
-                encoder.WriteUInt32Array(null, m_arrayDimensions.ToArray());
+                encoder.WriteUInt32Array(null, m_arrayDimensions.ToArray()!);
             }
         }
 
@@ -439,58 +441,58 @@ namespace Opc.Ua
             uint attributeId,
             ref Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
                 case Attributes.DataType:
                     NodeId dataType = m_dataType;
 
-                    NodeAttributeEventHandler<NodeId> onReadDataType = OnReadDataType;
+                    NodeAttributeEventHandler<NodeId>? onReadDataType = OnReadDataType;
 
                     if (onReadDataType != null)
                     {
                         result = onReadDataType(context, this, ref dataType);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         value = dataType;
                     }
 
-                    return result;
+                    return result!;
                 case Attributes.ValueRank:
                     int valueRank = m_valueRank;
 
-                    NodeAttributeEventHandler<int> onReadValueRank = OnReadValueRank;
+                    NodeAttributeEventHandler<int>? onReadValueRank = OnReadValueRank;
 
                     if (onReadValueRank != null)
                     {
                         result = onReadValueRank(context, this, ref valueRank);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         value = valueRank;
                     }
 
-                    return result;
+                    return result!;
                 case Attributes.ArrayDimensions:
                     ArrayOf<uint> arrayDimensions = m_arrayDimensions;
 
-                    NodeAttributeEventHandler<ArrayOf<uint>> onReadArrayDimensions = OnReadArrayDimensions;
+                    NodeAttributeEventHandler<ArrayOf<uint>>? onReadArrayDimensions = OnReadArrayDimensions;
 
                     if (onReadArrayDimensions != null)
                     {
                         result = onReadArrayDimensions(context, this, ref arrayDimensions);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         value = arrayDimensions;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.ReadNonValueAttribute(context, attributeId, ref value);
             }
@@ -519,7 +521,7 @@ namespace Opc.Ua
 
                 if (ServiceResult.IsBad(result))
                 {
-                    return result;
+                    return result!;
                 }
 
                 copyPolicy = VariableCopyPolicy.Never;
@@ -542,7 +544,7 @@ namespace Opc.Ua
 
             if (ServiceResult.IsBad(result))
             {
-                return result;
+                return result!;
             }
 
             // copy returned value.
@@ -551,7 +553,7 @@ namespace Opc.Ua
                 value = CoreUtils.Clone(value);
             }
 
-            return result;
+            return result!;
         }
 
         /// <summary>
@@ -562,7 +564,7 @@ namespace Opc.Ua
             uint attributeId,
             Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
@@ -577,19 +579,19 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<NodeId> onWriteDataType = OnWriteDataType;
+                    NodeAttributeEventHandler<NodeId>? onWriteDataType = OnWriteDataType;
 
                     if (onWriteDataType != null)
                     {
                         result = onWriteDataType(context, this, ref dataType);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         DataType = dataType;
                     }
 
-                    return result;
+                    return result!;
                 case Attributes.ValueRank:
                     if (!value.TryGet(out int valueRank))
                     {
@@ -601,19 +603,19 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<int> onWriteValueRank = OnWriteValueRank;
+                    NodeAttributeEventHandler<int>? onWriteValueRank = OnWriteValueRank;
 
                     if (onWriteValueRank != null)
                     {
                         result = onWriteValueRank(context, this, ref valueRank);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         ValueRank = valueRank;
                     }
 
-                    return result;
+                    return result!;
                 case Attributes.ArrayDimensions:
                     if (!value.TryGet(out ArrayOf<uint> arrayDimensions))
                     {
@@ -629,7 +631,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<ArrayOf<uint>> onWriteArrayDimensions
+                    NodeAttributeEventHandler<ArrayOf<uint>>? onWriteArrayDimensions
                         = OnWriteArrayDimensions;
 
                     if (onWriteArrayDimensions != null)
@@ -637,12 +639,12 @@ namespace Opc.Ua
                         result = onWriteArrayDimensions(context, this, ref arrayDimensions);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         ArrayDimensions = arrayDimensions;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.WriteNonValueAttribute(context, attributeId, value);
             }
@@ -658,7 +660,7 @@ namespace Opc.Ua
             StatusCode statusCode,
             DateTimeUtc sourceTimestamp)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             if ((WriteMask & AttributeWriteMask.ValueForVariableType) == 0)
             {
@@ -697,7 +699,7 @@ namespace Opc.Ua
 
                 if (ServiceResult.IsBad(result))
                 {
-                    return result;
+                    return result!;
                 }
             }
 
