@@ -1003,7 +1003,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void IsTypeOfShouldHandleNoReferences()
+        public async Task IsTypeOfShouldHandleNoReferencesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -1029,7 +1029,8 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            bool result = nodeCache.IsTypeOf(subTypeId, superTypeId);
+            bool result = await nodeCache.IsTypeOfAsync(subTypeId, superTypeId, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.That(result, Is.False);
@@ -1037,7 +1038,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void IsTypeOfShouldReturnTrueForSuperType()
+        public async Task IsTypeOfShouldReturnTrueForSuperTypeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -1068,13 +1069,15 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            bool result = nodeCache.IsTypeOf(subTypeId, superTypeId);
+            bool result = await nodeCache.IsTypeOfAsync(subTypeId, superTypeId, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.That(result, Is.True);
 
             // Act
-            result = nodeCache.IsTypeOf(subTypeId, superTypeId);
+            result = await nodeCache.IsTypeOfAsync(subTypeId, superTypeId, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.That(result, Is.True);

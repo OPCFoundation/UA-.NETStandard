@@ -34,15 +34,18 @@ using Opc.Ua.Client;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Extensions for lru node cache
+    /// ExpandedNodeId convenience overloads on <see cref="INodeCache"/>
+    /// for callers that haven't yet resolved the namespace index. Each
+    /// overload delegates to the matching NodeId-keyed primitive on
+    /// <see cref="INodeCache"/>.
     /// </summary>
-    public static class LruNodeCacheExtensions
+    public static class NodeCacheExtensions
     {
         /// <summary>
         /// Get node from cache
         /// </summary>
         public static ValueTask<INode> GetNodeAsync(
-            this ILruNodeCache cache,
+            this INodeCache cache,
             ExpandedNodeId expandedNodeId,
             CancellationToken ct = default)
         {
@@ -54,7 +57,7 @@ namespace Opc.Ua
         /// Get nodes from cache
         /// </summary>
         public static ValueTask<ArrayOf<INode>> GetNodesAsync(
-            this ILruNodeCache cache,
+            this INodeCache cache,
             ArrayOf<ExpandedNodeId> expandedNodeIds,
             CancellationToken ct = default)
         {
@@ -66,10 +69,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get node from cache
+        /// Get value of a node from cache
         /// </summary>
         public static ValueTask<DataValue> GetValueAsync(
-            this ILruNodeCache cache,
+            this INodeCache cache,
             ExpandedNodeId expandedNodeId,
             CancellationToken ct = default)
         {
@@ -78,10 +81,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get nodes from cache
+        /// Get values of nodes from cache
         /// </summary>
         public static ValueTask<ArrayOf<DataValue>> GetValuesAsync(
-            this ILruNodeCache cache,
+            this INodeCache cache,
             ArrayOf<ExpandedNodeId> expandedNodeIds,
             CancellationToken ct = default)
         {
@@ -93,10 +96,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get references from cache
+        /// Get references for a node from cache
         /// </summary>
         public static ValueTask<ArrayOf<INode>> GetReferencesAsync(
-            this ILruNodeCache cache,
+            this INodeCache cache,
             ExpandedNodeId expandedNodeId,
             NodeId referenceTypeId,
             bool isInverse,
@@ -113,10 +116,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get references from cache
+        /// Get references for a collection of nodes from cache
         /// </summary>
         public static ValueTask<ArrayOf<INode>> GetReferencesAsync(
-            this ILruNodeCache cache,
+            this INodeCache cache,
             ArrayOf<ExpandedNodeId> expandedNodeIds,
             ArrayOf<NodeId> referenceTypeIds,
             bool isInverse,
@@ -136,10 +139,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get references from cache
+        /// Get references for a collection of nodes from cache (single
+        /// reference type id).
         /// </summary>
         public static ValueTask<ArrayOf<INode>> GetReferencesAsync(
-            this ILruNodeCache cache,
+            this INodeCache cache,
             ArrayOf<ExpandedNodeId> expandedNodeIds,
             NodeId referenceTypeId,
             bool isInverse,
@@ -159,51 +163,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get super type from cache
+        /// Get the immediate supertype for a type node from the cache.
         /// </summary>
         public static ValueTask<NodeId> GetSuperTypeAsync(
-            this ILruNodeCache cache,
+            this INodeCache cache,
             ExpandedNodeId expandedNodeId,
             CancellationToken ct = default)
         {
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.NamespaceUris);
             return cache.GetSuperTypeAsync(nodeId, ct);
-        }
-
-        /// <summary>
-        /// Is the subTypeId a subtype of the superTypeId?
-        /// </summary>
-        public static bool IsTypeOf(
-            this ILruNodeCache cache,
-            ExpandedNodeId subTypeId,
-            NodeId superTypeId)
-        {
-            var nodeId = ExpandedNodeId.ToNodeId(subTypeId, cache.NamespaceUris);
-            return cache.IsTypeOf(nodeId, superTypeId);
-        }
-
-        /// <summary>
-        /// Returns the BuiltInType type for the DataTypeId.
-        /// </summary>
-        public static async Task<BuiltInType> GetBuiltInTypeAsync(
-            this ILruNodeCache cache,
-            NodeId datatypeId,
-            CancellationToken ct = default)
-        {
-            NodeId typeId = datatypeId;
-            while (!typeId.IsNull)
-            {
-                if (typeId.NamespaceIndex == 0 && typeId.TryGetIdentifier(out uint numericId))
-                {
-                    var id = (BuiltInType)(int)numericId;
-                    if (id is > BuiltInType.Null and <= BuiltInType.Enumeration and not BuiltInType.DiagnosticInfo)
-                    {
-                        return id;
-                    }
-                }
-                typeId = await cache.GetSuperTypeAsync(typeId, ct).ConfigureAwait(false);
-            }
-            return BuiltInType.Null;
         }
     }
 }

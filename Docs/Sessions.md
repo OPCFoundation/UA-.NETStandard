@@ -335,7 +335,33 @@ The two engines can co-exist on a `ManagedSession`:
 active. Internally, classic subscriptions are bridged onto the V2
 publish pipeline.
 
-## 5. Putting it all together
+## 5. The `INodeCache` surface
+
+`Session.NodeCache` (and `ManagedSession.NodeCache`) returns
+`INodeCache`, the unified client-side cache contract. As of 1.6 it is
+the single contract — the previous `ILruNodeCache` parallel interface
+has been merged into it and removed.
+
+The interface deliberately exposes two complementary lookup families:
+
+- **`Find*` / `Fetch*`** — take an `ExpandedNodeId`, return a
+  nullable result, may fetch from the server. `Find*` consults the
+  cache first; `Fetch*` always re-reads from the server and updates
+  the cache.
+- **`Get*`** — take a local `NodeId`, return a non-nullable result
+  (throws when the node cannot be resolved). LRU-style direct hit;
+  cheaper for in-process callers that already hold a local
+  `NodeId` and a known namespace index.
+
+Both families coexist on `INodeCache` because the lifecycle and error
+semantics differ. All async methods return `ValueTask` /
+`ValueTask<T>`; only `void Clear()` is synchronous (pure local-state
+mutation).
+
+For migration details see
+[Migration Guide — `INodeCache` consolidation](MigrationGuide.md#inodecache-consolidation).
+
+## 6. Putting it all together
 
 Pick the entry point that best matches your call site:
 

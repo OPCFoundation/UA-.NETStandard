@@ -972,6 +972,96 @@ The factory caches the connected session — subsequent awaits return the same i
 
 This iteration uses single-instance options (no named/keyed registrations); the underlying V2 manager consumes options via `IOptionsMonitor<T>` unfiltered. For one-off use, the `AddSubscription`/`TryAddMonitoredItem` extensions adapt plain options snapshots into the required `IOptionsMonitor<T>` automatically. Named-options DI is deferred to a future iteration.
 
+### `INodeCache` consolidation
+
+Version 1.6 collapses the two parallel node-cache contracts into a single
+public interface and removes the remaining synchronous wrappers from the
+cache surface.
+
+#### Key changes
+
+- **`ILruNodeCache` is removed.** `LruNodeCache` now implements only
+  `INodeCache`. All members previously on `ILruNodeCache` (the
+  NodeId-keyed `Get*` family and `LoadTypeHierarchyAsync`) are now
+  members of `INodeCache`.
+- **All async methods on `INodeCache` return `ValueTask` /
+  `ValueTask<T>`** (was `Task<T>` for `FindAsync`, `FetchNodeAsync`,
+  `FetchNodesAsync`, `FetchSuperTypesAsync`, `FindReferencesAsync`).
+  Callers that simply `await` these methods need no change. Callers
+  that store the result in a `Task` variable, return the bare task, or
+  re-await the same task must wrap with `.AsTask()` once.
+- **`void INodeCache.LoadUaDefinedTypes(ISystemContext)` is removed.**
+  The LRU implementation populates lazily and the prior method body
+  was a no-op. Drop the call from your code; the cache is ready to
+  use.
+- **`bool ILruNodeCache.IsTypeOf(NodeId, NodeId)` is removed.** Use
+  `IAsyncTypeTable.IsTypeOfAsync(NodeId, NodeId, CancellationToken)`
+  instead — `INodeCache` inherits from `IAsyncTypeTable` so the
+  method is reachable on the same instance.
+- **`NodeCacheObsolete` synchronous extensions are removed.** The
+  blocking wrappers `Find`, `FetchNode`, `FetchNodes`, `FetchSuperTypes`,
+  `FindReferences`, `GetDisplayText`, `IsKnown`, `FindSuperType`, and
+  `Exists` no longer compile. Switch to the matching async methods
+  (`FindAsync`, `FetchNodeAsync`, …).
+- **`LruNodeCacheExtensions` is renamed to `NodeCacheExtensions`** and
+  retargets `this INodeCache cache`. The ExpandedNodeId convenience
+  overloads (`GetNodeAsync`, `GetNodesAsync`, `GetValueAsync`,
+  `GetValuesAsync`, `GetReferencesAsync`, `GetSuperTypeAsync`) keep
+  the same shape. The `IsTypeOf(this ILruNodeCache, ExpandedNodeId, NodeId)`
+  and `GetBuiltInTypeAsync(this ILruNodeCache, NodeId, …)` extensions
+  are removed (the latter is now an interface method on `INodeCache`).
+- **`void Clear()` is unchanged.** It is a pure local-state mutation
+  with no I/O and remains synchronous on the interface.
+
+#### Two complementary lookup families
+
+The merged `INodeCache` deliberately keeps two name conventions side by
+side. The XML doc on `INodeCache` spells this out as well:
+
+| Family | Identity | Result | Behavior |
+|---|---|---|---|
+| `Find*` / `Fetch*` | `ExpandedNodeId` | nullable | `Find*` consults the cache, then the server; `Fetch*` always re-reads from the server. |
+| `Get*` | `NodeId` | non-nullable / throws | LRU-style direct hit; cheaper for in-process callers that already have a local `NodeId`. |
+
+#### Migration recipes
+
+```csharp
+// Before — Task-returning + sync helpers
+INodeCache cache = session.NodeCache;
+cache.LoadUaDefinedTypes(session.SystemContext); // removed
+ArrayOf<INode?> nodes = await cache.FindAsync(nodeIds);
+Task<Node?> tn = cache.FetchNodeAsync(nodeId);   // returned Task<T>
+bool isType = cache.IsTypeOf(sub, super);        // sync, was on ILruNodeCache
+```
+
+```csharp
+// After — single INodeCache surface, all async, no sync IsTypeOf
+INodeCache cache = session.NodeCache;
+ArrayOf<INode?> nodes = await cache.FindAsync(nodeIds);
+ValueTask<Node?> tn = cache.FetchNodeAsync(nodeId);
+bool isType = await cache.IsTypeOfAsync(sub, super);
+```
+
+#### Implementer / mock impact
+
+External implementations of `INodeCache` must:
+
+1. Add the `Get*` methods (NodeId-keyed) plus `GetBuiltInTypeAsync`,
+   `LoadTypeHierarchyAsync`, `GetNodeWithBrowsePathAsync`.
+2. Convert their `Task<T>`-returning members to `ValueTask<T>`.
+3. Remove any `LoadUaDefinedTypes(ISystemContext)` override or call.
+
+Test doubles (Moq) need new `Setup` calls covering the `Get*` methods
+they exercise.
+
+#### Out of scope
+
+`Session.TypeTree` continues to return a sync `ITypeTable` adapter for
+compatibility with code that uses the synchronous type-table surface
+in the server-side stack. Removing that adapter is out of scope of
+this change; if you only consume `INodeCache.TypeTree` (the
+`IAsyncTypeTable`), you can keep using the async surface end-to-end.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

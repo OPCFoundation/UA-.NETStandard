@@ -50,7 +50,7 @@ namespace Opc.Ua.Client
     /// It is also limited to a capacity at which point least recently used
     /// entries will be evicted.
     /// </summary>
-    public sealed class LruNodeCache : ILruNodeCache, INodeCache, IDisposable
+    public sealed class LruNodeCache : INodeCache, IDisposable
     {
         /// <summary>
         /// Create cache
@@ -434,8 +434,13 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <inheritdoc/>
-        public bool IsTypeOf(NodeId subTypeId, NodeId superTypeId)
+        /// <summary>
+        /// Synchronous best-effort type-of check used internally by
+        /// the reference filter. Blocks if the subtype's references
+        /// have not been pre-loaded — callers must call
+        /// <see cref="LoadTypeHierarchyAsync"/> first to avoid this.
+        /// </summary>
+        private bool IsTypeOf(NodeId subTypeId, NodeId superTypeId)
         {
             if (subTypeId == superTypeId)
             {
@@ -641,9 +646,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<ArrayOf<INode?>> FindAsync(
+        public async ValueTask<ArrayOf<INode?>> FindAsync(
             ArrayOf<ExpandedNodeId> nodeIds,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             if (nodeIds.IsEmpty)
             {
@@ -695,7 +700,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<Node?> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
+        public async ValueTask<Node?> FetchNodeAsync(
+            ExpandedNodeId nodeId,
+            CancellationToken ct = default)
         {
             var localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
             if (localId.IsNull)
@@ -723,9 +730,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<ArrayOf<Node?>> FetchNodesAsync(
+        public async ValueTask<ArrayOf<Node?>> FetchNodesAsync(
             ArrayOf<ExpandedNodeId> nodeIds,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             if (nodeIds.IsEmpty)
             {
@@ -771,7 +778,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task FetchSuperTypesAsync(ExpandedNodeId nodeId, CancellationToken ct)
+        public async ValueTask FetchSuperTypesAsync(
+            ExpandedNodeId nodeId,
+            CancellationToken ct = default)
         {
             NodeId current = ToNodeId(nodeId);
             while (!current.IsNull)
@@ -781,41 +790,31 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public Task<ArrayOf<INode>> FindReferencesAsync(
+        public ValueTask<ArrayOf<INode>> FindReferencesAsync(
             ExpandedNodeId nodeId,
             NodeId referenceTypeId,
             bool isInverse,
             bool includeSubtypes,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             NodeId localId = ToNodeId(nodeId);
             if (localId.IsNull)
             {
-                return Task.FromResult<ArrayOf<INode>>(new List<INode>());
+                return new ValueTask<ArrayOf<INode>>(new List<INode>().ToArrayOf());
             }
-            return GetReferencesAsync(localId, referenceTypeId, isInverse, includeSubtypes, ct)
-                .AsTask();
+            return GetReferencesAsync(localId, referenceTypeId, isInverse, includeSubtypes, ct);
         }
 
         /// <inheritdoc/>
-        public Task<ArrayOf<INode>> FindReferencesAsync(
+        public ValueTask<ArrayOf<INode>> FindReferencesAsync(
             ArrayOf<ExpandedNodeId> nodeIds,
             ArrayOf<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes,
-            CancellationToken ct)
+            CancellationToken ct = default)
         {
             ArrayOf<NodeId> localIds = nodeIds.ConvertAll(ToNodeId);
-            return GetReferencesAsync(localIds, referenceTypeIds, isInverse, includeSubtypes, ct)
-                .AsTask();
-        }
-
-        /// <inheritdoc/>
-        public void LoadUaDefinedTypes(ISystemContext context)
-        {
-            // The LRU cache is lazy and populates on demand; no pre-loading is needed.
-            m_logger.LogDebug(
-                "LoadUaDefinedTypes called; the LRU node cache populates on demand.");
+            return GetReferencesAsync(localIds, referenceTypeIds, isInverse, includeSubtypes, ct);
         }
 
         /// <inheritdoc/>

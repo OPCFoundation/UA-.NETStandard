@@ -85,16 +85,16 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// Initializes the type resolver with a session and lru cache to load the
+        /// Initializes the type resolver with a session and node cache to load the
         /// custom type information with the specified expiry and cache size.
         /// </summary>
         public NodeCacheResolver(
             ISession session,
-            ILruNodeCache lruNodeCache,
+            INodeCache nodeCache,
             ITelemetryContext telemetry)
         {
             m_session = session;
-            m_lruNodeCache = lruNodeCache;
+            m_nodeCache = nodeCache;
             m_logger = telemetry.CreateLogger<NodeCacheResolver>();
             FactoryBuilder = m_session.Factory.Builder;
         }
@@ -744,7 +744,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private ValueTask<NodeId> GetSuperTypeAsync(NodeId typeId, CancellationToken ct)
         {
-            return m_lruNodeCache.GetSuperTypeAsync(typeId, ct);
+            return m_nodeCache.GetSuperTypeAsync(typeId, ct);
         }
 
         /// <summary>
@@ -752,7 +752,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private ValueTask<INode> GetNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
-            return m_lruNodeCache.GetNodeAsync(nodeId, ct);
+            return m_nodeCache.GetNodeAsync(nodeId, ct);
         }
 
         /// <summary>
@@ -760,7 +760,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private async Task<DataValue> GetValueAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
-            return await m_lruNodeCache.GetValueAsync(nodeId, ct).ConfigureAwait(false);
+            return await m_nodeCache.GetValueAsync(nodeId, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -770,7 +770,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ArrayOf<ExpandedNodeId> nodeIds,
             CancellationToken ct)
         {
-            return m_lruNodeCache.GetValuesAsync(nodeIds, ct);
+            return m_nodeCache.GetValuesAsync(nodeIds, ct);
         }
 
         /// <summary>
@@ -782,7 +782,7 @@ namespace Opc.Ua.Client.ComplexTypes
             bool isInverse,
             CancellationToken ct)
         {
-            return m_lruNodeCache.GetReferencesAsync(
+            return m_nodeCache.GetReferencesAsync(
                 nodeIds,
                 referenceTypeId,
                 isInverse,
@@ -799,7 +799,7 @@ namespace Opc.Ua.Client.ComplexTypes
             bool isInverse,
             CancellationToken ct)
         {
-            return m_lruNodeCache.GetReferencesAsync(
+            return m_nodeCache.GetReferencesAsync(
                 nodeIds,
                 [referenceTypeId],
                 isInverse,
@@ -807,7 +807,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 ct);
         }
 
-        private readonly ILruNodeCache m_lruNodeCache;
+        private readonly INodeCache m_nodeCache;
         private readonly ISession m_session;
         private readonly ILogger m_logger;
     }
