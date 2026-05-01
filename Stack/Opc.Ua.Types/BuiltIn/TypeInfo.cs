@@ -1514,7 +1514,7 @@ namespace Opc.Ua
 
             if (BuiltInType == BuiltInType.ExtensionObject)
             {
-                if (value.TryGetValueStructure(out IEncodeable encodeable))
+                if (value.TryGetStructure(out IEncodeable encodeable))
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                 }

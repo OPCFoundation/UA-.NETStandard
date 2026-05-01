@@ -181,7 +181,7 @@ namespace Opc.Ua.Server
                 VariableIds.Server_GetMonitoredItems_OutputArguments);
 
             if (getMonitoredItemsOutputArguments != null &&
-                getMonitoredItemsOutputArguments.Value.TryGetValueStructure(out ArrayOf<Argument> outputArgumentsValue))
+                getMonitoredItemsOutputArguments.Value.TryGetStructure(out ArrayOf<Argument> outputArgumentsValue))
             {
                 getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
             }

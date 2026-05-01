@@ -1167,13 +1167,13 @@ namespace Opc.Ua.Server
                     metadata.AccessRestrictions = (AccessRestrictionType)accessRestriction;
                 }
 
-                if (values[11].TryGetValueStructure(
+                if (values[11].TryGetStructure(
                     out ArrayOf<RolePermissionType> rolePermissions))
                 {
                     metadata.RolePermissions = rolePermissions;
                 }
 
-                if (values[12].TryGetValueStructure(
+                if (values[12].TryGetStructure(
                     out ArrayOf<RolePermissionType> userRolePermissions))
                 {
                     metadata.UserRolePermissions = userRolePermissions;
@@ -1203,13 +1203,13 @@ namespace Opc.Ua.Server
                 metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictions;
             }
 
-            if (values[1].TryGetValueStructure(
+            if (values[1].TryGetStructure(
                 out ArrayOf<RolePermissionType> rolePermissions))
             {
                 metadata.RolePermissions = rolePermissions;
             }
 
-            if (values[2].TryGetValueStructure(
+            if (values[2].TryGetStructure(
                 out ArrayOf<RolePermissionType> userRolePermissions))
             {
                 metadata.UserRolePermissions = userRolePermissions;
@@ -4281,7 +4281,7 @@ namespace Opc.Ua.Server
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }
 
-                if (!property.Value.TryGetValueStructure(out range))
+                if (!property.Value.TryGetStructure(out range))
                 {
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }
@@ -4993,7 +4993,7 @@ namespace Opc.Ua.Server
                     namespaceMetadataValues = namespaceMetadataState.DefaultRolePermissions
                         .ReadAttributes(systemContext, Attributes.Value);
 
-                    if (namespaceMetadataValues[0].TryGetValueStructure(
+                    if (namespaceMetadataValues[0].TryGetStructure(
                             out ArrayOf<RolePermissionType> rolePermissions))
                     {
                         metadata.DefaultRolePermissions = rolePermissions;
@@ -5006,7 +5006,7 @@ namespace Opc.Ua.Server
                     namespaceMetadataValues = namespaceMetadataState.DefaultUserRolePermissions
                         .ReadAttributes(systemContext, Attributes.Value);
 
-                    if (namespaceMetadataValues[0].TryGetValueStructure(
+                    if (namespaceMetadataValues[0].TryGetStructure(
                             out ArrayOf<RolePermissionType> rolePermissions))
                     {
                         metadata.DefaultUserRolePermissions = rolePermissions;

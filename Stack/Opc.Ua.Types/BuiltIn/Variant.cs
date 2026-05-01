@@ -1246,7 +1246,7 @@ namespace Opc.Ua
         /// </summary>
         public decimal GetDecimal(decimal defaultValue = default)
         {
-            return TryGetValueDecimal(out decimal v) ? v : defaultValue;
+            return TryGetDecimal(out decimal v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1885,7 +1885,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The structure value to get
         /// </param>
-        public bool TryGetValueStructure<T>(out T value) where T : IEncodeable
+        public bool TryGetStructure<T>(out T value) where T : IEncodeable
         {
             return TryGetValue(out value, null);
         }
@@ -2020,7 +2020,7 @@ namespace Opc.Ua
             // A ByteString is structurally the same as a one dimensional array
             // of Byte. A Server shall accept a ByteString if an array of Byte
             // is expected.
-            if (TryGetValueArray(out ArrayOf<byte> byteArray, BuiltInType.Byte))
+            if (TryGetArray(out ArrayOf<byte> byteArray, BuiltInType.Byte))
             {
                 value = byteArray.ToByteString();
                 return true;
@@ -2188,7 +2188,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<bool> value)
         {
-            return TryGetValueArray(out value, BuiltInType.Boolean);
+            return TryGetArray(out value, BuiltInType.Boolean);
         }
 
         /// <summary>
@@ -2198,7 +2198,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<sbyte> value)
         {
-            return TryGetValueArray(out value, BuiltInType.SByte);
+            return TryGetArray(out value, BuiltInType.SByte);
         }
 
         /// <summary>
@@ -2208,7 +2208,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<byte> value)
         {
-            if (TryGetValueArray(out value, BuiltInType.Byte))
+            if (TryGetArray(out value, BuiltInType.Byte))
             {
                 return true;
             }
@@ -2231,7 +2231,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<short> value)
         {
-            return TryGetValueArray(out value, BuiltInType.Int16);
+            return TryGetArray(out value, BuiltInType.Int16);
         }
 
         /// <summary>
@@ -2241,7 +2241,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<ushort> value)
         {
-            return TryGetValueArray(out value, BuiltInType.UInt16);
+            return TryGetArray(out value, BuiltInType.UInt16);
         }
 
         /// <summary>
@@ -2251,11 +2251,11 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<int> value)
         {
-            if (TryGetValueArray(out value, BuiltInType.Int32))
+            if (TryGetArray(out value, BuiltInType.Int32))
             {
                 return true;
             }
-            if (TryGetValueArray(out ArrayOf<EnumValue> enumValues, BuiltInType.Enumeration))
+            if (TryGetArray(out ArrayOf<EnumValue> enumValues, BuiltInType.Enumeration))
             {
                 value = enumValues.ConvertAll(e => e.Value);
                 return true;
@@ -2300,7 +2300,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The structure value to get</param>
-        public bool TryGetValueStructure<T>(out ArrayOf<T> value) where T : IEncodeable
+        public bool TryGetStructure<T>(out ArrayOf<T> value) where T : IEncodeable
         {
             return TryGetValue(out value, null);
         }
@@ -2328,11 +2328,11 @@ namespace Opc.Ua
         public bool TryGetValue(out ArrayOf<EnumValue> value)
         {
             // All enum values are stored as integer arrays with type lost
-            if (TryGetValueArray(out value, BuiltInType.Enumeration))
+            if (TryGetArray(out value, BuiltInType.Enumeration))
             {
                 return true;
             }
-            if (TryGetValueArray(out ArrayOf<int> int32Values, BuiltInType.Int32))
+            if (TryGetArray(out ArrayOf<int> int32Values, BuiltInType.Int32))
             {
                 value = int32Values.ConvertAll(i => new EnumValue(i));
                 return true;
@@ -2348,7 +2348,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<uint> value)
         {
-            return TryGetValueArray(out value, BuiltInType.UInt32);
+            return TryGetArray(out value, BuiltInType.UInt32);
         }
 
         /// <summary>
@@ -2358,7 +2358,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<long> value)
         {
-            return TryGetValueArray(out value, BuiltInType.Int64);
+            return TryGetArray(out value, BuiltInType.Int64);
         }
 
         /// <summary>
@@ -2368,7 +2368,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<ulong> value)
         {
-            return TryGetValueArray(out value, BuiltInType.UInt64);
+            return TryGetArray(out value, BuiltInType.UInt64);
         }
 
         /// <summary>
@@ -2378,7 +2378,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<float> value)
         {
-            return TryGetValueArray(out value, BuiltInType.Float);
+            return TryGetArray(out value, BuiltInType.Float);
         }
 
         /// <summary>
@@ -2388,7 +2388,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<double> value)
         {
-            return TryGetValueArray(out value, BuiltInType.Double);
+            return TryGetArray(out value, BuiltInType.Double);
         }
 
         /// <summary>
@@ -2398,7 +2398,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<string> value)
         {
-            return TryGetValueArray(out value, BuiltInType.String);
+            return TryGetArray(out value, BuiltInType.String);
         }
 
         /// <summary>
@@ -2408,7 +2408,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<DateTimeUtc> value)
         {
-            return TryGetValueArray(out value, BuiltInType.DateTime);
+            return TryGetArray(out value, BuiltInType.DateTime);
         }
 
         /// <summary>
@@ -2418,7 +2418,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<Uuid> value)
         {
-            return TryGetValueArray(out value, BuiltInType.Guid);
+            return TryGetArray(out value, BuiltInType.Guid);
         }
 
         /// <summary>
@@ -2428,7 +2428,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<ByteString> value)
         {
-            return TryGetValueArray(out value, BuiltInType.ByteString);
+            return TryGetArray(out value, BuiltInType.ByteString);
         }
 
         /// <summary>
@@ -2438,7 +2438,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<XmlElement> value)
         {
-            return TryGetValueArray(out value, BuiltInType.XmlElement);
+            return TryGetArray(out value, BuiltInType.XmlElement);
         }
 
         /// <summary>
@@ -2448,7 +2448,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<NodeId> value)
         {
-            return TryGetValueArray(out value, BuiltInType.NodeId);
+            return TryGetArray(out value, BuiltInType.NodeId);
         }
 
         /// <summary>
@@ -2458,7 +2458,7 @@ namespace Opc.Ua
         /// get </param>
         public bool TryGetValue(out ArrayOf<ExpandedNodeId> value)
         {
-            return TryGetValueArray(out value, BuiltInType.ExpandedNodeId);
+            return TryGetArray(out value, BuiltInType.ExpandedNodeId);
         }
 
         /// <summary>
@@ -2468,7 +2468,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<StatusCode> value)
         {
-            return TryGetValueArray(out value, BuiltInType.StatusCode);
+            return TryGetArray(out value, BuiltInType.StatusCode);
         }
 
         /// <summary>
@@ -2478,7 +2478,7 @@ namespace Opc.Ua
         /// get </param>
         public bool TryGetValue(out ArrayOf<QualifiedName> value)
         {
-            return TryGetValueArray(out value, BuiltInType.QualifiedName);
+            return TryGetArray(out value, BuiltInType.QualifiedName);
         }
 
         /// <summary>
@@ -2488,7 +2488,7 @@ namespace Opc.Ua
         /// get </param>
         public bool TryGetValue(out ArrayOf<LocalizedText> value)
         {
-            return TryGetValueArray(out value, BuiltInType.LocalizedText);
+            return TryGetArray(out value, BuiltInType.LocalizedText);
         }
 
         /// <summary>
@@ -2498,7 +2498,7 @@ namespace Opc.Ua
         /// get </param>
         public bool TryGetValue(out ArrayOf<ExtensionObject> value)
         {
-            return TryGetValueArray(out value, BuiltInType.ExtensionObject);
+            return TryGetArray(out value, BuiltInType.ExtensionObject);
         }
 
         /// <summary>
@@ -2508,7 +2508,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<DataValue> value)
         {
-            return TryGetValueArray(out value, BuiltInType.DataValue);
+            return TryGetArray(out value, BuiltInType.DataValue);
         }
 
         /// <summary>
@@ -2518,14 +2518,14 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out ArrayOf<Variant> value)
         {
-            return TryGetValueArray(out value, BuiltInType.Variant);
+            return TryGetArray(out value, BuiltInType.Variant);
         }
 
         /// <summary>
         /// Try get array of specified type.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public bool TryGetValueArray<T>(out ArrayOf<T> value, BuiltInType expectedType)
+        public bool TryGetArray<T>(out ArrayOf<T> value, BuiltInType expectedType)
         {
             if (TypeInfo.BuiltInType == expectedType)
             {
@@ -2552,7 +2552,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<bool> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.Boolean);
+            return TryGetMatrix(out value, BuiltInType.Boolean);
         }
 
         /// <summary>
@@ -2562,7 +2562,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<sbyte> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.SByte);
+            return TryGetMatrix(out value, BuiltInType.SByte);
         }
 
         /// <summary>
@@ -2572,7 +2572,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<byte> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.Byte);
+            return TryGetMatrix(out value, BuiltInType.Byte);
         }
 
         /// <summary>
@@ -2582,7 +2582,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<short> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.Int16);
+            return TryGetMatrix(out value, BuiltInType.Int16);
         }
 
         /// <summary>
@@ -2592,7 +2592,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<ushort> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.UInt16);
+            return TryGetMatrix(out value, BuiltInType.UInt16);
         }
 
         /// <summary>
@@ -2602,11 +2602,11 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<int> value)
         {
-            if (TryGetValueMatrix(out value, BuiltInType.Int32))
+            if (TryGetMatrix(out value, BuiltInType.Int32))
             {
                 return true;
             }
-            if (TryGetValueMatrix(out MatrixOf<EnumValue> enumValues, BuiltInType.Enumeration))
+            if (TryGetMatrix(out MatrixOf<EnumValue> enumValues, BuiltInType.Enumeration))
             {
                 value = enumValues.ConvertAll(e => e.Value);
                 return true;
@@ -2651,7 +2651,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The structure value to get</param>
-        public bool TryGetValueStructure<T>(out MatrixOf<T> value) where T : IEncodeable
+        public bool TryGetStructure<T>(out MatrixOf<T> value) where T : IEncodeable
         {
             return TryGetValue(out value, null);
         }
@@ -2680,11 +2680,11 @@ namespace Opc.Ua
         public bool TryGetValue(out MatrixOf<EnumValue> value)
         {
             // All enum values are stored as integer arrays with type lost
-            if (TryGetValueMatrix(out value, BuiltInType.Enumeration))
+            if (TryGetMatrix(out value, BuiltInType.Enumeration))
             {
                 return true;
             }
-            if (TryGetValueMatrix(out MatrixOf<int> int32Values, BuiltInType.Int32))
+            if (TryGetMatrix(out MatrixOf<int> int32Values, BuiltInType.Int32))
             {
                 value = int32Values.ConvertAll(i => new EnumValue(i));
                 return true;
@@ -2700,7 +2700,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<uint> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.UInt32);
+            return TryGetMatrix(out value, BuiltInType.UInt32);
         }
 
         /// <summary>
@@ -2710,7 +2710,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<long> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.Int64);
+            return TryGetMatrix(out value, BuiltInType.Int64);
         }
 
         /// <summary>
@@ -2720,7 +2720,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<ulong> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.UInt64);
+            return TryGetMatrix(out value, BuiltInType.UInt64);
         }
 
         /// <summary>
@@ -2730,7 +2730,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<float> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.Float);
+            return TryGetMatrix(out value, BuiltInType.Float);
         }
 
         /// <summary>
@@ -2740,7 +2740,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<double> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.Double);
+            return TryGetMatrix(out value, BuiltInType.Double);
         }
 
         /// <summary>
@@ -2750,7 +2750,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<string> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.String);
+            return TryGetMatrix(out value, BuiltInType.String);
         }
 
         /// <summary>
@@ -2760,7 +2760,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<DateTimeUtc> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.DateTime);
+            return TryGetMatrix(out value, BuiltInType.DateTime);
         }
 
         /// <summary>
@@ -2770,7 +2770,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<Uuid> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.Guid);
+            return TryGetMatrix(out value, BuiltInType.Guid);
         }
 
         /// <summary>
@@ -2780,7 +2780,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<ByteString> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.ByteString);
+            return TryGetMatrix(out value, BuiltInType.ByteString);
         }
 
         /// <summary>
@@ -2790,7 +2790,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<XmlElement> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.XmlElement);
+            return TryGetMatrix(out value, BuiltInType.XmlElement);
         }
 
         /// <summary>
@@ -2800,7 +2800,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<NodeId> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.NodeId);
+            return TryGetMatrix(out value, BuiltInType.NodeId);
         }
 
         /// <summary>
@@ -2810,7 +2810,7 @@ namespace Opc.Ua
         /// get </param>
         public bool TryGetValue(out MatrixOf<ExpandedNodeId> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.ExpandedNodeId);
+            return TryGetMatrix(out value, BuiltInType.ExpandedNodeId);
         }
 
         /// <summary>
@@ -2820,7 +2820,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<StatusCode> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.StatusCode);
+            return TryGetMatrix(out value, BuiltInType.StatusCode);
         }
 
         /// <summary>
@@ -2830,7 +2830,7 @@ namespace Opc.Ua
         /// get </param>
         public bool TryGetValue(out MatrixOf<QualifiedName> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.QualifiedName);
+            return TryGetMatrix(out value, BuiltInType.QualifiedName);
         }
 
         /// <summary>
@@ -2840,7 +2840,7 @@ namespace Opc.Ua
         /// get </param>
         public bool TryGetValue(out MatrixOf<LocalizedText> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.LocalizedText);
+            return TryGetMatrix(out value, BuiltInType.LocalizedText);
         }
 
         /// <summary>
@@ -2850,7 +2850,7 @@ namespace Opc.Ua
         /// get </param>
         public bool TryGetValue(out MatrixOf<ExtensionObject> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.ExtensionObject);
+            return TryGetMatrix(out value, BuiltInType.ExtensionObject);
         }
 
         /// <summary>
@@ -2860,7 +2860,7 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<DataValue> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.DataValue);
+            return TryGetMatrix(out value, BuiltInType.DataValue);
         }
 
         /// <summary>
@@ -2870,14 +2870,14 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out MatrixOf<Variant> value)
         {
-            return TryGetValueMatrix(out value, BuiltInType.Variant);
+            return TryGetMatrix(out value, BuiltInType.Variant);
         }
 
         /// <summary>
         /// Try get matrix of type
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public bool TryGetValueMatrix<T>(out MatrixOf<T> value, BuiltInType expectedType)
+        public bool TryGetMatrix<T>(out MatrixOf<T> value, BuiltInType expectedType)
         {
             if (TypeInfo.BuiltInType == expectedType)
             {
@@ -2886,7 +2886,7 @@ namespace Opc.Ua
                     value = matrix;
                     return true;
                 }
-                if (TryGetValueArray(out ArrayOf<T> array, expectedType))
+                if (TryGetArray(out ArrayOf<T> array, expectedType))
                 {
                     value = array.ToMatrix();
                     return true;
@@ -2901,7 +2901,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="decimal"/> value to get
         /// </param>
-        public bool TryGetValueDecimal(out decimal value)
+        public bool TryGetDecimal(out decimal value)
         {
             if (TypeInfo.IsScalar)
             {

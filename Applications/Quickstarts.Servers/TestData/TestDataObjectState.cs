@@ -145,7 +145,7 @@ namespace TestData
                     return ServiceResult.Good;
                 }
 
-                if (!euRange.Value.TryGetValueStructure(out Range range))
+                if (!euRange.Value.TryGetStructure(out Range range))
                 {
                     return ServiceResult.Good;
                 }

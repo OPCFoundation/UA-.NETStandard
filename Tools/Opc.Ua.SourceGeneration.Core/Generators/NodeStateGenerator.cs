@@ -651,7 +651,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 case BasicDataType.UserDefined:
                     context.Out.WriteLine(
-                        "_inputArguments[{2}].TryGetValueStructure(out {1} {0});",
+                        "_inputArguments[{2}].TryGetStructure(out {1} {0});",
                         fieldName,
                         typeName,
                         context.Index);
@@ -692,7 +692,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 case BasicDataType.UserDefined:
                     context.Out.WriteLine(
-                        "_outputArguments[{2}].TryGetValueStructure(out {1} {0});",
+                        "_outputArguments[{2}].TryGetStructure(out {1} {0});",
                         fieldName,
                         typeName,
                         context.Index);
@@ -3150,7 +3150,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 case BasicDataType.UserDefined when !dataType.IsEnumeration:
                     context.Template.AddReplacement(Tokens.VariantFrom, "FromStructure");
-                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGetValueStructure");
+                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGetStructure");
                     break;
                 default:
                     context.Template.AddReplacement(Tokens.VariantFrom, "From");

@@ -1429,7 +1429,7 @@ namespace Opc.Ua.Server.Tests
                         if (e.ClientHandle == 1 && e.EventFields.Count >= 2)
                         {
                             var success = e.EventFields[1]
-                                .TryGetValueStructure<SemanticChangeStructureDataType>(out ArrayOf<SemanticChangeStructureDataType> semanticChangeEvent);
+                                .TryGetStructure<SemanticChangeStructureDataType>(out ArrayOf<SemanticChangeStructureDataType> semanticChangeEvent);
 
                             if (success && !semanticChangeEvent.IsNull && semanticChangeEvent.Count > 0)
                             {

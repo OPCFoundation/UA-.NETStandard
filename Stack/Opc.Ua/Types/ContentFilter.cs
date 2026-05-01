@@ -161,12 +161,12 @@ namespace Opc.Ua
             {
                 // check if a FilterOperand was provided.
 
-                if (operands[ii].TryGetValueStructure(out FilterOperand filterOperand))
+                if (operands[ii].TryGetStructure(out FilterOperand filterOperand))
                 {
                     element.FilterOperands =
                         element.FilterOperands.AddItem(new ExtensionObject(filterOperand));
                 }
-                else if (operands[ii].TryGetValueStructure(out ContentFilterElement existingElement))
+                else if (operands[ii].TryGetStructure(out ContentFilterElement existingElement))
                 {
                     // check for reference to another ContentFilterElement.
                     int index = FindElementIndex(existingElement);

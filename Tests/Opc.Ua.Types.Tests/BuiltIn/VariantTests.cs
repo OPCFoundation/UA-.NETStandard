@@ -757,7 +757,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var variant = new Variant(values);
 #pragma warning restore CS0618 // Type or member is obsolete
             Type elementType = descriptor.ValueType.GetGenericArguments()[0] ?? descriptor.ValueType;
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetValueArray))
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetArray))
                 .MakeGenericMethod(elementType);
             object[] args = Array(CreateDefaultValue(descriptor.ValueType), descriptor.TypeInfo.BuiltInType);
 
@@ -777,7 +777,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GenericTryGetArray_FailsForWrongBuiltInType()
         {
             var variant = new Variant(Array(1, 2));
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetValueArray))
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetArray))
                 .MakeGenericMethod(typeof(int));
             object[] args = Array<object>(null, BuiltInType.String);
 
@@ -791,7 +791,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             MatrixOf<float> matrix = ArrayOf.Wrapped(1f, 2f, 3f, 4f).ToMatrix(2, 2);
             var variant = Variant.From(matrix);
             object[] args = Array<object>(null, BuiltInType.Float);
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetValueMatrix))
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetMatrix))
                 .MakeGenericMethod(typeof(float));
 
             bool success = (bool)method.Invoke(variant, args);
@@ -809,7 +809,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             };
             var variant = new Variant(data);
             object[] args = Array<object>(null, BuiltInType.Double);
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetValueMatrix))
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetMatrix))
                 .MakeGenericMethod(typeof(double));
 
             bool success = (bool)method.Invoke(variant, args);

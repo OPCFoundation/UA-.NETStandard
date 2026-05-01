@@ -2551,7 +2551,7 @@ namespace Opc.Ua.Sample
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }
 
-                if (!euRange.Value.TryGetValueStructure(out range))
+                if (!euRange.Value.TryGetStructure(out range))
                 {
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }

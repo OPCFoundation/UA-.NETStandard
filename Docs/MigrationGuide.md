@@ -237,7 +237,7 @@ To perform conversion from `<T>` to a Variant, helper methods are available in `
 **System.Object and Variant comparable operations:**
 
 - *Casting*: Casting from Variant to built in system type "will just work" the same way as casting from the object, e.g. `object a; uint b = (uint)a;` is equivalent to `Variant a; uint b = (uint)a;`. Both throw `InvalidCastException` if the cast is not possible.
-- *Pattern matching*: If you use is pattern matching use the new `TryGetValue/TryGetValueStructure` calls. If you cast using as, use the same or if you prefer a default value in case the Variant has a different type, the `Get<BuiltInType>` or `GetStructure<T>` or equivalent array returning methods ending in `Array`. They do not throw, but return the default value.
+- *Pattern matching*: If you use is pattern matching use the new `TryGetValue/TryGetStructure` calls. If you cast using as, use the same or if you prefer a default value in case the Variant has a different type, the `Get<BuiltInType>` or `GetStructure<T>` or equivalent array returning methods ending in `Array`. They do not throw, but return the default value.
 - *Reflection*: Use `TypeInfo` property on Variant to obtain metadata for for example switching.
 - *Conversion*: Previously TypeInfo had support to Cast an object aligned with Variant behavior. These API have been removed in favor of the `ConvertTo[<]BuiltInType]()` members or `ConvertTo(BuiltInType target)`. NOTE: Under the hood `IConvertible` is used, which means integer values are boxed.
 
@@ -254,8 +254,8 @@ To migrate, perform the following general replacements in your code:
 
 **Remaining work:**
 
-- Assignments to Variants and casting from variant to type should be dealt with via implicit conversion except for Structures. Here change code from `Value = <structure>` to `Value = Variant.FromStructure(<structure>)` and `<structure> = Value` to `Value.TryGetValueStructure(out <structure>)`.
-- Any pattern matching conversion used must be replaced with the TryGetValue/TryGetValueStructure pattern of Variant for checked conversions, e.g. `a = Value as uint?` must be replaced with `Value.TryGetValue(out uint a)` which most often produces more concise code and avoids the check for nullable result of the conversion. The same applies to `is` matching.
+- Assignments to Variants and casting from variant to type should be dealt with via implicit conversion except for Structures. Here change code from `Value = <structure>` to `Value = Variant.FromStructure(<structure>)` and `<structure> = Value` to `Value.TryGetStructure(out <structure>)`.
+- Any pattern matching conversion used must be replaced with the TryGetValue/TryGetStructure pattern of Variant for checked conversions, e.g. `a = Value as uint?` must be replaced with `Value.TryGetValue(out uint a)` which most often produces more concise code and avoids the check for nullable result of the conversion. The same applies to `is` matching.
 - For Variable and VariableType node state classes that provide a narrowed "Value" via generic `<T>` any access to `T Value` incurs a heavy type check.  It is recommended to use `WrappedValue` instead when possible for assignment and access.
 - While most assignments work implicitly, use `TypeInfo.GetDefaultVariantValue` instead of `TypeInfo.GetDefaultValue` to initialize a variant value to a default that is `!= Variant.Null`.
 
