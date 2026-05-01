@@ -721,7 +721,7 @@ namespace Opc.Ua.Gds.Tests
                 default).ConfigureAwait(false);
             if (success)
             {
-                await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+                await ApplyChangesIgnoreChannelTearDownAsync().ConfigureAwait(false);
             }
             await VerifyNewPushServerCertAsync(serverCert.RawData.ToByteString()).ConfigureAwait(false);
         }
@@ -810,7 +810,7 @@ namespace Opc.Ua.Gds.Tests
             if (success)
             {
                 TestContext.Out.WriteLine("Apply Changes");
-                await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+                await ApplyChangesIgnoreChannelTearDownAsync().ConfigureAwait(false);
             }
             TestContext.Out.WriteLine("Verify Cert Update");
             await VerifyNewPushServerCertAsync(certificate).ConfigureAwait(false);
@@ -891,7 +891,7 @@ namespace Opc.Ua.Gds.Tests
 
             if (success)
             {
-                await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+                await ApplyChangesIgnoreChannelTearDownAsync().ConfigureAwait(false);
             }
             await VerifyNewPushServerCertAsync(newCert.RawData.ToByteString()).ConfigureAwait(false);
         }
@@ -970,7 +970,7 @@ namespace Opc.Ua.Gds.Tests
                 issuerCertificates).ConfigureAwait(false);
             if (success)
             {
-                await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+                await ApplyChangesIgnoreChannelTearDownAsync().ConfigureAwait(false);
             }
             await VerifyNewPushServerCertAsync(certificate).ConfigureAwait(false);
         }
@@ -1147,6 +1147,50 @@ namespace Opc.Ua.Gds.Tests
         {
             await m_gdsClient.GDSClient.UnregisterApplicationAsync(m_applicationRecord.ApplicationId).ConfigureAwait(false);
             m_applicationRecord.ApplicationId = default;
+        }
+
+        /// <summary>
+        /// Calls ApplyChanges on the push client and ignores
+        /// transport-level errors that happen when the server tears down
+        /// the secure channel as part of the certificate update. The
+        /// caller is expected to verify the new certificate via
+        /// <see cref="VerifyNewPushServerCertAsync"/>, which retries the
+        /// connection with the new cert.
+        /// </summary>
+        private async Task ApplyChangesIgnoreChannelTearDownAsync()
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                await m_pushClient.PushClient.ApplyChangesAsync(cts.Token).ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre) when (
+                sre.StatusCode == StatusCodes.BadRequestTimeout ||
+                sre.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                sre.StatusCode == StatusCodes.BadSessionClosed ||
+                sre.StatusCode == StatusCodes.BadSessionIdInvalid ||
+                sre.StatusCode == StatusCodes.BadConnectionClosed ||
+                sre.StatusCode == StatusCodes.BadCommunicationError ||
+                sre.StatusCode == StatusCodes.BadNotConnected ||
+                sre.StatusCode == StatusCodes.BadServerHalted ||
+                sre.StatusCode == StatusCodes.BadCertificateInvalid ||
+                sre.StatusCode == StatusCodes.BadSecurityChecksFailed)
+            {
+                // Expected: the server tore down the secure channel after
+                // (or even before) sending the ApplyChanges response. The
+                // caller's verification step retries the connection with
+                // the new server certificate.
+                TestContext.Out.WriteLine(
+                    $"ApplyChangesAsync expected channel teardown: {sre.StatusCode}");
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected: client cancelled because the response did not
+                // arrive within the bounded wait. The new cert is
+                // verified by the caller's retry loop.
+                TestContext.Out.WriteLine(
+                    "ApplyChangesAsync cancelled: server did not respond before the channel teardown.");
+            }
         }
 
         private async Task VerifyNewPushServerCertAsync(ByteString certificateBlob)
