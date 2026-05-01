@@ -133,7 +133,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the thumbprint as a uppercase string.
         /// </summary>
-        protected static byte[] GetThumbprintBytes(string thumbprint)
+        protected static byte[]? GetThumbprintBytes(string? thumbprint)
         {
             if (thumbprint == null)
             {
@@ -155,8 +155,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         protected static void CompareCertificates(
-            X509Certificate2 expected,
-            X509Certificate2 actual,
+            X509Certificate2? expected,
+            X509Certificate2? actual,
             bool allowNull)
         {
             bool equal = true;
@@ -195,7 +195,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Validates the nonce.
         /// </summary>
-        protected byte[] CreateNonce(X509Certificate2 certificate)
+        protected byte[]? CreateNonce(X509Certificate2 certificate)
         {
             switch (SecurityPolicy.CertificateKeyFamily)
             {
@@ -224,7 +224,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Validates the nonce.
         /// </summary>
-        protected bool ValidateNonce(X509Certificate2 certificate, byte[] nonce)
+        protected bool ValidateNonce(X509Certificate2? certificate, byte[] nonce)
         {
             // no nonce needed for no security.
             if (SecurityMode == MessageSecurityMode.None)
