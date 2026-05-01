@@ -113,7 +113,7 @@ namespace Opc.Ua
 
                 m_logger.LogInformation("Open reverse connect listener for {Url}.", Url);
 
-                m_listener.Open(Url, settings, null);
+                m_listener.Open(Url!, settings, null!);
 
                 m_listener.ConnectionWaiting += m_onConnectionWaiting;
                 m_listener.ConnectionStatusChanged += m_onConnectionStatusChanged;

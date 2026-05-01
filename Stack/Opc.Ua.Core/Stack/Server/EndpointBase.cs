@@ -188,7 +188,9 @@ namespace Opc.Ua
                 {
                     continue;
                 }
-                if (item.Value.TryGetStructure(out SpanContextDataType spanContext))
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type. (TryGetStructure uses MaybeNullWhen(false); we check the bool.)
+                if (item.Value.TryGetStructure(out SpanContextDataType spanContext) && spanContext != null)
+#pragma warning restore CS8600
                 {
 #if NET8_0_OR_GREATER
                     Span<byte> spanIdBytes = stackalloc byte[8];
@@ -230,7 +232,8 @@ namespace Opc.Ua
                 SetRequestContext(RequestEncoding.Binary);
 
                 // find service.
-                if (!SupportedServices.TryGetValue(incoming.TypeId, out ServiceDefinition service))
+                if (!SupportedServices.TryGetValue(incoming.TypeId, out ServiceDefinition? service) ||
+                    service == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadServiceUnsupported, Utils
                         .Format("'{0}' is an unrecognized service identifier.", incoming.TypeId));
@@ -267,6 +270,11 @@ namespace Opc.Ua
                 SetRequestContext(RequestEncoding.Binary);
 
                 // decoding incoming message.
+                if (request.InvokeServiceRequest == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                }
+
                 IServiceRequest serviceRequest = BinaryDecoder.DecodeMessage<IServiceRequest>(
                     request.InvokeServiceRequest,
                     MessageContext);
@@ -357,7 +365,8 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         protected ServiceDefinition FindService(ExpandedNodeId requestTypeId)
         {
-            if (!SupportedServices.TryGetValue(requestTypeId, out ServiceDefinition service))
+            if (!SupportedServices.TryGetValue(requestTypeId, out ServiceDefinition? service) ||
+                service == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadServiceUnsupported,
@@ -461,7 +470,7 @@ namespace Opc.Ua
         /// Returns the message context used by the server associated with the endpoint.
         /// </summary>
         /// <value>The message context.</value>
-        protected IServiceMessageContext MessageContext => m_server.MessageContext;
+        protected IServiceMessageContext MessageContext => m_server!.MessageContext;
 
         /// <summary>
         /// Returns the description for the endpoint

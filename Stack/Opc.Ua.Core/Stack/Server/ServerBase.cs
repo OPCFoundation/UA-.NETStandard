@@ -197,7 +197,7 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when a connection arrives and is waiting for a callback.
         /// </summary>
-        protected virtual void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
+        protected virtual void OnConnectionStatusChanged(object? sender, ConnectionStatusEventArgs e)
         {
             ConnectionStatusChanged?.Invoke(sender, e);
         }
@@ -260,7 +260,7 @@ namespace Opc.Ua
             ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
 
             // initialize the server capabilities
-            ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
+            ServerCapabilities = configuration.ServerConfiguration!.ServerCapabilities;
 
             // initialize the base addresses.
             InitializeBaseAddresses(configuration);
@@ -327,7 +327,7 @@ namespace Opc.Ua
             ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
 
             // initialize the server capabilities
-            ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
+            ServerCapabilities = configuration.ServerConfiguration!.ServerCapabilities;
 
             // initialize the base addresses.
             InitializeBaseAddresses(configuration);
@@ -337,7 +337,7 @@ namespace Opc.Ua
             IList<ServiceHost> hosts = InitializeServiceHosts(
                 configuration,
                 bindingFactory,
-                out ApplicationDescription serverDescription,
+                out ApplicationDescription? serverDescription,
                 out ArrayOf<EndpointDescription> endpoints);
 
             // save discovery information.
@@ -633,7 +633,7 @@ namespace Opc.Ua
             {
                 X509Certificate2 serverCertificate = certificateTypesProvider
                     .GetInstanceCertificate(
-                        description.SecurityPolicyUri);
+                        description.SecurityPolicyUri!);
                 // check if complete chain should be sent.
                 if (certificateTypesProvider.SendCertificateChain)
                 {
@@ -782,9 +782,9 @@ namespace Opc.Ua
                 {
                     CertificateIdentifier certificateIdentifier = applicationCertificates[i];
                     // preload chain
-                    X509Certificate2 certificate = await certificateIdentifier.FindAsync(false)
-                        .ConfigureAwait(false);
-                    await InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate)
+                    X509Certificate2 certificate = (await certificateIdentifier.FindAsync(false)
+                        .ConfigureAwait(false))!;
+                    await InstanceCertificateTypesProvider!.LoadCertificateChainAsync(certificate)
                         .ConfigureAwait(false);
                 }
 
@@ -841,14 +841,14 @@ namespace Opc.Ua
                     MaxChannelCount = 0
                 };
 
-                settings.MaxChannelCount = Configuration.ServerConfiguration.MaxChannelCount;
+                settings.MaxChannelCount = Configuration!.ServerConfiguration!.MaxChannelCount;
                 if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
                 {
                     settings.HttpsMutualTls = Configuration.ServerConfiguration
                         .HttpsMutualTls;
                 }
 
-                listener.Open(endpointUri, settings, GetEndpointInstance(this));
+                listener.Open(endpointUri, settings, GetEndpointInstance(this)!);
 
                 TransportListeners.Add(listener);
 
@@ -949,7 +949,7 @@ namespace Opc.Ua
             }
 
             // check if client is using an ip address.
-            if (IPAddress.TryParse(hostname, out IPAddress address))
+            if (IPAddress.TryParse(hostname, out IPAddress? address) && address != null)
             {
                 if (IPAddress.IsLoopback(address))
                 {
@@ -1204,7 +1204,7 @@ namespace Opc.Ua
                 // process endpoints
                 foreach (EndpointDescription endpoint in endpoints)
                 {
-                    var endpointUrl = new UriBuilder(endpoint.EndpointUrl);
+                    var endpointUrl = new UriBuilder(endpoint.EndpointUrl!);
 
                     // find matching base address.
                     foreach (BaseAddress baseAddress in baseAddresses)
@@ -1257,10 +1257,10 @@ namespace Opc.Ua
                         translation.Server = application;
 
                         if (!translations.Exists(match =>
-                                match.EndpointUrl
+                                match.EndpointUrl!
                                     .Equals(translation.EndpointUrl, StringComparison.Ordinal) &&
                                 match.SecurityMode == translation.SecurityMode &&
-                                match.SecurityPolicyUri.Equals(
+                                match.SecurityPolicyUri!.Equals(
                                     translation.SecurityPolicyUri,
                                     StringComparison.Ordinal)))
                         {
@@ -1439,7 +1439,7 @@ namespace Opc.Ua
                 m_telemetry);
             InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
 
-            foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration
+            foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration!
                 .SecurityPolicies)
             {
                 if (securityPolicy.SecurityMode == MessageSecurityMode.None)
@@ -1449,7 +1449,7 @@ namespace Opc.Ua
 
                 X509Certificate2 instanceCertificate =
                     InstanceCertificateTypesProvider.GetInstanceCertificate(
-                        securityPolicy.SecurityPolicyUri)
+                        securityPolicy.SecurityPolicyUri!)
                     ?? throw ServiceResultException.ConfigurationError(
                         "Server does not have an instance certificate assigned.");
 
@@ -1473,7 +1473,7 @@ namespace Opc.Ua
             {
                 X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider
                     .GetInstanceCertificate(
-                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
+                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri!);
 
                 IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(
                     instanceCertificate);
@@ -1485,13 +1485,13 @@ namespace Opc.Ua
                     configuration.ApplicationUri = Utils.Format(
                         "http://{0}/{1}/{2}",
                         Utils.GetHostName(),
-                        configuration.ApplicationName,
+                        configuration.ApplicationName!,
                         Guid.NewGuid());
                 }
             }
 
             // initialize namespace table.
-            messageContext.NamespaceUris.Append(configuration.ApplicationUri);
+            messageContext.NamespaceUris.Append(configuration.ApplicationUri!);
 
             // assign an instance name.
             if (string.IsNullOrEmpty(configuration.ApplicationName) &&

@@ -412,7 +412,7 @@ namespace Opc.Ua
                 ServiceMessageContext.Create(telemetry),
                 null,
                 ct).ConfigureAwait(false);
-            return new DiscoveryClient(channel, telemetry)
+            return new DiscoveryClient(channel, telemetry!)
             {
                 ReturnDiagnostics = returnDiagnostics
             };
@@ -445,7 +445,7 @@ namespace Opc.Ua
                 ServiceMessageContext.Create(telemetry),
                 clientCertificate,
                 ct).ConfigureAwait(false);
-            return new DiscoveryClient(channel, telemetry)
+            return new DiscoveryClient(channel, telemetry!)
             {
                 ReturnDiagnostics = returnDiagnostics
             };
@@ -593,7 +593,7 @@ namespace Opc.Ua
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
             return ClientChannelManager.CreateUaBinaryChannelAsync(
-                null,
+                null!,
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,
@@ -625,7 +625,7 @@ namespace Opc.Ua
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
             return ClientChannelManager.CreateUaBinaryChannelAsync(
-                configuration,
+                configuration!,
                 connection,
                 endpoint,
                 endpointConfiguration,
@@ -658,7 +658,7 @@ namespace Opc.Ua
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
             return ClientChannelManager.CreateUaBinaryChannelAsync(
-                configuration,
+                configuration!,
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,
@@ -706,7 +706,7 @@ namespace Opc.Ua
                     if (discoveryEndPoint.Server != null &&
                         !discoveryEndPoint.Server.DiscoveryUrls.IsNull)
                     {
-                        discoveryEndPoint.Server.DiscoveryUrls = [Endpoint.EndpointUrl];
+                        discoveryEndPoint.Server.DiscoveryUrls = [Endpoint.EndpointUrl!];
                     }
                 }
             }
