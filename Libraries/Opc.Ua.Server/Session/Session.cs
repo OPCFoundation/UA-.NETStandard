@@ -867,7 +867,7 @@ namespace Opc.Ua.Server
 
             // check for anonymous (same as empty) token.
             if (identityToken.IsNull ||
-                identityToken.TryGetEncodeable(out AnonymousIdentityToken _))
+                identityToken.TryGetValue(out AnonymousIdentityToken _))
             {
                 // check if an anonymous login is permitted.
                 if (!EndpointDescription.UserIdentityTokens.IsEmpty)
@@ -899,7 +899,7 @@ namespace Opc.Ua.Server
 
             IUserIdentityTokenHandler token;
             // check for unrecognized token.
-            if (identityToken.TryGetEncodeable(out UserIdentityToken decodedToken))
+            if (identityToken.TryGetValue(out UserIdentityToken decodedToken))
             {
                 // get the token.
                 token = decodedToken.AsTokenHandler();

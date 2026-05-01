@@ -626,7 +626,7 @@ namespace Opc.Ua.Client.Tests
             if (requestHeader != null)
             {
                 Assert.That(requestHeader.AdditionalHeader.IsNull, Is.False);
-                Assert.That(requestHeader.AdditionalHeader.TryGetEncodeable(
+                Assert.That(requestHeader.AdditionalHeader.TryGetValue(
                     out AdditionalParametersType additionalParameters), Is.True);
                 Assert.That(additionalParameters.Parameters.Find(k => k.Key == "SpanContext"), Is.Not.Null);
             }
@@ -684,7 +684,7 @@ namespace Opc.Ua.Client.Tests
             if (requestHeader != null)
             {
                 Assert.That(requestHeader.AdditionalHeader.IsNull, Is.False);
-                Assert.That(requestHeader.AdditionalHeader.TryGetEncodeable(
+                Assert.That(requestHeader.AdditionalHeader.TryGetValue(
                     out AdditionalParametersType additionalParameters), Is.True);
                 Assert.That(additionalParameters, Is.Not.Null);
                 Assert.That(additionalParameters.Parameters.Find(k => k.Key == "SpanContext"), Is.Not.Null);

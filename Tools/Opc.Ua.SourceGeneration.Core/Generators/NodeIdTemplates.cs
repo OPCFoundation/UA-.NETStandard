@@ -164,7 +164,7 @@ namespace Opc.Ua.SourceGeneration
             /// <summary>
             /// Returns the id for a {{Tokens.ClassName}} string.
             /// </summary>
-            public static bool TryGetIdentifier(string browseName, out {{Tokens.IdType}} id)
+            public static bool TryGetValue(string browseName, out {{Tokens.IdType}} id)
             {
                 return s_nameToId.Value.TryGetValue(browseName, out id);
             }

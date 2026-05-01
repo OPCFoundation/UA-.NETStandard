@@ -317,7 +317,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                    if (!value.TryGet(out byte eventNotifier))
+                    if (!value.TryGetValue(out byte eventNotifier))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }

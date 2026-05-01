@@ -1518,7 +1518,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 decoder.PopNamespace();
             }
             Assert.That(
-                extensionObjectFromXml.TryGetEncodeable(out IEncodeable resultEncodeable), Is.True);
+                extensionObjectFromXml.TryGetValue(out IEncodeable resultEncodeable), Is.True);
             Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
 
             // Encode to JSON
@@ -1547,7 +1547,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 extensionObjectFromJson = decoder.ReadExtensionObject("Test");
             }
             Assert.That(
-                extensionObjectFromJson.TryGetEncodeable(out resultEncodeable), Is.True);
+                extensionObjectFromJson.TryGetValue(out resultEncodeable), Is.True);
             Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
         }
 

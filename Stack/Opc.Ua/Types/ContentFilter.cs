@@ -161,12 +161,12 @@ namespace Opc.Ua
             {
                 // check if a FilterOperand was provided.
 
-                if (operands[ii].TryGetStructure(out FilterOperand filterOperand))
+                if (operands[ii].TryGetValueStructure(out FilterOperand filterOperand))
                 {
                     element.FilterOperands =
                         element.FilterOperands.AddItem(new ExtensionObject(filterOperand));
                 }
-                else if (operands[ii].TryGetStructure(out ContentFilterElement existingElement))
+                else if (operands[ii].TryGetValueStructure(out ContentFilterElement existingElement))
                 {
                     // check for reference to another ContentFilterElement.
                     int index = FindElementIndex(existingElement);
@@ -200,7 +200,7 @@ namespace Opc.Ua
             {
                 foreach (ExtensionObject extension in m_elements[ii].FilterOperands)
                 {
-                    if (extension.TryGetEncodeable(out ElementOperand operand))
+                    if (extension.TryGetValue(out ElementOperand operand))
                     {
                         operand.Index++;
                     }
@@ -562,7 +562,7 @@ namespace Opc.Ua
 
                 // check that the extension object contains a filter operand.
 
-                if (!operand.TryGetEncodeable(out FilterOperand filterOperand))
+                if (!operand.TryGetValue(out FilterOperand filterOperand))
                 {
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,
@@ -611,7 +611,7 @@ namespace Opc.Ua
 
             foreach (ExtensionObject extension in FilterOperands)
             {
-                if (extension.TryGetEncodeable(out FilterOperand operand))
+                if (extension.TryGetValue(out FilterOperand operand))
                 {
                     operands.Add(operand);
                 }
@@ -724,7 +724,7 @@ namespace Opc.Ua
 
                     if (operands.Count > 1 && operands[1] is LiteralOperand literalOperand)
                     {
-                        if (!literalOperand.Value.TryGet(out NodeId nodeIdValue))
+                        if (!literalOperand.Value.TryGetValue(out NodeId nodeIdValue))
                         {
                             nodeIdValue = default;
                         }
@@ -1178,9 +1178,9 @@ namespace Opc.Ua
         /// <returns>LiteralOperand as a displayable string.</returns>
         public override string ToString(INodeTable nodeTable)
         {
-            if (!Value.TryGet(out NodeId nodeId))
+            if (!Value.TryGetValue(out NodeId nodeId))
             {
-                if (Value.TryGet(out ExpandedNodeId expandedNodeId))
+                if (Value.TryGetValue(out ExpandedNodeId expandedNodeId))
                 {
                     nodeId = (NodeId)expandedNodeId;
                 }

@@ -375,7 +375,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                    if (!value.TryGet(out byte eventNotifier))
+                    if (!value.TryGetValue(out byte eventNotifier))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -399,7 +399,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ContainsNoLoops:
-                    if (!value.TryGet(out bool containsNoLoops))
+                    if (!value.TryGetValue(out bool containsNoLoops))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }

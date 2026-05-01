@@ -2456,7 +2456,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
-            Assert.That(result.TryGetIdentifier(out uint identifier), Is.True);
+            Assert.That(result.TryGetValue(out uint identifier), Is.True);
             Assert.That(identifier, Is.EqualTo(5u));
             Assert.That(result.NamespaceIndex, Is.Zero);
         }
@@ -2492,7 +2492,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
-            Assert.That(result.TryGetIdentifier(out string stringId), Is.True);
+            Assert.That(result.TryGetValue(out string stringId), Is.True);
             Assert.That(stringId, Is.EqualTo("test"));
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
         }
@@ -3790,7 +3790,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0].IdType, Is.EqualTo(IdType.Numeric));
-            Assert.That(result[0].TryGetIdentifier(out uint id), Is.True);
+            Assert.That(result[0].TryGetValue(out uint id), Is.True);
             Assert.That(id, Is.EqualTo(5u));
         }
 
@@ -3830,7 +3830,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0].IdType, Is.EqualTo(IdType.Numeric));
-            Assert.That(result[0].TryGetIdentifier(out uint id), Is.True);
+            Assert.That(result[0].TryGetValue(out uint id), Is.True);
             Assert.That(id, Is.EqualTo(5u));
         }
 
@@ -3854,10 +3854,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(2));
 
-            Assert.That(result[0].TryGetIdentifier(out uint id0), Is.True);
+            Assert.That(result[0].TryGetValue(out uint id0), Is.True);
             Assert.That(id0, Is.EqualTo(10u));
 
-            Assert.That(result[1].TryGetIdentifier(out uint id1), Is.True);
+            Assert.That(result[1].TryGetValue(out uint id1), Is.True);
             Assert.That(id1, Is.EqualTo(20u));
         }
 
@@ -4189,7 +4189,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
-            Assert.That(result.TryGetIdentifier(out Guid resultGuid), Is.True);
+            Assert.That(result.TryGetValue(out Guid resultGuid), Is.True);
             Assert.That(resultGuid, Is.EqualTo(guid));
         }
 
@@ -4232,7 +4232,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result.NamespaceIndex, Is.EqualTo(3));
-            Assert.That(result.TryGetIdentifier(out uint id), Is.True);
+            Assert.That(result.TryGetValue(out uint id), Is.True);
             Assert.That(id, Is.EqualTo(256u));
         }
 
@@ -4255,7 +4255,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.ServerIndex, Is.EqualTo(3u));
-            Assert.That(result.TryGetIdentifier(out uint id), Is.True);
+            Assert.That(result.TryGetValue(out uint id), Is.True);
             Assert.That(id, Is.EqualTo(42u));
         }
 
@@ -4617,7 +4617,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.TryGetIdentifier(out uint id), Is.True);
+            Assert.That(result.TryGetValue(out uint id), Is.True);
             Assert.That(id, Is.EqualTo(100u));
         }
 
@@ -4641,7 +4641,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.TryGetEncodeable(out TestEncodeable _), Is.True);
+            Assert.That(result.TryGetValue(out TestEncodeable _), Is.True);
         }
 
         [Test]

@@ -602,7 +602,7 @@ namespace Opc.Ua.Client.Tests
                                     Interlocked.Add(ref eventsReceived, notification.Events.Count);
                                     foreach (EventFieldList fieldList in notification.Events)
                                     {
-                                        if (fieldList.EventFields.Count > 4 && fieldList.EventFields[4].TryGet(out DateTimeUtc eventTime))
+                                        if (fieldList.EventFields.Count > 4 && fieldList.EventFields[4].TryGetValue(out DateTimeUtc eventTime))
                                         {
                                             TimeSpan delay = DateTime.UtcNow - ((DateTime)eventTime).ToUniversalTime();
                                             Interlocked.Add(ref totalDelayTicks, delay.Ticks);

@@ -634,9 +634,9 @@ namespace Opc.Ua.Server.Tests
                 else
                 {
                     DataChangeNotification dataChangeNotification = publishResponse.NotificationMessage.NotificationData[0]
-                        .TryGetEncodeable(out DataChangeNotification d) ? d : default;
+                        .TryGetValue(out DataChangeNotification d) ? d : default;
                     EventNotificationList eventNotification = publishResponse.NotificationMessage.NotificationData[0]
-                        .TryGetEncodeable(out EventNotificationList e) ? e : default;
+                        .TryGetValue(out EventNotificationList e) ? e : default;
                     TestContext.Out.WriteLine(
                         "Notification: {0} {1}",
                         publishResponse.NotificationMessage.SequenceNumber,
@@ -834,7 +834,7 @@ namespace Opc.Ua.Server.Tests
             if (sendInitialData)
             {
                 ExtensionObject items = publishResponse.NotificationMessage.NotificationData[0];
-                Assert.That(items.TryGetEncodeable(out DataChangeNotification dataChangeNotification), Is.True);
+                Assert.That(items.TryGetValue(out DataChangeNotification dataChangeNotification), Is.True);
                 ArrayOf<MonitoredItemNotification> monitoredItemsCollection = dataChangeNotification.MonitoredItems;
                 Assert.That(monitoredItemsCollection.IsEmpty, Is.False);
             }

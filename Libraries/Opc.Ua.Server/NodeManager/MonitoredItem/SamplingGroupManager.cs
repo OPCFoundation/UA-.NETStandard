@@ -164,7 +164,7 @@ namespace Opc.Ua.Server
                 m_maxDurableQueueSize);
 
             // get filter.
-            if (itemToCreate.RequestedParameters.Filter.TryGetEncodeable(
+            if (itemToCreate.RequestedParameters.Filter.TryGetValue(
                 out MonitoringFilter filter) &&
                 filter is EventFilter)
             {
@@ -338,7 +338,7 @@ namespace Opc.Ua.Server
             }
 
             // get filter.
-            if (itemToModify.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter filter) &&
+            if (itemToModify.RequestedParameters.Filter.TryGetValue(out MonitoringFilter filter) &&
                 filter is EventFilter)
             {
                 // update limits for event filters.

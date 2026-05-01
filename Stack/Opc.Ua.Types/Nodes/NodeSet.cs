@@ -948,7 +948,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(sourceNamespaceUris));
             }
 
-            if (extensionObject.TryGetEncodeable(out Argument argument))
+            if (extensionObject.TryGetValue(out Argument argument))
             {
                 argument.DataType = Translate(
                     argument.DataType,

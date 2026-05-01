@@ -181,7 +181,7 @@ namespace Opc.Ua.Server
                 VariableIds.Server_GetMonitoredItems_OutputArguments);
 
             if (getMonitoredItemsOutputArguments != null &&
-                getMonitoredItemsOutputArguments.Value.TryGetStructure(out ArrayOf<Argument> outputArgumentsValue))
+                getMonitoredItemsOutputArguments.Value.TryGetValueStructure(out ArrayOf<Argument> outputArgumentsValue))
             {
                 getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
             }
@@ -255,7 +255,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            if (!inputArguments[0].TryGet(out uint subscriptionId))
+            if (!inputArguments[0].TryGetValue(out uint subscriptionId))
             {
                 return StatusCodes.BadInvalidArgument;
             }
@@ -296,7 +296,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            if (!inputArguments[0].TryGet(out uint subscriptionId))
+            if (!inputArguments[0].TryGetValue(out uint subscriptionId))
             {
                 return StatusCodes.BadInvalidArgument;
             }
@@ -435,7 +435,7 @@ namespace Opc.Ua.Server
 
             NodeId typeId = passiveNode.TypeDefinitionId;
 
-            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint numericId))
+            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint numericId))
             {
                 return predefinedNode;
             }
@@ -554,7 +554,7 @@ namespace Opc.Ua.Server
 
             if (typeId.IsNull ||
                 typeId.NamespaceIndex != 0 ||
-                typeId.TryGetIdentifier(out uint numericId))
+                typeId.TryGetValue(out uint numericId))
             {
                 return false;
             }

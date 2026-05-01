@@ -378,7 +378,7 @@ namespace Opc.Ua
         /// </summary>
         public static ExtensionObject Clone(ExtensionObject value)
         {
-            if (value.TryGetEncodeable(out IEncodeable e))
+            if (value.TryGetValue(out IEncodeable e))
             {
                 return new ExtensionObject(e, true);
             }

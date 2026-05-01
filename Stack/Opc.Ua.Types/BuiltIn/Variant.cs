@@ -57,6 +57,7 @@ namespace Opc.Ua
     /// OPC UA data-types.
     /// <br/></para>
     /// </remarks>
+    [Union]
     public readonly struct Variant :
         INullable,
         IFormattable,
@@ -991,6 +992,15 @@ namespace Opc.Ua
         public bool IsNull => TypeInfo.IsUnknown;
 
         /// <summary>
+        /// Returns <c>true</c> if the Variant currently holds a value
+        /// (i.e. is not Null). This is the inverse of <see cref="IsNull"/>
+        /// and matches the non-boxing access member shape proposed for
+        /// C# 15 union types.
+        /// </summary>
+        [JsonIgnore]
+        public bool HasValue => !IsNull;
+
+        /// <summary>
         /// The value stored -as <see cref="object"/>- within the
         /// Variant object. All arrays and matrices are returned
         /// as <see cref="Array"/>.
@@ -999,7 +1009,7 @@ namespace Opc.Ua
         /// <see cref="Matrix"/>)
         /// </summary>
         [JsonIgnore]
-        [Obsolete("Use TryGet pattern to access values or AsBoxedObject.")]
+        [Obsolete("Use TryGetValue pattern to access values or AsBoxedObject.")]
         public object Value => AsBoxedObject(BoxingBehavior.Legacy);
 
         /// <summary>
@@ -1120,7 +1130,7 @@ namespace Opc.Ua
         /// </summary>
         public bool GetBoolean(bool defaultValue = default)
         {
-            return TryGet(out bool v) ? v : defaultValue;
+            return TryGetValue(out bool v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1128,7 +1138,7 @@ namespace Opc.Ua
         /// </summary>
         public sbyte GetSByte(sbyte defaultValue = default)
         {
-            return TryGet(out sbyte v) ? v : defaultValue;
+            return TryGetValue(out sbyte v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1136,7 +1146,7 @@ namespace Opc.Ua
         /// </summary>
         public byte GetByte(byte defaultValue = default)
         {
-            return TryGet(out byte v) ? v : defaultValue;
+            return TryGetValue(out byte v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1144,7 +1154,7 @@ namespace Opc.Ua
         /// </summary>
         public short GetInt16(short defaultValue = default)
         {
-            return TryGet(out short v) ? v : defaultValue;
+            return TryGetValue(out short v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1152,7 +1162,7 @@ namespace Opc.Ua
         /// </summary>
         public ushort GetUInt16(ushort defaultValue = default)
         {
-            return TryGet(out ushort v) ? v : defaultValue;
+            return TryGetValue(out ushort v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1160,7 +1170,7 @@ namespace Opc.Ua
         /// </summary>
         public int GetInt32(int defaultValue = default)
         {
-            return TryGet(out int v) ? v : defaultValue;
+            return TryGetValue(out int v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1168,7 +1178,7 @@ namespace Opc.Ua
         /// </summary>
         public EnumValue GetEnumeration(EnumValue defaultValue = default)
         {
-            return TryGet(out EnumValue v) ? v : defaultValue;
+            return TryGetValue(out EnumValue v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1177,7 +1187,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public T GetEnumeration<T>(T defaultValue = default) where T : struct, Enum
         {
-            return TryGet(out T v) ? v : defaultValue;
+            return TryGetValue(out T v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1188,7 +1198,7 @@ namespace Opc.Ua
             T defaultValue = default,
             IServiceMessageContext context = null) where T : IEncodeable
         {
-            return TryGet(out T v, context) ? v : defaultValue;
+            return TryGetValue(out T v, context) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1196,7 +1206,7 @@ namespace Opc.Ua
         /// </summary>
         public uint GetUInt32(uint defaultValue = default)
         {
-            return TryGet(out uint v) ? v : defaultValue;
+            return TryGetValue(out uint v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1204,7 +1214,7 @@ namespace Opc.Ua
         /// </summary>
         public long GetInt64(long defaultValue = default)
         {
-            return TryGet(out long v) ? v : defaultValue;
+            return TryGetValue(out long v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1212,7 +1222,7 @@ namespace Opc.Ua
         /// </summary>
         public ulong GetUInt64(ulong defaultValue = default)
         {
-            return TryGet(out ulong v) ? v : defaultValue;
+            return TryGetValue(out ulong v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1220,7 +1230,7 @@ namespace Opc.Ua
         /// </summary>
         public float GetFloat(float defaultValue = default)
         {
-            return TryGet(out float v) ? v : defaultValue;
+            return TryGetValue(out float v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1228,7 +1238,7 @@ namespace Opc.Ua
         /// </summary>
         public double GetDouble(double defaultValue = default)
         {
-            return TryGet(out double v) ? v : defaultValue;
+            return TryGetValue(out double v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1236,7 +1246,7 @@ namespace Opc.Ua
         /// </summary>
         public decimal GetDecimal(decimal defaultValue = default)
         {
-            return TryGetDecimal(out decimal v) ? v : defaultValue;
+            return TryGetValueDecimal(out decimal v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1244,7 +1254,7 @@ namespace Opc.Ua
         /// </summary>
         public string GetString(string defaultValue = default)
         {
-            return TryGet(out string v) ? v : defaultValue;
+            return TryGetValue(out string v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1252,7 +1262,7 @@ namespace Opc.Ua
         /// </summary>
         public DateTimeUtc GetDateTime(DateTimeUtc defaultValue = default)
         {
-            return TryGet(out DateTimeUtc v) ? v : defaultValue;
+            return TryGetValue(out DateTimeUtc v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1260,7 +1270,7 @@ namespace Opc.Ua
         /// </summary>
         public Uuid GetGuid(Uuid defaultValue = default)
         {
-            return TryGet(out Uuid v) ? v : defaultValue;
+            return TryGetValue(out Uuid v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1268,7 +1278,7 @@ namespace Opc.Ua
         /// </summary>
         public ByteString GetByteString(ByteString defaultValue = default)
         {
-            return TryGet(out ByteString v) ? v : defaultValue;
+            return TryGetValue(out ByteString v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1276,7 +1286,7 @@ namespace Opc.Ua
         /// </summary>
         public XmlElement GetXmlElement(XmlElement defaultValue = default)
         {
-            return TryGet(out XmlElement v) ? v : defaultValue;
+            return TryGetValue(out XmlElement v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1284,7 +1294,7 @@ namespace Opc.Ua
         /// </summary>
         public NodeId GetNodeId(NodeId defaultValue = default)
         {
-            return TryGet(out NodeId v) ? v : defaultValue;
+            return TryGetValue(out NodeId v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1292,7 +1302,7 @@ namespace Opc.Ua
         /// </summary>
         public ExpandedNodeId GetExpandedNodeId(ExpandedNodeId defaultValue = default)
         {
-            return TryGet(out ExpandedNodeId v) ? v : defaultValue;
+            return TryGetValue(out ExpandedNodeId v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1300,7 +1310,7 @@ namespace Opc.Ua
         /// </summary>
         public StatusCode GetStatusCode(StatusCode defaultValue = default)
         {
-            return TryGet(out StatusCode v) ? v : defaultValue;
+            return TryGetValue(out StatusCode v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1308,7 +1318,7 @@ namespace Opc.Ua
         /// </summary>
         public QualifiedName GetQualifiedName(QualifiedName defaultValue = default)
         {
-            return TryGet(out QualifiedName v) ? v : defaultValue;
+            return TryGetValue(out QualifiedName v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1316,7 +1326,7 @@ namespace Opc.Ua
         /// </summary>
         public LocalizedText GetLocalizedText(LocalizedText defaultValue = default)
         {
-            return TryGet(out LocalizedText v) ? v : defaultValue;
+            return TryGetValue(out LocalizedText v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1324,7 +1334,7 @@ namespace Opc.Ua
         /// </summary>
         public ExtensionObject GetExtensionObject(ExtensionObject defaultValue = default)
         {
-            return TryGet(out ExtensionObject v) ? v : defaultValue;
+            return TryGetValue(out ExtensionObject v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1332,7 +1342,7 @@ namespace Opc.Ua
         /// </summary>
         public DataValue GetDataValue(DataValue defaultValue = default)
         {
-            return TryGet(out DataValue v) ? v : defaultValue;
+            return TryGetValue(out DataValue v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1340,7 +1350,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<bool> GetBooleanArray(ArrayOf<bool> defaultValue = default)
         {
-            return TryGet(out ArrayOf<bool> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<bool> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1348,7 +1358,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<sbyte> GetSByteArray(ArrayOf<sbyte> defaultValue = default)
         {
-            return TryGet(out ArrayOf<sbyte> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<sbyte> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1356,7 +1366,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<byte> GetByteArray(ArrayOf<byte> defaultValue = default)
         {
-            return TryGet(out ArrayOf<byte> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<byte> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1364,7 +1374,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<short> GetInt16Array(ArrayOf<short> defaultValue = default)
         {
-            return TryGet(out ArrayOf<short> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<short> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1372,7 +1382,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<ushort> GetUInt16Array(ArrayOf<ushort> defaultValue = default)
         {
-            return TryGet(out ArrayOf<ushort> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<ushort> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1380,7 +1390,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<int> GetInt32Array(ArrayOf<int> defaultValue = default)
         {
-            return TryGet(out ArrayOf<int> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<int> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1388,7 +1398,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<EnumValue> GetEnumerationArray(ArrayOf<EnumValue> defaultValue = default)
         {
-            return TryGet(out ArrayOf<EnumValue> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<EnumValue> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1398,7 +1408,7 @@ namespace Opc.Ua
         public ArrayOf<T> GetEnumerationArray<T>(ArrayOf<T> defaultValue = default)
             where T : struct, Enum
         {
-            return TryGet(out ArrayOf<T> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<T> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1409,7 +1419,7 @@ namespace Opc.Ua
             ArrayOf<T> defaultValue = default,
             IServiceMessageContext context = null) where T : IEncodeable
         {
-            return TryGet(out ArrayOf<T> v, context) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<T> v, context) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1417,7 +1427,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<uint> GetUInt32Array(ArrayOf<uint> defaultValue = default)
         {
-            return TryGet(out ArrayOf<uint> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<uint> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1425,7 +1435,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<long> GetInt64Array(ArrayOf<long> defaultValue = default)
         {
-            return TryGet(out ArrayOf<long> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<long> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1433,7 +1443,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<ulong> GetUInt64Array(ArrayOf<ulong> defaultValue = default)
         {
-            return TryGet(out ArrayOf<ulong> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<ulong> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1441,7 +1451,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<float> GetFloatArray(ArrayOf<float> defaultValue = default)
         {
-            return TryGet(out ArrayOf<float> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<float> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1449,7 +1459,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<double> GetDoubleArray(ArrayOf<double> defaultValue = default)
         {
-            return TryGet(out ArrayOf<double> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<double> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1457,7 +1467,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<string> GetStringArray(ArrayOf<string> defaultValue = default)
         {
-            return TryGet(out ArrayOf<string> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<string> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1465,7 +1475,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<DateTimeUtc> GetDateTimeArray(ArrayOf<DateTimeUtc> defaultValue = default)
         {
-            return TryGet(out ArrayOf<DateTimeUtc> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<DateTimeUtc> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1473,7 +1483,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<Uuid> GetGuidArray(ArrayOf<Uuid> defaultValue = default)
         {
-            return TryGet(out ArrayOf<Uuid> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<Uuid> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1481,7 +1491,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<ByteString> GetByteStringArray(ArrayOf<ByteString> defaultValue = default)
         {
-            return TryGet(out ArrayOf<ByteString> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<ByteString> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1489,7 +1499,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<XmlElement> GetXmlElementArray(ArrayOf<XmlElement> defaultValue = default)
         {
-            return TryGet(out ArrayOf<XmlElement> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<XmlElement> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1497,7 +1507,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<NodeId> GetNodeIdArray(ArrayOf<NodeId> defaultValue = default)
         {
-            return TryGet(out ArrayOf<NodeId> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<NodeId> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1505,7 +1515,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<ExpandedNodeId> GetExpandedNodeIdArray(ArrayOf<ExpandedNodeId> defaultValue = default)
         {
-            return TryGet(out ArrayOf<ExpandedNodeId> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<ExpandedNodeId> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1513,7 +1523,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<StatusCode> GetStatusCodeArray(ArrayOf<StatusCode> defaultValue = default)
         {
-            return TryGet(out ArrayOf<StatusCode> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<StatusCode> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1521,7 +1531,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<QualifiedName> GetQualifiedNameArray(ArrayOf<QualifiedName> defaultValue = default)
         {
-            return TryGet(out ArrayOf<QualifiedName> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<QualifiedName> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1529,7 +1539,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<LocalizedText> GetLocalizedTextArray(ArrayOf<LocalizedText> defaultValue = default)
         {
-            return TryGet(out ArrayOf<LocalizedText> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<LocalizedText> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1537,7 +1547,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<ExtensionObject> GetExtensionObjectArray(ArrayOf<ExtensionObject> defaultValue = default)
         {
-            return TryGet(out ArrayOf<ExtensionObject> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<ExtensionObject> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1545,7 +1555,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<DataValue> GetDataValueArray(ArrayOf<DataValue> defaultValue = default)
         {
-            return TryGet(out ArrayOf<DataValue> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<DataValue> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1553,7 +1563,7 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<Variant> GetVariantArray(ArrayOf<Variant> defaultValue = default)
         {
-            return TryGet(out ArrayOf<Variant> v) ? v : defaultValue;
+            return TryGetValue(out ArrayOf<Variant> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1561,7 +1571,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<bool> GetBooleanMatrix(MatrixOf<bool> defaultValue = default)
         {
-            return TryGet(out MatrixOf<bool> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<bool> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1569,7 +1579,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<sbyte> GetSByteMatrix(MatrixOf<sbyte> defaultValue = default)
         {
-            return TryGet(out MatrixOf<sbyte> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<sbyte> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1577,7 +1587,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<byte> GetByteMatrix(MatrixOf<byte> defaultValue = default)
         {
-            return TryGet(out MatrixOf<byte> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<byte> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1585,7 +1595,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<short> GetInt16Matrix(MatrixOf<short> defaultValue = default)
         {
-            return TryGet(out MatrixOf<short> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<short> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1593,7 +1603,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<ushort> GetUInt16Matrix(MatrixOf<ushort> defaultValue = default)
         {
-            return TryGet(out MatrixOf<ushort> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<ushort> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1601,7 +1611,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<int> GetInt32Matrix(MatrixOf<int> defaultValue = default)
         {
-            return TryGet(out MatrixOf<int> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<int> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1609,7 +1619,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<EnumValue> GetEnumerationMatrix(MatrixOf<EnumValue> defaultValue = default)
         {
-            return TryGet(out MatrixOf<EnumValue> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<EnumValue> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1619,7 +1629,7 @@ namespace Opc.Ua
         public MatrixOf<T> GetEnumerationMatrix<T>(MatrixOf<T> defaultValue = default)
             where T : struct, Enum
         {
-            return TryGet(out MatrixOf<T> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<T> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1630,7 +1640,7 @@ namespace Opc.Ua
             MatrixOf<T> defaultValue = default,
             IServiceMessageContext context = null) where T : IEncodeable
         {
-            return TryGet(out MatrixOf<T> v, context) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<T> v, context) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1638,7 +1648,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<uint> GetUInt32Matrix(MatrixOf<uint> defaultValue = default)
         {
-            return TryGet(out MatrixOf<uint> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<uint> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1646,7 +1656,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<long> GetInt64Matrix(MatrixOf<long> defaultValue = default)
         {
-            return TryGet(out MatrixOf<long> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<long> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1654,7 +1664,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<ulong> GetUInt64Matrix(MatrixOf<ulong> defaultValue = default)
         {
-            return TryGet(out MatrixOf<ulong> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<ulong> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1662,7 +1672,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<float> GetFloatMatrix(MatrixOf<float> defaultValue = default)
         {
-            return TryGet(out MatrixOf<float> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<float> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1670,7 +1680,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<double> GetDoubleMatrix(MatrixOf<double> defaultValue = default)
         {
-            return TryGet(out MatrixOf<double> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<double> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1678,7 +1688,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<string> GetStringMatrix(MatrixOf<string> defaultValue = default)
         {
-            return TryGet(out MatrixOf<string> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<string> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1686,7 +1696,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<DateTimeUtc> GetDateTimeMatrix(MatrixOf<DateTimeUtc> defaultValue = default)
         {
-            return TryGet(out MatrixOf<DateTimeUtc> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<DateTimeUtc> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1694,7 +1704,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<Uuid> GetGuidMatrix(MatrixOf<Uuid> defaultValue = default)
         {
-            return TryGet(out MatrixOf<Uuid> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<Uuid> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1702,7 +1712,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<ByteString> GetByteStringMatrix(MatrixOf<ByteString> defaultValue = default)
         {
-            return TryGet(out MatrixOf<ByteString> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<ByteString> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1710,7 +1720,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<XmlElement> GetXmlElementMatrix(MatrixOf<XmlElement> defaultValue = default)
         {
-            return TryGet(out MatrixOf<XmlElement> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<XmlElement> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1718,7 +1728,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<NodeId> GetNodeIdMatrix(MatrixOf<NodeId> defaultValue = default)
         {
-            return TryGet(out MatrixOf<NodeId> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<NodeId> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1726,7 +1736,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<ExpandedNodeId> GetExpandedNodeIdMatrix(MatrixOf<ExpandedNodeId> defaultValue = default)
         {
-            return TryGet(out MatrixOf<ExpandedNodeId> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<ExpandedNodeId> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1734,7 +1744,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<StatusCode> GetStatusCodeMatrix(MatrixOf<StatusCode> defaultValue = default)
         {
-            return TryGet(out MatrixOf<StatusCode> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<StatusCode> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1742,7 +1752,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<QualifiedName> GetQualifiedNameMatrix(MatrixOf<QualifiedName> defaultValue = default)
         {
-            return TryGet(out MatrixOf<QualifiedName> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<QualifiedName> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1750,7 +1760,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<LocalizedText> GetLocalizedTextMatrix(MatrixOf<LocalizedText> defaultValue = default)
         {
-            return TryGet(out MatrixOf<LocalizedText> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<LocalizedText> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1758,7 +1768,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<ExtensionObject> GetExtensionObjectMatrix(MatrixOf<ExtensionObject> defaultValue = default)
         {
-            return TryGet(out MatrixOf<ExtensionObject> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<ExtensionObject> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1766,7 +1776,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<DataValue> GetDataValueMatrix(MatrixOf<DataValue> defaultValue = default)
         {
-            return TryGet(out MatrixOf<DataValue> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<DataValue> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1774,7 +1784,7 @@ namespace Opc.Ua
         /// </summary>
         public MatrixOf<Variant> GetVariantMatrix(MatrixOf<Variant> defaultValue = default)
         {
-            return TryGet(out MatrixOf<Variant> v) ? v : defaultValue;
+            return TryGetValue(out MatrixOf<Variant> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1782,7 +1792,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="bool"/> value to get
         /// </param>
-        public bool TryGet(out bool value)
+        public bool TryGetValue(out bool value)
         {
             return TryGetScalar(in m_union.Boolean, out value, BuiltInType.Boolean);
         }
@@ -1792,7 +1802,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="sbyte"/> value to get
         /// </param>
-        public bool TryGet(out sbyte value)
+        public bool TryGetValue(out sbyte value)
         {
             return TryGetScalar(in m_union.SByte, out value, BuiltInType.SByte);
         }
@@ -1802,7 +1812,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="byte"/> value to get
         /// </param>
-        public bool TryGet(out byte value)
+        public bool TryGetValue(out byte value)
         {
             return TryGetScalar(in m_union.Byte, out value, BuiltInType.Byte);
         }
@@ -1812,7 +1822,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="short"/> value to get
         /// </param>
-        public bool TryGet(out short value)
+        public bool TryGetValue(out short value)
         {
             return TryGetScalar(in m_union.Int16, out value, BuiltInType.Int16);
         }
@@ -1822,7 +1832,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ushort"/> value to get
         /// </param>
-        public bool TryGet(out ushort value)
+        public bool TryGetValue(out ushort value)
         {
             return TryGetScalar(in m_union.UInt16, out value, BuiltInType.UInt16);
         }
@@ -1832,13 +1842,13 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="int"/> value to get
         /// </param>
-        public bool TryGet(out int value)
+        public bool TryGetValue(out int value)
         {
             if (TryGetScalar(in m_union.Int32, out value, BuiltInType.Int32))
             {
                 return true;
             }
-            if (TryGet(out EnumValue enumValue))
+            if (TryGetValue(out EnumValue enumValue))
             {
                 value = enumValue.Value;
                 return true;
@@ -1849,17 +1859,17 @@ namespace Opc.Ua
         /// <summary>
         /// Try get a structure value from the Variant. There is no overload
         /// resolution on generic types so we need to name it differently than
-        /// the scalar TryGet.
+        /// the scalar TryGetValue.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The structure value to get.</param>
         /// <param name="context">The context to use when decoding the structure.
         /// </param>
-        public bool TryGet<T>(out T value, IServiceMessageContext context)
+        public bool TryGetValue<T>(out T value, IServiceMessageContext context)
             where T : IEncodeable
         {
-            if (TryGet(out ExtensionObject v) &&
-                v.TryGetEncodeable(out value, context))
+            if (TryGetValue(out ExtensionObject v) &&
+                v.TryGetValue(out value, context))
             {
                 return true;
             }
@@ -1870,14 +1880,14 @@ namespace Opc.Ua
         /// <summary>
         /// Try get a structure value from the Variant. There is no overload
         /// resolution on generic types so we need to name it differently than
-        /// the scalar TryGet.
+        /// the scalar TryGetValue.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The structure value to get
         /// </param>
-        public bool TryGetStructure<T>(out T value) where T : IEncodeable
+        public bool TryGetValueStructure<T>(out T value) where T : IEncodeable
         {
-            return TryGet(out value, null);
+            return TryGetValue(out value, null);
         }
 
         /// <summary>
@@ -1885,7 +1895,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="EnumValue"/> value to get
         /// </param>
-        public bool TryGet(out EnumValue value)
+        public bool TryGetValue(out EnumValue value)
         {
             if (TypeInfo.BuiltInType is BuiltInType.Int32 or BuiltInType.Enumeration)
             {
@@ -1902,9 +1912,9 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The enumeration value to get
         /// </param>
-        public bool TryGet<T>(out T value) where T : struct, Enum
+        public bool TryGetValue<T>(out T value) where T : struct, Enum
         {
-            if (TryGet(out EnumValue enumValue))
+            if (TryGetValue(out EnumValue enumValue))
             {
                 value = enumValue.To<T>();
                 return true;
@@ -1918,7 +1928,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="uint"/> value to get
         /// </param>
-        public bool TryGet(out uint value)
+        public bool TryGetValue(out uint value)
         {
             return
                 TryGetScalar(in m_union.UInt32, out value, BuiltInType.UInt32) ||
@@ -1930,7 +1940,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="long"/> value to get
         /// </param>
-        public bool TryGet(out long value)
+        public bool TryGetValue(out long value)
         {
             return TryGetScalar(in m_union.Int64, out value, BuiltInType.Int64);
         }
@@ -1940,7 +1950,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ulong"/> value to get
         /// </param>
-        public bool TryGet(out ulong value)
+        public bool TryGetValue(out ulong value)
         {
             return TryGetScalar(in m_union.UInt64, out value, BuiltInType.UInt64);
         }
@@ -1950,7 +1960,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="float"/> value to get
         /// </param>
-        public bool TryGet(out float value)
+        public bool TryGetValue(out float value)
         {
             return TryGetScalar(in m_union.Float, out value, BuiltInType.Float);
         }
@@ -1960,7 +1970,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="double"/> value to get
         /// </param>
-        public bool TryGet(out double value)
+        public bool TryGetValue(out double value)
         {
             return TryGetScalar(in m_union.Double, out value, BuiltInType.Double);
         }
@@ -1970,7 +1980,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="string"/> value to get
         /// </param>
-        public bool TryGet(out string value)
+        public bool TryGetValue(out string value)
         {
             return TryGetScalar(out value, BuiltInType.String);
         }
@@ -1980,7 +1990,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="DateTimeUtc"/> value to get
         /// </param>
-        public bool TryGet(out DateTimeUtc value)
+        public bool TryGetValue(out DateTimeUtc value)
         {
             return TryGetScalar(in m_union.DateTime, out value, BuiltInType.DateTime);
         }
@@ -1990,7 +2000,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="Uuid"/> value to get
         /// </param>
-        public bool TryGet(out Uuid value)
+        public bool TryGetValue(out Uuid value)
         {
             return TryGetScalar(out value, BuiltInType.Guid);
         }
@@ -2000,7 +2010,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ByteString"/>-value to get
         /// </param>
-        public bool TryGet(out ByteString value)
+        public bool TryGetValue(out ByteString value)
         {
             if (TryGetScalar(out value, BuiltInType.ByteString))
             {
@@ -2010,7 +2020,7 @@ namespace Opc.Ua
             // A ByteString is structurally the same as a one dimensional array
             // of Byte. A Server shall accept a ByteString if an array of Byte
             // is expected.
-            if (TryGetArray(out ArrayOf<byte> byteArray, BuiltInType.Byte))
+            if (TryGetValueArray(out ArrayOf<byte> byteArray, BuiltInType.Byte))
             {
                 value = byteArray.ToByteString();
                 return true;
@@ -2023,7 +2033,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="XmlElement"/> value to get
         /// </param>
-        public bool TryGet(out XmlElement value)
+        public bool TryGetValue(out XmlElement value)
         {
             return TryGetScalar(out value, BuiltInType.XmlElement);
         }
@@ -2033,7 +2043,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="NodeId"/> value to get
         /// </param>
-        public bool TryGet(out NodeId value)
+        public bool TryGetValue(out NodeId value)
         {
             return TryGetScalar(out value, BuiltInType.NodeId);
         }
@@ -2043,7 +2053,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ExpandedNodeId"/> value to
         /// get </param>
-        public bool TryGet(out ExpandedNodeId value)
+        public bool TryGetValue(out ExpandedNodeId value)
         {
             return TryGetScalar(out value, BuiltInType.ExpandedNodeId);
         }
@@ -2053,7 +2063,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="StatusCode"/> value to get
         /// </param>
-        public bool TryGet(out StatusCode value)
+        public bool TryGetValue(out StatusCode value)
         {
             if (TypeInfo.IsScalar &&
                 TypeInfo.BuiltInType is BuiltInType.StatusCode or BuiltInType.UInt32)
@@ -2072,7 +2082,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="QualifiedName"/> value to get
         /// </param>
-        public bool TryGet(out QualifiedName value)
+        public bool TryGetValue(out QualifiedName value)
         {
             return TryGetScalar(out value, BuiltInType.QualifiedName);
         }
@@ -2082,7 +2092,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="LocalizedText"/> value to get
         /// </param>
-        public bool TryGet(out LocalizedText value)
+        public bool TryGetValue(out LocalizedText value)
         {
             return TryGetScalar(out value, BuiltInType.LocalizedText);
         }
@@ -2092,7 +2102,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ExtensionObject"/> value to get
         /// </param>
-        public bool TryGet(out ExtensionObject value)
+        public bool TryGetValue(out ExtensionObject value)
         {
             return TryGetScalar(out value, BuiltInType.ExtensionObject);
         }
@@ -2102,7 +2112,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="DataValue"/> value to get
         /// </param>
-        public bool TryGet(out DataValue value)
+        public bool TryGetValue(out DataValue value)
         {
             return TryGetScalar(out value, BuiltInType.DataValue);
         }
@@ -2112,7 +2122,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="Variant"/> value to get
         /// </param>
-        public bool TryGet(out Variant value)
+        public bool TryGetValue(out Variant value)
         {
             value = this;
             return true;
@@ -2176,9 +2186,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="bool"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<bool> value)
+        public bool TryGetValue(out ArrayOf<bool> value)
         {
-            return TryGetArray(out value, BuiltInType.Boolean);
+            return TryGetValueArray(out value, BuiltInType.Boolean);
         }
 
         /// <summary>
@@ -2186,9 +2196,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="sbyte"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<sbyte> value)
+        public bool TryGetValue(out ArrayOf<sbyte> value)
         {
-            return TryGetArray(out value, BuiltInType.SByte);
+            return TryGetValueArray(out value, BuiltInType.SByte);
         }
 
         /// <summary>
@@ -2196,9 +2206,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="byte"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<byte> value)
+        public bool TryGetValue(out ArrayOf<byte> value)
         {
-            if (TryGetArray(out value, BuiltInType.Byte))
+            if (TryGetValueArray(out value, BuiltInType.Byte))
             {
                 return true;
             }
@@ -2219,9 +2229,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="short"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<short> value)
+        public bool TryGetValue(out ArrayOf<short> value)
         {
-            return TryGetArray(out value, BuiltInType.Int16);
+            return TryGetValueArray(out value, BuiltInType.Int16);
         }
 
         /// <summary>
@@ -2229,9 +2239,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ushort"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<ushort> value)
+        public bool TryGetValue(out ArrayOf<ushort> value)
         {
-            return TryGetArray(out value, BuiltInType.UInt16);
+            return TryGetValueArray(out value, BuiltInType.UInt16);
         }
 
         /// <summary>
@@ -2239,13 +2249,13 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="int"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<int> value)
+        public bool TryGetValue(out ArrayOf<int> value)
         {
-            if (TryGetArray(out value, BuiltInType.Int32))
+            if (TryGetValueArray(out value, BuiltInType.Int32))
             {
                 return true;
             }
-            if (TryGetArray(out ArrayOf<EnumValue> enumValues, BuiltInType.Enumeration))
+            if (TryGetValueArray(out ArrayOf<EnumValue> enumValues, BuiltInType.Enumeration))
             {
                 value = enumValues.ConvertAll(e => e.Value);
                 return true;
@@ -2256,16 +2266,16 @@ namespace Opc.Ua
         /// <summary>
         /// Try get a structure value from the Variant. There is no overload
         /// resolution on generic types so we need to name it differently than
-        /// the scalar TryGet.
+        /// the scalar TryGetValue.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The structure value to get.</param>
         /// <param name="context">The context to use when decoding the structure.
         /// </param>
-        public bool TryGet<T>(out ArrayOf<T> value, IServiceMessageContext context)
+        public bool TryGetValue<T>(out ArrayOf<T> value, IServiceMessageContext context)
             where T : IEncodeable
         {
-            if (!TryGet(out ArrayOf<ExtensionObject> v))
+            if (!TryGetValue(out ArrayOf<ExtensionObject> v))
             {
                 value = default;
                 return false;
@@ -2273,7 +2283,7 @@ namespace Opc.Ua
             var buffer = new T[v.Count];
             for (int ii = 0; ii < v.Count; ii++)
             {
-                if (!v.Span[ii].TryGetEncodeable(out buffer[ii], context))
+                if (!v.Span[ii].TryGetValue(out buffer[ii], context))
                 {
                     value = default;
                     return false;
@@ -2286,13 +2296,13 @@ namespace Opc.Ua
         /// <summary>
         /// Try get a structure value from the Variant. There is no overload
         /// resolution on generic types so we need to name it differently than
-        /// the scalar TryGet.
+        /// the scalar TryGetValue.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The structure value to get</param>
-        public bool TryGetStructure<T>(out ArrayOf<T> value) where T : IEncodeable
+        public bool TryGetValueStructure<T>(out ArrayOf<T> value) where T : IEncodeable
         {
-            return TryGet(out value, null);
+            return TryGetValue(out value, null);
         }
 
         /// <summary>
@@ -2300,9 +2310,9 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The value to get</param>
-        public bool TryGet<T>(out ArrayOf<T> value) where T : struct, Enum
+        public bool TryGetValue<T>(out ArrayOf<T> value) where T : struct, Enum
         {
-            if (TryGet(out ArrayOf<EnumValue> enumValues))
+            if (TryGetValue(out ArrayOf<EnumValue> enumValues))
             {
                 value = enumValues.ConvertAll(e => e.To<T>());
                 return true;
@@ -2315,14 +2325,14 @@ namespace Opc.Ua
         /// Get a enumeration value from the Variant.
         /// </summary>
         /// <param name="value">The value to get</param>
-        public bool TryGet(out ArrayOf<EnumValue> value)
+        public bool TryGetValue(out ArrayOf<EnumValue> value)
         {
             // All enum values are stored as integer arrays with type lost
-            if (TryGetArray(out value, BuiltInType.Enumeration))
+            if (TryGetValueArray(out value, BuiltInType.Enumeration))
             {
                 return true;
             }
-            if (TryGetArray(out ArrayOf<int> int32Values, BuiltInType.Int32))
+            if (TryGetValueArray(out ArrayOf<int> int32Values, BuiltInType.Int32))
             {
                 value = int32Values.ConvertAll(i => new EnumValue(i));
                 return true;
@@ -2336,9 +2346,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="uint"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<uint> value)
+        public bool TryGetValue(out ArrayOf<uint> value)
         {
-            return TryGetArray(out value, BuiltInType.UInt32);
+            return TryGetValueArray(out value, BuiltInType.UInt32);
         }
 
         /// <summary>
@@ -2346,9 +2356,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="long"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<long> value)
+        public bool TryGetValue(out ArrayOf<long> value)
         {
-            return TryGetArray(out value, BuiltInType.Int64);
+            return TryGetValueArray(out value, BuiltInType.Int64);
         }
 
         /// <summary>
@@ -2356,9 +2366,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ulong"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<ulong> value)
+        public bool TryGetValue(out ArrayOf<ulong> value)
         {
-            return TryGetArray(out value, BuiltInType.UInt64);
+            return TryGetValueArray(out value, BuiltInType.UInt64);
         }
 
         /// <summary>
@@ -2366,9 +2376,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="float"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<float> value)
+        public bool TryGetValue(out ArrayOf<float> value)
         {
-            return TryGetArray(out value, BuiltInType.Float);
+            return TryGetValueArray(out value, BuiltInType.Float);
         }
 
         /// <summary>
@@ -2376,9 +2386,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="double"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<double> value)
+        public bool TryGetValue(out ArrayOf<double> value)
         {
-            return TryGetArray(out value, BuiltInType.Double);
+            return TryGetValueArray(out value, BuiltInType.Double);
         }
 
         /// <summary>
@@ -2386,9 +2396,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="string"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<string> value)
+        public bool TryGetValue(out ArrayOf<string> value)
         {
-            return TryGetArray(out value, BuiltInType.String);
+            return TryGetValueArray(out value, BuiltInType.String);
         }
 
         /// <summary>
@@ -2396,9 +2406,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="DateTimeUtc"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<DateTimeUtc> value)
+        public bool TryGetValue(out ArrayOf<DateTimeUtc> value)
         {
-            return TryGetArray(out value, BuiltInType.DateTime);
+            return TryGetValueArray(out value, BuiltInType.DateTime);
         }
 
         /// <summary>
@@ -2406,9 +2416,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="Uuid"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<Uuid> value)
+        public bool TryGetValue(out ArrayOf<Uuid> value)
         {
-            return TryGetArray(out value, BuiltInType.Guid);
+            return TryGetValueArray(out value, BuiltInType.Guid);
         }
 
         /// <summary>
@@ -2416,9 +2426,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The 2-d <see cref="byte"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<ByteString> value)
+        public bool TryGetValue(out ArrayOf<ByteString> value)
         {
-            return TryGetArray(out value, BuiltInType.ByteString);
+            return TryGetValueArray(out value, BuiltInType.ByteString);
         }
 
         /// <summary>
@@ -2426,9 +2436,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="XmlElement"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<XmlElement> value)
+        public bool TryGetValue(out ArrayOf<XmlElement> value)
         {
-            return TryGetArray(out value, BuiltInType.XmlElement);
+            return TryGetValueArray(out value, BuiltInType.XmlElement);
         }
 
         /// <summary>
@@ -2436,9 +2446,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="NodeId"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<NodeId> value)
+        public bool TryGetValue(out ArrayOf<NodeId> value)
         {
-            return TryGetArray(out value, BuiltInType.NodeId);
+            return TryGetValueArray(out value, BuiltInType.NodeId);
         }
 
         /// <summary>
@@ -2446,9 +2456,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ExpandedNodeId"/>-array value to
         /// get </param>
-        public bool TryGet(out ArrayOf<ExpandedNodeId> value)
+        public bool TryGetValue(out ArrayOf<ExpandedNodeId> value)
         {
-            return TryGetArray(out value, BuiltInType.ExpandedNodeId);
+            return TryGetValueArray(out value, BuiltInType.ExpandedNodeId);
         }
 
         /// <summary>
@@ -2456,9 +2466,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="StatusCode"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<StatusCode> value)
+        public bool TryGetValue(out ArrayOf<StatusCode> value)
         {
-            return TryGetArray(out value, BuiltInType.StatusCode);
+            return TryGetValueArray(out value, BuiltInType.StatusCode);
         }
 
         /// <summary>
@@ -2466,9 +2476,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="QualifiedName"/>-array value to
         /// get </param>
-        public bool TryGet(out ArrayOf<QualifiedName> value)
+        public bool TryGetValue(out ArrayOf<QualifiedName> value)
         {
-            return TryGetArray(out value, BuiltInType.QualifiedName);
+            return TryGetValueArray(out value, BuiltInType.QualifiedName);
         }
 
         /// <summary>
@@ -2476,9 +2486,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="LocalizedText"/>-array value to
         /// get </param>
-        public bool TryGet(out ArrayOf<LocalizedText> value)
+        public bool TryGetValue(out ArrayOf<LocalizedText> value)
         {
-            return TryGetArray(out value, BuiltInType.LocalizedText);
+            return TryGetValueArray(out value, BuiltInType.LocalizedText);
         }
 
         /// <summary>
@@ -2486,9 +2496,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ExtensionObject"/>-array value to
         /// get </param>
-        public bool TryGet(out ArrayOf<ExtensionObject> value)
+        public bool TryGetValue(out ArrayOf<ExtensionObject> value)
         {
-            return TryGetArray(out value, BuiltInType.ExtensionObject);
+            return TryGetValueArray(out value, BuiltInType.ExtensionObject);
         }
 
         /// <summary>
@@ -2496,9 +2506,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="DataValue"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<DataValue> value)
+        public bool TryGetValue(out ArrayOf<DataValue> value)
         {
-            return TryGetArray(out value, BuiltInType.DataValue);
+            return TryGetValueArray(out value, BuiltInType.DataValue);
         }
 
         /// <summary>
@@ -2506,16 +2516,16 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="Variant"/>-array value to get
         /// </param>
-        public bool TryGet(out ArrayOf<Variant> value)
+        public bool TryGetValue(out ArrayOf<Variant> value)
         {
-            return TryGetArray(out value, BuiltInType.Variant);
+            return TryGetValueArray(out value, BuiltInType.Variant);
         }
 
         /// <summary>
         /// Try get array of specified type.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public bool TryGetArray<T>(out ArrayOf<T> value, BuiltInType expectedType)
+        public bool TryGetValueArray<T>(out ArrayOf<T> value, BuiltInType expectedType)
         {
             if (TypeInfo.BuiltInType == expectedType)
             {
@@ -2540,9 +2550,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="bool"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<bool> value)
+        public bool TryGetValue(out MatrixOf<bool> value)
         {
-            return TryGetMatrix(out value, BuiltInType.Boolean);
+            return TryGetValueMatrix(out value, BuiltInType.Boolean);
         }
 
         /// <summary>
@@ -2550,9 +2560,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="sbyte"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<sbyte> value)
+        public bool TryGetValue(out MatrixOf<sbyte> value)
         {
-            return TryGetMatrix(out value, BuiltInType.SByte);
+            return TryGetValueMatrix(out value, BuiltInType.SByte);
         }
 
         /// <summary>
@@ -2560,9 +2570,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="byte"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<byte> value)
+        public bool TryGetValue(out MatrixOf<byte> value)
         {
-            return TryGetMatrix(out value, BuiltInType.Byte);
+            return TryGetValueMatrix(out value, BuiltInType.Byte);
         }
 
         /// <summary>
@@ -2570,9 +2580,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="short"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<short> value)
+        public bool TryGetValue(out MatrixOf<short> value)
         {
-            return TryGetMatrix(out value, BuiltInType.Int16);
+            return TryGetValueMatrix(out value, BuiltInType.Int16);
         }
 
         /// <summary>
@@ -2580,9 +2590,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ushort"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<ushort> value)
+        public bool TryGetValue(out MatrixOf<ushort> value)
         {
-            return TryGetMatrix(out value, BuiltInType.UInt16);
+            return TryGetValueMatrix(out value, BuiltInType.UInt16);
         }
 
         /// <summary>
@@ -2590,13 +2600,13 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="int"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<int> value)
+        public bool TryGetValue(out MatrixOf<int> value)
         {
-            if (TryGetMatrix(out value, BuiltInType.Int32))
+            if (TryGetValueMatrix(out value, BuiltInType.Int32))
             {
                 return true;
             }
-            if (TryGetMatrix(out MatrixOf<EnumValue> enumValues, BuiltInType.Enumeration))
+            if (TryGetValueMatrix(out MatrixOf<EnumValue> enumValues, BuiltInType.Enumeration))
             {
                 value = enumValues.ConvertAll(e => e.Value);
                 return true;
@@ -2607,16 +2617,16 @@ namespace Opc.Ua
         /// <summary>
         /// Try get a structure value from the Variant. There is no overload
         /// resolution on generic types so we need to name it differently than
-        /// the scalar TryGet.
+        /// the scalar TryGetValue.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The structure value to get.</param>
         /// <param name="context">The context to use when decoding the structure.
         /// </param>
-        public bool TryGet<T>(out MatrixOf<T> value, IServiceMessageContext context)
+        public bool TryGetValue<T>(out MatrixOf<T> value, IServiceMessageContext context)
             where T : IEncodeable
         {
-            if (!TryGet(out MatrixOf<ExtensionObject> v))
+            if (!TryGetValue(out MatrixOf<ExtensionObject> v))
             {
                 value = default;
                 return false;
@@ -2624,7 +2634,7 @@ namespace Opc.Ua
             var buffer = new T[v.Count];
             for (int ii = 0; ii < v.Count; ii++)
             {
-                if (!v.Span[ii].TryGetEncodeable(out buffer[ii], context))
+                if (!v.Span[ii].TryGetValue(out buffer[ii], context))
                 {
                     value = default;
                     return false;
@@ -2637,13 +2647,13 @@ namespace Opc.Ua
         /// <summary>
         /// Try get a structure value from the Variant. There is no overload
         /// resolution on generic types so we need to name it differently than
-        /// the scalar TryGet.
+        /// the scalar TryGetValue.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The structure value to get</param>
-        public bool TryGetStructure<T>(out MatrixOf<T> value) where T : IEncodeable
+        public bool TryGetValueStructure<T>(out MatrixOf<T> value) where T : IEncodeable
         {
-            return TryGet(out value, null);
+            return TryGetValue(out value, null);
         }
 
         /// <summary>
@@ -2651,10 +2661,10 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The value to get</param>
-        public bool TryGet<T>(out MatrixOf<T> value) where T : struct, Enum
+        public bool TryGetValue<T>(out MatrixOf<T> value) where T : struct, Enum
         {
             // All enum values are stored as integer matrices with type lost
-            if (TryGet(out MatrixOf<EnumValue> enumValues))
+            if (TryGetValue(out MatrixOf<EnumValue> enumValues))
             {
                 value = enumValues.ConvertAll(e => e.To<T>());
                 return true;
@@ -2667,14 +2677,14 @@ namespace Opc.Ua
         /// Get a enumeration value from the Variant.
         /// </summary>
         /// <param name="value">The value to get</param>
-        public bool TryGet(out MatrixOf<EnumValue> value)
+        public bool TryGetValue(out MatrixOf<EnumValue> value)
         {
             // All enum values are stored as integer arrays with type lost
-            if (TryGetMatrix(out value, BuiltInType.Enumeration))
+            if (TryGetValueMatrix(out value, BuiltInType.Enumeration))
             {
                 return true;
             }
-            if (TryGetMatrix(out MatrixOf<int> int32Values, BuiltInType.Int32))
+            if (TryGetValueMatrix(out MatrixOf<int> int32Values, BuiltInType.Int32))
             {
                 value = int32Values.ConvertAll(i => new EnumValue(i));
                 return true;
@@ -2688,9 +2698,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="uint"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<uint> value)
+        public bool TryGetValue(out MatrixOf<uint> value)
         {
-            return TryGetMatrix(out value, BuiltInType.UInt32);
+            return TryGetValueMatrix(out value, BuiltInType.UInt32);
         }
 
         /// <summary>
@@ -2698,9 +2708,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="long"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<long> value)
+        public bool TryGetValue(out MatrixOf<long> value)
         {
-            return TryGetMatrix(out value, BuiltInType.Int64);
+            return TryGetValueMatrix(out value, BuiltInType.Int64);
         }
 
         /// <summary>
@@ -2708,9 +2718,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ulong"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<ulong> value)
+        public bool TryGetValue(out MatrixOf<ulong> value)
         {
-            return TryGetMatrix(out value, BuiltInType.UInt64);
+            return TryGetValueMatrix(out value, BuiltInType.UInt64);
         }
 
         /// <summary>
@@ -2718,9 +2728,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="float"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<float> value)
+        public bool TryGetValue(out MatrixOf<float> value)
         {
-            return TryGetMatrix(out value, BuiltInType.Float);
+            return TryGetValueMatrix(out value, BuiltInType.Float);
         }
 
         /// <summary>
@@ -2728,9 +2738,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="double"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<double> value)
+        public bool TryGetValue(out MatrixOf<double> value)
         {
-            return TryGetMatrix(out value, BuiltInType.Double);
+            return TryGetValueMatrix(out value, BuiltInType.Double);
         }
 
         /// <summary>
@@ -2738,9 +2748,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="string"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<string> value)
+        public bool TryGetValue(out MatrixOf<string> value)
         {
-            return TryGetMatrix(out value, BuiltInType.String);
+            return TryGetValueMatrix(out value, BuiltInType.String);
         }
 
         /// <summary>
@@ -2748,9 +2758,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="DateTimeUtc"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<DateTimeUtc> value)
+        public bool TryGetValue(out MatrixOf<DateTimeUtc> value)
         {
-            return TryGetMatrix(out value, BuiltInType.DateTime);
+            return TryGetValueMatrix(out value, BuiltInType.DateTime);
         }
 
         /// <summary>
@@ -2758,9 +2768,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="Uuid"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<Uuid> value)
+        public bool TryGetValue(out MatrixOf<Uuid> value)
         {
-            return TryGetMatrix(out value, BuiltInType.Guid);
+            return TryGetValueMatrix(out value, BuiltInType.Guid);
         }
 
         /// <summary>
@@ -2768,9 +2778,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ByteString"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<ByteString> value)
+        public bool TryGetValue(out MatrixOf<ByteString> value)
         {
-            return TryGetMatrix(out value, BuiltInType.ByteString);
+            return TryGetValueMatrix(out value, BuiltInType.ByteString);
         }
 
         /// <summary>
@@ -2778,9 +2788,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="XmlElement"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<XmlElement> value)
+        public bool TryGetValue(out MatrixOf<XmlElement> value)
         {
-            return TryGetMatrix(out value, BuiltInType.XmlElement);
+            return TryGetValueMatrix(out value, BuiltInType.XmlElement);
         }
 
         /// <summary>
@@ -2788,9 +2798,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="NodeId"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<NodeId> value)
+        public bool TryGetValue(out MatrixOf<NodeId> value)
         {
-            return TryGetMatrix(out value, BuiltInType.NodeId);
+            return TryGetValueMatrix(out value, BuiltInType.NodeId);
         }
 
         /// <summary>
@@ -2798,9 +2808,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ExpandedNodeId"/>-matrix value to
         /// get </param>
-        public bool TryGet(out MatrixOf<ExpandedNodeId> value)
+        public bool TryGetValue(out MatrixOf<ExpandedNodeId> value)
         {
-            return TryGetMatrix(out value, BuiltInType.ExpandedNodeId);
+            return TryGetValueMatrix(out value, BuiltInType.ExpandedNodeId);
         }
 
         /// <summary>
@@ -2808,9 +2818,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="StatusCode"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<StatusCode> value)
+        public bool TryGetValue(out MatrixOf<StatusCode> value)
         {
-            return TryGetMatrix(out value, BuiltInType.StatusCode);
+            return TryGetValueMatrix(out value, BuiltInType.StatusCode);
         }
 
         /// <summary>
@@ -2818,9 +2828,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="QualifiedName"/>-matrix value to
         /// get </param>
-        public bool TryGet(out MatrixOf<QualifiedName> value)
+        public bool TryGetValue(out MatrixOf<QualifiedName> value)
         {
-            return TryGetMatrix(out value, BuiltInType.QualifiedName);
+            return TryGetValueMatrix(out value, BuiltInType.QualifiedName);
         }
 
         /// <summary>
@@ -2828,9 +2838,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="LocalizedText"/>-matrix value to
         /// get </param>
-        public bool TryGet(out MatrixOf<LocalizedText> value)
+        public bool TryGetValue(out MatrixOf<LocalizedText> value)
         {
-            return TryGetMatrix(out value, BuiltInType.LocalizedText);
+            return TryGetValueMatrix(out value, BuiltInType.LocalizedText);
         }
 
         /// <summary>
@@ -2838,9 +2848,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ExtensionObject"/>-matrix value to
         /// get </param>
-        public bool TryGet(out MatrixOf<ExtensionObject> value)
+        public bool TryGetValue(out MatrixOf<ExtensionObject> value)
         {
-            return TryGetMatrix(out value, BuiltInType.ExtensionObject);
+            return TryGetValueMatrix(out value, BuiltInType.ExtensionObject);
         }
 
         /// <summary>
@@ -2848,9 +2858,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="DataValue"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<DataValue> value)
+        public bool TryGetValue(out MatrixOf<DataValue> value)
         {
-            return TryGetMatrix(out value, BuiltInType.DataValue);
+            return TryGetValueMatrix(out value, BuiltInType.DataValue);
         }
 
         /// <summary>
@@ -2858,16 +2868,16 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="Variant"/>-matrix value to get
         /// </param>
-        public bool TryGet(out MatrixOf<Variant> value)
+        public bool TryGetValue(out MatrixOf<Variant> value)
         {
-            return TryGetMatrix(out value, BuiltInType.Variant);
+            return TryGetValueMatrix(out value, BuiltInType.Variant);
         }
 
         /// <summary>
         /// Try get matrix of type
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public bool TryGetMatrix<T>(out MatrixOf<T> value, BuiltInType expectedType)
+        public bool TryGetValueMatrix<T>(out MatrixOf<T> value, BuiltInType expectedType)
         {
             if (TypeInfo.BuiltInType == expectedType)
             {
@@ -2876,7 +2886,7 @@ namespace Opc.Ua
                     value = matrix;
                     return true;
                 }
-                if (TryGetArray(out ArrayOf<T> array, expectedType))
+                if (TryGetValueArray(out ArrayOf<T> array, expectedType))
                 {
                     value = array.ToMatrix();
                     return true;
@@ -2891,7 +2901,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="decimal"/> value to get
         /// </param>
-        public bool TryGetDecimal(out decimal value)
+        public bool TryGetValueDecimal(out decimal value)
         {
             if (TypeInfo.IsScalar)
             {
@@ -2925,7 +2935,7 @@ namespace Opc.Ua
             {
                 switch (TypeInfo.BuiltInType)
                 {
-                    case BuiltInType.Int32 when TryGet(out ArrayOf<int> bits):
+                    case BuiltInType.Int32 when TryGetValue(out ArrayOf<int> bits):
                         value = new decimal(bits.ToArray());
                         return true;
                 }
@@ -4369,7 +4379,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator bool(Variant value)
         {
-            return value.TryGet(out bool v) ? v : throw CannotCast<bool>();
+            return value.TryGetValue(out bool v) ? v : throw CannotCast<bool>();
         }
 
         /// <summary>
@@ -4377,7 +4387,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator sbyte(Variant value)
         {
-            return value.TryGet(out sbyte v) ? v : throw CannotCast<sbyte>();
+            return value.TryGetValue(out sbyte v) ? v : throw CannotCast<sbyte>();
         }
 
         /// <summary>
@@ -4385,7 +4395,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator byte(Variant value)
         {
-            return value.TryGet(out byte v) ? v : throw CannotCast<byte>();
+            return value.TryGetValue(out byte v) ? v : throw CannotCast<byte>();
         }
 
         /// <summary>
@@ -4393,7 +4403,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator short(Variant value)
         {
-            return value.TryGet(out short v) ? v : throw CannotCast<short>();
+            return value.TryGetValue(out short v) ? v : throw CannotCast<short>();
         }
 
         /// <summary>
@@ -4401,7 +4411,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ushort(Variant value)
         {
-            return value.TryGet(out ushort v) ? v : throw CannotCast<ushort>();
+            return value.TryGetValue(out ushort v) ? v : throw CannotCast<ushort>();
         }
 
         /// <summary>
@@ -4409,7 +4419,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator int(Variant value)
         {
-            return value.TryGet(out int v) ? v : throw CannotCast<int>();
+            return value.TryGetValue(out int v) ? v : throw CannotCast<int>();
         }
 
         /// <summary>
@@ -4417,7 +4427,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator uint(Variant value)
         {
-            return value.TryGet(out uint v) ? v : throw CannotCast<uint>();
+            return value.TryGetValue(out uint v) ? v : throw CannotCast<uint>();
         }
 
         /// <summary>
@@ -4425,7 +4435,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator long(Variant value)
         {
-            return value.TryGet(out long v) ? v : throw CannotCast<long>();
+            return value.TryGetValue(out long v) ? v : throw CannotCast<long>();
         }
 
         /// <summary>
@@ -4433,7 +4443,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ulong(Variant value)
         {
-            return value.TryGet(out ulong v) ? v : throw CannotCast<ulong>();
+            return value.TryGetValue(out ulong v) ? v : throw CannotCast<ulong>();
         }
 
         /// <summary>
@@ -4441,7 +4451,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator float(Variant value)
         {
-            return value.TryGet(out float v) ? v : throw CannotCast<float>();
+            return value.TryGetValue(out float v) ? v : throw CannotCast<float>();
         }
 
         /// <summary>
@@ -4449,7 +4459,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator double(Variant value)
         {
-            return value.TryGet(out double v) ? v : throw CannotCast<double>();
+            return value.TryGetValue(out double v) ? v : throw CannotCast<double>();
         }
 
         /// <summary>
@@ -4457,7 +4467,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator string(Variant value)
         {
-            return value.TryGet(out string v) ? v : throw CannotCast<string>();
+            return value.TryGetValue(out string v) ? v : throw CannotCast<string>();
         }
 
         /// <summary>
@@ -4465,7 +4475,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator DateTimeUtc(Variant value)
         {
-            return value.TryGet(out DateTimeUtc v) ? v : throw CannotCast<DateTimeUtc>();
+            return value.TryGetValue(out DateTimeUtc v) ? v : throw CannotCast<DateTimeUtc>();
         }
 
         /// <summary>
@@ -4473,7 +4483,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator Uuid(Variant value)
         {
-            return value.TryGet(out Uuid v) ? v : throw CannotCast<Uuid>();
+            return value.TryGetValue(out Uuid v) ? v : throw CannotCast<Uuid>();
         }
 
         /// <summary>
@@ -4481,7 +4491,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ByteString(Variant value)
         {
-            return value.TryGet(out ByteString v) ? v : throw CannotCast<ByteString>();
+            return value.TryGetValue(out ByteString v) ? v : throw CannotCast<ByteString>();
         }
 
         /// <summary>
@@ -4489,7 +4499,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator XmlElement(Variant value)
         {
-            return value.TryGet(out XmlElement v) ? v : throw CannotCast<XmlElement>();
+            return value.TryGetValue(out XmlElement v) ? v : throw CannotCast<XmlElement>();
         }
 
         /// <summary>
@@ -4497,7 +4507,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator NodeId(Variant value)
         {
-            return value.TryGet(out NodeId v) ? v : throw CannotCast<NodeId>();
+            return value.TryGetValue(out NodeId v) ? v : throw CannotCast<NodeId>();
         }
 
         /// <summary>
@@ -4505,7 +4515,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ExpandedNodeId(Variant value)
         {
-            return value.TryGet(out ExpandedNodeId v) ? v : throw CannotCast<ExpandedNodeId>();
+            return value.TryGetValue(out ExpandedNodeId v) ? v : throw CannotCast<ExpandedNodeId>();
         }
 
         /// <summary>
@@ -4513,7 +4523,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator StatusCode(Variant value)
         {
-            return value.TryGet(out StatusCode v) ? v : throw CannotCast<StatusCode>();
+            return value.TryGetValue(out StatusCode v) ? v : throw CannotCast<StatusCode>();
         }
 
         /// <summary>
@@ -4521,7 +4531,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator QualifiedName(Variant value)
         {
-            return value.TryGet(out QualifiedName v) ? v : throw CannotCast<QualifiedName>();
+            return value.TryGetValue(out QualifiedName v) ? v : throw CannotCast<QualifiedName>();
         }
 
         /// <summary>
@@ -4529,7 +4539,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator LocalizedText(Variant value)
         {
-            return value.TryGet(out LocalizedText v) ? v : throw CannotCast<LocalizedText>();
+            return value.TryGetValue(out LocalizedText v) ? v : throw CannotCast<LocalizedText>();
         }
 
         /// <summary>
@@ -4537,7 +4547,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ExtensionObject(Variant value)
         {
-            return value.TryGet(out ExtensionObject v) ? v : throw CannotCast<ExtensionObject>();
+            return value.TryGetValue(out ExtensionObject v) ? v : throw CannotCast<ExtensionObject>();
         }
 
         /// <summary>
@@ -4545,7 +4555,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator DataValue(Variant value)
         {
-            return value.TryGet(out DataValue v) ? v : throw CannotCast<DataValue>();
+            return value.TryGetValue(out DataValue v) ? v : throw CannotCast<DataValue>();
         }
 
         /// <summary>
@@ -4553,7 +4563,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<bool>(Variant value)
         {
-            return value.TryGet(out ArrayOf<bool> v) ? v : throw CannotCast<ArrayOf<bool>>();
+            return value.TryGetValue(out ArrayOf<bool> v) ? v : throw CannotCast<ArrayOf<bool>>();
         }
 
         /// <summary>
@@ -4561,7 +4571,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<sbyte>(Variant value)
         {
-            return value.TryGet(out ArrayOf<sbyte> v) ? v : throw CannotCast<ArrayOf<sbyte>>();
+            return value.TryGetValue(out ArrayOf<sbyte> v) ? v : throw CannotCast<ArrayOf<sbyte>>();
         }
 
         /// <summary>
@@ -4569,7 +4579,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<byte>(Variant value)
         {
-            return value.TryGet(out ArrayOf<byte> v) ? v : throw CannotCast<ArrayOf<byte>>();
+            return value.TryGetValue(out ArrayOf<byte> v) ? v : throw CannotCast<ArrayOf<byte>>();
         }
 
         /// <summary>
@@ -4577,7 +4587,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<short>(Variant value)
         {
-            return value.TryGet(out ArrayOf<short> v) ? v : throw CannotCast<ArrayOf<short>>();
+            return value.TryGetValue(out ArrayOf<short> v) ? v : throw CannotCast<ArrayOf<short>>();
         }
 
         /// <summary>
@@ -4585,7 +4595,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<ushort>(Variant value)
         {
-            return value.TryGet(out ArrayOf<ushort> v) ? v : throw CannotCast<ArrayOf<ushort>>();
+            return value.TryGetValue(out ArrayOf<ushort> v) ? v : throw CannotCast<ArrayOf<ushort>>();
         }
 
         /// <summary>
@@ -4593,7 +4603,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<int>(Variant value)
         {
-            return value.TryGet(out ArrayOf<int> v) ? v : throw CannotCast<ArrayOf<int>>();
+            return value.TryGetValue(out ArrayOf<int> v) ? v : throw CannotCast<ArrayOf<int>>();
         }
 
         /// <summary>
@@ -4601,7 +4611,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<uint>(Variant value)
         {
-            return value.TryGet(out ArrayOf<uint> v) ? v : throw CannotCast<ArrayOf<uint>>();
+            return value.TryGetValue(out ArrayOf<uint> v) ? v : throw CannotCast<ArrayOf<uint>>();
         }
 
         /// <summary>
@@ -4609,7 +4619,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<long>(Variant value)
         {
-            return value.TryGet(out ArrayOf<long> v) ? v : throw CannotCast<ArrayOf<long>>();
+            return value.TryGetValue(out ArrayOf<long> v) ? v : throw CannotCast<ArrayOf<long>>();
         }
 
         /// <summary>
@@ -4617,7 +4627,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<ulong>(Variant value)
         {
-            return value.TryGet(out ArrayOf<ulong> v) ? v : throw CannotCast<ArrayOf<ulong>>();
+            return value.TryGetValue(out ArrayOf<ulong> v) ? v : throw CannotCast<ArrayOf<ulong>>();
         }
 
         /// <summary>
@@ -4625,7 +4635,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<float>(Variant value)
         {
-            return value.TryGet(out ArrayOf<float> v) ? v : throw CannotCast<ArrayOf<float>>();
+            return value.TryGetValue(out ArrayOf<float> v) ? v : throw CannotCast<ArrayOf<float>>();
         }
 
         /// <summary>
@@ -4633,7 +4643,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<double>(Variant value)
         {
-            return value.TryGet(out ArrayOf<double> v) ? v : throw CannotCast<ArrayOf<double>>();
+            return value.TryGetValue(out ArrayOf<double> v) ? v : throw CannotCast<ArrayOf<double>>();
         }
 
         /// <summary>
@@ -4641,7 +4651,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<string>(Variant value)
         {
-            return value.TryGet(out ArrayOf<string> v) ? v : throw CannotCast<ArrayOf<string>>();
+            return value.TryGetValue(out ArrayOf<string> v) ? v : throw CannotCast<ArrayOf<string>>();
         }
 
         /// <summary>
@@ -4649,7 +4659,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<DateTimeUtc>(Variant value)
         {
-            return value.TryGet(out ArrayOf<DateTimeUtc> v) ? v : throw CannotCast<ArrayOf<DateTimeUtc>>();
+            return value.TryGetValue(out ArrayOf<DateTimeUtc> v) ? v : throw CannotCast<ArrayOf<DateTimeUtc>>();
         }
 
         /// <summary>
@@ -4657,7 +4667,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<Uuid>(Variant value)
         {
-            return value.TryGet(out ArrayOf<Uuid> v) ? v : throw CannotCast<ArrayOf<Uuid>>();
+            return value.TryGetValue(out ArrayOf<Uuid> v) ? v : throw CannotCast<ArrayOf<Uuid>>();
         }
 
         /// <summary>
@@ -4665,7 +4675,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<ByteString>(Variant value)
         {
-            return value.TryGet(out ArrayOf<ByteString> v) ? v : throw CannotCast<ArrayOf<ByteString>>();
+            return value.TryGetValue(out ArrayOf<ByteString> v) ? v : throw CannotCast<ArrayOf<ByteString>>();
         }
 
         /// <summary>
@@ -4673,7 +4683,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<XmlElement>(Variant value)
         {
-            return value.TryGet(out ArrayOf<XmlElement> v) ? v : throw CannotCast<ArrayOf<XmlElement>>();
+            return value.TryGetValue(out ArrayOf<XmlElement> v) ? v : throw CannotCast<ArrayOf<XmlElement>>();
         }
 
         /// <summary>
@@ -4681,7 +4691,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<NodeId>(Variant value)
         {
-            return value.TryGet(out ArrayOf<NodeId> v) ? v : throw CannotCast<ArrayOf<NodeId>>();
+            return value.TryGetValue(out ArrayOf<NodeId> v) ? v : throw CannotCast<ArrayOf<NodeId>>();
         }
 
         /// <summary>
@@ -4689,7 +4699,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<ExpandedNodeId>(Variant value)
         {
-            return value.TryGet(out ArrayOf<ExpandedNodeId> v) ? v : throw CannotCast<ArrayOf<ExpandedNodeId>>();
+            return value.TryGetValue(out ArrayOf<ExpandedNodeId> v) ? v : throw CannotCast<ArrayOf<ExpandedNodeId>>();
         }
 
         /// <summary>
@@ -4697,7 +4707,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<StatusCode>(Variant value)
         {
-            return value.TryGet(out ArrayOf<StatusCode> v) ? v : throw CannotCast<ArrayOf<StatusCode>>();
+            return value.TryGetValue(out ArrayOf<StatusCode> v) ? v : throw CannotCast<ArrayOf<StatusCode>>();
         }
 
         /// <summary>
@@ -4705,7 +4715,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<QualifiedName>(Variant value)
         {
-            return value.TryGet(out ArrayOf<QualifiedName> v) ? v : throw CannotCast<ArrayOf<QualifiedName>>();
+            return value.TryGetValue(out ArrayOf<QualifiedName> v) ? v : throw CannotCast<ArrayOf<QualifiedName>>();
         }
 
         /// <summary>
@@ -4713,7 +4723,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<LocalizedText>(Variant value)
         {
-            return value.TryGet(out ArrayOf<LocalizedText> v) ? v : throw CannotCast<ArrayOf<LocalizedText>>();
+            return value.TryGetValue(out ArrayOf<LocalizedText> v) ? v : throw CannotCast<ArrayOf<LocalizedText>>();
         }
 
         /// <summary>
@@ -4721,7 +4731,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<ExtensionObject>(Variant value)
         {
-            return value.TryGet(out ArrayOf<ExtensionObject> v) ? v : throw CannotCast<ArrayOf<ExtensionObject>>();
+            return value.TryGetValue(out ArrayOf<ExtensionObject> v) ? v : throw CannotCast<ArrayOf<ExtensionObject>>();
         }
 
         /// <summary>
@@ -4729,7 +4739,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<DataValue>(Variant value)
         {
-            return value.TryGet(out ArrayOf<DataValue> v) ? v : throw CannotCast<ArrayOf<DataValue>>();
+            return value.TryGetValue(out ArrayOf<DataValue> v) ? v : throw CannotCast<ArrayOf<DataValue>>();
         }
 
         /// <summary>
@@ -4737,7 +4747,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator ArrayOf<Variant>(Variant value)
         {
-            return value.TryGet(out ArrayOf<Variant> v) ? v : throw CannotCast<ArrayOf<Variant>>();
+            return value.TryGetValue(out ArrayOf<Variant> v) ? v : throw CannotCast<ArrayOf<Variant>>();
         }
 
         /// <summary>
@@ -4745,7 +4755,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<bool>(Variant value)
         {
-            return value.TryGet(out MatrixOf<bool> v) ? v : throw CannotCast<MatrixOf<bool>>();
+            return value.TryGetValue(out MatrixOf<bool> v) ? v : throw CannotCast<MatrixOf<bool>>();
         }
 
         /// <summary>
@@ -4753,7 +4763,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<sbyte>(Variant value)
         {
-            return value.TryGet(out MatrixOf<sbyte> v) ? v : throw CannotCast<MatrixOf<sbyte>>();
+            return value.TryGetValue(out MatrixOf<sbyte> v) ? v : throw CannotCast<MatrixOf<sbyte>>();
         }
 
         /// <summary>
@@ -4761,7 +4771,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<byte>(Variant value)
         {
-            return value.TryGet(out MatrixOf<byte> v) ? v : throw CannotCast<MatrixOf<byte>>();
+            return value.TryGetValue(out MatrixOf<byte> v) ? v : throw CannotCast<MatrixOf<byte>>();
         }
 
         /// <summary>
@@ -4769,7 +4779,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<short>(Variant value)
         {
-            return value.TryGet(out MatrixOf<short> v) ? v : throw CannotCast<MatrixOf<short>>();
+            return value.TryGetValue(out MatrixOf<short> v) ? v : throw CannotCast<MatrixOf<short>>();
         }
 
         /// <summary>
@@ -4777,7 +4787,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<ushort>(Variant value)
         {
-            return value.TryGet(out MatrixOf<ushort> v) ? v : throw CannotCast<MatrixOf<ushort>>();
+            return value.TryGetValue(out MatrixOf<ushort> v) ? v : throw CannotCast<MatrixOf<ushort>>();
         }
 
         /// <summary>
@@ -4785,7 +4795,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<int>(Variant value)
         {
-            return value.TryGet(out MatrixOf<int> v) ? v : throw CannotCast<MatrixOf<int>>();
+            return value.TryGetValue(out MatrixOf<int> v) ? v : throw CannotCast<MatrixOf<int>>();
         }
 
         /// <summary>
@@ -4793,7 +4803,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<uint>(Variant value)
         {
-            return value.TryGet(out MatrixOf<uint> v) ? v : throw CannotCast<MatrixOf<uint>>();
+            return value.TryGetValue(out MatrixOf<uint> v) ? v : throw CannotCast<MatrixOf<uint>>();
         }
 
         /// <summary>
@@ -4801,7 +4811,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<long>(Variant value)
         {
-            return value.TryGet(out MatrixOf<long> v) ? v : throw CannotCast<MatrixOf<long>>();
+            return value.TryGetValue(out MatrixOf<long> v) ? v : throw CannotCast<MatrixOf<long>>();
         }
 
         /// <summary>
@@ -4809,7 +4819,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<ulong>(Variant value)
         {
-            return value.TryGet(out MatrixOf<ulong> v) ? v : throw CannotCast<MatrixOf<ulong>>();
+            return value.TryGetValue(out MatrixOf<ulong> v) ? v : throw CannotCast<MatrixOf<ulong>>();
         }
 
         /// <summary>
@@ -4817,7 +4827,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<float>(Variant value)
         {
-            return value.TryGet(out MatrixOf<float> v) ? v : throw CannotCast<MatrixOf<float>>();
+            return value.TryGetValue(out MatrixOf<float> v) ? v : throw CannotCast<MatrixOf<float>>();
         }
 
         /// <summary>
@@ -4825,7 +4835,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<double>(Variant value)
         {
-            return value.TryGet(out MatrixOf<double> v) ? v : throw CannotCast<MatrixOf<double>>();
+            return value.TryGetValue(out MatrixOf<double> v) ? v : throw CannotCast<MatrixOf<double>>();
         }
 
         /// <summary>
@@ -4833,7 +4843,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<string>(Variant value)
         {
-            return value.TryGet(out MatrixOf<string> v) ? v : throw CannotCast<MatrixOf<string>>();
+            return value.TryGetValue(out MatrixOf<string> v) ? v : throw CannotCast<MatrixOf<string>>();
         }
 
         /// <summary>
@@ -4841,7 +4851,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<DateTimeUtc>(Variant value)
         {
-            return value.TryGet(out MatrixOf<DateTimeUtc> v) ? v : throw CannotCast<MatrixOf<DateTimeUtc>>();
+            return value.TryGetValue(out MatrixOf<DateTimeUtc> v) ? v : throw CannotCast<MatrixOf<DateTimeUtc>>();
         }
 
         /// <summary>
@@ -4849,7 +4859,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<Uuid>(Variant value)
         {
-            return value.TryGet(out MatrixOf<Uuid> v) ? v : throw CannotCast<MatrixOf<Uuid>>();
+            return value.TryGetValue(out MatrixOf<Uuid> v) ? v : throw CannotCast<MatrixOf<Uuid>>();
         }
 
         /// <summary>
@@ -4857,7 +4867,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<ByteString>(Variant value)
         {
-            return value.TryGet(out MatrixOf<ByteString> v) ? v : throw CannotCast<MatrixOf<ByteString>>();
+            return value.TryGetValue(out MatrixOf<ByteString> v) ? v : throw CannotCast<MatrixOf<ByteString>>();
         }
 
         /// <summary>
@@ -4865,7 +4875,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<XmlElement>(Variant value)
         {
-            return value.TryGet(out MatrixOf<XmlElement> v) ? v : throw CannotCast<MatrixOf<XmlElement>>();
+            return value.TryGetValue(out MatrixOf<XmlElement> v) ? v : throw CannotCast<MatrixOf<XmlElement>>();
         }
 
         /// <summary>
@@ -4873,7 +4883,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<NodeId>(Variant value)
         {
-            return value.TryGet(out MatrixOf<NodeId> v) ? v : throw CannotCast<MatrixOf<NodeId>>();
+            return value.TryGetValue(out MatrixOf<NodeId> v) ? v : throw CannotCast<MatrixOf<NodeId>>();
         }
 
         /// <summary>
@@ -4881,7 +4891,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<ExpandedNodeId>(Variant value)
         {
-            return value.TryGet(out MatrixOf<ExpandedNodeId> v) ? v : throw CannotCast<MatrixOf<ExpandedNodeId>>();
+            return value.TryGetValue(out MatrixOf<ExpandedNodeId> v) ? v : throw CannotCast<MatrixOf<ExpandedNodeId>>();
         }
 
         /// <summary>
@@ -4889,7 +4899,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<StatusCode>(Variant value)
         {
-            return value.TryGet(out MatrixOf<StatusCode> v) ? v : throw CannotCast<MatrixOf<StatusCode>>();
+            return value.TryGetValue(out MatrixOf<StatusCode> v) ? v : throw CannotCast<MatrixOf<StatusCode>>();
         }
 
         /// <summary>
@@ -4897,7 +4907,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<QualifiedName>(Variant value)
         {
-            return value.TryGet(out MatrixOf<QualifiedName> v) ? v : throw CannotCast<MatrixOf<QualifiedName>>();
+            return value.TryGetValue(out MatrixOf<QualifiedName> v) ? v : throw CannotCast<MatrixOf<QualifiedName>>();
         }
 
         /// <summary>
@@ -4905,7 +4915,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<LocalizedText>(Variant value)
         {
-            return value.TryGet(out MatrixOf<LocalizedText> v) ? v : throw CannotCast<MatrixOf<LocalizedText>>();
+            return value.TryGetValue(out MatrixOf<LocalizedText> v) ? v : throw CannotCast<MatrixOf<LocalizedText>>();
         }
 
         /// <summary>
@@ -4913,7 +4923,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<ExtensionObject>(Variant value)
         {
-            return value.TryGet(out MatrixOf<ExtensionObject> v) ? v : throw CannotCast<MatrixOf<ExtensionObject>>();
+            return value.TryGetValue(out MatrixOf<ExtensionObject> v) ? v : throw CannotCast<MatrixOf<ExtensionObject>>();
         }
 
         /// <summary>
@@ -4921,7 +4931,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<DataValue>(Variant value)
         {
-            return value.TryGet(out MatrixOf<DataValue> v) ? v : throw CannotCast<MatrixOf<DataValue>>();
+            return value.TryGetValue(out MatrixOf<DataValue> v) ? v : throw CannotCast<MatrixOf<DataValue>>();
         }
 
         /// <summary>
@@ -4929,7 +4939,7 @@ namespace Opc.Ua
         /// </summary>
         public static explicit operator MatrixOf<Variant>(Variant value)
         {
-            return value.TryGet(out MatrixOf<Variant> v) ? v : throw CannotCast<MatrixOf<Variant>>();
+            return value.TryGetValue(out MatrixOf<Variant> v) ? v : throw CannotCast<MatrixOf<Variant>>();
         }
 
         /// <summary>
@@ -5796,448 +5806,448 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(bool value)
         {
-            return TryGet(out bool v) && v == value;
+            return TryGetValue(out bool v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(sbyte value)
         {
-            return TryGet(out sbyte v) && v == value;
+            return TryGetValue(out sbyte v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(byte value)
         {
-            return TryGet(out byte v) && v == value;
+            return TryGetValue(out byte v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(short value)
         {
-            return TryGet(out short v) && v == value;
+            return TryGetValue(out short v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ushort value)
         {
-            return TryGet(out ushort v) && v == value;
+            return TryGetValue(out ushort v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(int value)
         {
-            return TryGet(out int v) && v == value;
+            return TryGetValue(out int v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(EnumValue value)
         {
-            return TryGet(out EnumValue v) && v == value;
+            return TryGetValue(out EnumValue v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(uint value)
         {
-            return TryGet(out uint v) && v == value;
+            return TryGetValue(out uint v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(long value)
         {
-            return TryGet(out long v) && v == value;
+            return TryGetValue(out long v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ulong value)
         {
-            return TryGet(out ulong v) && v == value;
+            return TryGetValue(out ulong v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(float value)
         {
-            return TryGet(out float v) &&
+            return TryGetValue(out float v) &&
                 (v == value || (float.IsNaN(v) && float.IsNaN(value)));
         }
 
         /// <inheritdoc/>
         public bool Equals(double value)
         {
-            return TryGet(out double v) &&
+            return TryGetValue(out double v) &&
                 (v == value || (double.IsNaN(v) && double.IsNaN(value)));
         }
 
         /// <inheritdoc/>
         public bool Equals(string value)
         {
-            return TryGet(out string v) && v == value;
+            return TryGetValue(out string v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(DateTimeUtc value)
         {
-            return TryGet(out DateTimeUtc v) && v == value;
+            return TryGetValue(out DateTimeUtc v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(Uuid value)
         {
-            return TryGet(out Uuid v) && v == value;
+            return TryGetValue(out Uuid v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ByteString value)
         {
-            return TryGet(out ByteString v) && v == value;
+            return TryGetValue(out ByteString v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(XmlElement value)
         {
-            return TryGet(out XmlElement v) && v == value;
+            return TryGetValue(out XmlElement v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(NodeId value)
         {
-            return TryGet(out NodeId v) && v == value;
+            return TryGetValue(out NodeId v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ExpandedNodeId value)
         {
-            return TryGet(out ExpandedNodeId v) && v == value;
+            return TryGetValue(out ExpandedNodeId v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(StatusCode value)
         {
-            return TryGet(out StatusCode v) && v == value;
+            return TryGetValue(out StatusCode v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(QualifiedName value)
         {
-            return TryGet(out QualifiedName v) && v == value;
+            return TryGetValue(out QualifiedName v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(LocalizedText value)
         {
-            return TryGet(out LocalizedText v) && v == value;
+            return TryGetValue(out LocalizedText v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ExtensionObject value)
         {
-            return TryGet(out ExtensionObject v) &&
+            return TryGetValue(out ExtensionObject v) &&
                 EqualityComparer<ExtensionObject>.Default.Equals(v, value);
         }
 
         /// <inheritdoc/>
         public bool Equals(DataValue value)
         {
-            return TryGet(out DataValue v) && v == value;
+            return TryGetValue(out DataValue v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<bool> value)
         {
-            return TryGet(out ArrayOf<bool> v) && v == value;
+            return TryGetValue(out ArrayOf<bool> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<sbyte> value)
         {
-            return TryGet(out ArrayOf<sbyte> v) && v == value;
+            return TryGetValue(out ArrayOf<sbyte> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<byte> value)
         {
-            return TryGet(out ArrayOf<byte> v) && v == value;
+            return TryGetValue(out ArrayOf<byte> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<short> value)
         {
-            return TryGet(out ArrayOf<short> v) && v == value;
+            return TryGetValue(out ArrayOf<short> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<ushort> value)
         {
-            return TryGet(out ArrayOf<ushort> v) && v == value;
+            return TryGetValue(out ArrayOf<ushort> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<int> value)
         {
-            return TryGet(out ArrayOf<int> v) && v == value;
+            return TryGetValue(out ArrayOf<int> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<EnumValue> value)
         {
-            return TryGet(out ArrayOf<EnumValue> v) && v == value;
+            return TryGetValue(out ArrayOf<EnumValue> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<uint> value)
         {
-            return TryGet(out ArrayOf<uint> v) && v == value;
+            return TryGetValue(out ArrayOf<uint> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<long> value)
         {
-            return TryGet(out ArrayOf<long> v) && v == value;
+            return TryGetValue(out ArrayOf<long> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<ulong> value)
         {
-            return TryGet(out ArrayOf<ulong> v) && v == value;
+            return TryGetValue(out ArrayOf<ulong> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<float> value)
         {
-            return TryGet(out ArrayOf<float> v) && v == value;
+            return TryGetValue(out ArrayOf<float> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<double> value)
         {
-            return TryGet(out ArrayOf<double> v) && v == value;
+            return TryGetValue(out ArrayOf<double> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<string> value)
         {
-            return TryGet(out ArrayOf<string> v) && v == value;
+            return TryGetValue(out ArrayOf<string> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<DateTimeUtc> value)
         {
-            return TryGet(out ArrayOf<DateTimeUtc> v) && v == value;
+            return TryGetValue(out ArrayOf<DateTimeUtc> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<Uuid> value)
         {
-            return TryGet(out ArrayOf<Uuid> v) && v == value;
+            return TryGetValue(out ArrayOf<Uuid> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<ByteString> value)
         {
-            return TryGet(out ArrayOf<ByteString> v) && v == value;
+            return TryGetValue(out ArrayOf<ByteString> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<XmlElement> value)
         {
-            return TryGet(out ArrayOf<XmlElement> v) && v == value;
+            return TryGetValue(out ArrayOf<XmlElement> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<NodeId> value)
         {
-            return TryGet(out ArrayOf<NodeId> v) && v == value;
+            return TryGetValue(out ArrayOf<NodeId> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<ExpandedNodeId> value)
         {
-            return TryGet(out ArrayOf<ExpandedNodeId> v) && v == value;
+            return TryGetValue(out ArrayOf<ExpandedNodeId> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<StatusCode> value)
         {
-            return TryGet(out ArrayOf<StatusCode> v) && v == value;
+            return TryGetValue(out ArrayOf<StatusCode> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<QualifiedName> value)
         {
-            return TryGet(out ArrayOf<QualifiedName> v) && v == value;
+            return TryGetValue(out ArrayOf<QualifiedName> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<LocalizedText> value)
         {
-            return TryGet(out ArrayOf<LocalizedText> v) && v == value;
+            return TryGetValue(out ArrayOf<LocalizedText> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<ExtensionObject> value)
         {
-            return TryGet(out ArrayOf<ExtensionObject> v) && v == value;
+            return TryGetValue(out ArrayOf<ExtensionObject> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<DataValue> value)
         {
-            return TryGet(out ArrayOf<DataValue> v) && v == value;
+            return TryGetValue(out ArrayOf<DataValue> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(ArrayOf<Variant> value)
         {
-            return TryGet(out ArrayOf<Variant> v) && v == value;
+            return TryGetValue(out ArrayOf<Variant> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<bool> value)
         {
-            return TryGet(out MatrixOf<bool> v) && v == value;
+            return TryGetValue(out MatrixOf<bool> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<sbyte> value)
         {
-            return TryGet(out MatrixOf<sbyte> v) && v == value;
+            return TryGetValue(out MatrixOf<sbyte> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<byte> value)
         {
-            return TryGet(out MatrixOf<byte> v) && v == value;
+            return TryGetValue(out MatrixOf<byte> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<short> value)
         {
-            return TryGet(out MatrixOf<short> v) && v == value;
+            return TryGetValue(out MatrixOf<short> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<ushort> value)
         {
-            return TryGet(out MatrixOf<ushort> v) && v == value;
+            return TryGetValue(out MatrixOf<ushort> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<int> value)
         {
-            return TryGet(out MatrixOf<int> v) && v == value;
+            return TryGetValue(out MatrixOf<int> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<EnumValue> value)
         {
-            return TryGet(out MatrixOf<EnumValue> v) && v == value;
+            return TryGetValue(out MatrixOf<EnumValue> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<uint> value)
         {
-            return TryGet(out MatrixOf<uint> v) && v == value;
+            return TryGetValue(out MatrixOf<uint> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<long> value)
         {
-            return TryGet(out MatrixOf<long> v) && v == value;
+            return TryGetValue(out MatrixOf<long> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<ulong> value)
         {
-            return TryGet(out MatrixOf<ulong> v) && v == value;
+            return TryGetValue(out MatrixOf<ulong> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<float> value)
         {
-            return TryGet(out MatrixOf<float> v) && v == value;
+            return TryGetValue(out MatrixOf<float> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<double> value)
         {
-            return TryGet(out MatrixOf<double> v) && v == value;
+            return TryGetValue(out MatrixOf<double> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<string> value)
         {
-            return TryGet(out MatrixOf<string> v) && v == value;
+            return TryGetValue(out MatrixOf<string> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<DateTimeUtc> value)
         {
-            return TryGet(out MatrixOf<DateTimeUtc> v) && v == value;
+            return TryGetValue(out MatrixOf<DateTimeUtc> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<Uuid> value)
         {
-            return TryGet(out MatrixOf<Uuid> v) && v == value;
+            return TryGetValue(out MatrixOf<Uuid> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<ByteString> value)
         {
-            return TryGet(out MatrixOf<ByteString> v) && v == value;
+            return TryGetValue(out MatrixOf<ByteString> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<XmlElement> value)
         {
-            return TryGet(out MatrixOf<XmlElement> v) && v == value;
+            return TryGetValue(out MatrixOf<XmlElement> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<NodeId> value)
         {
-            return TryGet(out MatrixOf<NodeId> v) && v == value;
+            return TryGetValue(out MatrixOf<NodeId> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<ExpandedNodeId> value)
         {
-            return TryGet(out MatrixOf<ExpandedNodeId> v) && v == value;
+            return TryGetValue(out MatrixOf<ExpandedNodeId> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<StatusCode> value)
         {
-            return TryGet(out MatrixOf<StatusCode> v) && v == value;
+            return TryGetValue(out MatrixOf<StatusCode> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<QualifiedName> value)
         {
-            return TryGet(out MatrixOf<QualifiedName> v) && v == value;
+            return TryGetValue(out MatrixOf<QualifiedName> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<LocalizedText> value)
         {
-            return TryGet(out MatrixOf<LocalizedText> v) && v == value;
+            return TryGetValue(out MatrixOf<LocalizedText> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<ExtensionObject> value)
         {
-            return TryGet(out MatrixOf<ExtensionObject> v) && v == value;
+            return TryGetValue(out MatrixOf<ExtensionObject> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<DataValue> value)
         {
-            return TryGet(out MatrixOf<DataValue> v) && v == value;
+            return TryGetValue(out MatrixOf<DataValue> v) && v == value;
         }
 
         /// <inheritdoc/>
         public bool Equals(MatrixOf<Variant> value)
         {
-            return TryGet(out MatrixOf<Variant> v) && v == value;
+            return TryGetValue(out MatrixOf<Variant> v) && v == value;
         }
 
         /// <inheritdoc/>

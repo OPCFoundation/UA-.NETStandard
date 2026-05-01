@@ -289,7 +289,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(message, Is.Not.Null);
             Assert.That(message.NotificationData, Has.Count.EqualTo(1));
             bool hasNotification = message.NotificationData[0]
-                .TryGetEncodeable(out StatusChangeNotification notification);
+                .TryGetValue(out StatusChangeNotification notification);
             Assert.That(hasNotification, Is.True);
             Assert.That(notification, Is.Not.Null);
             Assert.That(notification.Status, Is.EqualTo(StatusCodes.BadTimeout));
@@ -334,7 +334,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(message, Is.Not.Null);
             Assert.That(message.NotificationData, Has.Count.EqualTo(1));
             bool hasNotification = message.NotificationData[0]
-                .TryGetEncodeable(out StatusChangeNotification notification);
+                .TryGetValue(out StatusChangeNotification notification);
             Assert.That(hasNotification, Is.True);
             Assert.That(notification, Is.Not.Null);
             Assert.That(notification.Status, Is.EqualTo(StatusCodes.GoodSubscriptionTransferred));

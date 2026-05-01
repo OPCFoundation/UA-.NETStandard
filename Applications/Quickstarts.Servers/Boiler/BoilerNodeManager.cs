@@ -191,7 +191,7 @@ namespace Boiler
 
             NodeId typeId = passiveNode.TypeDefinitionId;
 
-            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint typeIdNumeric))
+            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint typeIdNumeric))
             {
                 return predefinedNode;
             }

@@ -111,7 +111,7 @@ namespace Opc.Ua
                 encoder.SetMappingTables(NamespaceUris, ServerUris);
 
                 if (Message.TypeId.IsNull ||
-                    !Message.TypeId.TryGetIdentifier(out uint numericId))
+                    !Message.TypeId.TryGetValue(out uint numericId))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingError,

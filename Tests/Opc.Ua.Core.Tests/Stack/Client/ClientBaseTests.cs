@@ -230,7 +230,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
                 // Assert - trace context should be added to request header
                 Assert.That(request.RequestHeader.AdditionalHeader.IsNull, Is.False);
-                Assert.That(request.RequestHeader.AdditionalHeader!.TryGetEncodeable(
+                Assert.That(request.RequestHeader.AdditionalHeader!.TryGetValue(
                     out AdditionalParametersType additionalParams), Is.True);
                 Assert.That(additionalParams, Is.Not.Null);
                 Assert.That(additionalParams.Parameters.IsEmpty, Is.False);

@@ -237,7 +237,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
-            Assert.That(value.TryGet(out ExtensionObject _), Is.True);
+            Assert.That(value.TryGetValue(out ExtensionObject _), Is.True);
         }
 
         [Test]
@@ -254,7 +254,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
-            Assert.That(value.TryGet(out ExtensionObject _), Is.True);
+            Assert.That(value.TryGetValue(out ExtensionObject _), Is.True);
         }
 
         [Test]
@@ -275,7 +275,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
-            Assert.That(value.TryGet(out ArrayOf<ExtensionObject> resultArray), Is.True);
+            Assert.That(value.TryGetValue(out ArrayOf<ExtensionObject> resultArray), Is.True);
             Assert.That(resultArray.Count, Is.EqualTo(2));
         }
 

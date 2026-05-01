@@ -942,7 +942,7 @@ namespace Opc.Ua
 
             foreach (KeyValuePair<uint, string> supportedCertificateType in s_supportedCertificateTypes)
             {
-                if (certificateType.TryGetIdentifier(out uint numericId) &&
+                if (certificateType.TryGetValue(out uint numericId) &&
                     supportedCertificateType.Key == numericId)
                 {
                     return supportedCertificateType.Value;

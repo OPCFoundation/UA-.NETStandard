@@ -817,9 +817,9 @@ VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosti
             ServiceResult result = sessionArrayNode.OnSimpleReadValue(adminContext, sessionArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> sessionArray), Is.True);
+            Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> sessionArray), Is.True);
             Assert.That(sessionArray.Count, Is.EqualTo(2));
-            sessionArray[0].TryGetEncodeable(out SessionDiagnosticsDataType sessionDiagObj);
+            sessionArray[0].TryGetValue(out SessionDiagnosticsDataType sessionDiagObj);
             Assert.That(sessionDiagObj.SessionName, Is.EqualTo("TestSession"));
 
             SessionSecurityDiagnosticsArrayState sessionSecurityArrayNode = manager.FindPredefinedNode<SessionSecurityDiagnosticsArrayState>(
@@ -828,9 +828,9 @@ VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityD
             result = sessionSecurityArrayNode.OnSimpleReadValue(adminContext, sessionSecurityArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> sessionSecurityArray), Is.True);
+            Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> sessionSecurityArray), Is.True);
             Assert.That(sessionSecurityArray.Count, Is.EqualTo(2));
-            sessionSecurityArray[0].TryGetEncodeable(out SessionSecurityDiagnosticsDataType sessionSecDiagObj);
+            sessionSecurityArray[0].TryGetValue(out SessionSecurityDiagnosticsDataType sessionSecDiagObj);
             Assert.That(sessionSecDiagObj.SessionId, Is.EqualTo(sessionId));
 
             SubscriptionDiagnosticsArrayState subArrayNode = manager.FindPredefinedNode<SubscriptionDiagnosticsArrayState>(
@@ -840,9 +840,9 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             result = subArrayNode.OnSimpleReadValue(adminContext, subArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> subArray), Is.True);
+            Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> subArray), Is.True);
             Assert.That(subArray.Count, Is.EqualTo(2));
-            subArray[0].TryGetEncodeable(out SubscriptionDiagnosticsDataType subDiagObj);
+            subArray[0].TryGetValue(out SubscriptionDiagnosticsDataType subDiagObj);
             Assert.That(subDiagObj.SubscriptionId, Is.EqualTo(100));
 
             // Test unauthorized non-admin user accessing their own session
@@ -865,9 +865,9 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             result = sessionArrayNode.OnSimpleReadValue(normalContext, sessionArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> normalSessionArray), Is.True);
+            Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> normalSessionArray), Is.True);
             Assert.That(normalSessionArray.Count, Is.EqualTo(1));
-            normalSessionArray[0].TryGetEncodeable(out SessionDiagnosticsDataType normalSessionDiagObj);
+            normalSessionArray[0].TryGetValue(out SessionDiagnosticsDataType normalSessionDiagObj);
             Assert.That(normalSessionDiagObj.SessionName, Is.EqualTo("TestSession"));
 
             manager.ForceDiagnosticsScan();
@@ -876,9 +876,9 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             result = sessionSecurityArrayNode.OnSimpleReadValue(normalContext, sessionSecurityArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> normalSessionSecArray), Is.True);
+            Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> normalSessionSecArray), Is.True);
             Assert.That(normalSessionSecArray.Count, Is.EqualTo(1));
-            normalSessionSecArray[0].TryGetEncodeable(out SessionSecurityDiagnosticsDataType normalSessionSecDiagObj);
+            normalSessionSecArray[0].TryGetValue(out SessionSecurityDiagnosticsDataType normalSessionSecDiagObj);
             Assert.That(normalSessionSecDiagObj.SessionId, Is.EqualTo(sessionId));
 
             manager.ForceDiagnosticsScan();
@@ -887,9 +887,9 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             result = subArrayNode.OnSimpleReadValue(normalContext, subArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> normalSubArray), Is.True);
+            Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> normalSubArray), Is.True);
             Assert.That(normalSubArray.Count, Is.EqualTo(1));
-            normalSubArray[0].TryGetEncodeable(out SubscriptionDiagnosticsDataType normalSubDiagObj);
+            normalSubArray[0].TryGetValue(out SubscriptionDiagnosticsDataType normalSubDiagObj);
             Assert.That(normalSubDiagObj.SessionId, Is.EqualTo(sessionId));
 
             // Test if recently scanned just returns Good

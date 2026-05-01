@@ -739,8 +739,8 @@ namespace Opc.Ua
                 return NodeId.Null;
             }
 
-            if (value.TryGet(out ExtensionObject eo) &&
-                eo.TryGetEncodeable(out IEncodeable encodable) &&
+            if (value.TryGetValue(out ExtensionObject eo) &&
+                eo.TryGetValue(out IEncodeable encodable) &&
                 !encodable.TypeId.IsNull)
             {
                 namespaceTable ??= AmbientMessageContext.CurrentContext?.NamespaceUris;
@@ -842,7 +842,7 @@ namespace Opc.Ua
         {
             if (datatypeId.IsNull ||
                 datatypeId.NamespaceIndex != 0 ||
-                !datatypeId.TryGetIdentifier(out uint id))
+                !datatypeId.TryGetValue(out uint id))
             {
                 return BuiltInType.Null;
             }
@@ -976,7 +976,7 @@ namespace Opc.Ua
 
             while (!typeId.IsNull)
             {
-                if (typeId.NamespaceIndex == 0 && typeId.TryGetIdentifier(out uint numericId))
+                if (typeId.NamespaceIndex == 0 && typeId.TryGetValue(out uint numericId))
                 {
                     var id = (BuiltInType)(int)numericId;
 
@@ -1016,7 +1016,7 @@ namespace Opc.Ua
 
             while (!typeId.IsNull)
             {
-                if (typeId.NamespaceIndex == 0 && typeId.TryGetIdentifier(out uint numericId))
+                if (typeId.NamespaceIndex == 0 && typeId.TryGetValue(out uint numericId))
                 {
                     var id = (BuiltInType)(int)numericId;
                     if (id is > BuiltInType.Null and <= BuiltInType.Enumeration and not BuiltInType.DiagnosticInfo)
@@ -1051,7 +1051,7 @@ namespace Opc.Ua
 
             if (datatypeId.NamespaceIndex == 0 &&
                 !datatypeId.IsAbsolute &&
-                datatypeId.TryGetIdentifier(out uint numericId))
+                datatypeId.TryGetValue(out uint numericId))
             {
                 switch (numericId)
                 {
@@ -1313,7 +1313,7 @@ namespace Opc.Ua
 
             // check for special predefined types.
             if (expectedDataTypeId.NamespaceIndex == 0 &&
-                expectedDataTypeId.TryGetIdentifier(out uint numericId))
+                expectedDataTypeId.TryGetValue(out uint numericId))
             {
                 BuiltInType actualType = typeInfo.BuiltInType;
 
@@ -1514,14 +1514,14 @@ namespace Opc.Ua
 
             if (BuiltInType == BuiltInType.ExtensionObject)
             {
-                if (value.TryGetStructure(out IEncodeable encodeable))
+                if (value.TryGetValueStructure(out IEncodeable encodeable))
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                 }
 
-                if (value.TryGet(out ExtensionObject extension))
+                if (value.TryGetValue(out ExtensionObject extension))
                 {
-                    if (extension.TryGetEncodeable(out encodeable))
+                    if (extension.TryGetValue(out encodeable))
                     {
                         return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                     }
@@ -1860,7 +1860,7 @@ namespace Opc.Ua
 
             if (dataType.IsNull ||
                 dataType.NamespaceIndex != 0 ||
-                !dataType.TryGetIdentifier(out uint id))
+                !dataType.TryGetValue(out uint id))
             {
                 return GetDefaultValueInternal(dataType, typeTree);
             }
@@ -2085,7 +2085,7 @@ namespace Opc.Ua
 
             if (dataType.IsNull ||
                 dataType.NamespaceIndex != 0 ||
-                !dataType.TryGetIdentifier(out uint id))
+                !dataType.TryGetValue(out uint id))
             {
                 return GetDefaultValueInternal(dataType, typeTree);
             }

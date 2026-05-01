@@ -172,7 +172,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                     /*If an entry of the PublishedData references one of the ExtensionFields, the substituteValue shall contain the
                                     * QualifiedName of the ExtensionFields entry.
                                     * All other fields of this PublishedVariableDataType array element shall be null*/
-                                    if (publishedVariable.SubstituteValue.TryGet(out QualifiedName extensionFieldName))
+                                    if (publishedVariable.SubstituteValue.TryGetValue(out QualifiedName extensionFieldName))
                                     {
                                         KeyValuePair extensionField = publishedDataSet
                                             .ExtensionFields
@@ -215,7 +215,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                     case BuiltInType.String:
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                                         {
-                                            if (variant.TryGet(out string strFieldValue) &&
+                                            if (variant.TryGetValue(out string strFieldValue) &&
                                                 ShouldBringToConstraints(
                                                     (uint)strFieldValue.Length))
                                             {
@@ -225,7 +225,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                         }
                                         else if (field.FieldMetaData.ValueRank == ValueRanks.OneDimension)
                                         {
-                                            if (variant.TryGet(out ArrayOf<string> valueArray))
+                                            if (variant.TryGetValue(out ArrayOf<string> valueArray))
                                             {
                                                 string[] buffer = new string[valueArray.Count];
                                                 for (int idx = 0; idx < valueArray.Count; idx++)
@@ -252,7 +252,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                     case BuiltInType.ByteString:
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                                         {
-                                            if (variant.TryGet(out ByteString byteStringFieldValue) &&
+                                            if (variant.TryGetValue(out ByteString byteStringFieldValue) &&
                                                 ShouldBringToConstraints((uint)byteStringFieldValue.Length))
                                             {
                                                 byte[] byteArray = byteStringFieldValue.ToArray();
@@ -264,7 +264,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                         }
                                         else if (field.FieldMetaData.ValueRank == ValueRanks.OneDimension)
                                         {
-                                            if (variant.TryGet(out ArrayOf<ByteString> valueArray))
+                                            if (variant.TryGetValue(out ArrayOf<ByteString> valueArray))
                                             {
                                                 var buffer = new ByteString[valueArray.Count];
                                                 for (int idx = 0; idx < valueArray.Count; idx++)

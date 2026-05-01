@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics.Contracts;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
@@ -74,6 +75,7 @@ namespace Opc.Ua
     /// Use <see cref="SerializableNodeId"/> as part of your contracts</b>
     /// </para>
     /// </remarks>
+    [Union]
     public readonly struct NodeId :
         IEquatable<NodeId>, IComparable<NodeId>,
         IEquatable<ExpandedNodeId>, IComparable<ExpandedNodeId>,
@@ -1587,7 +1589,7 @@ namespace Opc.Ua
         /// Returns the Id in its native format, i.e. UInt, GUID, String etc.
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
-        [Obsolete("Use TryGetIdentifier<T> to get strongly typed identifier values or " +
+        [Obsolete("Use TryGetValue<T> to get strongly typed identifier values or " +
             "consider using IdentifierAsString if you want to stringify the identifier.")]
         public object Identifier => IdType switch
         {
@@ -1616,7 +1618,7 @@ namespace Opc.Ua
         /// <summary>
         /// Try get the numeric node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out uint identifier)
+        public bool TryGetValue(out uint identifier)
         {
             if (IdType == IdType.Numeric)
             {
@@ -1630,7 +1632,7 @@ namespace Opc.Ua
         /// <summary>
         /// Try get the opque node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out ByteString identifier)
+        public bool TryGetValue(out ByteString identifier)
         {
             if (IdType == IdType.Opaque)
             {
@@ -1644,7 +1646,7 @@ namespace Opc.Ua
         /// <summary>
         /// Try get the string node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out string identifier)
+        public bool TryGetValue(out string identifier)
         {
             if (IdType == IdType.String)
             {
@@ -1658,7 +1660,7 @@ namespace Opc.Ua
         /// <summary>
         /// Try get the Guid node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out Guid identifier)
+        public bool TryGetValue(out Guid identifier)
         {
             if (IdType == IdType.Guid)
             {
@@ -1683,6 +1685,14 @@ namespace Opc.Ua
             IdType.Opaque => OpaqueIdentifer.Length == 0,
             _ => false
         };
+
+        /// <summary>
+        /// Returns <c>true</c> if the NodeId currently identifies a node
+        /// (i.e. is not Null). This is the inverse of <see cref="IsNull"/>
+        /// and matches the non-boxing access member shape proposed for
+        /// C# 15 union types.
+        /// </summary>
+        public bool HasValue => !IsNull;
 
         /// <summary>
         /// Get namespace index for id or throw if not found.

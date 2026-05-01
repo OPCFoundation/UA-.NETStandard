@@ -651,7 +651,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 case BasicDataType.UserDefined:
                     context.Out.WriteLine(
-                        "_inputArguments[{2}].TryGetStructure(out {1} {0});",
+                        "_inputArguments[{2}].TryGetValueStructure(out {1} {0});",
                         fieldName,
                         typeName,
                         context.Index);
@@ -665,7 +665,7 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 default:
                     context.Out.WriteLine(
-                        "_inputArguments[{2}].TryGet(out {1} {0});",
+                        "_inputArguments[{2}].TryGetValue(out {1} {0});",
                         fieldName,
                         typeName,
                         context.Index);
@@ -692,7 +692,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 case BasicDataType.UserDefined:
                     context.Out.WriteLine(
-                        "_outputArguments[{2}].TryGetStructure(out {1} {0});",
+                        "_outputArguments[{2}].TryGetValueStructure(out {1} {0});",
                         fieldName,
                         typeName,
                         context.Index);
@@ -706,7 +706,7 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 default:
                     context.Out.WriteLine(
-                        "_outputArguments[{2}].TryGet(out {1} {0});",
+                        "_outputArguments[{2}].TryGetValue(out {1} {0});",
                         fieldName,
                         typeName,
                         context.Index);
@@ -3150,11 +3150,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 case BasicDataType.UserDefined when !dataType.IsEnumeration:
                     context.Template.AddReplacement(Tokens.VariantFrom, "FromStructure");
-                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGetStructure");
+                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGetValueStructure");
                     break;
                 default:
                     context.Template.AddReplacement(Tokens.VariantFrom, "From");
-                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGet");
+                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGetValue");
                     break;
             }
         }

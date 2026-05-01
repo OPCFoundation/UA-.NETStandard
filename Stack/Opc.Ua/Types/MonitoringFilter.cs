@@ -145,7 +145,7 @@ namespace Opc.Ua
                 switch (builtInType)
                 {
                     case BuiltInType.Double:
-                        if (value1.TryGet(out double d1) && value2.TryGet(out double d2))
+                        if (value1.TryGetValue(out double d1) && value2.TryGetValue(out double d2))
                         {
                             if (double.IsNaN(d1) || double.IsNaN(d2))
                             {
@@ -166,7 +166,7 @@ namespace Opc.Ua
                         }
                         return false;
                     case BuiltInType.Float:
-                        if (value1.TryGet(out float f1) && value2.TryGet(out float f2))
+                        if (value1.TryGetValue(out float f1) && value2.TryGetValue(out float f2))
                         {
                             if (float.IsNaN(f1) || float.IsNaN(f2))
                             {
@@ -218,8 +218,8 @@ namespace Opc.Ua
             {
                 case BuiltInType.Double:
                 {
-                    if (value1.TryGet(out ArrayOf<double> dArray1) &&
-                        value2.TryGet(out ArrayOf<double> dArray2))
+                    if (value1.TryGetValue(out ArrayOf<double> dArray1) &&
+                        value2.TryGetValue(out ArrayOf<double> dArray2))
                     {
                         if (dArray1.Count != dArray2.Count)
                         {
@@ -251,8 +251,8 @@ namespace Opc.Ua
                 }
                 case BuiltInType.Float:
                 {
-                    if (value1.TryGet(out ArrayOf<float> fArray1) &&
-                        value2.TryGet(out ArrayOf<float> fArray2))
+                    if (value1.TryGetValue(out ArrayOf<float> fArray1) &&
+                        value2.TryGetValue(out ArrayOf<float> fArray2))
                     {
                         if (fArray1.Count != fArray2.Count)
                         {
@@ -284,8 +284,8 @@ namespace Opc.Ua
                 }
                 case BuiltInType.Variant:
                 {
-                    if (value1.TryGet(out ArrayOf<Variant> vArray1) &&
-                        value2.TryGet(out ArrayOf<Variant> vArray2))
+                    if (value1.TryGetValue(out ArrayOf<Variant> vArray1) &&
+                        value2.TryGetValue(out ArrayOf<Variant> vArray2))
                     {
                         if (vArray1.Count != vArray2.Count)
                         {
@@ -305,8 +305,8 @@ namespace Opc.Ua
                 }
                 case BuiltInType.Int16:
                 {
-                    if (value1.TryGet(out ArrayOf<short> iArray1) &&
-                        value2.TryGet(out ArrayOf<short> iArray2))
+                    if (value1.TryGetValue(out ArrayOf<short> iArray1) &&
+                        value2.TryGetValue(out ArrayOf<short> iArray2))
                     {
                         if (iArray1.Count != iArray2.Count)
                         {
@@ -333,8 +333,8 @@ namespace Opc.Ua
                 }
                 case BuiltInType.UInt16:
                 {
-                    if (value1.TryGet(out ArrayOf<ushort> iArray1) &&
-                        value2.TryGet(out ArrayOf<ushort> iArray2))
+                    if (value1.TryGetValue(out ArrayOf<ushort> iArray1) &&
+                        value2.TryGetValue(out ArrayOf<ushort> iArray2))
                     {
                         if (iArray1.Count != iArray2.Count)
                         {
@@ -361,8 +361,8 @@ namespace Opc.Ua
                 }
                 case BuiltInType.Int32:
                 {
-                    if (value1.TryGet(out ArrayOf<int> iArray1) &&
-                        value2.TryGet(out ArrayOf<int> iArray2))
+                    if (value1.TryGetValue(out ArrayOf<int> iArray1) &&
+                        value2.TryGetValue(out ArrayOf<int> iArray2))
                     {
                         if (iArray1.Count != iArray2.Count)
                         {
@@ -389,8 +389,8 @@ namespace Opc.Ua
                 }
                 case BuiltInType.UInt32:
                 {
-                    if (value1.TryGet(out ArrayOf<uint> iArray1) &&
-                        value2.TryGet(out ArrayOf<uint> iArray2))
+                    if (value1.TryGetValue(out ArrayOf<uint> iArray1) &&
+                        value2.TryGetValue(out ArrayOf<uint> iArray2))
                     {
                         if (iArray1.Count != iArray2.Count)
                         {
@@ -417,8 +417,8 @@ namespace Opc.Ua
                 }
                 case BuiltInType.Int64:
                 {
-                    if (value1.TryGet(out ArrayOf<long> iArray1) &&
-                        value2.TryGet(out ArrayOf<long> iArray2))
+                    if (value1.TryGetValue(out ArrayOf<long> iArray1) &&
+                        value2.TryGetValue(out ArrayOf<long> iArray2))
                     {
                         if (iArray1.Count != iArray2.Count)
                         {
@@ -445,8 +445,8 @@ namespace Opc.Ua
                 }
                 case BuiltInType.UInt64:
                 {
-                    if (value1.TryGet(out ArrayOf<ulong> iArray1) &&
-                        value2.TryGet(out ArrayOf<ulong> iArray2))
+                    if (value1.TryGetValue(out ArrayOf<ulong> iArray1) &&
+                        value2.TryGetValue(out ArrayOf<ulong> iArray2))
                     {
                         if (iArray1.Count != iArray2.Count)
                         {
@@ -473,8 +473,8 @@ namespace Opc.Ua
                 }
                 case BuiltInType.Byte:
                 {
-                    if (value1.TryGet(out ArrayOf<byte> iArray1) &&
-                        value2.TryGet(out ArrayOf<byte> iArray2))
+                    if (value1.TryGetValue(out ArrayOf<byte> iArray1) &&
+                        value2.TryGetValue(out ArrayOf<byte> iArray2))
                     {
                         if (iArray1.Count != iArray2.Count)
                         {
@@ -501,8 +501,8 @@ namespace Opc.Ua
                 }
                 case BuiltInType.SByte:
                 {
-                    if (value1.TryGet(out ArrayOf<sbyte> iArray1) &&
-                        value2.TryGet(out ArrayOf<sbyte> iArray2))
+                    if (value1.TryGetValue(out ArrayOf<sbyte> iArray1) &&
+                        value2.TryGetValue(out ArrayOf<sbyte> iArray2))
                     {
                         if (iArray1.Count != iArray2.Count)
                         {
@@ -529,8 +529,8 @@ namespace Opc.Ua
                 }
                 case BuiltInType.ByteString:
                 {
-                    if (value1.TryGet(out ArrayOf<ByteString> iArray1) &&
-                        value2.TryGet(out ArrayOf<ByteString> iArray2))
+                    if (value1.TryGetValue(out ArrayOf<ByteString> iArray1) &&
+                        value2.TryGetValue(out ArrayOf<ByteString> iArray2))
                     {
                         if (iArray1.Count != iArray2.Count)
                         {
@@ -595,15 +595,15 @@ namespace Opc.Ua
             double range)
         {
             // cannot convert doubles safely to decimals.
-            if (value1.TryGet(out double x))
+            if (value1.TryGetValue(out double x))
             {
                 return ExceedsDeadband(x, value2.GetDouble(), deadbandType, deadband, range);
             }
 
             try
             {
-                if (!value1.TryGetDecimal(out decimal decimal1) ||
-                   !value2.TryGetDecimal(out decimal decimal2))
+                if (!value1.TryGetValueDecimal(out decimal decimal1) ||
+                   !value2.TryGetValueDecimal(out decimal decimal2))
                 {
                     throw new InvalidOperationException("Failed to check for deadband");
                 }

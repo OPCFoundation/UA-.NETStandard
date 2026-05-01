@@ -231,43 +231,43 @@ namespace Opc.Ua.PubSub.Encoding
                 PublisherIdTypeEncodingMask publishedIdTypeType
                     = PublisherIdTypeEncodingMask.Reserved;
 
-                if (value.TryGet(out byte _))
+                if (value.TryGetValue(out byte _))
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.Byte;
                 }
-                else if (value.TryGet(out sbyte i8Value))
+                else if (value.TryGetValue(out sbyte i8Value))
                 {
                     value = Variant.From((byte)i8Value);
                     publishedIdTypeType = PublisherIdTypeEncodingMask.Byte;
                 }
-                else if (value.TryGet(out ushort _))
+                else if (value.TryGetValue(out ushort _))
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.UInt16;
                 }
-                else if (value.TryGet(out short i16Value))
+                else if (value.TryGetValue(out short i16Value))
                 {
                     value = Variant.From((ushort)i16Value);
                     publishedIdTypeType = PublisherIdTypeEncodingMask.UInt16;
                 }
-                else if (value.TryGet(out uint _))
+                else if (value.TryGetValue(out uint _))
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.UInt32;
                 }
-                else if (value.TryGet(out int i32Value))
+                else if (value.TryGetValue(out int i32Value))
                 {
                     value = Variant.From((uint)i32Value);
                     publishedIdTypeType = PublisherIdTypeEncodingMask.UInt32;
                 }
-                else if (value.TryGet(out ulong _))
+                else if (value.TryGetValue(out ulong _))
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.UInt64;
                 }
-                else if (value.TryGet(out long i64Value))
+                else if (value.TryGetValue(out long i64Value))
                 {
                     value = Variant.From((ulong)i64Value);
                     publishedIdTypeType = PublisherIdTypeEncodingMask.UInt64;
                 }
-                else if (value.TryGet(out string _))
+                else if (value.TryGetValue(out string _))
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.String;
                 }

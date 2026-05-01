@@ -1183,51 +1183,51 @@ namespace Opc.Ua.Server
                 IsPartOfTypeHierarchy = target.IsPartOfTypeHierarchy
             };
 
-            if (nodeMetadataValues[0].TryGet(out uint writeMask) &&
-                nodeMetadataValues[1].TryGet(out uint userWriteMask))
+            if (nodeMetadataValues[0].TryGetValue(out uint writeMask) &&
+                nodeMetadataValues[1].TryGetValue(out uint userWriteMask))
             {
                 metadata.WriteMask = (AttributeWriteMask)(writeMask & userWriteMask);
             }
 
             metadata.DataType = nodeMetadataValues[2].GetNodeId();
 
-            if (nodeMetadataValues[3].TryGet(out int valueRank))
+            if (nodeMetadataValues[3].TryGetValue(out int valueRank))
             {
                 metadata.ValueRank = valueRank;
             }
 
-            if (nodeMetadataValues[4].TryGet(out ArrayOf<uint> arrayDimensions))
+            if (nodeMetadataValues[4].TryGetValue(out ArrayOf<uint> arrayDimensions))
             {
                 metadata.ArrayDimensions = arrayDimensions;
             }
-            if (nodeMetadataValues[5].TryGet(out byte accessLevel) &&
-                nodeMetadataValues[6].TryGet(out byte userAccessLevel))
+            if (nodeMetadataValues[5].TryGetValue(out byte accessLevel) &&
+                nodeMetadataValues[6].TryGetValue(out byte userAccessLevel))
             {
                 metadata.AccessLevel = (byte)(accessLevel & userAccessLevel);
             }
 
-            if (nodeMetadataValues[7].TryGet(out byte eventNotifier))
+            if (nodeMetadataValues[7].TryGetValue(out byte eventNotifier))
             {
                 metadata.EventNotifier = eventNotifier;
             }
 
-            if (nodeMetadataValues[8].TryGet(out bool executeAble) &&
-                nodeMetadataValues[9].TryGet(out bool userExecuteable))
+            if (nodeMetadataValues[8].TryGetValue(out bool executeAble) &&
+                nodeMetadataValues[9].TryGetValue(out bool userExecuteable))
             {
                 metadata.Executable = executeAble && userExecuteable;
             }
 
-            if (nodeMetadataValues[10].TryGet(out ushort accessRestrictionType))
+            if (nodeMetadataValues[10].TryGetValue(out ushort accessRestrictionType))
             {
                 metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictionType;
             }
 
-            if (nodeMetadataValues[11].TryGetStructure(out ArrayOf<RolePermissionType> rolePermissions))
+            if (nodeMetadataValues[11].TryGetValueStructure(out ArrayOf<RolePermissionType> rolePermissions))
             {
                 metadata.RolePermissions = [.. rolePermissions];
             }
 
-            if (nodeMetadataValues[12].TryGetStructure(out ArrayOf<RolePermissionType> userRolePermissions))
+            if (nodeMetadataValues[12].TryGetValueStructure(out ArrayOf<RolePermissionType> userRolePermissions))
             {
                 metadata.UserRolePermissions = [.. userRolePermissions];
             }
@@ -1257,15 +1257,15 @@ namespace Opc.Ua.Server
                     nameof(values));
             }
 
-            if (values[0].TryGet(out ushort accessRestrictions))
+            if (values[0].TryGetValue(out ushort accessRestrictions))
             {
                 metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictions;
             }
-            if (values[1].TryGetStructure(out ArrayOf<RolePermissionType> rolePermissions))
+            if (values[1].TryGetValueStructure(out ArrayOf<RolePermissionType> rolePermissions))
             {
                 metadata.RolePermissions = [.. rolePermissions];
             }
-            if (values[2].TryGetStructure(out ArrayOf<RolePermissionType> userRolePermissions))
+            if (values[2].TryGetValueStructure(out ArrayOf<RolePermissionType> userRolePermissions))
             {
                 metadata.UserRolePermissions = [.. userRolePermissions];
             }
@@ -4419,7 +4419,7 @@ namespace Opc.Ua.Server
                         return result;
                     }
 
-                    if (!property.Value.TryGetStructure(out Range range))
+                    if (!property.Value.TryGetValueStructure(out Range range))
                     {
                         result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
                         return result;
@@ -5188,7 +5188,7 @@ namespace Opc.Ua.Server
                             ref value,
                             ref sourceTimestamp);
 
-                    if (!value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> rolePermissions))
+                    if (!value.IsNull && value.TryGetValueStructure(out ArrayOf<RolePermissionType> rolePermissions))
                     {
                         metadata.DefaultRolePermissions = rolePermissions;
                     }
@@ -5204,7 +5204,7 @@ namespace Opc.Ua.Server
                             ref value,
                             ref sourceTimestamp);
 
-                    if (!value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> userRolePermissions))
+                    if (!value.IsNull && value.TryGetValueStructure(out ArrayOf<RolePermissionType> userRolePermissions))
                     {
                         metadata.DefaultUserRolePermissions = userRolePermissions;
                     }

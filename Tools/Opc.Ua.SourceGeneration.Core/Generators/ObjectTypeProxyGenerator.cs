@@ -577,7 +577,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 case BasicDataType.UserDefined:
                     context.Out.WriteLine(
-                        "    if (!_outputArguments[{0}].TryGetStructure(out {1} {2}))",
+                        "    if (!_outputArguments[{0}].TryGetValueStructure(out {1} {2}))",
                         index,
                         typeName,
                         localName);
@@ -593,7 +593,7 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 default:
                     context.Out.WriteLine(
-                        "    if (!_outputArguments[{0}].TryGet(out {1} {2}))",
+                        "    if (!_outputArguments[{0}].TryGetValue(out {1} {2}))",
                         index,
                         typeName,
                         localName);

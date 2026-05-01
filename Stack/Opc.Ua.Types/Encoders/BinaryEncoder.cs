@@ -848,7 +848,7 @@ namespace Opc.Ua
             // write the type id.
             ExpandedNodeId typeId = value.TypeId;
 
-            if (value.TryGetEncodeable(out IEncodeable encodeable))
+            if (value.TryGetValue(out IEncodeable encodeable))
             {
                 typeId = encodeable.BinaryEncodingId;
             }
