@@ -993,12 +993,13 @@ namespace Opc.Ua
 
         /// <summary>
         /// Returns <c>true</c> if the Variant currently holds a value
-        /// (i.e. is not Null). This is the inverse of <see cref="IsNull"/>
+        /// (i.e. is not Null and not the default value of its type).
+        /// This is the inverse of <see cref="ValueIsDefaultOrNull"/>
         /// and matches the non-boxing access member shape proposed for
         /// C# 15 union types.
         /// </summary>
         [JsonIgnore]
-        public bool HasValue => !IsNull;
+        public bool HasValue => !ValueIsDefaultOrNull;
 
         /// <summary>
         /// The value stored -as <see cref="object"/>- within the
