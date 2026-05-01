@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
@@ -50,7 +52,7 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            X509Certificate2 serverCertificate,
+            X509Certificate2? serverCertificate,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
@@ -75,7 +77,7 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypesProvider,
+            CertificateTypesProvider? serverCertificateTypesProvider,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
@@ -100,8 +102,8 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypesProvider,
-            X509Certificate2 serverCertificate,
+            CertificateTypesProvider? serverCertificateTypesProvider,
+            X509Certificate2? serverCertificate,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
@@ -123,7 +125,7 @@ namespace Opc.Ua.Bindings
                 securityPolicyUri = SecurityPolicies.None;
             }
 
-            X509Certificate2Collection serverCertificateChain = null;
+            X509Certificate2Collection? serverCertificateChain = null;
             if (serverCertificateTypesProvider != null && securityMode != MessageSecurityMode.None)
             {
                 serverCertificate =
@@ -247,16 +249,16 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The globally unique identifier assigned to the channel by the server.
         /// </summary>
-        public string GlobalChannelId { get; private set; }
+        public string GlobalChannelId { get; private set; } = string.Empty;
 
         /// <inheritdoc/>
-        internal byte[] ChannelThumbprint { get; set; }
+        internal byte[]? ChannelThumbprint { get; set; }
 
         /// <inheritdoc/>
-        public byte[] ClientChannelCertificate { get; protected set; }
+        public byte[]? ClientChannelCertificate { get; protected set; }
 
         /// <inheritdoc/>
-        public byte[] ServerChannelCertificate { get; protected set; }
+        public byte[]? ServerChannelCertificate { get; protected set; }
 
         /// <summary>
         /// Raised when the state of the channel changes.
@@ -544,7 +546,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles a write complete event.
         /// </summary>
-        protected virtual void OnWriteComplete(object sender, IMessageSocketAsyncEventArgs e)
+        protected virtual void OnWriteComplete(object? sender, IMessageSocketAsyncEventArgs e)
         {
             ServiceResult error = ServiceResult.Good;
             try
@@ -582,7 +584,7 @@ namespace Opc.Ua.Bindings
         /// Queues a write request.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        protected void BeginWriteMessage(ArraySegment<byte> buffer, object state)
+        protected void BeginWriteMessage(ArraySegment<byte> buffer, object? state)
         {
             ServiceResult error = ServiceResult.Good;
             IMessageSocketAsyncEventArgs args =
@@ -630,10 +632,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Queues a write request.
         /// </summary>
-        protected void BeginWriteMessage(BufferCollection buffers, object state)
+        protected void BeginWriteMessage(BufferCollection buffers, object? state)
         {
             ServiceResult error = ServiceResult.Good;
-            IMessageSocketAsyncEventArgs args = Socket.MessageSocketEventArgs();
+            IMessageSocketAsyncEventArgs args = Socket!.MessageSocketEventArgs();
 
             try
             {
@@ -643,7 +645,7 @@ namespace Opc.Ua.Bindings
                 args.BufferList = buffers;
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
-                IMessageSocket socket = Socket;
+                IMessageSocket? socket = Socket;
                 if (socket == null || !socket.Send(args))
                 {
                     // I/O completed synchronously
@@ -676,8 +678,8 @@ namespace Opc.Ua.Bindings
         /// Called after a write operation completes.
         /// </summary>
         protected virtual void HandleWriteComplete(
-            BufferCollection buffers,
-            object state,
+            BufferCollection? buffers,
+            object? state,
             int bytesWritten,
             ServiceResult result)
         {
@@ -808,7 +810,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The socket for the channel.
         /// </summary>
-        protected internal IMessageSocket Socket { get; set; }
+        protected internal IMessageSocket? Socket { get; set; }
 
         /// <summary>
         /// Whether the client channel uses a reverse hello socket.
@@ -891,7 +893,7 @@ namespace Opc.Ua.Bindings
             /// <summary>
             /// Initializes the object with a callback
             /// </summary>
-            public WriteOperation(int timeout, AsyncCallback callback, object asyncState, ILogger logger)
+            public WriteOperation(int timeout, AsyncCallback? callback, object? asyncState, ILogger logger)
                 : base(timeout, callback, asyncState, logger)
             {
             }
@@ -904,7 +906,7 @@ namespace Opc.Ua.Bindings
             /// <summary>
             /// The body of the request or response associated with the operation.
             /// </summary>
-            public IEncodeable MessageBody { get; set; }
+            public IEncodeable? MessageBody { get; set; }
         }
 
         /// <summary>

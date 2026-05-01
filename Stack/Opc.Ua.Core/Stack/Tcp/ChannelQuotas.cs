@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 namespace Opc.Ua.Bindings
 {
     /// <summary>
@@ -54,7 +56,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Validator to use when handling certificates.
         /// </summary>
-        public ICertificateValidator CertificateValidator { get; set; }
+        public ICertificateValidator? CertificateValidator { get; set; }
 
         /// <summary>
         /// The maximum size for a message sent or received.
