@@ -101,8 +101,8 @@ namespace Opc.Ua
 
             if (systemType != null)
             {
-                XmlQualifiedName typeName = TypeInfo.GetXmlName(systemType);
-                ns = typeName.Namespace;
+                XmlQualifiedName? typeName = TypeInfo.GetXmlName(systemType);
+                ns = typeName!.Namespace;
                 name = typeName.Name;
             }
 
@@ -117,7 +117,7 @@ namespace Opc.Ua
 
             if (index != -1)
             {
-                name = name[(index + 1)..];
+                name = name![(index + 1)..];
             }
 
             PushNamespace(ns);
@@ -363,10 +363,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    bool value = SafeXmlConvert(
-                        fieldName,
-                        XmlConvert.ToBoolean,
-                        xml.ToLowerInvariant());
+                    bool value = SafeXmlConvert(fieldName, XmlConvert.ToBoolean, xml!.ToLowerInvariant());
                     EndField(fieldName);
                     return value;
                 }
@@ -384,7 +381,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    sbyte value = SafeXmlConvert(fieldName, XmlConvert.ToSByte, xml);
+                    sbyte value = SafeXmlConvert(fieldName, XmlConvert.ToSByte, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -402,7 +399,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    byte value = SafeXmlConvert(fieldName, XmlConvert.ToByte, xml);
+                    byte value = SafeXmlConvert(fieldName, XmlConvert.ToByte, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -420,7 +417,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    short value = SafeXmlConvert(fieldName, XmlConvert.ToInt16, xml);
+                    short value = SafeXmlConvert(fieldName, XmlConvert.ToInt16, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -438,7 +435,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    ushort value = SafeXmlConvert(fieldName, XmlConvert.ToUInt16, xml);
+                    ushort value = SafeXmlConvert(fieldName, XmlConvert.ToUInt16, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -456,7 +453,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    int value = SafeXmlConvert(fieldName, XmlConvert.ToInt32, xml);
+                    int value = SafeXmlConvert(fieldName, XmlConvert.ToInt32, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -474,7 +471,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    uint value = SafeXmlConvert(fieldName, XmlConvert.ToUInt32, xml);
+                    uint value = SafeXmlConvert(fieldName, XmlConvert.ToUInt32, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -492,7 +489,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    long value = SafeXmlConvert(fieldName, XmlConvert.ToInt64, xml);
+                    long value = SafeXmlConvert(fieldName, XmlConvert.ToInt64, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -510,7 +507,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    ulong value = SafeXmlConvert(fieldName, XmlConvert.ToUInt64, xml);
+                    ulong value = SafeXmlConvert(fieldName, XmlConvert.ToUInt64, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -528,7 +525,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    float value = SafeXmlConvert(fieldName, XmlConvert.ToSingle, xml);
+                    float value = SafeXmlConvert(fieldName, XmlConvert.ToSingle, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -546,7 +543,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    double value = SafeXmlConvert(fieldName, XmlConvert.ToDouble, xml);
+                    double value = SafeXmlConvert(fieldName, XmlConvert.ToDouble, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -1067,23 +1064,23 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    int index = xml.LastIndexOf('_');
+                    int index = xml!.LastIndexOf('_');
 
                     try
                     {
                         if (index != -1)
                         {
                             int numericValue = Convert.ToInt32(
-                                xml[(index + 1)..],
+                                xml![(index + 1)..],
                                 CultureInfo.InvariantCulture);
                             value = EnumHelper.Int32ToEnum<T>(numericValue);
                         }
                         else
                         {
 #if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
-                            value = Enum.Parse<T>(xml, false);
+                            value = Enum.Parse<T>(xml!, false);
 #else
-                            value = (T)Enum.Parse(typeof(T), xml, false);
+                            value = (T)Enum.Parse(typeof(T), xml!, false);
 #endif
                         }
                     }
@@ -1113,14 +1110,14 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    int index = xml.LastIndexOf('_');
+                    int index = xml!.LastIndexOf('_');
 
                     try
                     {
                         if (index != -1)
                         {
                             int numericValue = Convert.ToInt32(
-                                xml[(index + 1)..],
+                                xml![(index + 1)..],
                                 CultureInfo.InvariantCulture);
                             value = new EnumValue(numericValue, xml[..index]);
                         }
@@ -1130,7 +1127,7 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            value = new EnumValue(0, xml);
+                            value = new EnumValue(0, xml!);
                         }
                     }
                     catch (Exception ex) when (ex is
@@ -1884,8 +1881,8 @@ namespace Opc.Ua
             if (BeginField(fieldName, true, out bool isNil))
             {
                 var encodeables = new List<T>();
-                XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
-                PushNamespace(xmlName.Namespace);
+                XmlQualifiedName? xmlName = TypeInfo.GetXmlName(typeof(T));
+                PushNamespace(xmlName!.Namespace);
 
                 while (MoveToElement(xmlName.Name))
                 {
@@ -1915,8 +1912,8 @@ namespace Opc.Ua
             if (BeginField(fieldName, true, out bool isNil))
             {
                 var encodeables = new List<T>();
-                XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
-                PushNamespace(xmlName.Namespace);
+                XmlQualifiedName? xmlName = TypeInfo.GetXmlName(typeof(T));
+                PushNamespace(xmlName!.Namespace);
 
                 while (MoveToElement(xmlName.Name))
                 {
@@ -1974,8 +1971,8 @@ namespace Opc.Ua
             if (BeginField(fieldName, true, out bool isNil))
             {
                 var enums = new List<T>();
-                XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
-                PushNamespace(xmlName.Namespace);
+                XmlQualifiedName? xmlName = TypeInfo.GetXmlName(typeof(T));
+                PushNamespace(xmlName!.Namespace);
 
                 while (MoveToElement(xmlName.Name))
                 {
@@ -2012,7 +2009,7 @@ namespace Opc.Ua
                         fieldName ?? string.Empty,
                         nameof(ReadEnumeratedArray));
                 }
-                PushNamespace(xmlName.Namespace);
+                PushNamespace(xmlName!.Namespace);
 
                 while (MoveToElement(xmlName.Name))
                 {
@@ -2479,9 +2476,9 @@ namespace Opc.Ua
             {
                 if (BeginField(fieldName, true))
                 {
-                    XmlQualifiedName xmlName = TypeInfo.GetXmlName(value, Context);
+                    XmlQualifiedName? xmlName = TypeInfo.GetXmlName(value, Context);
 
-                    PushNamespace(xmlName.Namespace);
+                    PushNamespace(xmlName!.Namespace);
                     value.Decode(this);
                     PopNamespace();
 
@@ -2619,7 +2616,7 @@ namespace Opc.Ua
                             "Encountered element: '{1}:{0}' when expecting element: '{2}:{3}'.",
                             m_reader.LocalName,
                             m_reader.NamespaceURI,
-                            fieldName,
+                            fieldName ?? string.Empty,
                             m_namespaces.Peek());
                     }
 
@@ -2693,7 +2690,7 @@ namespace Opc.Ua
                             "Encountered end element: '{1}:{0}' when expecting element: '{3}:{2}'.",
                             m_reader.LocalName,
                             m_reader.NamespaceURI,
-                            fieldName,
+                            fieldName ?? string.Empty,
                             m_namespaces.Peek());
                     }
 
@@ -2704,7 +2701,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Unable to read end field: {0}: {1}",
-                        fieldName,
+                        fieldName ?? string.Empty,
                         xe.Message);
                 }
             }
@@ -2768,7 +2765,7 @@ namespace Opc.Ua
                     fieldName ?? string.Empty,
                     functionName ?? string.Empty,
                     ex.Message,
-                    value);
+                    value!);
             }
             return ServiceResultException.Create(
                 StatusCodes.BadDecodingError,

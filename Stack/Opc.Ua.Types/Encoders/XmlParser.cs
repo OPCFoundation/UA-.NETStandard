@@ -206,7 +206,7 @@ namespace Opc.Ua
                     string? namespaceUri = ReadString(elementName);
                     if (!string.IsNullOrEmpty(namespaceUri))
                     {
-                        stringTable.Append(namespaceUri);
+                        stringTable.Append(namespaceUri!);
                     }
                 }
 
@@ -387,10 +387,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    bool value = SafeXmlConvert(
-                        fieldName,
-                        XmlConvert.ToBoolean,
-                        xml.ToLowerInvariant());
+                    bool value = SafeXmlConvert(fieldName, XmlConvert.ToBoolean, xml!.ToLowerInvariant());
                     EndField(fieldName);
                     return value;
                 }
@@ -408,7 +405,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    sbyte value = SafeXmlConvert(fieldName, XmlConvert.ToSByte, xml);
+                    sbyte value = SafeXmlConvert(fieldName, XmlConvert.ToSByte, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -426,7 +423,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    byte value = SafeXmlConvert(fieldName, XmlConvert.ToByte, xml);
+                    byte value = SafeXmlConvert(fieldName, XmlConvert.ToByte, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -444,7 +441,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    short value = SafeXmlConvert(fieldName, XmlConvert.ToInt16, xml);
+                    short value = SafeXmlConvert(fieldName, XmlConvert.ToInt16, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -462,7 +459,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    ushort value = SafeXmlConvert(fieldName, XmlConvert.ToUInt16, xml);
+                    ushort value = SafeXmlConvert(fieldName, XmlConvert.ToUInt16, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -480,7 +477,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    int value = SafeXmlConvert(fieldName, XmlConvert.ToInt32, xml);
+                    int value = SafeXmlConvert(fieldName, XmlConvert.ToInt32, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -498,7 +495,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    uint value = SafeXmlConvert(fieldName, XmlConvert.ToUInt32, xml);
+                    uint value = SafeXmlConvert(fieldName, XmlConvert.ToUInt32, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -516,7 +513,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    long value = SafeXmlConvert(fieldName, XmlConvert.ToInt64, xml);
+                    long value = SafeXmlConvert(fieldName, XmlConvert.ToInt64, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -534,7 +531,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    ulong value = SafeXmlConvert(fieldName, XmlConvert.ToUInt64, xml);
+                    ulong value = SafeXmlConvert(fieldName, XmlConvert.ToUInt64, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -552,7 +549,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    float value = SafeXmlConvert(fieldName, XmlConvert.ToSingle, xml);
+                    float value = SafeXmlConvert(fieldName, XmlConvert.ToSingle, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -570,7 +567,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    double value = SafeXmlConvert(fieldName, XmlConvert.ToDouble, xml);
+                    double value = SafeXmlConvert(fieldName, XmlConvert.ToDouble, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -666,7 +663,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    value = ByteString.From(SafeConvertFromBase64String(xml));
+                    value = ByteString.From(SafeConvertFromBase64String(xml!));
                 }
                 else
                 {
@@ -1086,23 +1083,23 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    int index = xml.LastIndexOf('_');
+                    int index = xml!.LastIndexOf('_');
 
                     try
                     {
                         if (index != -1)
                         {
                             int numericValue = Convert.ToInt32(
-                                xml[(index + 1)..],
+                                xml![(index + 1)..],
                                 CultureInfo.InvariantCulture);
                             value = EnumHelper.Int32ToEnum<T>(numericValue);
                         }
                         else
                         {
 #if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
-                            value = Enum.Parse<T>(xml, false);
+                            value = Enum.Parse<T>(xml!, false);
 #else
-                            value = (T)Enum.Parse(typeof(T), xml, false);
+                            value = (T)Enum.Parse(typeof(T), xml!, false);
 #endif
                         }
                     }
@@ -1132,14 +1129,14 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    int index = xml.LastIndexOf('_');
+                    int index = xml!.LastIndexOf('_');
 
                     try
                     {
                         if (index != -1)
                         {
                             int numericValue = Convert.ToInt32(
-                                xml[(index + 1)..],
+                                xml![(index + 1)..],
                                 CultureInfo.InvariantCulture);
                             value = new EnumValue(numericValue, xml[..index]);
                         }
@@ -1149,7 +1146,7 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            value = new EnumValue(0, xml);
+                            value = new EnumValue(0, xml!);
                         }
                     }
                     catch (Exception ex) when (ex is
@@ -2673,7 +2670,7 @@ namespace Opc.Ua
             ElementContext context = m_contextStack.Peek();
             string ns = m_namespaces.Peek();
 
-            int idx = FindChildIndex(context, fieldName, ns);
+            int idx = FindChildIndex(context, fieldName!, ns);
 
             if (idx < 0)
             {
@@ -2682,7 +2679,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Expected element '{1}:{0}' not found.",
-                        fieldName,
+                        fieldName ?? string.Empty,
                         ns);
                 }
 
@@ -2840,7 +2837,7 @@ namespace Opc.Ua
                     fieldName ?? string.Empty,
                     functionName ?? string.Empty,
                     ex.Message,
-                    value);
+                    value!);
             }
             return ServiceResultException.Create(
                 StatusCodes.BadDecodingError,
@@ -2904,7 +2901,7 @@ namespace Opc.Ua
 
             if (index != -1)
             {
-                name = name[(index + 1)..];
+                name = name![(index + 1)..];
             }
 
             PushNamespace(ns);

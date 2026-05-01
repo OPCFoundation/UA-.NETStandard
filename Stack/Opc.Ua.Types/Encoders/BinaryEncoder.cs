@@ -275,7 +275,7 @@ namespace Opc.Ua
         public void EncodeMessage<T>(T message, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(message, default))
+            if (EqualityComparer<T>.Default.Equals(message, default!))
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -306,7 +306,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void EncodeMessage<T>(T message) where T : IEncodeable, new()
         {
-            if (EqualityComparer<T>.Default.Equals(message, default))
+            if (EqualityComparer<T>.Default.Equals(message, default!))
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -947,7 +947,7 @@ namespace Opc.Ua
         public void WriteEncodeable<T>(string fieldName, T value)
             where T : IEncodeable, new()
         {
-            if (EqualityComparer<T>.Default.Equals(value, default))
+            if (EqualityComparer<T>.Default.Equals(value, default!))
             {
                 // create a default object if a null object specified.
                 value = new T();
@@ -961,7 +961,7 @@ namespace Opc.Ua
             T value,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(value, default))
+            if (EqualityComparer<T>.Default.Equals(value, default!))
             {
                 // create a default object if a null object specified.
                 if (!Context.Factory.TryGetEncodeableType(encodeableTypeId, out IEncodeableType? activator))

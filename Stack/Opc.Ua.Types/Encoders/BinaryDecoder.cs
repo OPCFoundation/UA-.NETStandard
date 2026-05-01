@@ -1663,7 +1663,9 @@ namespace Opc.Ua
                     case BuiltInType.ExtensionObject:
                         return Variant.From(ReadExtensionObject(null));
                     case BuiltInType.DataValue:
+#pragma warning disable CS8604 // Possible null reference argument
                         return Variant.From(ReadDataValue(null));
+#pragma warning restore CS8604
                     case BuiltInType.Variant:
                     case BuiltInType.Number:
                     case BuiltInType.Integer:

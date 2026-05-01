@@ -68,7 +68,7 @@ namespace Opc.Ua
         /// Initializes the object with a system type to encode and a XML writer.
         /// </summary>
         public XmlEncoder(Type systemType, XmlWriter writer, IServiceMessageContext context)
-            : this(TypeInfo.GetXmlName(systemType), writer, context)
+            : this(TypeInfo.GetXmlName(systemType)!, writer, context)
         {
         }
 
@@ -287,7 +287,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void EncodeMessage<T>(T message) where T : IEncodeable, new()
         {
-            if (EqualityComparer<T>.Default.Equals(message, default))
+            if (EqualityComparer<T>.Default.Equals(message, default!))
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -304,7 +304,7 @@ namespace Opc.Ua
         public void EncodeMessage<T>(T message, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(message, default))
+            if (EqualityComparer<T>.Default.Equals(message, default!))
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -879,7 +879,7 @@ namespace Opc.Ua
         {
             CheckAndIncrementNestingLevel();
 
-            if (BeginField(fieldName, EqualityComparer<T>.Default.Equals(value, default), true))
+            if (BeginField(fieldName, EqualityComparer<T>.Default.Equals(value, default!), true))
             {
                 value?.Encode(this);
 
@@ -924,7 +924,7 @@ namespace Opc.Ua
                     if (!string.IsNullOrEmpty(value.Symbol))
                     {
                         m_writer.WriteString(CoreUtils.Format("{0}_{1}",
-                            value.Symbol,
+                            value.Symbol!,
                             value.Value));
                     }
                     else
@@ -1794,8 +1794,8 @@ namespace Opc.Ua
                 else if (extensionObject.TryGetEncodeable(out IEncodeable? encodeable))
                 {
                     // encode extension object in xml.
-                    XmlQualifiedName xmlName = TypeInfo.GetXmlName(encodeable!, Context);
-                    m_writer.WriteStartElement(xmlName.Name, xmlName.Namespace);
+                    XmlQualifiedName? xmlName = TypeInfo.GetXmlName(encodeable!, Context);
+                    m_writer.WriteStartElement(xmlName!.Name, xmlName.Namespace);
                     encodeable!.Encode(this);
                     m_writer.WriteEndElement();
                 }
