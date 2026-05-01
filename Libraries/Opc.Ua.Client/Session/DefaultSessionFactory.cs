@@ -266,9 +266,10 @@ namespace Opc.Ua.Client
                 }
 
                 // initialize the channel which will be created with the server.
+                ITransportChannel channel;
                 if (connection != null)
                 {
-                    return await UaChannelBase.CreateUaBinaryChannelAsync(
+                    channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                         configuration,
                         connection,
                         endpointDescription,
@@ -278,15 +279,24 @@ namespace Opc.Ua.Client
                         messageContext,
                         ct).ConfigureAwait(false);
                 }
+                else
+                {
+                    channel = await UaChannelBase.CreateUaBinaryChannelAsync(
+                        configuration,
+                        endpointDescription,
+                        endpointConfiguration,
+                        clientCertificate,
+                        clientCertificateChain,
+                        messageContext,
+                        ct).ConfigureAwait(false);
+                }
 
-                return await UaChannelBase.CreateUaBinaryChannelAsync(
-                    configuration,
-                    endpointDescription,
-                    endpointConfiguration,
-                    clientCertificate,
-                    clientCertificateChain,
-                    messageContext,
-                    ct).ConfigureAwait(false);
+                // Ownership of the cert and chain has been transferred to the
+                // channel's TransportChannelSettings; the channel disposes
+                // them when it is disposed, so we must not dispose here.
+                clientCertificate = null;
+                clientCertificateChain = null;
+                return channel;
             }
             finally
             {

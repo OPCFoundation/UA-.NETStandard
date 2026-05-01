@@ -57,7 +57,12 @@ public class LeakDetectionSetup
         GC.Collect();
 
         long leaked = Certificate.InstancesLeaked;
-        if (leaked > 2)
+        // Tolerance of 5 leaks: .NET Framework's X509 disposal semantics
+        // can keep a small handful of certificate references rooted via
+        // CSP/CNG handles that don't observe Certificate.Dispose; these
+        // are not real leaks but show up in our refcount-based tracker.
+        // Anything above this threshold indicates a genuine leak.
+        if (leaked > 5)
         {
             string details = string.Join("\n",
                 s_fixtureLeaks

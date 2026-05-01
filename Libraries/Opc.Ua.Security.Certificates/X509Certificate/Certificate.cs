@@ -218,24 +218,16 @@ namespace Opc.Ua.Security.Certificates
                 catch (CryptographicException)
                 {
                     // Private key is not exportable (e.g., loaded without
-                    // X509KeyStorageFlags.Exportable). Fall back to attaching
-                    // the live private key to a fresh public-key copy via
-                    // CopyWithPrivateKey, yielding an independently disposable
-                    // certificate that can still be used for sign/decrypt
-                    // operations using the underlying CSP/CNG handle.
-                    using X509Certificate2 publicOnly = X509CertificateLoader
-                        .LoadCertificate(X509.RawData);
-                    using RSA? rsa = X509.GetRSAPrivateKey();
-                    if (rsa != null)
-                    {
-                        return publicOnly.CopyWithPrivateKey(rsa);
-                    }
-                    using ECDsa? ecdsa = X509.GetECDsaPrivateKey();
-                    if (ecdsa != null)
-                    {
-                        return publicOnly.CopyWithPrivateKey(ecdsa);
-                    }
-                    throw;
+                    // X509KeyStorageFlags.Exportable). Fall back to the
+                    // legacy copy constructor which creates an
+                    // independently disposable wrapper that shares the
+                    // underlying OS certificate handle (and therefore the
+                    // private key handle). The result is usable for sign /
+                    // decrypt / TLS handshakes without requiring an
+                    // exportable key.
+#pragma warning disable SYSLIB0057 // Type or member is obsolete
+                    return new X509Certificate2(X509);
+#pragma warning restore SYSLIB0057
                 }
             }
 
