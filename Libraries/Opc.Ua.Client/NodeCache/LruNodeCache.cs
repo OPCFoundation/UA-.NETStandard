@@ -1229,13 +1229,30 @@ namespace Opc.Ua.Client
                 if (!ServiceResult.IsBad(readErrors[index]))
                 {
                     // Populate each node's ReferenceTable so callers can
-                    // introspect references without extra round trips.
-                    // Mirrors legacy NodeCache behavior. Property nodes
-                    // need this so leaf-detection (HasTypeDefinition →
-                    // PropertyType) works without re-fetch.
-                    await PopulateReferenceTableAsync(
-                        remainingIds[index], nodes[index], ct)
-                        .ConfigureAwait(false);
+                    // introspect references (e.g. HasTypeDefinition for
+                    // leaf-detection on property nodes) without an extra
+                    // round trip. Routes through GetOrAddReferencesAsync
+                    // so cached references are reused.
+                    if (nodes[index].ReferenceTable.Count == 0)
+                    {
+                        ArrayOf<ReferenceDescription> references =
+                            await GetOrAddReferencesAsync(
+                                remainingIds[index], ct)
+                                .ConfigureAwait(false);
+                        foreach (ReferenceDescription reference in references)
+                        {
+                            ExpandedNodeId targetId = reference.NodeId;
+                            if (targetId.IsAbsolute)
+                            {
+                                targetId = ExpandedNodeId.ToNodeId(
+                                    targetId, NamespaceUris);
+                            }
+                            nodes[index].ReferenceTable.Add(
+                                reference.ReferenceTypeId,
+                                !reference.IsForward,
+                                targetId);
+                        }
+                    }
                     m_nodes.AddOrUpdate(remainingIds[index], nodes[index]);
                 }
                 while (result[resultMissingIndex] != null)
