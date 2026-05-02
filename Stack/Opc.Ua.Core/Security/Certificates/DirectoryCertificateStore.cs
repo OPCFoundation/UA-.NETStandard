@@ -1231,6 +1231,19 @@ namespace Opc.Ua
                             }
                         }
 
+                        // If an entry with this thumbprint already exists in
+                        // the dictionary (e.g., the cert file contains a
+                        // duplicate thumbprint), dispose the previous entry
+                        // before overwriting it to avoid leaking the
+                        // Certificate reference.
+                        if (m_certificates.TryGetValue(
+                                entry.Certificate.Thumbprint,
+                                out Entry? existing) && existing != null)
+                        {
+                            existing.Certificate?.Dispose();
+                            existing.CertificateWithPrivateKey?.Dispose();
+                        }
+
                         m_certificates[entry.Certificate.Thumbprint] = entry;
 
                         if (!incompleteSearch &&

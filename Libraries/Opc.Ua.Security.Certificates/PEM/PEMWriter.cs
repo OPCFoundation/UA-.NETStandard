@@ -203,11 +203,12 @@ namespace Opc.Ua.Security.Certificates
                             certificate.Thumbprint,
                             StringComparison.OrdinalIgnoreCase))
                         {
+                            int blockStart = beginIndex - beginlabel.Length;
+                            int blockEnd = endIndex + endlabel.Length;
+                            int blockLength = blockEnd - blockStart;
                             modifiedPemDataBlob = Encoding.ASCII.GetBytes(
                                 pemText.Replace(
-                                    pemText.Substring(
-                                        beginIndex -= beginlabel.Length,
-                                        endIndex + endlabel.Length),
+                                    pemText.Substring(blockStart, blockLength),
                                     string.Empty,
                                     StringComparison.Ordinal));
                             return true;

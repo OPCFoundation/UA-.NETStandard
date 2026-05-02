@@ -35,6 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Globalization;
 using System.Threading;
 #if DEBUG
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 #endif
 
@@ -307,7 +308,6 @@ namespace Opc.Ua.Security.Certificates
         public void Dispose()
         {
             Dispose(disposing: true);
-            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -328,6 +328,12 @@ namespace Opc.Ua.Security.Certificates
                 {
                     X509.Dispose();
                     Interlocked.Increment(ref s_instancesDisposed);
+                    // Only suppress finalisation now that the
+                    // refcount has reached zero. Suppressing earlier
+                    // would mask AddRef-without-Dispose leaks: the
+                    // managed wrapper would be reclaimed without
+                    // running our finalizer-based leak reporter.
+                    GC.SuppressFinalize(this);
                 }
             }
         }
@@ -538,9 +544,14 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private void Track()
         {
-            s_allocationTracker.Add(this, new CertificateAllocationInfo(
+            // Cache the allocation info on the instance so the finalizer
+            // can report it even after the static tracker has lost the
+            // weak reference.
+            m_allocationInfo = new CertificateAllocationInfo(
+                this,
                 new System.Diagnostics.StackTrace(true).ToString(),
-                X509.Thumbprint));
+                X509.Thumbprint);
+            s_allocationTracker.Add(m_allocationInfo);
         }
 
         /// <summary>
@@ -551,35 +562,86 @@ namespace Opc.Ua.Security.Certificates
         ~Certificate()
 #pragma warning restore CA1063 // Implement IDisposable Correctly
         {
-            if (m_refCount > 0)
+            if (m_refCount > 0 && m_allocationInfo != null)
             {
-                string message = $"Certificate leak detected: refCount={m_refCount}";
-                if (s_allocationTracker.TryGetValue(this, out CertificateAllocationInfo? info))
-                {
-                    message += $", Thumbprint={info.Thumbprint}, CreatedAt={info.CreatedAt:O}, AllocationStack:\n{info.StackTrace}";
-                }
-                System.Diagnostics.Debug.WriteLine(message);
+                s_finalizedWithLeakedRef.Add(m_allocationInfo);
             }
         }
+
+        private CertificateAllocationInfo? m_allocationInfo;
 
         /// <summary>
         /// Captures allocation context for leak-detection diagnostics.
         /// </summary>
         internal sealed class CertificateAllocationInfo
         {
+            public WeakReference<Certificate> Reference { get; }
             public string StackTrace { get; }
             public string? Thumbprint { get; }
             public DateTime CreatedAt { get; }
 
-            public CertificateAllocationInfo(string stackTrace, string? thumbprint)
+            public CertificateAllocationInfo(
+                Certificate certificate,
+                string stackTrace,
+                string? thumbprint)
             {
+                Reference = new WeakReference<Certificate>(certificate);
                 StackTrace = stackTrace;
                 Thumbprint = thumbprint;
                 CreatedAt = DateTime.UtcNow;
             }
         }
 
-        private static readonly ConditionalWeakTable<Certificate, CertificateAllocationInfo> s_allocationTracker = new();
+        // Use a list of weak references for live-leak diagnostics.
+        // ConditionalWeakTable doesn't expose enumeration on .NET
+        // Framework, and we want the per-instance list anyway.
+        private static readonly System.Collections.Concurrent.ConcurrentBag<CertificateAllocationInfo> s_allocationTracker
+            = new();
+
+        // Set of allocation infos for Certificates that were finalised
+        // while still holding a positive refcount (a real leak —
+        // someone called AddRef without a matching Dispose). Cached so
+        // the finalizer can record it before the instance dies.
+        private static readonly System.Collections.Concurrent.ConcurrentBag<CertificateAllocationInfo> s_finalizedWithLeakedRef
+            = new();
+
+        /// <summary>
+        /// Dumps allocation info for live <see cref="Certificate"/>
+        /// instances that are still reachable. Useful in tests to
+        /// surface the call site that created a leaking certificate.
+        /// </summary>
+        public static IEnumerable<(string Thumbprint, int RefCount, DateTime CreatedAt, string StackTrace)>
+            EnumerateLiveCertificates()
+        {
+            foreach (CertificateAllocationInfo info in s_allocationTracker)
+            {
+                if (info.Reference.TryGetTarget(out Certificate? cert))
+                {
+                    yield return (
+                        info.Thumbprint ?? "(no thumbprint)",
+                        cert.m_refCount,
+                        info.CreatedAt,
+                        info.StackTrace);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Dumps allocation info for <see cref="Certificate"/> instances
+        /// that were finalized while still holding a positive refcount
+        /// (i.e., AddRef without matching Dispose).
+        /// </summary>
+        public static IEnumerable<(string Thumbprint, DateTime CreatedAt, string StackTrace)>
+            EnumerateFinalizedLeakedCertificates()
+        {
+            foreach (CertificateAllocationInfo info in s_finalizedWithLeakedRef)
+            {
+                yield return (
+                    info.Thumbprint ?? "(no thumbprint)",
+                    info.CreatedAt,
+                    info.StackTrace);
+            }
+        }
 #endif
 
         private static long s_instancesCreated;

@@ -51,12 +51,21 @@ namespace Opc.Ua.Security.Certificates.Tests
     {
         public const string Subject = "CN=Test Cert Subject, O=OPC Foundation";
 
+        // Note: these are intentionally backed by lazy fields so that
+        // referencing the type from another assembly (e.g.
+        // Opc.Ua.Core.Tests.Security.Certificates.CertificateValidatorTest
+        // accesses GetECCurveHashPairs) does not trigger Certificate
+        // allocations whose disposal depends on this fixture's
+        // OneTimeTearDown — that teardown only fires when this fixture
+        // is the one being executed.
+        private static readonly Lazy<CertificateAsset[]> s_certificateTestCases
+            = new(() => [
+                .. AssetCollection<CertificateAsset>.CreateFromFiles(
+                    TestUtils.EnumerateTestAssets("*.?er"))
+            ]);
+
         [DatapointSource]
-        public static readonly CertificateAsset[] CertificateTestCases =
-        [
-            .. AssetCollection<CertificateAsset>.CreateFromFiles(
-                TestUtils.EnumerateTestAssets("*.?er"))
-        ];
+        public static CertificateAsset[] CertificateTestCases => s_certificateTestCases.Value;
 
         [DatapointSource]
         public static readonly ECCurveHashPair[] ECCurveHashPairs = GetECCurveHashPairs();
@@ -81,9 +90,12 @@ namespace Opc.Ua.Security.Certificates.Tests
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
-            foreach (CertificateAsset asset in CertificateTestCases)
+            if (s_certificateTestCases.IsValueCreated)
             {
-                asset?.Dispose();
+                foreach (CertificateAsset asset in s_certificateTestCases.Value)
+                {
+                    asset?.Dispose();
+                }
             }
         }
 

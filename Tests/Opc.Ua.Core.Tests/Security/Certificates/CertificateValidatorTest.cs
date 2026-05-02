@@ -172,10 +172,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // create a CRL with a revoked Sub CA
             for (int i = 0; i < kCaChainCount - 1; i++)
             {
+                using var revoked = new CertificateCollection { m_caChain[i + 1] };
                 m_crlRevokedChain[i] = s_issuer.RevokeCertificates(
                     m_caChain[i],
                     [m_crlChain[i]],
-                    [m_caChain[i + 1]]);
+                    revoked);
             }
 
             // create self signed app certs
