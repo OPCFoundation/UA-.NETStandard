@@ -176,7 +176,7 @@ namespace Opc.Ua.Bindings
         public string UriScheme { get; }
 
         /// <inheritdoc/>
-        public string ListenerId { get; private set; } = string.Empty;
+        public string ListenerId { get; private set; } = default!;
 
         internal byte[] ServerChannelCertificate { get; set; } = [];
 

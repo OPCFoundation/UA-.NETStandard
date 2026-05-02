@@ -215,7 +215,7 @@ namespace Opc.Ua
                     certificate,
                     receiverNonce!);
                 if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm) &&
-                    encryptedSecret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce!.Data, out byte[]? decryptedSecret))
+                    encryptedSecret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce?.Data!, out byte[]? decryptedSecret))
                 {
                     DecryptedPassword = decryptedSecret;
                     return;
@@ -277,7 +277,7 @@ namespace Opc.Ua
                     senderNonce: null!,
                     validator: validator);
 
-                if (!secret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce!.Data, out byte[]? decryptedSecret))
+                if (!secret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce?.Data!, out byte[]? decryptedSecret))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadIdentityTokenInvalid,

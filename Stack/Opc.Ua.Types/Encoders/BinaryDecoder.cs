@@ -1639,7 +1639,7 @@ namespace Opc.Ua
                     case BuiltInType.Double:
                         return Variant.From(SafeReadDouble());
                     case BuiltInType.String:
-                        return Variant.From(ReadString(null) ?? string.Empty);
+                        return Variant.From(ReadString(null)!);
                     case BuiltInType.DateTime:
                         return Variant.From(ReadDateTime(null));
                     case BuiltInType.Guid:
