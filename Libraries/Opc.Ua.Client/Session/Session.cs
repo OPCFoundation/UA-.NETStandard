@@ -2125,6 +2125,10 @@ namespace Opc.Ua.Client
                 .CreateMessageContext(Factory);
 
             // create the channel object used to connect to the server.
+            // ConfiguredEndpoint.Configuration is annotated nullable on the endpoint DTO but
+            // the session has been opened against this endpoint so the channel-time
+            // configuration is guaranteed populated; same for Identity vs tempIdentity
+            // correlation below.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
                 ConfiguredEndpoint.Description,
@@ -2150,6 +2154,8 @@ namespace Opc.Ua.Client
                         .OpenAsync(
                             SessionName,
                             (uint)SessionTimeout,
+                            // tempIdentity is only set when session.Identity is null so the
+                            // coalesce always yields a non-null IUserIdentity at runtime.
                             session.Identity ?? tempIdentity!,
                             PreferredLocales,
                             m_checkDomain,
@@ -2189,6 +2195,8 @@ namespace Opc.Ua.Client
                 .CreateMessageContext(Factory);
 
             // create the channel object used to connect to the server.
+            // See note above on the matching RecreateAsync overload regarding the
+            // nullable-but-required Configuration / Identity invariants.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
                 connection,
@@ -2215,6 +2223,8 @@ namespace Opc.Ua.Client
                         .OpenAsync(
                             SessionName,
                             (uint)SessionTimeout,
+                            // tempIdentity is only set when session.Identity is null so the
+                            // coalesce always yields a non-null IUserIdentity at runtime.
                             session.Identity ?? tempIdentity!,
                             PreferredLocales,
                             CheckDomain,
@@ -4045,9 +4055,13 @@ namespace Opc.Ua.Client
             identity ??= new UserIdentity();
 
             // check that the user identity is supported by the endpoint.
+            // PolicyId is nullable on the schema-generated UserIdentityToken but every
+            // valid identity token carries one; FindUserTokenPolicy returns null when no
+            // policy matches, the bang on the result preserves the pre-nullable behavior of
+            // letting the subsequent null check / fallback handle the lookup result.
             identityPolicy = m_endpoint.Description.FindUserTokenPolicy(
                 identity.TokenHandler.Token.PolicyId!,
-                securityPolicyUri!)!;
+                securityPolicyUri)!;
 
             if (identityPolicy == null)
             {
