@@ -44,28 +44,6 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Many properties on <see cref="ConfiguredEndpoint"/> (e.g. <c>EndpointUrl</c>,
-    /// <c>Configuration</c>) and <see cref="EndpointDescription"/> (<c>SecurityPolicyUri</c>)
-    /// are annotated nullable on the schema-generated DTOs but are required at runtime once
-    /// a session has been created. The same applies to <see cref="ApplicationConfiguration"/>
-    /// members such as <c>ClientConfiguration</c>, <c>CertificateValidator</c> and
-    /// <c>ApplicationName</c>: a <c>Session</c> cannot be opened without them.
-    /// Null-forgiving (<c>!</c>) suppressions in this file reflect those lifecycle
-    /// invariants which the C# compiler cannot infer from the type system.
-    /// </para>
-    /// <para>
-    /// The instance-level fields <c>m_serverCertificate</c>, <c>m_instanceCertificate</c>
-    /// and <c>m_userTokenSecurityPolicyUri</c> are nullable until <c>OpenAsync</c> /
-    /// <c>ActivateSessionAsync</c> populates them; uses inside post-open code paths bang
-    /// them to acknowledge the open-session invariant. A <c>!</c> on a return value of
-    /// <see cref="SecurityPolicies.GetInfo"/> (which returns nullable) is reused immediately
-    /// thereafter and the implicit dereference would NRE on null, so the bang preserves the
-    /// pre-nullable behavior of throwing a <see cref="NullReferenceException"/> if a
-    /// caller-supplied policy URI is unknown.
-    /// </para>
-    /// </remarks>
     public partial class Session : SessionClientBatched, ISession,
         ISnapshotRestore<SessionState>, ISnapshotRestore<SessionConfiguration>
     {
@@ -292,6 +270,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Check if all required configuration fields are populated.
         /// </summary>
+        /// <remarks>
+        /// Subsequent code paths in this class dereference <see cref="ApplicationConfiguration.ClientConfiguration"/>,
+        /// <see cref="ApplicationConfiguration.SecurityConfiguration"/> and
+        /// <see cref="ApplicationConfiguration.CertificateValidator"/> using the null-forgiving
+        /// (<c>!</c>) operator. This method enforces the matching invariant at session
+        /// construction time; the compiler cannot infer the narrowing across method boundaries.
+        /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         private static void ValidateClientConfiguration(ApplicationConfiguration configuration)
@@ -1225,10 +1210,6 @@ namespace Opc.Ua.Client
             bool successCreateSession = false;
             CreateSessionResponse? response = null;
 
-            // EndpointUrl is annotated nullable on ConfiguredEndpoint but a session can only
-            // be opened against a populated endpoint URL; bang reflects that lifecycle invariant.
-            string endpointUrl = m_endpoint.EndpointUrl!.ToString();
-
             // if security none, first try to connect without certificate
             if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
             {
@@ -1239,7 +1220,7 @@ namespace Opc.Ua.Client
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
-                        endpointUrl,
+                        m_endpoint.EndpointUrl!.ToString(),
                         sessionName,
                         clientNonce,
                         default,
@@ -1262,7 +1243,7 @@ namespace Opc.Ua.Client
                     requestHeader,
                     clientDescription,
                     m_endpoint.Description.Server.ApplicationUri,
-                    endpointUrl,
+                    m_endpoint.EndpointUrl!.ToString(),
                     sessionName,
                     clientNonce,
                     clientCertificateChainData.IsEmpty ?
@@ -1322,7 +1303,7 @@ namespace Opc.Ua.Client
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
 
                 // create the client signature.
-                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri!);
 
                 // create the client signature.
                 byte[] dataToSign = securityPolicy!.GetClientSignatureData(
@@ -1334,12 +1315,12 @@ namespace Opc.Ua.Client
                     m_clientNonce ?? []);
 
                 SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
-                    securityPolicyUri,
+                    securityPolicyUri!,
                     m_instanceCertificate!,
                     dataToSign);
 
                 // select the security policy for the user token.
-                string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                     ? m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None
                     : identityPolicy.SecurityPolicyUri;
 
@@ -1370,7 +1351,7 @@ namespace Opc.Ua.Client
 
                     userTokenSignature = identityToken.Sign(
                         dataToSign,
-                        tokenSecurityPolicyUri);
+                        tokenSecurityPolicyUri!);
                 }
                 else
                 {
@@ -1378,7 +1359,7 @@ namespace Opc.Ua.Client
                     identityToken.Encrypt(
                         serverCertificate!,
                         serverNonce.ToArray(),
-                        tokenSecurityPolicyUri,
+                        tokenSecurityPolicyUri!,
                         MessageContext,
                         m_eccServerEphemeralKey,
                         m_instanceCertificate,
@@ -1392,7 +1373,7 @@ namespace Opc.Ua.Client
                     m_preferredLocales = preferredLocales;
                 }
 
-                var header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri);
+                var header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri!);
 
                 // activate session.
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
@@ -1513,9 +1494,9 @@ namespace Opc.Ua.Client
             }
 
             // get the identity token.
-            string securityPolicyUri =
+            string? securityPolicyUri =
                 m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri!);
 
             // create the client signature.
             byte[] dataToSign = securityPolicy!.GetClientSignatureData(
@@ -1527,7 +1508,7 @@ namespace Opc.Ua.Client
                 m_clientNonce ?? []);
 
             SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
-                securityPolicyUri,
+                securityPolicyUri!,
                 m_instanceCertificate!,
                 dataToSign);
 
@@ -1538,7 +1519,7 @@ namespace Opc.Ua.Client
             UserTokenPolicy? identityPolicy =
                 m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenHandler.Token.PolicyId!,
-                    securityPolicyUri);
+                    securityPolicyUri!);
 
             if (identityPolicy == null)
             {
@@ -1553,7 +1534,7 @@ namespace Opc.Ua.Client
             }
 
             // select the security policy for the user token.
-            string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+            string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                 ? securityPolicyUri
                 : identityPolicy.SecurityPolicyUri;
 
@@ -1596,7 +1577,7 @@ namespace Opc.Ua.Client
 
                 userTokenSignature = identityToken.Sign(
                         dataToSign,
-                        tokenSecurityPolicyUri);
+                        tokenSecurityPolicyUri!);
             }
             else
             {
@@ -1604,7 +1585,7 @@ namespace Opc.Ua.Client
                 identityToken.Encrypt(
                     m_serverCertificate!,
                     serverNonce.ToArray(),
-                    tokenSecurityPolicyUri,
+                    tokenSecurityPolicyUri!,
                     MessageContext,
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
@@ -1616,7 +1597,7 @@ namespace Opc.Ua.Client
 
             RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
                 securityPolicy,
-                tokenSecurityPolicyUri);
+                tokenSecurityPolicyUri!);
 
             ActivateSessionResponse response = await ActivateSessionAsync(
                 requestHeader,
@@ -2125,10 +2106,6 @@ namespace Opc.Ua.Client
                 .CreateMessageContext(Factory);
 
             // create the channel object used to connect to the server.
-            // ConfiguredEndpoint.Configuration is annotated nullable on the endpoint DTO but
-            // the session has been opened against this endpoint so the channel-time
-            // configuration is guaranteed populated; same for Identity vs tempIdentity
-            // correlation below.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
                 ConfiguredEndpoint.Description,
@@ -2154,8 +2131,6 @@ namespace Opc.Ua.Client
                         .OpenAsync(
                             SessionName,
                             (uint)SessionTimeout,
-                            // tempIdentity is only set when session.Identity is null so the
-                            // coalesce always yields a non-null IUserIdentity at runtime.
                             session.Identity ?? tempIdentity!,
                             PreferredLocales,
                             m_checkDomain,
@@ -2195,8 +2170,6 @@ namespace Opc.Ua.Client
                 .CreateMessageContext(Factory);
 
             // create the channel object used to connect to the server.
-            // See note above on the matching RecreateAsync overload regarding the
-            // nullable-but-required Configuration / Identity invariants.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
                 connection,
@@ -2223,8 +2196,6 @@ namespace Opc.Ua.Client
                         .OpenAsync(
                             SessionName,
                             (uint)SessionTimeout,
-                            // tempIdentity is only set when session.Identity is null so the
-                            // coalesce always yields a non-null IUserIdentity at runtime.
                             session.Identity ?? tempIdentity!,
                             PreferredLocales,
                             CheckDomain,
@@ -2471,8 +2442,8 @@ namespace Opc.Ua.Client
                 //
                 await LoadInstanceCertificateAsync(true, ct).ConfigureAwait(false);
 
-                string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+                string? securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
+                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri!);
                 EndpointDescription endpoint = m_endpoint.Description;
 
                 // check that the user identity is supported by the endpoint.
@@ -2492,7 +2463,7 @@ namespace Opc.Ua.Client
                 }
 
                 // select the security policy for the user token.
-                string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                     ? endpoint.SecurityPolicyUri ?? SecurityPolicies.None
                     : identityPolicy.SecurityPolicyUri;
 
@@ -2990,7 +2961,7 @@ namespace Opc.Ua.Client
             Debug.Assert(keepAliveCancellation != null);
             try
             {
-                keepAliveCancellation.Cancel();
+                keepAliveCancellation!.Cancel();
                 if (!m_inKeepAliveCallback)
                 {
                     // Make sure no circular loops
@@ -3006,7 +2977,7 @@ namespace Opc.Ua.Client
             }
             finally
             {
-                keepAliveCancellation.Dispose();
+                keepAliveCancellation!.Dispose();
             }
         }
 
@@ -4055,13 +4026,9 @@ namespace Opc.Ua.Client
             identity ??= new UserIdentity();
 
             // check that the user identity is supported by the endpoint.
-            // PolicyId is nullable on the schema-generated UserIdentityToken but every
-            // valid identity token carries one; FindUserTokenPolicy returns null when no
-            // policy matches, the bang on the result preserves the pre-nullable behavior of
-            // letting the subsequent null check / fallback handle the lookup result.
             identityPolicy = m_endpoint.Description.FindUserTokenPolicy(
                 identity.TokenHandler.Token.PolicyId!,
-                securityPolicyUri)!;
+                securityPolicyUri!)!;
 
             if (identityPolicy == null)
             {
