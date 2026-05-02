@@ -195,7 +195,7 @@ namespace Opc.Ua
         [DataMember(Name = "PolicyId", IsRequired = false, Order = 10)]
         public string PolicyId
         {
-            get => m_token.Token.PolicyId ?? string.Empty;
+            get => m_token.Token.PolicyId!;
             set => m_token.Token.PolicyId = value;
         }
 
@@ -223,7 +223,7 @@ namespace Opc.Ua
                 {
                     return new(null, issuedToken.IssuedTokenTypeProfileUri);
                 }
-                return field ?? XmlQualifiedName.Empty;
+                return field!;
             }
             set
             {

@@ -3662,7 +3662,7 @@ namespace Opc.Ua
             }
 
             // ensure status code matches result.
-            if (result != ServiceResult.Good)
+            if (result != null && result != ServiceResult.Good)
             {
                 value.StatusCode = result.StatusCode;
             }
@@ -3682,7 +3682,7 @@ namespace Opc.Ua
             }
 
             // return result.
-            return result;
+            return result!;
         }
 
         /// <summary>
