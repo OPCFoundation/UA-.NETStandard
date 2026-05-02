@@ -248,7 +248,7 @@ namespace Opc.Ua.Client
             Factory = messageContext.Factory;
 
             // initialize the NodeCache late, it needs references to the namespaceUris
-            m_nodeCache = new LruNodeCache(new NodeCacheContext(this), m_telemetry);
+            m_nodeCache = new NodeCache(new NodeCacheContext(this), m_telemetry);
 
             // Create timer for keep alive event triggering but in off state
             m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
@@ -4446,7 +4446,7 @@ namespace Opc.Ua.Client
         private uint m_maxRequestMessageSize;
         private readonly SessionSystemContext m_systemContext;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
-        private readonly LruNodeCache m_nodeCache;
+        private readonly NodeCache m_nodeCache;
 #pragma warning restore CA2213
         private readonly List<IUserIdentity> m_identityHistory = [];
         private byte[]? m_clientNonce;

@@ -50,19 +50,19 @@ namespace Opc.Ua.Client
     /// It is also limited to a capacity at which point least recently used
     /// entries will be evicted.
     /// </summary>
-    public sealed class LruNodeCache : INodeCache, IDisposable
+    public sealed class NodeCache : INodeCache, IDisposable
     {
         /// <summary>
         /// Create cache
         /// </summary>
-        public LruNodeCache(
+        public NodeCache(
             INodeCacheContext context,
             ITelemetryContext telemetry,
             TimeSpan? cacheExpiry = null,
             int capacity = 4096)
         {
             m_context = context;
-            m_logger = telemetry.CreateLogger<LruNodeCache>();
+            m_logger = telemetry.CreateLogger<NodeCache>();
             cacheExpiry ??= TimeSpan.FromMinutes(5);
 
             BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<

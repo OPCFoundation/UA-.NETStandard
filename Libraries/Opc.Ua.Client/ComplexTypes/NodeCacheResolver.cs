@@ -47,7 +47,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the type resolver with a session to load the custom type information.
         /// </summary>
         public NodeCacheResolver(ISession session, ITelemetryContext telemetry)
-            : this(session, new LruNodeCache(
+            : this(session, new NodeCache(
                 new NodeCacheContext(session),
                 telemetry), telemetry)
         {
@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ISession session,
             TimeSpan cacheExpiry,
             ITelemetryContext telemetry)
-            : this(session, new LruNodeCache(
+            : this(session, new NodeCache(
                 new NodeCacheContext(session),
                 telemetry,
                 cacheExpiry), telemetry)
@@ -76,7 +76,7 @@ namespace Opc.Ua.Client.ComplexTypes
             TimeSpan cacheExpiry,
             int capacity,
             ITelemetryContext telemetry)
-            : this(session, new LruNodeCache(
+            : this(session, new NodeCache(
                 new NodeCacheContext(session),
                 telemetry,
                 cacheExpiry,

@@ -44,7 +44,7 @@ namespace Opc.Ua.Client.Tests
                     Errors = [new ServiceResult(StatusCodes.BadUnexpectedError)]
                 })
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             ArrayOf<INode> result = await nodeCache.GetNodesAsync([id], default)
@@ -63,7 +63,7 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var datatypeId = new NodeId("unknownType", 0);
             var context = new Mock<INodeCacheContext>();
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             context
                 .Setup(c => c.FetchReferencesAsync(
@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var datatypeId = new NodeId((uint)BuiltInType.Int32, 0);
             var context = new Mock<INodeCacheContext>();
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             BuiltInType result = await nodeCache.GetBuiltInTypeAsync(datatypeId, default)
@@ -114,7 +114,7 @@ namespace Opc.Ua.Client.Tests
 
             // Arrange
             var context = new Mock<INodeCacheContext>();
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             ArrayOf<INode> result = await nodeCache.GetNodesAsync([], default)
@@ -143,7 +143,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(expected)
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             INode result = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
@@ -177,7 +177,7 @@ namespace Opc.Ua.Client.Tests
                 .Returns<RequestHeader, NodeId, NodeClass, bool, CancellationToken>((_, nodeId, _, _, ct)
                     => new ValueTask<Node>(expected))
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             INode result = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(expected));
@@ -207,7 +207,7 @@ namespace Opc.Ua.Client.Tests
                 .Returns<RequestHeader, NodeId, NodeClass, bool, CancellationToken>((_, nodeId, _, _, ct)
                     => new ValueTask<Node>(Task.FromException<Node>(new ServiceResultException())))
                 .Verifiable(Times.Exactly(3));
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
@@ -242,7 +242,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             INode? result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default)
@@ -308,7 +308,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             INode? result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default)
@@ -424,7 +424,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             INode? result = await nodeCache
@@ -450,7 +450,7 @@ namespace Opc.Ua.Client.Tests
 
             // Arrange
             var context = new Mock<INodeCacheContext>();
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             ArrayOf<INode> result = await nodeCache
@@ -512,7 +512,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             ArrayOf<INode> result1 = await nodeCache
@@ -641,7 +641,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             ArrayOf<INode> result1 = await nodeCache
@@ -726,7 +726,7 @@ namespace Opc.Ua.Client.Tests
                 })
                 .Verifiable(Times.Once);
 
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             ArrayOf<INode> result1 = await nodeCache
@@ -769,7 +769,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             NodeId result = await nodeCache.FindSuperTypeAsync(typeId, default)
@@ -809,7 +809,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([.. references])
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             NodeId result = await nodeCache.FindSuperTypeAsync(subTypeId, default)
@@ -842,7 +842,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadUnexpectedError))
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act && Assert
             _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
@@ -867,7 +867,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(expected)
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             DataValue result = await nodeCache.GetValueAsync(id, default).ConfigureAwait(false);
@@ -899,7 +899,7 @@ namespace Opc.Ua.Client.Tests
                     Errors = [new ServiceResult(StatusCodes.BadUnexpectedError), ServiceResult.Good]
                 })
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             ArrayOf<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
@@ -937,7 +937,7 @@ namespace Opc.Ua.Client.Tests
                     Errors = [ServiceResult.Good, ServiceResult.Good]
                 })
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             ArrayOf<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
@@ -976,7 +976,7 @@ namespace Opc.Ua.Client.Tests
                     Errors = [ServiceResult.Good, new ServiceResult(StatusCodes.Bad)]
                 })
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             ArrayOf<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
@@ -1026,7 +1026,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Never);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             bool result = await nodeCache.IsTypeOfAsync(subTypeId, superTypeId, default)
@@ -1066,7 +1066,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([.. references])
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             bool result = await nodeCache.IsTypeOfAsync(subTypeId, superTypeId, default)
@@ -1099,7 +1099,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             await nodeCache.LoadTypeHierarchyAsync([typeId], default).ConfigureAwait(false);
@@ -1162,7 +1162,7 @@ namespace Opc.Ua.Client.Tests
                     Errors = [ServiceResult.Good]
                 })
                 .Verifiable(Times.Once);
-            var nodeCache = new LruNodeCache(context.Object, telemetry);
+            var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act
             await nodeCache.LoadTypeHierarchyAsync([typeId], default).ConfigureAwait(false);
@@ -1230,7 +1230,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new Node { NodeId = id });
 
-            using var nodeCache = new LruNodeCache(context.Object, telemetry);
+            using var nodeCache = new NodeCache(context.Object, telemetry);
 
             // Act — first call is a miss (fetches), second call is a hit
             _ = await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false);
