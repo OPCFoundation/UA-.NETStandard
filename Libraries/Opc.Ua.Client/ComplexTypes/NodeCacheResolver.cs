@@ -837,6 +837,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private ValueTask<INode> GetNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
+            // INodeCache.FindAsync may return null when the node is not present, but the
+            // resolver contract (see FindAsync above) requires a non-null INode. The bang
+            // matches the existing pre-nullable behavior; callers handle missing nodes via
+            // type checks (e.g. `as DataTypeNode`).
             return m_session.NodeCache.FindAsync(nodeId, ct)!;
         }
 

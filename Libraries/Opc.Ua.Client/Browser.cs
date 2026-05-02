@@ -720,6 +720,9 @@ namespace Opc.Ua.Client
             using var decoder = new BinaryDecoder(stream, context, true);
             ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
             ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
+            // Namespace and server URI tables on the wire are encoded as nullable string
+            // arrays, but the runtime contract requires non-null entries; the bangs reflect
+            // that the decoder yields no null elements for these fields.
             context.NamespaceUris = new NamespaceTable(nsUris.Memory.ToArray()!);
             context.ServerUris = new StringTable(serverUris.Memory.ToArray()!);
             BrowserOptions options = new BrowserOptions();

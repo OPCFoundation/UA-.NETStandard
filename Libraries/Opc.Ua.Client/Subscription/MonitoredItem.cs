@@ -102,7 +102,7 @@ namespace Opc.Ua.Client
             }
 
             Handle = template.Handle;
-            DisplayName = Utils.Format("{0} {1}", displayName!, ClientHandle);
+            DisplayName = Utils.Format("{0} {1}", displayName, ClientHandle);
             // copy state (except client handle logic handled below)
             State = template.State with { DisplayName = DisplayName };
             if (copyEventHandlers)
@@ -126,6 +126,8 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use constructor with ITelemetryContext argument")]
         public MonitoredItem()
+            // Forwards null into a non-nullable parameter on the modern ctor; preserves
+            // the pre-nullable parameterless behavior used by serialization scenarios.
             : this(null!, null)
         {
         }

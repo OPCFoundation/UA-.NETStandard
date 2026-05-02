@@ -61,6 +61,8 @@ namespace Opc.Ua.Client.ComplexTypes
             int order,
             bool allowSubTypes)
         {
+            // StructureField.Name is annotated as nullable in the generated DTO but
+            // structure fields delivered through the OPC UA contract always carry a name.
             m_fieldTypes[field.Name!] = fieldType switch
             {
                 IBuiltInType builtIn => builtIn.BuiltInType,
@@ -132,6 +134,9 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 m_defaultComplexTypeBuilder.OnTypeCreated(m_structureToBuild);
             }
+            // m_structureToBuild may still be null when StructureType is unrecognized;
+            // callers historically receive a null IEncodeableType (and observe an NRE on
+            // first use) so the bang preserves that behavior under nullable annotations.
             return m_structureToBuild!;
         }
 

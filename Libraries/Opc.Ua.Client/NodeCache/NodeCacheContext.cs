@@ -833,15 +833,17 @@ namespace Opc.Ua.Client
             {
                 if (value.WrappedValue.TryGet(out ArrayOf<ExtensionObject> rolePermissions))
                 {
-                    var rolePermissionList = new List<RolePermissionType?>();
+                    // Preserve original behavior of inserting null entries when an
+                    // ExtensionObject cannot be decoded into a RolePermissionType. The
+                    // declared element type of node.RolePermissions is non-nullable so
+                    // the failure branch uses null! to suppress nullability metadata.
+                    var rolePermissionList = new List<RolePermissionType>();
                     foreach (ExtensionObject rolePermission in rolePermissions)
                     {
                         rolePermissionList.Add(rolePermission.TryGetEncodeable(
-                            out RolePermissionType? rolePermissionType) ? rolePermissionType : null);
+                            out RolePermissionType? rolePermissionType) ? rolePermissionType! : null!);
                     }
-#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
                     node.RolePermissions = rolePermissionList;
-#pragma warning restore CS8619
                 }
             }
 
@@ -851,15 +853,14 @@ namespace Opc.Ua.Client
             {
                 if (value.WrappedValue.TryGet(out ArrayOf<ExtensionObject> userRolePermissions))
                 {
-                    var userRolePermissionList = new List<RolePermissionType?>();
+                    // See RolePermissions above for the rationale behind the null! casts.
+                    var userRolePermissionList = new List<RolePermissionType>();
                     foreach (ExtensionObject rolePermission in userRolePermissions)
                     {
                         userRolePermissionList.Add(rolePermission.TryGetEncodeable(
-                            out RolePermissionType? rolePermissionType) ? rolePermissionType : null);
+                            out RolePermissionType? rolePermissionType) ? rolePermissionType! : null!);
                     }
-#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
                     node.UserRolePermissions = userRolePermissionList;
-#pragma warning restore CS8619
                 }
             }
 
