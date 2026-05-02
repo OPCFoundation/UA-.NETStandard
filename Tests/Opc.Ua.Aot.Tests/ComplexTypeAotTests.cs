@@ -212,8 +212,8 @@ namespace Opc.Ua.Aot.Tests
                     DataValue dv = await fixture.Session.ReadValueAsync(
                         varNodeId, CancellationToken.None).ConfigureAwait(false);
                     if (StatusCode.IsGood(dv.StatusCode) &&
-                        dv.WrappedValue.TryGet(out ExtensionObject eo) &&
-                        eo.TryGetEncodeable(out IEncodeable _))
+                        dv.WrappedValue.TryGetValue(out ExtensionObject eo) &&
+                        eo.TryGetValue(out IEncodeable _))
                     {
                         structureVariableId = varNodeId;
                         break;
@@ -237,12 +237,12 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(StatusCode.IsGood(dataValue.StatusCode)).IsTrue();
 
             bool hasExtensionObject = dataValue.WrappedValue
-                .TryGet(out ExtensionObject extensionObject);
+                .TryGetValue(out ExtensionObject extensionObject);
             await Assert.That(hasExtensionObject).IsTrue()
                 .Because("TestData structure variable should decode as ExtensionObject");
 
             bool hasEncodeable = extensionObject
-                .TryGetEncodeable(out IEncodeable encodeable);
+                .TryGetValue(out IEncodeable encodeable);
             await Assert.That(hasEncodeable).IsTrue()
                 .Because(
                     "ExtensionObject should contain a decoded IEncodeable, " +

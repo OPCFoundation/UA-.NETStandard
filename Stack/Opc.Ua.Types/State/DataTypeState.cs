@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -250,7 +250,7 @@ namespace Opc.Ua
                     {
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-                        if (dataTypeDefinition.TryGetEncodeable(out StructureDefinition structureType) &&
+                        if (dataTypeDefinition.TryGetValue(out StructureDefinition structureType) &&
                             structureType.DefaultEncodingId.IsNull)
                         {
                             // one time set the id for binary encoding, currently the only supported encoding
@@ -285,7 +285,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
-                    if (!value.TryGet(out ExtensionObject dataTypeDefinition))
+                    if (!value.TryGetValue(out ExtensionObject dataTypeDefinition))
                     {
                         dataTypeDefinition = default;
                     }

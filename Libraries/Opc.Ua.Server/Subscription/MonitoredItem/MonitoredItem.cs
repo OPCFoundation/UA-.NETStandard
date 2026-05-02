@@ -990,7 +990,7 @@ namespace Opc.Ua.Server
                 if (!value.IsNull)
                 {
                     // translate any localized text.
-                    if (value.TryGet(out LocalizedText text))
+                    if (value.TryGetValue(out LocalizedText text))
                     {
                         value = m_server.ResourceManager.Translate(Session?.PreferredLocales, text);
                     }

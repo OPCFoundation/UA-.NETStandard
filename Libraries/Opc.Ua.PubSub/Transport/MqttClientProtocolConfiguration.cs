@@ -509,7 +509,7 @@ namespace Opc.Ua.PubSub.Transport
             if ((connectionProperties
                     .Find(kvp => kvp.Key.Name.Equals(qUserName.Name, StringComparison.Ordinal))?
                     .Value ??
-                default).TryGet(out string sUserName))
+                default).TryGetValue(out string sUserName))
             {
                 foreach (char c in sUserName)
                 {
@@ -523,7 +523,7 @@ namespace Opc.Ua.PubSub.Transport
             if ((connectionProperties
                     .Find(kvp => kvp.Key.Name.Equals(qPassword.Name, StringComparison.Ordinal))?
                     .Value ??
-                default).TryGet(out string sPassword))
+                default).TryGetValue(out string sPassword))
             {
                 foreach (char c in sPassword)
                 {

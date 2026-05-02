@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -428,7 +428,7 @@ namespace Opc.Ua
                     request.RequestHeader.AdditionalHeader
                         = new ExtensionObject(additionalHeader);
                 }
-                else if (request.RequestHeader.AdditionalHeader.TryGetEncodeable(
+                else if (request.RequestHeader.AdditionalHeader.TryGetValue(
                     out AdditionalParametersType? existingParameters))
                 {
                     // Merge the trace data into the existing parameters.

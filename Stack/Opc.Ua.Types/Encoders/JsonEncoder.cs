@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -1331,7 +1331,7 @@ namespace Opc.Ua
                 m_writer.WriteNullValue();
                 return;
             }
-            value.TryGetEncodeable(out IEncodeable? encodeable);
+            value.TryGetValue(out IEncodeable? encodeable);
             ExpandedNodeId typeId = !value.TypeId.IsNull
                 ? value.TypeId
                 : encodeable?.TypeId ?? NodeId.Null;

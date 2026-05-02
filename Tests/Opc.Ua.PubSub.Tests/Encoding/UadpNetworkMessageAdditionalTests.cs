@@ -194,7 +194,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 UadpNetworkMessageContentMask.PublisherId);
             message.PublisherId = Variant.From((sbyte)5);
 
-            Assert.That(message.PublisherId.TryGet(out byte result), Is.True);
+            Assert.That(message.PublisherId.TryGetValue(out byte result), Is.True);
             Assert.That(result, Is.EqualTo(5));
         }
 
@@ -205,7 +205,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 UadpNetworkMessageContentMask.PublisherId);
             message.PublisherId = Variant.From((short)100);
 
-            Assert.That(message.PublisherId.TryGet(out ushort result), Is.True);
+            Assert.That(message.PublisherId.TryGetValue(out ushort result), Is.True);
             Assert.That(result, Is.EqualTo(100));
         }
 
@@ -216,7 +216,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 UadpNetworkMessageContentMask.PublisherId);
             message.PublisherId = Variant.From(1000);
 
-            Assert.That(message.PublisherId.TryGet(out uint result), Is.True);
+            Assert.That(message.PublisherId.TryGetValue(out uint result), Is.True);
             Assert.That(result, Is.EqualTo(1000));
         }
 
@@ -227,7 +227,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 UadpNetworkMessageContentMask.PublisherId);
             message.PublisherId = Variant.From((long)10000);
 
-            Assert.That(message.PublisherId.TryGet(out ulong result), Is.True);
+            Assert.That(message.PublisherId.TryGetValue(out ulong result), Is.True);
             Assert.That(result, Is.EqualTo(10000));
         }
 

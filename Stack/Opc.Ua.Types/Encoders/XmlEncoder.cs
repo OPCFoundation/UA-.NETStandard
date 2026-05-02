@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -828,7 +828,7 @@ namespace Opc.Ua
                 // write the type id.
                 ExpandedNodeId typeId = value.TypeId;
 
-                if (value.TryGetEncodeable(out IEncodeable? encodeable))
+                if (value.TryGetValue(out IEncodeable? encodeable))
                 {
                     typeId = encodeable!.XmlEncodingId;
                 }
@@ -1788,7 +1788,7 @@ namespace Opc.Ua
                         CoreUtils.DefaultXmlReaderSettings());
                     m_writer.WriteNode(reader, false);
                 }
-                else if (extensionObject.TryGetEncodeable(out IEncodeable? encodeable))
+                else if (extensionObject.TryGetValue(out IEncodeable? encodeable))
                 {
                     // encode extension object in xml.
                     XmlQualifiedName? xmlName = TypeInfo.GetXmlName(encodeable!, Context);

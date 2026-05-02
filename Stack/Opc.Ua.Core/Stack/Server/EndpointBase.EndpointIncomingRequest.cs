@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -100,7 +100,7 @@ namespace Opc.Ua
                         // extract trace information from the request header if available
                         if (Request.RequestHeader != null &&
                             Request.RequestHeader.AdditionalHeader
-                                .TryGetEncodeable(out AdditionalParametersType? parameters) &&
+                                .TryGetValue(out AdditionalParametersType? parameters) &&
                             parameters != null &&
                             TryExtractActivityContextFromParameters(
                                 parameters,

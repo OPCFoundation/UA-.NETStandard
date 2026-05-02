@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -4008,7 +4008,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.NodeId:
-                    if (!value.TryGet(out NodeId nodeId))
+                    if (!value.TryGetValue(out NodeId nodeId))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4032,7 +4032,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.NodeClass:
-                    if (!value.TryGet(out NodeClass nodeClass))
+                    if (!value.TryGetValue(out NodeClass nodeClass))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4056,7 +4056,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.BrowseName:
-                    if (!value.TryGet(out QualifiedName browseName))
+                    if (!value.TryGetValue(out QualifiedName browseName))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4080,7 +4080,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.DisplayName:
-                    if (!value.TryGet(out LocalizedText displayName))
+                    if (!value.TryGetValue(out LocalizedText displayName))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4105,7 +4105,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.Description:
-                    if (!value.TryGet(out LocalizedText description))
+                    if (!value.TryGetValue(out LocalizedText description))
                     {
                         if (!value.IsNull)
                         {
@@ -4134,7 +4134,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.WriteMask:
-                    if (!value.TryGet(out uint writeMask32))
+                    if (!value.TryGetValue(out uint writeMask32))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4161,7 +4161,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.UserWriteMask:
-                    if (!value.TryGet(out uint userWriteMask32))
+                    if (!value.TryGetValue(out uint userWriteMask32))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4187,7 +4187,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.RolePermissions:
-                    if (!value.TryGet(out ArrayOf<ExtensionObject> rolePermissionsArray))
+                    if (!value.TryGetValue(out ArrayOf<ExtensionObject> rolePermissionsArray))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4195,7 +4195,7 @@ namespace Opc.Ua
                     var buffer = new RolePermissionType[rolePermissionsArray.Count];
                     for (int ii = 0; ii < rolePermissionsArray.Count; ii++)
                     {
-                        if (!rolePermissionsArray[ii].TryGetEncodeable(out RolePermissionType? rolePermission))
+                        if (!rolePermissionsArray[ii].TryGetValue(out RolePermissionType? rolePermission))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -4225,11 +4225,11 @@ namespace Opc.Ua
                     return result;
                 case Attributes.AccessRestrictions:
                     AccessRestrictionType? accessRestrictions = null;
-                    if (value.TryGet(out ushort accessRestrictions16))
+                    if (value.TryGetValue(out ushort accessRestrictions16))
                     {
                         accessRestrictions = (AccessRestrictionType)accessRestrictions16;
                     }
-                    else if (value.TryGet(out uint accessRestrictions32))
+                    else if (value.TryGetValue(out uint accessRestrictions32))
                     {
                         accessRestrictions = (AccessRestrictionType)accessRestrictions32;
                     }

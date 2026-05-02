@@ -567,7 +567,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataType:
-                    if (!value.TryGet(out NodeId dataType))
+                    if (!value.TryGetValue(out NodeId dataType))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -591,7 +591,7 @@ namespace Opc.Ua
 
                     return result!;
                 case Attributes.ValueRank:
-                    if (!value.TryGet(out int valueRank))
+                    if (!value.TryGetValue(out int valueRank))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -615,7 +615,7 @@ namespace Opc.Ua
 
                     return result!;
                 case Attributes.ArrayDimensions:
-                    if (!value.TryGet(out ArrayOf<uint> arrayDimensions))
+                    if (!value.TryGetValue(out ArrayOf<uint> arrayDimensions))
                     {
                         if (!value.IsNull)
                         {

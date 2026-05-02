@@ -911,7 +911,7 @@ namespace Opc.Ua
                 IServiceMessageContext context =
                     Context ?? AmbientMessageContext.CurrentContext;
                 // must use the XML encoding id if encoding in an XML stream.
-                if (Value.TryGetEncodeable(out IEncodeable? encodeable))
+                if (Value.TryGetValue(out IEncodeable? encodeable))
                 {
                     return ExpandedNodeId.ToNodeId(
                         encodeable!.XmlEncodingId,

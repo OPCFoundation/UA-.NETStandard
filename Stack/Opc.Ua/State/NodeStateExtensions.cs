@@ -61,7 +61,7 @@ namespace Opc.Ua
                 }
 
                 if (child is BaseObjectState objectInstance &&
-                    values.EventFields[ii].TryGet(out NodeId nodeId) &&
+                    values.EventFields[ii].TryGetValue(out NodeId nodeId) &&
                     !nodeId.IsNull)
                 {
                     objectInstance.NodeId = nodeId;
@@ -99,7 +99,7 @@ namespace Opc.Ua
                 // extract the NodeId for the event.
                 if (field.BrowsePath.Count == 0 &&
                     field.AttributeId == Attributes.NodeId &&
-                    e.EventFields[ii].TryGet(out NodeId nodeId))
+                    e.EventFields[ii].TryGetValue(out NodeId nodeId))
                 {
                     state.NodeId = nodeId;
                     continue;
@@ -109,7 +109,7 @@ namespace Opc.Ua
                 if (field.BrowsePath.Count == 1 &&
                     field.AttributeId == Attributes.Value &&
                     field.BrowsePath[0] == BrowseNames.EventType &&
-                    e.EventFields[ii].TryGet(out NodeId typeDefinitionId))
+                    e.EventFields[ii].TryGetValue(out NodeId typeDefinitionId))
                 {
                     state.TypeDefinitionId = typeDefinitionId;
                     continue;

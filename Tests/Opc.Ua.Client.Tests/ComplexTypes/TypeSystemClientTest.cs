@@ -328,8 +328,8 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                         continue;
                     }
 
-                    if (value.WrappedValue.TryGet(out ExtensionObject extensionObject) &&
-                        extensionObject.TryGetEncodeable(out IEncodeable encodeable))
+                    if (value.WrappedValue.TryGetValue(out ExtensionObject extensionObject) &&
+                        extensionObject.TryGetValue(out IEncodeable encodeable))
                     {
                         if (!Session.Factory.TryGetType(encodeable.TypeId, out IType valueType) ||
                             valueType.XmlName != type.XmlName)
@@ -345,11 +345,11 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                         continue;
                     }
 
-                    if (value.WrappedValue.TryGet(out ArrayOf<ExtensionObject> array))
+                    if (value.WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> array))
                     {
                         foreach (ExtensionObject valueItem in array.ToList())
                         {
-                            if (valueItem.TryGetEncodeable(out encodeable))
+                            if (valueItem.TryGetValue(out encodeable))
                             {
                                 if (!Session.Factory.TryGetType(encodeable.TypeId, out IType valueType) ||
                                     valueType.XmlName != type.XmlName)
@@ -407,8 +407,8 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             Assert.That(dataValue, Is.Not.Null);
 
             // test the accessor to the complex types
-            Assert.That(dataValue.WrappedValue.TryGet(out ExtensionObject extensionObject), Is.True);
-            Assert.That(extensionObject.TryGetEncodeable(out IEncodeable encodeable), Is.True);
+            Assert.That(dataValue.WrappedValue.TryGetValue(out ExtensionObject extensionObject), Is.True);
+            Assert.That(extensionObject.TryGetValue(out IEncodeable encodeable), Is.True);
             Assert.That(encodeable, Is.Not.Null);
             var complexType = encodeable as IStructure;
             Assert.That(complexType, Is.Not.Null);
@@ -459,8 +459,8 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             dataValue = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
             Assert.That(dataValue, Is.Not.Null);
 
-            Assert.That(dataValue.WrappedValue.TryGet(out extensionObject), Is.True);
-            Assert.That(extensionObject.TryGetEncodeable(out encodeable), Is.True);
+            Assert.That(dataValue.WrappedValue.TryGetValue(out extensionObject), Is.True);
+            Assert.That(extensionObject.TryGetValue(out encodeable), Is.True);
             Assert.That(encodeable, Is.Not.Null);
             complexType = encodeable as IStructure;
             Assert.That(complexType, Is.Not.Null);

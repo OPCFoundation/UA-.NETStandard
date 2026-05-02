@@ -380,7 +380,7 @@ namespace Opc.Ua
             {
                 case Attributes.InverseName:
 
-                    if (!value.TryGet(out LocalizedText inverseName))
+                    if (!value.TryGetValue(out LocalizedText inverseName))
                     {
                         if (!value.IsNull)
                         {
@@ -409,7 +409,7 @@ namespace Opc.Ua
 
                     return result!;
                 case Attributes.Symmetric:
-                    if (!value.TryGet(out bool symmetric))
+                    if (!value.TryGetValue(out bool symmetric))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }

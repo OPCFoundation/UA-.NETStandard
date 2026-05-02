@@ -499,7 +499,7 @@ namespace Quickstarts.Servers
             {
                 ExtensionObject eo = decoder.ReadExtensionObject(null);
                 if (!eo.IsNull &&
-                    eo.TryGetEncodeable(out IEncodeable e) &&
+                    eo.TryGetValue(out IEncodeable e) &&
                     e is EventFieldList efl)
                 {
                     events.Add(efl);

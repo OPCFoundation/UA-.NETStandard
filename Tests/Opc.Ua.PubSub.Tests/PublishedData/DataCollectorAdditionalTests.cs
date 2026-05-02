@@ -432,7 +432,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             DataSet result = collector.CollectData("ByteTrunc");
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields[0].Value.WrappedValue.TryGet(out ByteString bs), Is.True);
+            Assert.That(result.Fields[0].Value.WrappedValue.TryGetValue(out ByteString bs), Is.True);
             Assert.That(bs.Length, Is.EqualTo(3));
         }
 

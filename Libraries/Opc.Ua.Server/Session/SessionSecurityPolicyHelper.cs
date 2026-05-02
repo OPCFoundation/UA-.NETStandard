@@ -86,7 +86,7 @@ namespace Opc.Ua.Server
             foreach (KeyValuePair parameter in parameters.Parameters)
             {
                 if (parameter.Key != AdditionalParameterNames.ECDHPolicyUri ||
-                    !parameter.Value.TryGet(out string policyUri))
+                    !parameter.Value.TryGetValue(out string policyUri))
                 {
                     responseParameters.Add(parameter);
                     continue;

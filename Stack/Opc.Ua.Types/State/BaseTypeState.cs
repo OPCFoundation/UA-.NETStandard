@@ -339,7 +339,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.IsAbstract:
-                    if (!value.TryGet(out bool isAbstract))
+                    if (!value.TryGetValue(out bool isAbstract))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }

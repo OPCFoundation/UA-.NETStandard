@@ -215,7 +215,7 @@ namespace Opc.Ua.Client
 
                 // extract the body from extension objects.
                 if (value is ExtensionObject extension &&
-                    extension.TryGetEncodeable(out IEncodeable? encodeable))
+                    extension.TryGetValue(out IEncodeable? encodeable))
                 {
                     value = encodeable;
                 }
@@ -252,8 +252,8 @@ namespace Opc.Ua.Client
 
             if (expectedType != null)
             {
-                if (dataValue.WrappedValue.TryGet(out ExtensionObject extension) &&
-                    extension.TryGetEncodeable(out IEncodeable? encodeable))
+                if (dataValue.WrappedValue.TryGetValue(out ExtensionObject extension) &&
+                    extension.TryGetValue(out IEncodeable? encodeable))
                 {
                     value = encodeable;
                 }
@@ -458,8 +458,8 @@ namespace Opc.Ua.Client
                 object? value = dataValues[ii].Value;
 
                 // extract the body from extension objects.
-                if (dataValues[ii].WrappedValue.TryGet(out ExtensionObject extension) &&
-                    extension.TryGetEncodeable(out IEncodeable? encodeable))
+                if (dataValues[ii].WrappedValue.TryGetValue(out ExtensionObject extension) &&
+                    extension.TryGetValue(out IEncodeable? encodeable))
                 {
                     value = encodeable;
                 }

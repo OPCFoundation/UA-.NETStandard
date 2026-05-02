@@ -535,7 +535,7 @@ namespace Opc.Ua.Schema.Model
             };
             output.SymbolicId = output.SymbolicName;
 
-            if (nodeId.TryGetIdentifier(out uint id))
+            if (nodeId.TryGetValue(out uint id))
             {
                 output.NumericId = id;
                 output.NumericIdSpecified = true;
@@ -1244,12 +1244,12 @@ namespace Opc.Ua.Schema.Model
             output.ReleaseStatus = ImportReleaseStatus(input.ReleaseStatus);
             output.Category = ImportCategories(input.Category);
 
-            if (nodeId.TryGetIdentifier(out uint id))
+            if (nodeId.TryGetValue(out uint id))
             {
                 output.NumericId = id;
                 output.NumericIdSpecified = true;
             }
-            else if (nodeId.TryGetIdentifier(out string stringId))
+            else if (nodeId.TryGetValue(out string stringId))
             {
                 output.StringId = stringId;
                 output.NumericIdSpecified = false;

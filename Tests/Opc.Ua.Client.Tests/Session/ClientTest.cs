@@ -1287,7 +1287,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(dataTypeNode, Is.Not.Null);
             ExtensionObject dataTypeDefinition = dataTypeNode.DataTypeDefinition;
             Assert.That(dataTypeDefinition.IsNull, Is.False);
-            Assert.That(dataTypeDefinition.TryGetEncodeable(out StructureDefinition structureDefinition), Is.True);
+            Assert.That(dataTypeDefinition.TryGetValue(out StructureDefinition structureDefinition), Is.True);
             Assert.That(
                 structureDefinition.DefaultEncodingId,
                 Is.EqualTo(ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary));
@@ -1825,7 +1825,7 @@ namespace Opc.Ua.Client.Tests
                     // Get the AdditionalHeader from the request
                     ExtensionObject additionalHeader = request.RequestHeader.AdditionalHeader;
                     Assert.That(additionalHeader.IsNull, Is.False);
-                    Assert.That(additionalHeader.TryGetEncodeable(out AdditionalParametersType additionalParams), Is.True);
+                    Assert.That(additionalHeader.TryGetValue(out AdditionalParametersType additionalParams), Is.True);
 
                     // Simulate extraction
                     ActivityContext extractedContext = TestExtractActivityContextFromParameters(additionalParams);
@@ -1879,8 +1879,8 @@ namespace Opc.Ua.Client.Tests
             Assert.That(variableNodes.IsNull, Is.False);
 
             // test build info contains the equal values as the properties
-            (values[0].WrappedValue.TryGet(out ExtensionObject eo) ? eo : default)
-                .TryGetEncodeable(out BuildInfo buildInfo);
+            (values[0].WrappedValue.TryGetValue(out ExtensionObject eo) ? eo : default)
+                .TryGetValue(out BuildInfo buildInfo);
             Assert.That(buildInfo, Is.Not.Null);
             Assert.That((string)values[1].WrappedValue, Is.EqualTo(buildInfo.ProductName));
             Assert.That((string)values[2].WrappedValue, Is.EqualTo(buildInfo.ProductUri));

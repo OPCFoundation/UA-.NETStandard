@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -1059,7 +1059,7 @@ namespace Opc.Ua
         {
             ExtensionObject extensionObject = ReadExtensionObject(fieldName);
 #pragma warning disable CS8600 // out T may be null when false is returned
-            if (extensionObject.TryGetEncodeable(out T value))
+            if (extensionObject.TryGetValue(out T value))
             {
                 return value!;
             }

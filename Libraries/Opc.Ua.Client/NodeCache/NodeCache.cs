@@ -983,7 +983,7 @@ namespace Opc.Ua.Client
 
             // for structure types must try to determine the subtype.
 
-            if (value.TryGet(out ExtensionObject extension))
+            if (value.TryGetValue(out ExtensionObject extension))
             {
                 return await IsEncodingForAsync(
                     expectedTypeId,
@@ -993,7 +993,7 @@ namespace Opc.Ua.Client
 
             // every element in an array must match.
 
-            if (value.TryGet(out ArrayOf<ExtensionObject> extensions))
+            if (value.TryGetValue(out ArrayOf<ExtensionObject> extensions))
             {
                 for (int ii = 0; ii < extensions.Count; ii++)
                 {

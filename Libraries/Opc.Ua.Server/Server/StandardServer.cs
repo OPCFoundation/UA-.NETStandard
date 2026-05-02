@@ -610,7 +610,7 @@ namespace Opc.Ua.Server
             ISession session,
             ExtensionObject additionalHeader)
         {
-            if (additionalHeader.TryGetEncodeable(out AdditionalParametersType parameters))
+            if (additionalHeader.TryGetValue(out AdditionalParametersType parameters))
             {
                 parameters = CreateSessionProcessAdditionalParameters(session, parameters);
             }
@@ -643,7 +643,7 @@ namespace Opc.Ua.Server
             ISession session,
             ExtensionObject additionalHeader)
         {
-            if (additionalHeader.TryGetEncodeable(out AdditionalParametersType parameters))
+            if (additionalHeader.TryGetValue(out AdditionalParametersType parameters))
             {
                 parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
             }
@@ -1265,7 +1265,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                if (historyReadDetails.TryGetEncodeable(out ReadEventDetails _))
+                if (historyReadDetails.TryGetValue(out ReadEventDetails _))
                 {
                     ValidateOperationLimits(
                         nodesToRead,

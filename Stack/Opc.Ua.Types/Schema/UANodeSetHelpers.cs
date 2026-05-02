@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -1314,7 +1314,7 @@ namespace Opc.Ua.Export
                 definition.SymbolicName = dataType.SymbolicName;
             }
 
-            if (source.TryGetEncodeable<StructureDefinition>(out var sd) && sd != null)
+            if (source.TryGetValue<StructureDefinition>(out var sd) && sd != null)
             {
                 if (sd
                     .StructureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
@@ -1383,7 +1383,7 @@ namespace Opc.Ua.Export
                 }
             }
 
-            if (source.TryGetEncodeable<EnumDefinition>(out var ed) && ed != null)
+            if (source.TryGetValue<EnumDefinition>(out var ed) && ed != null)
             {
                 definition.IsOptionSet = ed.IsOptionSet;
 

@@ -411,7 +411,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.Executable:
-                    if (!value.TryGet(out bool executable))
+                    if (!value.TryGetValue(out bool executable))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -435,7 +435,7 @@ namespace Opc.Ua
 
                     return result!;
                 case Attributes.UserExecutable:
-                    if (!value.TryGet(out bool userExecutable))
+                    if (!value.TryGetValue(out bool userExecutable))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -668,7 +668,7 @@ namespace Opc.Ua
             Variant executable = default;
             ReadNonValueAttribute(context, Attributes.Executable, ref executable);
 
-            if (executable.TryGet(out bool exec) && !exec)
+            if (executable.TryGetValue(out bool exec) && !exec)
             {
                 return StatusCodes.BadNotExecutable;
             }
@@ -677,7 +677,7 @@ namespace Opc.Ua
             Variant userExecutable = default;
             ReadNonValueAttribute(context, Attributes.UserExecutable, ref userExecutable);
 
-            if (userExecutable.TryGet(out bool userExec) && !userExec)
+            if (userExecutable.TryGetValue(out bool userExec) && !userExec)
             {
                 return StatusCodes.BadUserAccessDenied;
             }

@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -202,7 +202,7 @@ namespace Opc.Ua
             {
                 foreach (ExtensionObject extension in m_elements[ii].FilterOperands)
                 {
-                    if (extension.TryGetEncodeable(out ElementOperand? operand) && operand != null)
+                    if (extension.TryGetValue(out ElementOperand? operand) && operand != null)
                     {
                         operand.Index++;
                     }
@@ -564,7 +564,7 @@ namespace Opc.Ua
 
                 // check that the extension object contains a filter operand.
 
-                if (!operand.TryGetEncodeable(out FilterOperand? filterOperand) ||
+                if (!operand.TryGetValue(out FilterOperand? filterOperand) ||
                     filterOperand == null)
                 {
                     operandResult = ServiceResult.Create(
@@ -614,7 +614,7 @@ namespace Opc.Ua
 
             foreach (ExtensionObject extension in FilterOperands)
             {
-                if (extension.TryGetEncodeable(out FilterOperand? operand) && operand != null)
+                if (extension.TryGetValue(out FilterOperand? operand) && operand != null)
                 {
                     operands.Add(operand);
                 }
@@ -727,7 +727,7 @@ namespace Opc.Ua
 
                     if (operands.Count > 1 && operands[1] is LiteralOperand literalOperand)
                     {
-                        if (!literalOperand.Value.TryGet(out NodeId nodeIdValue))
+                        if (!literalOperand.Value.TryGetValue(out NodeId nodeIdValue))
                         {
                             nodeIdValue = default;
                         }
@@ -1183,9 +1183,9 @@ namespace Opc.Ua
         /// <returns>LiteralOperand as a displayable string.</returns>
         public override string ToString(INodeTable nodeTable)
         {
-            if (!Value.TryGet(out NodeId nodeId))
+            if (!Value.TryGetValue(out NodeId nodeId))
             {
-                if (Value.TryGet(out ExpandedNodeId expandedNodeId))
+                if (Value.TryGetValue(out ExpandedNodeId expandedNodeId))
                 {
                     nodeId = (NodeId)expandedNodeId;
                 }

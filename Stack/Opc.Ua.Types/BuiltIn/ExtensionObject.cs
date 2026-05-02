@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -243,7 +243,7 @@ namespace Opc.Ua
                     XmlElement x =>
                         x == (value.TryGetAsXml(out XmlElement x2) ? x2 : default),
                     IEncodeable e => e.IsEqual(
-                        value.TryGetEncodeable(out IEncodeable? e2) ? e2 : default),
+                        value.TryGetValue(out IEncodeable? e2) ? e2 : default),
                     _ => false
                 };
             }
@@ -325,7 +325,7 @@ namespace Opc.Ua
         /// <summary>
         /// Try get encodeable from the extension object
         /// </summary>
-        public bool TryGetEncodeable(
+        public bool TryGetValue(
             [NotNullWhen(true)] out IEncodeable? encodeable,
             IServiceMessageContext? messageContext = null)
         {
@@ -350,12 +350,12 @@ namespace Opc.Ua
         /// Get encoded value
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public bool TryGetEncodeable<T>(
+        public bool TryGetValue<T>(
             [NotNullWhen(true)] out T? encodeable,
             IServiceMessageContext? messageContext = null)
             where T : IEncodeable
         {
-            if (TryGetEncodeable(out IEncodeable? e, messageContext) &&
+            if (TryGetValue(out IEncodeable? e, messageContext) &&
                 e is T typedEncodeable)
             {
                 encodeable = typedEncodeable;
@@ -465,7 +465,7 @@ namespace Opc.Ua
             var output = new T[extensions.Count];
             for (int ii = 0; ii < output.Length; ii++)
             {
-                if (extensions[ii].TryGetEncodeable(out IEncodeable? element) &&
+                if (extensions[ii].TryGetValue(out IEncodeable? element) &&
                     element is T typedElement)
                 {
                     output[ii] = typedElement;

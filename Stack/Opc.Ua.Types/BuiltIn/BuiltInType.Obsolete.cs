@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -163,7 +163,7 @@ namespace Opc.Ua
                 for (int ii = 0; ii < extensions.Length; ii++)
                 {
                     if (extensions.GetValue(ii) is ExtensionObject e &&
-                        e.TryGetEncodeable(out IEncodeable? element) &&
+                        e.TryGetValue(out IEncodeable? element) &&
                         element is T typedElement)
                     {
                         list.Add(typedElement);
@@ -196,7 +196,7 @@ namespace Opc.Ua
                 for (int ii = 0; ii < output.Length; ii++)
                 {
                     if (extensions.GetValue(ii) is ExtensionObject e &&
-                        e.TryGetEncodeable(out IEncodeable? element) &&
+                        e.TryGetValue(out IEncodeable? element) &&
                         elementType.IsInstanceOfType(element))
                     {
                         output.SetValue(element, ii);

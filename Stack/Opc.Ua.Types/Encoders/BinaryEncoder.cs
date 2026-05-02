@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -848,7 +848,7 @@ namespace Opc.Ua
             // write the type id.
             ExpandedNodeId typeId = value.TypeId;
 
-            if (value.TryGetEncodeable(out IEncodeable? encodeable))
+            if (value.TryGetValue(out IEncodeable? encodeable))
             {
                 typeId = encodeable!.BinaryEncodingId;
             }

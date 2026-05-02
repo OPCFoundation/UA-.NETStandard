@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -140,7 +140,7 @@ namespace Opc.Ua
                     break;
                 case Type t when typeof(IEncodeable).IsAssignableFrom(t):
                     if (!value.GetExtensionObject()
-                        .TryGetEncodeable(out IEncodeable? encodeable))
+                        .TryGetValue(out IEncodeable? encodeable))
                     {
                         result = default!;
                         return false;
@@ -377,7 +377,7 @@ namespace Opc.Ua
                     var encodeables = new IEncodeable[extensionObjects.Count];
                     for (int ii = 0; ii < encodeables.Length; ii++)
                     {
-                        if (!extensionObjects[ii].TryGetEncodeable(out IEncodeable? e))
+                        if (!extensionObjects[ii].TryGetValue(out IEncodeable? e))
                         {
                             result = default!;
                             return false;

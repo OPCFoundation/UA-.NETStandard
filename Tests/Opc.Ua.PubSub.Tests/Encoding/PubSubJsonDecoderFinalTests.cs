@@ -749,7 +749,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             NodeId val = decoder.ReadNodeId("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.TryGetIdentifier(out uint id), Is.True);
+            Assert.That(val.TryGetValue(out uint id), Is.True);
             Assert.That(id, Is.EqualTo((uint)1234));
         }
 

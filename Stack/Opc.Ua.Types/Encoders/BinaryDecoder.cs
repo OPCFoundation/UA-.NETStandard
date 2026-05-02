@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -937,7 +937,7 @@ namespace Opc.Ua
             where T : IEncodeable
         {
             ExtensionObject extensionObject = ReadExtensionObject(fieldName);
-            if (extensionObject.TryGetEncodeable(out T? value))
+            if (extensionObject.TryGetValue(out T? value))
             {
                 return value!;
             }
